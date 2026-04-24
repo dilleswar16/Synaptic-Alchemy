@@ -1,0 +1,11 @@
+# Azure Monitor alert ingestion settings
+# Configure the Azure Action Group webhook to point to:
+#   POST https://<your-api>/triggers/azure-alert
+
+# Optional HMAC secret for verifying webhook authenticity.
+# Env var: AZURE_ALERTS_WEBHOOK_SECRET
+webhook_secret: "${AZURE_ALERTS_WEBHOOK_SECRET}"
+
+# Optional list of alert rule name prefixes to accept.
+# Empty list means all alert rules are accepted.
+accepted_alert_rule_prefixes: []

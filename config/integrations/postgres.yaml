@@ -1,0 +1,14 @@
+# Postgres persistence settings
+# Credentials are bound from environment variables – never hardcode them here.
+
+# Env vars: METGUARD_DB_HOST, METGUARD_DB_NAME, METGUARD_DB_USER, METGUARD_DB_PASSWORD
+host: "${METGUARD_DB_HOST}"
+port: 5432
+database: "${METGUARD_DB_NAME}"
+user: "${METGUARD_DB_USER}"
+password: "${METGUARD_DB_PASSWORD}"
+
+# SQLAlchemy connection pool settings.
+pool_size: 5
+max_overflow: 10
+pool_timeout_seconds: 30

@@ -1,0 +1,263 @@
+# Corvin Progress
+
+## Status Legend
+
+- [ ] Not started
+- [~] In progress
+- [x] Complete
+
+## Current Goal
+
+**Active: V1 – complete (all slices done).**  Slice 10 complete.  All scaffold gaps resolved (GAP-1 through GAP-7).  155 tests pass.  Interactive rich REPL CLI complete.  V1 exit criteria met: CLI, API, web app, and Teams can all trigger an investigation; Azure alert ingestion route exists; structured RCA and fix strategy are produced and persisted.
+
+> **CLI change (post-V1 polish):** The one-shot Typer CLI has been replaced with a fully interactive rich REPL (like Claude Code / Codex style). Entry point is still `corvin`. Commands inside the shell: `investigate`, `list`, `show <id>`, `health`, `clear`, `help`, `exit`. Uses `rich>=13.7.0` and `prompt_toolkit>=3.0.0`. All CLI tests updated to call command functions directly via `monkeypatch` + `StringIO` console capture.
+
+> **Model config change (post-V1 polish):** `config/models/llm.yaml` updated to use `azure/gpt-4o` (primary) and `azure/gpt-4o-mini` (fallback) — LiteLLM Azure routing prefix added.
+
+> **Folder structure change (post-GAP-7):** `runbooks/` and `data/learnings/` have been merged into `knowledge/` subfolders. The repo root now has a single `knowledge/` folder containing `site.md`, `runbooks/`, and `learnings/`. Config paths updated in `config/tools/knowledge.yaml`. `knowledge_loader.py` docstring updated. All references to the old `runbooks/` and `data/` root folders are now invalid.
+
+---
+
+## Scaffold Review Gaps (found in pack review — must fix before Slice 2b)
+
+These items were identified as missing from the initial scaffold. Fix all of them in sequence before wiring real adapters.
+
+### GAP-1 ✅ `corvin/storage/` module
+- Created `corvin/storage/__init__.py`, `corvin/storage/models.py` (SQLAlchemy ORM), `corvin/storage/db.py` (engine/session factory).
+
+### GAP-2 ✅ `alembic/` folder initialized
+- Ran `alembic init alembic`, wired `env.py` to Corvin ORM base and engine.
+- Created manual initial migration: `alembic/versions/0001_create_initial_tables.py`.
+
+### GAP-3 ✅ Azure Activity Log evidence adapter
+- Created `corvin/evidence/azure_activity_adapter.py` (stub, matching adapter interface).
+- Wired into `EnrichmentService` and `EvidenceBundle.azure_activity_changes`.
+- Added adapter stub test.
+
+### GAP-4 ✅ `config/integrations/azure_activity.yaml`
+- Created alongside GAP-3.
+
+### GAP-5 ✅ Knowledge layer
+- Created `knowledge/site.md` (static infra facts).
+- Created `runbooks/README.md`, `runbooks/apim-5xx.md`, `runbooks/aks-crashloop.md`.
+- Created `data/learnings/general.md`.
+- Created `config/tools/knowledge.yaml`.
+- Created `corvin/core/knowledge_loader.py` (site knowledge, runbook matching, learnings loading).
+
+### GAP-6 ✅ Web app detail and fix strategy pages
+- Created `InvestigationDetailPage.tsx` and `FixStrategyPage.tsx`.
+- Added routes `/investigations/:id` and `/investigations/:id/fix-strategy` in `App.tsx`.
+
+### GAP-7 ✅ Toolset registry
+- Created `corvin/toolsets/__init__.py`, `base.py` (`Toolset` ABC with `get_tools`, `execute`, `check_prerequisites`), `registry.py` (`@register_toolset` decorator, `get_enabled_toolsets`).
+- Created six toolset stubs: `elastic.py`, `log_analytics.py`, `aks.py`, `azure_activity.py`, `knowledge.py`, `runbooks.py`.
+- Created `runbooks/catalog.json` with two entries: `apim-5xx` and `aks-crashloop`.
+- Created `config/tools/toolsets.yaml` with per-toolset `enabled` flags.
+
+### GAP-8 🟡 Azure Cost Management scheduler not planned
+- V2 item. Documented in `versions/v2/01_scope_and_capabilities.md` and `03_architecture.md`.
+- Nothing to build yet. Flagged so it is not forgotten when V2 starts.
+
+## V1 Build Tasks
+
+### Foundation (Slice 0 – complete)
+- [x] Root project files: `pyproject.toml`, `docker-compose.yml`, `.env.example`
+- [x] `corvin/core/contracts.py` – all shared Pydantic models
+- [x] `corvin/core/config_loader.py` – YAML config loader with env overlay
+- [x] `corvin/triggers/azure_alert.py` – Azure alert normalization adapter
+- [x] `corvin/evidence/elastic_adapter.py` – Elastic stub
+- [x] `corvin/evidence/log_analytics_adapter.py` – Log Analytics stub
+- [x] `corvin/evidence/aks_adapter.py` – AKS stub
+- [x] `corvin/enrich/enrichment_service.py` – enrichment orchestrator
+- [x] `corvin/strategy/rca_generator.py` – RCA generator stub
+- [x] `corvin/strategy/fix_strategy_generator.py` – fix strategy stub
+- [x] `corvin/delivery/teams_adapter.py` – Teams delivery stub
+- [x] `apps/api/` – FastAPI app with `/investigations` and `/triggers` routes
+- [x] `apps/cli/` – Typer CLI with `investigate` and `health` commands
+- [x] `apps/web/` – React + Vite + TanStack Query scaffold
+- [x] `config/` – All config YAML files (models, integrations, tools, policies, environments)
+- [x] `tests/contracts/` – Contract model tests (14 tests)
+- [x] `tests/adapters/` – Adapter stub tests (4 tests)
+- [x] `tests/slices/` – Slice 1 trigger normalization tests (9 tests) + Slice 2 enrichment tests (3 tests)
+
+### Slice 1 – Azure alert normalization (complete, 9 tests pass)
+- [x] `normalize_azure_alert` produces correct InvestigationRequest from Common Alert Schema
+- [x] Handles missing fields gracefully
+
+### Slice 2 – Enrichment service graceful degradation (complete, 3 tests pass)
+- [x] EnrichmentService returns empty bundle when all adapters are stubs
+- [x] EnrichmentService populates bundle when fake adapters are injected
+
+### GAP fixes (complete ✅)
+- [x] GAP-1 + GAP-2: `corvin/storage/` + alembic init + initial migration
+- [x] GAP-3 + GAP-4: `corvin/evidence/azure_activity_adapter.py` + `config/integrations/azure_activity.yaml`
+- [x] GAP-5: `knowledge/site.md`, `runbooks/` stubs, `data/learnings/general.md`, `config/tools/knowledge.yaml`, `corvin/core/knowledge_loader.py`
+- [x] GAP-6: `InvestigationDetailPage.tsx`, `FixStrategyPage.tsx`, wired routes in `App.tsx`
+- [x] GAP-7: `corvin/toolsets/` with `base.py`, `registry.py`, six stubs; `runbooks/catalog.json`; `config/tools/toolsets.yaml`
+
+### Slice 2b – Elastic adapter wire-up ✅
+- [x] Implemented `ElasticAdapter.get_logs` and `get_metrics` with elasticsearch-py
+- [x] `environment` is an optional filter; `${ELASTIC_HOST}` / `${ELASTIC_API_KEY}` expanded from env vars
+- [x] Graceful degradation: connection errors log a warning and return `[]`
+- [x] `ElasticToolset` schemas updated to expose `environment` parameter
+- [x] 7 new Slice 2b tests in `tests/slices/test_slice2b_elastic_adapter.py`; 37/37 pass
+
+### Slice 3 – Log Analytics APIM adapter ✅
+- [x] Implemented `LogAnalyticsAdapter.get_apim_logs` with `LogsQueryClient` + `ClientSecretCredential`
+- [x] `environment` is an optional KQL filter; `${AZURE_*}` placeholders expanded from env vars
+- [x] Client built once in `__init__`; empty/invalid credentials produce a `None` client and graceful `[]` return
+- [x] `LogAnalyticsToolset` schema updated to expose `environment` parameter
+- [x] `azure-identity>=1.15.0` added to `pyproject.toml` dependencies
+- [x] 8 new Slice 3 tests in `tests/slices/test_slice3_log_analytics_adapter.py`; 45/45 pass
+
+### Slice 4 – AKS context adapter ✅
+- [x] Implemented `AKSAdapter.get_pod_context` with `CoreV1Api` + `AppsV1Api` (kubernetes-client)
+- [x] Supports `kube_config_path` (local) and `in_cluster: true` mode; clients built once in `__init__`
+- [x] Returns `{pods, events, deployment}` dict; events filtered to service name; missing deployment returns `None` without crash
+- [x] `namespace` optional param added; falls back to `default_namespace` from config
+- [x] `AKSToolset` schema updated to expose `namespace` as optional parameter
+- [x] `kubernetes>=29.0.0` added to `pyproject.toml` dependencies
+- [x] 9 new Slice 4 tests in `tests/slices/test_slice4_aks_adapter.py`; 54/54 pass
+
+### Slice 4b – Azure Activity Log adapter ✅
+- [x] Implemented `AzureActivityAdapter.get_recent_changes` with `LogsQueryClient` + `ClientSecretCredential`
+- [x] `environment` optional param added (interface parity); `${AZURE_*}` placeholders expanded from env vars
+- [x] Client built once in `__init__`; empty/invalid credentials log a warning and return `[]`
+- [x] Added `workspace_id` field to `config/integrations/azure_activity.yaml`
+- [x] `AzureActivityToolset` schema updated to expose `environment` parameter
+- [x] 9 new Slice 4b tests in `tests/slices/test_slice4b_azure_activity_adapter.py`; 63/63 pass
+
+### Slice 5 – Knowledge layer injection ✅
+- [x] Created `corvin/investigation/prompt_builder.py` (`PromptBuilder` class: loads site knowledge, matches catalog-driven runbooks, appends learnings)
+- [x] `PromptBuilder` injected into `InvestigationEngine` as optional constructor param; `build(request)` called before RCA stub
+- [x] Runbook matching now reads `knowledge/runbooks/catalog.json` and forwards raw alert rule/title metadata from Azure alert payloads
+- [x] Runbook section includes precedence note; empty sections skipped cleanly
+- [x] 14 Slice 5 tests in `tests/slices/test_slice5_knowledge_injection.py`; 77/77 pass
+
+### Slice 6 – Investigation engine + LLM ✅
+- [x] Wired `RCAGenerator.generate` to LiteLLM using the configured primary model, with one retry on `fallback_model`
+- [x] RCA uses deterministic messages: system prompt from `PromptBuilder`, user payload with serialized request/evidence and explicit `RCAOutput` JSON instructions
+- [x] Enforced `require_evidence_before_rca`: structured-but-empty evidence returns deterministic low-confidence RCA without calling LiteLLM
+- [x] Wired `FixStrategyGenerator.generate` to LiteLLM using serialized request + RCA context and `FixStrategyOutput` JSON instructions
+- [x] Enforced `fix_strategy_max_actions` and V1 `review_only` policy (`requires_approval = true` for all actions)
+- [x] `InvestigationEngine.run()` now passes the built system prompt into RCA generation
+- [x] Added 7 Slice 6 tests in `tests/slices/test_slice6_llm_generation.py`; 84/84 pass
+- [x] **Review-fix:** Both generators now read `LITELLM_ENDPOINT` / `LITELLM_API_KEY` from environment and forward them as `api_base` / `api_key` to `litellm.completion`
+- [x] **Review-fix:** Both generators now set `response_format` with `json_schema` type and the relevant Pydantic schema so the model is constrained to the output shape
+- [x] **Review-fix:** Both generators now handle the `.parsed` structured-output path in addition to the text JSON path
+- [x] **Review-fix:** 6 additional tests cover proxy forwarding, structured-output mode, and parsed-path handling; 90/90 pass
+
+### Slice 7 – RCA and fix strategy contract validation ✅
+- [x] 21 focused contract-validation tests in `tests/slices/test_slice7_contract_validation.py`
+- [x] RCAOutput: valid-payload acceptance, enum preservation, auto-populated timestamps, contributing_factors and evidence_references defaults
+- [x] RCAOutput: missing summary / root_cause / request_id rejected; invalid confidence value rejected
+- [x] FixStrategyOutput: valid-payload acceptance with FixAction, empty actions list, auto-populated timestamp
+- [x] FixAction: requires_approval defaults True; can be set False; invalid risk_level rejected; missing title rejected
+- [x] FixStrategyOutput: missing summary / justification rejected
+- [x] Generator-level: RCAGenerator surfaces ValidationError on malformed LiteLLM response (not swallowed)
+- [x] Generator-level: FixStrategyGenerator surfaces ValidationError on malformed LiteLLM response (not swallowed)
+- [x] No production behavior changed; slice is contract-validation coverage only; 111/111 pass
+
+### Slice 8 – Postgres persistence ✅
+- [x] Added `JSONB_COMPAT = JSONB().with_variant(JSON(), "sqlite")` to `models.py`; all JSONB columns switched to `JSONB_COMPAT` (SQLite in-memory for tests, JSONB on Postgres)
+- [x] Added `EvidenceBundleRow` ORM model with `request_id` PK+FK and 5 JSONB list/dict fields + `collected_at`; bidirectional relationship on `InvestigationRequestRow.evidence`
+- [x] Created `alembic/versions/0002_add_evidence_bundle_table.py` (down_revision 0001); creates `evidence_bundles` table; additive only
+- [x] Created `corvin/storage/repository.py`: `InvestigationRepository` with injectable `session_factory`, `save_investigation_result`, `get_investigation_result`, `_upsert_by_request_id` helper; module-level convenience functions
+- [x] `save` uses `session.merge()` for string-PK rows (request, evidence) and query-then-upsert for auto-increment-PK rows (rca, fix_strategy)
+- [x] `get` reconstructs all four Pydantic contracts from ORM rows via `model_validate`
+- [x] 12 Slice 8 tests in `tests/slices/test_slice8_persistence.py` (SQLite in-memory, no real Postgres required); 123/123 pass
+
+### Slice 9 – REST API and CLI flows ✅
+- [x] `apps/api/routes/investigations.py`: added `get_engine()` and `get_repository()` dependency providers (overridable in tests)
+- [x] `POST /investigations/` now runs `InvestigationEngine.run()`, persists via `InvestigationRepository`, returns real `request_id` and `status="completed"`
+- [x] `GET /investigations/{request_id}` loads full `InvestigationResult` from repository; returns HTTP 404 if not found
+- [x] `apps/cli/main.py` `investigate` command updated: POST → extract `request_id` → GET → print `request_id`, `rca.summary`, `rca.confidence`, `fix.summary`; graceful handling of `ConnectError` and `HTTPStatusError`
+- [x] Trigger routes untouched (Slice 9 scope is manual API + CLI only)
+- [x] 12 Slice 9 tests in `tests/slices/test_slice9_api_cli.py` using `TestClient` + `dependency_overrides` for routes and mocked `httpx` for CLI; 143/143 pass
+
+### Slice 10 – Web app and Teams ✅
+- [x] `corvin/storage/repository.py`: added `list_investigations()` — queries only `investigation_requests`, returns lightweight summary dicts ordered newest-first
+- [x] `apps/api/routes/investigations.py`: added `GET /` list endpoint; added `get_teams_adapter()` injectable dependency; `POST /` now calls `teams.send_result(result)` after persistence; Teams failure is non-fatal (caught, logged, response still 200)
+- [x] `corvin/delivery/teams_adapter.py`: implemented `send_result()` — builds an Adaptive Card envelope (type=message + adaptive card attachment) with service/environment/confidence FactSet, RCA summary, fix strategy summary, and actions list; POSTs via `httpx`; raises `ValueError` on missing/unresolved webhook URL; no-ops when `enabled: false`
+- [x] `apps/web/src/api/client.ts`: added `InvestigationSummary` and `InvestigationResult` TypeScript interfaces; typed `fetchInvestigations` to return `InvestigationSummary[]`; added `fetchInvestigation(id)` function
+- [x] `apps/web/src/pages/InvestigationsPage.tsx`: replaced raw JSON dump with a proper investigation table (service, environment, trigger, completed time, link to detail page) and a Start Investigation form (POST → navigate to detail page on success)
+- [x] 12 Slice 10 tests in `tests/slices/test_slice10_web_teams.py`: list endpoint (empty/populated/required fields/trigger_source/growth), TeamsAdapter (card structure, service+RCA in body, disabled no-call, missing URL, unresolved placeholder), route integration (spy verifies send_result called, Teams failure does not break route); 155/155 pass
+
+## V1 Exit Criteria
+- [ ] CLI, API, web app, and Teams can all start an investigation
+- [ ] Azure alerts auto-trigger the flow
+- [ ] Structured RCA and fix strategy produced and persisted
+- [ ] Key slices have isolated tests
+
+## Build Tasks (Pack – historical)
+
+- [x] Finalize pack structure
+- [x] Create export progress tracker
+- [x] Write workspace instructions
+- [x] Write scoped instructions
+- [x] Write reusable prompts
+- [x] Write shared context docs
+- [x] Write V1 plan docs
+- [x] Write V2 plan docs
+- [x] Write V3 plan docs
+- [x] Write config blueprints
+- [x] Review pack consistency
+- [x] Prepare exportable bundle
+
+## Session Log
+
+| Session | Date | Item | Notes |
+|---------|------|------|-------|
+| 1 | 2026-04-04 | Pack structure | Created exportable folder layout for `.github`, shared docs, version docs, and config blueprints |
+| 1 | 2026-04-04 | Root files | Added the export pack README and the pack progress tracker |
+| 1 | 2026-04-04 | Instruction layer | Added the workspace instruction file and five scoped instruction files |
+| 1 | 2026-04-04 | Prompt layer | Added reusable prompts for next slice, adapter work, capability delivery, readiness review, and slice-level testing |
+| 1 | 2026-04-04 | Shared docs part 1 | Added product overview, target stack, architecture, trigger matrix, workflow, and configurability docs |
+| 1 | 2026-04-04 | Shared docs part 2 | Added evidence, surfaces, output contracts, testing, repo structure, and open-decision docs |
+| 1 | 2026-04-04 | Version docs | Added V1, V2, and V3 scope documents plus build sequencing and exit criteria |
+| 1 | 2026-04-04 | Config blueprints | Added configuration layout, integration files, tool and policy blueprints, and environment strategy docs |
+| 1 | 2026-04-04 | Consistency pass | Checked the pack for version and scope mismatches, then corrected the remaining Teams surface inconsistency |
+| 1 | 2026-04-04 | Export bundle | Added `BUNDLE_MANIFEST.md` and completed the exportable Corvin context pack |
+| 1 | 2026-04-04 | Stack clarification | Added explicit LiteLLM, custom-orchestration, and future LangGraph guidance to the shared docs |
+| 2 | 2026-04-04 | V1 scaffold | Created full V1 repository scaffold: corvin, apps (api/cli/web), config, tests; 26/26 tests pass |
+| 2 | 2026-04-04 | GAP fixes | Resolved GAP-1 through GAP-6: storage+alembic, Azure Activity adapter, knowledge layer, web detail pages; 30/30 tests pass |
+| 2 | 2026-04-04 | GAP-7 | Toolset registry: base, registry, 6 stubs, catalog.json, toolsets.yaml; 30/30 tests pass |
+| 3 | 2026-04-04 | Slice 2b | Wired ElasticAdapter (get_logs + get_metrics), updated ElasticToolset schemas, 7 new tests; 37/37 pass |
+| 3 | 2026-04-04 | Slice 3 | Wired LogAnalyticsAdapter (get_apim_logs), updated LogAnalyticsToolset schemas, 8 new tests, added azure-identity dep; 45/45 pass |
+| 3 | 2026-04-04 | Slice 4 | Wired AKSAdapter (get_pod_context), updated AKSToolset schemas, 9 new tests, added kubernetes dep; 54/54 pass |
+| 3 | 2026-04-04 | Slice 4b | Wired AzureActivityAdapter (get_recent_changes), updated toolset schema, added workspace_id to yaml, 9 new tests; 63/63 pass |
+| 4 | 2026-04-04 | Slice 5 | Created PromptBuilder, fixed catalog-driven runbook matching and raw alert-rule forwarding, wired into InvestigationEngine, 14 Slice 5 tests; 77/77 pass |
+| 5 | 2026-04-04 | Slice 6 | Wired RCA and fix strategy generation to LiteLLM, enforced no-evidence and review-only policies, passed system prompt into RCA, added 7 Slice 6 tests; 84/84 pass |
+| 5 | 2026-04-04 | Slice 6 review-fix | Added proxy kwargs (LITELLM_ENDPOINT/API_KEY), json_schema structured output mode, parsed-response path handling; 6 more tests; 90/90 pass |
+| 6 | 2026-04-04 | Slice 7 | Created test_slice7_contract_validation.py with 21 contract-validation tests for RCAOutput, FixStrategyOutput, FixAction, and generator malformed-response handling; 111/111 pass |
+| 7 | 2026-04-04 | Slice 8 | Added JSONB_COMPAT, EvidenceBundleRow ORM model, 0002 Alembic migration, InvestigationRepository (save+get+upsert helper), 12 SQLite-backed persistence tests; 123/123 pass |
+| 7 | 2026-04-04 | Slice 8 findings | Fixed completed_at data loss (0003 migration, _as_utc normalisation, round-trip tests); enforced request-id invariant in save (ValueError + 5 new tests); 131/131 pass |
+| 8 | 2026-04-04 | Slice 9 | Wired POST /investigations/ and GET /investigations/{id} with injectable engine+repo deps; updated CLI to POST then GET and print RCA+fix fields; 12 API/CLI tests; 143/143 pass |
+| 9 | 2026-04-04 | Slice 10 | Added GET /investigations/ list endpoint; implemented TeamsAdapter Adaptive Card delivery with injectable dep and non-fatal failure handling; wired web list page with real table + start investigation form; typed API client; 12 new tests; 155/155 pass |
+| 10 | 2026-04-04 | Post-V1 CLI polish | Replaced one-shot Typer CLI with interactive rich REPL (prompt_toolkit + pyfiglet); fixed banner rendering (no Panel, left-aligned, highlight=False); Ctrl+C cancels command not shell; `clear` uses os.system("cls"); CLI tests rewritten to call functions directly |
+| 10 | 2026-04-04 | Setup guides | Created setup/ folder with 4 Azure environment setup guides (Azure OpenAI, Log Analytics, Elastic, .env template) |
+| 10 | 2026-04-04 | MetGuard → Corvin rename | Renamed mgplatform/ → corvin/, updated pyproject.toml, API title, CLI banner and prompt; deleted ghost mgplatform/ folder; 155/155 pass confirmed |
+
+## Resume Notes
+
+If work stops mid-way:
+
+1. Read this file first.
+2. Find the first unchecked slice in the V1 Build Tasks section above.
+3. Read `docs/copilot-context/versions/v1/02_build_sequence_and_exit_criteria.md` for slice ordering.
+4. Update the task list and session log after each major file batch.
+
+### Package naming note
+The Python package for the control-plane logic is named `corvin/` (not `platform/`)
+to avoid shadowing the Python standard library `platform` module.
+The folder structure otherwise matches the repo blueprint in `docs/copilot-context/shared/11_repo_structure_blueprint.md`.
+
+### Project rename note (post-V1)
+The project was renamed from **MetGuard** to **Corvin**:
+- `mgplatform/` → `corvin/` (all imports updated to `corvin.*`)
+- `pyproject.toml`: `name = "corvin"`, entry point `corvin = "apps.cli.main:app"`
+- `apps/api/main.py`: API title updated to "Corvin API"
+- `apps/cli/main.py`: banner updated to `CORVIN`; prompt updated to `corvin›`
+- Ghost `mgplatform/` folder confirmed deleted
+- Install sequence: `pip install hatchling` first, then `pip install -e .` (corp proxy constraint)
+- **All 155 tests pass after rename** (verified 2026-04-04)

@@ -1,0 +1,17 @@
+# Local development environment overrides.
+# Applied on top of base config files when METGUARD_ENV=local.
+# Values here take precedence over config/<concern>.yaml defaults.
+
+postgres:
+  host: localhost
+  port: 5432
+  database: corvin
+  user: corvin
+  password: changeme
+
+elastic:
+  host: "http://localhost:9200"
+  api_key: ""
+
+teams:
+  enabled: false

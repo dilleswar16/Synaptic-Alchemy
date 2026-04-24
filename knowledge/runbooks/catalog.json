@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "keyword": "apim-5xx",
+      "title": "APIM 5xx Spike Investigation",
+      "file": "runbooks/apim-5xx.md",
+      "match_patterns": ["apim", "5xx", "gateway", "apimanagement", "api management"]
+    },
+    {
+      "keyword": "aks-crashloop",
+      "title": "AKS Pod CrashLoopBackOff Investigation",
+      "file": "runbooks/aks-crashloop.md",
+      "match_patterns": ["crashloop", "crashloopbackoff", "pod", "oomkilled", "restart", "crash"]
+    }
+  ]
+}

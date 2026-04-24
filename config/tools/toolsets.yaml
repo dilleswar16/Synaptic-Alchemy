@@ -1,0 +1,23 @@
+# Toolset enablement flags.
+# Set enabled: false to disable a toolset for the investigation engine LLM.
+# All toolsets are enabled by default when this file is absent or when a
+# toolset key is missing.
+
+toolsets:
+  elastic:
+    enabled: true
+
+  log_analytics:
+    enabled: true
+
+  aks:
+    enabled: true
+
+  azure_activity:
+    enabled: true
+
+  knowledge:
+    enabled: true
+
+  runbooks:
+    enabled: true

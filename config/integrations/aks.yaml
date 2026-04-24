@@ -1,0 +1,19 @@
+# AKS integration settings
+# Credentials are bound from environment variables – never hardcode them here.
+
+# AKS cluster resource details.
+cluster_name: "your-aks-cluster"
+resource_group: "your-resource-group"
+
+# Env var: AZURE_SUBSCRIPTION_ID
+subscription_id: "${AZURE_SUBSCRIPTION_ID}"
+
+# Path to kubeconfig for local development.
+# Leave blank to use in-cluster config when running inside AKS.
+kube_config_path: "~/.kube/config"
+
+# Default namespace used when service namespace cannot be inferred.
+default_namespace: "default"
+
+# How far back to fetch pod events (minutes).
+events_lookback_minutes: 60

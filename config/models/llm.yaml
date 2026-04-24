@@ -1,0 +1,23 @@
+# LLM provider and model configuration
+# Replace these values for your environment.
+# API keys and endpoints are bound from environment variables – never hardcode them here.
+
+provider: litellm
+
+# Primary model used for RCA and fix strategy generation.
+model: azure/gpt-4o
+
+# Fallback model when the primary is unavailable or rate-limited.
+# gpt-4o-mini is the recommended Azure OpenAI fallback as of 2026 —
+# gpt-4-turbo is being retired from Azure capacity.
+fallback_model: azure/gpt-4o-mini
+
+# Controls LLM output determinism (lower = more focused).
+temperature: 0.1
+
+# Token ceiling for investigation engine responses.
+max_tokens: 4096
+
+# LiteLLM endpoint and API key are injected via environment variables:
+#   LITELLM_ENDPOINT
+#   LITELLM_API_KEY

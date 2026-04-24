@@ -1,0 +1,14 @@
+# Default query parameters for evidence adapters.
+# Adapters fall back to these values when no explicit override is provided.
+
+# Maximum number of log lines to retrieve per evidence query.
+log_tail_lines: 1000
+
+# Metrics time-bucket resolution (minutes).
+metrics_resolution_minutes: 5
+
+# How far back to fetch AKS pod events (minutes).
+aks_events_lookback_minutes: 60
+
+# HTTP request timeout for all adapter outbound calls (seconds).
+http_timeout_seconds: 15

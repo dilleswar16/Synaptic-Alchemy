@@ -1,0 +1,21 @@
+# Knowledge and runbook paths for the investigation engine system prompt builder.
+# All paths are relative to the project root.
+
+# Path to the site knowledge base file.
+# Injected into every investigation system prompt.
+knowledge_path: "knowledge/site.md"
+
+# Path to the runbook folder.
+# Runbooks are matched by keyword from alert description/rule name.
+runbooks_path: "knowledge/runbooks"
+
+# Path to the learnings folder.
+# All .md files in this folder are loaded and injected as context.
+learnings_path: "knowledge/learnings"
+
+# Maximum characters to include from learnings before truncating.
+# Prevents context window overflow on large learnings files.
+learnings_max_chars: 4000
+
+# Maximum characters per matched runbook to inject.
+runbook_max_chars: 3000

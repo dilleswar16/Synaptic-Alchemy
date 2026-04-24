@@ -1,0 +1,19 @@
+# Investigation engine policy settings.
+# Adjust these to tune investigation behavior without touching core logic.
+
+# Maximum number of evidence items passed to the investigation engine.
+max_evidence_items: 500
+
+# Minimum confidence level required before RCA is surfaced to operators.
+# Values: high, medium, low
+rca_confidence_threshold: medium
+
+# Maximum number of fix actions included in a fix strategy output.
+fix_strategy_max_actions: 5
+
+# Require at least one evidence source to contain data before generating RCA.
+require_evidence_before_rca: true
+
+# V1 only: fix strategies are informational and require human review.
+# Do not change to 'auto' in V1.
+fix_execution_mode: review_only
