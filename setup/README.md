@@ -5,10 +5,11 @@ what values to copy, and where to put them.
 
 | # | Guide | What it covers |
 |---|-------|----------------|
-| 1 | [01_azure_openai.md](01_azure_openai.md) | Create Azure OpenAI resource, deploy gpt-4o, get API key |
+| 1 | [01_azure_openai.md](01_azure_openai.md) | Azure AI Foundry setup, deploy gpt-4.1, get API key |
 | 2 | [02_log_analytics.md](02_log_analytics.md) | Create Log Analytics workspace, create service principal, grant access |
 | 3 | [03_elastic.md](03_elastic.md) | Point Corvin at your existing Elastic cluster (Elastic Cloud or self-hosted) |
 | 4 | [04_env_file.md](04_env_file.md) | Fill in your `.env` file with all collected values and start the app |
+| 5 | [05_aks.md](05_aks.md) | Connect Corvin to your AKS cluster, verify kubeconfig, update site.md |
 
 ## Prerequisites
 
