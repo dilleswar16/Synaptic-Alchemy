@@ -125,11 +125,14 @@ class RCAGenerator:
 
         endpoint = os.environ.get("LITELLM_ENDPOINT", "").strip()
         api_key = os.environ.get("LITELLM_API_KEY", "").strip()
+        api_version = os.environ.get("AZURE_API_VERSION", "").strip()
 
         if endpoint:
             kwargs["api_base"] = endpoint
         if api_key:
             kwargs["api_key"] = api_key
+        if api_version:
+            kwargs["api_version"] = api_version
 
         return kwargs
 

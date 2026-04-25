@@ -5,12 +5,12 @@
 provider: litellm
 
 # Primary model used for RCA and fix strategy generation.
-model: azure/gpt-4o
+# Using azure/ prefix for classic Azure OpenAI endpoints
+# (https://<resource>.openai.azure.com/).
+model: azure/gpt-4.1-mini
 
 # Fallback model when the primary is unavailable or rate-limited.
-# gpt-4o-mini is the recommended Azure OpenAI fallback as of 2026 —
-# gpt-4-turbo is being retired from Azure capacity.
-fallback_model: azure/gpt-4o-mini
+fallback_model: azure/gpt-4.1-mini
 
 # Controls LLM output determinism (lower = more focused).
 temperature: 0.1
@@ -18,6 +18,8 @@ temperature: 0.1
 # Token ceiling for investigation engine responses.
 max_tokens: 4096
 
-# LiteLLM endpoint and API key are injected via environment variables:
-#   LITELLM_ENDPOINT
-#   LITELLM_API_KEY
+# LiteLLM endpoint, API key, and API version are injected via environment variables:
+#   LITELLM_ENDPOINT  -> api_base  (e.g. https://synaptic.services.ai.azure.com/api/projects/synaptic-project)
+#   LITELLM_API_KEY   -> api_key
+#   AZURE_API_VERSION -> api_version (e.g. 2025-01-01-preview)
+#   AZURE_AI_FOUNDRY_ENDPOINT -> reserved for future Agents integration
