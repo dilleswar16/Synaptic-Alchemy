@@ -1,32 +1,42 @@
-# Corvin V3 Scope And Capabilities
+# Corvin V3 — Scope and Capabilities
 
-## V3 Goal
+## What Is V3?
 
-V3 introduces approval-gated remediation, verification, and rollback-aware execution under strong policy control.
+V3 is the **Premium Polish & Reporting** release. It focuses on making Corvin
+visually stunning, demonstrating SRE team health trends over time, and completing
+the post-incident workflow with the auto-generated Blameless Post-Mortem.
+
+---
 
 ## V3 Focus Areas
 
-1. Execute only after explicit approval.
-2. Verify whether the approved action solved the incident.
-3. Keep auditability and policy boundaries explicit.
-4. Introduce rollback-aware behavior where needed.
+1. **Premium React Dashboard** — Full Glassmorphism / Dark Mode CSS overhaul with micro-animations, live pulsating AI activity nodes, and a premium UI that wows on first glance.
+2. **Blameless Post-Mortem Auto-Generator** — When an incident is marked Resolved, Corvin auto-generates a formatted Markdown post-mortem (detection timeline + RCA + fix + prevention steps).
+3. **Corvin Score / SRE Health Dashboard** — 30-day view of MTTR, auto-resolved vs human-resolved counts, and incident trend graphs.
 
-## V3 Required Capabilities
+---
 
-- policy-controlled execution pathways
-- execution request and execution result contracts
-- verification stage with clear success signals
-- rollback recommendation or rollback flow support
-- stronger audit trail for approval and execution decisions
+## V3 Focus Areas
 
-## V3 Safety Rule
+- Slice 1: Premium CSS design system (tokens, dark mode, glassmorphism panels)
+- Slice 2: Live AI activity visualiser — animated node graph during investigation
+- Slice 3: PostMortemService — synthesise RCA + execution timeline into Markdown doc
+- Slice 4: Post-mortem page in React UI + download as Markdown
+- Slice 5: Corvin Score dashboard page — MTTR trend, auto-resolved rate, incident volume
 
-Execution must never bypass:
+---
 
-- policy checks,
-- explicit approval,
-- post-action verification.
+## V3 Exit Criteria
 
-## V3 Product Standard
+- [ ] The React UI uses a custom CSS design system with dark mode, glassmorphism panels, and smooth animations.
+- [ ] A Post-Mortem Markdown document is auto-generated and available for download on every resolved investigation.
+- [ ] The Corvin Score dashboard shows meaningful 30-day trend data.
+- [ ] V2 and V2.5 capabilities remain fully stable.
 
-V3 should be impressive because it closes the loop safely, not because it executes aggressively.
+---
+
+## Notes
+
+V3 is the final submission version. If time is tight, prioritise the Premium UI
+overhaul (Slice 1+2) and the Post-Mortem generator (Slice 3+4) as these have
+the highest visual and storytelling impact for the hackathon judges.

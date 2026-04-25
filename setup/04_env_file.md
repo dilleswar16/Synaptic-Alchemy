@@ -21,16 +21,15 @@ Full reference:
 ```env
 # ── Runtime environment ──────────────────────────────────────────────────────
 # Use "local" for development. Controls which config/environments/ overlay loads.
-METGUARD_ENV=local
+CORVIN_ENV=local
 
 # ── Postgres ─────────────────────────────────────────────────────────────────
-# Default values work with the docker-compose.yml Postgres container.
-# Change only if you are using a remote Postgres (e.g. Azure Postgres Flexible).
-METGUARD_DB_HOST=localhost
-METGUARD_DB_PORT=5432
-METGUARD_DB_NAME=corvin
-METGUARD_DB_USER=corvin
-METGUARD_DB_PASSWORD=changeme
+# Update these values to match your Azure Database for PostgreSQL Flexible Server credentials.
+CORVIN_DB_HOST=<your-server>.postgres.database.azure.com
+CORVIN_DB_PORT=5432
+CORVIN_DB_NAME=corvin
+CORVIN_DB_USER=<your-admin-user>
+CORVIN_DB_PASSWORD=<your-admin-password>
 
 # ── Azure OpenAI (from guide 01_azure_openai.md) ─────────────────────────────
 AZURE_OPENAI_API_KEY=<Key 1 from Azure OpenAI resource → Keys and Endpoint>
@@ -59,16 +58,14 @@ az account show --query id --output tsv
 
 ---
 
-## Step 3 — Start Postgres
+## Step 3 — Ensure Postgres is accessible
 
+*If you are using Azure Database for PostgreSQL:*
+Ensure your IP address is whitelisted in the Azure Portal (Networking -> Allow public access / add client IP). You do not need to run Docker.
+
+*If you are using Local Postgres:*
 ```powershell
 docker-compose up -d
-```
-
-Verify it's running:
-```powershell
-docker ps
-# Should show: corvin-postgres   Up
 ```
 
 ---

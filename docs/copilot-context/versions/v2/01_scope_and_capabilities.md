@@ -1,75 +1,58 @@
-# Corvin V2 Scope And Capabilities
+# Corvin V2 — Scope and Capabilities
 
-## V2 Goal
+## What Is V2?
 
-V2 strengthens operator control, collaboration, and decision quality without crossing into uncontrolled execution.
+V2 is the **Human-in-the-Loop Operations** release. It takes the solid V1 engine and
+wires it to the real world — giving SREs the ability to interact with Corvin conversationally
+via MS Teams, and to approve and execute fixes directly from a Teams card.
+
+V2 must feel like a complete operational tool. An SRE should be able to receive an
+alert, investigate, chat with Corvin, approve a fix, and have it executed —
+all without leaving Microsoft Teams.
+
+---
 
 ## V2 Focus Areas
 
-1. Interactive Two-Way ChatOps targeting Teams (webhook bot integration)
-2. Approval-ready operator workflow with Human-in-the-Loop Execution
-3. Auto-Generating Blameless Post-Mortem (PDF/Markdown export upon resolution)
-4. Better correlation and change intelligence
-5. Replay and evaluation capability
-6. Premium React Dashboard (Custom CSS/Glassmorphism overhaul)
-7. Azure Cost Management daily report with anomaly detection
+1. **Two-Way ChatOps** — SREs can `@mention` Corvin in Teams to trigger investigations and ask questions.
+2. **Approve & Execute Loop** — Human-approved execution of AKS/Azure fix actions via Teams Adaptive Card button.
+3. **Streaming RCA** — Real-time token-by-token streaming of investigation reasoning to the frontend (SSE).
+
+---
 
 ## V2 Required Capabilities
 
-- Approval request objects and approval state handling
-- Better Teams interaction model
-- Web-based approval and review views
-- Change-correlation enrichment
-- Historical replay or evaluation support
-- Stronger progress and incident visibility
-- **Azure Cost Management scheduler** (see below)
+- A working `botbuilder-python` Teams bot that listens to incoming mentions.
+- An `ExecutionService` that maps `FixAction` objects to real `AKSAdapter` or Azure API calls.
+- A `requires_approval` gate: no execution fires without a human clicking "Approve" in Teams.
+- FastAPI `StreamingResponse` (SSE) endpoint for real-time RCA reasoning display.
+- Approval state (`pending`, `approved`, `rejected`, `executed`) persisted to Postgres.
 
-## Azure Cost Management Scheduler (V2)
+---
 
-A daily background report equivalent to Vishwakarma's AWS cost reporter, rebuilt for Azure.
+## V2 Testable Slices
 
-**What it does:**
-- Fetches 30-day spend from Azure Cost Management API grouped by resource/service
-- Computes daily baseline averages, week-over-week trend, month-over-month trend
-- Detects anomalies (service cost exceeds configurable threshold vs baseline)
-- For anomalous services: fetches Azure Monitor metrics that explain the billing change (request counts, DTUs, connections, bandwidth)
-- LLM analyzes all data and produces a structured cost report
-- Posts report as a Teams card + optional PDF attachment
-- Scheduled daily at a configurable UTC time (`config/policies/scheduler.yaml`)
-- Scheduled runs: only post when anomalies detected
-- On-demand runs (Teams command): always post full report
+- Slice 1: Approval state model and contracts (Pydantic + Postgres migration)
+- Slice 2: Approval UI in Teams (Adaptive Card with Approve/Reject buttons)
+- Slice 3: ExecutionService — map FixAction to AKSAdapter restart/rollback call
+- Slice 4: ChatOps webhook — two-way Teams bot listener (mention → investigate)
+- Slice 5: Streaming RCA endpoint (`/investigate/stream`) with SSE + frontend integration
 
-**What it does NOT do in V2:**
-- Does not auto-trigger a full agentic investigation (V3 option)
-- Does not execute any remediation actions
+---
 
-**Config:**
-```yaml
-# config/policies/scheduler.yaml
-cost_report:
-  enabled: true
-  schedule_utc: "06:30"
-  anomaly_threshold: 0.20   # 20% above baseline = anomaly
-  subscription_id: "<from integrations/azure_alerts.yaml>"
-```
+## V2 Exit Criteria
 
-**Implementation notes:**
-- APScheduler or a `threading.Timer` daemon thread started alongside FastAPI
-- Uses `azure-mgmt-costmanagement` or Azure Cost Management REST API
-- Same adapter pattern as evidence adapters — `CostManagementAdapter` in `corvin/evidence/`
-- Teams delivery via `TeamsAdapter` (same delivery surface as investigations)
+- [ ] SRE can `@Corvin investigate order-service` in Teams and get a real RCA card.
+- [ ] SRE can click "Approve & Execute" in Teams and the AKS pod is actually restarted.
+- [ ] No execution fires without an explicit human approval action.
+- [ ] Streaming RCA endpoint produces token-by-token output visible in the React UI.
+- [ ] All approval state transitions are persisted to Postgres correctly.
+- [ ] V1 and V1.5 capabilities remain fully stable (155+ tests pass).
+
+---
 
 ## V2 Still Excludes
 
-- broad rollback automation (unless explicitly verified and human-gated).
-
-## V2 Product Standard
-
-V2 should make Corvin feel operationally mature even before execution exists.
-
-That means:
-
-- better reviewability,
-- clearer justification,
-- stronger traceability,
-- stronger replay and evaluation support.
+- AI-driven intelligence features (memory, pattern matching, morning briefing) — these are V2.5.
+- Full UI overhaul — this is V3.
+- Broad rollback automation without explicit human gate.

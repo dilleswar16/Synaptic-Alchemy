@@ -17,11 +17,15 @@ The target workflow is:
 Trigger -> Enrich -> Investigate -> RCA -> Fix Strategy -> Human Approval -> Execute Fix -> Verify -> Learn
 
 For V1, stop at RCA plus Fix Strategy. Do not implement autonomous execution in V1.
-For V2, implement Two-Way ChatOps targeting Teams, and Human-in-the-Loop Execution (Approve & Execute via the AKSAdapter).
+For V1.5, wire all adapters to real Azure cloud services and validate end-to-end with no mocks.
+For V2, implement Two-Way ChatOps targeting Teams, Human-in-the-Loop Execution (Approve & Execute via AKSAdapter), and Streaming RCA via SSE.
+For V2.5, implement AI intelligence features: Incident Memory, Morning Briefing (Jarvis Mode), and Confidence Meter.
+For V3, implement the Premium React UI overhaul, Blameless Post-Mortem auto-generator, and Corvin Score health dashboard.
 
 ## Delivery Rules
 
-- Work version by version: V1 first, then V2, then V3.
+- Work version by version: V1 → V1.5 → V2 → V2.5 → V3.
+- Do NOT start a new version until the previous version's exit criteria are fully met.
 - Within each version, build testable slices instead of one large end-to-end flow.
 - Keep `progress.md` updated whenever a major doc set, prompt, or implementation slice is completed.
 

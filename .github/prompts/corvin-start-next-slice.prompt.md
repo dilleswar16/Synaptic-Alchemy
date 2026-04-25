@@ -24,6 +24,9 @@ Task:
 
 Constraints:
 
-- Do not jump ahead to a later version unless the current version explicitly allows it.
-- Do not mix execution-stage behavior into a version that only supports RCA plus fix strategy.
+- Do not jump ahead to a later version unless the current version's exit criteria are fully met.
+- V1.5 = real cloud integration only. No new features.
+- V2 = ChatOps + Execution + Streaming. No intelligence features.
+- V2.5 = Memory + Briefing + Confidence only. No UI overhaul.
+- V3 = UI polish + Post-Mortem + Corvin Score only.
 - Prefer one vertical slice over broad scaffolding.

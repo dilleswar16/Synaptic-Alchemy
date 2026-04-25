@@ -14,7 +14,7 @@ Read first:
 
 Task:
 
-1. Confirm whether the capability belongs in V1, V2, or V3.
+1. Confirm whether the capability belongs in V1, V1.5, V2, V2.5, or V3.
 2. If it belongs to a later version, state that clearly before making changes.
 3. Implement the capability in a testable slice.
 4. Respect current-version constraints.
@@ -22,6 +22,8 @@ Task:
 
 Do not:
 
-- pull execution into V1,
-- skip the approval stage when execution is in scope,
-- or blur fix strategy and actual fix execution.
+- pull execution into V1 or V1.5,
+- skip the approval gate when execution is in scope (V2+),
+- blur fix strategy generation and actual fix execution,
+- add ChatOps or streaming before V2,
+- add AI intelligence features (memory, briefing, confidence) before V2.5.

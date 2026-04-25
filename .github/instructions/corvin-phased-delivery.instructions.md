@@ -5,7 +5,8 @@ name: "Corvin Phased Delivery"
 # Corvin Phased Delivery Guidance
 
 - Do not attempt to build the full platform in one end-to-end pass.
-- Work from V1 to V3.
+- Work from V1 → V1.5 → V2 → V2.5 → V3.
+- Do NOT start a new version until the previous version's exit criteria are fully met.
 - Within each version, implement small slices that can be tested independently.
 
 ## Slice Rules
@@ -26,6 +27,8 @@ name: "Corvin Phased Delivery"
 
 ## Version Safety
 
-- V1 should not silently include autonomous remediation.
-- V2 should strengthen review, correlation, and operator control.
-- V3 is where approval-gated execution and verification belong.
+- V1: RCA and Fix Strategy only. No execution, no autonomous action.
+- V1.5: Real cloud integration validation. No new features — only wiring real adapters and confirming smoke tests pass.
+- V2: Human-in-the-Loop Execution (Approve & Execute), Two-Way ChatOps, and Streaming RCA via SSE.
+- V2.5: AI Intelligence — Incident Memory, SRE Morning Briefing, and Confidence Meter.
+- V3: Premium UI overhaul, Blameless Post-Mortem auto-generator, and Corvin Score health dashboard.

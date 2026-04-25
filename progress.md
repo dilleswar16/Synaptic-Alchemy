@@ -236,7 +236,7 @@ These items were identified as missing from the initial scaffold. Fix all of the
 | 9 | 2026-04-04 | Slice 10 | Added GET /investigations/ list endpoint; implemented TeamsAdapter Adaptive Card delivery with injectable dep and non-fatal failure handling; wired web list page with real table + start investigation form; typed API client; 12 new tests; 155/155 pass |
 | 10 | 2026-04-04 | Post-V1 CLI polish | Replaced one-shot Typer CLI with interactive rich REPL (prompt_toolkit + pyfiglet); fixed banner rendering (no Panel, left-aligned, highlight=False); Ctrl+C cancels command not shell; `clear` uses os.system("cls"); CLI tests rewritten to call functions directly |
 | 10 | 2026-04-04 | Setup guides | Created setup/ folder with 4 Azure environment setup guides (Azure OpenAI, Log Analytics, Elastic, .env template) |
-| 10 | 2026-04-04 | MetGuard → Corvin rename | Renamed mgplatform/ → corvin/, updated pyproject.toml, API title, CLI banner and prompt; deleted ghost mgplatform/ folder; 155/155 pass confirmed |
+| 10 | 2026-04-04 | Corvin → Corvin rename | Renamed mgplatform/ → corvin/, updated pyproject.toml, API title, CLI banner and prompt; deleted ghost mgplatform/ folder; 155/155 pass confirmed |
 
 ## Resume Notes
 
@@ -253,7 +253,7 @@ to avoid shadowing the Python standard library `platform` module.
 The folder structure otherwise matches the repo blueprint in `docs/copilot-context/shared/11_repo_structure_blueprint.md`.
 
 ### Project rename note (post-V1)
-The project was renamed from **MetGuard** to **Corvin**:
+The project was renamed from **Corvin** to **Corvin**:
 - `mgplatform/` → `corvin/` (all imports updated to `corvin.*`)
 - `pyproject.toml`: `name = "corvin"`, entry point `corvin = "apps.cli.main:app"`
 - `apps/api/main.py`: API title updated to "Corvin API"

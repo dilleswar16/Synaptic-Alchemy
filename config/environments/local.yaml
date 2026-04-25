@@ -1,5 +1,5 @@
 # Local development environment overrides.
-# Applied on top of base config files when METGUARD_ENV=local.
+# Applied on top of base config files when CORVIN_ENV=local.
 # Values here take precedence over config/<concern>.yaml defaults.
 
 postgres:

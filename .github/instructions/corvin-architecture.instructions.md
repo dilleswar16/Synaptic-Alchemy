@@ -25,9 +25,11 @@ name: "Corvin Architecture"
 
 ## Version Rules
 
-- V1: RCA plus fix strategy only.
-- V2: Approval center, Execute Fix integration (ExecutionService & AKSAdapter execution), and Two-Way ChatOps.
-- V3: Deep verification, rollback loops, and extensive audit.
+- V1: RCA plus fix strategy only. No execution, no autonomous action.
+- V1.5: Real Azure cloud integration validation. No new features — only wiring real adapters and confirming smoke tests pass.
+- V2: Approval center, Approve & Execute integration (ExecutionService & AKSAdapter), Two-Way ChatOps, and Streaming RCA.
+- V2.5: AI Intelligence — Incident Memory, SRE Morning Briefing (Jarvis Mode), and Confidence Meter.
+- V3: Premium React UI overhaul, Blameless Post-Mortem auto-generator, and Corvin Score health dashboard.
 
 ## Design Preference
 

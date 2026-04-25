@@ -1,7 +1,7 @@
-# Setup Guide 1 — Azure OpenAI
+# Setup Guide 1 — Azure AI Foundry / OpenAI
 
-Corvin uses Azure OpenAI (via LiteLLM) to generate RCA and fix strategy.
-You need a resource with two model deployments: `gpt-4o` and `gpt-4o-mini`.
+Corvin uses Azure AI Foundry (via LiteLLM) to generate RCA and fix strategy.
+You need a resource with one primary model deployment (e.g. `gpt-4.1` or `gpt-4o`).
 
 ---
 

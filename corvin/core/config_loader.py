@@ -32,8 +32,8 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 
 def get_env() -> str:
-    """Return the active environment name from METGUARD_ENV (default: local)."""
-    return os.environ.get("METGUARD_ENV", "local")
+    """Return the active environment name from CORVIN_ENV (default: local)."""
+    return os.environ.get("CORVIN_ENV", "local")
 
 
 def load_config(concern: str, env: str | None = None) -> dict[str, Any]:

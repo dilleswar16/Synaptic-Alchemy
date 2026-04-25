@@ -2,35 +2,35 @@
 
 ## Recommended V2 Build Sequence
 
-1. Approval state model and contracts
-2. Web approval center and Teams approval surfaces
-3. Change-intelligence enrichment adapters
-4. Incident replay and evaluation harness
-5. Cross-incident comparison or learned-pattern support
-6. Azure Cost Management scheduler and daily report
+1. Approval state model and Pydantic contracts
+2. Approval API endpoints and Postgres migration
+3. Teams Adaptive Card with Approve / Reject buttons
+4. ExecutionService wired to AKSAdapter
+5. ChatOps Teams bot (mention → investigate)
+6. Streaming RCA endpoint (SSE) and React consumer
 
 ## Recommended Testable Slices
 
-- Slice 1: approval request lifecycle
-- Slice 2: approval UI and Teams approval interaction
-- Slice 3: Execution Service (mapping FixAction to AKSAdapter execution)
-- Slice 4: ChatOps webhook for two-way Teams messaging
-- Slice 5: Premium Dashboard UI Styling (Tailwind/Vanilla Custom CSS)
-- Slice 6: Post-Mortem Generator (Auto-publish RCA & execution timeline to Markdown)
-- Slice 7: change-correlation enrichment
-- Slice 8: replay a historical incident through the RCA and fix strategy path
-- Slice 9: compare current incident with prior stored incidents
-- Slice 10: Azure Cost Management adapter — fetch and format 30-day spend data
+- Slice 1: Approval state model — `ApprovalStatus` enum + Postgres column + Pydantic contract
+- Slice 2: Approval API — `POST /investigations/{id}/approve` and `POST /investigations/{id}/reject`
+- Slice 3: Teams Adaptive Card — Approve / Reject buttons post back to the approval API
+- Slice 4: ExecutionService — maps `FixAction.action_type` to real `AKSAdapter` call (pod restart / rollback)
+- Slice 5: ChatOps bot — `botbuilder-python` webhook, listens for `@Corvin investigate <service> <env>`
+- Slice 6: Streaming RCA — `GET /investigations/stream` SSE endpoint + React `EventSource` consumer
 
 ## V2 Exit Criteria
 
-- Approval objects and review flows exist and are usable.
-- The product can show and manage approval state consistently across API, web app, and Teams.
-- Change intelligence contributes to enrichment.
-- Replay and evaluation runs are possible for at least a small historical dataset.
-- Daily Azure cost report runs on schedule, detects anomalies, posts to Teams.
-- V1 capabilities remain stable.
+- [ ] SRE can `@Corvin investigate order-service production` in Teams and receive a real RCA Adaptive Card.
+- [ ] SRE can click "Approve & Execute" in Teams and the AKS pod is actually restarted via AKSAdapter.
+- [ ] No execution fires without an explicit human approval action (gate enforced at API level).
+- [ ] Streaming RCA endpoint produces token-by-token output visible in the React UI (no blank screen wait).
+- [ ] All approval state transitions (`pending` → `approved` → `executed`) persist to Postgres.
+- [ ] V1 and V1.5 capabilities remain fully stable (155+ tests pass).
 
 ## V2 Failure Condition
 
-V2 is not complete if approval exists only as a UI shell with no meaningful state model or justification contract behind it.
+V2 is not complete if:
+- Approval exists only as a UI shell with no real state model or Postgres persistence.
+- The ExecutionService calls are mocked — it must contact the real AKS API.
+- The ChatOps bot only sends messages outbound and cannot receive mentions.
+- The streaming endpoint returns the full response in one chunk (not token-by-token).

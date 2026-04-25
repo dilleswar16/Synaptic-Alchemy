@@ -38,8 +38,8 @@ from rich import box
 # ── Globals ───────────────────────────────────────────────────────────────────
 
 console = Console()
-API_URL = os.environ.get("METGUARD_API_URL", "http://localhost:8000")
-TIMEOUT = float(os.environ.get("METGUARD_CLI_TIMEOUT", "120"))
+API_URL = os.environ.get("CORVIN_API_URL", "http://localhost:8000")
+TIMEOUT = float(os.environ.get("CORVIN_CLI_TIMEOUT", "120"))
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -348,7 +348,7 @@ def main(
         "http://localhost:8000",
         "--api-url",
         help="Corvin API base URL.",
-        envvar="METGUARD_API_URL",
+        envvar="CORVIN_API_URL",
     ),
 ) -> None:
     """Corvin interactive operator shell."""

@@ -2,7 +2,7 @@
 Database engine and session factory.
 
 Reads connection settings from config/integrations/postgres.yaml (with env
-overlay) and from METGUARD_DB_* environment variables as fallback.
+overlay) and from CORVIN_DB_* environment variables as fallback.
 
 Usage:
     from corvin.storage.db import get_session
@@ -41,11 +41,11 @@ def _build_url() -> str:
             return os.environ.get(env_key, default)
         return val or os.environ.get(env_var, default)
 
-    host     = _resolve("host",     "METGUARD_DB_HOST",     "localhost")
-    port     = _resolve("port",     "METGUARD_DB_PORT",     "5432")
-    database = _resolve("database", "METGUARD_DB_NAME",     "corvin")
-    user     = _resolve("user",     "METGUARD_DB_USER",     "corvin")
-    password = _resolve("password", "METGUARD_DB_PASSWORD", "changeme")
+    host     = _resolve("host",     "CORVIN_DB_HOST",     "localhost")
+    port     = _resolve("port",     "CORVIN_DB_PORT",     "5432")
+    database = _resolve("database", "CORVIN_DB_NAME",     "corvin")
+    user     = _resolve("user",     "CORVIN_DB_USER",     "corvin")
+    password = _resolve("password", "CORVIN_DB_PASSWORD", "changeme")
 
     return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{database}?sslmode=require"
 
