@@ -2,6 +2,9 @@
 # Replace host, api_key, and index patterns for your environment.
 # Credentials are bound from environment variables – never hardcode them here.
 
+# Set to false to skip Elastic entirely (e.g. when SSO blocks access).
+enabled: false
+
 # Elastic cluster endpoint.
 # Env var: ELASTIC_HOST
 host: "${ELASTIC_HOST}"

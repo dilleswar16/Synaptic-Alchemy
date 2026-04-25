@@ -113,14 +113,7 @@ class RCAGenerator:
         kwargs: dict[str, Any] = {
             "temperature": self._config.get("temperature", 0.1),
             "max_tokens": self._config.get("max_tokens", 4096),
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "RCAOutput",
-                    "strict": True,
-                    "schema": RCAOutput.model_json_schema(),
-                },
-            },
+            "response_format": {"type": "json_object"},
         }
 
         endpoint = os.environ.get("LITELLM_ENDPOINT", "").strip()

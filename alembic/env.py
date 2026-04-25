@@ -1,6 +1,17 @@
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import pool
+from dotenv import load_dotenv
+
+# Load .env from repo root so CORVIN_DB_* vars are available before engine init.
+# override=True ensures values in .env always win over any existing shell vars.
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(_env_path, override=True)
+
+# Sanity check — print host so migration failures are easier to diagnose
+import os as _os
+print(f"[alembic/env.py] DB host: {_os.environ.get('CORVIN_DB_HOST', 'NOT SET')}")
 
 from alembic import context
 

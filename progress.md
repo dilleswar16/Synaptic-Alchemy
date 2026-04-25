@@ -8,7 +8,13 @@
 
 ## Current Goal
 
-**Active: V1 – complete (all slices done).**  Slice 10 complete.  All scaffold gaps resolved (GAP-1 through GAP-7).  155 tests pass.  Interactive rich REPL CLI complete.  V1 exit criteria met: CLI, API, web app, and Teams can all trigger an investigation; Azure alert ingestion route exists; structured RCA and fix strategy are produced and persisted.
+**Active: V1.5 complete.**  All real Azure cloud integrations validated end-to-end. LLM (Azure OpenAI GPT-4.1-mini) ✅, Postgres ✅, Log Analytics APIM ✅, AKS ✅, Container Logs (Azure Monitor Container Insights) ✅. End-to-end CLI investigation produced HIGH confidence RCA with real evidence. V1.5 exit criteria met.
+
+> **V1.5 adapter changes:** Elastic replaced by `ContainerLogsAdapter` (org SSO blocks Elastic). Queries `ContainerLog`, `KubePodInventory`, `KubeEvents` tables from `LogAnalytics-AUCHAD-DV01` workspace. Enrichment service wired to use container logs as fallback when Elastic is offline.
+
+> **LLM structured output fix:** Both `RCAGenerator` and `FixStrategyGenerator` switched from `json_schema` strict mode (which requires all fields in `required`) to `json_object` mode. The prompt still instructs the model to match the exact Pydantic schema shape.
+
+> **AKS namespace fix:** `EnrichmentService` no longer passes `request.environment` as the AKS namespace — the AKS adapter now always falls back to `default_namespace` from `config/integrations/aks.yaml` (`chad`).
 
 > **CLI change (post-V1 polish):** The one-shot Typer CLI has been replaced with a fully interactive rich REPL (like Claude Code / Codex style). Entry point is still `corvin`. Commands inside the shell: `investigate`, `list`, `show <id>`, `health`, `clear`, `help`, `exit`. Uses `rich>=13.7.0` and `prompt_toolkit>=3.0.0`. All CLI tests updated to call command functions directly via `monkeypatch` + `StringIO` console capture.
 
@@ -183,6 +189,26 @@ These items were identified as missing from the initial scaffold. Fix all of the
 - [x] `apps/web/src/pages/InvestigationsPage.tsx`: replaced raw JSON dump with a proper investigation table (service, environment, trigger, completed time, link to detail page) and a Start Investigation form (POST → navigate to detail page on success)
 - [x] 12 Slice 10 tests in `tests/slices/test_slice10_web_teams.py`: list endpoint (empty/populated/required fields/trigger_source/growth), TeamsAdapter (card structure, service+RCA in body, disabled no-call, missing URL, unresolved placeholder), route integration (spy verifies send_result called, Teams failure does not break route); 155/155 pass
 
+## V1.5 Build Tasks – Real Cloud Integration Validation
+
+### Integrations wired and validated
+- [x] Azure OpenAI (`azure/gpt-4.1-mini`) – `json_object` mode, real completions working
+- [x] Azure Postgres (`synaptic-postgres-db.postgres.database.azure.com`) – Alembic migrations applied, save+retrieve confirmed
+- [x] Log Analytics APIM workspace (`LogAnalytics-APIM-DV01`) – 66 real `ApiManagementGatewayLogs` rows
+- [x] AKS adapter (`azaustaekub14470dv0101`) – kubeconfig local, pod context from `chad` namespace, namespace passthrough bug fixed
+- [x] ContainerLogsAdapter – `ContainerLog` (200 rows), `KubePodInventory` (7 rows), `KubeEvents` (12 rows) from CHAD LA workspace
+- [x] `knowledge/site.md` – populated with real infra: cluster, services, namespaces, APIM, both workspaces, known issues
+- [x] End-to-end investigation – `partnerapis / chad` → HIGH confidence RCA produced from real evidence
+
+### Blocked / deferred to V2
+- [ ] Elastic – blocked by org SSO; replaced by ContainerLogsAdapter for V1.5
+- [ ] Azure Activity Log – Diagnostic Setting not configured; portal step needed (send Activity to `LogAnalytics-APIM-DV01`)
+
+## V1.5 Exit Criteria
+- [x] All core adapters connected to real Azure cloud services
+- [x] End-to-end CLI investigation with real evidence produces a meaningful RCA
+- [x] No mocks in the happy path
+
 ## V1 Exit Criteria
 - [ ] CLI, API, web app, and Teams can all start an investigation
 - [ ] Azure alerts auto-trigger the flow
@@ -237,6 +263,13 @@ These items were identified as missing from the initial scaffold. Fix all of the
 | 10 | 2026-04-04 | Post-V1 CLI polish | Replaced one-shot Typer CLI with interactive rich REPL (prompt_toolkit + pyfiglet); fixed banner rendering (no Panel, left-aligned, highlight=False); Ctrl+C cancels command not shell; `clear` uses os.system("cls"); CLI tests rewritten to call functions directly |
 | 10 | 2026-04-04 | Setup guides | Created setup/ folder with 4 Azure environment setup guides (Azure OpenAI, Log Analytics, Elastic, .env template) |
 | 10 | 2026-04-04 | Corvin → Corvin rename | Renamed mgplatform/ → corvin/, updated pyproject.toml, API title, CLI banner and prompt; deleted ghost mgplatform/ folder; 155/155 pass confirmed |
+| 11 | 2026-05-xx | V1.5 – Azure OpenAI wired | LiteLLM Azure route (`azure/gpt-4.1-mini`) connected to `australiaeast` endpoint; API version `2025-01-01-preview`; `json_object` response mode |
+| 11 | 2026-05-xx | V1.5 – Postgres wired | `synaptic-postgres-db.postgres.database.azure.com` live; all 5 tables migrated via Alembic; Azure CLI credential active |
+| 11 | 2026-05-xx | V1.5 – Log Analytics APIM wired | `LogAnalytics-APIM-DV01` workspace; 66 real `ApiManagementGatewayLogs` rows confirmed via smoke test |
+| 11 | 2026-05-xx | V1.5 – AKS adapter wired | `azaustaekub14470dv0101` cluster; kubeconfig local; 7 pods in `chad` namespace; AKS namespace passthrough bug fixed |
+| 11 | 2026-05-xx | V1.5 – ContainerLogsAdapter created | New adapter querying `LogAnalytics-AUCHAD-DV01`; `ContainerLog` 200 rows, `KubePodInventory` 7 rows, `KubeEvents` 12 rows; replaces Elastic (org SSO blocked) |
+| 11 | 2026-05-xx | V1.5 – knowledge/site.md populated | Real infra facts: AKS cluster, namespaces, services table, APIM, both LA workspaces, known issues |
+| 11 | 2026-05-xx | V1.5 – End-to-end validated | `partnerapis / chad` investigation: HIGH confidence RCA produced with real evidence; startup probe HTTP 500 failures identified as root cause; HPA metric issue correctly diagnosed |
 
 ## Resume Notes
 

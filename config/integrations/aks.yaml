@@ -2,8 +2,8 @@
 # Credentials are bound from environment variables – never hardcode them here.
 
 # AKS cluster resource details.
-cluster_name: "your-aks-cluster"
-resource_group: "your-resource-group"
+cluster_name: "azaustaekub14470dv0101"
+resource_group: "RG_14470_AUCHAD_DV01"
 
 # Env var: AZURE_SUBSCRIPTION_ID
 subscription_id: "${AZURE_SUBSCRIPTION_ID}"
@@ -13,7 +13,7 @@ subscription_id: "${AZURE_SUBSCRIPTION_ID}"
 kube_config_path: "~/.kube/config"
 
 # Default namespace used when service namespace cannot be inferred.
-default_namespace: "default"
+default_namespace: "chad"
 
 # How far back to fetch pod events (minutes).
 events_lookback_minutes: 60

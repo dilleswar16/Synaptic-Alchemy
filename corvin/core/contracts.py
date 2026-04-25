@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 def _utcnow() -> datetime:
@@ -79,6 +79,8 @@ class RCAConfidence(str, Enum):
 class RCAOutput(BaseModel):
     """Structured root-cause analysis produced by the investigation engine."""
 
+    model_config = ConfigDict(extra="forbid")
+
     request_id: str
     summary: str
     root_cause: str
@@ -100,6 +102,8 @@ class RiskLevel(str, Enum):
 class FixAction(BaseModel):
     """A single recommended remediation action."""
 
+    model_config = ConfigDict(extra="forbid")
+
     title: str
     description: str
     risk_level: RiskLevel
@@ -109,6 +113,8 @@ class FixAction(BaseModel):
 
 class FixStrategyOutput(BaseModel):
     """Structured fix strategy associated with a completed RCA."""
+
+    model_config = ConfigDict(extra="forbid")
 
     request_id: str
     summary: str

@@ -80,14 +80,7 @@ class FixStrategyGenerator:
         kwargs: dict[str, Any] = {
             "temperature": self._model_config.get("temperature", 0.1),
             "max_tokens": self._model_config.get("max_tokens", 4096),
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "FixStrategyOutput",
-                    "strict": True,
-                    "schema": FixStrategyOutput.model_json_schema(),
-                },
-            },
+            "response_format": {"type": "json_object"},
         }
 
         endpoint = os.environ.get("LITELLM_ENDPOINT", "").strip()

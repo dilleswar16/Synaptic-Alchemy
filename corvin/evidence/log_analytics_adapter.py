@@ -16,10 +16,16 @@ from __future__ import annotations
 import logging
 import os
 import re
+
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except ImportError:
+    pass  # truststore is optional; required in corporate proxy environments
 from datetime import timedelta
 from typing import Any
 
-from azure.identity import ClientSecretCredential
+from azure.identity import DefaultAzureCredential
 from azure.monitor.query import LogsQueryClient, LogsQueryStatus
 
 from corvin.core.config_loader import get_env, load_config
@@ -47,11 +53,10 @@ class LogAnalyticsAdapter:
         # rather than raising at import time.
         self._client: LogsQueryClient | None = None
         try:
-            credential = ClientSecretCredential(
-                tenant_id=_expand(self._config.get("tenant_id", "")),
-                client_id=_expand(self._config.get("client_id", "")),
-                client_secret=_expand(self._config.get("client_secret", "")),
-            )
+            # DefaultAzureCredential tries EnvironmentCredential (service principal
+            # via AZURE_CLIENT_ID/SECRET/TENANT) first, then falls back to
+            # AzureCliCredential for local dev (az login session).
+            credential = DefaultAzureCredential()
             self._client = LogsQueryClient(credential)
         except Exception as exc:  # noqa: BLE001
             logger.warning("LogAnalyticsAdapter: could not build client (will return empty results): %s", exc)
@@ -81,16 +86,16 @@ class LogAnalyticsAdapter:
         table = self._config.get("apim_table", "ApiManagementGatewayLogs")
 
         env_filter = (
-            f'\n| where Environment =~ "{environment}"' if environment else ""
+            f'\n| where ApiId =~ "{environment}"' if environment else ""
         )
 
         query = (
             f"{table}\n"
             f"| where TimeGenerated >= ago({minutes}m)\n"
-            f'| where ServiceName =~ "{service_name}" or BackendId contains "{service_name}"\n'
+            f'| where ApiId contains "{service_name}" or BackendId contains "{service_name}"\n'
             f"{env_filter}"
-            f"| project TimeGenerated, OperationName, ResponseCode, DurationMs,"
-            f" BackendTime, ServiceName, BackendId, LastErrorMessage\n"
+            f"| project TimeGenerated, OperationName, ResponseCode, BackendResponseCode,"
+            f" BackendTime, ApiId, OperationId, BackendId, LastErrorMessage\n"
             f"| order by TimeGenerated desc"
         )
 
@@ -109,7 +114,7 @@ class LogAnalyticsAdapter:
             if result.status != LogsQueryStatus.SUCCESS or not result.tables:
                 return []
             log_table = result.tables[0]
-            columns = [col.name for col in log_table.columns]
+            columns = [col.name if hasattr(col, "name") else col for col in log_table.columns]
             return [dict(zip(columns, row)) for row in log_table.rows]
         except Exception as exc:
             logger.warning(

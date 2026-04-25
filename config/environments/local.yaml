@@ -3,11 +3,11 @@
 # Values here take precedence over config/<concern>.yaml defaults.
 
 postgres:
-  host: localhost
+  host: "${CORVIN_DB_HOST}"
   port: 5432
-  database: corvin
-  user: corvin
-  password: changeme
+  database: "${CORVIN_DB_NAME}"
+  user: "${CORVIN_DB_USER}"
+  password: "${CORVIN_DB_PASSWORD}"
 
 elastic:
   host: "http://localhost:9200"

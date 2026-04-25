@@ -22,7 +22,13 @@ import re
 from datetime import timedelta
 from typing import Any
 
-from azure.identity import ClientSecretCredential
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except ImportError:
+    pass  # truststore is optional; required in corporate proxy environments
+
+from azure.identity import DefaultAzureCredential
 from azure.monitor.query import LogsQueryClient, LogsQueryStatus
 
 from corvin.core.config_loader import get_env, load_config
@@ -51,11 +57,10 @@ class AzureActivityAdapter:
         # and a None client rather than raising at import time.
         self._client: LogsQueryClient | None = None
         try:
-            credential = ClientSecretCredential(
-                tenant_id=_expand(self._config.get("tenant_id", "")),
-                client_id=_expand(self._config.get("client_id", "")),
-                client_secret=_expand(self._config.get("client_secret", "")),
-            )
+            # DefaultAzureCredential tries EnvironmentCredential (service principal
+            # via AZURE_CLIENT_ID/SECRET/TENANT) first, then falls back to
+            # AzureCliCredential for local dev (az login session).
+            credential = DefaultAzureCredential()
             self._client = LogsQueryClient(credential)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
@@ -113,7 +118,7 @@ class AzureActivityAdapter:
             if result.status != LogsQueryStatus.SUCCESS or not result.tables:
                 return []
             log_table = result.tables[0]
-            columns = [col.name for col in log_table.columns]
+            columns = [col.name if hasattr(col, "name") else col for col in log_table.columns]
             return [dict(zip(columns, row)) for row in log_table.rows]
         except Exception as exc:
             logger.warning(

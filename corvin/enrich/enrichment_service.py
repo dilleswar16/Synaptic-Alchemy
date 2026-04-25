@@ -10,9 +10,11 @@ Inject custom adapter instances in tests or when swapping implementations.
 
 from __future__ import annotations
 
+from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import EvidenceBundle, InvestigationRequest
 from corvin.evidence.aks_adapter import AKSAdapter
 from corvin.evidence.azure_activity_adapter import AzureActivityAdapter
+from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
 from corvin.evidence.elastic_adapter import ElasticAdapter
 from corvin.evidence.log_analytics_adapter import LogAnalyticsAdapter
 
@@ -26,11 +28,14 @@ class EnrichmentService:
         log_analytics: LogAnalyticsAdapter | None = None,
         aks: AKSAdapter | None = None,
         azure_activity: AzureActivityAdapter | None = None,
+        container_logs: ContainerLogsAdapter | None = None,
     ) -> None:
-        self._elastic = elastic or ElasticAdapter()
+        elastic_cfg = load_config("integrations/elastic", get_env())
+        self._elastic = elastic if elastic is not None else (ElasticAdapter() if elastic_cfg.get("enabled", True) else None)
         self._log_analytics = log_analytics or LogAnalyticsAdapter()
         self._aks = aks or AKSAdapter()
         self._azure_activity = azure_activity or AzureActivityAdapter()
+        self._container_logs = container_logs or ContainerLogsAdapter()
 
     def enrich(self, request: InvestigationRequest) -> EvidenceBundle:
         """
@@ -42,15 +47,24 @@ class EnrichmentService:
         """
         bundle = EvidenceBundle(request_id=request.id)
 
-        try:
-            bundle.elastic_logs = self._elastic.get_logs(request.service_name)
-        except NotImplementedError:
-            pass
+        if self._elastic is not None:
+            try:
+                bundle.elastic_logs = self._elastic.get_logs(request.service_name)
+            except NotImplementedError:
+                pass
+            except Exception:
+                pass  # Elastic offline — fall through to container logs below
 
-        try:
-            bundle.elastic_metrics = self._elastic.get_metrics(request.service_name)
-        except NotImplementedError:
-            pass
+            try:
+                bundle.elastic_metrics = self._elastic.get_metrics(request.service_name)
+            except NotImplementedError:
+                pass
+
+        if not bundle.elastic_logs:
+            try:
+                bundle.elastic_logs = self._container_logs.get_container_logs(request.service_name)
+            except NotImplementedError:
+                pass
 
         try:
             bundle.log_analytics_apim = self._log_analytics.get_apim_logs(request.service_name)
@@ -59,7 +73,7 @@ class EnrichmentService:
 
         try:
             bundle.aks_context = self._aks.get_pod_context(
-                request.service_name, request.environment
+                request.service_name
             )
         except NotImplementedError:
             pass
