@@ -17,6 +17,7 @@ The target workflow is:
 Trigger -> Enrich -> Investigate -> RCA -> Fix Strategy -> Human Approval -> Execute Fix -> Verify -> Learn
 
 For V1, stop at RCA plus Fix Strategy. Do not implement autonomous execution in V1.
+For V2, implement Two-Way ChatOps targeting Teams, and Human-in-the-Loop Execution (Approve & Execute via the AKSAdapter).
 
 ## Delivery Rules
 

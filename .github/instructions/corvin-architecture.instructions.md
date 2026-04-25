@@ -26,8 +26,8 @@ name: "Corvin Architecture"
 ## Version Rules
 
 - V1: RCA plus fix strategy only.
-- V2: approval center, stronger collaboration surfaces, better correlation.
-- V3: approval-gated execution, verification, rollback, and audit.
+- V2: Approval center, Execute Fix integration (ExecutionService & AKSAdapter execution), and Two-Way ChatOps.
+- V3: Deep verification, rollback loops, and extensive audit.
 
 ## Design Preference
 

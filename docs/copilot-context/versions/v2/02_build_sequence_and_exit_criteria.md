@@ -13,13 +13,14 @@
 
 - Slice 1: approval request lifecycle
 - Slice 2: approval UI and Teams approval interaction
-- Slice 3: change-correlation enrichment
-- Slice 4: replay a historical incident through the RCA and fix strategy path
-- Slice 5: compare current incident with prior stored incidents
-- Slice 6: Azure Cost Management adapter — fetch and format 30-day spend data
-- Slice 7: cost anomaly detection logic
-- Slice 8: cost report LLM analysis + Teams delivery
-- Slice 9: scheduler daemon — daily timer, on-demand trigger, anomaly-only gate
+- Slice 3: Execution Service (mapping FixAction to AKSAdapter execution)
+- Slice 4: ChatOps webhook for two-way Teams messaging
+- Slice 5: Premium Dashboard UI Styling (Tailwind/Vanilla Custom CSS)
+- Slice 6: Post-Mortem Generator (Auto-publish RCA & execution timeline to Markdown)
+- Slice 7: change-correlation enrichment
+- Slice 8: replay a historical incident through the RCA and fix strategy path
+- Slice 9: compare current incident with prior stored incidents
+- Slice 10: Azure Cost Management adapter — fetch and format 30-day spend data
 
 ## V2 Exit Criteria
 

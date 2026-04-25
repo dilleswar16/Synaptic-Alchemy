@@ -6,12 +6,13 @@ V2 strengthens operator control, collaboration, and decision quality without cro
 
 ## V2 Focus Areas
 
-1. Approval-ready operator workflow
-2. Better correlation and change intelligence
-3. Stronger Teams and web collaboration flows
-4. Replay and evaluation capability
-5. Improved learning and incident comparison
-6. Azure Cost Management daily report with anomaly detection
+1. Interactive Two-Way ChatOps targeting Teams (webhook bot integration)
+2. Approval-ready operator workflow with Human-in-the-Loop Execution
+3. Auto-Generating Blameless Post-Mortem (PDF/Markdown export upon resolution)
+4. Better correlation and change intelligence
+5. Replay and evaluation capability
+6. Premium React Dashboard (Custom CSS/Glassmorphism overhaul)
+7. Azure Cost Management daily report with anomaly detection
 
 ## V2 Required Capabilities
 
@@ -60,10 +61,7 @@ cost_report:
 
 ## V2 Still Excludes
 
-- automatic fix execution,
-- uncontrolled remediation,
-- production action loops without approval,
-- broad rollback automation.
+- broad rollback automation (unless explicitly verified and human-gated).
 
 ## V2 Product Standard
 
