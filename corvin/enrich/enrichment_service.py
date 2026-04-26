@@ -49,25 +49,33 @@ class EnrichmentService:
 
         if self._elastic is not None:
             try:
-                bundle.elastic_logs = self._elastic.get_logs(request.service_name)
+                bundle.elastic_logs = self._elastic.get_logs(
+                    request.service_name, time_range_minutes=request.lookback_minutes
+                )
             except NotImplementedError:
                 pass
             except Exception:
                 pass  # Elastic offline — fall through to container logs below
 
             try:
-                bundle.elastic_metrics = self._elastic.get_metrics(request.service_name)
+                bundle.elastic_metrics = self._elastic.get_metrics(
+                    request.service_name, time_range_minutes=request.lookback_minutes
+                )
             except NotImplementedError:
                 pass
 
         if not bundle.elastic_logs:
             try:
-                bundle.elastic_logs = self._container_logs.get_container_logs(request.service_name)
+                bundle.elastic_logs = self._container_logs.get_container_logs(
+                    request.service_name, time_range_minutes=request.lookback_minutes
+                )
             except NotImplementedError:
                 pass
 
         try:
-            bundle.log_analytics_apim = self._log_analytics.get_apim_logs(request.service_name)
+            bundle.log_analytics_apim = self._log_analytics.get_apim_logs(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            )
         except NotImplementedError:
             pass
 
@@ -80,7 +88,7 @@ class EnrichmentService:
 
         try:
             bundle.azure_activity_changes = self._azure_activity.get_recent_changes(
-                request.service_name
+                request.service_name, time_range_minutes=request.lookback_minutes
             )
         except NotImplementedError:
             pass

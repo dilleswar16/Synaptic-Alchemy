@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 def _utcnow() -> datetime:
@@ -37,6 +37,15 @@ class TriggerSource(str, Enum):
     MANUAL_WEB = "manual_web"
 
 
+class ApprovalStatus(str, Enum):
+    """Lifecycle states for human-in-the-loop investigation approval."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXECUTED = "executed"
+
+
 # ── Inbound request ──────────────────────────────────────────────────────────
 
 
@@ -49,7 +58,22 @@ class InvestigationRequest(BaseModel):
     environment: str
     description: str
     raw_payload: dict[str, Any] = Field(default_factory=dict)
+    approval_status: ApprovalStatus = ApprovalStatus.PENDING
+    lookback_minutes: int = Field(default=60)
     created_at: datetime = Field(default_factory=_utcnow)
+
+    @model_validator(mode="after")
+    def _set_dynamic_lookback(self) -> InvestigationRequest:
+        if self.trigger_source == TriggerSource.AZURE_ALERT:
+            self.lookback_minutes = 15
+        elif self.trigger_source in (
+            TriggerSource.MANUAL_CLI,
+            TriggerSource.MANUAL_API,
+            TriggerSource.TEAMS,
+            TriggerSource.MANUAL_WEB,
+        ):
+            self.lookback_minutes = 60
+        return self
 
 
 # ── Evidence bundle ──────────────────────────────────────────────────────────

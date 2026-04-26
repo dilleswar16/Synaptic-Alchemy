@@ -28,6 +28,7 @@ All three are standalone Spring Boot applications, each with their own `pom.xml`
 - `partnerapis` calls `chad-fundapis:8080` via `RestTemplate` (with `FundApisCallInterceptor`) for two purposes:
   1. `GET http://chad-fundapis:8080/chadservice/v1/schemes/{fundCode}/member/{memberUID}` — look up a member to return to AXE (`APIUtils.getForEntity()`)
   2. `GET/POST http://chad-fundapis:8080/b2bservice/v1/schemes/{fundCode}/member/profile/...` — read/write `MemberProfile` data (`MemberProfileService` in `partnerapis`)
+- **`FundApisCallInterceptor` role:** This `ClientHttpRequestInterceptor` bean intercepts every `RestTemplate` call from `partnerapis` to `fundapis`. It likely handles internal auth token relaying or request logging. If a call to `fundapis` fails with a connection error, the interceptor logs are the first place to check — run `kubectl logs -n chad deploy/chad-partnerapis --since=30m | grep FundApisCallInterceptor`.
 - If `chad-fundapis` is down or returns non-2xx, `partnerapis` throws `RuntimeException` which propagates as HTTP `500` to the AXE caller.
 
 ### fundsso → fundapis (sync HTTP, internal cluster)

@@ -58,6 +58,8 @@ keywords: [CosmosException, XSDFileNameException, XMLValidationException, Member
 | `log.error("Error getting member profile from fundapis for fundCode: {}, uuid: {}", fundCode, uuid, e)` | `MemberProfileService` could not retrieve a member profile from `fundapis` | `fundapis` `GET /b2bservice/v1/schemes/{fundCode}/member/profile/{uuid}` returned non-2xx or threw | `500` | Same as above — check `chad-fundapis` pod health and pod logs. |
 | `log.error("Error fetching member info", e)` | `SSOUtils.fetchMemberInfo()` failed | Exception when calling `fundapis` to retrieve member info before PingFederate drop-off | — (propagates to controller catch-all as `500`) | Check `chad-fundapis` pod: `kubectl get pods -n chad -l app=chad-fundapis`. If `fundapis` is healthy, inspect the `fundCode` and member ID values being passed — invalid values cause `fundapis` to return 400 or 404. |
 
+> **Critical SRE note:** `fundsso` has **no `@ControllerAdvice`**. Any exception not caught by `FundIntegrationController`'s inline `try/catch` falls through to Spring Boot's default `/error` endpoint and returns `{"status":500,"error":"Internal Server Error"}` with **no application log entry from fundsso**. If you see a `500` from `fundsso` with no matching log line in `kubectl logs -n chad deploy/chad-fundsso`, check the Envoy sidecar log instead: `kubectl logs -n chad <pod-name> -c istio-proxy --since=5m | grep '"500"'`.
+
 ---
 
 ## APIM-Level Errors (returned before reaching any Spring Boot service)

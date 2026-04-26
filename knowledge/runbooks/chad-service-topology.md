@@ -77,7 +77,7 @@ All three deployments share the same probe config:
 | :--- | :--- | :--- | :--- | :--- |
 | Startup | `GET /actuator/health` | 60s | 10s | 30 (= up to 360s total startup budget) |
 | Readiness | `GET /actuator/health/readiness` | 30s | 10s | 6 |
-| Liveness | `GET /actuator/health/liveness` | (set in template) | — | — |
+| Liveness | `GET /actuator/health/liveness` | 60s | 10s | 10 (verify exact values in Helm chart `values.yaml` — `livenessProbe:` block) |
 
 If a pod fails its startup probe for > 360 seconds it will be killed and restarted. Common cause: Key Vault unreachable at startup (pod logs will show `com.azure.identity` or Key Vault errors).
 
@@ -96,3 +96,16 @@ All pods run as non-root (`runAsUser: 1000`, `runAsGroup: 1000`). `allowPrivileg
 | `elastic-agent-otlp` service | `elastic-agent` | In-cluster OTLP receiver; all three CHAD services push metrics, traces, and logs here on port `8200` |
 | Istio sidecar (Envoy) | same namespace as CHAD pods | mTLS, traffic management, Istio `AuthorizationPolicy` enforced |
 | `chad-sa` ServiceAccount | same namespace as CHAD pods | Azure Workload Identity federated credential; used by all three deployments |
+
+---
+
+## Istio AuthorizationPolicy — 403 Errors
+
+Istio enforces mTLS and `AuthorizationPolicy` between pods. If a pod receives a `403` that is NOT from APIM (i.e. no `{"code":"IP_NOT_ALLOWED"}` body), it may be an Istio-level rejection:
+
+- **Symptom:** Pod returns `403 RBAC: access denied` or `403 upstream connect error` in the Envoy access log, but the Spring Boot application log shows **no request entry**.
+- **SRE Action:**
+  1. Check Istio `AuthorizationPolicy` in namespace `chad`: `kubectl get authorizationpolicy -n chad`
+  2. Check Envoy sidecar access logs: `kubectl logs -n chad <pod-name> -c istio-proxy --since=5m | grep '" 403 '`
+  3. If mTLS peer authentication is failing (e.g. after a cert rotation): `kubectl describe peerauthentication -n chad`
+  4. Do NOT restart the application pod — this is an Istio/control-plane issue.
