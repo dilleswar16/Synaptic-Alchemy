@@ -17,6 +17,7 @@ all without leaving Microsoft Teams.
 1. **Two-Way ChatOps** — SREs can `@mention` Corvin in Teams to trigger investigations and ask questions.
 2. **Approve & Execute Loop** — Human-approved execution of AKS/Azure fix actions via Teams Adaptive Card button.
 3. **Streaming RCA** — Real-time token-by-token streaming of investigation reasoning to the frontend (SSE).
+4. **Dynamic Context Windows** — Evidence lookback dynamically adjusts based on trigger source (e.g., 15m for automated alerts, 60m for manual triggers) to prevent context bloat.
 
 ---
 
@@ -46,6 +47,7 @@ all without leaving Microsoft Teams.
 - [ ] SRE can click "Approve & Execute" in Teams and the AKS pod is actually restarted.
 - [ ] No execution fires without an explicit human approval action.
 - [ ] Streaming RCA endpoint produces token-by-token output visible in the React UI.
+- [ ] Dynamic Context Windows implemented — `lookback_minutes` dynamically passed from trigger layer to `EnrichmentService` to prevent context bloat.
 - [ ] All approval state transitions are persisted to Postgres correctly.
 - [ ] V1 and V1.5 capabilities remain fully stable (155+ tests pass).
 

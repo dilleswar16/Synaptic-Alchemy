@@ -24,6 +24,7 @@
 - [ ] SRE can click "Approve & Execute" in Teams and the AKS pod is actually restarted via AKSAdapter.
 - [ ] No execution fires without an explicit human approval action (gate enforced at API level).
 - [ ] Streaming RCA endpoint produces token-by-token output visible in the React UI (no blank screen wait).
+- [ ] Dynamic Context Windows implemented — trigger source dictates evidence lookback to avoid context bloat.
 - [ ] All approval state transitions (`pending` → `approved` → `executed`) persist to Postgres.
 - [ ] V1 and V1.5 capabilities remain fully stable (155+ tests pass).
 
