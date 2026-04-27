@@ -69,7 +69,7 @@ def _make_success_result(rows=None, columns=None):
 
 def test_get_recent_changes_returns_list_of_dicts():
     """Successful query returns each row as a dict keyed by column name."""
-    with patch("corvin.evidence.azure_activity_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.azure_activity_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.azure_activity_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = _make_success_result()
         adapter = AzureActivityAdapter(config=_CONFIG)
@@ -84,7 +84,7 @@ def test_get_recent_changes_returns_list_of_dicts():
 
 def test_get_recent_changes_service_name_in_kql_query():
     """The KQL query sent to Log Analytics contains the service_name filter."""
-    with patch("corvin.evidence.azure_activity_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.azure_activity_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.azure_activity_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = _make_success_result()
         adapter = AzureActivityAdapter(config=_CONFIG)
@@ -98,7 +98,7 @@ def test_get_recent_changes_service_name_in_kql_query():
 
 def test_get_recent_changes_with_custom_time_range():
     """time_range_minutes overrides config default and appears in the KQL query."""
-    with patch("corvin.evidence.azure_activity_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.azure_activity_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.azure_activity_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = _make_success_result()
         adapter = AzureActivityAdapter(config=_CONFIG)
@@ -116,7 +116,7 @@ def test_get_recent_changes_with_custom_time_range():
 
 def test_get_recent_changes_connection_error_returns_empty_list():
     """If query_workspace raises, get_recent_changes returns [] without re-raising."""
-    with patch("corvin.evidence.azure_activity_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.azure_activity_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.azure_activity_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.side_effect = Exception("Connection refused")
         adapter = AzureActivityAdapter(config=_CONFIG)
@@ -131,7 +131,7 @@ def test_get_recent_changes_empty_tables_returns_empty_list():
     mock_result.status = LogsQueryStatus.SUCCESS
     mock_result.tables = []
 
-    with patch("corvin.evidence.azure_activity_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.azure_activity_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.azure_activity_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = mock_result
         adapter = AzureActivityAdapter(config=_CONFIG)
@@ -146,7 +146,7 @@ def test_get_recent_changes_non_success_status_returns_empty_list():
     mock_result.status = "PartialError"  # anything != LogsQueryStatus.SUCCESS
     mock_result.tables = []
 
-    with patch("corvin.evidence.azure_activity_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.azure_activity_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.azure_activity_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = mock_result
         adapter = AzureActivityAdapter(config=_CONFIG)
@@ -156,9 +156,9 @@ def test_get_recent_changes_non_success_status_returns_empty_list():
 
 
 def test_get_recent_changes_unconfigured_client_returns_empty_list():
-    """When ClientSecretCredential raises (empty creds), get_recent_changes returns []."""
-    with patch("corvin.evidence.azure_activity_adapter.ClientSecretCredential") as MockCred:
-        MockCred.side_effect = ValueError("client_id required")
+    """When DefaultAzureCredential raises (no auth available), get_recent_changes returns []."""
+    with patch("corvin.evidence.azure_activity_adapter.DefaultAzureCredential") as MockCred:
+        MockCred.side_effect = Exception("No credential available")
         adapter = AzureActivityAdapter(config=_CONFIG)
         result = adapter.get_recent_changes("order-service")
 
@@ -171,16 +171,12 @@ def test_get_recent_changes_unconfigured_client_returns_empty_list():
 
 
 def test_credential_built_with_config_values():
-    """ClientSecretCredential is constructed using tenant_id, client_id, client_secret."""
-    with patch("corvin.evidence.azure_activity_adapter.ClientSecretCredential") as MockCred, \
+    """DefaultAzureCredential is constructed (no explicit args — uses env or CLI session)."""
+    with patch("corvin.evidence.azure_activity_adapter.DefaultAzureCredential") as MockCred, \
          patch("corvin.evidence.azure_activity_adapter.LogsQueryClient"):
         AzureActivityAdapter(config=_CONFIG)
 
-    MockCred.assert_called_once_with(
-        tenant_id="tenant-abc",
-        client_id="client-abc",
-        client_secret="secret-abc",
-    )
+    MockCred.assert_called_once_with()
 
 
 def test_env_placeholders_expanded_from_os_environ(monkeypatch):
@@ -199,16 +195,12 @@ def test_env_placeholders_expanded_from_os_environ(monkeypatch):
         "max_events": 100,
     }
 
-    with patch("corvin.evidence.azure_activity_adapter.ClientSecretCredential") as MockCred, \
+    with patch("corvin.evidence.azure_activity_adapter.DefaultAzureCredential") as MockCred, \
          patch("corvin.evidence.azure_activity_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = _make_success_result()
         adapter = AzureActivityAdapter(config=config_with_placeholders)
         adapter.get_recent_changes("svc")
 
-    MockCred.assert_called_once_with(
-        tenant_id="real-tenant",
-        client_id="real-client",
-        client_secret="real-secret",
-    )
+    MockCred.assert_called_once_with()  # DefaultAzureCredential takes no args
     call_kwargs = MockClient.return_value.query_workspace.call_args.kwargs
     assert call_kwargs["workspace_id"] == "real-ws-activity"

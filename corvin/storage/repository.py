@@ -39,6 +39,7 @@ def _as_utc(dt: datetime) -> datetime:
     return dt
 
 from corvin.core.contracts import (
+    ApprovalStatus,
     EvidenceBundle,
     FixStrategyOutput,
     InvestigationRequest,
@@ -178,6 +179,11 @@ class InvestigationRepository:
                 generated_at=result.fix_strategy.generated_at,
             )
 
+            # Explicit commit so data is visible in the same transaction-less in-memory
+            # SQLite sessions used by tests.  In production get_session() also commits
+            # after yield — a second commit on a clean session is a harmless no-op.
+            session.commit()
+
     def get_investigation_result(self, request_id: str) -> InvestigationResult | None:
         """
         Load a complete InvestigationResult from all four tables.
@@ -264,6 +270,36 @@ class InvestigationRepository:
                 fix_strategy=fix_strategy,
                 completed_at=completed_at,
             )
+
+    def get_approval_status(self, request_id: str) -> str | None:
+        """
+        Return the current approval_status string for an investigation, or None
+        if the request_id does not exist.
+        """
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is None:
+                return None
+            return row.approval_status
+
+    def update_approval_status(
+        self, request_id: str, new_status: ApprovalStatus
+    ) -> InvestigationRequestRow | None:
+        """
+        Update approval_status for an existing investigation.
+
+        Returns the updated ORM row, or None if the request_id does not exist.
+        The caller is responsible for enforcing transition guards (e.g. 409 on
+        already-executed) before calling this method.
+        """
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is None:
+                return None
+            row.approval_status = new_status.value
+            session.commit()
+            session.refresh(row)
+            return row
 
     def list_investigations(self) -> list[dict[str, Any]]:
         """

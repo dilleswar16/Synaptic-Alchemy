@@ -457,9 +457,7 @@ def test_rca_structured_output_mode_enabled(monkeypatch):
     assert "response_format" in captured
     rf = captured["response_format"]
     assert isinstance(rf, dict)
-    assert rf["type"] == "json_schema"
-    assert rf["json_schema"]["name"] == "RCAOutput"
-    assert "schema" in rf["json_schema"]
+    assert rf["type"] == "json_object"
 
 
 def test_fix_strategy_structured_output_mode_enabled(monkeypatch):
@@ -496,9 +494,7 @@ def test_fix_strategy_structured_output_mode_enabled(monkeypatch):
     assert "response_format" in captured
     rf = captured["response_format"]
     assert isinstance(rf, dict)
-    assert rf["type"] == "json_schema"
-    assert rf["json_schema"]["name"] == "FixStrategyOutput"
-    assert "schema" in rf["json_schema"]
+    assert rf["type"] == "json_object"
 
 
 # ---------------------------------------------------------------------------

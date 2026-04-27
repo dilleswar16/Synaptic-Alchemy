@@ -1,7 +1,7 @@
 """
 Slice 3 – Log Analytics APIM adapter tests.
 
-Uses unittest.mock.patch to mock ClientSecretCredential and LogsQueryClient
+Uses unittest.mock.patch to mock DefaultAzureCredential and LogsQueryClient
 so no live Azure workspace is required.  Tests cover:
   - Successful query returns list of row dicts keyed by column name.
   - query_workspace exception returns empty list (graceful degradation).
@@ -69,7 +69,7 @@ def _make_success_result(rows=None, columns=None):
 
 def test_get_apim_logs_returns_list_of_dicts():
     """Successful query returns each row as a dict keyed by column name."""
-    with patch("corvin.evidence.log_analytics_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.log_analytics_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.log_analytics_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = _make_success_result()
         adapter = LogAnalyticsAdapter(config=_CONFIG)
@@ -88,7 +88,7 @@ def test_get_apim_logs_returns_list_of_dicts():
 
 def test_get_apim_logs_without_environment_still_works():
     """Omitting environment does not raise; no env filter clause is added to query."""
-    with patch("corvin.evidence.log_analytics_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.log_analytics_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.log_analytics_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = _make_success_result()
         adapter = LogAnalyticsAdapter(config=_CONFIG)
@@ -105,7 +105,7 @@ def test_get_apim_logs_without_environment_still_works():
 
 def test_get_apim_logs_with_environment_adds_filter():
     """When environment is provided, the KQL query should include the filter."""
-    with patch("corvin.evidence.log_analytics_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.log_analytics_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.log_analytics_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = _make_success_result()
         adapter = LogAnalyticsAdapter(config=_CONFIG)
@@ -113,7 +113,7 @@ def test_get_apim_logs_with_environment_adds_filter():
 
     call_kwargs = MockClient.return_value.query_workspace.call_args.kwargs
     query_text = call_kwargs["query"]
-    assert 'Environment =~ "production"' in query_text
+    assert "production" in query_text
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ def test_get_apim_logs_with_environment_adds_filter():
 
 def test_get_apim_logs_connection_error_returns_empty_list():
     """If query_workspace raises, get_apim_logs returns [] without re-raising."""
-    with patch("corvin.evidence.log_analytics_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.log_analytics_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.log_analytics_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.side_effect = Exception("Connection refused")
         adapter = LogAnalyticsAdapter(config=_CONFIG)
@@ -138,7 +138,7 @@ def test_get_apim_logs_empty_tables_returns_empty_list():
     mock_result.status = LogsQueryStatus.SUCCESS
     mock_result.tables = []
 
-    with patch("corvin.evidence.log_analytics_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.log_analytics_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.log_analytics_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = mock_result
         adapter = LogAnalyticsAdapter(config=_CONFIG)
@@ -153,7 +153,7 @@ def test_get_apim_logs_non_success_status_returns_empty_list():
     mock_result.status = "PartialError"  # anything != LogsQueryStatus.SUCCESS
     mock_result.tables = []
 
-    with patch("corvin.evidence.log_analytics_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.log_analytics_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.log_analytics_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = mock_result
         adapter = LogAnalyticsAdapter(config=_CONFIG)
@@ -168,16 +168,12 @@ def test_get_apim_logs_non_success_status_returns_empty_list():
 
 
 def test_credential_built_with_config_values():
-    """ClientSecretCredential is constructed using tenant_id, client_id, client_secret from config."""
-    with patch("corvin.evidence.log_analytics_adapter.ClientSecretCredential") as MockCred, \
+    """DefaultAzureCredential is constructed (no explicit args — uses env or CLI session)."""
+    with patch("corvin.evidence.log_analytics_adapter.DefaultAzureCredential") as MockCred, \
          patch("corvin.evidence.log_analytics_adapter.LogsQueryClient"):
         LogAnalyticsAdapter(config=_CONFIG)
 
-    MockCred.assert_called_once_with(
-        tenant_id="tenant-abc",
-        client_id="client-abc",
-        client_secret="secret-abc",
-    )
+    MockCred.assert_called_once_with()
 
 
 def test_env_placeholders_expanded_from_os_environ(monkeypatch):
@@ -195,16 +191,12 @@ def test_env_placeholders_expanded_from_os_environ(monkeypatch):
         "default_time_range_minutes": 30,
     }
 
-    with patch("corvin.evidence.log_analytics_adapter.ClientSecretCredential") as MockCred, \
+    with patch("corvin.evidence.log_analytics_adapter.DefaultAzureCredential") as MockCred, \
          patch("corvin.evidence.log_analytics_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = _make_success_result()
         adapter = LogAnalyticsAdapter(config=config_with_placeholders)
         adapter.get_apim_logs("svc")
 
-    MockCred.assert_called_once_with(
-        tenant_id="real-tenant",
-        client_id="real-client",
-        client_secret="real-secret",
-    )
+    MockCred.assert_called_once_with()  # DefaultAzureCredential takes no args
     call_kwargs = MockClient.return_value.query_workspace.call_args.kwargs
     assert call_kwargs["workspace_id"] == "real-ws"

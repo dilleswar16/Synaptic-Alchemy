@@ -37,6 +37,7 @@ export interface InvestigationResult {
     trigger_source: string
     description: string
     created_at: string
+    approval_status: string
   }
   rca: {
     summary: string
@@ -76,4 +77,18 @@ export function startInvestigation(payload: {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+}
+
+export interface ApprovalResponse {
+  request_id: string
+  approval_status: string
+  message: string
+}
+
+export function approveInvestigation(id: string) {
+  return apiFetch<ApprovalResponse>(`/investigations/${id}/approve`, { method: 'POST' })
+}
+
+export function rejectInvestigation(id: string) {
+  return apiFetch<ApprovalResponse>(`/investigations/${id}/reject`, { method: 'POST' })
 }

@@ -115,6 +115,31 @@ class AKSAdapter:
                 "AKSAdapter: could not load kubernetes config (will return empty results): %s", exc
             )
 
+    # ── Internal helpers ──────────────────────────────────────────────────────
+
+    def _resolve_deployment_name(self, service_name: str, namespace: str) -> str:
+        """Return the actual deployment name for *service_name* in *namespace*.
+
+        Tries the bare name first; if a 404 is returned, tries the
+        ``{namespace}-{service_name}`` convention used by many Helm charts.
+        Falls back to the bare name if both lookups fail (so the caller sees
+        a meaningful 404 error rather than a silent empty result).
+        """
+        if self._apps_v1 is None:
+            return service_name
+        try:
+            self._apps_v1.read_namespaced_deployment(name=service_name, namespace=namespace)
+            return service_name
+        except ApiException as exc:
+            if exc.status == 404:
+                prefixed = f"{namespace}-{service_name}"
+                try:
+                    self._apps_v1.read_namespaced_deployment(name=prefixed, namespace=namespace)
+                    return prefixed
+                except ApiException:
+                    pass
+        return service_name
+
     def get_pod_context(
         self,
         service_name: str,
@@ -141,13 +166,19 @@ class AKSAdapter:
             return {}
 
         ns = namespace or self._config.get("default_namespace", "default")
-        label_selector = f"app={service_name}"
+        dep_name = self._resolve_deployment_name(service_name, ns)
+        prefixed_name = f"{ns}-{service_name}"
 
         try:
             # ── Pods ──────────────────────────────────────────────────────────
+            # Try bare label first; fall back to namespace-prefixed label.
             pod_list = self._core_v1.list_namespaced_pod(
-                namespace=ns, label_selector=label_selector
+                namespace=ns, label_selector=f"app={service_name}"
             )
+            if not pod_list.items:
+                pod_list = self._core_v1.list_namespaced_pod(
+                    namespace=ns, label_selector=f"app={prefixed_name}"
+                )
             pods = [_pod_to_dict(p) for p in pod_list.items]
 
             # ── Events ────────────────────────────────────────────────────────
@@ -161,21 +192,12 @@ class AKSAdapter:
             # ── Deployment ────────────────────────────────────────────────────
             deployment: dict[str, Any] | None = None
             try:
-                dep = self._apps_v1.read_namespaced_deployment(
-                    name=service_name, namespace=ns
-                )
+                dep = self._apps_v1.read_namespaced_deployment(name=dep_name, namespace=ns)
                 deployment = _deployment_to_dict(dep)
             except ApiException as dep_exc:
-                if dep_exc.status == 404:
-                    logger.warning(
-                        "AKSAdapter: deployment '%s' not found in namespace '%s'",
-                        service_name,
-                        ns,
-                    )
-                else:
-                    logger.warning(
-                        "AKSAdapter: could not read deployment '%s': %s", service_name, dep_exc
-                    )
+                logger.warning(
+                    "AKSAdapter: could not read deployment '%s': %s", dep_name, dep_exc
+                )
 
             return {"pods": pods, "events": events, "deployment": deployment}
 
@@ -184,3 +206,146 @@ class AKSAdapter:
                 "AKSAdapter.get_pod_context failed for service=%s: %s", service_name, exc
             )
             return {}
+
+    # ── Execution methods (V2 — require ApprovalStatus.APPROVED) ─────────────
+
+    def restart_pods(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+    ) -> list[str]:
+        """Delete all pods for *service_name* so the Deployment controller restarts them.
+
+        Returns a list of deleted pod names on success.
+        Returns an empty list if clients are not configured or on error.
+
+        This is a rolling restart — Kubernetes recreates each pod per the
+        Deployment's strategy (RollingUpdate by default).
+        """
+        if self._core_v1 is None:
+            logger.warning(
+                "AKSAdapter.restart_pods skipped: clients not configured (service=%s)",
+                service_name,
+            )
+            return []
+
+        ns = namespace or self._config.get("default_namespace", "default")
+        prefixed_name = f"{ns}-{service_name}"
+        deleted: list[str] = []
+
+        try:
+            pod_list = self._core_v1.list_namespaced_pod(
+                namespace=ns, label_selector=f"app={service_name}"
+            )
+            if not pod_list.items:
+                pod_list = self._core_v1.list_namespaced_pod(
+                    namespace=ns, label_selector=f"app={prefixed_name}"
+                )
+            for pod in pod_list.items:
+                pod_name = pod.metadata.name
+                self._core_v1.delete_namespaced_pod(name=pod_name, namespace=ns)
+                deleted.append(pod_name)
+                logger.info(
+                    "AKSAdapter.restart_pods: deleted pod %s in namespace %s", pod_name, ns
+                )
+        except Exception as exc:
+            logger.warning(
+                "AKSAdapter.restart_pods failed for service=%s: %s", service_name, exc
+            )
+
+        return deleted
+
+    def rollback_deployment(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+        revision: int | None = None,
+    ) -> bool:
+        """Roll back *service_name* deployment to a previous revision.
+
+        Uses a patch to trigger a rollout undo via the ``rollout.kubernetes.io/revision``
+        annotation.  When *revision* is ``None`` the controller rolls back to the
+        previous stable revision automatically.
+
+        Returns ``True`` on success, ``False`` on any error.
+        """
+        if self._apps_v1 is None:
+            logger.warning(
+                "AKSAdapter.rollback_deployment skipped: clients not configured (service=%s)",
+                service_name,
+            )
+            return False
+
+        ns = namespace or self._config.get("default_namespace", "default")
+        dep_name = self._resolve_deployment_name(service_name, ns)
+
+        try:
+            # Annotate the deployment to trigger a rollback.
+            # kubectl rollout undo sets rollout.kubernetes.io/revision to "" (empty string)
+            # to roll to previous, or to the specific revision number.
+            revision_value = "" if revision is None else str(revision)
+            patch_body = {
+                "metadata": {
+                    "annotations": {
+                        "corvin.io/rollback-requested": "true",
+                        "rollout.kubernetes.io/revision": revision_value,
+                    }
+                }
+            }
+            self._apps_v1.patch_namespaced_deployment(
+                name=dep_name, namespace=ns, body=patch_body
+            )
+            logger.info(
+                "AKSAdapter.rollback_deployment: triggered rollback for %s in namespace %s "
+                "(revision=%s)",
+                service_name,
+                ns,
+                revision_value or "previous",
+            )
+            return True
+        except Exception as exc:
+            logger.warning(
+                "AKSAdapter.rollback_deployment failed for service=%s: %s", service_name, exc
+            )
+            return False
+
+    def scale_deployment(
+        self,
+        service_name: str,
+        replicas: int,
+        namespace: str | None = None,
+    ) -> bool:
+        """Scale *service_name* deployment to *replicas*.
+
+        Returns ``True`` on success, ``False`` on any error.
+        """
+        if self._apps_v1 is None:
+            logger.warning(
+                "AKSAdapter.scale_deployment skipped: clients not configured (service=%s)",
+                service_name,
+            )
+            return False
+
+        ns = namespace or self._config.get("default_namespace", "default")
+        dep_name = self._resolve_deployment_name(service_name, ns)
+
+        try:
+            patch_body = {"spec": {"replicas": replicas}}
+            self._apps_v1.patch_namespaced_deployment_scale(
+                name=dep_name, namespace=ns, body=patch_body
+            )
+            logger.info(
+                "AKSAdapter.scale_deployment: scaled %s to %d replicas in namespace %s",
+                service_name,
+                replicas,
+                ns,
+            )
+            return True
+        except Exception as exc:
+            logger.warning(
+                "AKSAdapter.scale_deployment failed for service=%s replicas=%d: %s",
+                service_name,
+                replicas,
+                exc,
+            )
+            return False

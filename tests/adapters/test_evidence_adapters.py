@@ -91,7 +91,7 @@ def test_log_analytics_get_apim_logs_returns_list():
     columns = ["ResponseCode", "OperationName", "DurationMs"]
     mock_result = _make_la_query_result(rows, columns)
 
-    with patch("corvin.evidence.log_analytics_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.log_analytics_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.log_analytics_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = mock_result
         adapter = LogAnalyticsAdapter(config=_LA_CONFIG)
@@ -168,7 +168,7 @@ def test_azure_activity_get_recent_changes_returns_list():
     mock_result.status = LogsQueryStatus.SUCCESS
     mock_result.tables = [mock_table]
 
-    with patch("corvin.evidence.azure_activity_adapter.ClientSecretCredential"), \
+    with patch("corvin.evidence.azure_activity_adapter.DefaultAzureCredential"), \
          patch("corvin.evidence.azure_activity_adapter.LogsQueryClient") as MockClient:
         MockClient.return_value.query_workspace.return_value = mock_result
         adapter = AzureActivityAdapter(config=_AA_CONFIG)

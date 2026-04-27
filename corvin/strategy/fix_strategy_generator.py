@@ -12,7 +12,9 @@ approve, or schedule any remediation actions.
 from __future__ import annotations
 
 import json
+import logging
 import os
+from collections.abc import Generator
 from typing import Any
 
 import litellm
@@ -150,3 +152,49 @@ class FixStrategyGenerator:
 
         output = FixStrategyOutput.model_validate(self._parse_response(response))
         return self._apply_policy(output)
+
+    def generate_stream(
+        self,
+        request: InvestigationRequest,
+        rca: RCAOutput,
+    ) -> Generator[tuple[str | None, FixStrategyOutput | None], None, None]:
+        """Like generate() but yields (token_text, None) per chunk then (None, FixStrategyOutput)."""
+        kwargs = self._build_completion_kwargs()
+        # json_object response_format causes Azure OpenAI to buffer the entire
+        # response before sending any tokens — drop it on the streaming path
+        # and rely on the prompt's JSON instruction instead.
+        kwargs.pop("response_format", None)
+        kwargs["messages"] = self._build_messages(request, rca)
+        accumulated = ""
+
+        try:
+            kwargs_stream = {**kwargs, "stream": True}
+            response = litellm.completion(model=self._model_config["model"], **kwargs_stream)
+            for chunk in response:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    text = chunk.choices[0].delta.content
+                    accumulated += text
+                    yield (text, None)
+
+        except Exception as exc:
+            _log = logging.getLogger(__name__)
+            _log.warning("FixStrategyGenerator.generate_stream fell back to non-streaming: %s", exc)
+            try:
+                response = litellm.completion(model=self._model_config["model"], **kwargs)
+                output = FixStrategyOutput.model_validate(self._parse_response(response))
+                yield (None, self._apply_policy(output))
+                return
+            except Exception:
+                yield (None, FixStrategyOutput(request_id=request.id, summary="Could not generate fix strategy.", actions=[]))
+                return
+
+        cleaned = accumulated.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.strip("`")
+            if cleaned.startswith("json"):
+                cleaned = cleaned[4:].lstrip()
+        try:
+            output = FixStrategyOutput.model_validate(json.loads(cleaned))
+            yield (None, self._apply_policy(output))
+        except Exception:
+            yield (None, FixStrategyOutput(request_id=request.id, summary="Could not parse fix strategy.", actions=[]))

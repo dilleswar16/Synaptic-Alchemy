@@ -12,7 +12,9 @@ and API keys live in config – not here.
 from __future__ import annotations
 
 import json
+import logging
 import os
+from collections.abc import Generator
 from typing import Any
 
 import litellm
@@ -183,3 +185,68 @@ class RCAGenerator:
             response = litellm.completion(model=fallback_model, **kwargs)
 
         return RCAOutput.model_validate(self._parse_response(response))
+
+    def generate_stream(
+        self,
+        request: InvestigationRequest,
+        evidence: EvidenceBundle,
+        system_prompt: str | None = None,
+    ) -> Generator[tuple[str | None, RCAOutput | None], None, None]:
+        """Like generate() but yields (token_text, None) for each chunk, then (None, RCAOutput).
+
+        Callers iterate this generator: when the first element is a str it is a
+        raw token from the LLM; when it is None the second element holds the
+        fully-parsed RCAOutput.
+        """
+        if self._policy_config.get("require_evidence_before_rca", True) and not self._has_evidence(evidence):
+            yield (None, self._insufficient_evidence_output(request))
+            return
+
+        kwargs = self._build_completion_kwargs()
+        # json_object response_format causes Azure OpenAI to buffer the entire
+        # response before sending any tokens — drop it on the streaming path
+        # and rely on the prompt's JSON instruction instead.
+        kwargs.pop("response_format", None)
+        kwargs["messages"] = self._build_messages(request, evidence, system_prompt)
+        accumulated = ""
+
+        try:
+            kwargs_stream = {**kwargs, "stream": True}
+            try:
+                response = litellm.completion(model=self._config["model"], **kwargs_stream)
+            except Exception:
+                fallback_model = self._config.get("fallback_model")
+                if not fallback_model:
+                    raise
+                response = litellm.completion(model=fallback_model, **kwargs_stream)
+
+            for chunk in response:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    text = chunk.choices[0].delta.content
+                    accumulated += text
+                    yield (text, None)
+
+        except Exception as exc:
+            _log = logging.getLogger(__name__)
+            _log.warning("RCAGenerator.generate_stream fell back to non-streaming: %s", exc)
+            try:
+                response = litellm.completion(model=self._config["model"], **kwargs)
+                yield (None, RCAOutput.model_validate(self._parse_response(response)))
+                return
+            except Exception:
+                yield (None, self._insufficient_evidence_output(request))
+                return
+
+        yield (None, self._parse_accumulated_rca(accumulated, request))
+
+    def _parse_accumulated_rca(self, text: str, request: InvestigationRequest) -> RCAOutput:
+        """Parse a raw accumulated LLM text response into an RCAOutput."""
+        cleaned = text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.strip("`")
+            if cleaned.startswith("json"):
+                cleaned = cleaned[4:].lstrip()
+        try:
+            return RCAOutput.model_validate(json.loads(cleaned))
+        except Exception:
+            return self._insufficient_evidence_output(request)

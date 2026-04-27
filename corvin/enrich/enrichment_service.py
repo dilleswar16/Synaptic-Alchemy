@@ -81,7 +81,7 @@ class EnrichmentService:
 
         try:
             bundle.aks_context = self._aks.get_pod_context(
-                request.service_name
+                request.service_name, environment=request.environment
             )
         except NotImplementedError:
             pass

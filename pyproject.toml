@@ -26,6 +26,8 @@ dependencies = [
     "rich>=13.7.0",
     "prompt_toolkit>=3.0.0",
     "pyfiglet>=0.8.0",
+    "botbuilder-core>=4.17.0",
+    "botbuilder-integration-aiohttp>=4.17.0",
 ]
 
 [project.optional-dependencies]

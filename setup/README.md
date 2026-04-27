@@ -11,6 +11,7 @@ what values to copy, and where to put them.
 | 4 | [04_env_file.md](04_env_file.md) | Fill in your `.env` file with all collected values and start the app |
 | 5 | [05_aks.md](05_aks.md) | Connect Corvin to your AKS cluster, verify kubeconfig, update site.md |
 | 6 | [06_database_migrations.md](06_database_migrations.md) | How to use Alembic to update Postgres schemas |
+| 7 | [07_teams_bot.md](07_teams_bot.md) | Register the Corvin Teams bot, enable ChatOps (@Corvin mention) |
 
 ## Prerequisites
 

@@ -123,6 +123,18 @@ class RiskLevel(str, Enum):
     HIGH = "high"
 
 
+class ActionType(str, Enum):
+    """The concrete execution type for a FixAction.
+
+    Used by ExecutionService to dispatch to the correct AKS / Azure call.
+    """
+
+    RESTART_POD = "restart_pod"
+    ROLLBACK_DEPLOYMENT = "rollback_deployment"
+    SCALE_DEPLOYMENT = "scale_deployment"
+    MANUAL = "manual"  # Human-only action — ExecutionService skips it
+
+
 class FixAction(BaseModel):
     """A single recommended remediation action."""
 
@@ -130,6 +142,7 @@ class FixAction(BaseModel):
 
     title: str
     description: str
+    action_type: ActionType = ActionType.MANUAL
     risk_level: RiskLevel
     estimated_impact: str
     requires_approval: bool = True

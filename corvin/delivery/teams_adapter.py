@@ -29,7 +29,20 @@ class TeamsAdapter:
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _build_card(self, result: InvestigationResult) -> dict[str, Any]:
-        """Construct a Teams Adaptive Card payload for *result*."""
+        """Construct a Teams Adaptive Card payload for *result*.
+
+        The card includes two ``Action.OpenUrl`` buttons — Approve and Reject —
+        that link to the Corvin web app's investigation detail page with an
+        ``?action=approve`` / ``?action=reject`` query param.  The web app then
+        presents a confirmation dialog before POSTing to the approval API.
+
+        ``web_base_url`` is read from config (env: ``CORVIN_WEB_BASE_URL``).
+        Trailing slashes are stripped to avoid double-slash URLs.
+        """
+        web_base_url = self._config.get("web_base_url", "http://localhost:5173").rstrip("/")
+        approve_url = f"{web_base_url}/investigations/{result.request_id}?action=approve"
+        reject_url = f"{web_base_url}/investigations/{result.request_id}?action=reject"
+
         confidence = result.rca.confidence.value if result.rca else "unknown"
         actions_text = (
             "\n".join(
@@ -54,7 +67,8 @@ class TeamsAdapter:
                                 "type": "TextBlock",
                                 "text": "Corvin — Investigation Complete",
                                 "weight": "Bolder",
-                                "size": "Medium",
+                                "size": "Large",
+                                "color": "Accent",
                             },
                             {
                                 "type": "FactSet",
@@ -62,7 +76,7 @@ class TeamsAdapter:
                                     {"title": "Service", "value": result.request.service_name},
                                     {"title": "Environment", "value": result.request.environment},
                                     {"title": "Trigger", "value": result.request.trigger_source.value},
-                                    {"title": "Confidence", "value": confidence},
+                                    {"title": "Confidence", "value": confidence.upper()},
                                     {"title": "Request ID", "value": result.request_id},
                                 ],
                             },
@@ -98,6 +112,28 @@ class TeamsAdapter:
                                 "type": "TextBlock",
                                 "text": actions_text,
                                 "wrap": True,
+                            },
+                            {
+                                "type": "TextBlock",
+                                "text": "⚠️ Review the full investigation detail before approving.",
+                                "wrap": True,
+                                "color": "Warning",
+                                "size": "Small",
+                                "separator": True,
+                            },
+                        ],
+                        "actions": [
+                            {
+                                "type": "Action.OpenUrl",
+                                "title": "✅ Approve",
+                                "url": approve_url,
+                                "style": "positive",
+                            },
+                            {
+                                "type": "Action.OpenUrl",
+                                "title": "❌ Reject",
+                                "url": reject_url,
+                                "style": "destructive",
                             },
                         ],
                     },

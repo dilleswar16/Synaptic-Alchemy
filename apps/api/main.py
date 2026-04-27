@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from apps.api.routes import investigations, triggers
+from apps.teams.router import router as teams_router
 
 app = FastAPI(
     title="Corvin API",
@@ -19,6 +20,7 @@ app = FastAPI(
 
 app.include_router(investigations.router, prefix="/investigations", tags=["investigations"])
 app.include_router(triggers.router, prefix="/triggers", tags=["triggers"])
+app.include_router(teams_router, prefix="/teams", tags=["teams"])
 
 
 @app.get("/health", tags=["health"])

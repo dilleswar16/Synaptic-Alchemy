@@ -6,8 +6,20 @@
 # Env var: TEAMS_WEBHOOK_URL
 webhook_url: "${TEAMS_WEBHOOK_URL}"
 
+# Base URL of the Corvin web app.
+# Used to build Approve / Reject button URLs inside Adaptive Cards.
+# Env var: CORVIN_WEB_BASE_URL
+web_base_url: "${CORVIN_WEB_BASE_URL}"
+
 # Display name used in posted cards.
 channel_name: "corvin-alerts"
 
-# Set to false to disable Teams delivery without removing the config.
+# Set to false to disable outbound Teams card delivery without removing the config.
 enabled: true
+
+# ── V2 ChatOps Bot settings ───────────────────────────────────────────────────
+# Set bot_enabled to true once the Azure Bot registration is complete.
+# Env vars: TEAMS_APP_ID, TEAMS_APP_PASSWORD
+bot_enabled: false
+app_id: "${TEAMS_APP_ID}"
+app_password: "${TEAMS_APP_PASSWORD}"

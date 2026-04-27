@@ -8,7 +8,31 @@
 
 ## Current Goal
 
-**Active: V1.5 complete.**  All real Azure cloud integrations validated end-to-end. LLM (Azure OpenAI GPT-4.1-mini) ✅, Postgres ✅, Log Analytics APIM ✅, AKS ✅, Container Logs (Azure Monitor Container Insights) ✅. End-to-end CLI investigation produced HIGH confidence RCA with real evidence. V1.5 exit criteria met.
+**V2 code-complete. 288/288 tests passing. Next: V2 cloud validation (Teams bot registration + AKS smoke test) per `setup/07_teams_bot.md`.**
+
+V2 Slice 1: `ApprovalStatus` enum, `lookback_minutes`, ORM columns, Alembic migration applied to real Azure Postgres.
+V2 Slice 2: `POST /investigations/{id}/approve` and `POST /investigations/{id}/reject` routes with 404/409 guards.
+V2 Slice 3: Teams Adaptive Card updated with `Action.OpenUrl` Approve/Reject buttons + full approval UI in React detail page.
+V2 Slice 4: `ExecutionService` wired to `AKSAdapter` — pod restart, rollback, scale dispatched from approved fix actions.
+V2 Slice 5: Teams ChatOps bot — `CorvinBot(ActivityHandler)` handles `@mention investigate <service> <env>` in Teams.
+  - `apps/teams/__init__.py`, `apps/teams/bot.py`, `apps/teams/router.py`
+  - `POST /teams/messages` route: returns 501 when `bot_enabled: false` (safe default for CI/local)
+  - `_strip_mention_tags` + `_parse_command` helpers handle Teams HTML mention wrappers
+  - `_run_investigation_async` runs engine in thread executor, posts result card via `TeamsAdapter`
+  - Ack sent immediately to Teams before engine runs (avoids 15s timeout)
+  - `TEAMS_APP_ID`, `TEAMS_APP_PASSWORD` added to `.env.example` and `config/integrations/teams.yaml`
+  - `bot_enabled: false` config guard means no Bot Framework registration needed for development
+  - 38 new tests — 267 total passing
+V2 Slice 6: Streaming RCA (SSE) — `GET /investigations/stream` + React consumer.
+  - `corvin/investigation/stream.py` — `InvestigationStreamer` runs pipeline stage-by-stage, yields SSE events
+  - `GET /investigations/stream` FastAPI route with `StreamingResponse`, registered before `GET /{id}` to avoid routing conflict
+  - `apps/web/src/hooks/useInvestigationStream.ts` — React hook wrapping EventSource API
+  - `apps/web/src/components/StreamingProgress.tsx` — live stage progress component
+  - `InvestigationsPage` form now streams instead of blocking POST; redirects to detail page on completion
+  - `setup/07_teams_bot.md` created — full Teams Bot Azure registration walkthrough
+  - 21 new tests — **288 total passing**
+  - **Post-slice fix:** `generate_stream()` in both `RCAGenerator` and `FixStrategyGenerator` now drops `response_format: json_object` on the streaming path. Azure OpenAI buffers all tokens until full JSON is structurally valid when this flag is set, defeating SSE streaming. Removing it lets tokens flow in real time (~13ms gaps over 6+ seconds for a full RCA). JSON parsing is done client-side after accumulating all tokens. `FakeRCA.generate_stream()` and `FakeFixStrategy.generate_stream()` added to test fakes so the streamer tests no longer fall through to the real LLM.
+  - **AKS deployment name fix:** `AKSAdapter._resolve_deployment_name()` added — tries bare `service_name` first, falls back to `{namespace}-{service_name}` (e.g. `chad-partnerapis`) on 404. Matches the Helm chart naming convention used in the `chad` namespace.
 
 > **V1.5 adapter changes:** Elastic replaced by `ContainerLogsAdapter` (org SSO blocks Elastic). Queries `ContainerLog`, `KubePodInventory`, `KubeEvents` tables from `LogAnalytics-AUCHAD-DV01` workspace. Enrichment service wired to use container logs as fallback when Elastic is offline.
 
@@ -209,6 +233,42 @@ These items were identified as missing from the initial scaffold. Fix all of the
 - [x] End-to-end CLI investigation with real evidence produces a meaningful RCA
 - [x] No mocks in the happy path
 
+---
+
+## V2 Build Tasks
+
+### V2 Slice 1 – ApprovalStatus model + DB columns ✅
+- [x] Added `ApprovalStatus` enum (`pending` / `approved` / `rejected` / `executed`) to `corvin/core/contracts.py`
+- [x] Added `approval_status: ApprovalStatus = ApprovalStatus.PENDING` field to `InvestigationRequest`
+- [x] Added `lookback_minutes: int` field to `InvestigationRequest` with `@model_validator` auto-set (15 min for `AZURE_ALERT`, 60 min for manual triggers)
+- [x] Added `approval_status` and `lookback_minutes` columns to `InvestigationRequestRow` ORM model (`corvin/storage/models.py`)
+- [x] Created Alembic migration `05ac79937721_v2_slice_1_add_approval_status_lookback_.py` with `server_default` to handle existing rows without NOT NULL violations
+- [x] Applied migration to real Azure Postgres; migration head confirmed at `05ac79937721`
+- [x] Added `ConfigDict(extra="forbid")` to `RCAOutput`, `FixAction`, `FixStrategyOutput` for JSON schema generation
+- [x] 4 V2 Slice 1 tests in `tests/slices/test_slice_v2_s1_approval_model.py`; 159/159 pass
+
+### V2 Slice 3 – Teams Adaptive Card with Approve / Reject buttons ✅
+- [x] Updated `corvin/delivery/teams_adapter.py` — `_build_card` now reads `web_base_url` from config (env: `CORVIN_WEB_BASE_URL`; fallback: `http://localhost:5173`) and injects an `actions` array into the Adaptive Card
+- [x] Two `Action.OpenUrl` buttons: **✅ Approve** (`style: positive`) and **❌ Reject** (`style: destructive`) — URLs point to `{web_base_url}/investigations/{request_id}?action=approve|reject`
+- [x] Added a `Warning`-coloured review-reminder TextBlock above the action buttons
+- [x] Trailing slash on `web_base_url` is stripped to prevent double-slash URLs
+- [x] No bot needed for this slice — buttons open the Corvin web app in a browser (upgraded to `Action.Execute` Universal Actions in Slice 5 when the bot exists)
+- [x] Updated `config/integrations/teams.yaml` — added `web_base_url: "${CORVIN_WEB_BASE_URL}"` setting
+- [x] Updated `.env.example` — added `CORVIN_WEB_BASE_URL=http://localhost:5173`
+- [x] Updated `apps/web/src/api/client.ts` — added `approveInvestigation()`, `rejectInvestigation()` API functions; added `ApprovalResponse` interface; added `approval_status` to `InvestigationResult.request` TypeScript type
+- [x] Rewrote `apps/web/src/pages/InvestigationDetailPage.tsx` — full Approval section with status badge, Approve/Reject buttons, 2-step confirmation dialog, `?action=approve|reject` URL param support (Teams card button → auto-confirm prompt), success/error feedback, query invalidation after action
+- [x] 19 V2 Slice 3 tests in `tests/slices/test_slice_v2_s3_teams_approval_card.py`; 194/194 pass
+- [x] Added `get_approval_status(request_id)` and `update_approval_status(request_id, new_status)` to `InvestigationRepository`
+- [x] `update_approval_status` commits inside its own session; returns updated row or `None` if ID not found
+- [x] Added `POST /investigations/{request_id}/approve` route — 404 if not found, 409 if already `executed`, else transitions to `approved`
+- [x] Added `POST /investigations/{request_id}/reject` route — 404 if not found, 409 if already `executed`, else transitions to `rejected`
+- [x] Gate rule enforced at route level: no execution path exists without `ApprovalStatus.APPROVED`
+- [x] Added `ApprovalResponse` Pydantic model (`request_id`, `approval_status`, `message`) as route response model
+- [x] Fixed `_sqlite_session_factory` in test helpers to use `StaticPool` so TestClient thread shares the same in-memory DB
+- [x] Fixed `test_evidence_adapters.py` — `ClientSecretCredential` patches replaced with `DefaultAzureCredential` (V1.5 adapter migration)
+- [x] Fixed `enrichment_service.py` — `get_pod_context` now passes `environment=request.environment` (was missing positional arg)
+- [x] 16 V2 Slice 2 tests in `tests/slices/test_slice_v2_s2_approval_api.py`; 175/175 pass
+
 ## V1 Exit Criteria
 - [ ] CLI, API, web app, and Teams can all start an investigation
 - [ ] Azure alerts auto-trigger the flow
@@ -270,6 +330,9 @@ These items were identified as missing from the initial scaffold. Fix all of the
 | 11 | 2026-05-xx | V1.5 – ContainerLogsAdapter created | New adapter querying `LogAnalytics-AUCHAD-DV01`; `ContainerLog` 200 rows, `KubePodInventory` 7 rows, `KubeEvents` 12 rows; replaces Elastic (org SSO blocked) |
 | 11 | 2026-05-xx | V1.5 – knowledge/site.md populated | Real infra facts: AKS cluster, namespaces, services table, APIM, both LA workspaces, known issues |
 | 11 | 2026-05-xx | V1.5 – End-to-end validated | `partnerapis / chad` investigation: HIGH confidence RCA produced with real evidence; startup probe HTTP 500 failures identified as root cause; HPA metric issue correctly diagnosed |
+| 12 | 2026-05-xx | V2 Slice 1 – ApprovalStatus + lookback | Added ApprovalStatus enum, approval_status + lookback_minutes to contracts + ORM models; Alembic migration with server_default applied to real Postgres; 4 new tests; 159/159 pass |
+| 12 | 2026-05-xx | V2 Slice 2 – Approve/Reject routes | Added get/update approval_status to repository; POST /approve and /reject routes with 404/409 guards; gate rule enforced; StaticPool fix for SQLite TestClient threading; fixed 3 legacy test regressions (ClientSecretCredential patches, missing environment arg in enrichment_service); 16 new tests; 175/175 pass |
+| 12 | 2026-04-26 | V2 Slice 3 – Teams Adaptive Card buttons | Added Action.OpenUrl Approve/Reject buttons to Teams card (web_base_url config, trailing-slash safe, fallback localhost:5173); full Approval UI in React detail page (status badge, confirm dialog, ?action= param support, query invalidation); updated api/client.ts with approval fns + TypeScript types; 19 new tests; 194/194 pass |
 
 ## Resume Notes
 
