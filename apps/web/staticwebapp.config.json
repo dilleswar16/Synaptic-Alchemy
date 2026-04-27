@@ -2,7 +2,7 @@
   "routes": [
     {
       "route": "/api/*",
-      "rewrite": "https://<CORVIN_API_URL>/{wildcard}",
+      "rewrite": "https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net/{wildcard}",
       "statusCode": 200
     },
     {
@@ -18,6 +18,6 @@
   "globalHeaders": {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
-    "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://<CORVIN_API_URL>; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
   }
 }
