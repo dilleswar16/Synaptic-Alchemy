@@ -2,8 +2,7 @@
   "routes": [
     {
       "route": "/api/*",
-      "rewrite": "https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net/{wildcard}",
-      "statusCode": 200
+      "rewrite": "https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net/{wildcard}"
     },
     {
       "route": "/*",
