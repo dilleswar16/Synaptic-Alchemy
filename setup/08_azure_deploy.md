@@ -105,12 +105,13 @@ Static Web Apps automatically sets up a build pipeline in Azure DevOps and deplo
 
 ### Step 2 — Point the UI at the real API
 
-1. Open `apps/web/staticwebapp.config.json`
-2. Replace both `<CORVIN_API_URL>` placeholders with your actual App Service URL:
+1. Open `apps/web/public/staticwebapp.config.json`
+2. Replace the App Service origin with your actual API URL:
    ```
    https://corvin-api.azurewebsites.net
    ```
-3. Commit and push — Static Web Apps redeploys automatically.
+3. If you also use `VITE_API_URL`, set it to the same origin without an `/api` suffix.
+4. Commit and push — Static Web Apps redeploys automatically.
 
 ### Step 3 — Verify the UI is live
 
@@ -175,6 +176,6 @@ This works entirely inside the Azure Portal — no Teams channel, no org app pol
 |---|---|
 | App Service 500 on startup | Log stream → missing env var or alembic migration failed |
 | Bot returns "Bot is not reachable" | Messaging endpoint URL wrong or App Service not running |
-| Static Web App 404 on refresh | `staticwebapp.config.json` navigationFallback not committed |
+| Static Web App 404 on refresh | `apps/web/public/staticwebapp.config.json` not deployed into `dist` |
 | Bot messages not arriving | `TEAMS_APP_ID` / `TEAMS_APP_PASSWORD` mismatch |
 | `bot_enabled: false` returns 501 | Flip to `true` in config and redeploy |

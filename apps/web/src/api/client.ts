@@ -1,12 +1,11 @@
+import { API_BASE } from './baseUrl'
+
 /**
  * Corvin API client.
  *
- * All requests go through /api which Vite proxies to the FastAPI backend
- * during local development.  In production the web app is served from the
- * same origin as the API, so /api points directly to FastAPI.
+ * Requests use the configured FastAPI origin when VITE_API_URL is set.
+ * Otherwise they fall back to same-origin /api for local dev and SWA rewrites.
  */
-
-const API_BASE = (import.meta.env.VITE_API_URL ?? '') + '/api'
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

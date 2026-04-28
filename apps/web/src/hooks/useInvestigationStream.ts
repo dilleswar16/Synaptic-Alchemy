@@ -1,8 +1,8 @@
 /**
  * useInvestigationStream — React hook for the Corvin SSE streaming endpoint.
  *
- * Opens an EventSource to GET /api/investigations/stream and emits stage
- * events as they arrive from the FastAPI backend.
+ * Opens an EventSource to the configured investigations stream endpoint and
+ * emits stage events as they arrive from the FastAPI backend.
  *
  * Usage
  * -----
@@ -17,6 +17,8 @@
  */
 
 import { useCallback, useRef, useState } from 'react'
+
+import { API_BASE } from '../api/baseUrl'
 
 export type StageStatus = 'started' | 'token' | 'complete' | 'error'
 
@@ -52,8 +54,6 @@ export interface UseInvestigationStreamResult {
   /** Close the stream and clear all state. */
   reset: () => void
 }
-
-const API_BASE = '/api'
 
 export function useInvestigationStream(): UseInvestigationStreamResult {
   const [stages, setStages] = useState<StageEvent[]>([])

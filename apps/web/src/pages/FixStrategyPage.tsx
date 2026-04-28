@@ -1,11 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
-async function fetchInvestigation(id: string) {
-  const res = await fetch(`/api/investigations/${id}`)
-  if (!res.ok) throw new Error(`API error ${res.status}`)
-  return res.json()
-}
+import { fetchInvestigation } from '../api/client'
 
 export default function FixStrategyPage() {
   const { id } = useParams<{ id: string }>()
