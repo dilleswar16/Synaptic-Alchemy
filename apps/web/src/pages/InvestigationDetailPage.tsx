@@ -5,7 +5,9 @@ import {
   fetchInvestigation,
   approveInvestigation,
   rejectInvestigation,
+  executeInvestigation,
   type ApprovalResponse,
+  type ExecutionResponse,
 } from '../api/client'
 
 // ── Approval status badge ─────────────────────────────────────────────────────
@@ -126,6 +128,89 @@ function ApprovalSection({ requestId, status, pendingAction, onClearPendingActio
   )
 }
 
+// ── Execution section ─────────────────────────────────────────────────────────
+
+interface ExecutionSectionProps {
+  requestId: string
+  status: string
+}
+
+function ExecutionSection({ requestId, status }: ExecutionSectionProps) {
+  const queryClient = useQueryClient()
+  const [confirming, setConfirming] = useState(false)
+  const [outcome, setOutcome] = useState<{ ok: boolean; data: ExecutionResponse | null; message: string } | null>(null)
+
+  const executeMutation = useMutation({
+    mutationFn: () => executeInvestigation(requestId),
+    onSuccess: (data) => {
+      setOutcome({ ok: data.all_succeeded, data, message: data.message })
+      setConfirming(false)
+      queryClient.invalidateQueries({ queryKey: ['investigation', requestId] })
+    },
+    onError: (err: Error) => {
+      setOutcome({ ok: false, data: null, message: err.message })
+      setConfirming(false)
+    },
+  })
+
+  if (status !== 'approved' && status !== 'executed') return null
+
+  return (
+    <section style={{ marginTop: '1.5rem', padding: '1.2rem 1.5rem', border: '1px solid #e8e8e8', borderRadius: '8px', background: '#fafafa' }}>
+      <h2 style={{ marginTop: 0 }}>Execution</h2>
+
+      {status === 'executed' && !outcome && (
+        <p style={{ color: '#0958d9' }}>This investigation has already been executed.</p>
+      )}
+
+      {outcome && (
+        <div style={{ padding: '8px 12px', borderRadius: '6px', background: outcome.ok ? '#f6ffed' : '#fff1f0', color: outcome.ok ? '#389e0d' : '#cf1322' }}>
+          <p style={{ margin: 0, fontWeight: 500 }}>{outcome.message}</p>
+          {outcome.data?.outcomes?.length ? (
+            <ul style={{ marginTop: '0.5rem' }}>
+              {outcome.data.outcomes.map((o, i) => (
+                <li key={i}>
+                  <strong>{o.title}:</strong> {o.success ? '✅' : '❌'} {o.detail}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      )}
+
+      {status === 'approved' && !outcome && !confirming && (
+        <button
+          onClick={() => setConfirming(true)}
+          style={{ padding: '8px 20px', background: '#0958d9', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+          🚀 Execute Fix Strategy
+        </button>
+      )}
+
+      {status === 'approved' && confirming && !outcome && (
+        <div style={{ marginTop: '0.5rem', padding: '1rem', background: '#e6f4ff', borderRadius: '6px', border: '1px solid #91caff' }}>
+          <p style={{ margin: '0 0 0.75rem', fontWeight: 500 }}>
+            🚀 Confirm execution — Corvin will run every approved action against the live cluster.
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              disabled={executeMutation.isPending}
+              onClick={() => executeMutation.mutate()}
+              style={{ padding: '7px 18px', background: '#0958d9', color: '#fff', border: 'none', borderRadius: '6px', cursor: executeMutation.isPending ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: executeMutation.isPending ? 0.7 : 1 }}>
+              {executeMutation.isPending ? 'Executing…' : 'Confirm Execute'}
+            </button>
+            <button
+              disabled={executeMutation.isPending}
+              onClick={() => setConfirming(false)}
+              style={{ padding: '7px 18px', background: '#fff', border: '1px solid #d9d9d9', borderRadius: '6px', cursor: 'pointer' }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function InvestigationDetailPage() {
@@ -195,6 +280,8 @@ export default function InvestigationDetailPage() {
             pendingAction={pendingAction}
             onClearPendingAction={clearPendingAction}
           />
+
+          <ExecutionSection requestId={id!} status={approvalStatus} />
         </>
       )}
     </main>

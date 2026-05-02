@@ -8,7 +8,40 @@
 
 ## Current Goal
 
-**V2 code-complete. 288/288 tests passing. Next: V2 cloud validation (Teams bot registration + AKS smoke test) per `setup/07_teams_bot.md`.**
+**V2 code-complete + post-V2 hardening pass complete. 320/320 tests passing.** Next: V2 cloud validation (Teams bot registration + AKS smoke test) per `setup/07_teams_bot.md`.
+
+### Post-V2 hardening (audit-driven fixes)
+
+Audit found 3 critical (C-*) and 7 high-priority (H-*) issues. C-2 (auth/RBAC) skipped per scope (hackathon).
+
+A second post-fix audit then surfaced 4 contract-drift criticals (C-A..C-D) inside the C-1 Execute surface plus one new High (H-A). All 5 fixed.
+
+- [x] **H-2** `FixStrategyGenerator.generate_stream` fallback now sets required `justification` field — prevents `pydantic.ValidationError` when streaming + non-streaming both fail. Tests: `test_slice6_llm_generation.py` (+2).
+- [x] **H-3** `RCAGenerator` now exposes `last_stream_status` (`ok | insufficient_evidence | degraded_non_streaming | degraded_unparseable | degraded_failed`). `InvestigationStreamer` surfaces this in the SSE `rca.complete` event as `generation_status` + `degraded` so the UI can show degraded results. Tests: `test_slice_v2_s6_streaming_rca.py` (+3).
+- [x] **H-4** Approval state machine tightened: only `pending → approved/rejected` is allowed (was leaking `approved → rejected` etc.). Tests: `test_slice_v2_s2_approval_api.py` (+4).
+- [x] **H-5** `EnrichmentService` now wraps every adapter call with `try/except` + `logging.getLogger(__name__).warning(...)`. One failing source no longer kills the whole bundle. Tests: `test_slice2_enrichment_service.py` (+1).
+- [x] **H-6** `corvin/storage/db.py` now honours `pool_size`, `max_overflow`, `pool_timeout_seconds` from `config/integrations/postgres.yaml` (was hardcoded). Tests: `test_slice_h6_postgres_pool_config.py` (+4, new file).
+- [x] **H-7** `POST /triggers/azure-alert` now actually runs the engine + persists + posts to Teams (was just normalising payload + returning 202). Returns 202 even on engine failure (Azure Monitor retries forever — non-2xx triggers infinite retries). Tests: `test_slice_h7_azure_alert_triggers_engine.py` (+3, new file).
+- [x] **C-1** Execute surface wired across all delivery channels:
+  - Web: `apps/web/src/api/client.ts` + `InvestigationDetailPage.tsx` (new `ExecutionSection`).
+  - CLI: `apps/cli/main.py` — `approve <id>`, `reject <id>`, `execute <id>` commands added to REPL + help table.
+  - Teams bot: `apps/teams/bot.py` — `approve <id>`, `reject <id>`, `execute <id>` commands wired through `InvestigationRepository` and `ExecutionService`. Tests: `test_slice_v2_s5_teams_bot.py` (+9).
+- [x] **H-1** `apps/web/src/api/baseUrl.ts` already correctly prefers `VITE_API_URL`. Documented in `setup/08_azure_deploy.md` Part 2 Step 2 that production **must** set `VITE_API_URL` to the App Service origin so SSE bypasses the SWA proxy buffer (which would otherwise break streaming RCA).
+- [x] **C-3** `.github/workflows/azure-static-web-apps.yml` and `.github/workflows/azure-app-service-api.yml` added.
+- [ ] ~~**C-2** auth/RBAC~~ — explicitly skipped (hackathon scope).
+
+### Post-fix audit follow-ups (contract drift round)
+
+- [x] **C-A** Teams bot `_handle_execute` was calling `ExecutionService.execute(request_id, namespace=...)` — wrong signature. Real signature is `execute(result: InvestigationResult, approval_status: ApprovalStatus, namespace=None)` and raises `PermissionError` if status != approved. Bot now loads the persisted `InvestigationResult` via `repository.get_investigation_result(request_id)` and passes it through correctly.
+- [x] **C-B** Web (`apps/web/src/api/client.ts`, `InvestigationDetailPage.tsx`), CLI (`apps/cli/main.py`), and Teams bot were all reading wrong outcome fields (`action_title`, `succeeded`, `message`). API actually returns `{action_type, title, success, detail}`. All three surfaces now read the real shape.
+- [x] **C-C** Teams bot wasn't transitioning approval status from `approved → executed` after a successful run, leaving the persisted record stale relative to the API route (which does transition). Bot now calls `repository.update_approval_status(request_id, ApprovalStatus.EXECUTED)` on success.
+- [x] **C-D** Teams bot test fakes (`_FakeRepository`, `_FakeExecutionService`, `_FakeOutcome`, `_FakeExecutionResult`) used invented method signatures and dataclass shapes — they were hiding C-A/C-B/C-C entirely. Rewrote to use the real `ActionOutcome` and `ExecutionResult` dataclasses, the real `ExecutionService.execute(result, approval_status, namespace=None)` signature, and added `_FakeRepository.get_investigation_result`. Added `test_bot_execute_missing_result_returns_friendly_error` for the new error path. Tests: `test_slice_v2_s5_teams_bot.py` rewritten + 1 new test.
+- [x] **H-A** `POST /triggers/azure-alert` was running `engine.run` (which can take 60-180s) inline, and Azure Monitor Action Groups have a ~120s HTTP timeout + retry-on-timeout. Race condition: long investigations could trigger duplicate retries. Route now takes a `BackgroundTasks` parameter and queues a worker `_run_investigation_in_background(request, engine, repo, teams)` that runs the full pipeline; webhook returns 202 immediately with `status: "accepted"`. Tests: `test_slice_h7_azure_alert_triggers_engine.py` updated + 1 new regression test (introspects the route to assert `background_tasks.add_task` is wired) — 4/4.
+- [x] **M-A** `FixStrategyGenerator.generate_stream` now sets `self.last_stream_status` (`ok | degraded_non_streaming | degraded_unparseable | degraded_failed`) on every yield path, mirroring `RCAGenerator`. `InvestigationStreamer` reads it and emits `generation_status` + `degraded` on the SSE `fix_strategy.complete` event so the UI can show banners for fallback paths. Tests: `test_slice_v2_s6_streaming_rca.py` (+4) — 28/28.
+
+> **Test count:** 314 → **320 passing** (+1 bot-error path, +1 H-A regression, +4 M-A regression). All bot tests now use real `ActionOutcome`/`ExecutionResult` dataclasses instead of fabricated stand-ins, eliminating contract-drift accelerators.
+
+**V2 status:**
 
 V2 Slice 1: `ApprovalStatus` enum, `lookback_minutes`, ORM columns, Alembic migration applied to real Azure Postgres.
 V2 Slice 2: `POST /investigations/{id}/approve` and `POST /investigations/{id}/reject` routes with 404/409 guards.

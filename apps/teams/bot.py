@@ -32,9 +32,11 @@ from typing import Any
 
 from botbuilder.core import ActivityHandler, TurnContext
 
-from corvin.core.contracts import InvestigationRequest, TriggerSource
+from corvin.core.contracts import ApprovalStatus, InvestigationRequest, TriggerSource
 from corvin.delivery.teams_adapter import TeamsAdapter
+from corvin.execution.execution_service import ExecutionService
 from corvin.investigation.engine import InvestigationEngine
+from corvin.storage.repository import InvestigationRepository
 
 _log = logging.getLogger(__name__)
 
@@ -120,6 +122,8 @@ class CorvinBot(ActivityHandler):
         self,
         engine: InvestigationEngine | None = None,
         teams_adapter: TeamsAdapter | None = None,
+        repository: InvestigationRepository | None = None,
+        execution_service: ExecutionService | None = None,
     ) -> None:
         super().__init__()
         self._engine: InvestigationEngine = (
@@ -127,6 +131,12 @@ class CorvinBot(ActivityHandler):
         )
         self._teams: TeamsAdapter = (
             teams_adapter if teams_adapter is not None else TeamsAdapter()
+        )
+        self._repository: InvestigationRepository = (
+            repository if repository is not None else InvestigationRepository()
+        )
+        self._execution: ExecutionService = (
+            execution_service if execution_service is not None else ExecutionService()
         )
         # Set by _handle_investigate; exposed for test introspection only.
         self._last_investigation_task: asyncio.Task[None] | None = None
@@ -146,12 +156,19 @@ class CorvinBot(ActivityHandler):
 
         if parsed.command == "investigate":
             await self._handle_investigate(turn_context, parsed.args)
+        elif parsed.command == "approve":
+            await self._handle_approval(turn_context, parsed.args, ApprovalStatus.APPROVED)
+        elif parsed.command == "reject":
+            await self._handle_approval(turn_context, parsed.args, ApprovalStatus.REJECTED)
+        elif parsed.command == "execute":
+            await self._handle_execute(turn_context, parsed.args)
         elif parsed.command == "help":
             await self._handle_help(turn_context)
         else:
             await turn_context.send_activity(
                 f"Unknown command: `{parsed.command}`. "
-                "Try `investigate <service> <environment>` or `help`."
+                "Try `investigate <service> <environment>`, `approve <id>`, "
+                "`reject <id>`, `execute <id>`, or `help`."
             )
 
     # ── Command handlers ──────────────────────────────────────────────────────
@@ -191,9 +208,155 @@ class CorvinBot(ActivityHandler):
         await turn_context.send_activity(
             "**Corvin — Available Commands**\n\n"
             "• `investigate <service> <environment>` — start an investigation\n"
+            "• `approve <request_id>` — approve a pending fix strategy\n"
+            "• `reject <request_id>` — reject a pending fix strategy\n"
+            "• `execute <request_id>` — execute an approved fix strategy\n"
             "• `help` — show this message\n\n"
             "Results are posted as Adaptive Cards to this channel."
         )
+
+    async def _handle_approval(
+        self,
+        turn_context: TurnContext,
+        args: list[str],
+        new_status: ApprovalStatus,
+    ) -> None:
+        """Handle ``approve <id>`` and ``reject <id>`` commands.
+
+        Mirrors the API state machine: only investigations currently in
+        ``pending`` can transition to ``approved`` or ``rejected``.
+        """
+        verb = new_status.value
+        if not args:
+            await turn_context.send_activity(f"Usage: `{verb} <request_id>`")
+            return
+        request_id = args[0]
+        try:
+            current = await asyncio.to_thread(self._repository.get_approval_status, request_id)
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("CorvinBot._handle_approval lookup failed for %s: %s", request_id, exc)
+            await turn_context.send_activity(
+                f"⚠️ Could not look up `{request_id}`. Please try again."
+            )
+            return
+
+        if current is None:
+            await turn_context.send_activity(f"❌ Investigation `{request_id}` not found.")
+            return
+        if current != ApprovalStatus.PENDING.value:
+            await turn_context.send_activity(
+                f"⚠️ Cannot {verb} `{request_id}` — current status is **{current}**."
+            )
+            return
+
+        try:
+            await asyncio.to_thread(self._repository.update_approval_status, request_id, new_status)
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("CorvinBot._handle_approval update failed for %s: %s", request_id, exc)
+            await turn_context.send_activity(
+                f"⚠️ Failed to {verb} `{request_id}` — see server logs."
+            )
+            return
+
+        icon = "✅" if new_status == ApprovalStatus.APPROVED else "❌"
+        msg = (
+            "Use `execute <request_id>` to run the fix strategy."
+            if new_status == ApprovalStatus.APPROVED
+            else "No fix will be executed for this investigation."
+        )
+        await turn_context.send_activity(
+            f"{icon} {verb.capitalize()}d **{request_id}**. {msg}"
+        )
+
+    async def _handle_execute(
+        self, turn_context: TurnContext, args: list[str]
+    ) -> None:
+        """Handle ``execute <id>`` — run the approved fix strategy."""
+        if not args:
+            await turn_context.send_activity("Usage: `execute <request_id>`")
+            return
+        request_id = args[0]
+
+        try:
+            current = await asyncio.to_thread(self._repository.get_approval_status, request_id)
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("CorvinBot._handle_execute lookup failed for %s: %s", request_id, exc)
+            await turn_context.send_activity(
+                f"⚠️ Could not look up `{request_id}`. Please try again."
+            )
+            return
+
+        if current is None:
+            await turn_context.send_activity(f"❌ Investigation `{request_id}` not found.")
+            return
+        if current != ApprovalStatus.APPROVED.value:
+            await turn_context.send_activity(
+                f"⚠️ Cannot execute `{request_id}` — current status is **{current}** "
+                "(must be `approved`)."
+            )
+            return
+
+        # Load the persisted InvestigationResult — required by ExecutionService.
+        try:
+            result = await asyncio.to_thread(
+                self._repository.get_investigation_result, request_id
+            )
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("CorvinBot._handle_execute load failed for %s: %s", request_id, exc)
+            await turn_context.send_activity(
+                f"⚠️ Could not load investigation `{request_id}`. Please try again."
+            )
+            return
+        if result is None:
+            await turn_context.send_activity(
+                f"❌ Investigation `{request_id}` result not found in persistence store."
+            )
+            return
+
+        await turn_context.send_activity(
+            f"🚀 Executing approved fix strategy for **{request_id}**…"
+        )
+
+        try:
+            outcome = await asyncio.to_thread(
+                self._execution.execute, result, current
+            )
+        except PermissionError as exc:
+            _log.warning("CorvinBot._handle_execute gate refused %s: %s", request_id, exc)
+            await turn_context.send_activity(
+                f"⚠️ Execution refused by the approval gate for `{request_id}`."
+            )
+            return
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("CorvinBot._handle_execute failed for %s: %s", request_id, exc)
+            await turn_context.send_activity(
+                f"❌ Execution failed for `{request_id}` — see server logs."
+            )
+            return
+
+        # Transition approval_status → executed so subsequent execute calls are blocked.
+        try:
+            await asyncio.to_thread(
+                self._repository.update_approval_status,
+                request_id,
+                ApprovalStatus.EXECUTED,
+            )
+        except Exception as exc:  # noqa: BLE001
+            _log.warning(
+                "CorvinBot._handle_execute: state transition to EXECUTED failed for %s: %s",
+                request_id,
+                exc,
+            )
+
+        all_ok = bool(getattr(outcome, "all_succeeded", False))
+        head = "✅ Execution complete." if all_ok else "⚠️ Execution finished with errors."
+        lines = [head]
+        for o in getattr(outcome, "outcomes", []) or []:
+            mark = "✅" if getattr(o, "success", False) else "❌"
+            title = getattr(o, "title", "?")
+            detail = getattr(o, "detail", "")
+            lines.append(f"{mark} **{title}** — {detail}")
+        await turn_context.send_activity("\n".join(lines))
 
     # ── Background investigation ──────────────────────────────────────────────
 

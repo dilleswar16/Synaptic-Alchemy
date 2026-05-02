@@ -110,7 +110,13 @@ Static Web Apps automatically sets up a build pipeline in Azure DevOps and deplo
    ```
    https://corvin-api.azurewebsites.net
    ```
-3. If you also use `VITE_API_URL`, set it to the same origin without an `/api` suffix.
+3. **Required for streaming RCA (Server-Sent Events).** Set the Static Web App
+   environment variable `VITE_API_URL` to the App Service origin **without** an
+   `/api` suffix (e.g. `https://corvin-api.azurewebsites.net`). The frontend
+   uses this value directly so SSE traffic bypasses the Static Web App proxy
+   layer, which buffers `text/event-stream` responses and would otherwise break
+   live token streaming. Configure it under
+   *Static Web App → Configuration → Application settings* and redeploy.
 4. Commit and push — Static Web Apps redeploys automatically.
 
 ### Step 3 — Verify the UI is live

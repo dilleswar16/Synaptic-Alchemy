@@ -153,14 +153,24 @@ class InvestigationStreamer:
             else:
                 rca = result
         assert rca is not None  # generate_stream always yields a (None, result) at the end
+        # Surface RCA generator's degradation status (ok / insufficient_evidence /
+        # degraded_non_streaming / degraded_unparseable / degraded_failed) so the
+        # UI can show a banner when an RCA was produced via the fallback path
+        # rather than silently treating a degraded result as healthy.
+        rca_status = getattr(self._rca, "last_stream_status", None) or "ok"
+        rca_degraded = rca_status not in ("ok", "insufficient_evidence")
         yield _stage_event(
             "rca",
             "complete",
-            "Root cause analysis complete.",
+            "Root cause analysis complete."
+            if not rca_degraded
+            else f"Root cause analysis complete (degraded path: {rca_status}).",
             summary=rca.summary,
             root_cause=rca.root_cause,
             contributing_factors=rca.contributing_factors,
             confidence=rca.confidence.value,
+            generation_status=rca_status,
+            degraded=rca_degraded,
         )
 
         # ── Stage 3: Fix strategy generation ─────────────────────────────────
@@ -172,13 +182,23 @@ class InvestigationStreamer:
             else:
                 fix_strategy = result
         assert fix_strategy is not None
+        # Surface FixStrategyGenerator's degradation status (ok /
+        # degraded_non_streaming / degraded_unparseable / degraded_failed) so
+        # the UI can show a banner when the fix strategy was produced via the
+        # fallback path rather than silently treating it as healthy.
+        fix_status = getattr(self._fix_strategy, "last_stream_status", None) or "ok"
+        fix_degraded = fix_status != "ok"
         yield _stage_event(
             "fix_strategy",
             "complete",
-            "Fix strategy ready.",
+            "Fix strategy ready."
+            if not fix_degraded
+            else f"Fix strategy ready (degraded path: {fix_status}).",
             summary=fix_strategy.summary,
             action_count=len(fix_strategy.actions),
             action_summaries=[a.description for a in fix_strategy.actions],
+            generation_status=fix_status,
+            degraded=fix_degraded,
         )
 
         # ── Stage 4: Complete ─────────────────────────────────────────────────

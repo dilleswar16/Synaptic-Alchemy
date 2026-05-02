@@ -50,6 +50,32 @@ def _build_url() -> str:
     return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{database}?sslmode=require"
 
 
+def _build_pool_kwargs() -> dict:
+    """
+    Build SQLAlchemy create_engine pool kwargs from postgres.yaml.
+
+    Honored keys (with defaults that match the previous behaviour when
+    absent or invalid):
+      - pool_size            (default: 5)
+      - max_overflow         (default: 10)
+      - pool_timeout_seconds (default: 30) → SQLAlchemy ``pool_timeout``
+    """
+    cfg = load_config("integrations/postgres", get_env())
+
+    def _coerce_int(value, default: int) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    return {
+        "pool_pre_ping": True,
+        "pool_size": _coerce_int(cfg.get("pool_size"), 5),
+        "max_overflow": _coerce_int(cfg.get("max_overflow"), 10),
+        "pool_timeout": _coerce_int(cfg.get("pool_timeout_seconds"), 30),
+    }
+
+
 _engine = None
 _SessionLocal: sessionmaker | None = None
 
@@ -57,7 +83,7 @@ _SessionLocal: sessionmaker | None = None
 def get_engine():
     global _engine
     if _engine is None:
-        _engine = create_engine(_build_url(), pool_pre_ping=True)
+        _engine = create_engine(_build_url(), **_build_pool_kwargs())
     return _engine
 
 

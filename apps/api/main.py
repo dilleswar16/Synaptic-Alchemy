@@ -21,13 +21,19 @@ app = FastAPI(
     version="0.1.0",
 )
 
-_allowed_origins = [o.strip() for o in os.environ.get("CORVIN_ALLOWED_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
+_cors_origins_raw = os.environ.get("CORVIN_ALLOWED_ORIGINS", "http://localhost:5173").strip()
+_allow_all_origins = _cors_origins_raw == "*"
+_allowed_origins = (
+    ["*"]
+    if _allow_all_origins
+    else [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PATCH"],
-    allow_headers=["Content-Type"],
+    allow_methods=["*"] if _allow_all_origins else ["GET", "POST", "PATCH"],
+    allow_headers=["*"] if _allow_all_origins else ["Content-Type"],
 )
 
 app.include_router(investigations.router, prefix="/investigations", tags=["investigations"])

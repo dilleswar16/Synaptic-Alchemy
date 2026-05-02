@@ -55,6 +55,7 @@ from corvin.core.contracts import (
     RiskLevel,
     TriggerSource,
 )
+from corvin.execution.execution_service import ActionOutcome, ExecutionResult
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -558,3 +559,263 @@ def test_teams_messages_route_501_body_explains_how_to_enable():
         assert "bot_enabled" in resp.text
     finally:
         app.dependency_overrides.clear()
+
+
+# -------------------------------------------------------------------------------
+# CorvinBot.approve / reject / execute commands  (V2 slice 5b)
+# -------------------------------------------------------------------------------
+
+
+class _FakeRepository:
+    """Test double for InvestigationRepository — supports approve/reject/execute paths.
+
+    Implements the subset of methods CorvinBot calls:
+      - get_approval_status(request_id) -> str | None
+      - update_approval_status(request_id, ApprovalStatus) -> None
+      - get_investigation_result(request_id) -> InvestigationResult | None
+    """
+
+    def __init__(
+        self,
+        status: str | None = "pending",
+        result: InvestigationResult | None = None,
+    ) -> None:
+        self._status = status
+        self._result = result
+        self.update_calls: list[tuple[str, Any]] = []
+
+    def get_approval_status(self, request_id: str) -> str | None:
+        return self._status
+
+    def update_approval_status(self, request_id: str, new_status: Any) -> None:
+        self.update_calls.append((request_id, new_status))
+        self._status = new_status.value if hasattr(new_status, "value") else new_status
+
+    def get_investigation_result(self, request_id: str) -> InvestigationResult | None:
+        return self._result
+
+
+class _FakeExecutionService:
+    """Subclass of the real ExecutionService that records calls and returns a canned result.
+
+    The real ExecutionService.execute signature is:
+        execute(self, result: InvestigationResult, approval_status: str, namespace: str | None = None)
+
+    We honor that signature exactly so a contract drift between the bot and the
+    real service surfaces as a TypeError in these tests rather than as a silent
+    runtime failure in production.
+    """
+
+    def __init__(self, result: "ExecutionResult") -> None:
+        self._result = result
+        self.calls: list[tuple[InvestigationResult, str]] = []
+
+    def execute(
+        self,
+        result: InvestigationResult,
+        approval_status: str,
+        namespace: str | None = None,
+    ) -> "ExecutionResult":
+        self.calls.append((result, approval_status))
+        return self._result
+
+
+def _outcome(title: str, success: bool, detail: str) -> ActionOutcome:
+    return ActionOutcome(
+        action_type=ActionType.RESTART_POD,
+        title=title,
+        success=success,
+        detail=detail,
+    )
+
+
+def _exec_result(request_id: str, outcomes: list[ActionOutcome]) -> "ExecutionResult":
+    return ExecutionResult(request_id=request_id, outcomes=outcomes)
+
+
+@pytest.mark.asyncio
+async def test_bot_approve_pending_marks_approved() -> None:
+    repo = _FakeRepository(status="pending")
+    bot = CorvinBot(
+        engine=_FakeEngine(),
+        teams_adapter=_FakeTeamsAdapter(),
+        repository=repo,
+        execution_service=_FakeExecutionService(_exec_result("req-123", [])),
+    )
+    ctx = _FakeTurnContext(text="approve req-123")
+    await bot.on_message_activity(ctx)
+    assert len(repo.update_calls) == 1
+    assert repo.update_calls[0][0] == "req-123"
+    assert any("Approved" in m and "req-123" in m for m in ctx.sent)
+
+
+@pytest.mark.asyncio
+async def test_bot_reject_pending_marks_rejected() -> None:
+    repo = _FakeRepository(status="pending")
+    bot = CorvinBot(
+        engine=_FakeEngine(),
+        teams_adapter=_FakeTeamsAdapter(),
+        repository=repo,
+        execution_service=_FakeExecutionService(_exec_result("req-456", [])),
+    )
+    ctx = _FakeTurnContext(text="reject req-456")
+    await bot.on_message_activity(ctx)
+    assert len(repo.update_calls) == 1
+    assert any("Rejected" in m and "req-456" in m for m in ctx.sent)
+
+
+@pytest.mark.asyncio
+async def test_bot_approve_non_pending_refuses() -> None:
+    repo = _FakeRepository(status="approved")
+    bot = CorvinBot(
+        engine=_FakeEngine(),
+        teams_adapter=_FakeTeamsAdapter(),
+        repository=repo,
+        execution_service=_FakeExecutionService(_exec_result("req-789", [])),
+    )
+    ctx = _FakeTurnContext(text="approve req-789")
+    await bot.on_message_activity(ctx)
+    assert repo.update_calls == []
+    assert any("Cannot approve" in m for m in ctx.sent)
+
+
+@pytest.mark.asyncio
+async def test_bot_approve_unknown_request_says_not_found() -> None:
+    repo = _FakeRepository(status=None)
+    bot = CorvinBot(
+        engine=_FakeEngine(),
+        teams_adapter=_FakeTeamsAdapter(),
+        repository=repo,
+        execution_service=_FakeExecutionService(_exec_result("req-missing", [])),
+    )
+    ctx = _FakeTurnContext(text="approve req-missing")
+    await bot.on_message_activity(ctx)
+    assert any("not found" in m for m in ctx.sent)
+
+
+@pytest.mark.asyncio
+async def test_bot_approve_no_args_sends_usage() -> None:
+    bot = CorvinBot(
+        engine=_FakeEngine(),
+        teams_adapter=_FakeTeamsAdapter(),
+        repository=_FakeRepository(),
+        execution_service=_FakeExecutionService(_exec_result("x", [])),
+    )
+    ctx = _FakeTurnContext(text="approve")
+    await bot.on_message_activity(ctx)
+    assert any("Usage" in m and "approve" in m for m in ctx.sent)
+
+
+@pytest.mark.asyncio
+async def test_bot_execute_approved_runs_service_and_reports_outcomes() -> None:
+    canned = _make_canned_result("req-exec-1")
+    repo = _FakeRepository(status="approved", result=canned)
+    exec_service = _FakeExecutionService(
+        _exec_result(
+            "req-exec-1",
+            [_outcome("Restart pod", True, "Pod restarted successfully.")],
+        )
+    )
+    bot = CorvinBot(
+        engine=_FakeEngine(),
+        teams_adapter=_FakeTeamsAdapter(),
+        repository=repo,
+        execution_service=exec_service,
+    )
+    ctx = _FakeTurnContext(text="execute req-exec-1")
+    await bot.on_message_activity(ctx)
+
+    # Verify the bot called execute with the real (result, approval_status) signature.
+    assert len(exec_service.calls) == 1
+    called_result, called_status = exec_service.calls[0]
+    assert called_result.request_id == "req-exec-1"
+    assert called_status == "approved"
+
+    # Verify the bot transitioned approval_status -> executed after success.
+    assert any(
+        rid == "req-exec-1" and getattr(s, "value", s) == "executed"
+        for rid, s in repo.update_calls
+    )
+
+    body = "\n".join(ctx.sent)
+    assert "Executing" in body
+    assert "Execution complete" in body
+    # Bot must use real ActionOutcome attributes (title / detail), not action_title / message.
+    assert "Restart pod" in body
+    assert "Pod restarted successfully." in body
+
+
+@pytest.mark.asyncio
+async def test_bot_execute_non_approved_refuses() -> None:
+    repo = _FakeRepository(status="pending")
+    exec_service = _FakeExecutionService(_exec_result("req-exec-2", []))
+    bot = CorvinBot(
+        engine=_FakeEngine(),
+        teams_adapter=_FakeTeamsAdapter(),
+        repository=repo,
+        execution_service=exec_service,
+    )
+    ctx = _FakeTurnContext(text="execute req-exec-2")
+    await bot.on_message_activity(ctx)
+    assert exec_service.calls == []
+    assert any("Cannot execute" in m for m in ctx.sent)
+
+
+@pytest.mark.asyncio
+async def test_bot_execute_missing_result_returns_friendly_error() -> None:
+    """If the row is approved but the InvestigationResult is missing, the bot
+    must NOT call ExecutionService.execute (which would crash on a None result)."""
+    repo = _FakeRepository(status="approved", result=None)
+    exec_service = _FakeExecutionService(_exec_result("req-exec-missing", []))
+    bot = CorvinBot(
+        engine=_FakeEngine(),
+        teams_adapter=_FakeTeamsAdapter(),
+        repository=repo,
+        execution_service=exec_service,
+    )
+    ctx = _FakeTurnContext(text="execute req-exec-missing")
+    await bot.on_message_activity(ctx)
+    assert exec_service.calls == []
+    assert any("not found" in m for m in ctx.sent)
+
+
+@pytest.mark.asyncio
+async def test_bot_execute_failures_reported_per_action() -> None:
+    canned = _make_canned_result("req-exec-3")
+    repo = _FakeRepository(status="approved", result=canned)
+    exec_service = _FakeExecutionService(
+        _exec_result(
+            "req-exec-3",
+            [
+                _outcome("Restart pod", True, "OK"),
+                _outcome("Scale up", False, "Quota exceeded"),
+            ],
+        )
+    )
+    bot = CorvinBot(
+        engine=_FakeEngine(),
+        teams_adapter=_FakeTeamsAdapter(),
+        repository=repo,
+        execution_service=exec_service,
+    )
+    ctx = _FakeTurnContext(text="execute req-exec-3")
+    await bot.on_message_activity(ctx)
+    body = "\n".join(ctx.sent)
+    assert "errors" in body
+    assert "Quota exceeded" in body
+
+
+@pytest.mark.asyncio
+async def test_bot_help_lists_approve_reject_execute() -> None:
+    bot = CorvinBot(
+        engine=_FakeEngine(),
+        teams_adapter=_FakeTeamsAdapter(),
+        repository=_FakeRepository(),
+        execution_service=_FakeExecutionService(_exec_result("x", [])),
+    )
+    ctx = _FakeTurnContext(text="help")
+    await bot.on_message_activity(ctx)
+    body = "\n".join(ctx.sent)
+    assert "approve" in body
+    assert "reject" in body
+    assert "execute" in body

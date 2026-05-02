@@ -73,6 +73,9 @@ def cmd_help() -> None:
     table.add_row("investigate", "Start a new investigation — prompts for service, env, description")
     table.add_row("list", "List all investigations, newest first")
     table.add_row("show <id>", "Show full RCA + fix strategy for an investigation")
+    table.add_row("approve <id>", "Approve an investigation's fix strategy (gates execution)")
+    table.add_row("reject <id>", "Reject an investigation's fix strategy")
+    table.add_row("execute <id>", "Execute the approved fix strategy against the live cluster")
     table.add_row("health", "Check Corvin API reachability")
     table.add_row("clear", "Clear the terminal")
     table.add_row("help", "Show this help")
@@ -187,6 +190,69 @@ def cmd_show(args: list[str]) -> None:
             console.print(f"  [red]✗[/red] API error {exc.response.status_code}")
         return
     _render_result(result, request_id)
+
+
+def _approval_action(args: list[str], verb: str, path: str) -> None:
+    """Shared handler for approve/reject — POSTs to /investigations/{id}/{path}."""
+    if not args:
+        console.print(f"  [red]Usage:[/red] {verb} <request_id>")
+        return
+    request_id = args[0]
+    try:
+        data = _api_post(f"/investigations/{request_id}/{path}", {}, timeout=30)
+    except httpx.ConnectError:
+        console.print(f"  [red]✗[/red] Cannot connect to Corvin API at [bold]{API_URL}[/bold]")
+        return
+    except httpx.HTTPStatusError as exc:
+        body = exc.response.text[:300]
+        console.print(f"  [red]✗[/red] API error {exc.response.status_code}: {body}")
+        return
+    status_label = data.get("approval_status", "?")
+    console.print(
+        f"  [green]✓[/green] {verb.capitalize()}d [bold]{request_id}[/bold]  "
+        f"[dim]→ status: [bold]{status_label}[/bold][/dim]"
+    )
+    if data.get("message"):
+        console.print(f"  [dim]{data['message']}[/dim]")
+
+
+def cmd_approve(args: list[str]) -> None:
+    _approval_action(args, "approve", "approve")
+
+
+def cmd_reject(args: list[str]) -> None:
+    _approval_action(args, "reject", "reject")
+
+
+def cmd_execute(args: list[str]) -> None:
+    if not args:
+        console.print("  [red]Usage:[/red] execute <request_id>")
+        return
+    request_id = args[0]
+    with console.status(f"[bold cyan]Executing approved fix strategy for {request_id}…[/bold cyan]"):
+        try:
+            data = _api_post(f"/investigations/{request_id}/execute", {}, timeout=TIMEOUT)
+        except httpx.ConnectError:
+            console.print(f"  [red]✗[/red] Cannot connect to Corvin API at [bold]{API_URL}[/bold]")
+            return
+        except httpx.HTTPStatusError as exc:
+            body = exc.response.text[:300]
+            console.print(f"  [red]✗[/red] API error {exc.response.status_code}: {body}")
+            return
+
+    all_ok = bool(data.get("all_succeeded"))
+    icon, colour = ("✓", "green") if all_ok else ("✗", "red")
+    console.print(
+        f"  [{colour}]{icon}[/{colour}] {data.get('message', 'Execution complete.')}  "
+        f"[dim]→ status: [bold]{data.get('approval_status', '?')}[/bold][/dim]"
+    )
+    for outcome in data.get("outcomes", []):
+        ok = bool(outcome.get("success"))
+        sub_icon, sub_colour = ("✓", "green") if ok else ("✗", "red")
+        console.print(
+            f"    [{sub_colour}]{sub_icon}[/{sub_colour}] [bold]{outcome.get('title', '?')}[/bold] — "
+            f"{outcome.get('detail', '')}"
+        )
 
 
 def _render_result(result: dict, request_id: str) -> None:
@@ -320,6 +386,12 @@ def run_shell(api_url: str = API_URL) -> None:
                 cmd_list()
             elif cmd == "show":
                 cmd_show(args)
+            elif cmd == "approve":
+                cmd_approve(args)
+            elif cmd == "reject":
+                cmd_reject(args)
+            elif cmd == "execute":
+                cmd_execute(args)
             elif cmd == "clear":
                 # os.system cls/clear wipes the scroll buffer; console.clear() only moves the
                 # cursor and leaves scroll history that reflows on terminal resize.

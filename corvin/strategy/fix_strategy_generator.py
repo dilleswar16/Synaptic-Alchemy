@@ -39,6 +39,10 @@ class FixStrategyGenerator:
             if policy_config is not None
             else load_config("policies/investigation", get_env())
         )
+        # Set by generate_stream() on every terminal yield path so callers
+        # (e.g. corvin.investigation.stream.InvestigationStreamer) can surface
+        # whether the stream ran cleanly or fell back. Mirrors RCAGenerator.
+        self.last_stream_status: str | None = None
 
     def _build_messages(
         self,
@@ -159,6 +163,7 @@ class FixStrategyGenerator:
         rca: RCAOutput,
     ) -> Generator[tuple[str | None, FixStrategyOutput | None], None, None]:
         """Like generate() but yields (token_text, None) per chunk then (None, FixStrategyOutput)."""
+        self.last_stream_status = None
         kwargs = self._build_completion_kwargs()
         # json_object response_format causes Azure OpenAI to buffer the entire
         # response before sending any tokens — drop it on the streaming path
@@ -182,10 +187,20 @@ class FixStrategyGenerator:
             try:
                 response = litellm.completion(model=self._model_config["model"], **kwargs)
                 output = FixStrategyOutput.model_validate(self._parse_response(response))
+                self.last_stream_status = "degraded_non_streaming"
                 yield (None, self._apply_policy(output))
                 return
             except Exception:
-                yield (None, FixStrategyOutput(request_id=request.id, summary="Could not generate fix strategy.", actions=[]))
+                self.last_stream_status = "degraded_failed"
+                yield (
+                    None,
+                    FixStrategyOutput(
+                        request_id=request.id,
+                        summary="Could not generate fix strategy.",
+                        actions=[],
+                        justification="(none — generator fallback after streaming + non-streaming both failed)",
+                    ),
+                )
                 return
 
         cleaned = accumulated.strip()
@@ -195,6 +210,16 @@ class FixStrategyGenerator:
                 cleaned = cleaned[4:].lstrip()
         try:
             output = FixStrategyOutput.model_validate(json.loads(cleaned))
+            self.last_stream_status = "ok"
             yield (None, self._apply_policy(output))
         except Exception:
-            yield (None, FixStrategyOutput(request_id=request.id, summary="Could not parse fix strategy.", actions=[]))
+            self.last_stream_status = "degraded_unparseable"
+            yield (
+                None,
+                FixStrategyOutput(
+                    request_id=request.id,
+                    summary="Could not parse fix strategy.",
+                    actions=[],
+                    justification="(none — streaming output was not valid JSON)",
+                ),
+            )

@@ -10,6 +10,8 @@ Inject custom adapter instances in tests or when swapping implementations.
 
 from __future__ import annotations
 
+import logging
+
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import EvidenceBundle, InvestigationRequest
 from corvin.evidence.aks_adapter import AKSAdapter
@@ -17,6 +19,9 @@ from corvin.evidence.azure_activity_adapter import AzureActivityAdapter
 from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
 from corvin.evidence.elastic_adapter import ElasticAdapter
 from corvin.evidence.log_analytics_adapter import LogAnalyticsAdapter
+
+
+_log = logging.getLogger(__name__)
 
 
 class EnrichmentService:
@@ -54,8 +59,8 @@ class EnrichmentService:
                 )
             except NotImplementedError:
                 pass
-            except Exception:
-                pass  # Elastic offline — fall through to container logs below
+            except Exception as exc:
+                _log.warning("ElasticAdapter.get_logs failed: %s", exc)
 
             try:
                 bundle.elastic_metrics = self._elastic.get_metrics(
@@ -63,6 +68,8 @@ class EnrichmentService:
                 )
             except NotImplementedError:
                 pass
+            except Exception as exc:
+                _log.warning("ElasticAdapter.get_metrics failed: %s", exc)
 
         if not bundle.elastic_logs:
             try:
@@ -71,6 +78,8 @@ class EnrichmentService:
                 )
             except NotImplementedError:
                 pass
+            except Exception as exc:
+                _log.warning("ContainerLogsAdapter.get_container_logs failed: %s", exc)
 
         try:
             bundle.log_analytics_apim = self._log_analytics.get_apim_logs(
@@ -78,6 +87,8 @@ class EnrichmentService:
             )
         except NotImplementedError:
             pass
+        except Exception as exc:
+            _log.warning("LogAnalyticsAdapter.get_apim_logs failed: %s", exc)
 
         try:
             bundle.aks_context = self._aks.get_pod_context(
@@ -85,6 +96,8 @@ class EnrichmentService:
             )
         except NotImplementedError:
             pass
+        except Exception as exc:
+            _log.warning("AKSAdapter.get_pod_context failed: %s", exc)
 
         try:
             bundle.azure_activity_changes = self._azure_activity.get_recent_changes(
@@ -92,5 +105,7 @@ class EnrichmentService:
             )
         except NotImplementedError:
             pass
+        except Exception as exc:
+            _log.warning("AzureActivityAdapter.get_recent_changes failed: %s", exc)
 
         return bundle

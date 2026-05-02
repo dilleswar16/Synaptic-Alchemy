@@ -37,6 +37,13 @@ class RCAGenerator:
             if policy_config is not None
             else load_config("policies/investigation", get_env())
         )
+        # Status of the last generate_stream() call.  One of:
+        #   'ok'                    - streaming + parsing succeeded
+        #   'insufficient_evidence' - evidence-gate rejected before any LLM call
+        #   'degraded_non_streaming'- streaming failed, non-streaming retry succeeded
+        #   'degraded_unparseable'  - streaming output was not valid JSON
+        #   'degraded_failed'       - both streaming and non-streaming retry failed
+        self.last_stream_status: str | None = None
 
     def _is_empty_value(self, value: Any) -> bool:
         if value is None:
@@ -198,7 +205,11 @@ class RCAGenerator:
         raw token from the LLM; when it is None the second element holds the
         fully-parsed RCAOutput.
         """
+        # Reset status — set to a terminal value before each yield-of-result path.
+        self.last_stream_status = None
+
         if self._policy_config.get("require_evidence_before_rca", True) and not self._has_evidence(evidence):
+            self.last_stream_status = "insufficient_evidence"
             yield (None, self._insufficient_evidence_output(request))
             return
 
@@ -231,9 +242,11 @@ class RCAGenerator:
             _log.warning("RCAGenerator.generate_stream fell back to non-streaming: %s", exc)
             try:
                 response = litellm.completion(model=self._config["model"], **kwargs)
+                self.last_stream_status = "degraded_non_streaming"
                 yield (None, RCAOutput.model_validate(self._parse_response(response)))
                 return
             except Exception:
+                self.last_stream_status = "degraded_failed"
                 yield (None, self._insufficient_evidence_output(request))
                 return
 
@@ -247,6 +260,9 @@ class RCAGenerator:
             if cleaned.startswith("json"):
                 cleaned = cleaned[4:].lstrip()
         try:
-            return RCAOutput.model_validate(json.loads(cleaned))
+            output = RCAOutput.model_validate(json.loads(cleaned))
+            self.last_stream_status = "ok"
+            return output
         except Exception:
+            self.last_stream_status = "degraded_unparseable"
             return self._insufficient_evidence_output(request)

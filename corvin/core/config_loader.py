@@ -18,10 +18,16 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from dotenv import load_dotenv
 
-# Root of the config/ directory, resolved relative to this file's location.
-# corvin/core/ -> corvin/ -> project root -> config/
-_CONFIG_DIR = Path(__file__).parent.parent.parent / "config"
+# Project root and config/ directory, resolved relative to this file's location.
+# corvin/core/ -> corvin/ -> project root
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+_CONFIG_DIR = _PROJECT_ROOT / "config"
+
+# Load repo-local .env for normal app runtime. Shell-provided environment
+# variables still win because override=False.
+load_dotenv(_PROJECT_ROOT / ".env", override=False)
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:

@@ -299,3 +299,63 @@ def test_reject_response_contains_message():
         assert len(resp.json()["message"]) > 0
     finally:
         _cleanup()
+
+
+def test_approve_route_409_already_approved():
+    """H-4: re-approving an already-approved investigation must return 409."""
+    sf = _sqlite_session_factory()
+    repo = InvestigationRepository(session_factory=sf)
+    rid = _make_request_row(sf)
+    repo.update_approval_status(rid, ApprovalStatus.APPROVED)
+
+    client = _client_with_repo(repo)
+    try:
+        resp = client.post(f"/investigations/{rid}/approve")
+        assert resp.status_code == 409
+    finally:
+        _cleanup()
+
+
+def test_reject_route_409_already_approved():
+    """H-4: rejecting an already-approved investigation must return 409."""
+    sf = _sqlite_session_factory()
+    repo = InvestigationRepository(session_factory=sf)
+    rid = _make_request_row(sf)
+    repo.update_approval_status(rid, ApprovalStatus.APPROVED)
+
+    client = _client_with_repo(repo)
+    try:
+        resp = client.post(f"/investigations/{rid}/reject")
+        assert resp.status_code == 409
+    finally:
+        _cleanup()
+
+
+def test_approve_route_409_already_rejected():
+    """H-4: approving an already-rejected investigation must return 409."""
+    sf = _sqlite_session_factory()
+    repo = InvestigationRepository(session_factory=sf)
+    rid = _make_request_row(sf)
+    repo.update_approval_status(rid, ApprovalStatus.REJECTED)
+
+    client = _client_with_repo(repo)
+    try:
+        resp = client.post(f"/investigations/{rid}/approve")
+        assert resp.status_code == 409
+    finally:
+        _cleanup()
+
+
+def test_reject_route_409_already_rejected():
+    """H-4: re-rejecting an already-rejected investigation must return 409."""
+    sf = _sqlite_session_factory()
+    repo = InvestigationRepository(session_factory=sf)
+    rid = _make_request_row(sf)
+    repo.update_approval_status(rid, ApprovalStatus.REJECTED)
+
+    client = _client_with_repo(repo)
+    try:
+        resp = client.post(f"/investigations/{rid}/reject")
+        assert resp.status_code == 409
+    finally:
+        _cleanup()

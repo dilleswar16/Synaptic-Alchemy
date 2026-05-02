@@ -569,3 +569,73 @@ def test_fix_strategy_handles_parsed_structured_response(monkeypatch):
     assert result.summary == "Parsed-path fix strategy."
     # review_only policy must force requires_approval = True even on the parsed path
     assert all(action.requires_approval for action in result.actions)
+
+def test_fix_strategy_generate_stream_fallback_includes_justification(monkeypatch):
+    """H-2 regression: when both streaming and non-streaming completion fail,
+    generate_stream must yield a valid FixStrategyOutput including the required
+    justification field (FixStrategyOutput uses extra='forbid' and
+    justification is mandatory).
+    """
+    request = _make_request()
+    rca = RCAOutput(
+        request_id=request.id,
+        summary="Backend errors detected",
+        root_cause="Unhandled exception in order-service",
+    )
+
+    def always_fail(**kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        "corvin.strategy.fix_strategy_generator.litellm.completion", always_fail
+    )
+
+    generator = FixStrategyGenerator(
+        model_config={"model": "primary-model", "temperature": 0.1, "max_tokens": 512},
+        policy_config={"fix_strategy_max_actions": 5, "fix_execution_mode": "review_only"},
+    )
+
+    events = list(generator.generate_stream(request, rca))
+    final = [out for (_, out) in events if out is not None]
+    assert len(final) == 1
+    fs = final[0]
+    assert fs.actions == []
+    assert fs.summary == "Could not generate fix strategy."
+    assert fs.justification and "fallback" in fs.justification.lower()
+
+
+def test_fix_strategy_generate_stream_unparseable_includes_justification(monkeypatch):
+    """H-2 regression: when streaming succeeds but the accumulated payload is
+    not valid JSON, generate_stream must yield a fallback FixStrategyOutput
+    that includes the required justification field."""
+    request = _make_request()
+    rca = RCAOutput(
+        request_id=request.id,
+        summary="Backend errors detected",
+        root_cause="Unhandled exception in order-service",
+    )
+
+    def fake_stream(**kwargs):
+        # streaming path (kwargs has stream=True): yield chunks of garbage
+        if kwargs.get("stream"):
+            chunks = ["this ", "is ", "not json"]
+            for c in chunks:
+                yield SimpleNamespace(
+                    choices=[SimpleNamespace(delta=SimpleNamespace(content=c))]
+                )
+
+    monkeypatch.setattr(
+        "corvin.strategy.fix_strategy_generator.litellm.completion", fake_stream
+    )
+
+    generator = FixStrategyGenerator(
+        model_config={"model": "primary-model", "temperature": 0.1, "max_tokens": 512},
+        policy_config={"fix_strategy_max_actions": 5, "fix_execution_mode": "review_only"},
+    )
+
+    events = list(generator.generate_stream(request, rca))
+    final = [out for (_, out) in events if out is not None]
+    assert len(final) == 1
+    fs = final[0]
+    assert fs.summary == "Could not parse fix strategy."
+    assert fs.justification and "json" in fs.justification.lower()

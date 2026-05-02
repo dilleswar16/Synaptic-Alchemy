@@ -419,3 +419,143 @@ def test_stream_route_missing_service_name_returns_422():
         assert resp.status_code == 422
     finally:
         app.dependency_overrides.pop(get_streamer, None)
+
+
+# -- H-3 regression: streaming RCA fallback signal ----------------------------
+
+
+class _DegradedRCA(RCAGenerator):
+    """Mimics RCAGenerator that fell back to non-streaming on stream failure."""
+
+    def generate_stream(self, request, evidence, **kwargs):
+        self.last_stream_status = "degraded_non_streaming"
+        yield (None, _make_rca(request.id))
+
+
+class _UnparseableRCA(RCAGenerator):
+    """Mimics RCAGenerator whose accumulated stream output was not valid JSON."""
+
+    def generate_stream(self, request, evidence, **kwargs):
+        # _insufficient_evidence_output is the documented fallback shape
+        self.last_stream_status = "degraded_unparseable"
+        yield (None, self._insufficient_evidence_output(request))
+
+
+def test_streamer_rca_complete_event_marks_degraded_when_fallback_used():
+    """H-3: when the RCA generator used its non-streaming fallback, the
+    streamer must mark the rca.complete event with degraded=True and surface
+    the generation_status string."""
+    streamer = InvestigationStreamer(
+        enrichment=FakeEnrichment(),
+        rca=_DegradedRCA(),
+        fix_strategy=FakeFixStrategy(),
+    )
+    events = _all_events(streamer, _make_request())
+    rca_complete = next(e for e in events if e["stage"] == "rca" and e["status"] == "complete")
+    assert rca_complete["degraded"] is True
+    assert rca_complete["generation_status"] == "degraded_non_streaming"
+
+
+def test_streamer_rca_complete_event_marks_degraded_when_unparseable():
+    streamer = InvestigationStreamer(
+        enrichment=FakeEnrichment(),
+        rca=_UnparseableRCA(),
+        fix_strategy=FakeFixStrategy(),
+    )
+    events = _all_events(streamer, _make_request())
+    rca_complete = next(e for e in events if e["stage"] == "rca" and e["status"] == "complete")
+    assert rca_complete["degraded"] is True
+    assert rca_complete["generation_status"] == "degraded_unparseable"
+
+
+def test_streamer_rca_complete_event_marks_healthy_for_normal_stream():
+    """Sanity: the existing FakeRCA path should NOT be marked degraded
+    (insufficient_evidence and ok are both treated as non-degraded)."""
+    streamer = _make_streamer()
+    events = _all_events(streamer, _make_request())
+    rca_complete = next(e for e in events if e["stage"] == "rca" and e["status"] == "complete")
+    assert rca_complete["degraded"] is False
+    assert rca_complete["generation_status"] in ("ok", "insufficient_evidence")
+
+
+# -- M-A regression: streaming fix-strategy fallback signal -------------------
+
+
+class _DegradedFixStrategy(FixStrategyGenerator):
+    """Mimics FixStrategyGenerator that fell back to non-streaming."""
+
+    def generate_stream(self, request, rca, **kwargs):
+        self.last_stream_status = "degraded_non_streaming"
+        yield (None, _make_fix(request.id))
+
+
+class _UnparseableFixStrategy(FixStrategyGenerator):
+    """Mimics FixStrategyGenerator whose accumulated stream output was not valid JSON."""
+
+    def generate_stream(self, request, rca, **kwargs):
+        self.last_stream_status = "degraded_unparseable"
+        yield (None, _make_fix(request.id))
+
+
+class _FailedFixStrategy(FixStrategyGenerator):
+    """Mimics FixStrategyGenerator where both streaming AND non-streaming failed."""
+
+    def generate_stream(self, request, rca, **kwargs):
+        self.last_stream_status = "degraded_failed"
+        yield (None, _make_fix(request.id))
+
+
+def test_streamer_fix_complete_event_marks_degraded_when_fallback_used():
+    """M-A: when the fix-strategy generator used its non-streaming fallback,
+    the streamer must mark the fix_strategy.complete event with degraded=True
+    and surface the generation_status string."""
+    streamer = InvestigationStreamer(
+        enrichment=FakeEnrichment(),
+        rca=FakeRCA(),
+        fix_strategy=_DegradedFixStrategy(),
+    )
+    events = _all_events(streamer, _make_request())
+    fix_complete = next(
+        e for e in events if e["stage"] == "fix_strategy" and e["status"] == "complete"
+    )
+    assert fix_complete["degraded"] is True
+    assert fix_complete["generation_status"] == "degraded_non_streaming"
+
+
+def test_streamer_fix_complete_event_marks_degraded_when_unparseable():
+    streamer = InvestigationStreamer(
+        enrichment=FakeEnrichment(),
+        rca=FakeRCA(),
+        fix_strategy=_UnparseableFixStrategy(),
+    )
+    events = _all_events(streamer, _make_request())
+    fix_complete = next(
+        e for e in events if e["stage"] == "fix_strategy" and e["status"] == "complete"
+    )
+    assert fix_complete["degraded"] is True
+    assert fix_complete["generation_status"] == "degraded_unparseable"
+
+
+def test_streamer_fix_complete_event_marks_degraded_when_generator_failed():
+    streamer = InvestigationStreamer(
+        enrichment=FakeEnrichment(),
+        rca=FakeRCA(),
+        fix_strategy=_FailedFixStrategy(),
+    )
+    events = _all_events(streamer, _make_request())
+    fix_complete = next(
+        e for e in events if e["stage"] == "fix_strategy" and e["status"] == "complete"
+    )
+    assert fix_complete["degraded"] is True
+    assert fix_complete["generation_status"] == "degraded_failed"
+
+
+def test_streamer_fix_complete_event_marks_healthy_for_normal_stream():
+    """Sanity: the existing FakeFixStrategy path should NOT be marked degraded."""
+    streamer = _make_streamer()
+    events = _all_events(streamer, _make_request())
+    fix_complete = next(
+        e for e in events if e["stage"] == "fix_strategy" and e["status"] == "complete"
+    )
+    assert fix_complete["degraded"] is False
+    assert fix_complete["generation_status"] == "ok"

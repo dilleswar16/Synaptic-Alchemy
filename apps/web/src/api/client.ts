@@ -91,3 +91,22 @@ export function approveInvestigation(id: string) {
 export function rejectInvestigation(id: string) {
   return apiFetch<ApprovalResponse>(`/investigations/${id}/reject`, { method: 'POST' })
 }
+
+export interface ExecutionOutcome {
+  action_type: string
+  title: string
+  success: boolean
+  detail: string
+}
+
+export interface ExecutionResponse {
+  request_id: string
+  approval_status: string
+  all_succeeded: boolean
+  outcomes: ExecutionOutcome[]
+  message: string
+}
+
+export function executeInvestigation(id: string) {
+  return apiFetch<ExecutionResponse>(`/investigations/${id}/execute`, { method: 'POST' })
+}

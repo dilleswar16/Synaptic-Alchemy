@@ -187,15 +187,19 @@ def approve_investigation(
 
     Transitions approval_status: pending → approved.
     Returns 404 if the investigation does not exist.
-    Returns 409 if it has already been executed.
+    Returns 409 if the current state is not ``pending`` (already approved,
+    rejected, or executed).
     """
     row = repo.get_approval_status(request_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
-    if row == ApprovalStatus.EXECUTED.value:
+    if row != ApprovalStatus.PENDING.value:
         raise HTTPException(
             status_code=409,
-            detail=f"Investigation {request_id!r} has already been executed and cannot be re-approved.",
+            detail=(
+                f"Investigation {request_id!r} is in state {row!r}; "
+                f"only investigations in 'pending' can be approved."
+            ),
         )
     repo.update_approval_status(request_id, ApprovalStatus.APPROVED)
     return ApprovalResponse(
@@ -214,15 +218,19 @@ def reject_investigation(
 
     Transitions approval_status: pending → rejected.
     Returns 404 if the investigation does not exist.
-    Returns 409 if it has already been executed.
+    Returns 409 if the current state is not ``pending`` (already approved,
+    rejected, or executed).
     """
     row = repo.get_approval_status(request_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
-    if row == ApprovalStatus.EXECUTED.value:
+    if row != ApprovalStatus.PENDING.value:
         raise HTTPException(
             status_code=409,
-            detail=f"Investigation {request_id!r} has already been executed and cannot be rejected.",
+            detail=(
+                f"Investigation {request_id!r} is in state {row!r}; "
+                f"only investigations in 'pending' can be rejected."
+            ),
         )
     repo.update_approval_status(request_id, ApprovalStatus.REJECTED)
     return ApprovalResponse(

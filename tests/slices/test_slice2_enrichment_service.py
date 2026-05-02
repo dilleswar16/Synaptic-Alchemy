@@ -81,3 +81,48 @@ def test_enrichment_bundle_has_correct_request_id():
     service = EnrichmentService()
     bundle = service.enrich(req)
     assert bundle.request_id == req.id
+
+
+# -- H-5 regression: defensive enrichment -------------------------------------
+
+
+class ExplodingElastic(ElasticAdapter):
+    def get_logs(self, service_name: str, time_range_minutes: int | None = None):
+        raise RuntimeError("elastic offline")
+
+    def get_metrics(self, service_name: str, time_range_minutes: int | None = None):
+        raise RuntimeError("elastic offline")
+
+
+class ExplodingLogAnalytics(LogAnalyticsAdapter):
+    def get_apim_logs(self, service_name: str, time_range_minutes: int | None = None):
+        raise RuntimeError("log analytics offline")
+
+
+class ExplodingAKS(AKSAdapter):
+    def get_pod_context(self, service_name: str, environment: str):
+        raise RuntimeError("aks offline")
+
+
+def test_enrichment_swallows_real_adapter_exceptions(caplog):
+    """H-5: any non-NotImplementedError raised by an adapter must be caught,
+    logged, and not propagate to the caller. The bundle should still come
+    back with default empty values for the failing slots."""
+    import logging
+
+    service = EnrichmentService(
+        elastic=ExplodingElastic(config={}),
+        log_analytics=ExplodingLogAnalytics(config={}),
+        aks=ExplodingAKS(config={}),
+    )
+    with caplog.at_level(logging.WARNING, logger="corvin.enrich.enrichment_service"):
+        bundle = service.enrich(_make_request())
+
+    assert bundle.elastic_logs == []
+    assert bundle.elastic_metrics == []
+    assert bundle.log_analytics_apim == []
+    assert bundle.aks_context == {}
+    msgs = " ".join(r.getMessage() for r in caplog.records)
+    assert "elastic offline" in msgs
+    assert "log analytics offline" in msgs
+    assert "aks offline" in msgs
