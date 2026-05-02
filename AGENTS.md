@@ -38,7 +38,8 @@ Never build a feature from a future version while the current version is incompl
 | V1.5 | ✅ Complete | All real Azure adapters connected and validated |
 | V2 | ✅ Code-complete + audit-hardened | 320/320 tests passing |
 | V2.5 | ✅ Code-complete | 318/318 tests passing on local venv (see progress.md V2.5 section) |
-| V3 | 🔓 **Unlocked** after V2 cloud validation (Teams bot registration + smoke test) | Do not touch until V2 cloud validation complete |
+| V3 | 🚧 In Progress | The UI & Post-Mortem update. |
+| V4 | 🔒 Locked | Semantic Search (Vector RAG) & Scaling |
 
 ---
 
