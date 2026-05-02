@@ -15,7 +15,11 @@ call the engine; they do not call those modules directly.
 
 from __future__ import annotations
 
+import logging
+
+from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import (
+    RCAConfidence,
     InvestigationRequest,
     InvestigationResult,
 )
@@ -23,6 +27,21 @@ from corvin.enrich.enrichment_service import EnrichmentService
 from corvin.investigation.prompt_builder import PromptBuilder
 from corvin.strategy.fix_strategy_generator import FixStrategyGenerator
 from corvin.strategy.rca_generator import RCAGenerator
+
+_log = logging.getLogger(__name__)
+
+# Confidence level ordering used for threshold comparison.
+_CONFIDENCE_ORDER = [RCAConfidence.LOW, RCAConfidence.MEDIUM, RCAConfidence.HIGH]
+
+
+def _confidence_below_threshold(actual: RCAConfidence, threshold: str) -> bool:
+    """Return True if *actual* confidence is strictly below *threshold*."""
+    try:
+        threshold_level = RCAConfidence(threshold)
+    except ValueError:
+        _log.warning("Unknown confidence threshold %r; defaulting to 'medium'.", threshold)
+        threshold_level = RCAConfidence.MEDIUM
+    return _CONFIDENCE_ORDER.index(actual) < _CONFIDENCE_ORDER.index(threshold_level)
 
 
 class InvestigationEngine:
@@ -66,10 +85,28 @@ class InvestigationEngine:
         rca = self._rca.generate(request, evidence, system_prompt=system_prompt)
         fix_strategy = self._fix_strategy.generate(request, rca)
 
+        # ── Confidence threshold gate ─────────────────────────────────────────
+        try:
+            policy = load_config("policies/investigation", get_env())
+            min_confidence = policy.get("min_confidence_to_suggest_action", "medium")
+        except Exception:
+            min_confidence = "medium"
+
+        confidence_warning = _confidence_below_threshold(rca.confidence, min_confidence)
+        if confidence_warning:
+            _log.warning(
+                "Low-confidence RCA for request_id=%s (confidence=%s < threshold=%s). "
+                "All fix actions require human review.",
+                request.id,
+                rca.confidence.value,
+                min_confidence,
+            )
+
         return InvestigationResult(
             request_id=request.id,
             request=request,
             evidence=evidence,
             rca=rca,
             fix_strategy=fix_strategy,
+            confidence_warning=confidence_warning,
         )

@@ -8,7 +8,11 @@ V1: POST /investigations/ runs the full engine pipeline, persists the result,
 
 V2: POST /investigations/{id}/approve  sets approval_status → approved.
     POST /investigations/{id}/reject   sets approval_status → rejected.
+    POST /investigations/{id}/execute  runs the approved fix strategy.
     Gate rule: no ExecutionService call is permitted without ApprovalStatus.APPROVED.
+
+V2.5: GET /investigations/{id}/replay  returns full transparency payload.
+      approved_by accepted as optional query param on approve/reject.
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from typing import Optional
 
 from corvin.core.contracts import ApprovalStatus, InvestigationRequest, InvestigationResult, TriggerSource
 from corvin.delivery.teams_adapter import TeamsAdapter
@@ -181,14 +186,16 @@ def get_investigation(
 @router.post("/{request_id}/approve", response_model=ApprovalResponse, status_code=200)
 def approve_investigation(
     request_id: str,
+    approved_by: Optional[str] = Query(default=None, description="SRE name/email for audit log"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> ApprovalResponse:
     """Approve an investigation's fix strategy for execution.
 
     Transitions approval_status: pending → approved.
+    Optionally records *approved_by* (display name or email) and timestamp
+    for the SRE audit trail.
     Returns 404 if the investigation does not exist.
-    Returns 409 if the current state is not ``pending`` (already approved,
-    rejected, or executed).
+    Returns 409 if the current state is not ``pending``.
     """
     row = repo.get_approval_status(request_id)
     if row is None:
@@ -201,7 +208,7 @@ def approve_investigation(
                 f"only investigations in 'pending' can be approved."
             ),
         )
-    repo.update_approval_status(request_id, ApprovalStatus.APPROVED)
+    repo.update_approval_status(request_id, ApprovalStatus.APPROVED, approved_by=approved_by)
     return ApprovalResponse(
         request_id=request_id,
         approval_status=ApprovalStatus.APPROVED.value,
@@ -212,14 +219,15 @@ def approve_investigation(
 @router.post("/{request_id}/reject", response_model=ApprovalResponse, status_code=200)
 def reject_investigation(
     request_id: str,
+    approved_by: Optional[str] = Query(default=None, description="SRE name/email for audit log"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> ApprovalResponse:
     """Reject an investigation's fix strategy.
 
     Transitions approval_status: pending → rejected.
+    Optionally records *approved_by* (the rejecting SRE) for the audit trail.
     Returns 404 if the investigation does not exist.
-    Returns 409 if the current state is not ``pending`` (already approved,
-    rejected, or executed).
+    Returns 409 if the current state is not ``pending``.
     """
     row = repo.get_approval_status(request_id)
     if row is None:
@@ -232,7 +240,7 @@ def reject_investigation(
                 f"only investigations in 'pending' can be rejected."
             ),
         )
-    repo.update_approval_status(request_id, ApprovalStatus.REJECTED)
+    repo.update_approval_status(request_id, ApprovalStatus.REJECTED, approved_by=approved_by)
     return ApprovalResponse(
         request_id=request_id,
         approval_status=ApprovalStatus.REJECTED.value,
@@ -312,3 +320,24 @@ def execute_investigation(
         ),
     )
 
+
+@router.get("/{request_id}/replay", response_model=dict, status_code=200)
+def replay_investigation(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return a full transparency / explainability payload for a completed investigation.
+
+    Includes what triggered it, what evidence was gathered, who approved it and when,
+    and the full RCA + fix strategy with all fields. Useful for audit trails, demo
+    walkthroughs, and LLM explainability reviews.
+
+    Returns 404 if the investigation is not found or incomplete.
+    """
+    payload = repo.get_investigation_replay(request_id)
+    if payload is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Investigation {request_id!r} not found or incomplete.",
+        )
+    return payload

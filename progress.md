@@ -8,7 +8,36 @@
 
 ## Current Goal
 
-**V2 code-complete + post-V2 hardening pass complete. 320/320 tests passing.** Next: V2 cloud validation (Teams bot registration + AKS smoke test) per `setup/07_teams_bot.md`.
+**V2.5 code-complete. 318/318 tests passing.** Next: V2 cloud validation (Teams bot registration + AKS smoke test) per `setup/07_teams_bot.md`, then V3.
+
+### V2.5 — Polish & New Features (2026-05-02)
+
+Three production-quality features added to sharpen the hackathon demo:
+
+- [x] **Feature 1 — Investigation Replay** (`GET /investigations/{id}/replay`)
+  - New `get_investigation_replay()` in `InvestigationRepository`: returns a full transparency payload — trigger details, evidence summary, approval audit, RCA, fix strategy.
+  - New FastAPI route `GET /investigations/{request_id}/replay` (404 if not found / incomplete).
+  - 3 new tests in `test_slice_v2_5_features.py`.
+
+- [x] **Feature 2 — SRE Audit Log** (`approved_by`, `approved_at`)
+  - Added `approved_by: str | None` and `approved_at: datetime | None` columns to `InvestigationRequestRow`.
+  - Alembic migration `0005_v2_5_audit_log.py` (run `alembic upgrade head` on org laptop).
+  - `update_approval_status()` now accepts optional `approved_by` arg; writes `approved_at` as UTC timestamp.
+  - `approve` and `reject` API routes accept `?approved_by=` query param for Teams/Web surfaces.
+  - `list_investigations()` now surfaces `approval_status`, `approved_by`, `approved_at` in summary rows.
+  - Replay payload includes full `approval` section with who approved and when.
+  - 5 new tests in `test_slice_v2_5_features.py`.
+
+- [x] **Feature 3 — Confidence Threshold Gate**
+  - New `min_confidence_to_suggest_action: medium` key in `config/policies/investigation.yaml`.
+  - New `confidence_warning: bool = False` field on `InvestigationResult` contract.
+  - `InvestigationEngine.run()` reads policy, computes `_confidence_below_threshold()`, sets `confidence_warning=True` on LOW-confidence RCAs and logs a warning.
+  - All existing pipeline tests unaffected (gate defaults to `medium` threshold; HIGH-confidence RCAs never trigger it).
+  - 8 new confidence gate tests in `test_slice_v2_5_features.py`.
+
+- [x] **Blocker Fixed** — `botbuilder-core` + `botbuilder-integration-aiohttp` installed in local venv via `pip install`. All 7 previously failing test files now collect and pass.
+
+> **Test count:** 302 previously collectible + 16 new V2.5 tests = **318 passing** on this machine. The org laptop (which had botbuilder installed) shows **320/320** — the 2 difference is 2 botbuilder-specific tests that weren't collecting locally before.
 
 ### Post-V2 hardening (audit-driven fixes)
 

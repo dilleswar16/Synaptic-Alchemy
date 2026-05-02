@@ -164,7 +164,13 @@ class FixStrategyOutput(BaseModel):
 
 
 class InvestigationResult(BaseModel):
-    """Complete investigation result: request + evidence + RCA + fix strategy."""
+    """Complete investigation result: request + evidence + RCA + fix strategy.
+
+    confidence_warning is set to True by FixStrategyGenerator when the RCA
+    confidence is below the configured ``min_confidence_to_suggest_action``
+    threshold.  The API surfaces this flag so the UI can display a warning
+    banner like: 'Low confidence RCA — manual review strongly recommended.'
+    """
 
     request_id: str
     request: InvestigationRequest
@@ -172,3 +178,4 @@ class InvestigationResult(BaseModel):
     rca: RCAOutput
     fix_strategy: FixStrategyOutput
     completed_at: datetime = Field(default_factory=_utcnow)
+    confidence_warning: bool = False

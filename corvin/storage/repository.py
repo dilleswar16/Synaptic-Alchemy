@@ -283,10 +283,17 @@ class InvestigationRepository:
             return row.approval_status
 
     def update_approval_status(
-        self, request_id: str, new_status: ApprovalStatus
+        self,
+        request_id: str,
+        new_status: ApprovalStatus,
+        approved_by: str | None = None,
     ) -> InvestigationRequestRow | None:
         """
         Update approval_status for an existing investigation.
+
+        When *approved_by* is provided (e.g. an SRE's Teams display name or
+        email), it is stored alongside the timestamp of the transition for
+        a full audit trail.
 
         Returns the updated ORM row, or None if the request_id does not exist.
         The caller is responsible for enforcing transition guards (e.g. 409 on
@@ -297,6 +304,9 @@ class InvestigationRepository:
             if row is None:
                 return None
             row.approval_status = new_status.value
+            if approved_by is not None:
+                row.approved_by = approved_by
+                row.approved_at = datetime.now(timezone.utc)
             session.commit()
             session.refresh(row)
             return row
@@ -306,7 +316,7 @@ class InvestigationRepository:
         Return lightweight summary rows for all investigations.
 
         Each dict contains: request_id, service_name, environment,
-        trigger_source, completed_at, created_at.
+        trigger_source, approval_status, completed_at, created_at.
 
         Only queries ``investigation_requests`` — no joins required.
         """
@@ -322,11 +332,89 @@ class InvestigationRepository:
                     "service_name": r.service_name,
                     "environment": r.environment,
                     "trigger_source": r.trigger_source,
+                    "approval_status": r.approval_status,
+                    "approved_by": r.approved_by,
+                    "approved_at": _as_utc(r.approved_at).isoformat() if r.approved_at else None,
                     "completed_at": _as_utc(r.completed_at).isoformat(),
                     "created_at": _as_utc(r.created_at).isoformat(),
                 }
                 for r in rows
             ]
+
+    def get_investigation_replay(
+        self, request_id: str
+    ) -> dict[str, Any] | None:
+        """
+        Return a transparency payload for a completed investigation.
+
+        Includes the full InvestigationRequest (what triggered it),
+        the EvidenceBundle summary (what data was gathered), and
+        the RCA + FixStrategy with all their fields exposed.
+
+        Returns None if the investigation is not found or incomplete.
+        This is the V2.5 Replay / Explainability endpoint.
+        """
+        result = self.get_investigation_result(request_id)
+        if result is None:
+            return None
+
+        with self._session_factory() as session:
+            req_row = session.get(InvestigationRequestRow, request_id)
+
+        evidence_summary = {
+            "elastic_log_count": len(result.evidence.elastic_logs),
+            "elastic_metric_count": len(result.evidence.elastic_metrics),
+            "log_analytics_apim_count": len(result.evidence.log_analytics_apim),
+            "aks_context_keys": list(result.evidence.aks_context.keys()),
+            "azure_activity_count": len(result.evidence.azure_activity_changes),
+            "collected_at": result.evidence.collected_at.isoformat(),
+        }
+
+        return {
+            "request_id": request_id,
+            "trigger": {
+                "service_name": result.request.service_name,
+                "environment": result.request.environment,
+                "trigger_source": result.request.trigger_source.value,
+                "description": result.request.description,
+                "lookback_minutes": result.request.lookback_minutes,
+                "created_at": result.request.created_at.isoformat(),
+            },
+            "approval": {
+                "status": req_row.approval_status if req_row else None,
+                "approved_by": req_row.approved_by if req_row else None,
+                "approved_at": (
+                    _as_utc(req_row.approved_at).isoformat()
+                    if req_row and req_row.approved_at
+                    else None
+                ),
+            },
+            "evidence_summary": evidence_summary,
+            "rca": {
+                "summary": result.rca.summary,
+                "root_cause": result.rca.root_cause,
+                "confidence": result.rca.confidence.value,
+                "contributing_factors": result.rca.contributing_factors,
+                "evidence_references": result.rca.evidence_references,
+                "generated_at": result.rca.generated_at.isoformat(),
+            },
+            "fix_strategy": {
+                "summary": result.fix_strategy.summary,
+                "justification": result.fix_strategy.justification,
+                "action_count": len(result.fix_strategy.actions),
+                "actions": [
+                    {
+                        "title": a.title,
+                        "risk_level": a.risk_level.value,
+                        "requires_approval": a.requires_approval,
+                        "estimated_impact": a.estimated_impact,
+                    }
+                    for a in result.fix_strategy.actions
+                ],
+                "generated_at": result.fix_strategy.generated_at.isoformat(),
+            },
+            "completed_at": result.completed_at.isoformat(),
+        }
 
 
 # ---------------------------------------------------------------------------

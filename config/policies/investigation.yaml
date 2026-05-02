@@ -8,6 +8,12 @@ max_evidence_items: 500
 # Values: high, medium, low
 rca_confidence_threshold: medium
 
+# Minimum confidence level for the fix strategy to suggest concrete actions.
+# If the RCA confidence is below this, all actions are flagged requires_approval: true
+# and a confidence_warning is emitted in the result for the UI to display.
+# Values: high, medium, low
+min_confidence_to_suggest_action: medium
+
 # Maximum number of fix actions included in a fix strategy output.
 fix_strategy_max_actions: 5
 

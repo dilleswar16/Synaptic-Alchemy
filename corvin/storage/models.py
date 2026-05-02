@@ -43,6 +43,10 @@ class InvestigationRequestRow(Base):
     raw_payload: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
     approval_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     lookback_minutes: Mapped[int] = mapped_column(nullable=False, default=60)
+    approved_by: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+    approved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

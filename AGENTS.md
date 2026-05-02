@@ -36,9 +36,9 @@ Never build a feature from a future version while the current version is incompl
 | :--- | :--- | :--- |
 | V1 | ✅ Complete | 155+ tests passing |
 | V1.5 | ✅ Complete | All real Azure adapters connected and validated |
-| V2 | ✅ Code-complete + audit-hardened | 314/314 tests passing — see `progress.md` "Post-V2 hardening" section |
-| V2.5 | 🔒 Locked | Do not touch until V2 cloud validation complete |
-| V3 | 🔒 Locked | Do not touch until V2.5 exit criteria met |
+| V2 | ✅ Code-complete + audit-hardened | 320/320 tests passing |
+| V2.5 | ✅ Code-complete | 318/318 tests passing on local venv (see progress.md V2.5 section) |
+| V3 | 🔓 **Unlocked** after V2 cloud validation (Teams bot registration + smoke test) | Do not touch until V2 cloud validation complete |
 
 ---
 
