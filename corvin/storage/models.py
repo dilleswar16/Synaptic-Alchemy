@@ -63,6 +63,9 @@ class InvestigationRequestRow(Base):
     evidence: Mapped[EvidenceBundleRow | None] = relationship(
         "EvidenceBundleRow", back_populates="request", uselist=False
     )
+    post_mortem: Mapped[PostMortemRow | None] = relationship(
+        "PostMortemRow", back_populates="request", uselist=False
+    )
 
 
 class RCAOutputRow(Base):
@@ -122,4 +125,28 @@ class EvidenceBundleRow(Base):
 
     request: Mapped[InvestigationRequestRow] = relationship(
         "InvestigationRequestRow", back_populates="evidence"
+    )
+
+
+class PostMortemRow(Base):
+    __tablename__ = "post_mortems"
+
+    request_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("investigation_requests.id"), primary_key=True
+    )
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    environment: Mapped[str] = mapped_column(String(100), nullable=False)
+    incident_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    detection_timeline: Mapped[str] = mapped_column(Text, nullable=False)
+    investigation_findings: Mapped[str] = mapped_column(Text, nullable=False)
+    actions_taken: Mapped[str] = mapped_column(Text, nullable=False)
+    prevention_recommendations: Mapped[str] = mapped_column(Text, nullable=False)
+    approved_by: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+    markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    request: Mapped[InvestigationRequestRow] = relationship(
+        "InvestigationRequestRow", back_populates="post_mortem"
     )

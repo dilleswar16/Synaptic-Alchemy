@@ -1,38 +1,96 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import ReactMarkdown from 'react-markdown'
+import Layout from '../components/Layout'
 import {
   fetchInvestigation,
   approveInvestigation,
   rejectInvestigation,
   executeInvestigation,
+  generatePostMortem,
+  fetchPostMortem,
   type ApprovalResponse,
   type ExecutionResponse,
+  type PostMortem,
 } from '../api/client'
 
-// ── Approval status badge ─────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const STATUS_STYLE: Record<string, { background: string; color: string; label: string }> = {
-  pending:  { background: '#fff7e6', color: '#d46b08', label: '⏳ Pending Review' },
-  approved: { background: '#f6ffed', color: '#389e0d', label: '✅ Approved' },
-  rejected: { background: '#fff1f0', color: '#cf1322', label: '❌ Rejected' },
-  executed: { background: '#e6f4ff', color: '#0958d9', label: '🚀 Executed' },
+const STATUS_ICONS: Record<string, string> = {
+  pending: '◎', approved: '✓', rejected: '✗', executed: '▶',
+}
+const STATUS_CLS: Record<string, string> = {
+  pending: 'badge-pending', approved: 'badge-approved',
+  rejected: 'badge-rejected', executed: 'badge-executed',
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_STYLE[status] ?? { background: '#f5f5f5', color: '#555', label: status }
+  const icon = STATUS_ICONS[status] ?? '○'
   return (
-    <span style={{
-      display: 'inline-block',
-      padding: '2px 10px',
-      borderRadius: '12px',
-      fontSize: '0.85rem',
-      fontWeight: 600,
-      background: s.background,
-      color: s.color,
-    }}>
-      {s.label}
+    <span className={`badge ${STATUS_CLS[status] ?? 'badge-pending'}`}>
+      {icon} {status}
     </span>
+  )
+}
+
+// ── Section wrapper ───────────────────────────────────────────────────────────
+
+function Section({ title, children, accent }: { title: string; children: React.ReactNode; accent?: boolean }) {
+  return (
+    <section style={{ marginTop: 20 }}>
+      <div className={accent ? 'panel-signal' : 'panel'} style={{ overflow: 'hidden' }}>
+        <div style={{
+          padding: '10px 18px',
+          borderBottom: '1px solid var(--c-border)',
+          background: 'var(--c-surface-2)',
+        }}>
+          <span style={{
+            fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem',
+            letterSpacing: '0.14em', textTransform: 'uppercase', color: accent ? 'var(--c-signal)' : 'var(--c-text-muted)',
+          }}>
+            {title}
+          </span>
+        </div>
+        <div style={{ padding: '16px 18px' }}>
+          {children}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Info row ──────────────────────────────────────────────────────────────────
+
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 10, minHeight: 20 }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-muted)', minWidth: 120, paddingTop: 2 }}>
+        {label}
+      </span>
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', color: 'var(--c-text-dim)', flex: 1 }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// ── Alert banner ──────────────────────────────────────────────────────────────
+
+function Alert({ ok, message, detail }: { ok: boolean; message: string; detail?: React.ReactNode }) {
+  return (
+    <div style={{
+      padding: '10px 14px',
+      background: ok ? 'var(--c-green-bg)' : 'var(--c-red-bg)',
+      border: `1px solid ${ok ? 'var(--c-green-border)' : 'var(--c-red-border)'}`,
+      borderRadius: 3,
+      marginBottom: 14,
+    }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: ok ? 'var(--c-green)' : 'var(--c-red)', fontWeight: 600 }}>
+        {ok ? '✓' : '✗'} {message}
+      </div>
+      {detail && <div style={{ marginTop: 8 }}>{detail}</div>}
+    </div>
   )
 }
 
@@ -52,7 +110,6 @@ function ApprovalSection({ requestId, status, pendingAction, onClearPendingActio
   const [confirmingAction, setConfirmingAction] = useState<ApprovalAction | null>(pendingAction)
   const [outcome, setOutcome] = useState<{ ok: boolean; message: string } | null>(null)
 
-  // When Teams card sets ?action=approve / ?action=reject, immediately surface the confirm prompt
   useEffect(() => {
     if (pendingAction) setConfirmingAction(pendingAction)
   }, [pendingAction])
@@ -61,10 +118,8 @@ function ApprovalSection({ requestId, status, pendingAction, onClearPendingActio
     setOutcome({ ok: true, message: data.message })
     setConfirmingAction(null)
     onClearPendingAction()
-    // Refetch the investigation so approval_status updates in the UI
     queryClient.invalidateQueries({ queryKey: ['investigation', requestId] })
   }
-
   const onError = (err: Error) => {
     setOutcome({ ok: false, message: err.message })
     setConfirmingAction(null)
@@ -72,70 +127,72 @@ function ApprovalSection({ requestId, status, pendingAction, onClearPendingActio
 
   const approveMutation = useMutation({ mutationFn: () => approveInvestigation(requestId), onSuccess, onError })
   const rejectMutation  = useMutation({ mutationFn: () => rejectInvestigation(requestId),  onSuccess, onError })
-
   const isPending = approveMutation.isPending || rejectMutation.isPending
 
   return (
-    <section style={{ marginTop: '2rem', padding: '1.2rem 1.5rem', border: '1px solid #e8e8e8', borderRadius: '8px', background: '#fafafa' }}>
-      <h2 style={{ marginTop: 0 }}>Approval</h2>
-      <p>Status: <StatusBadge status={status} /></p>
+    <Section title="Approval Decision" accent>
+      <InfoRow label="Current Status">
+        <StatusBadge status={status} />
+      </InfoRow>
 
-      {outcome && (
-        <p style={{ padding: '8px 12px', borderRadius: '6px', background: outcome.ok ? '#f6ffed' : '#fff1f0', color: outcome.ok ? '#389e0d' : '#cf1322', fontWeight: 500 }}>
-          {outcome.message}
-        </p>
-      )}
+      {outcome && <Alert ok={outcome.ok} message={outcome.message} />}
 
       {status === 'pending' && !confirmingAction && !outcome && (
-        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-          <button
-            onClick={() => setConfirmingAction('approve')}
-            style={{ padding: '8px 20px', background: '#52c41a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-            ✅ Approve
+        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+          <button className="btn-success" onClick={() => setConfirmingAction('approve')}>
+            ✓ Approve
           </button>
-          <button
-            onClick={() => setConfirmingAction('reject')}
-            style={{ padding: '8px 20px', background: '#ff4d4f', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-            ❌ Reject
+          <button className="btn-danger" onClick={() => setConfirmingAction('reject')}>
+            ✗ Reject
           </button>
         </div>
       )}
 
       {status === 'pending' && confirmingAction && !outcome && (
-        <div style={{ marginTop: '0.75rem', padding: '1rem', background: confirmingAction === 'approve' ? '#f6ffed' : '#fff1f0', borderRadius: '6px', border: `1px solid ${confirmingAction === 'approve' ? '#b7eb8f' : '#ffa39e'}` }}>
-          <p style={{ margin: '0 0 0.75rem', fontWeight: 500 }}>
+        <div style={{
+          marginTop: 12, padding: '14px 16px',
+          background: confirmingAction === 'approve' ? 'var(--c-green-bg)' : 'var(--c-red-bg)',
+          border: `1px solid ${confirmingAction === 'approve' ? 'var(--c-green-border)' : 'var(--c-red-border)'}`,
+          borderRadius: 3,
+        }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--c-text-dim)', marginBottom: 12 }}>
             {confirmingAction === 'approve'
-              ? '✅ Confirm approval — this will allow the fix strategy to be executed.'
-              : '❌ Confirm rejection — no fix will be executed for this investigation.'}
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+              ? 'Confirm approval — this will allow the fix strategy to be executed against the cluster.'
+              : 'Confirm rejection — no fix will be executed for this investigation.'}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
             <button
               disabled={isPending}
               onClick={() => confirmingAction === 'approve' ? approveMutation.mutate() : rejectMutation.mutate()}
-              style={{ padding: '7px 18px', background: confirmingAction === 'approve' ? '#52c41a' : '#ff4d4f', color: '#fff', border: 'none', borderRadius: '6px', cursor: isPending ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: isPending ? 0.7 : 1 }}>
-              {isPending ? 'Processing…' : `Confirm ${confirmingAction === 'approve' ? 'Approve' : 'Reject'}`}
+              className={confirmingAction === 'approve' ? 'btn-success' : 'btn-danger'}
+            >
+              {isPending ? 'Processing…' : `Confirm ${confirmingAction === 'approve' ? 'Approval' : 'Rejection'}`}
             </button>
             <button
               disabled={isPending}
               onClick={() => { setConfirmingAction(null); onClearPendingAction() }}
-              style={{ padding: '7px 18px', background: '#fff', border: '1px solid #d9d9d9', borderRadius: '6px', cursor: 'pointer' }}>
+              className="btn-ghost"
+            >
               Cancel
             </button>
           </div>
         </div>
       )}
-    </section>
+
+      {status !== 'pending' && !outcome && (
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-text-muted)', marginTop: 8 }}>
+          {status === 'approved' && 'Decision locked — proceed to execution below.'}
+          {status === 'rejected' && 'This investigation was rejected. No execution will occur.'}
+          {status === 'executed' && 'Fix strategy has already been executed.'}
+        </div>
+      )}
+    </Section>
   )
 }
 
 // ── Execution section ─────────────────────────────────────────────────────────
 
-interface ExecutionSectionProps {
-  requestId: string
-  status: string
-}
-
-function ExecutionSection({ requestId, status }: ExecutionSectionProps) {
+function ExecutionSection({ requestId, status }: { requestId: string; status: string }) {
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState(false)
   const [outcome, setOutcome] = useState<{ ok: boolean; data: ExecutionResponse | null; message: string } | null>(null)
@@ -156,58 +213,129 @@ function ExecutionSection({ requestId, status }: ExecutionSectionProps) {
   if (status !== 'approved' && status !== 'executed') return null
 
   return (
-    <section style={{ marginTop: '1.5rem', padding: '1.2rem 1.5rem', border: '1px solid #e8e8e8', borderRadius: '8px', background: '#fafafa' }}>
-      <h2 style={{ marginTop: 0 }}>Execution</h2>
-
+    <Section title="Execution">
       {status === 'executed' && !outcome && (
-        <p style={{ color: '#0958d9' }}>This investigation has already been executed.</p>
+        <Alert ok message="Fix strategy has already been executed." />
       )}
 
       {outcome && (
-        <div style={{ padding: '8px 12px', borderRadius: '6px', background: outcome.ok ? '#f6ffed' : '#fff1f0', color: outcome.ok ? '#389e0d' : '#cf1322' }}>
-          <p style={{ margin: 0, fontWeight: 500 }}>{outcome.message}</p>
-          {outcome.data?.outcomes?.length ? (
-            <ul style={{ marginTop: '0.5rem' }}>
+        <Alert
+          ok={outcome.ok}
+          message={outcome.message}
+          detail={outcome.data?.outcomes?.length ? (
+            <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
               {outcome.data.outcomes.map((o, i) => (
-                <li key={i}>
-                  <strong>{o.title}:</strong> {o.success ? '✅' : '❌'} {o.detail}
+                <li key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: o.success ? 'var(--c-green)' : 'var(--c-red)', marginBottom: 3 }}>
+                  <strong>{o.title}:</strong> {o.detail}
                 </li>
               ))}
             </ul>
-          ) : null}
-        </div>
+          ) : undefined}
+        />
       )}
 
       {status === 'approved' && !outcome && !confirming && (
-        <button
-          onClick={() => setConfirming(true)}
-          style={{ padding: '8px 20px', background: '#0958d9', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
-          🚀 Execute Fix Strategy
+        <button className="btn-primary" onClick={() => setConfirming(true)}>
+          ▶ Execute Fix Strategy
         </button>
       )}
 
       {status === 'approved' && confirming && !outcome && (
-        <div style={{ marginTop: '0.5rem', padding: '1rem', background: '#e6f4ff', borderRadius: '6px', border: '1px solid #91caff' }}>
-          <p style={{ margin: '0 0 0.75rem', fontWeight: 500 }}>
-            🚀 Confirm execution — Corvin will run every approved action against the live cluster.
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{
+          marginTop: 12, padding: '14px 16px',
+          background: 'var(--c-signal-glow)',
+          border: '1px solid var(--c-border-glow)',
+          borderRadius: 3,
+        }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--c-text-dim)', marginBottom: 12 }}>
+            Confirm execution — Corvin will run every approved action against the live cluster.
+            This operation is irreversible.
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
             <button
               disabled={executeMutation.isPending}
               onClick={() => executeMutation.mutate()}
-              style={{ padding: '7px 18px', background: '#0958d9', color: '#fff', border: 'none', borderRadius: '6px', cursor: executeMutation.isPending ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: executeMutation.isPending ? 0.7 : 1 }}>
+              className="btn-primary"
+            >
               {executeMutation.isPending ? 'Executing…' : 'Confirm Execute'}
             </button>
-            <button
-              disabled={executeMutation.isPending}
-              onClick={() => setConfirming(false)}
-              style={{ padding: '7px 18px', background: '#fff', border: '1px solid #d9d9d9', borderRadius: '6px', cursor: 'pointer' }}>
+            <button disabled={executeMutation.isPending} onClick={() => setConfirming(false)} className="btn-ghost">
               Cancel
             </button>
           </div>
         </div>
       )}
-    </section>
+    </Section>
+  )
+}
+
+// ── Post-mortem section ───────────────────────────────────────────────────────
+
+function PostMortemSection({ requestId }: { requestId: string }) {
+  const queryClient = useQueryClient()
+
+  const { data: existing, isLoading: checking } = useQuery<PostMortem>({
+    queryKey: ['postmortem', requestId],
+    queryFn: () => fetchPostMortem(requestId),
+    retry: false,
+  })
+
+  const generateMutation = useMutation({
+    mutationFn: () => generatePostMortem(requestId),
+    onSuccess: (data) => queryClient.setQueryData(['postmortem', requestId], data),
+  })
+
+  const pm: PostMortem | undefined = existing ?? generateMutation.data
+
+  const downloadMarkdown = useCallback(() => {
+    if (!pm) return
+    const blob = new Blob([pm.markdown], { type: 'text/markdown' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url; a.download = `postmortem-${requestId}.md`; a.click()
+    URL.revokeObjectURL(url)
+  }, [pm, requestId])
+
+  return (
+    <Section title="Blameless Post-Mortem">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: pm ? 18 : 0 }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--c-text-muted)' }}>
+            AI-generated incident report with timeline, impact, and prevention recommendations.
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          {pm && (
+            <button onClick={downloadMarkdown} className="btn-ghost" style={{ fontSize: '0.75rem', padding: '6px 12px' }}>
+              ↓ .md
+            </button>
+          )}
+          {!pm && !checking && (
+            <button
+              onClick={() => generateMutation.mutate()}
+              disabled={generateMutation.isPending}
+              className="btn-primary"
+              style={{ fontSize: '0.78rem', padding: '7px 14px' }}
+            >
+              {generateMutation.isPending ? 'Generating…' : '▶ Generate'}
+            </button>
+          )}
+          {checking && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)' }}>Checking…</span>
+          )}
+        </div>
+      </div>
+
+      {generateMutation.isError && (
+        <Alert ok={false} message={(generateMutation.error as Error).message} />
+      )}
+
+      {pm && (
+        <div className="pm-prose" style={{ borderTop: '1px solid var(--c-border)', paddingTop: 18, marginTop: 4 }}>
+          <ReactMarkdown>{pm.markdown}</ReactMarkdown>
+        </div>
+      )}
+    </Section>
   )
 }
 
@@ -217,11 +345,9 @@ export default function InvestigationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Teams card buttons set ?action=approve or ?action=reject
   const rawAction = searchParams.get('action')
   const pendingAction: ApprovalAction | null =
     rawAction === 'approve' || rawAction === 'reject' ? rawAction : null
-
   const clearPendingAction = () => setSearchParams({})
 
   const { data, isLoading, isError } = useQuery({
@@ -233,57 +359,113 @@ export default function InvestigationDetailPage() {
   const approvalStatus = data?.request?.approval_status ?? 'pending'
 
   return (
-    <main style={{ fontFamily: 'sans-serif', padding: '2rem', maxWidth: '860px', margin: '0 auto' }}>
-      <Link to="/">← Back to investigations</Link>
-      <h1>Investigation Detail</h1>
-      <p style={{ color: '#666', fontSize: '0.9rem' }}>ID: {id}</p>
+    <Layout>
+      <div style={{ maxWidth: 860 }}>
+        {/* Back + ID */}
+        <div className="animate-fade-up" style={{ marginBottom: 20 }}>
+          <Link to="/investigations" style={{
+            fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--c-text-muted)', textDecoration: 'none',
+          }}>
+            ← Investigations
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginTop: 12 }}>
+            <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.8rem', letterSpacing: '0.04em', color: 'var(--c-text)' }}>
+              INVESTIGATION
+            </h1>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)' }}>
+              #{id?.substring(0, 8)}…
+            </span>
+          </div>
+        </div>
 
-      {isLoading && <p>Loading…</p>}
-      {isError && <p style={{ color: '#cf1322' }}>Could not load investigation.</p>}
+        {isLoading && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>
+            Loading…
+          </div>
+        )}
+        {isError && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-red)' }}>
+            ✗ Could not load investigation.
+          </div>
+        )}
 
-      {data && (
-        <>
-          <section>
-            <h2>Request</h2>
-            <pre style={{ background: '#f4f4f4', padding: '1rem', borderRadius: '6px', overflowX: 'auto' }}>
-              {JSON.stringify(data.request ?? data, null, 2)}
-            </pre>
-          </section>
-
-          {data.rca && (
-            <section>
-              <h2>Root Cause Analysis</h2>
-              <p><strong>Summary:</strong> {data.rca.summary}</p>
-              <p><strong>Root Cause:</strong> {data.rca.root_cause}</p>
-              <p><strong>Confidence:</strong> {data.rca.confidence}</p>
-              {data.rca.contributing_factors?.length > 0 && (
-                <>
-                  <p><strong>Contributing Factors:</strong></p>
-                  <ul>
-                    {data.rca.contributing_factors.map((f: string, i: number) => (
-                      <li key={i}>{f}</li>
-                    ))}
-                  </ul>
-                </>
+        {data && (
+          <>
+            {/* ── Request metadata ─── */}
+            <Section title="Request">
+              <InfoRow label="Service">{data.request?.service_name ?? '—'}</InfoRow>
+              <InfoRow label="Environment">{data.request?.environment ?? '—'}</InfoRow>
+              <InfoRow label="Trigger">{(data.request?.trigger_source ?? '—').replace(/_/g, ' ')}</InfoRow>
+              <InfoRow label="Description">{data.request?.description || <span style={{ color: 'var(--c-text-faint)' }}>—</span>}</InfoRow>
+              <InfoRow label="Status"><StatusBadge status={approvalStatus} /></InfoRow>
+              {data.request?.id && (
+                <InfoRow label="ID">
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-muted)' }}>
+                    {data.request.id}
+                  </span>
+                </InfoRow>
               )}
-              <Link to={`/investigations/${id}/fix-strategy`}>View Fix Strategy →</Link>
-            </section>
-          )}
+            </Section>
 
-          {!data.rca && (
-            <p style={{ color: '#888' }}>RCA not yet available for this investigation.</p>
-          )}
+            {/* ── RCA ─── */}
+            {data.rca && (
+              <Section title="Root Cause Analysis">
+                <InfoRow label="Summary">
+                  <span style={{ color: 'var(--c-text)' }}>{data.rca.summary}</span>
+                </InfoRow>
+                <InfoRow label="Root Cause">
+                  <span style={{ color: 'var(--c-text)' }}>{data.rca.root_cause}</span>
+                </InfoRow>
+                <InfoRow label="Confidence">
+                  <span className={`badge ${data.rca.confidence === 'high' ? 'badge-approved' : data.rca.confidence === 'low' ? 'badge-rejected' : 'badge-pending'}`}>
+                    {data.rca.confidence}
+                  </span>
+                </InfoRow>
+                {data.rca.contributing_factors?.length > 0 && (
+                  <InfoRow label="Factors">
+                    <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                      {data.rca.contributing_factors.map((f: string, i: number) => (
+                        <li key={i} style={{ fontSize: '0.82rem', color: 'var(--c-text-dim)', marginBottom: 3 }}>{f}</li>
+                      ))}
+                    </ul>
+                  </InfoRow>
+                )}
+                <div style={{ marginTop: 12 }}>
+                  <Link to={`/investigations/${id}/fix-strategy`} style={{
+                    fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.72rem',
+                    letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: 'var(--c-signal)', textDecoration: 'none',
+                  }}>
+                    View Fix Strategy →
+                  </Link>
+                </div>
+              </Section>
+            )}
 
-          <ApprovalSection
-            requestId={id!}
-            status={approvalStatus}
-            pendingAction={pendingAction}
-            onClearPendingAction={clearPendingAction}
-          />
+            {!data.rca && (
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)', marginTop: 20 }}>
+                RCA not yet available for this investigation.
+              </div>
+            )}
 
-          <ExecutionSection requestId={id!} status={approvalStatus} />
-        </>
-      )}
-    </main>
+            <ApprovalSection
+              requestId={id!}
+              status={approvalStatus}
+              pendingAction={pendingAction}
+              onClearPendingAction={clearPendingAction}
+            />
+
+            <ExecutionSection requestId={id!} status={approvalStatus} />
+
+            {approvalStatus === 'executed' && (
+              <PostMortemSection requestId={id!} />
+            )}
+          </>
+        )}
+      </div>
+    </Layout>
   )
 }
+

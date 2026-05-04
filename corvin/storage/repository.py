@@ -44,6 +44,7 @@ from corvin.core.contracts import (
     FixStrategyOutput,
     InvestigationRequest,
     InvestigationResult,
+    PostMortemOutput,
     RCAOutput,
 )
 from corvin.storage.db import get_session
@@ -51,6 +52,7 @@ from corvin.storage.models import (
     EvidenceBundleRow,
     FixStrategyOutputRow,
     InvestigationRequestRow,
+    PostMortemRow,
     RCAOutputRow,
 )
 
@@ -415,6 +417,149 @@ class InvestigationRepository:
             },
             "completed_at": result.completed_at.isoformat(),
         }
+
+    # ── Post-Mortem ───────────────────────────────────────────────────────────
+
+    def save_post_mortem(self, pm: PostMortemOutput) -> None:
+        """Persist (or replace) a PostMortemOutput row for the given request_id."""
+        with self._session_factory() as session:
+            existing = session.get(PostMortemRow, pm.request_id)
+            if existing is not None:
+                # Replace in-place — re-generating is allowed
+                existing.incident_summary = pm.incident_summary
+                existing.detection_timeline = pm.detection_timeline
+                existing.investigation_findings = pm.investigation_findings
+                existing.actions_taken = pm.actions_taken
+                existing.prevention_recommendations = pm.prevention_recommendations
+                existing.approved_by = pm.approved_by
+                existing.markdown = pm.markdown
+                existing.generated_at = pm.generated_at
+                existing.service_name = pm.service_name
+                existing.environment = pm.environment
+            else:
+                session.add(
+                    PostMortemRow(
+                        request_id=pm.request_id,
+                        service_name=pm.service_name,
+                        environment=pm.environment,
+                        incident_summary=pm.incident_summary,
+                        detection_timeline=pm.detection_timeline,
+                        investigation_findings=pm.investigation_findings,
+                        actions_taken=pm.actions_taken,
+                        prevention_recommendations=pm.prevention_recommendations,
+                        approved_by=pm.approved_by,
+                        markdown=pm.markdown,
+                        generated_at=pm.generated_at,
+                    )
+                )
+            session.commit()
+
+    def get_post_mortem(self, request_id: str) -> PostMortemOutput | None:
+        """Return a cached PostMortemOutput, or None if not yet generated."""
+        with self._session_factory() as session:
+            row = session.get(PostMortemRow, request_id)
+            if row is None:
+                return None
+            return PostMortemOutput(
+                request_id=row.request_id,
+                service_name=row.service_name,
+                environment=row.environment,
+                incident_summary=row.incident_summary,
+                detection_timeline=row.detection_timeline,
+                investigation_findings=row.investigation_findings,
+                actions_taken=row.actions_taken,
+                prevention_recommendations=row.prevention_recommendations,
+                approved_by=row.approved_by,
+                markdown=row.markdown,
+                generated_at=_as_utc(row.generated_at),
+            )
+
+    def get_investigation_stats(self) -> dict:
+        """
+        Aggregate SRE health metrics from real Postgres data.
+
+        Returns
+        -------
+        dict with:
+          total_investigations: int
+          today_count: int          — investigations started today (UTC)
+          confidence_distribution:  dict[str, int]  (high/medium/low counts)
+          approval_distribution:    dict[str, int]  (pending/approved/rejected/executed)
+          avg_mttr_minutes: float | None  — mean time from created_at to completed_at
+          auto_resolved_rate: float       — fraction that reached 'executed' state
+          recent_services: list[str]      — last 5 unique service names investigated
+        """
+        from datetime import date
+
+        from sqlalchemy import func, text
+
+        with self._session_factory() as session:
+            rows = session.execute(
+                select(InvestigationRequestRow)
+            ).scalars().all()
+
+            if not rows:
+                return {
+                    "total_investigations": 0,
+                    "today_count": 0,
+                    "confidence_distribution": {"high": 0, "medium": 0, "low": 0},
+                    "approval_distribution": {
+                        "pending": 0, "approved": 0, "rejected": 0, "executed": 0
+                    },
+                    "avg_mttr_minutes": None,
+                    "auto_resolved_rate": 0.0,
+                    "recent_services": [],
+                }
+
+            today = datetime.now(timezone.utc).date()
+            today_count = sum(
+                1 for r in rows
+                if r.created_at and _as_utc(r.created_at).date() == today
+            )
+
+            approval_dist: dict[str, int] = {
+                "pending": 0, "approved": 0, "rejected": 0, "executed": 0
+            }
+            for r in rows:
+                key = r.approval_status or "pending"
+                approval_dist[key] = approval_dist.get(key, 0) + 1
+
+            # MTTR: mean minutes from created_at to completed_at
+            mttr_values = []
+            for r in rows:
+                if r.created_at and r.completed_at:
+                    delta = _as_utc(r.completed_at) - _as_utc(r.created_at)
+                    mttr_values.append(delta.total_seconds() / 60.0)
+            avg_mttr = (sum(mttr_values) / len(mttr_values)) if mttr_values else None
+
+            auto_resolved_rate = (
+                approval_dist.get("executed", 0) / len(rows)
+            ) if rows else 0.0
+
+            # Confidence from rca_outputs table
+            rca_rows = session.execute(select(RCAOutputRow)).scalars().all()
+            conf_dist: dict[str, int] = {"high": 0, "medium": 0, "low": 0}
+            for r in rca_rows:
+                key = (r.confidence or "medium").lower()
+                conf_dist[key] = conf_dist.get(key, 0) + 1
+
+            # Last 5 unique services (ordered by most recent)
+            seen: list[str] = []
+            for r in sorted(rows, key=lambda x: _as_utc(x.created_at), reverse=True):
+                if r.service_name not in seen:
+                    seen.append(r.service_name)
+                if len(seen) >= 5:
+                    break
+
+            return {
+                "total_investigations": len(rows),
+                "today_count": today_count,
+                "confidence_distribution": conf_dist,
+                "approval_distribution": approval_dist,
+                "avg_mttr_minutes": round(avg_mttr, 1) if avg_mttr is not None else None,
+                "auto_resolved_rate": round(auto_resolved_rate, 3),
+                "recent_services": seen,
+            }
 
 
 # ---------------------------------------------------------------------------

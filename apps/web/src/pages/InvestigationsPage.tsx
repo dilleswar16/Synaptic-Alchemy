@@ -4,6 +4,52 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchInvestigations, type InvestigationSummary } from '../api/client'
 import { useInvestigationStream } from '../hooks/useInvestigationStream'
 import StreamingProgress from '../components/StreamingProgress'
+import Layout from '../components/Layout'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmtTs(iso: string) {
+  try { return new Date(iso).toISOString().substring(11, 19) + 'Z' } catch { return '—' }
+}
+
+const STATUS_CLS: Record<string, string> = {
+  pending: 'badge-pending', approved: 'badge-approved',
+  rejected: 'badge-rejected', executed: 'badge-executed',
+}
+
+// ── Form field ────────────────────────────────────────────────────────────────
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  required,
+}: {
+  label: string; value: string; onChange: (v: string) => void
+  placeholder?: string; disabled?: boolean; required?: boolean
+}) {
+  return (
+    <div>
+      <label style={{
+        display: 'block', marginBottom: 6,
+        fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700,
+        letterSpacing: '0.14em', textTransform: 'uppercase',
+        color: 'var(--c-text-muted)',
+      }}>
+        {label}{required && <span style={{ color: 'var(--c-signal)', marginLeft: 4 }}>*</span>}
+      </label>
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px' }}
+      />
+    </div>
+  )
+}
 
 // ── Start investigation form ──────────────────────────────────────────────────
 
@@ -17,138 +63,147 @@ function StartInvestigationForm() {
   const { stages, streamText, isStreaming, isComplete, error, requestId, start, reset } =
     useInvestigationStream()
 
-  // When the stream completes successfully, refresh the investigations list.
   const handleComplete = () => {
-    if (requestId) {
-      queryClient.invalidateQueries({ queryKey: ['investigations'] })
-    }
+    if (requestId) queryClient.invalidateQueries({ queryKey: ['investigations'] })
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setFormError(null)
-    if (!service.trim()) {
-      setFormError('Service name is required.')
-      return
-    }
+    if (!service.trim()) { setFormError('Service name is required.'); return }
     start({ service_name: service.trim(), environment, description })
   }
 
   const showProgress = isStreaming || isComplete || stages.length > 0
 
   return (
-    <section style={{ marginTop: '2rem', padding: '1rem 1.5rem', border: '1px solid #ddd', borderRadius: '6px' }}>
-      <h2 style={{ marginTop: 0 }}>Start New Investigation</h2>
+    <div className="panel-signal animate-fade-up" style={{ marginTop: 32 }}>
+      {/* Header */}
+      <div style={{
+        padding: '14px 20px',
+        borderBottom: '1px solid var(--c-border)',
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: 'rgba(249,115,22,0.04)',
+      }}>
+        <div style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: isStreaming ? 'var(--c-signal)' : 'var(--c-text-faint)',
+        }} className={isStreaming ? 'animate-pulse-glow' : ''} />
+        <span style={{
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.8rem',
+          letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text)',
+        }}>
+          {isStreaming ? 'Investigation Running' : 'New Investigation'}
+        </span>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem', fontWeight: 500 }}>
-              Service name <span style={{ color: 'red' }}>*</span>
-            </label>
-            <input
-              value={service}
-              onChange={(e) => setService(e.target.value)}
-              placeholder="e.g. order-service"
-              disabled={isStreaming}
-              style={{ width: '100%', padding: '0.4rem', boxSizing: 'border-box', borderRadius: '4px', border: '1px solid #d9d9d9' }}
-            />
+      {/* Form */}
+      <div style={{ padding: '20px 24px' }}>
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+            <Field label="Service Name" value={service} onChange={setService} placeholder="order-service" disabled={isStreaming} required />
+            <Field label="Environment"  value={environment} onChange={setEnvironment} placeholder="production" disabled={isStreaming} />
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem', fontWeight: 500 }}>
-              Environment
-            </label>
-            <input
-              value={environment}
-              onChange={(e) => setEnvironment(e.target.value)}
-              placeholder="e.g. production"
-              disabled={isStreaming}
-              style={{ width: '100%', padding: '0.4rem', boxSizing: 'border-box', borderRadius: '4px', border: '1px solid #d9d9d9' }}
-            />
+          <div style={{ marginBottom: 16 }}>
+            <Field label="Description" value={description} onChange={setDescription} placeholder="Elevated 5xx errors on /checkout endpoint…" disabled={isStreaming} />
           </div>
-        </div>
-        <div style={{ marginBottom: '0.75rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem', fontWeight: 500 }}>
-            Description
-          </label>
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. Elevated 5xx errors on /orders endpoint"
-            disabled={isStreaming}
-            style={{ width: '100%', padding: '0.4rem', boxSizing: 'border-box', borderRadius: '4px', border: '1px solid #d9d9d9' }}
+
+          {formError && (
+            <div style={{
+              marginBottom: 12, padding: '8px 12px',
+              background: 'var(--c-red-bg)', border: '1px solid var(--c-red-border)',
+              borderRadius: 2, fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-red)',
+            }}>
+              {formError}
+            </div>
+          )}
+
+          <button type="submit" disabled={isStreaming} className="btn-primary">
+            {isStreaming ? 'Running Investigation…' : '▶ Start Investigation'}
+          </button>
+        </form>
+
+        {showProgress && (
+          <StreamingProgress
+            stages={stages}
+            streamText={streamText}
+            isStreaming={isStreaming}
+            isComplete={isComplete}
+            error={error}
+            requestId={requestId}
+            onReset={() => { reset(); handleComplete() }}
           />
-        </div>
-
-        {formError && (
-          <p style={{ color: '#cf1322', margin: '0 0 0.5rem', fontSize: '0.9rem' }}>{formError}</p>
         )}
-
-        <button
-          type="submit"
-          disabled={isStreaming}
-          style={{
-            padding: '8px 20px',
-            background: isStreaming ? '#b7b7b7' : '#1677ff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: isStreaming ? 'not-allowed' : 'pointer',
-            fontWeight: 600,
-          }}
-        >
-          {isStreaming ? '⏳ Investigating…' : '🔍 Start Investigation'}
-        </button>
-      </form>
-
-      {showProgress && (
-        <StreamingProgress
-          stages={stages}
-          streamText={streamText}
-          isStreaming={isStreaming}
-          isComplete={isComplete}
-          error={error}
-          requestId={requestId}
-          onReset={() => { reset(); handleComplete() }}
-        />
-      )}
-    </section>
+      </div>
+    </div>
   )
 }
 
 // ── Investigation list ────────────────────────────────────────────────────────
 
-function InvestigationList({ items }: { items: InvestigationSummary[] }) {
+function InvestigationList({ items }: { items: (InvestigationSummary & { approval_status?: string })[] }) {
   if (items.length === 0) {
-    return <p style={{ color: '#888' }}>No investigations yet. Use the form above to start one.</p>
+    return (
+      <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>
+        No investigations yet — use the form below to run one.
+      </div>
+    )
   }
+
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
-      <thead>
-        <tr style={{ background: '#f4f4f4', textAlign: 'left' }}>
-          <th style={{ padding: '0.5rem' }}>Service</th>
-          <th style={{ padding: '0.5rem' }}>Environment</th>
-          <th style={{ padding: '0.5rem' }}>Trigger</th>
-          <th style={{ padding: '0.5rem' }}>Completed</th>
-          <th style={{ padding: '0.5rem' }}>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((inv) => (
-          <tr key={inv.request_id} style={{ borderBottom: '1px solid #eee' }}>
-            <td style={{ padding: '0.5rem' }}>{inv.service_name}</td>
-            <td style={{ padding: '0.5rem' }}>{inv.environment}</td>
-            <td style={{ padding: '0.5rem' }}>{inv.trigger_source}</td>
-            <td style={{ padding: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
-              {new Date(inv.completed_at).toLocaleString()}
-            </td>
-            <td style={{ padding: '0.5rem' }}>
-              <Link to={`/investigations/${inv.request_id}`}>View →</Link>
-            </td>
-          </tr>
+    <>
+      {/* Table header */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '80px 1fr 120px 110px 140px 20px',
+        gap: 16,
+        padding: '8px 14px',
+        borderBottom: '1px solid var(--c-border-hi)',
+        background: 'var(--c-surface-2)',
+      }}>
+        {['TIME', 'SERVICE', 'ENVIRONMENT', 'STATUS', 'COMPLETED', ''].map((h, i) => (
+          <span key={i} style={{
+            fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+            letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
+          }}>{h}</span>
         ))}
-      </tbody>
-    </table>
+      </div>
+
+      {items.map((inv, i) => {
+        const status = inv.approval_status ?? 'pending'
+        const ts = new Date(inv.completed_at ?? inv.created_at)
+        return (
+          <Link
+            key={inv.request_id}
+            to={`/investigations/${inv.request_id}`}
+            className="log-row animate-fade-up"
+            style={{
+              gridTemplateColumns: '80px 1fr 120px 110px 140px 20px',
+              animationDelay: `${i * 25}ms`,
+            }}
+          >
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-faint)' }}>
+              {fmtTs(inv.completed_at ?? inv.created_at)}
+            </span>
+            <div>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.88rem', color: 'var(--c-text)' }}>
+                {inv.service_name}
+              </span>
+            </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-dim)' }}>
+              {inv.environment}
+            </span>
+            <span className={`badge ${STATUS_CLS[status] ?? 'badge-pending'}`}>{status}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-faint)', whiteSpace: 'nowrap' }}>
+              {ts.toLocaleString()}
+            </span>
+            <span className="log-arrow" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--c-text-faint)', textAlign: 'right', transition: 'color 0.15s' }}>
+              →
+            </span>
+          </Link>
+        )
+      })}
+    </>
   )
 }
 
@@ -158,20 +213,48 @@ export default function InvestigationsPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['investigations'],
     queryFn: fetchInvestigations,
+    refetchInterval: 30_000,
   })
 
   return (
-    <main style={{ fontFamily: 'sans-serif', padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
-      <h1>Corvin – Investigations</h1>
+    <Layout>
+      {/* Header */}
+      <div className="animate-fade-up" style={{ marginBottom: 28 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 4 }}>
+          Investigation Log
+        </div>
+        <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 900, letterSpacing: '0.04em', color: 'var(--c-text)' }}>
+          INVESTIGATIONS
+        </h1>
+      </div>
 
-      <section>
-        <h2>Recent Investigations</h2>
-        {isLoading && <p>Loading…</p>}
-        {isError && <p style={{ color: 'red' }}>Could not reach Corvin API.</p>}
-        {data && <InvestigationList items={data} />}
-      </section>
+      {/* Investigation table */}
+      <div className="panel animate-fade-up-1" style={{ overflow: 'hidden', marginBottom: 8 }}>
+        {isLoading && (
+          <div style={{ padding: '40px 20px', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)', textAlign: 'center' }}>
+            Loading…
+          </div>
+        )}
+        {isError && (
+          <div style={{ padding: '40px 20px', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-red)', textAlign: 'center' }}>
+            ✗ Could not reach Corvin API.
+          </div>
+        )}
+        {data && <InvestigationList items={data as (InvestigationSummary & { approval_status?: string })[]} />}
+      </div>
 
+      {data && (
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', marginBottom: 4, textAlign: 'right' }}>
+          {data.length} record{data.length !== 1 ? 's' : ''}
+        </div>
+      )}
+
+      {/* New investigation form */}
       <StartInvestigationForm />
-    </main>
+    </Layout>
   )
 }
+
+
+// ── Start investigation form ──────────────────────────────────────────────────
+

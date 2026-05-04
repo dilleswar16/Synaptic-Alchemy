@@ -30,6 +30,7 @@ from corvin.execution.execution_service import ExecutionService
 from corvin.investigation.engine import InvestigationEngine
 from corvin.investigation.stream import InvestigationStreamer
 from corvin.storage.repository import InvestigationRepository
+from corvin.strategy.postmortem_service import PostMortemService
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
@@ -56,6 +57,10 @@ def get_execution_service() -> ExecutionService:
 
 def get_streamer() -> InvestigationStreamer:
     return InvestigationStreamer(repository=InvestigationRepository())
+
+
+def get_postmortem_service() -> PostMortemService:
+    return PostMortemService()
 
 
 # ── Request / response schemas ────────────────────────────────────────────────
@@ -96,6 +101,18 @@ def list_investigations(
 ) -> list[dict]:
     """Return a lightweight summary list of all investigations, newest first."""
     return repo.list_investigations()
+
+
+@router.get("/stats", response_model=dict)
+def get_investigation_stats(
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return aggregated SRE health metrics from real Postgres data.
+
+    Includes total investigation count, today's count, MTTR, confidence
+    distribution, approval/execution distribution, and recent services.
+    """
+    return repo.get_investigation_stats()
 
 
 @router.post("/", response_model=InvestigationAccepted, status_code=200)
@@ -341,3 +358,60 @@ def replay_investigation(
             detail=f"Investigation {request_id!r} not found or incomplete.",
         )
     return payload
+
+
+@router.post("/{request_id}/postmortem", response_model=dict, status_code=200)
+def generate_postmortem(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+    pm_service: PostMortemService = Depends(get_postmortem_service),
+) -> dict:
+    """Generate (or return cached) a blameless post-mortem for a completed investigation.
+
+    On first call: invokes the LLM to generate prevention recommendations,
+    assembles the full Markdown document, persists to the ``post_mortems`` table,
+    and returns the structured payload.
+
+    On subsequent calls: returns the cached version without re-invoking the LLM.
+
+    Returns 404 if the investigation is not found or incomplete.
+    """
+    # Return cached version if it exists
+    cached = repo.get_post_mortem(request_id)
+    if cached is not None:
+        return cached.model_dump(mode="json")
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Investigation {request_id!r} not found or incomplete.",
+        )
+
+    # Pull approved_by from approval audit trail for inclusion in document
+    replay = repo.get_investigation_replay(request_id)
+    approved_by = replay["approval"]["approved_by"] if replay else None
+
+    pm = pm_service.generate(result, approved_by=approved_by)
+    repo.save_post_mortem(pm)
+
+    _log.info("Post-mortem generated and cached for request_id=%s", request_id)
+    return pm.model_dump(mode="json")
+
+
+@router.get("/{request_id}/postmortem", response_model=dict, status_code=200)
+def get_postmortem(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return a previously generated post-mortem for an investigation.
+
+    Returns 404 if no post-mortem has been generated yet (call POST first).
+    """
+    cached = repo.get_post_mortem(request_id)
+    if cached is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No post-mortem found for {request_id!r}. Generate one first via POST.",
+        )
+    return cached.model_dump(mode="json")

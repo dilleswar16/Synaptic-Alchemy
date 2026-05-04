@@ -1,7 +1,21 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-
 import { fetchInvestigation } from '../api/client'
+import Layout from '../components/Layout'
+
+const RISK_CLS: Record<string, string> = {
+  high:   'badge-rejected',
+  medium: 'badge-pending',
+  low:    'badge-approved',
+}
+
+interface Action {
+  title: string
+  description: string
+  risk_level: string
+  estimated_impact: string
+  requires_approval: boolean
+}
 
 export default function FixStrategyPage() {
   const { id } = useParams<{ id: string }>()
@@ -14,66 +28,126 @@ export default function FixStrategyPage() {
   const fixStrategy = data?.fix_strategy
 
   return (
-    <main style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-      <Link to={`/investigations/${id}`}>← Back to investigation</Link>
-      <h1>Fix Strategy</h1>
-      <p style={{ color: '#666' }}>Investigation ID: {id}</p>
+    <Layout>
+      <div style={{ maxWidth: 860 }}>
+        {/* Back + title */}
+        <div className="animate-fade-up" style={{ marginBottom: 24 }}>
+          <Link to={`/investigations/${id}`} style={{
+            fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--c-text-muted)', textDecoration: 'none',
+          }}>
+            ← Investigation
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginTop: 12 }}>
+            <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.8rem', letterSpacing: '0.04em', color: 'var(--c-text)' }}>
+              FIX STRATEGY
+            </h1>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)' }}>
+              #{id?.substring(0, 8)}…
+            </span>
+          </div>
+        </div>
 
-      {isLoading && <p>Loading…</p>}
-      {isError && <p>Could not load fix strategy.</p>}
+        {isLoading && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>Loading…</div>
+        )}
+        {isError && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-red)' }}>✗ Could not load fix strategy.</div>
+        )}
+        {data && !fixStrategy && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>
+            Fix strategy not yet available for this investigation.
+          </div>
+        )}
 
-      {data && !fixStrategy && (
-        <p style={{ color: '#888' }}>Fix strategy not yet available for this investigation.</p>
-      )}
-
-      {fixStrategy && (
-        <>
-          <section>
-            <h2>Summary</h2>
-            <p>{fixStrategy.summary}</p>
-          </section>
-
-          <section>
-            <h2>Justification</h2>
-            <p>{fixStrategy.justification}</p>
-          </section>
-
-          {fixStrategy.actions?.length > 0 && (
-            <section>
-              <h2>Recommended Actions</h2>
-              <p style={{ color: '#888', fontSize: '0.9rem' }}>
-                All actions require human review before execution (V1).
+        {fixStrategy && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Summary */}
+            <div className="panel animate-fade-up" style={{ padding: '16px 20px' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)', marginBottom: 10 }}>
+                Summary
+              </div>
+              <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem', color: 'var(--c-text-dim)', lineHeight: 1.7 }}>
+                {fixStrategy.summary}
               </p>
-              <ol>
-                {fixStrategy.actions.map((action: {
-                  title: string
-                  description: string
-                  risk_level: string
-                  estimated_impact: string
-                }, i: number) => (
-                  <li key={i} style={{ marginBottom: '1rem' }}>
-                    <strong>{action.title}</strong>
-                    {' '}
-                    <span style={{
-                      background: action.risk_level === 'high' ? '#ffe0e0'
-                        : action.risk_level === 'medium' ? '#fff4e0' : '#e0ffe0',
-                      padding: '0 6px',
-                      borderRadius: '3px',
-                      fontSize: '0.85rem',
-                    }}>
-                      {action.risk_level} risk
-                    </span>
-                    <p style={{ margin: '4px 0' }}>{action.description}</p>
-                    <p style={{ color: '#666', fontSize: '0.9rem' }}>
-                      Impact: {action.estimated_impact}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
-        </>
-      )}
-    </main>
+            </div>
+
+            {/* Justification */}
+            <div className="panel animate-fade-up-1" style={{ padding: '16px 20px' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)', marginBottom: 10 }}>
+                Justification
+              </div>
+              <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem', color: 'var(--c-text-dim)', lineHeight: 1.7 }}>
+                {fixStrategy.justification}
+              </p>
+            </div>
+
+            {/* Actions */}
+            {fixStrategy.actions?.length > 0 && (
+              <div>
+                <div style={{
+                  fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700,
+                  letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
+                  marginBottom: 12,
+                }}>
+                  Recommended Actions ({fixStrategy.actions.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {fixStrategy.actions.map((action: Action, i: number) => (
+                    <div
+                      key={i}
+                      className="panel-signal animate-fade-up scan-sweep"
+                      style={{ padding: '16px 20px', animationDelay: `${i * 50}ms`, overflow: 'hidden' }}
+                    >
+                      {/* Header row */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 10 }}>
+                        {/* Step number */}
+                        <div style={{
+                          flexShrink: 0, width: 28, height: 28,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.25)',
+                          borderRadius: 2,
+                          fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.7rem', color: 'var(--c-signal)',
+                        }}>
+                          {String(i + 1).padStart(2, '0')}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.92rem', color: 'var(--c-text)', letterSpacing: '0.02em' }}>
+                              {action.title}
+                            </span>
+                            <span className={`badge ${RISK_CLS[action.risk_level] ?? 'badge-pending'}`}>
+                              {action.risk_level} risk
+                            </span>
+                            {action.requires_approval && (
+                              <span className="badge badge-pending">approval req</span>
+                            )}
+                          </div>
+                          <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.83rem', color: 'var(--c-text-dim)', lineHeight: 1.65 }}>
+                            {action.description}
+                          </p>
+                        </div>
+                      </div>
+                      {/* Impact */}
+                      <div style={{ paddingLeft: 42, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-muted)' }}>
+                          Impact
+                        </span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-dim)' }}>
+                          {action.estimated_impact}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </Layout>
   )
 }
+
+

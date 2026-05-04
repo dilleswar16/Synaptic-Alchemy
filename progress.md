@@ -8,7 +8,84 @@
 
 ## Current Goal
 
-**V2.5 code-complete. 318/318 tests passing.** Next: V2 cloud validation (Teams bot registration + AKS smoke test) per `setup/07_teams_bot.md`, then V3.
+**V3 code-complete. 363/363 tests passing.** Post-mortem auto-generator, SRE health dashboard, streaming AI visualizer, and full dark glassmorphism UI overhaul are done.
+
+---
+
+### V3 — Premium React UI + Post-Mortem Auto-Generator (2026-05-XX)
+
+**Scope:** Post-Mortem Auto-Generator (rendered in-page + .md download), SRE Health Dashboard (real Postgres data), Streaming AI Visualizer (token typewriter), and Tailwind dark-mode glassmorphism UI overhaul.
+
+**Exit criteria:** ✅ 363 tests passing, TypeScript build clean (exit 0), all 6 slices complete.
+
+#### Slice 1 — Post-Mortem API + contract
+
+- [x] `PostMortemOutput` Pydantic contract added to `corvin/core/contracts.py`
+- [x] `PostMortemRow` SQLAlchemy ORM model added to `corvin/storage/models.py`
+- [x] Alembic migration `0006_v3_add_post_mortems_table.py` — `post_mortems` table with FK to `investigation_requests`
+- [x] `corvin/strategy/postmortem_service.py` — deterministic section builders + LLM prevention recommendations + markdown assembly
+- [x] `InvestigationRepository.save_post_mortem()`, `get_post_mortem()` — upsert + retrieve
+- [x] `POST /investigations/{id}/postmortem` — generates + caches (no re-generation on repeat)
+- [x] `GET /investigations/{id}/postmortem` — returns cached, 404 if not generated
+- [x] 18 tests covering service, repo, and API routes
+
+#### Slice 2 — SRE Health Stats API
+
+- [x] `InvestigationRepository.get_investigation_stats()` — real aggregates from Postgres
+  - `total_investigations`, `today_count`, `confidence_distribution` (from `rca_outputs`), `approval_distribution`, `avg_mttr_minutes`, `auto_resolved_rate`, `recent_services` (last 5 unique)
+- [x] `GET /investigations/stats` — registered BEFORE `/{request_id}` to avoid routing conflict
+- [x] 9 tests (repo + API)
+
+> **V3 backend test count:** 27 new tests → **363 total passing** (320 pre-V3 + 16 V2.5 + 27 V3)
+
+#### Slice 3 — SRE Health Dashboard (React)
+
+- [x] `apps/web/src/pages/DashboardPage.tsx` — new dashboard with real stats from `GET /investigations/stats`
+  - KPI cards: total, today, avg MTTR, auto-resolved rate
+  - Mini bar charts: RCA confidence + approval pipeline
+  - Recent services chips + recent investigation rows with status badges
+  - TanStack Query with 30s auto-refresh
+- [x] `apps/web/src/components/NavBar.tsx` + `Layout.tsx` — sticky glassmorphism nav, consistent max-width layout
+- [x] `App.tsx` routing updated: `/` → DashboardPage, `/investigations` → InvestigationsPage
+
+#### Slice 4 — Streaming AI Visualizer
+
+- [x] `StreamingProgress.tsx` fully rewritten — V3 token typewriter renderer
+  - Stage tracker with animated nodes (evidence → RCA → fix_strategy)
+  - `TypewriterPanel` with live token scroll + blinking cursor (`animate-cursor`)
+  - `RCASummary` + `FixStrategySummary` structured cards after each stage completes
+  - Degraded/fallback banners surfacing `generation_status`
+  - Dark glassmorphism `StagePanel` cards with active border glow
+
+#### Slice 5 — Post-Mortem UI (rendered in-page + download)
+
+- [x] `PostMortemSection` component in `InvestigationDetailPage.tsx`
+  - Only visible when `approval_status === 'executed'`
+  - "Generate Post-Mortem" button → `POST /investigations/{id}/postmortem` mutation
+  - `react-markdown` renders `pm.markdown` with `.pm-prose` styling
+  - "Download .md" button — Blob + `URL.createObjectURL` + `<a download>` — no server round-trip
+  - Auto-loads cached post-mortem on page load (GET)
+
+#### Slice 6 — Tailwind dark-mode glassmorphism overhaul
+
+- [x] `apps/web/src/index.css` — full Corvin design system
+  - Tailwind v4 via `@import "tailwindcss"` (no config file — plugin approach)
+  - CSS variables: `--c-bg`, `--c-surface`, `--c-accent`, `--c-green`, `--c-yellow`, `--c-red`, `--c-purple`
+  - Body: radial-gradient atmospheric background
+  - Font: IBM Plex Mono / JetBrains Mono monospace (SRE terminal aesthetic)
+  - Component classes: `.glass`, `.glass-accent`, `.badge-*`, `.metric-card`, `.btn-primary`, `.btn-ghost`, `.pm-prose`
+  - Animations: `animate-fade-up`, `animate-pulse-glow`, `animate-cursor`
+- [x] `vite.config.ts` — `@tailwindcss/vite` plugin added
+- [x] `apps/web/package.json` — tailwindcss, @tailwindcss/vite, react-markdown, framer-motion added
+- [x] `InvestigationsPage.tsx` — glassmorphism form, row cards with hover glow, `Layout` wrapper
+- [x] `InvestigationDetailPage.tsx` — dark-theme sections, badge-based status, `Layout` wrapper
+- [x] `FixStrategyPage.tsx` — glass action cards with risk-level color coding, `Layout` wrapper
+
+---
+
+**V2.5 status:** ✅ Complete. 318/318 tests passing on local venv (320/320 on org laptop with botbuilder).
+
+**V2 status:** ✅ Complete. 320/320 tests passing.
 
 ### V2.5 — Polish & New Features (2026-05-02)
 

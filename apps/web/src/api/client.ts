@@ -110,3 +110,43 @@ export interface ExecutionResponse {
 export function executeInvestigation(id: string) {
   return apiFetch<ExecutionResponse>(`/investigations/${id}/execute`, { method: 'POST' })
 }
+
+// ── V3: Stats ─────────────────────────────────────────────────────────────
+
+export interface InvestigationStats {
+  total_investigations: number
+  today_count: number
+  confidence_distribution: { high: number; medium: number; low: number }
+  approval_distribution: { pending: number; approved: number; rejected: number; executed: number }
+  avg_mttr_minutes: number | null
+  auto_resolved_rate: number
+  recent_services: string[]
+}
+
+export function fetchInvestigationStats() {
+  return apiFetch<InvestigationStats>('/investigations/stats')
+}
+
+// ── V3: Post-Mortem ───────────────────────────────────────────────────────
+
+export interface PostMortem {
+  request_id: string
+  service_name: string
+  environment: string
+  generated_at: string
+  incident_summary: string
+  detection_timeline: string
+  investigation_findings: string
+  actions_taken: string
+  prevention_recommendations: string
+  approved_by: string | null
+  markdown: string
+}
+
+export function generatePostMortem(id: string) {
+  return apiFetch<PostMortem>(`/investigations/${id}/postmortem`, { method: 'POST' })
+}
+
+export function fetchPostMortem(id: string) {
+  return apiFetch<PostMortem>(`/investigations/${id}/postmortem`)
+}
