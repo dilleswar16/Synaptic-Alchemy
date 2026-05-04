@@ -8,9 +8,31 @@
  * - Degraded/fallback banners when generation used a fallback path
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { StageEvent } from '../hooks/useInvestigationStream'
+
+// ── Utility: Stream Parser ────────────────────────────────────────────────────
+
+/**
+ * Parses a raw JSON token stream (which might be malformed or incomplete)
+ * and strips structural JSON characters, emitting only the human-readable string values.
+ */
+function parseStreamToken(rawStream: string): string {
+  if (!rawStream) return ''
+  
+  // 1. Remove JSON keys (e.g. "summary":, "root_cause":)
+  let clean = rawStream.replace(/"[a-zA-Z0-9_]+":\s*/g, '')
+  // 2. Remove JSON brackets/braces
+  clean = clean.replace(/[{}\[\]]/g, '')
+  // 3. Remove leading/trailing quotes from values, but keep interior punctuation
+  clean = clean.replace(/(^")|("$)/g, '')
+  // 4. Cleanup escaped newlines and quotes
+  clean = clean.replace(/\\n/g, '\n')
+  clean = clean.replace(/\\"/g, '"')
+  
+  return clean.trim()
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -119,6 +141,7 @@ function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
   }, [text])
 
   const label = STAGE_LABELS[stage as StageName] ?? stage
+  const parsedText = useMemo(() => parseStreamToken(text), [text])
 
   return (
     <div
@@ -162,7 +185,7 @@ function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
           wordBreak: 'break-word',
         }}
       >
-        {text}
+        {parsedText}
         <span className="animate-cursor" style={{ color: 'var(--c-signal)', fontWeight: 700 }}>▋</span>
       </div>
     </div>
