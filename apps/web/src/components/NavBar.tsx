@@ -157,7 +157,7 @@ export default function NavBar() {
 }
 
 function _utcString() {
-  return new Date().toISOString().replace('T', '  ').substring(0, 21) + ' UTC'
+  return new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC'
 }
 
 

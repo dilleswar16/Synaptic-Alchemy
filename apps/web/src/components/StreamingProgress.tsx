@@ -8,7 +8,6 @@
  * - Degraded/fallback banners when generation used a fallback path
  */
 
-import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { StageEvent } from '../hooks/useInvestigationStream'
 
@@ -65,7 +64,7 @@ function StageTracker({ stages }: { stages: StageEvent[] }) {
                   background: done
                     ? 'var(--c-green)'
                     : active
-                    ? 'rgba(56,189,248,0.2)'
+                    ? 'rgba(249,115,22,0.15)'
                     : 'rgba(255,255,255,0.04)',
                   border: done
                     ? '2px solid var(--c-green)'
@@ -73,7 +72,7 @@ function StageTracker({ stages }: { stages: StageEvent[] }) {
                     ? '2px solid var(--c-signal)'
                     : '2px solid var(--c-border)',
                   color: done ? '#0b0f1a' : active ? 'var(--c-signal)' : 'var(--c-text-faint)',
-                  boxShadow: active ? '0 0 12px rgba(56,189,248,0.35)' : 'none',
+                  boxShadow: active ? '0 0 16px rgba(249,115,22,0.5)' : 'none',
                 }}
                 className={active ? 'animate-pulse-glow' : ''}
               >
@@ -110,15 +109,13 @@ function StageTracker({ stages }: { stages: StageEvent[] }) {
 // ── Live typewriter panel ─────────────────────────────────────────────────────
 
 function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.scrollTop = ref.current.scrollHeight
-    }
-  }, [text])
+  // Estimate token progress for skeleton width variation
+  const tokenCount = text.length
 
   const label = STAGE_LABELS[stage as StageName] ?? stage
+
+  // Skeleton line widths — vary by position for a natural look
+  const skeletonLines = [92, 78, 85, 61, 88]
 
   return (
     <div
@@ -126,7 +123,7 @@ function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
         marginTop: 16,
         borderRadius: 8,
         border: '1px solid var(--c-border-glow)',
-        background: 'rgba(56,189,248,0.03)',
+        background: 'rgba(249,115,22,0.03)',
         overflow: 'hidden',
       }}
     >
@@ -137,7 +134,7 @@ function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
         display: 'flex',
         alignItems: 'center',
         gap: 8,
-        background: 'rgba(56,189,248,0.04)',
+        background: 'rgba(249,115,22,0.04)',
       }}>
         <span className="animate-pulse-glow" style={{
           width: 8, height: 8, borderRadius: '50%',
@@ -147,23 +144,25 @@ function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
         <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--c-signal)' }}>
           {label} · generating
         </span>
+        <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)' }}>
+          {tokenCount > 0 ? `${tokenCount} tokens` : '…'}
+        </span>
       </div>
-      {/* Token text */}
-      <div
-        ref={ref}
-        style={{
-          padding: '14px 16px',
-          maxHeight: 220,
-          overflowY: 'auto',
-          fontSize: '0.82rem',
-          lineHeight: 1.75,
-          color: 'var(--c-text-muted)',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}
-      >
-        {text}
-        <span className="animate-cursor" style={{ color: 'var(--c-signal)', fontWeight: 700 }}>▋</span>
+      {/* Animated skeleton — looks alive without exposing raw JSON */}
+      <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {skeletonLines.map((w, i) => (
+          <div
+            key={i}
+            style={{
+              height: 11,
+              borderRadius: 4,
+              width: `${w}%`,
+              background: 'linear-gradient(90deg, rgba(249,115,22,0.08) 0%, rgba(249,115,22,0.18) 50%, rgba(249,115,22,0.08) 100%)',
+              backgroundSize: '200% 100%',
+              animation: `skeleton-sweep 1.4s ease-in-out ${i * 0.12}s infinite`,
+            }}
+          />
+        ))}
       </div>
     </div>
   )
@@ -254,7 +253,7 @@ function FixStrategySummary({ s }: { s: StageEvent }) {
         </div>
       )}
       {typeof s.summary === 'string' && (
-        <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(56,189,248,0.04)', border: '1px solid rgba(56,189,248,0.15)' }}>
+        <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(249,115,22,0.04)', border: '1px solid rgba(249,115,22,0.2)' }}>
           <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 6 }}>Strategy</div>
           <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--c-text-muted)', lineHeight: 1.65 }}>{s.summary}</p>
         </div>
@@ -276,8 +275,8 @@ function FixStrategySummary({ s }: { s: StageEvent }) {
                 width: 22,
                 height: 22,
                 borderRadius: '50%',
-                background: 'rgba(56,189,248,0.12)',
-                border: '1px solid rgba(56,189,248,0.3)',
+              background: 'rgba(249,115,22,0.1)',
+              border: '1px solid rgba(249,115,22,0.3)',
                 color: 'var(--c-signal)',
                 fontSize: '0.7rem',
                 fontWeight: 800,

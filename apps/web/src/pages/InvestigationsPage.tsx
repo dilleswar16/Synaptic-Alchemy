@@ -12,6 +12,16 @@ function fmtTs(iso: string) {
   try { return new Date(iso).toISOString().substring(11, 19) + 'Z' } catch { return '—' }
 }
 
+function timeAgo(iso: string) {
+  try {
+    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+    if (s < 60) return `${s}s ago`
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+    return `${Math.floor(s / 86400)}d ago`
+  } catch { return '—' }
+}
+
 const STATUS_CLS: Record<string, string> = {
   pending: 'badge-pending', approved: 'badge-approved',
   rejected: 'badge-rejected', executed: 'badge-executed',
@@ -144,8 +154,24 @@ function StartInvestigationForm() {
 function InvestigationList({ items }: { items: (InvestigationSummary & { approval_status?: string })[] }) {
   if (items.length === 0) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>
-        No investigations yet — use the form below to run one.
+      <div style={{
+        padding: '52px 20px', textAlign: 'center',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: '50%',
+          border: '1px solid var(--c-border-hi)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'var(--font-mono)', fontSize: '1rem', color: 'var(--c-text-faint)',
+        }}>
+          ○
+        </div>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--c-text-faint)' }}>
+          No investigations yet
+        </div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)', maxWidth: 320, lineHeight: 1.6 }}>
+          Use the form above to start your first investigation. Results will appear here.
+        </div>
       </div>
     )
   }
@@ -155,13 +181,13 @@ function InvestigationList({ items }: { items: (InvestigationSummary & { approva
       {/* Table header */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '80px 1fr 120px 110px 140px 20px',
+        gridTemplateColumns: '72px 1fr 80px 100px 80px 18px',
         gap: 16,
         padding: '8px 14px',
         borderBottom: '1px solid var(--c-border-hi)',
         background: 'var(--c-surface-2)',
       }}>
-        {['TIME', 'SERVICE', 'ENVIRONMENT', 'STATUS', 'COMPLETED', ''].map((h, i) => (
+        {['TIME', 'SERVICE', 'ENV', 'STATUS', 'AGO', ''].map((h, i) => (
           <span key={i} style={{
             fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
             letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
@@ -171,14 +197,13 @@ function InvestigationList({ items }: { items: (InvestigationSummary & { approva
 
       {items.map((inv, i) => {
         const status = inv.approval_status ?? 'pending'
-        const ts = new Date(inv.completed_at ?? inv.created_at)
         return (
           <Link
             key={inv.request_id}
             to={`/investigations/${inv.request_id}`}
             className="log-row animate-fade-up"
             style={{
-              gridTemplateColumns: '80px 1fr 120px 110px 140px 20px',
+              gridTemplateColumns: '72px 1fr 80px 100px 80px 18px',
               animationDelay: `${i * 25}ms`,
             }}
           >
@@ -193,9 +218,9 @@ function InvestigationList({ items }: { items: (InvestigationSummary & { approva
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-dim)' }}>
               {inv.environment}
             </span>
-            <span className={`badge ${STATUS_CLS[status] ?? 'badge-pending'}`}>{status}</span>
+            <span className={`badge ${STATUS_CLS[status] ?? 'badge-pending'}`} style={{ justifySelf: 'start' }}>{status}</span>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-faint)', whiteSpace: 'nowrap' }}>
-              {ts.toLocaleString()}
+              {timeAgo(inv.completed_at ?? inv.created_at)}
             </span>
             <span className="log-arrow" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--c-text-faint)', textAlign: 'right', transition: 'color 0.15s' }}>
               →
@@ -216,20 +241,58 @@ export default function InvestigationsPage() {
     refetchInterval: 30_000,
   })
 
+  const items = (data ?? []) as (InvestigationSummary & { approval_status?: string })[]
+  const pending = items.filter(inv => (inv.approval_status ?? 'pending') === 'pending').length
+
   return (
     <Layout>
-      {/* Header */}
-      <div className="animate-fade-up" style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 4 }}>
-          Investigation Log
+      {/* ── Command header ───────────────────────────────────────────────── */}
+      <div className="animate-fade-up" style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 4 }}>
+            Investigation Console
+          </div>
+          <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 900, letterSpacing: '0.04em', color: 'var(--c-text)', lineHeight: 1 }}>
+            INVESTIGATIONS
+          </h1>
         </div>
-        <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 900, letterSpacing: '0.04em', color: 'var(--c-text)' }}>
-          INVESTIGATIONS
-        </h1>
+        {pending > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 16px',
+            background: 'rgba(234,179,8,0.08)',
+            border: '1px solid rgba(234,179,8,0.25)',
+            borderRadius: 3,
+          }}>
+            <span className="animate-pulse-glow" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-yellow)', display: 'inline-block', flexShrink: 0 }} />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-yellow)', fontWeight: 600 }}>
+              {pending} awaiting approval
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Investigation table */}
-      <div className="panel animate-fade-up-1" style={{ overflow: 'hidden', marginBottom: 8 }}>
+      {/* ── New investigation form (PRIMARY ACTION) ──────────────────────── */}
+      <StartInvestigationForm />
+
+      {/* ── Investigation log ─────────────────────────────────────────────── */}
+      <div style={{ marginTop: 28, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{
+          fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700,
+          letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
+          flexShrink: 0,
+        }}>
+          Investigation Log
+        </span>
+        <div style={{ flex: 1, height: 1, background: 'var(--c-border-hi)' }} />
+        {data && (
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', flexShrink: 0 }}>
+            {data.length} record{data.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
+      <div className="panel animate-fade-up-1" style={{ overflow: 'hidden' }}>
         {isLoading && (
           <div style={{ padding: '40px 20px', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)', textAlign: 'center' }}>
             Loading…
@@ -240,17 +303,8 @@ export default function InvestigationsPage() {
             ✗ Could not reach Corvin API.
           </div>
         )}
-        {data && <InvestigationList items={data as (InvestigationSummary & { approval_status?: string })[]} />}
+        {data && <InvestigationList items={items} />}
       </div>
-
-      {data && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', marginBottom: 4, textAlign: 'right' }}>
-          {data.length} record{data.length !== 1 ? 's' : ''}
-        </div>
-      )}
-
-      {/* New investigation form */}
-      <StartInvestigationForm />
     </Layout>
   )
 }

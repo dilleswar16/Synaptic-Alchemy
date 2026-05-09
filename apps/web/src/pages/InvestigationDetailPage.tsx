@@ -361,8 +361,8 @@ export default function InvestigationDetailPage() {
   return (
     <Layout>
       <div style={{ maxWidth: 860 }}>
-        {/* Back + ID */}
-        <div className="animate-fade-up" style={{ marginBottom: 20 }}>
+        {/* Page header */}
+        <div className="animate-fade-up" style={{ marginBottom: 28 }}>
           <Link to="/investigations" style={{
             fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
             letterSpacing: '0.1em', textTransform: 'uppercase',
@@ -370,13 +370,55 @@ export default function InvestigationDetailPage() {
           }}>
             ← Investigations
           </Link>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginTop: 12 }}>
-            <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.8rem', letterSpacing: '0.04em', color: 'var(--c-text)' }}>
-              INVESTIGATION
+          <div style={{ marginTop: 14 }}>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700,
+              letterSpacing: '0.18em', textTransform: 'uppercase',
+              color: 'var(--c-signal)', marginBottom: 6,
+            }}>
+              Investigation
+            </div>
+            <h1 style={{
+              margin: '0 0 14px',
+              fontFamily: 'var(--font-display)', fontWeight: 900,
+              fontSize: '2.2rem', letterSpacing: '0.04em',
+              color: 'var(--c-text)', lineHeight: 1,
+            }}>
+              {data?.request?.service_name?.toUpperCase() ?? (isLoading ? '…' : 'INVESTIGATION')}
             </h1>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)' }}>
-              #{id?.substring(0, 8)}…
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {data?.request?.environment && (
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
+                  padding: '3px 10px', borderRadius: 2,
+                  background: 'rgba(249,115,22,0.08)',
+                  border: '1px solid rgba(249,115,22,0.2)',
+                  color: 'var(--c-signal)', letterSpacing: '0.04em',
+                }}>
+                  {data.request.environment}
+                </span>
+              )}
+              {data?.request?.trigger_source && (
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
+                  padding: '3px 10px', borderRadius: 2,
+                  background: 'var(--c-surface-2)',
+                  border: '1px solid var(--c-border-hi)',
+                  color: 'var(--c-text-dim)', letterSpacing: '0.04em',
+                }}>
+                  {data.request.trigger_source.replace(/_/g, ' ')}
+                </span>
+              )}
+              {data && <StatusBadge status={approvalStatus} />}
+              {data?.request?.id && (
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+                  color: 'var(--c-text-faint)', letterSpacing: '0.04em',
+                }}>
+                  #{data.request.id.substring(0, 8)}…
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -393,46 +435,123 @@ export default function InvestigationDetailPage() {
 
         {data && (
           <>
-            {/* ── Request metadata ─── */}
-            <Section title="Request">
-              <InfoRow label="Service">{data.request?.service_name ?? '—'}</InfoRow>
-              <InfoRow label="Environment">{data.request?.environment ?? '—'}</InfoRow>
-              <InfoRow label="Trigger">{(data.request?.trigger_source ?? '—').replace(/_/g, ' ')}</InfoRow>
-              <InfoRow label="Description">{data.request?.description || <span style={{ color: 'var(--c-text-faint)' }}>—</span>}</InfoRow>
-              <InfoRow label="Status"><StatusBadge status={approvalStatus} /></InfoRow>
-              {data.request?.id && (
-                <InfoRow label="ID">
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-muted)' }}>
-                    {data.request.id}
-                  </span>
-                </InfoRow>
-              )}
-            </Section>
+            {/* ── Request context ─── */}
+            {data.request?.description && (
+              <Section title="Context">
+                <p style={{
+                  margin: 0,
+                  fontFamily: 'var(--font-body)', fontSize: '0.88rem',
+                  color: 'var(--c-text-dim)', lineHeight: 1.75,
+                }}>
+                  {data.request.description}
+                </p>
+              </Section>
+            )}
 
             {/* ── RCA ─── */}
             {data.rca && (
               <Section title="Root Cause Analysis">
-                <InfoRow label="Summary">
-                  <span style={{ color: 'var(--c-text)' }}>{data.rca.summary}</span>
-                </InfoRow>
-                <InfoRow label="Root Cause">
-                  <span style={{ color: 'var(--c-text)' }}>{data.rca.root_cause}</span>
-                </InfoRow>
-                <InfoRow label="Confidence">
-                  <span className={`badge ${data.rca.confidence === 'high' ? 'badge-approved' : data.rca.confidence === 'low' ? 'badge-rejected' : 'badge-pending'}`}>
-                    {data.rca.confidence}
+                {/* Confidence bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+                  <span className={`badge ${
+                    data.rca.confidence === 'high' ? 'badge-approved'
+                    : data.rca.confidence === 'low' ? 'badge-rejected'
+                    : 'badge-pending'
+                  }`}>
+                    {data.rca.confidence} confidence
                   </span>
-                </InfoRow>
+                  <div style={{ flex: 1, height: 3, background: 'var(--c-surface-3)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      width: data.rca.confidence === 'high' ? '85%' : data.rca.confidence === 'medium' ? '52%' : '20%',
+                      background: data.rca.confidence === 'high' ? 'var(--c-green)'
+                        : data.rca.confidence === 'medium' ? 'var(--c-yellow)' : 'var(--c-red)',
+                      borderRadius: 2,
+                      transition: 'width 0.8s ease',
+                    }} />
+                  </div>
+                </div>
+
+                {/* Root cause — highlighted card */}
+                <div style={{
+                  borderLeft: '3px solid var(--c-red)',
+                  padding: '14px 18px',
+                  background: 'rgba(239,68,68,0.04)',
+                  marginBottom: 20,
+                  borderRadius: '0 3px 3px 0',
+                }}>
+                  <div style={{
+                    fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+                    letterSpacing: '0.14em', textTransform: 'uppercase',
+                    color: 'var(--c-red)', marginBottom: 8,
+                  }}>
+                    Root Cause
+                  </div>
+                  <p style={{
+                    margin: 0,
+                    fontFamily: 'var(--font-body)', fontSize: '0.9rem',
+                    color: 'var(--c-text)', lineHeight: 1.75,
+                  }}>
+                    {data.rca.root_cause}
+                  </p>
+                </div>
+
+                {/* Analysis summary */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{
+                    fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+                    letterSpacing: '0.14em', textTransform: 'uppercase',
+                    color: 'var(--c-text-muted)', marginBottom: 10,
+                  }}>
+                    Analysis
+                  </div>
+                  <p style={{
+                    margin: 0,
+                    fontFamily: 'var(--font-body)', fontSize: '0.88rem',
+                    color: 'var(--c-text-dim)', lineHeight: 1.75,
+                  }}>
+                    {data.rca.summary}
+                  </p>
+                </div>
+
+                {/* Contributing factors */}
                 {data.rca.contributing_factors?.length > 0 && (
-                  <InfoRow label="Factors">
-                    <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                  <div>
+                    <div style={{
+                      fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+                      letterSpacing: '0.14em', textTransform: 'uppercase',
+                      color: 'var(--c-text-muted)', marginBottom: 10,
+                    }}>
+                      Contributing Factors ({data.rca.contributing_factors.length})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {data.rca.contributing_factors.map((f: string, i: number) => (
-                        <li key={i} style={{ fontSize: '0.82rem', color: 'var(--c-text-dim)', marginBottom: 3 }}>{f}</li>
+                        <div key={i} style={{
+                          display: 'flex', alignItems: 'flex-start', gap: 12,
+                          padding: '10px 14px',
+                          background: 'rgba(249,115,22,0.04)',
+                          border: '1px solid rgba(249,115,22,0.1)',
+                          borderRadius: 2,
+                        }}>
+                          <span style={{
+                            fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+                            color: 'var(--c-signal)', marginTop: 2, flexShrink: 0, fontWeight: 700,
+                          }}>
+                            {String(i + 1).padStart(2, '0')}
+                          </span>
+                          <span style={{
+                            fontFamily: 'var(--font-body)', fontSize: '0.85rem',
+                            color: 'var(--c-text-dim)', lineHeight: 1.6,
+                          }}>
+                            {f}
+                          </span>
+                        </div>
                       ))}
-                    </ul>
-                  </InfoRow>
+                    </div>
+                  </div>
                 )}
-                <div style={{ marginTop: 12 }}>
+
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--c-border)' }}>
                   <Link to={`/investigations/${id}/fix-strategy`} style={{
                     fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.72rem',
                     letterSpacing: '0.1em', textTransform: 'uppercase',
