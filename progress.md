@@ -8,6 +8,90 @@
 
 ## Current Goal
 
+**V3 code-complete. 380/380 tests passing.** Now hardening for hackathon demo with V3+ enhancements.
+
+---
+
+## V3+ Hackathon Enhancement Backlog
+
+Priority order. Work through these in sequence before considering V4.
+
+### ✅ Done (post-V3 polish)
+- [x] StreamingProgress: all blue → amber signal colour
+- [x] InvestigationDetailPage: hero redesign, RCA redesign (confidence bar, red root cause card, numbered factors)
+- [x] FixStrategyPage: full redesign (2-col grid, risk-coloured borders, colour-mix circles)
+- [x] Dashboard: error card with retry, VerticalBars gradient fix (colour-mix), NavBar clock fix
+- [x] InvestigationsPage: table column widths, badge justifySelf, timeAgo column
+- [x] StreamingProgress TypewriterPanel → amber skeleton loader (deferred until thinking model)
+- [x] **#4 — Incident Memory** ← COMPLETED
+  - `InvestigationRepository.get_similar_incidents(service, env, n=3)` — SQLAlchemy join, newest-first, session-safe
+  - `PromptBuilder.build()` injects "Similar Past Incidents (same service)" section when memory exists
+  - `GET /investigations/memory?service_name=X&environment=Y&n=N` API endpoint
+  - UI: `SimilarIncidentsSection` card on `InvestigationDetailPage` between Evidence and RCA
+  - `client.ts`: `fetchSimilarIncidents()` + `SimilarIncident` type
+  - Bug fixed: `LogAnalyticsAdapter` and `ContainerLogsAdapter` datetime serialisation (`.isoformat()`)
+  - Bug fixed: `ContainerLog` query via `KubePodInventory` join (Name/Image columns were empty)
+  - Bug fixed: stale test `test_streamer_emits_evidence_complete_event_with_sources` updated for `{name,count}` sources format
+  - 380/380 tests passing
+
+### � Queued (do in order)
+- [x] **#1 — Loosen post-mortem gate** ← DONE
+  - `PostMortemSection` renders whenever `data.rca` exists (any approval status)
+  - Yellow `PREVIEW` chip shown when status is not `executed`
+
+- [x] **#2 — Search/filter on investigations list** ← DONE
+  - `searchQuery` + `statusFilter` state in `InvestigationsPage`
+  - `filteredItems` client-side filter: `service_name.toLowerCase().includes(q)` + status match
+  - Empty state shows "No matches / Try adjusting your search" when filtered
+
+- [x] **#3 — Evidence Accordion (Phase 1)** ← DONE
+  - Backend: `_evidence_sources()` in `stream.py` emits `[{name, count}]` on `evidence.complete` event
+  - Frontend: `EvidenceAccordion` component in `StreamingProgress.tsx` — ●/○ dots, adapter names, counts
+  - Phase 2 (live per-tool-call events) deferred until thinking model
+
+- [x] **#4 — Incident Memory** ← DONE (see Done section above)
+
+- [x] **#5 — Surface Replay / Transparency** ← DONE
+  - `ReplayPayload` type + `fetchReplay()` added to `apps/web/src/api/client.ts`
+  - `AuditTrailSection` component added to `InvestigationDetailPage` — collapsible, rendered at bottom after Post-Mortem
+  - Premium vertical amber timeline: 6 stages (Triggered → Evidence → RCA → Fix Strategy → Approval → Complete)
+  - Each stage: dot with glow, color-coded by confidence/status, inline chip badge, right-aligned mono timestamps + delta elapsed time
+  - Header shows "Audit Trail · 6 stages · completed in Xm Xs" when collapsed; lazy-loaded, collapses by default
+
+- [x] **#6 — Morning Briefing** ← DONE
+  - `InvestigationRepository.get_briefing(hours)` — real Postgres query for last N hours window
+  - `_build_briefing_narrative()` — deterministic plain-English SRE narrative
+  - `GET /investigations/briefing?hours=24` — registered BEFORE `/{id}` route; returns `BriefingResponse` Pydantic model
+  - `BriefingWidget` on DashboardPage: atmospheric grid, hour-aware greeting, `useTypewriter` hook, confidence mini-chart, service chips, urgent amber pulse when high-confidence pending
+  - `BriefingPayload` type + `fetchBriefing()` in `client.ts`
+
+- [x] **#7 — Full Application Audit + Refactor** ← DONE
+  - `InvestigationDetailPage.tsx`: 1484 → 266 lines (extracted 9 components)
+  - New `apps/web/src/components/investigation/` directory:
+    - `WorkflowStepper.tsx` (82L), `StickyApprovalBar.tsx` (88L), `EvidenceSection.tsx` (149L)
+    - `SimilarIncidentsSection.tsx` (108L), `RcaSection.tsx` (176L), `ApprovalSection.tsx` (91L)
+    - `ExecutionSection.tsx` (94L), `PostMortemSection.tsx` (87L), `AuditTrailSection.tsx` (237L)
+  - New shared modules: `components/Section.tsx`, `components/StatusBadge.tsx`, `components/CopyableId.tsx`
+  - New shared utils: `utils/time.ts` (`fmtTs`, `timeAgo`, `deltaLabel`, `totalDuration`) — eliminates duplication
+  - New hook: `hooks/useTypewriter.ts` — extracted from DashboardPage
+  - `DashboardPage.tsx`: imports shared utils + hook (32 lines removed)
+  - `InvestigationsPage.tsx`: imports shared utils + `STATUS_CLS` (20 lines removed)
+  - `pages/NotFoundPage.tsx` — 404 route added to `App.tsx`
+  - Backend: `BriefingResponse` Pydantic model replaces `response_model=dict` on briefing endpoint
+  - Loading skeleton panels on detail page (animated shimmer) instead of bare "Loading…" text
+  - **380/380 tests passing, TypeScript build clean**
+
+### 🔒 Deferred
+- [ ] **Streaming typewriter (Option A — delimiter)** — defer until thinking model upgrade
+  - See `/memories/repo/streaming-todo.md` for full implementation plan
+- [ ] **V4 — Semantic Search / Vector RAG**
+  - Current `get_similar_incidents()` matches by `service_name + environment` only (investigation history, not true similarity)
+  - V4 upgrade: embed `root_cause` text → pgvector cosine search → return incidents with similar failure patterns across services
+  - UI label to update then: "Similar Past Incidents" (currently honest label is "past investigations for same service")
+  - Requires: pgvector extension on Azure Postgres, embedding model call, migration
+
+---
+
 **V3 code-complete. 363/363 tests passing.** Post-mortem auto-generator, SRE health dashboard, streaming AI visualizer, and full dark glassmorphism UI overhaul are done.
 
 ---

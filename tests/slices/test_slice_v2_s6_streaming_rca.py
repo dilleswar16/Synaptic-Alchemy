@@ -209,9 +209,10 @@ def test_streamer_emits_evidence_complete_event_with_sources():
     ev = next(e for e in events if e["stage"] == "evidence" and e["status"] == "complete")
     assert "sources" in ev
     assert isinstance(ev["sources"], list)
-    # FakeEnrichment returns elastic_logs + aks_context → 2 sources
-    assert "elastic_logs" in ev["sources"]
-    assert "aks_context" in ev["sources"]
+    # sources is [{name, count}] — extract names for assertion
+    source_names = [s["name"] for s in ev["sources"]]
+    assert "elastic_logs" in source_names
+    assert "aks_context" in source_names
 
 
 def test_streamer_emits_rca_started_event():

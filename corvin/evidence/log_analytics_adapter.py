@@ -115,7 +115,10 @@ class LogAnalyticsAdapter:
                 return []
             log_table = result.tables[0]
             columns = [col.name if hasattr(col, "name") else col for col in log_table.columns]
-            return [dict(zip(columns, row)) for row in log_table.rows]
+            return [
+                {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in zip(columns, row)}
+                for row in log_table.rows
+            ]
         except Exception as exc:
             logger.warning(
                 "LogAnalyticsAdapter.get_apim_logs failed for service=%s: %s",

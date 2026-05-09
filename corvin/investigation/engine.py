@@ -16,6 +16,7 @@ call the engine; they do not call those modules directly.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import (
@@ -61,11 +62,12 @@ class InvestigationEngine:
         rca: RCAGenerator | None = None,
         fix_strategy: FixStrategyGenerator | None = None,
         prompt_builder: PromptBuilder | None = None,
+        repository: Any | None = None,
     ) -> None:
         self._enrichment = enrichment or EnrichmentService()
         self._rca = rca or RCAGenerator()
         self._fix_strategy = fix_strategy or FixStrategyGenerator()
-        self._prompt_builder = prompt_builder or PromptBuilder()
+        self._prompt_builder = prompt_builder or PromptBuilder(repository=repository)
 
     def run(self, request: InvestigationRequest) -> InvestigationResult:
         """

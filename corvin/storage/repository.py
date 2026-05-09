@@ -313,6 +313,63 @@ class InvestigationRepository:
             session.refresh(row)
             return row
 
+    def get_similar_incidents(
+        self,
+        service_name: str,
+        environment: str,
+        exclude_request_id: str | None = None,
+        n: int = 3,
+    ) -> list[dict[str, Any]]:
+        """
+        Return up to *n* completed past investigations for the same service
+        and environment, ordered newest-first.
+
+        Each dict contains the fields needed to build a prompt context section
+        and to render a UI card:
+
+          request_id, service_name, environment, completed_at,
+          rca_summary, root_cause, confidence
+
+        The *exclude_request_id* parameter lets the caller skip the current
+        investigation (which would not have been persisted yet anyway, but is
+        provided for safety in the API use-case where the investigation is
+        already in the DB).
+
+        Only investigations that have a matching rca_outputs row are included
+        (partial saves are silently skipped).
+        """
+        with self._session_factory() as session:
+            stmt = (
+                select(InvestigationRequestRow, RCAOutputRow)
+                .join(
+                    RCAOutputRow,
+                    RCAOutputRow.request_id == InvestigationRequestRow.id,
+                )
+                .where(InvestigationRequestRow.service_name == service_name)
+                .where(InvestigationRequestRow.environment == environment)
+                .order_by(InvestigationRequestRow.completed_at.desc())
+                .limit(n)
+            )
+            if exclude_request_id:
+                stmt = stmt.where(InvestigationRequestRow.id != exclude_request_id)
+
+            rows = session.execute(stmt).all()
+
+            results: list[dict[str, Any]] = []
+            for req_row, rca_row in rows:
+                results.append(
+                    {
+                        "request_id": req_row.id,
+                        "service_name": req_row.service_name,
+                        "environment": req_row.environment,
+                        "completed_at": _as_utc(req_row.completed_at).isoformat(),
+                        "rca_summary": rca_row.summary,
+                        "root_cause": rca_row.root_cause,
+                        "confidence": rca_row.confidence,
+                    }
+                )
+        return results
+
     def list_investigations(self) -> list[dict[str, Any]]:
         """
         Return lightweight summary rows for all investigations.
@@ -560,6 +617,139 @@ class InvestigationRepository:
                 "auto_resolved_rate": round(auto_resolved_rate, 3),
                 "recent_services": seen,
             }
+
+    def get_briefing(self, hours: int = 24) -> dict:
+        """Return an AI-style SRE briefing payload for the dashboard Morning Briefing widget.
+
+        Covers the last *hours* window and includes a Jarvis-style narrative summary,
+        confidence breakdown, pending approval counts, and top active services.
+        """
+        from collections import Counter
+        from datetime import timedelta
+
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+        with self._session_factory() as session:
+            recent_rows = session.execute(
+                select(InvestigationRequestRow).where(
+                    InvestigationRequestRow.created_at >= cutoff
+                )
+            ).scalars().all()
+
+            total = len(recent_rows)
+            pending = sum(1 for r in recent_rows if r.approval_status == "pending")
+            approved = sum(1 for r in recent_rows if r.approval_status == "approved")
+            executed = sum(1 for r in recent_rows if r.approval_status == "executed")
+            rejected = sum(1 for r in recent_rows if r.approval_status == "rejected")
+
+            # High-confidence investigations currently pending approval
+            high_conf_pending = 0
+            conf_map: dict[str, int] = {"high": 0, "medium": 0, "low": 0}
+            if recent_rows:
+                recent_ids = {r.id for r in recent_rows}
+                rca_rows = session.execute(
+                    select(RCAOutputRow).where(
+                        RCAOutputRow.request_id.in_(recent_ids)
+                    )
+                ).scalars().all()
+                rca_by_id = {r.request_id: r for r in rca_rows}
+                for r in rca_rows:
+                    key = (r.confidence or "medium").lower()
+                    conf_map[key] = conf_map.get(key, 0) + 1
+                high_conf_pending = sum(
+                    1 for r in recent_rows
+                    if r.approval_status == "pending"
+                    and rca_by_id.get(r.id) is not None
+                    and (rca_by_id[r.id].confidence or "").lower() == "high"
+                )
+
+            # Top 3 services by investigation volume in the window
+            service_counts: Counter = Counter(
+                (r.service_name, r.environment) for r in recent_rows
+            )
+            top_services = [
+                {"service": svc, "environment": env, "count": cnt}
+                for (svc, env), cnt in service_counts.most_common(3)
+            ]
+
+            narrative = _build_briefing_narrative(
+                total=total,
+                pending=pending,
+                high_conf_pending=high_conf_pending,
+                top_services=top_services,
+                conf_map=conf_map,
+                hours=hours,
+            )
+
+            return {
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "period_hours": hours,
+                "total_investigations": total,
+                "pending_approval": pending,
+                "approved": approved,
+                "executed": executed,
+                "rejected": rejected,
+                "high_confidence_pending": high_conf_pending,
+                "confidence_breakdown": conf_map,
+                "top_services": top_services,
+                "narrative": narrative,
+            }
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_briefing_narrative(
+    total: int,
+    pending: int,
+    high_conf_pending: int,
+    top_services: list[dict],
+    conf_map: dict[str, int],
+    hours: int,
+) -> str:
+    """Build a Jarvis-style narrative sentence for the Morning Briefing widget."""
+    if total == 0:
+        return (
+            f"No incidents investigated in the last {hours} hours. "
+            "Systems appear stable — no active investigations on record."
+        )
+
+    parts: list[str] = []
+
+    # Total count
+    if total == 1:
+        parts.append(f"1 incident was investigated in the last {hours} hours.")
+    else:
+        parts.append(f"{total} incidents were investigated in the last {hours} hours.")
+
+    # Confidence headline
+    high = conf_map.get("high", 0)
+    if high > 0 and total > 0:
+        pct = round((high / total) * 100)
+        parts.append(f"{pct}% of root causes were identified with high confidence.")
+
+    # Pending approval — most operationally important
+    if high_conf_pending > 0:
+        noun = "investigation requires" if high_conf_pending == 1 else "investigations require"
+        parts.append(f"{high_conf_pending} high-confidence {noun} your approval.")
+    elif pending > 0:
+        noun = "investigation is" if pending == 1 else "investigations are"
+        parts.append(f"{pending} {noun} awaiting review.")
+    else:
+        parts.append("All investigations have been reviewed — no pending approvals.")
+
+    # Service spotlight
+    if top_services:
+        top = top_services[0]
+        inv_noun = "investigation" if top["count"] == 1 else "investigations"
+        parts.append(
+            f"{top['service']} ({top['environment']}) is the most active service "
+            f"with {top['count']} {inv_noun} this window."
+        )
+
+    return " ".join(parts)
 
 
 # ---------------------------------------------------------------------------

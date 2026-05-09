@@ -20,15 +20,25 @@ Usage:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from corvin.core.contracts import InvestigationRequest
 from corvin.core.knowledge_loader import KnowledgeLoader
+
+if TYPE_CHECKING:
+    from corvin.storage.repository import InvestigationRepository
 
 
 class PromptBuilder:
     """Builds the LLM system prompt for an investigation from knowledge layer sources."""
 
-    def __init__(self, knowledge_loader: KnowledgeLoader | None = None) -> None:
+    def __init__(
+        self,
+        knowledge_loader: KnowledgeLoader | None = None,
+        repository: InvestigationRepository | None = None,
+    ) -> None:
         self._loader = knowledge_loader or KnowledgeLoader()
+        self._repository = repository
 
     def _build_alert_text(self, request: InvestigationRequest) -> str:
         """Combine normalized and raw alert fields for runbook matching."""
@@ -98,5 +108,29 @@ class PromptBuilder:
         learnings = self._loader.load_learnings()
         if learnings.strip():
             sections.append(f"## Learnings from Past Incidents\n\n{learnings.strip()}")
+
+        # ── Past incidents (incident memory) ──────────────────────────────────
+        if self._repository is not None:
+            past = self._repository.get_similar_incidents(
+                service_name=request.service_name,
+                environment=request.environment,
+                n=3,
+            )
+            if past:
+                lines: list[str] = []
+                for inc in past:
+                    date_str = inc["completed_at"][:10]
+                    confidence = inc["confidence"].upper()
+                    root_cause = inc["root_cause"].strip()
+                    lines.append(
+                        f"- [{date_str}] {inc['service_name']} — {confidence} confidence\n"
+                        f"  Root cause: {root_cause}"
+                    )
+                sections.append(
+                    "## Similar Past Incidents (same service)\n\n"
+                    "Use these historical findings to identify recurrences or patterns. "
+                    "If the current evidence points to the same root cause, say so explicitly.\n\n"
+                    + "\n\n".join(lines)
+                )
 
         return "\n\n".join(sections)

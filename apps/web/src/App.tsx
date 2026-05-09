@@ -3,6 +3,7 @@ import DashboardPage from './pages/DashboardPage'
 import InvestigationsPage from './pages/InvestigationsPage'
 import InvestigationDetailPage from './pages/InvestigationDetailPage'
 import FixStrategyPage from './pages/FixStrategyPage'
+import NotFoundPage from './pages/NotFoundPage'
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/investigations" element={<InvestigationsPage />} />
         <Route path="/investigations/:id" element={<InvestigationDetailPage />} />
         <Route path="/investigations/:id/fix-strategy" element={<FixStrategyPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )

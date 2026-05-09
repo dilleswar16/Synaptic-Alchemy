@@ -22,7 +22,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 from corvin.core.contracts import ApprovalStatus, InvestigationRequest, InvestigationResult, TriggerSource
 from corvin.delivery.teams_adapter import TeamsAdapter
@@ -40,7 +40,7 @@ _log = logging.getLogger(__name__)
 
 
 def get_engine() -> InvestigationEngine:
-    return InvestigationEngine()
+    return InvestigationEngine(repository=InvestigationRepository())
 
 
 def get_repository() -> InvestigationRepository:
@@ -56,7 +56,8 @@ def get_execution_service() -> ExecutionService:
 
 
 def get_streamer() -> InvestigationStreamer:
-    return InvestigationStreamer(repository=InvestigationRepository())
+    repo = InvestigationRepository()
+    return InvestigationStreamer(repository=repo)
 
 
 def get_postmortem_service() -> PostMortemService:
@@ -90,6 +91,32 @@ class ExecutionResponse(BaseModel):
     all_succeeded: bool
     outcomes: list[dict]
     message: str
+
+
+class BriefingServiceEntry(BaseModel):
+    service: str
+    environment: str
+    count: int
+
+
+class ConfidenceBreakdown(BaseModel):
+    high: int
+    medium: int
+    low: int
+
+
+class BriefingResponse(BaseModel):
+    generated_at: str
+    period_hours: int
+    total_investigations: int
+    pending_approval: int
+    approved: int
+    executed: int
+    rejected: int
+    high_confidence_pending: int
+    confidence_breakdown: ConfidenceBreakdown
+    top_services: List[BriefingServiceEntry]
+    narrative: str
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -186,6 +213,46 @@ def stream_investigation(
             "Cache-Control": "no-cache",
         },
     )
+
+
+@router.get("/memory", response_model=list[dict])
+def get_incident_memory(
+    service_name: str = Query(..., description="Service to look up past incidents for"),
+    environment: str = Query(default="production", description="Target environment"),
+    n: int = Query(default=3, ge=1, le=10, description="Max number of past incidents to return"),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> list[dict]:
+    """Return up to *n* past completed investigations for the same service and environment.
+
+    Used by the UI to render the 'Similar Past Incidents' card on the detail page,
+    and by the LLM prompt builder to inject historical context before RCA generation.
+
+    Each item contains:
+      request_id, service_name, environment, completed_at,
+      rca_summary, root_cause, confidence
+    """
+    return repo.get_similar_incidents(
+        service_name=service_name,
+        environment=environment,
+        n=n,
+    )
+
+
+@router.get("/briefing", response_model=BriefingResponse)
+def get_briefing(
+    hours: int = Query(default=24, ge=1, le=168, description="Look-back window in hours"),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return a Jarvis-style SRE briefing payload for the dashboard Morning Briefing widget.
+
+    Covers the last *hours* window (default 24h) and includes:
+    - total_investigations, pending_approval, high_confidence_pending
+    - confidence_breakdown (high/medium/low counts)
+    - top_services (up to 3, by volume)
+    - narrative: a plain-English AI-style briefing sentence
+    - generated_at: ISO timestamp
+    """
+    return repo.get_briefing(hours=hours)
 
 
 @router.get("/{request_id}", response_model=InvestigationResult)

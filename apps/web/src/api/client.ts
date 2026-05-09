@@ -27,6 +27,14 @@ export interface InvestigationSummary {
   created_at: string
 }
 
+export interface EvidenceBundle {
+  elastic_logs: Record<string, unknown>[]
+  elastic_metrics: Record<string, unknown>[]
+  log_analytics_apim: Record<string, unknown>[]
+  aks_context: Record<string, unknown>
+  azure_activity_changes: Record<string, unknown>[]
+}
+
 export interface InvestigationResult {
   request_id: string
   request: {
@@ -38,6 +46,7 @@ export interface InvestigationResult {
     created_at: string
     approval_status: string
   }
+  evidence: EvidenceBundle
   rca: {
     summary: string
     root_cause: string
@@ -149,4 +158,93 @@ export function generatePostMortem(id: string) {
 
 export function fetchPostMortem(id: string) {
   return apiFetch<PostMortem>(`/investigations/${id}/postmortem`)
+}
+
+// ── V3: Incident Memory ───────────────────────────────────────────────────
+
+export interface SimilarIncident {
+  request_id: string
+  service_name: string
+  environment: string
+  completed_at: string
+  rca_summary: string
+  root_cause: string
+  confidence: 'high' | 'medium' | 'low'
+}
+
+export function fetchSimilarIncidents(service_name: string, environment: string, n = 3) {
+  const params = new URLSearchParams({ service_name, environment, n: String(n) })
+  return apiFetch<SimilarIncident[]>(`/investigations/memory?${params}`)
+}
+
+// ── V3: Investigation Replay ──────────────────────────────────────────────────
+
+export interface ReplayPayload {
+  request_id: string
+  trigger: {
+    service_name: string
+    environment: string
+    trigger_source: string
+    description: string
+    lookback_minutes: number
+    created_at: string
+  }
+  approval: {
+    status: string | null
+    approved_by: string | null
+    approved_at: string | null
+  }
+  evidence_summary: {
+    elastic_log_count: number
+    elastic_metric_count: number
+    log_analytics_apim_count: number
+    aks_context_keys: string[]
+    azure_activity_count: number
+    collected_at: string
+  }
+  rca: {
+    summary: string
+    root_cause: string
+    confidence: string
+    contributing_factors: string[]
+    evidence_references: string[]
+    generated_at: string
+  }
+  fix_strategy: {
+    summary: string
+    justification: string
+    action_count: number
+    actions: Array<{
+      title: string
+      risk_level: string
+      requires_approval: boolean
+      estimated_impact: string
+    }>
+    generated_at: string
+  }
+  completed_at: string
+}
+
+export function fetchReplay(requestId: string) {
+  return apiFetch<ReplayPayload>(`/investigations/${requestId}/replay`)
+}
+
+// ── V3: Morning Briefing ──────────────────────────────────────────────────
+
+export interface BriefingPayload {
+  generated_at: string
+  period_hours: number
+  total_investigations: number
+  pending_approval: number
+  approved: number
+  executed: number
+  rejected: number
+  high_confidence_pending: number
+  confidence_breakdown: { high: number; medium: number; low: number }
+  top_services: Array<{ service: string; environment: string; count: number }>
+  narrative: string
+}
+
+export function fetchBriefing(hours = 24) {
+  return apiFetch<BriefingPayload>(`/investigations/briefing?hours=${hours}`)
 }

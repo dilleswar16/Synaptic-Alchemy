@@ -46,9 +46,12 @@ def _expand(value: str) -> str:
 
 
 def _to_dicts(table: Any) -> list[dict[str, Any]]:
-    """Convert a LogsQueryResult table to a list of plain dicts."""
+    """Convert a LogsQueryResult table to a list of plain dicts, serializing datetimes."""
     columns = [c.name if hasattr(c, "name") else c for c in table.columns]
-    return [dict(zip(columns, row)) for row in table.rows]
+    return [
+        {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in zip(columns, row)}
+        for row in table.rows
+    ]
 
 
 class ContainerLogsAdapter:
@@ -96,11 +99,16 @@ class ContainerLogsAdapter:
         max_rows = self._config.get("max_log_rows", 200)
 
         query = (
-            f"ContainerLog\n"
-            f"| where TimeGenerated >= ago({minutes}m)\n"
-            f'| where Name contains "{service_name}" or Image contains "{service_name}"\n'
-            f"| project TimeGenerated, Name, Image, LogEntry, LogEntrySource, ContainerID\n"
-            f"| order by TimeGenerated desc\n"
+            f"let pods = KubePodInventory"
+            f"| where TimeGenerated >= ago({minutes}m)"
+            f'| where Namespace == "{ns}"'
+            f'| where Name contains "{service_name}"'
+            f"| distinct ContainerID;"
+            f"ContainerLog"
+            f"| where TimeGenerated >= ago({minutes}m)"
+            f"| where ContainerID in (pods)"
+            f"| project TimeGenerated, Name, LogEntry, LogEntrySource, ContainerID"
+            f"| order by TimeGenerated desc"
             f"| take {max_rows}"
         )
 

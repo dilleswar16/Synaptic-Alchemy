@@ -5,27 +5,8 @@ import { fetchInvestigations, type InvestigationSummary } from '../api/client'
 import { useInvestigationStream } from '../hooks/useInvestigationStream'
 import StreamingProgress from '../components/StreamingProgress'
 import Layout from '../components/Layout'
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function fmtTs(iso: string) {
-  try { return new Date(iso).toISOString().substring(11, 19) + 'Z' } catch { return '—' }
-}
-
-function timeAgo(iso: string) {
-  try {
-    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-    if (s < 60) return `${s}s ago`
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`
-    return `${Math.floor(s / 86400)}d ago`
-  } catch { return '—' }
-}
-
-const STATUS_CLS: Record<string, string> = {
-  pending: 'badge-pending', approved: 'badge-approved',
-  rejected: 'badge-rejected', executed: 'badge-executed',
-}
+import { timeAgo, fmtTs } from '../utils/time'
+import { STATUS_CLS } from '../components/StatusBadge'
 
 // ── Form field ────────────────────────────────────────────────────────────────
 
@@ -151,7 +132,7 @@ function StartInvestigationForm() {
 
 // ── Investigation list ────────────────────────────────────────────────────────
 
-function InvestigationList({ items }: { items: (InvestigationSummary & { approval_status?: string })[] }) {
+function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary & { approval_status?: string })[], isFiltered?: boolean }) {
   if (items.length === 0) {
     return (
       <div style={{
@@ -164,13 +145,15 @@ function InvestigationList({ items }: { items: (InvestigationSummary & { approva
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: 'var(--font-mono)', fontSize: '1rem', color: 'var(--c-text-faint)',
         }}>
-          ○
+          {isFiltered ? '∅' : '○'}
         </div>
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--c-text-faint)' }}>
-          No investigations yet
+          {isFiltered ? 'No matches' : 'No investigations yet'}
         </div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)', maxWidth: 320, lineHeight: 1.6 }}>
-          Use the form above to start your first investigation. Results will appear here.
+          {isFiltered
+            ? 'Try adjusting your search or clearing the status filter.'
+            : 'Use the form above to start your first investigation. Results will appear here.'}
         </div>
       </div>
     )
@@ -235,6 +218,9 @@ function InvestigationList({ items }: { items: (InvestigationSummary & { approva
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function InvestigationsPage() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['investigations'],
     queryFn: fetchInvestigations,
@@ -243,6 +229,13 @@ export default function InvestigationsPage() {
 
   const items = (data ?? []) as (InvestigationSummary & { approval_status?: string })[]
   const pending = items.filter(inv => (inv.approval_status ?? 'pending') === 'pending').length
+
+  const filteredItems = items.filter(inv => {
+    const q = searchQuery.trim().toLowerCase()
+    const matchSearch = !q || inv.service_name.toLowerCase().includes(q)
+    const matchStatus = statusFilter === 'all' || (inv.approval_status ?? 'pending') === statusFilter
+    return matchSearch && matchStatus
+  })
 
   return (
     <Layout>
@@ -276,7 +269,7 @@ export default function InvestigationsPage() {
       <StartInvestigationForm />
 
       {/* ── Investigation log ─────────────────────────────────────────────── */}
-      <div style={{ marginTop: 28, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ marginTop: 28, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{
           fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700,
           letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
@@ -287,9 +280,51 @@ export default function InvestigationsPage() {
         <div style={{ flex: 1, height: 1, background: 'var(--c-border-hi)' }} />
         {data && (
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', flexShrink: 0 }}>
-            {data.length} record{data.length !== 1 ? 's' : ''}
+            {filteredItems.length !== items.length
+              ? `${filteredItems.length} / ${items.length} records`
+              : `${items.length} record${items.length !== 1 ? 's' : ''}`}
           </span>
         )}
+      </div>
+
+      {/* ── Filter bar ─────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <span style={{
+            position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)',
+            fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)',
+            pointerEvents: 'none', userSelect: 'none',
+          }}>⌕</span>
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Filter by service…"
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              padding: '7px 12px 7px 26px',
+              fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
+            }}
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          style={{
+            padding: '7px 28px 7px 10px',
+            fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
+            background: 'var(--c-surface-2)', color: statusFilter === 'all' ? 'var(--c-text-dim)' : 'var(--c-text)',
+            border: '1px solid var(--c-border)', borderRadius: 2, cursor: 'pointer',
+            appearance: 'none',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat', backgroundPosition: 'right 9px center',
+          }}
+        >
+          <option value="all">All Statuses</option>
+          <option value="pending">pending</option>
+          <option value="approved">approved</option>
+          <option value="rejected">rejected</option>
+          <option value="executed">executed</option>
+        </select>
       </div>
 
       <div className="panel animate-fade-up-1" style={{ overflow: 'hidden' }}>
@@ -303,7 +338,7 @@ export default function InvestigationsPage() {
             ✗ Could not reach Corvin API.
           </div>
         )}
-        {data && <InvestigationList items={items} />}
+        {data && <InvestigationList items={filteredItems} isFiltered={searchQuery.trim() !== '' || statusFilter !== 'all'} />}
       </div>
     </Layout>
   )

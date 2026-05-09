@@ -4,23 +4,203 @@ import Layout from '../components/Layout'
 import {
   fetchInvestigationStats,
   fetchInvestigations,
+  fetchBriefing,
   type InvestigationStats,
   type InvestigationSummary,
+  type BriefingPayload,
 } from '../api/client'
+import { timeAgo, fmtTs } from '../utils/time'
+import { useTypewriter } from '../hooks/useTypewriter'
+import { STATUS_CLS } from '../components/StatusBadge'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Morning Briefing widget ───────────────────────────────────────────────
 
-function timeAgo(date: Date): string {
-  const s = Math.floor((Date.now() - date.getTime()) / 1000)
-  if (s < 60)    return `${s}s ago`
-  if (s < 3600)  return `${Math.floor(s / 60)}m ago`
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
-  return         `${Math.floor(s / 86400)}d ago`
-}
+function BriefingWidget({ data }: { data: BriefingPayload }) {
+  const hour = new Date().getUTCHours()
+  const greeting =
+    hour < 12 ? 'GOOD MORNING' : hour < 17 ? 'GOOD AFTERNOON' : 'GOOD EVENING'
 
-function fmtTs(iso: string) {
-  try { return new Date(iso).toISOString().substring(11, 19) + 'Z' }
-  catch { return '—' }
+  const { displayed: narrative, done: typingDone } = useTypewriter(data.narrative, 14)
+  const typing = !typingDone
+
+  const urgent = data.high_confidence_pending > 0
+  const fmtTime = new Date().toISOString().substring(11, 16) + ' UTC'
+  const conf = data.confidence_breakdown
+  const confTotal = conf.high + conf.medium + conf.low
+  const maxConf = Math.max(conf.high, conf.medium, conf.low, 1)
+
+  return (
+    <div
+      className="animate-fade-up"
+      style={{
+        marginBottom: 16,
+        background: 'var(--c-surface)',
+        border: `1px solid ${urgent ? 'rgba(249,115,22,0.4)' : 'var(--c-border-hi)'}`,
+        borderLeft: `3px solid ${urgent ? 'var(--c-signal)' : 'var(--c-border-hi)'}`,
+        borderRadius: 4,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      {/* Atmospheric grid */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage:
+          'linear-gradient(90deg, rgba(249,115,22,0.018) 1px, transparent 1px),' +
+          'linear-gradient(rgba(249,115,22,0.018) 1px, transparent 1px)',
+        backgroundSize: '36px 36px',
+      }} />
+
+      {/* Header bar */}
+      <div style={{
+        position: 'relative',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '9px 20px',
+        borderBottom: '1px solid var(--c-border)',
+        background: 'var(--c-surface-2)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {urgent && (
+            <span
+              className="animate-pulse-glow"
+              style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--c-signal)', display: 'inline-block', flexShrink: 0 }}
+            />
+          )}
+          <span style={{
+            fontFamily: 'var(--font-display)', fontWeight: 700,
+            fontSize: '0.64rem', letterSpacing: '0.2em', textTransform: 'uppercase',
+            color: urgent ? 'var(--c-signal)' : 'var(--c-text-muted)',
+          }}>
+            Daily Briefing
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--c-text-faint)', letterSpacing: '0.04em' }}>
+            {fmtTime} · {data.period_hours}h window
+          </span>
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: '0.58rem', letterSpacing: '0.06em',
+            padding: '2px 7px', borderRadius: 2,
+            background: 'rgba(249,115,22,0.07)',
+            border: '1px solid rgba(249,115,22,0.15)',
+            color: 'var(--c-text-faint)',
+          }}>
+            GPT-4.1
+          </span>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{ position: 'relative', padding: '20px 24px 18px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24 }}>
+        {/* Left: greeting + narrative + chips */}
+        <div>
+          {/* Greeting */}
+          <div style={{
+            fontFamily: 'var(--font-display)', fontWeight: 900,
+            fontSize: '1.05rem', letterSpacing: '0.14em', textTransform: 'uppercase',
+            color: 'var(--c-text)', marginBottom: 12,
+          }}>
+            {greeting}, OPERATOR
+          </div>
+
+          {/* Typewriter narrative */}
+          <div style={{
+            fontFamily: 'var(--font-body)', fontSize: '0.9rem', lineHeight: 1.75,
+            color: 'var(--c-text-dim)', marginBottom: 18,
+            minHeight: '4.4em',
+          }}>
+            {narrative}
+            {/* Blinking cursor while typing */}
+            <span style={{
+              display: 'inline-block', width: 2, height: '0.85em', verticalAlign: 'middle',
+              background: 'var(--c-signal)', marginLeft: 2,
+              animation: typing ? 'signal-pulse 0.7s ease-in-out infinite' : 'none',
+              opacity: typing ? 1 : 0,
+              transition: 'opacity 0.3s',
+            }} />
+          </div>
+
+          {/* Alert chips */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            {data.high_confidence_pending > 0 && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontFamily: 'var(--font-display)', fontWeight: 700,
+                fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+                padding: '5px 12px', borderRadius: 2,
+                background: 'rgba(249,115,22,0.1)',
+                border: '1px solid rgba(249,115,22,0.4)',
+                color: 'var(--c-signal)',
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--c-signal)', display: 'inline-block', flexShrink: 0 }} />
+                {data.high_confidence_pending} HIGH-CONF NEEDS APPROVAL
+              </span>
+            )}
+            {data.top_services.map((svc, i) => (
+              <span key={i} style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
+                padding: '4px 10px', borderRadius: 2,
+                background: 'var(--c-surface-2)',
+                border: '1px solid var(--c-border-hi)',
+                color: 'var(--c-text-dim)',
+              }}>
+                {svc.service} <span style={{ color: 'var(--c-text-faint)' }}>×{svc.count}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: confidence mini-chart */}
+        {confTotal > 0 && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            gap: 8, minWidth: 140,
+            borderLeft: '1px solid var(--c-border)',
+            paddingLeft: 24,
+          }}>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontWeight: 700,
+              fontSize: '0.58rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+              color: 'var(--c-text-faint)', marginBottom: 4,
+            }}>
+              Confidence
+            </div>
+            {[
+              { label: 'HIGH',   value: conf.high,   color: 'var(--c-green)'  },
+              { label: 'MEDIUM', value: conf.medium, color: 'var(--c-yellow)' },
+              { label: 'LOW',    value: conf.low,    color: 'var(--c-red)'    },
+            ].map(b => (
+              <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{
+                  fontFamily: 'var(--font-display)', fontWeight: 700,
+                  fontSize: '0.52rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+                  color: b.value > 0 ? 'var(--c-text-muted)' : 'var(--c-text-faint)',
+                  minWidth: 44,
+                }}>
+                  {b.label}
+                </span>
+                <div style={{
+                  height: 4, borderRadius: 2,
+                  width: b.value > 0 ? `${Math.max((b.value / maxConf) * 72, 6)}px` : '4px',
+                  background: b.value > 0 ? b.color : 'var(--c-surface-3)',
+                  transition: 'width 0.9s cubic-bezier(0.34,1.2,0.64,1)',
+                  boxShadow: b.value > 0 ? `0 0 6px color-mix(in srgb, ${b.color} 40%, transparent)` : 'none',
+                }} />
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontWeight: 700,
+                  fontSize: '0.72rem',
+                  color: b.value > 0 ? b.color : 'var(--c-text-faint)',
+                  minWidth: 18,
+                }}>
+                  {b.value > 0 ? b.value : '·'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ── Pipeline hero ─────────────────────────────────────────────────────────────
@@ -41,7 +221,7 @@ function HeroBand({
   recent: (InvestigationSummary & { approval_status?: string })[]
 }) {
   const lastTs = recent.length > 0
-    ? timeAgo(new Date(recent[0].completed_at ?? recent[0].created_at))
+    ? timeAgo(recent[0].completed_at ?? recent[0].created_at)
     : null
 
   return (
@@ -322,16 +502,9 @@ function VerticalBars({ bars }: { bars: { label: string; value: number; color: s
 
 // ── Log row ───────────────────────────────────────────────────────────────────
 
-const STATUS_CLS: Record<string, string> = {
-  pending: 'badge-pending',
-  approved: 'badge-approved',
-  rejected: 'badge-rejected',
-  executed: 'badge-executed',
-}
-
 function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?: string }; index: number }) {
   const status = inv.approval_status ?? 'pending'
-  const ts = new Date(inv.completed_at ?? inv.created_at)
+  const tsStr = inv.completed_at ?? inv.created_at
   return (
     <Link
       to={`/investigations/${inv.request_id}`}
@@ -342,7 +515,7 @@ function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?
       }}
     >
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', letterSpacing: '0.02em' }}>
-        {fmtTs(inv.completed_at ?? inv.created_at)}
+        {fmtTs(tsStr)}
       </span>
       <div>
         <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--c-text)' }}>
@@ -357,7 +530,7 @@ function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?
       </span>
       <span className={`badge ${STATUS_CLS[status] ?? 'badge-pending'}`}>{status}</span>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', textAlign: 'right' }}>
-        {timeAgo(ts)}
+        {timeAgo(tsStr)}
       </span>
       <span className="log-arrow" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--c-text-faint)', textAlign: 'right', transition: 'color 0.15s' }}>
         →
@@ -381,11 +554,22 @@ export default function DashboardPage() {
     refetchInterval: 30_000,
   })
 
+  const { data: briefing } = useQuery<BriefingPayload>({
+    queryKey: ['briefing'],
+    queryFn: () => fetchBriefing(24),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+    retry: false,
+  })
+
   const conf = stats?.confidence_distribution
   const appr = stats?.approval_distribution
 
   return (
     <Layout>
+      {/* ── Morning Briefing ──────────────────────────────────────────── */}
+      {briefing && <BriefingWidget data={briefing} />}
+
       {/* ── Hero band ─────────────────────────────────────────────────────── */}
       {stats && (
         <HeroBand stats={stats} recent={recent ?? []} />

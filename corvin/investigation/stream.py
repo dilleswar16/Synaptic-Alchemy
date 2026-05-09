@@ -88,7 +88,7 @@ class InvestigationStreamer:
         self._enrichment = enrichment or EnrichmentService()
         self._rca = rca or RCAGenerator()
         self._fix_strategy = fix_strategy or FixStrategyGenerator()
-        self._prompt_builder = prompt_builder or PromptBuilder()
+        self._prompt_builder = prompt_builder or PromptBuilder(repository=repository)
         self._repository = repository
 
     # ── Public interface ──────────────────────────────────────────────────────
@@ -231,17 +231,17 @@ class InvestigationStreamer:
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _evidence_sources(evidence: Any) -> list[str]:
-        """Return a human-readable list of evidence sources that returned data."""
-        sources = []
-        if evidence.elastic_logs:
-            sources.append("elastic_logs")
-        if evidence.elastic_metrics:
-            sources.append("elastic_metrics")
-        if evidence.log_analytics_apim:
-            sources.append("log_analytics_apim")
-        if evidence.aks_context:
-            sources.append("aks_context")
-        if evidence.azure_activity_changes:
-            sources.append("azure_activity_changes")
-        return sources
+    def _evidence_sources(evidence: Any) -> list[dict]:
+        """Return [{name, count}] for every adapter — including empty ones.
+
+        The UI uses this to show which adapters were queried and how many
+        records each returned.  ``aks_context`` is a dict, so it counts as
+        1 when non-empty and 0 when empty.
+        """
+        return [
+            {"name": "elastic_logs",          "count": len(evidence.elastic_logs)},
+            {"name": "elastic_metrics",        "count": len(evidence.elastic_metrics)},
+            {"name": "log_analytics_apim",     "count": len(evidence.log_analytics_apim)},
+            {"name": "aks_context",            "count": 1 if evidence.aks_context else 0},
+            {"name": "azure_activity_changes", "count": len(evidence.azure_activity_changes)},
+        ]

@@ -8,6 +8,7 @@
  * - Degraded/fallback banners when generation used a fallback path
  */
 
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { StageEvent } from '../hooks/useInvestigationStream'
 
@@ -32,6 +33,85 @@ const STAGE_LABELS: Record<StageName, string> = {
   evidence:     'Evidence Collection',
   rca:          'Root Cause Analysis',
   fix_strategy: 'Fix Strategy',
+}
+
+// ── Evidence accordion (streaming panel — counts only) ──────────────────────
+
+interface EvidenceSource { name: string; count: number }
+
+const ADAPTER_LABEL: Record<string, string> = {
+  elastic_logs:           'Elastic Logs',
+  elastic_metrics:        'Elastic Metrics',
+  log_analytics_apim:     'Log Analytics APIM',
+  aks_context:            'AKS Context',
+}
+
+function EvidenceAccordion({ sources }: { sources: EvidenceSource[] }) {
+  const [open, setOpen] = useState(false)
+  const displayed = sources.filter(s => s.name !== 'azure_activity_changes')
+  const total    = displayed.reduce((s, src) => s + src.count, 0)
+  const nonEmpty = displayed.filter(s => s.count > 0).length
+
+  return (
+    <div style={{ marginTop: 12, border: '1px solid var(--c-border)', borderRadius: 3, overflow: 'hidden' }}>
+      {/* Toggle header */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px', background: 'none', border: 'none',
+          cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <span style={{
+          fontSize: '0.6rem', color: 'var(--c-text-faint)',
+          transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none',
+          display: 'inline-block', flexShrink: 0,
+        }}>▶</span>
+        <span style={{
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.62rem',
+          letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
+        }}>
+          Evidence Collected
+        </span>
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: '0.67rem',
+          color: 'var(--c-text-faint)', marginLeft: 'auto',
+        }}>
+          {nonEmpty} sources&nbsp;·&nbsp;{total} records
+        </span>
+      </button>
+
+      {/* Source rows */}
+      {open && (
+        <div style={{ borderTop: '1px solid var(--c-border)' }}>
+          {displayed.map(src => (
+            <div key={src.name} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '6px 14px',
+              borderBottom: '1px solid var(--c-border)',
+            }}>
+              <span style={{ fontSize: '0.65rem', color: src.count > 0 ? 'var(--c-signal)' : 'var(--c-text-faint)', flexShrink: 0 }}>
+                {src.count > 0 ? '●' : '○'}
+              </span>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
+                color: src.count > 0 ? 'var(--c-text-dim)' : 'var(--c-text-faint)', flex: 1,
+              }}>
+                {ADAPTER_LABEL[src.name] ?? src.name}
+              </span>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.67rem',
+                color: src.count > 0 ? 'var(--c-text-dim)' : 'var(--c-text-faint)',
+              }}>
+                {src.count > 0 ? src.count : '—'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Stage progress tracker ────────────────────────────────────────────────────
@@ -342,6 +422,10 @@ function StagePanel({
       )}
 
       {/* Structured results after complete */}
+      {done && stageKey === 'evidence' && (() => {
+        const srcs = latest.sources as EvidenceSource[] | undefined
+        return srcs?.length ? <EvidenceAccordion sources={srcs} /> : null
+      })()}
       {done && stageKey === 'rca' && <RCASummary s={latest} />}
       {done && stageKey === 'fix_strategy' && <FixStrategySummary s={latest} />}
     </div>
