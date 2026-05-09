@@ -237,7 +237,7 @@ function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
               height: 11,
               borderRadius: 4,
               width: `${w}%`,
-              background: 'linear-gradient(90deg, rgba(249,115,22,0.08) 0%, rgba(249,115,22,0.18) 50%, rgba(249,115,22,0.08) 100%)',
+              background: 'linear-gradient(90deg, rgba(56,189,248,0.06) 0%, rgba(56,189,248,0.14) 50%, rgba(56,189,248,0.06) 100%)',
               backgroundSize: '200% 100%',
               animation: `skeleton-sweep 1.4s ease-in-out ${i * 0.12}s infinite`,
             }}
