@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import ReactMarkdown from 'react-markdown'
+import { SemanticMarkdown } from '../components/SemanticMarkdown'
 import { fetchInvestigation } from '../api/client'
 import Layout from '../components/Layout'
 
@@ -138,7 +138,7 @@ export default function FixStrategyPage() {
                   Summary
                 </div>
                 <div className="pm-prose" style={{ color: 'var(--c-text)' }}>
-                  <ReactMarkdown>{fixStrategy.summary}</ReactMarkdown>
+                  <SemanticMarkdown>{fixStrategy.summary}</SemanticMarkdown>
                 </div>
               </div>
               <div className="panel" style={{ padding: '24px 28px', background: 'var(--c-surface-2)' }}>
@@ -150,7 +150,7 @@ export default function FixStrategyPage() {
                   Justification
                 </div>
                 <div className="pm-prose" style={{ color: 'var(--c-text-dim)' }}>
-                  <ReactMarkdown>{fixStrategy.justification}</ReactMarkdown>
+                  <SemanticMarkdown>{fixStrategy.justification}</SemanticMarkdown>
                 </div>
               </div>
             </div>
@@ -227,7 +227,7 @@ export default function FixStrategyPage() {
                                 )}
                               </div>
                               <div className="pm-prose" style={{ color: 'var(--c-text-dim)' }}>
-                                <ReactMarkdown>{action.description}</ReactMarkdown>
+                                <SemanticMarkdown>{action.description}</SemanticMarkdown>
                               </div>
                             </div>
                           </div>

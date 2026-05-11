@@ -3,8 +3,8 @@
  * root cause card, analysis summary, contributing factors, and fix strategy preview.
  */
 import { Link } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
 import { Section } from '../Section'
+import { SemanticMarkdown } from '../SemanticMarkdown'
 import type { InvestigationResult } from '../../api/client'
 
 interface RcaSectionProps {
@@ -72,7 +72,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
           Root Cause
         </div>
         <div className="pm-prose" style={{ color: 'var(--c-text)' }}>
-          <ReactMarkdown>{rca.root_cause}</ReactMarkdown>
+          <SemanticMarkdown>{rca.root_cause}</SemanticMarkdown>
         </div>
       </div>
 
@@ -86,7 +86,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
           Analysis
         </div>
         <div className="pm-prose" style={{ color: 'var(--c-text-dim)' }}>
-          <ReactMarkdown>{rca.summary}</ReactMarkdown>
+          <SemanticMarkdown>{rca.summary}</SemanticMarkdown>
         </div>
       </div>
 

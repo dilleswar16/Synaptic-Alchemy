@@ -13,6 +13,7 @@ import { ApprovalSection, type ApprovalAction } from '../components/investigatio
 import { ExecutionSection } from '../components/investigation/ExecutionSection'
 import { AuditTrailSection } from '../components/investigation/AuditTrailSection'
 import { PostMortemSection } from '../components/investigation/PostMortemSection'
+import { TechnicalHighlighter } from '../components/TechnicalHighlighter'
 import { Section } from '../components/Section'
 import {
   fetchInvestigation,
@@ -242,7 +243,7 @@ export default function InvestigationDetailPage() {
                       margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem',
                       color: 'var(--c-text-dim)', lineHeight: 1.75,
                     }}>
-                      {data.request.description}
+                      <TechnicalHighlighter text={data.request.description} />
                     </p>
                   </Section>
                 </div>
