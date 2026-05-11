@@ -19,6 +19,16 @@ from typing import Any
 
 import litellm
 
+# gpt-5 and o-series models do not support temperature/other params that
+# standard GPT-4 models accept.  Instruct LiteLLM to silently drop any
+# parameter the target model does not support rather than raising an error.
+litellm.drop_params = True
+
+# Automatically inject summary="detailed" into reasoning_effort when using
+# Responses API models (azure/responses/* or openai/responses/*) so that
+# the model's chain-of-thought reasoning is surfaced in delta.reasoning_content.
+litellm.reasoning_auto_summary = True
+
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import FixStrategyOutput, InvestigationRequest, RCAOutput
 
@@ -88,6 +98,15 @@ class FixStrategyGenerator:
             "max_tokens": self._model_config.get("max_tokens", 4096),
             "response_format": {"type": "json_object"},
         }
+
+        # Pass reasoning_effort when configured (Responses API / o-series models).
+        # Accepts either a plain string ("medium") or a dict
+        # ({"effort": "medium", "summary": "detailed"}) — both are forwarded
+        # directly to LiteLLM.  drop_params=True silently drops it for models
+        # that don't support it so this is safe for all model paths.
+        reasoning_effort = self._model_config.get("reasoning_effort")
+        if reasoning_effort:
+            kwargs["reasoning_effort"] = reasoning_effort
 
         endpoint = os.environ.get("LITELLM_ENDPOINT", "").strip()
         api_key = os.environ.get("LITELLM_API_KEY", "").strip()
@@ -176,10 +195,16 @@ class FixStrategyGenerator:
             kwargs_stream = {**kwargs, "stream": True}
             response = litellm.completion(model=self._model_config["model"], **kwargs_stream)
             for chunk in response:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    text = chunk.choices[0].delta.content
-                    accumulated += text
-                    yield (text, None)
+                if chunk.choices:
+                    delta = chunk.choices[0].delta
+                    # Capture reasoning/thinking tokens (gpt-5, o-series models)
+                    reasoning = getattr(delta, 'reasoning_content', None)
+                    if reasoning:
+                        yield (f"__thinking__:{reasoning}", None)
+                    # Regular content tokens
+                    if delta.content:
+                        accumulated += delta.content
+                        yield (delta.content, None)
 
         except Exception as exc:
             _log = logging.getLogger(__name__)

@@ -166,6 +166,7 @@ class InvestigationRepository:
                 root_cause=result.rca.root_cause,
                 contributing_factors=result.rca.contributing_factors,
                 confidence=result.rca.confidence.value,
+                confidence_reasoning=result.rca.confidence_reasoning,
                 evidence_references=result.rca.evidence_references,
                 generated_at=result.rca.generated_at,
             )
@@ -249,6 +250,7 @@ class InvestigationRepository:
                     "root_cause": rca_row.root_cause,
                     "contributing_factors": rca_row.contributing_factors,
                     "confidence": rca_row.confidence,
+                    "confidence_reasoning": getattr(rca_row, "confidence_reasoning", "") or "",
                     "evidence_references": rca_row.evidence_references,
                     "generated_at": _as_utc(rca_row.generated_at),
                 }

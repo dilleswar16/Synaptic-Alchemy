@@ -126,6 +126,12 @@ class FakeEnrichment(EnrichmentService):
     def enrich(self, request: InvestigationRequest) -> EvidenceBundle:
         return _make_evidence(request.id)
 
+    def enrich_streaming(self, request: InvestigationRequest):
+        bundle = _make_evidence(request.id)
+        yield {"source": "elastic_logs", "table": "ContainerLog", "source_status": "done", "count": len(bundle.elastic_logs), "elapsed_ms": 0}, None
+        yield {"source": "aks_context", "table": "KubePodInventory", "source_status": "done", "count": 1, "elapsed_ms": 0}, None
+        yield None, bundle
+
 
 class FakeRCA(RCAGenerator):
     """Returns canned RCA without calling an LLM."""
@@ -152,6 +158,10 @@ class FailingEnrichment(EnrichmentService):
 
     def enrich(self, request: InvestigationRequest) -> EvidenceBundle:
         raise RuntimeError("simulated evidence failure")
+
+    def enrich_streaming(self, request: InvestigationRequest):
+        raise RuntimeError("simulated evidence failure")
+        yield  # pragma: no cover — makes this a generator
 
 
 def _make_streamer(repo=None) -> InvestigationStreamer:
@@ -209,8 +219,8 @@ def test_streamer_emits_evidence_complete_event_with_sources():
     ev = next(e for e in events if e["stage"] == "evidence" and e["status"] == "complete")
     assert "sources" in ev
     assert isinstance(ev["sources"], list)
-    # sources is [{name, count}] — extract names for assertion
-    source_names = [s["name"] for s in ev["sources"]]
+    # sources is [{source, table, source_status, count, elapsed_ms}] — extract source names
+    source_names = [s["source"] for s in ev["sources"]]
     assert "elastic_logs" in source_names
     assert "aks_context" in source_names
 

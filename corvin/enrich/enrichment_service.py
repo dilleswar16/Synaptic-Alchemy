@@ -11,6 +11,9 @@ Inject custom adapter instances in tests or when swapping implementations.
 from __future__ import annotations
 
 import logging
+import time
+from collections.abc import Callable, Generator
+from typing import Any
 
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import EvidenceBundle, InvestigationRequest
@@ -22,6 +25,35 @@ from corvin.evidence.log_analytics_adapter import LogAnalyticsAdapter
 
 
 _log = logging.getLogger(__name__)
+
+
+def _timed_step(
+    source_name: str,
+    table: str,
+    fn: Callable[[], Any],
+) -> Generator[tuple[dict, None], None, Any]:
+    """
+    Sub-generator used by EnrichmentService.enrich_streaming().
+
+    Yields a "running" progress tuple, calls *fn* (timing it), then yields a
+    "done" progress tuple.  The adapter return value is available to the caller
+    via ``result = yield from _timed_step(...)`` (PEP 380 StopIteration.value).
+
+    Each progress tuple: ``({ source, table, source_status, count, elapsed_ms }, None)``
+    """
+    yield {"source": source_name, "table": table, "source_status": "running", "count": 0, "elapsed_ms": 0}, None
+    t0 = time.monotonic()
+    try:
+        result = fn()
+    except NotImplementedError:
+        result = []
+    except Exception as exc:
+        _log.warning("Adapter %s failed: %s", source_name, exc)
+        result = []
+    elapsed_ms = int((time.monotonic() - t0) * 1000)
+    count = len(result) if isinstance(result, list) else (1 if result else 0)
+    yield {"source": source_name, "table": table, "source_status": "done", "count": count, "elapsed_ms": elapsed_ms}, None
+    return result
 
 
 class EnrichmentService:
@@ -109,3 +141,72 @@ class EnrichmentService:
             _log.warning("AzureActivityAdapter.get_recent_changes failed: %s", exc)
 
         return bundle
+
+    def enrich_streaming(
+        self,
+        request: InvestigationRequest,
+    ) -> Generator[tuple[dict, None] | tuple[None, EvidenceBundle], None, None]:
+        """
+        Streaming variant of enrich().
+
+        Yields ``(progress_dict, None)`` before and after each adapter call so
+        the caller can emit real-time SSE events, then yields
+        ``(None, EvidenceBundle)`` as the terminal item.
+
+        Each progress dict:
+            { source, table, source_status ("running"|"done"), count, elapsed_ms }
+
+        Usage in the streamer::
+
+            for progress, bundle in self._enrichment.enrich_streaming(request):
+                if bundle is not None:
+                    evidence = bundle
+                else:
+                    emit_sse(progress)
+        """
+        b = EvidenceBundle(request_id=request.id)
+
+        if self._elastic is not None:
+            b.elastic_logs = (yield from _timed_step(
+                "elastic_logs", "Elastic logs-*",
+                lambda: self._elastic.get_logs(  # type: ignore[union-attr]
+                    request.service_name, time_range_minutes=request.lookback_minutes
+                ),
+            )) or []
+            b.elastic_metrics = (yield from _timed_step(
+                "elastic_metrics", "Elastic metrics-*",
+                lambda: self._elastic.get_metrics(  # type: ignore[union-attr]
+                    request.service_name, time_range_minutes=request.lookback_minutes
+                ),
+            )) or []
+
+        if not b.elastic_logs:
+            b.elastic_logs = (yield from _timed_step(
+                "container_logs", "ContainerLog · chad",
+                lambda: self._container_logs.get_container_logs(
+                    request.service_name, time_range_minutes=request.lookback_minutes
+                ),
+            )) or []
+
+        b.log_analytics_apim = (yield from _timed_step(
+            "apim_logs", "ApiManagementGatewayLogs",
+            lambda: self._log_analytics.get_apim_logs(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            ),
+        )) or []
+
+        b.aks_context = (yield from _timed_step(
+            "aks_context", "KubePodInventory · KubeEvents",
+            lambda: self._aks.get_pod_context(
+                request.service_name, environment=request.environment
+            ),
+        )) or {}
+
+        b.azure_activity_changes = (yield from _timed_step(
+            "activity_changes", "AzureActivity",
+            lambda: self._azure_activity.get_recent_changes(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            ),
+        )) or []
+
+        yield None, b

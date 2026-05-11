@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import Generator
 from typing import Any
 
@@ -135,12 +136,23 @@ class InvestigationStreamer:
             "started",
             f"Collecting evidence for {request.service_name} in {request.environment}…",
         )
-        evidence = self._enrichment.enrich(request)
+        t_evidence = time.monotonic()
+        sources: list[dict] = []
+        evidence = None
+        for progress, bundle in self._enrichment.enrich_streaming(request):
+            if bundle is not None:
+                evidence = bundle
+            else:
+                yield _stage_event("evidence", "fetching", "", **progress)
+                if progress.get("source_status") == "done":
+                    sources.append(progress)
+        assert evidence is not None
         yield _stage_event(
             "evidence",
             "complete",
             "Evidence collected.",
-            sources=list(self._evidence_sources(evidence)),
+            sources=sources,
+            total_elapsed_ms=int((time.monotonic() - t_evidence) * 1000),
         )
 
         # ── Stage 2: RCA generation ───────────────────────────────────────────
@@ -149,7 +161,10 @@ class InvestigationStreamer:
         rca = None
         for token, result in self._rca.generate_stream(request, evidence, system_prompt=system_prompt):
             if token is not None:
-                yield _stage_event("rca", "token", token)
+                if token.startswith("__thinking__:"):
+                    yield _stage_event("rca_thinking", "token", token[len("__thinking__:"):])
+                else:
+                    yield _stage_event("rca", "token", token)
             else:
                 rca = result
         assert rca is not None  # generate_stream always yields a (None, result) at the end
@@ -169,6 +184,8 @@ class InvestigationStreamer:
             root_cause=rca.root_cause,
             contributing_factors=rca.contributing_factors,
             confidence=rca.confidence.value,
+            confidence_reasoning=rca.confidence_reasoning,
+            evidence_references=rca.evidence_references,
             generation_status=rca_status,
             degraded=rca_degraded,
         )
@@ -178,7 +195,10 @@ class InvestigationStreamer:
         fix_strategy = None
         for token, result in self._fix_strategy.generate_stream(request, rca):
             if token is not None:
-                yield _stage_event("fix_strategy", "token", token)
+                if token.startswith("__thinking__:"):
+                    yield _stage_event("fix_thinking", "token", token[len("__thinking__:"):])
+                else:
+                    yield _stage_event("fix_strategy", "token", token)
             else:
                 fix_strategy = result
         assert fix_strategy is not None
@@ -230,18 +250,4 @@ class InvestigationStreamer:
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
-    @staticmethod
-    def _evidence_sources(evidence: Any) -> list[dict]:
-        """Return [{name, count}] for every adapter — including empty ones.
 
-        The UI uses this to show which adapters were queried and how many
-        records each returned.  ``aks_context`` is a dict, so it counts as
-        1 when non-empty and 0 when empty.
-        """
-        return [
-            {"name": "elastic_logs",          "count": len(evidence.elastic_logs)},
-            {"name": "elastic_metrics",        "count": len(evidence.elastic_metrics)},
-            {"name": "log_analytics_apim",     "count": len(evidence.log_analytics_apim)},
-            {"name": "aks_context",            "count": 1 if evidence.aks_context else 0},
-            {"name": "azure_activity_changes", "count": len(evidence.azure_activity_changes)},
-        ]

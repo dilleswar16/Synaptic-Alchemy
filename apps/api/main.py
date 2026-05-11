@@ -8,6 +8,16 @@ Start the dev server with:
 from __future__ import annotations
 
 import os
+import warnings
+
+# LiteLLM's ResponseAPIUsage Pydantic model doesn't include `video_tokens`
+# which Azure AI Foundry now returns in Responses API usage objects.
+# The serialization still works correctly — suppress the noise.
+warnings.filterwarnings(
+    "ignore",
+    message=".*ResponseAPIUsage.*",
+    category=UserWarning,
+)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

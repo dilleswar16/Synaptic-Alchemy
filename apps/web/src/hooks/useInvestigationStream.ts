@@ -37,10 +37,12 @@ export interface StreamParams {
 }
 
 export interface UseInvestigationStreamResult {
-  /** All stage events received so far, in order (excludes token events). */
+  /** All stage events received so far, in order (excludes token and fetching events). */
   stages: StageEvent[]
   /** Accumulated raw LLM token text per stage name, built as tokens arrive. */
   streamText: Record<string, string>
+  /** Live evidence-collection sub-events: one per source, running then done. */
+  fetchingEvents: StageEvent[]
   /** True while the EventSource connection is open. */
   isStreaming: boolean
   /** True once a 'complete' or 'error' stage event is received. */
@@ -58,6 +60,7 @@ export interface UseInvestigationStreamResult {
 export function useInvestigationStream(): UseInvestigationStreamResult {
   const [stages, setStages] = useState<StageEvent[]>([])
   const [streamText, setStreamText] = useState<Record<string, string>>({})
+  const [fetchingEvents, setFetchingEvents] = useState<StageEvent[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -72,6 +75,7 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
     }
     setStages([])
     setStreamText({})
+    setFetchingEvents([])
     setIsStreaming(false)
     setIsComplete(false)
     setError(null)
@@ -107,6 +111,22 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
             return
           }
 
+          // Evidence sub-events: accumulate separately so the UI can show
+          // live per-source progress rows (running → done with timing)
+          if (data.status === 'fetching') {
+            setFetchingEvents((prev) => {
+              // Replace the existing entry for this source (running → done)
+              const idx = prev.findIndex((e) => e.source === data.source)
+              if (idx >= 0) {
+                const next = [...prev]
+                next[idx] = data
+                return next
+              }
+              return [...prev, data]
+            })
+            return
+          }
+
           setStages((prev) => [...prev, data])
 
           if (data.stage === 'complete') {
@@ -136,5 +156,5 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
     [reset],
   )
 
-  return { stages, streamText, isStreaming, isComplete, error, requestId, start, reset }
+  return { stages, streamText, fetchingEvents, isStreaming, isComplete, error, requestId, start, reset }
 }

@@ -1,25 +1,153 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchInvestigations, type InvestigationSummary } from '../api/client'
-import { useInvestigationStream } from '../hooks/useInvestigationStream'
+import { useInvestigationStream, type StreamParams } from '../hooks/useInvestigationStream'
 import StreamingProgress from '../components/StreamingProgress'
 import Layout from '../components/Layout'
 import { timeAgo, fmtTs } from '../utils/time'
 import { STATUS_CLS } from '../components/StatusBadge'
 
-// ── Form field ────────────────────────────────────────────────────────────────
+// ── Form fields ───────────────────────────────────────────────────────────────
 
-function Field({
+type DropdownOption = { value: string; label: string; disabled?: boolean; note?: string }
+
+function SelectField({
   label,
   value,
   onChange,
-  placeholder,
+  options,
   disabled,
   required,
 }: {
-  label: string; value: string; onChange: (v: string) => void
-  placeholder?: string; disabled?: boolean; required?: boolean
+  label: string
+  value: string
+  onChange: (v: string) => void
+  options: DropdownOption[]
+  disabled?: boolean
+  required?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const selected = options.find(o => o.value === value)
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    if (!open) return
+    function handle(e: MouseEvent | KeyboardEvent) {
+      if (e instanceof KeyboardEvent) {
+        if (e.key === 'Escape') setOpen(false)
+        return
+      }
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handle)
+    document.addEventListener('keydown', handle)
+    return () => {
+      document.removeEventListener('mousedown', handle)
+      document.removeEventListener('keydown', handle)
+    }
+  }, [open])
+
+  return (
+    <div ref={rootRef} style={{ position: 'relative' }}>
+      <label style={{
+        display: 'block', marginBottom: 6,
+        fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700,
+        letterSpacing: '0.14em', textTransform: 'uppercase',
+        color: 'var(--c-text-muted)',
+      }}>
+        {label}{required && <span style={{ color: 'var(--c-signal)', marginLeft: 4 }}>*</span>}
+      </label>
+
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen(o => !o)}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          padding: '9px 30px 9px 12px',
+          background: open ? 'var(--c-surface-2)' : 'var(--c-surface)',
+          border: `1px solid ${open ? 'rgba(249,115,22,0.5)' : 'var(--c-border)'}`,
+          borderRadius: open ? '3px 3px 0 0' : 3,
+          color: disabled ? 'var(--c-text-faint)' : 'var(--c-text)',
+          fontFamily: 'var(--font-mono)', fontSize: '0.82rem',
+          textAlign: 'left', cursor: disabled ? 'not-allowed' : 'pointer',
+          outline: 'none', transition: 'border-color 0.15s, background 0.1s',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}
+      >
+        <span>
+          {selected
+            ? <><span style={{ color: 'var(--c-text)' }}>{selected.label}</span>{selected.note && <span style={{ color: 'var(--c-text-faint)', marginLeft: 8, fontSize: '0.72rem' }}>— {selected.note}</span>}</>
+            : <span style={{ color: 'var(--c-text-faint)' }}>Select…</span>
+          }
+        </span>
+        <span style={{
+          color: open ? 'var(--c-signal)' : 'var(--c-text-faint)',
+          fontSize: '0.65rem', transition: 'transform 0.15s, color 0.15s',
+          transform: open ? 'rotate(180deg)' : 'none', flexShrink: 0,
+        }}>▾</span>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+          background: 'rgb(18, 24, 38)',
+          border: '1px solid rgba(249,115,22,0.35)',
+          borderTop: '1px solid rgba(249,115,22,0.15)',
+          borderRadius: '0 0 4px 4px',
+          boxShadow: '0 12px 40px rgba(0,0,0,0.75)',
+          overflow: 'hidden',
+        }}>
+          {options.map((opt, i) => {
+            const isSelected = opt.value === value
+            const isDisabled = opt.disabled
+            return (
+              <div
+                key={opt.value}
+                onClick={() => { if (!isDisabled) { onChange(opt.value); setOpen(false) } }}
+                style={{
+                  padding: '9px 12px',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  cursor: isDisabled ? 'not-allowed' : 'pointer',
+                  background: isSelected ? 'rgba(249,115,22,0.14)' : 'rgb(18,24,38)',
+                  borderTop: i > 0 ? '1px solid var(--c-border)' : 'none',
+                  transition: 'background 0.1s',
+                  opacity: isDisabled ? 0.4 : 1,
+                }}
+                onMouseEnter={e => { if (!isDisabled) (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'rgba(249,115,22,0.18)' : 'rgb(28,35,52)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'rgba(249,115,22,0.14)' : 'rgb(18,24,38)' }}
+              >
+                {/* Selected indicator */}
+                <span style={{
+                  width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
+                  background: isSelected ? 'var(--c-signal)' : 'transparent',
+                }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: isSelected ? 'var(--c-signal)' : isDisabled ? 'var(--c-text-faint)' : 'var(--c-text)' }}>
+                  {opt.label}
+                </span>
+                {opt.note && (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', marginLeft: 'auto' }}>
+                    {isDisabled ? '🔒 ' : ''}{opt.note}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DescriptionField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string; onChange: (v: string) => void; disabled?: boolean
 }) {
   return (
     <div>
@@ -29,40 +157,112 @@ function Field({
         letterSpacing: '0.14em', textTransform: 'uppercase',
         color: 'var(--c-text-muted)',
       }}>
-        {label}{required && <span style={{ color: 'var(--c-signal)', marginLeft: 4 }}>*</span>}
+        What are you seeing?
+        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 400, fontSize: '0.65rem', color: 'var(--c-text-faint)', marginLeft: 8, textTransform: 'none', letterSpacing: 0 }}>
+          optional — feeds directly into the AI prompt
+        </span>
       </label>
-      <input
+      <textarea
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
         disabled={disabled}
-        style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px' }}
+        rows={3}
+        placeholder="e.g. Elevated 5xx errors since 14:00, two pods restarted, latency spiked to 4 s on /checkout endpoint…"
+        style={{
+          width: '100%', boxSizing: 'border-box', padding: '9px 12px',
+          resize: 'vertical', minHeight: 72, fontFamily: 'var(--font-body)',
+          fontSize: '0.82rem', lineHeight: 1.65,
+          background: 'var(--c-surface)', border: '1px solid var(--c-border)',
+          borderRadius: 3, color: 'var(--c-text)', outline: 'none',
+          transition: 'border-color 0.15s',
+        }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.5)' }}
+        onBlur={e => { e.currentTarget.style.borderColor = 'var(--c-border)' }}
       />
     </div>
   )
 }
 
+// ── Known services + demo presets ───────────────────────────────────────────
+
+const SERVICES = ['fundapis', 'fundsso', 'partnerapis'] as const
+
+const DEMO_PRESETS = [
+  {
+    label: '503 Spike',
+    icon: '⚡',
+    service_name: 'fundapis' as string,
+    environment: 'dev',
+    description: 'High error rate — 503s spiking on /v1/funds endpoint since 14:00. Two pods restarted in the last hour.',
+  },
+  {
+    label: 'HPA Failure',
+    icon: '⚠',
+    service_name: 'partnerapis' as string,
+    environment: 'dev',
+    description: 'HPA reports FailedComputeMetricsReplicas — only 1/2 replicas running, CPU metrics unavailable.',
+  },
+  {
+    label: 'Auth Errors',
+    icon: '🔒',
+    service_name: 'fundsso' as string,
+    environment: 'dev',
+    description: 'Elevated RBAC 403 errors on /auth/token — users unable to authenticate since deployment at 09:30.',
+  },
+]
+
 // ── Start investigation form ──────────────────────────────────────────────────
 
 function StartInvestigationForm() {
-  const [service, setService] = useState('')
-  const [environment, setEnvironment] = useState('production')
+  const [service, setService] = useState('fundapis')
+  const [environment, setEnvironment] = useState('dev')
   const [description, setDescription] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
+  const pendingQueue = useRef<StreamParams[]>([])
+  const [queueTotal, setQueueTotal] = useState(0)
+  const [queueDone, setQueueDone] = useState(0)
   const queryClient = useQueryClient()
 
-  const { stages, streamText, isStreaming, isComplete, error, requestId, start, reset } =
+  const { stages, streamText, fetchingEvents, isStreaming, isComplete, error, requestId, start, reset } =
     useInvestigationStream()
 
   const handleComplete = () => {
     if (requestId) queryClient.invalidateQueries({ queryKey: ['investigations'] })
   }
 
+  // Drain queue: after each investigation completes, start the next service
+  useEffect(() => {
+    if (isComplete && pendingQueue.current.length > 0) {
+      const next = pendingQueue.current.shift()!
+      setQueueDone(d => d + 1)
+      const t = setTimeout(() => { reset(); start(next) }, 1500)
+      return () => clearTimeout(t)
+    }
+  }, [isComplete, start, reset])
+
+  function handlePreset(preset: typeof DEMO_PRESETS[number]) {
+    setService(preset.service_name)
+    setEnvironment(preset.environment)
+    setDescription(preset.description)
+    setFormError(null)
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setFormError(null)
-    if (!service.trim()) { setFormError('Service name is required.'); return }
-    start({ service_name: service.trim(), environment, description })
+    if (!service) { setFormError('Please select a service.'); return }
+    if (service === '__all__') {
+      const params = SERVICES.map(s => ({ service_name: s, environment, description }))
+      pendingQueue.current = params.slice(1)
+      setQueueTotal(params.length)
+      setQueueDone(0)
+      start(params[0])
+    } else {
+      pendingQueue.current = []
+      setQueueTotal(0)
+      setQueueDone(0)
+      start({ service_name: service, environment, description })
+    }
   }
 
   const showProgress = isStreaming || isComplete || stages.length > 0
@@ -90,13 +290,60 @@ function StartInvestigationForm() {
 
       {/* Form */}
       <div style={{ padding: '20px 24px' }}>
+        {/* Demo preset buttons */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{
+            fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+            letterSpacing: '0.14em', textTransform: 'uppercase',
+            color: 'var(--c-text-muted)', marginBottom: 8,
+          }}>
+            Demo Presets
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {DEMO_PRESETS.map(preset => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => handlePreset(preset)}
+                disabled={isStreaming}
+                className="btn-ghost"
+                style={{ padding: '5px 14px', fontSize: '0.75rem', opacity: isStreaming ? 0.5 : 1 }}
+              >
+                {preset.icon} {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-            <Field label="Service Name" value={service} onChange={setService} placeholder="order-service" disabled={isStreaming} required />
-            <Field label="Environment"  value={environment} onChange={setEnvironment} placeholder="production" disabled={isStreaming} />
+            <SelectField
+              label="Service"
+              value={service}
+              onChange={setService}
+              disabled={isStreaming}
+              required
+              options={[
+                { value: 'fundapis',    label: 'fundapis',    note: 'Fund APIs backend' },
+                { value: 'fundsso',     label: 'fundsso',     note: 'Fund SSO service' },
+                { value: 'partnerapis', label: 'partnerapis', note: 'Partner APIs' },
+                { value: '__all__',     label: '— All Services —' },
+              ]}
+            />
+            <SelectField
+              label="Environment"
+              value={environment}
+              onChange={setEnvironment}
+              disabled={isStreaming}
+              options={[
+                { value: 'dev',  label: 'dev' },
+                { value: 'qa',   label: 'qa',   disabled: true, note: 'coming soon' },
+                { value: 'prod', label: 'prod', disabled: true, note: 'coming soon' },
+              ]}
+            />
           </div>
           <div style={{ marginBottom: 16 }}>
-            <Field label="Description" value={description} onChange={setDescription} placeholder="Elevated 5xx errors on /checkout endpoint…" disabled={isStreaming} />
+            <DescriptionField value={description} onChange={setDescription} disabled={isStreaming} />
           </div>
 
           {formError && (
@@ -109,20 +356,30 @@ function StartInvestigationForm() {
             </div>
           )}
 
-          <button type="submit" disabled={isStreaming} className="btn-primary">
-            {isStreaming ? 'Running Investigation…' : '▶ Start Investigation'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <button type="submit" disabled={isStreaming} className="btn-primary">
+              {isStreaming
+                ? queueTotal > 1 ? `Running ${queueDone + 1} / ${queueTotal}…` : 'Running…'
+                : service === '__all__' ? '▶ Run All Services' : '▶ Start Investigation'}
+            </button>
+            {isStreaming && queueTotal > 1 && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)' }}>
+                {queueDone} complete · {queueTotal - queueDone - 1} queued
+              </span>
+            )}
+          </div>
         </form>
 
         {showProgress && (
           <StreamingProgress
             stages={stages}
             streamText={streamText}
+            fetchingEvents={fetchingEvents}
             isStreaming={isStreaming}
             isComplete={isComplete}
             error={error}
             requestId={requestId}
-            onReset={() => { reset(); handleComplete() }}
+            onReset={() => { pendingQueue.current = []; setQueueTotal(0); setQueueDone(0); reset(); handleComplete() }}
           />
         )}
       </div>

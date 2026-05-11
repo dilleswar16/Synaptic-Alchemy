@@ -79,6 +79,7 @@ class RCAOutputRow(Base):
     root_cause: Mapped[str] = mapped_column(Text, nullable=False)
     contributing_factors: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
     confidence: Mapped[str] = mapped_column(String(20), nullable=False, default="medium")
+    confidence_reasoning: Mapped[str] = mapped_column(Text, nullable=False, default="")
     evidence_references: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow

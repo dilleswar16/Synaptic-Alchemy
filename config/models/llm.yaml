@@ -5,18 +5,40 @@
 provider: litellm
 
 # Primary model used for RCA and fix strategy generation.
-# Using azure/ prefix for classic Azure OpenAI endpoints
-# (https://<resource>.openai.azure.com/).
-model: azure/gpt-4.1-mini
+#
+# azure/responses/<deployment> routes through the OpenAI Responses API which
+# surfaces the model's internal reasoning tokens in delta.reasoning_content so
+# the ThinkingPanel in the UI can show live chain-of-thought.
+#
+# Deployment name must match exactly what is in Azure AI Foundry.
+# Chat-only path:    azure/gpt-5-mini
+# Responses path:    azure/responses/gpt-5-mini  ← enables visible reasoning
+#
+# Other options already deployed:
+#   azure/responses/o3-mini  — o-series, explicit step-by-step reasoning
+#   azure/responses/o1       — highest quality reasoning, slower
+model: azure/responses/gpt-5.1
 
 # Fallback model when the primary is unavailable or rate-limited.
 fallback_model: azure/gpt-4.1-mini
 
+# Reasoning effort controls how much thinking budget the model uses.
+# Options: low | medium | high
+# litellm.reasoning_auto_summary=True (set in generators) automatically
+# requests a detailed reasoning summary so the ThinkingPanel receives it.
+# For non-reasoning models litellm.drop_params=True silently drops this.
+reasoning_effort: medium
+
 # Controls LLM output determinism (lower = more focused).
+# Note: reasoning models only support temperature=1; litellm.drop_params=True
+# (set in each generator) silently drops this for incompatible models.
 temperature: 0.1
 
 # Token ceiling for investigation engine responses.
-max_tokens: 4096
+# The model only uses what it needs — this is a ceiling, not a target.
+# Raised from 4096 to 8192 so dense investigations with many contributing
+# factors or long evidence chains are never truncated mid-JSON.
+max_tokens: 8192
 
 # LiteLLM endpoint, API key, and API version are injected via environment variables:
 #   LITELLM_ENDPOINT  -> api_base  (e.g. https://synaptic.services.ai.azure.com/api/projects/synaptic-project)

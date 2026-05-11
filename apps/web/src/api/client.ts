@@ -51,6 +51,7 @@ export interface InvestigationResult {
     summary: string
     root_cause: string
     confidence: string
+    confidence_reasoning?: string
     contributing_factors: string[]
     evidence_references: string[]
   } | null

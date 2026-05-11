@@ -31,15 +31,29 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
   return (
     <Section title="Root Cause Analysis">
       {/* Confidence bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-        <span className={`badge ${confClass}`}>{rca.confidence} confidence</span>
-        <div style={{ flex: 1, height: 3, background: 'var(--c-surface-3)', borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', width: confWidth,
-            background: confColor, borderRadius: 2,
-            transition: 'width 0.8s ease',
-          }} />
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: rca.confidence_reasoning ? 10 : 0 }}>
+          <span className={`badge ${confClass}`}>{rca.confidence} confidence</span>
+          <div style={{ flex: 1, height: 3, background: 'var(--c-surface-3)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', width: confWidth,
+              background: confColor, borderRadius: 2,
+              transition: 'width 0.8s ease',
+            }} />
+          </div>
         </div>
+        {rca.confidence_reasoning && (
+          <p style={{
+            margin: 0,
+            fontSize: '0.78rem',
+            color: 'var(--c-text-faint)',
+            lineHeight: 1.6,
+            fontStyle: 'italic',
+            paddingLeft: 2,
+          }}>
+            {rca.confidence_reasoning}
+          </p>
+        )}
       </div>
 
       {/* Root cause highlighted card */}
@@ -134,6 +148,48 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Evidence references — what the model used to reach its conclusion */}
+      {rca.evidence_references?.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{
+            fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+            letterSpacing: '0.14em', textTransform: 'uppercase',
+            color: 'var(--c-text-muted)', marginBottom: 10,
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            Evidence References
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontWeight: 400, fontSize: '0.6rem',
+              color: 'var(--c-text-faint)', textTransform: 'none', letterSpacing: 0,
+            }}>what the model saw</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {rca.evidence_references.map((ref: string, i: number) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+                padding: '8px 14px',
+                borderLeft: '2px solid rgba(249,115,22,0.35)',
+                background: 'rgba(249,115,22,0.025)',
+                borderRadius: '0 3px 3px 0',
+              }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.6rem',
+                  color: 'rgba(249,115,22,0.45)', marginTop: 4, flexShrink: 0,
+                }}>
+                  ↳
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.78rem',
+                  color: 'var(--c-text-dim)', lineHeight: 1.6,
+                }}>
+                  {ref}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}

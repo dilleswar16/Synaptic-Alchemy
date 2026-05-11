@@ -8,7 +8,7 @@
 
 ## Current Goal
 
-**V3 code-complete. 380/380 tests passing.** Now hardening for hackathon demo with V3+ enhancements.
+**V3+ enhancements complete. 381/381 tests passing.** Live Evidence Collection Progress feature shipped.
 
 ---
 
@@ -23,6 +23,18 @@ Priority order. Work through these in sequence before considering V4.
 - [x] Dashboard: error card with retry, VerticalBars gradient fix (colour-mix), NavBar clock fix
 - [x] InvestigationsPage: table column widths, badge justifySelf, timeAgo column
 - [x] StreamingProgress TypewriterPanel → amber skeleton loader (deferred until thinking model)
+- [x] **gpt-5.1 + Responses API + ThinkingPanel** ← COMPLETED
+  - Upgraded primary model to `azure/responses/gpt-5.1` (Azure AI Foundry Responses API path)
+  - `AZURE_API_VERSION=2025-04-01-preview` in `.env` (Responses API requires ≥ 2025-03-01-preview)
+  - `litellm.drop_params = True` in both generators — silently drops `temperature` unsupported by reasoning models
+  - `litellm.reasoning_auto_summary = True` in both generators — injects `summary="detailed"` so `delta.reasoning_content` is populated in streaming chunks
+  - `reasoning_effort: medium` in `config/models/llm.yaml` (simplified from dict — auto_summary handles summary injection)
+  - `corvin/investigation/stream.py` routes `__thinking__:` prefixed tokens to `stage: 'thinking'` SSE events
+  - `ThinkingPanel` component in `StreamingProgress.tsx` — purple-tinted, collapsible, char-count header, auto-scroll, blinking cursor
+  - Wired into RCA `StagePanel` — shows above TypewriterPanel when `streamText['thinking']` has content
+  - DB migration `0007_add_confidence_reasoning.py` applied (fixes `confidence_reasoning` column missing)
+  - Confirmed live: 1065 chars of chain-of-thought visible in UI during real `fundapis/dev` investigation
+  - 380/380 tests passing
 - [x] **#4 — Incident Memory** ← COMPLETED
   - `InvestigationRepository.get_similar_incidents(service, env, n=3)` — SQLAlchemy join, newest-first, session-safe
   - `PromptBuilder.build()` injects "Similar Past Incidents (same service)" section when memory exists
@@ -64,6 +76,16 @@ Priority order. Work through these in sequence before considering V4.
   - `GET /investigations/briefing?hours=24` — registered BEFORE `/{id}` route; returns `BriefingResponse` Pydantic model
   - `BriefingWidget` on DashboardPage: atmospheric grid, hour-aware greeting, `useTypewriter` hook, confidence mini-chart, service chips, urgent amber pulse when high-confidence pending
   - `BriefingPayload` type + `fetchBriefing()` in `client.ts`
+
+- [x] **#8 — Live Evidence Collection Progress** ← DONE
+  - `max_tokens` raised to 8192 in `config/models/llm.yaml` (was 4096; comment explains it's a ceiling, not a target)
+  - `_timed_step()` module-level generator in `enrichment_service.py`: yields running+done progress dicts with `source_status`, `source`, `table`, `count`, `elapsed_ms`; wraps any adapter call; captures result via `StopIteration.value` (PEP 380)
+  - `enrich_streaming()` on `EnrichmentService`: additive alongside existing `enrich()` (all tests unchanged); 4 `yield from _timed_step(...)` calls: `container_logs→ContainerLog·chad`, `apim_logs→ApiManagementGatewayLogs`, `aks_context→KubePodInventory·KubeEvents`, `activity_changes→AzureActivity`; final `yield None, bundle`
+  - `corvin/investigation/stream.py`: replaced single `enrich()` call with loop over `enrich_streaming()`; emits `evidence.fetching` SSE events with `source_status` field (not `status` — avoids `**progress` collision with SSE-level `status`); `evidence.complete` now carries `sources` list + `total_elapsed_ms`
+  - `useInvestigationStream.ts`: `fetchingEvents: StageEvent[]` state; deduplication by `source` key (running→done replacement); returned from hook
+  - `EvidenceAccordion` in `StreamingProgress.tsx` fully rewritten: 4-column grid (icon | label+table | count | elapsed), `⟳`/`●`/`○` status icons, `animate-pulse-glow` while running, fmtMs helper (Xs/Xms), auto-opens via `useEffect` during evidence stage, total wall-clock footer, header summary `N sources · M records · Xs`
+  - Fallback path: if `fetchingEvents` is empty (historical investigation), reads `latest.sources` from `evidence.complete` SSE event
+  - Confirmed live in browser: `"2 sources · 201 records · 27.6s"`, expanded rows show `Container Logs / ContainerLog · chad / 200 / 8.7s`, `AKS Context / KubePodInventory · KubeEvents / 1 / 4.0s`
 
 - [x] **#7 — Full Application Audit + Refactor** ← DONE
   - `InvestigationDetailPage.tsx`: 1484 → 266 lines (extracted 9 components)

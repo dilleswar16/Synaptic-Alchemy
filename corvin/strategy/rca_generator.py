@@ -19,6 +19,16 @@ from typing import Any
 
 import litellm
 
+# gpt-5 and o-series models do not support temperature/other params that
+# standard GPT-4 models accept.  Instruct LiteLLM to silently drop any
+# parameter the target model does not support rather than raising an error.
+litellm.drop_params = True
+
+# Automatically inject summary="detailed" into reasoning_effort when using
+# Responses API models (azure/responses/* or openai/responses/*) so that
+# the model's chain-of-thought reasoning is surfaced in delta.reasoning_content.
+litellm.reasoning_auto_summary = True
+
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import EvidenceBundle, InvestigationRequest, RCAOutput
 
@@ -78,6 +88,7 @@ class RCAGenerator:
             ),
             contributing_factors=["No evidence was available from the configured evidence sources."],
             confidence="low",
+            confidence_reasoning="Confidence is low because no evidence was collected from any adapter. Without logs, metrics, or platform context, any root cause would be a guess.",
             evidence_references=[],
         )
 
@@ -95,6 +106,11 @@ class RCAGenerator:
             "Generate a root-cause analysis for this investigation. Return only a JSON object "
             "that matches the RCAOutput schema exactly. Do not include markdown fences or any "
             "extra commentary.\n\n"
+            "For the 'confidence' field use: 'high' if you have strong log or metric evidence "
+            "pointing to a clear root cause; 'medium' if the evidence is partial or ambiguous; "
+            "'low' if evidence is sparse or the root cause is speculative.\n"
+            "For 'confidence_reasoning': write 1-2 plain-English sentences explaining specifically "
+            "why you assigned that confidence level — cite the evidence (or lack of it) directly.\n\n"
             f"InvestigationRequest:\n{request_json}\n\n"
             f"EvidenceBundle:\n{evidence_json}\n\n"
             f"RCAOutput schema:\n{schema_json}\n\n"
@@ -124,6 +140,15 @@ class RCAGenerator:
             "max_tokens": self._config.get("max_tokens", 4096),
             "response_format": {"type": "json_object"},
         }
+
+        # Pass reasoning_effort when configured (Responses API / o-series models).
+        # Accepts either a plain string ("medium") or a dict
+        # ({"effort": "medium", "summary": "detailed"}) — both are forwarded
+        # directly to LiteLLM.  drop_params=True silently drops it for models
+        # that don't support it so this is safe for all model paths.
+        reasoning_effort = self._config.get("reasoning_effort")
+        if reasoning_effort:
+            kwargs["reasoning_effort"] = reasoning_effort
 
         endpoint = os.environ.get("LITELLM_ENDPOINT", "").strip()
         api_key = os.environ.get("LITELLM_API_KEY", "").strip()
@@ -232,10 +257,16 @@ class RCAGenerator:
                 response = litellm.completion(model=fallback_model, **kwargs_stream)
 
             for chunk in response:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    text = chunk.choices[0].delta.content
-                    accumulated += text
-                    yield (text, None)
+                if chunk.choices:
+                    delta = chunk.choices[0].delta
+                    # Capture reasoning/thinking tokens (gpt-5, o-series models)
+                    reasoning = getattr(delta, 'reasoning_content', None)
+                    if reasoning:
+                        yield (f"__thinking__:{reasoning}", None)
+                    # Regular content tokens
+                    if delta.content:
+                        accumulated += delta.content
+                        yield (delta.content, None)
 
         except Exception as exc:
             _log = logging.getLogger(__name__)

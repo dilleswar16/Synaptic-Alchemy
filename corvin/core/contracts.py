@@ -110,6 +110,7 @@ class RCAOutput(BaseModel):
     root_cause: str
     contributing_factors: list[str] = Field(default_factory=list)
     confidence: RCAConfidence = RCAConfidence.MEDIUM
+    confidence_reasoning: str = Field(default="", description="Why this confidence level was assigned.")
     evidence_references: list[str] = Field(default_factory=list)
     generated_at: datetime = Field(default_factory=_utcnow)
 

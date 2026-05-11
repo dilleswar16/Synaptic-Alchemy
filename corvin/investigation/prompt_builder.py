@@ -109,6 +109,18 @@ class PromptBuilder:
         if learnings.strip():
             sections.append(f"## Learnings from Past Incidents\n\n{learnings.strip()}")
 
+        # ── Operator context (human-provided description) ─────────────────────
+        _defaults = {"manual investigation", "streaming investigation", ""}
+        desc = (request.description or "").strip()
+        if desc.lower() not in _defaults:
+            sections.append(
+                "## Operator Context\n\n"
+                "**The operator has provided the following context about what they are observing. "
+                "Use this as your primary anchor for the investigation — it represents what the human "
+                "on-call engineer is actually seeing right now.**\n\n"
+                f"{desc}"
+            )
+
         # ── Past incidents (incident memory) ──────────────────────────────────
         if self._repository is not None:
             past = self._repository.get_similar_incidents(

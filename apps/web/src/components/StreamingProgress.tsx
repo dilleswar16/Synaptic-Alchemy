@@ -8,15 +8,32 @@
  * - Degraded/fallback banners when generation used a fallback path
  */
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { StageEvent } from '../hooks/useInvestigationStream'
+
+// ── Utility: Stream Token Parser ────────────────────────────────────────────
+
+/**
+ * Strips JSON structural characters from a raw token stream so the
+ * TypewriterPanel shows readable prose rather than raw JSON fragments.
+ */
+function parseStreamToken(raw: string): string {
+  if (!raw) return ''
+  let s = raw.replace(/"[a-zA-Z0-9_]+":\s*/g, '') // remove JSON keys
+  s = s.replace(/[{}\[\]]/g, '')                   // remove brackets
+  s = s.replace(/(^"|"$)/g, '')                    // strip wrapping quotes
+  s = s.replace(/\\n/g, '\n')
+  s = s.replace(/\\"/g, '"')
+  return s.trim()
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface StreamingProgressProps {
   stages: StageEvent[]
   streamText: Record<string, string>
+  fetchingEvents: StageEvent[]
   isStreaming: boolean
   isComplete: boolean
   error: string | null
@@ -35,25 +52,59 @@ const STAGE_LABELS: Record<StageName, string> = {
   fix_strategy: 'Fix Strategy',
 }
 
-// ── Evidence accordion (streaming panel — counts only) ──────────────────────
+// ── Evidence accordion ────────────────────────────────────────────────────────
 
-interface EvidenceSource { name: string; count: number }
-
-const ADAPTER_LABEL: Record<string, string> = {
-  elastic_logs:           'Elastic Logs',
-  elastic_metrics:        'Elastic Metrics',
-  log_analytics_apim:     'Log Analytics APIM',
-  aks_context:            'AKS Context',
+interface FetchingRow {
+  source: string
+  table: string
+  source_status: 'running' | 'done'
+  count: number
+  elapsed_ms: number
 }
 
-function EvidenceAccordion({ sources }: { sources: EvidenceSource[] }) {
+const SOURCE_LABEL: Record<string, string> = {
+  container_logs:   'Container Logs',
+  apim_logs:        'APIM Logs',
+  aks_context:      'AKS Context',
+  activity_changes: 'Activity Changes',
+  elastic_logs:     'Elastic Logs',
+  elastic_metrics:  'Elastic Metrics',
+}
+
+function fmtMs(ms: number): string {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`
+}
+
+function EvidenceAccordion({
+  fetchingRows,
+  totalElapsedMs,
+  isActive,
+}: {
+  fetchingRows: FetchingRow[]
+  totalElapsedMs?: number
+  isActive: boolean
+}) {
   const [open, setOpen] = useState(false)
-  const displayed = sources.filter(s => s.name !== 'azure_activity_changes')
-  const total    = displayed.reduce((s, src) => s + src.count, 0)
-  const nonEmpty = displayed.filter(s => s.count > 0).length
+
+  // Auto-open as soon as evidence collection starts so the SRE sees live progress
+  useEffect(() => {
+    if (isActive) setOpen(true)
+  }, [isActive])
+
+  if (fetchingRows.length === 0) return null
+
+  // Deduplicate: done event replaces the running event for the same source
+  const rowMap = new Map<string, FetchingRow>()
+  for (const row of fetchingRows) rowMap.set(row.source, row)
+  const rows = Array.from(rowMap.values())
+
+  const doneRows   = rows.filter(r => r.source_status === 'done')
+  const nonEmpty   = doneRows.filter(r => r.count > 0).length
+  const totalRecs  = doneRows.reduce((s, r) => s + r.count, 0)
+  const anyRunning = rows.some(r => r.source_status === 'running')
 
   return (
-    <div style={{ marginTop: 12, border: '1px solid var(--c-border)', borderRadius: 3, overflow: 'hidden' }}>
+    <div style={{ marginTop: 12, border: '1px solid var(--c-border)', borderRadius: 4, overflow: 'hidden' }}>
       {/* Toggle header */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -68,46 +119,91 @@ function EvidenceAccordion({ sources }: { sources: EvidenceSource[] }) {
           transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none',
           display: 'inline-block', flexShrink: 0,
         }}>▶</span>
+        {anyRunning && (
+          <span className="animate-pulse-glow" style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: 'var(--c-signal)', flexShrink: 0, display: 'inline-block',
+          }} />
+        )}
         <span style={{
           fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.62rem',
           letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
         }}>
-          Evidence Collected
+          Evidence Sources
         </span>
         <span style={{
           fontFamily: 'var(--font-mono)', fontSize: '0.67rem',
           color: 'var(--c-text-faint)', marginLeft: 'auto',
         }}>
-          {nonEmpty} sources&nbsp;·&nbsp;{total} records
+          {anyRunning
+            ? <span className="animate-pulse-glow" style={{ color: 'var(--c-signal)' }}>querying…</span>
+            : <>{nonEmpty} sources&nbsp;·&nbsp;{totalRecs} records{totalElapsedMs !== undefined && <>&nbsp;·&nbsp;{fmtMs(totalElapsedMs)}</>}</>
+          }
         </span>
       </button>
 
-      {/* Source rows */}
+      {/* Per-source rows */}
       {open && (
         <div style={{ borderTop: '1px solid var(--c-border)' }}>
-          {displayed.map(src => (
-            <div key={src.name} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '6px 14px',
-              borderBottom: '1px solid var(--c-border)',
-            }}>
-              <span style={{ fontSize: '0.65rem', color: src.count > 0 ? 'var(--c-signal)' : 'var(--c-text-faint)', flexShrink: 0 }}>
-                {src.count > 0 ? '●' : '○'}
-              </span>
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
-                color: src.count > 0 ? 'var(--c-text-dim)' : 'var(--c-text-faint)', flex: 1,
+          {rows.map(row => {
+            const running = row.source_status === 'running'
+            const hasData = row.count > 0
+            return (
+              <div key={row.source} style={{
+                display: 'grid', gridTemplateColumns: '18px 1fr 52px 60px',
+                alignItems: 'center', gap: 10,
+                padding: '7px 14px', borderBottom: '1px solid var(--c-border)',
               }}>
-                {ADAPTER_LABEL[src.name] ?? src.name}
-              </span>
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: '0.67rem',
-                color: src.count > 0 ? 'var(--c-text-dim)' : 'var(--c-text-faint)',
-              }}>
-                {src.count > 0 ? src.count : '—'}
+                {/* Status icon */}
+                <span style={{
+                  fontSize: running ? '1rem' : '0.6rem', lineHeight: 1,
+                  color: running ? 'var(--c-signal)' : hasData ? 'var(--c-green)' : 'var(--c-text-faint)',
+                }} className={running ? 'animate-pulse-glow' : ''}>
+                  {running ? '⟳' : hasData ? '●' : '○'}
+                </span>
+
+                {/* Source name + KQL table */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: hasData ? 600 : 400,
+                    color: running ? 'var(--c-signal)' : hasData ? 'var(--c-text-dim)' : 'var(--c-text-faint)',
+                  }}>
+                    {SOURCE_LABEL[row.source] ?? row.source}
+                  </span>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-faint)',
+                  }}>
+                    {row.table}
+                  </span>
+                </div>
+
+                {/* Row count */}
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.67rem', textAlign: 'right',
+                  color: running ? 'var(--c-text-faint)' : hasData ? 'var(--c-text-dim)' : 'var(--c-text-faint)',
+                }}>
+                  {running ? '…' : hasData ? `${row.count}` : '—'}
+                </span>
+
+                {/* Elapsed */}
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.67rem', textAlign: 'right',
+                  color: running ? 'transparent' : 'var(--c-text-faint)',
+                }}>
+                  {running ? '' : fmtMs(row.elapsed_ms)}
+                </span>
+              </div>
+            )
+          })}
+
+          {/* Wall-clock total */}
+          {!anyRunning && totalElapsedMs !== undefined && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '5px 14px' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.63rem', color: 'var(--c-text-faint)' }}>
+                total {fmtMs(totalElapsedMs)}
               </span>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
@@ -186,16 +282,123 @@ function StageTracker({ stages }: { stages: StageEvent[] }) {
   )
 }
 
+// ── Model thinking / reasoning panel ────────────────────────────────────────
+
+function ThinkingPanel({ text, isActive, label = 'Model Reasoning' }: { text: string; isActive: boolean; label?: string }) {
+  const [open, setOpen] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Auto-open the first time content arrives
+  useEffect(() => {
+    if (text && !open) setOpen(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!text])
+
+  useEffect(() => {
+    if (open && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [text, open])
+
+  if (!text) return null
+
+  return (
+    <div style={{
+      marginTop: 12,
+      border: '1px solid rgba(139,92,246,0.25)',
+      borderRadius: 6,
+      overflow: 'hidden',
+      background: 'rgba(139,92,246,0.05)',
+    }}>
+      {/* Toggle header */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px', background: 'none', border: 'none',
+          cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <span style={{
+          fontSize: '0.6rem', color: 'rgba(167,139,250,0.7)',
+          transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none',
+          display: 'inline-block', flexShrink: 0,
+        }}>▶</span>
+        {isActive && (
+          <span className="animate-pulse-glow" style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: 'rgba(139,92,246,0.9)', flexShrink: 0,
+            display: 'inline-block',
+          }} />
+        )}
+        <span style={{
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.62rem',
+          letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(167,139,250,0.8)',
+        }}>
+          {label}{isActive ? ' · live' : ''}
+        </span>
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
+          color: 'rgba(139,92,246,0.5)', marginLeft: 'auto',
+        }}>
+          {open ? 'collapse' : `${text.length} chars · click to expand`}
+        </span>
+      </button>
+
+      {open && (
+        <div
+          ref={scrollRef}
+          style={{
+            borderTop: '1px solid rgba(139,92,246,0.15)',
+            padding: '12px 16px',
+            maxHeight: 220,
+            overflowY: 'auto',
+            fontSize: '0.8rem',
+            lineHeight: 1.7,
+            color: 'rgba(196,181,253,0.85)',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          {text}
+          {isActive && <span className="animate-cursor" style={{ color: 'rgba(139,92,246,0.9)', fontWeight: 700 }}>▋</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Live typewriter panel ─────────────────────────────────────────────────────
 
 function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
-  // Estimate token progress for skeleton width variation
   const tokenCount = text.length
-
   const label = STAGE_LABELS[stage as StageName] ?? stage
+  const parsedText = useMemo(() => parseStreamToken(text), [text])
+  const [displayed, setDisplayed] = useState('')
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Skeleton line widths — vary by position for a natural look
-  const skeletonLines = [92, 78, 85, 61, 88]
+  // Reset when parsedText is cleared (new investigation)
+  useEffect(() => {
+    if (!parsedText) setDisplayed('')
+  }, [parsedText])
+
+  // Char-by-char typewriter: add 4 chars every 12 ms ≈ 333 chars/sec
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (displayed.length >= parsedText.length) return
+    timerRef.current = setTimeout(() => {
+      setDisplayed(parsedText.slice(0, displayed.length + 4))
+    }, 12)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [displayed, parsedText])
+
+  // Auto-scroll as displayed text grows
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [displayed])
 
   return (
     <div
@@ -225,24 +428,26 @@ function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
           {label} · generating
         </span>
         <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)' }}>
-          {tokenCount > 0 ? `${tokenCount} tokens` : '…'}
+          {tokenCount > 0 ? `${tokenCount} chars` : '…'}
         </span>
       </div>
-      {/* Animated skeleton — looks alive without exposing raw JSON */}
-      <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {skeletonLines.map((w, i) => (
-          <div
-            key={i}
-            style={{
-              height: 11,
-              borderRadius: 4,
-              width: `${w}%`,
-              background: 'linear-gradient(90deg, rgba(56,189,248,0.06) 0%, rgba(56,189,248,0.14) 50%, rgba(56,189,248,0.06) 100%)',
-              backgroundSize: '200% 100%',
-              animation: `skeleton-sweep 1.4s ease-in-out ${i * 0.12}s infinite`,
-            }}
-          />
-        ))}
+      {/* Live token text */}
+      <div
+        ref={scrollRef}
+        style={{
+          padding: '14px 16px',
+          maxHeight: 200,
+          overflowY: 'auto',
+          fontSize: '0.82rem',
+          lineHeight: 1.75,
+          color: 'var(--c-text-muted)',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          fontFamily: 'var(--font-body)',
+        }}
+      >
+        {displayed || <span style={{ color: 'var(--c-text-faint)' }}>Waiting for tokens…</span>}
+        <span className="animate-cursor" style={{ color: 'var(--c-signal)', fontWeight: 700 }}>▋</span>
       </div>
     </div>
   )
@@ -296,6 +501,14 @@ function RCASummary({ s }: { s: StageEvent }) {
           </div>
         )}
 
+        {/* Confidence reasoning */}
+        {typeof s.confidence_reasoning === 'string' && s.confidence_reasoning && (
+          <div style={{ padding: '10px 14px', borderRadius: 6, background: 'rgba(249,115,22,0.04)', border: '1px solid rgba(249,115,22,0.15)' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>Why this confidence</div>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--c-text-muted)', lineHeight: 1.6, fontStyle: 'italic' }}>{s.confidence_reasoning as string}</p>
+          </div>
+        )}
+
         {/* Contributing factors */}
         {factors.length > 0 && (
           <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--c-border)' }}>
@@ -307,6 +520,33 @@ function RCASummary({ s }: { s: StageEvent }) {
             </ul>
           </div>
         )}
+
+        {/* Evidence references */}
+        {(() => {
+          const refs = Array.isArray(s.evidence_references) ? (s.evidence_references as string[]) : []
+          if (!refs.length) return null
+          return (
+            <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.015)', border: '1px solid var(--c-border)' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 8 }}>
+                Evidence References <span style={{ fontWeight: 400, opacity: 0.6 }}>· what the model saw</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {refs.map((r, i) => (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                    padding: '7px 12px',
+                    borderLeft: '2px solid rgba(249,115,22,0.4)',
+                    background: 'rgba(249,115,22,0.03)',
+                    borderRadius: '0 4px 4px 0',
+                  }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'rgba(249,115,22,0.5)', marginTop: 3, flexShrink: 0 }}>↳</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-text-dim)', lineHeight: 1.55 }}>{r}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )
@@ -382,11 +622,13 @@ function StagePanel({
   stageEvents,
   streamText,
   isActiveStage,
+  fetchingEvents,
 }: {
   stageKey: string
   stageEvents: StageEvent[]
   streamText: Record<string, string>
   isActiveStage: boolean
+  fetchingEvents: FetchingRow[]
 }) {
   const latest = stageEvents.at(-1)
   if (!latest) return null
@@ -416,15 +658,46 @@ function StagePanel({
         </span>
       </div>
 
+      {/* Model reasoning tokens — shown for RCA stage whenever thinking text arrives */}
+      {stageKey === 'rca' && !!streamText['rca_thinking'] && (
+        <ThinkingPanel
+          text={streamText['rca_thinking']}
+          isActive={active && isActiveStage}
+          label="Model Reasoning"
+        />
+      )}
+
+      {/* Fix strategy reasoning — shown when the model reasoned about the strategy */}
+      {stageKey === 'fix_strategy' && !!streamText['fix_thinking'] && (
+        <ThinkingPanel
+          text={streamText['fix_thinking']}
+          isActive={active && isActiveStage}
+          label="Strategy Reasoning"
+        />
+      )}
+
       {/* Live token stream */}
       {active && text && isActiveStage && (
         <TypewriterPanel stage={stageKey} text={text} />
       )}
 
       {/* Structured results after complete */}
-      {done && stageKey === 'evidence' && (() => {
-        const srcs = latest.sources as EvidenceSource[] | undefined
-        return srcs?.length ? <EvidenceAccordion sources={srcs} /> : null
+      {stageKey === 'evidence' && (() => {
+        // Live fetchingEvents take priority (real-time streaming).
+        // Fall back to sources[] from the complete event (e.g. post-reset view).
+        const rows: FetchingRow[] = fetchingEvents.length > 0
+          ? fetchingEvents
+          : done && Array.isArray(latest.sources)
+          ? (latest.sources as Record<string, unknown>[]).map(s => ({
+              source:        String(s.source ?? ''),
+              table:         String(s.table ?? ''),
+              source_status: 'done' as const,
+              count:         Number(s.count ?? 0),
+              elapsed_ms:    Number(s.elapsed_ms ?? 0),
+            }))
+          : []
+        const totalMs = done ? (Number(latest.total_elapsed_ms) || undefined) : undefined
+        return <EvidenceAccordion fetchingRows={rows} totalElapsedMs={totalMs} isActive={active} />
       })()}
       {done && stageKey === 'rca' && <RCASummary s={latest} />}
       {done && stageKey === 'fix_strategy' && <FixStrategySummary s={latest} />}
@@ -437,6 +710,7 @@ function StagePanel({
 export default function StreamingProgress({
   stages,
   streamText,
+  fetchingEvents,
   isStreaming,
   isComplete,
   error,
@@ -505,6 +779,15 @@ export default function StreamingProgress({
       {STAGES.map(key => {
         const events = byStage.get(key)
         if (!events || events.length === 0) return null
+        const stageFetchingRows: FetchingRow[] = key === 'evidence'
+          ? fetchingEvents.map(e => ({
+              source:        String(e.source ?? ''),
+              table:         String(e.table ?? ''),
+              source_status: (e.source_status as 'running' | 'done') ?? 'done',
+              count:         Number(e.count ?? 0),
+              elapsed_ms:    Number(e.elapsed_ms ?? 0),
+            }))
+          : []
         return (
           <StagePanel
             key={key}
@@ -512,6 +795,7 @@ export default function StreamingProgress({
             stageEvents={events}
             streamText={streamText}
             isActiveStage={activeStage === key}
+            fetchingEvents={stageFetchingRows}
           />
         )
       })}

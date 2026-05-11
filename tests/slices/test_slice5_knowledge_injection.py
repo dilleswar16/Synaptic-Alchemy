@@ -178,11 +178,23 @@ def test_prompt_skips_learnings_section_when_empty():
 
 
 def test_prompt_is_empty_string_when_all_sources_empty():
-    """With no content in any source, build() returns an empty string."""
+    """With no content in any source and a default description, build() returns an empty string."""
     builder = _builder_with(site="", runbooks=[], learnings="")
-    prompt = builder.build(_make_request())
+    # Use a blank/default description so no Operator Context section is injected either.
+    request = _make_request(description="manual investigation")
+    prompt = builder.build(request)
 
     assert prompt == ""
+
+
+def test_operator_context_section_injected_for_meaningful_description():
+    """A non-default description is injected as an ## Operator Context section."""
+    builder = _builder_with(site="", runbooks=[], learnings="")
+    request = _make_request(description="APIM 5xx spike on order-service")
+    prompt = builder.build(request)
+
+    assert "## Operator Context" in prompt
+    assert "APIM 5xx spike on order-service" in prompt
 
 
 # ---------------------------------------------------------------------------
