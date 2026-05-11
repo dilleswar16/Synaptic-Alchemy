@@ -340,22 +340,25 @@ function HeroBand({
           minWidth: 180,
         }}>
           <div style={{
-            fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+            fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700,
             letterSpacing: '0.18em', textTransform: 'uppercase',
             color: 'var(--c-text-muted)', marginBottom: 4,
+            display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            Today
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-red)', boxShadow: '0 0 8px var(--c-red)' }} className="animate-pulse-glow" />
+            Live Today
           </div>
           <div
             className="animate-count-up"
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '7rem',
+              fontSize: '5.5rem',
               fontWeight: 700,
               color: 'var(--c-signal)',
               lineHeight: 1,
               animation: 'count-up 0.5s 0.1s ease both, glow-pulse 3s 0.6s ease-in-out infinite',
-              letterSpacing: '-0.03em',
+              letterSpacing: '-0.02em',
+              textShadow: '0 0 24px rgba(249,115,22,0.3)',
             }}
           >
             {stats.today_count}
@@ -429,12 +432,13 @@ function MetricCard({
       </div>
       <div style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: '1.9rem',
+        fontSize: '1.75rem',
         fontWeight: 700,
         color: empty ? 'var(--c-text-faint)' : (accent ?? 'var(--c-text)'),
         lineHeight: 1.1,
         letterSpacing: '-0.01em',
         marginTop: 6,
+        textShadow: empty ? 'none' : `0 0 12px color-mix(in srgb, ${accent ?? 'var(--c-text)'} 30%, transparent)`,
       }}>
         {value}
       </div>
@@ -730,7 +734,7 @@ export default function DashboardPage() {
                   <span key={svc} style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.72rem',
-                    padding: '3px 10px',
+                    padding: '5px 14px',
                     borderRadius: 2,
                     background: 'rgba(249,115,22,0.08)',
                     border: '1px solid rgba(249,115,22,0.2)',

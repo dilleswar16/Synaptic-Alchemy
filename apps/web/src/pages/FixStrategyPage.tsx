@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import ReactMarkdown from 'react-markdown'
 import { fetchInvestigation } from '../api/client'
 import Layout from '../components/Layout'
 
@@ -126,39 +127,31 @@ export default function FixStrategyPage() {
         {fixStrategy && (
           <div className="animate-fade-up-1" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Summary + Justification 2-col grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div className="panel" style={{ padding: '18px 20px' }}>
+            {/* Summary + Justification layout */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 16 }}>
+              <div className="panel" style={{ padding: '24px 28px' }}>
                 <div style={{
-                  fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+                  fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 800,
                   letterSpacing: '0.14em', textTransform: 'uppercase',
-                  color: 'var(--c-text-muted)', marginBottom: 10,
+                  color: 'var(--c-signal)', marginBottom: 12,
                 }}>
                   Summary
                 </div>
-                <p style={{
-                  margin: 0,
-                  fontFamily: 'var(--font-body)', fontSize: '0.87rem',
-                  color: 'var(--c-text-dim)', lineHeight: 1.75,
-                }}>
-                  {fixStrategy.summary}
-                </p>
+                <div className="pm-prose" style={{ color: 'var(--c-text)' }}>
+                  <ReactMarkdown>{fixStrategy.summary}</ReactMarkdown>
+                </div>
               </div>
-              <div className="panel" style={{ padding: '18px 20px' }}>
+              <div className="panel" style={{ padding: '24px 28px', background: 'var(--c-surface-2)' }}>
                 <div style={{
-                  fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+                  fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 800,
                   letterSpacing: '0.14em', textTransform: 'uppercase',
-                  color: 'var(--c-text-muted)', marginBottom: 10,
+                  color: 'var(--c-text-muted)', marginBottom: 12,
                 }}>
                   Justification
                 </div>
-                <p style={{
-                  margin: 0,
-                  fontFamily: 'var(--font-body)', fontSize: '0.87rem',
-                  color: 'var(--c-text-dim)', lineHeight: 1.75,
-                }}>
-                  {fixStrategy.justification}
-                </p>
+                <div className="pm-prose" style={{ color: 'var(--c-text-dim)' }}>
+                  <ReactMarkdown>{fixStrategy.justification}</ReactMarkdown>
+                </div>
               </div>
             </div>
 
@@ -186,7 +179,7 @@ export default function FixStrategyPage() {
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
                   {fixStrategy.actions.map((action: Action, i: number) => {
                     const riskColor = RISK_COLOR[action.risk_level] ?? 'var(--c-text-faint)'
                     return (
@@ -233,13 +226,9 @@ export default function FixStrategyPage() {
                                   <span className="badge badge-pending">approval req</span>
                                 )}
                               </div>
-                              <p style={{
-                                margin: 0,
-                                fontFamily: 'var(--font-body)', fontSize: '0.85rem',
-                                color: 'var(--c-text-dim)', lineHeight: 1.65,
-                              }}>
-                                {action.description}
-                              </p>
+                              <div className="pm-prose" style={{ color: 'var(--c-text-dim)' }}>
+                                <ReactMarkdown>{action.description}</ReactMarkdown>
+                              </div>
                             </div>
                           </div>
 

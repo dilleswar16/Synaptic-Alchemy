@@ -5,8 +5,8 @@ import Layout from '../components/Layout'
 import { StatusBadge } from '../components/StatusBadge'
 import { CopyableId } from '../components/CopyableId'
 import { WorkflowStepper } from '../components/investigation/WorkflowStepper'
-import { StickyApprovalBar } from '../components/investigation/StickyApprovalBar'
 import { EvidenceSection } from '../components/investigation/EvidenceSection'
+import { EvidenceReferencesSection } from '../components/investigation/EvidenceReferencesSection'
 import { SimilarIncidentsSection } from '../components/investigation/SimilarIncidentsSection'
 import { RcaSection } from '../components/investigation/RcaSection'
 import { ApprovalSection, type ApprovalAction } from '../components/investigation/ApprovalSection'
@@ -90,10 +90,10 @@ export default function InvestigationDetailPage() {
     return () => obs.disconnect()
   }, [data])
 
-  const showStickyBar = !approvalInView && approvalStatus === 'pending' && !!data?.rca && pendingAction === null
+  const pendingAndRcaReady = approvalStatus === 'pending' && !!data?.rca && pendingAction === null
 
   useEffect(() => {
-    if (!showStickyBar) return
+    if (!pendingAndRcaReady) return
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === 'a' || e.key === 'A') scrollAndAct('approve')
@@ -102,11 +102,11 @@ export default function InvestigationDetailPage() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showStickyBar])
+  }, [pendingAndRcaReady])
 
   return (
     <Layout>
-      <div style={{ maxWidth: 860, paddingBottom: showStickyBar ? 96 : 0 }}>
+      <div style={{ maxWidth: 1200, paddingBottom: 0, width: '100%' }}>
 
         {/* Page header */}
         <div className="animate-fade-up" style={{ marginBottom: 28 }}>
@@ -227,64 +227,84 @@ export default function InvestigationDetailPage() {
 
         {/* Main content */}
         {data && (
-          <>
-            <WorkflowStepper approvalStatus={approvalStatus} hasEvidence={hasEvidence} hasRca={hasRca} />
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'minmax(320px, 420px) 1fr', 
+            gap: 32, 
+            alignItems: 'start' 
+          }}>
+            {/* Left Column: Context, Evidence, Incidents, Audit Trail */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {data.request?.description && (
+                <div className="animate-fade-up-1">
+                  <Section title="Context">
+                    <p style={{
+                      margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem',
+                      color: 'var(--c-text-dim)', lineHeight: 1.75,
+                    }}>
+                      {data.request.description}
+                    </p>
+                  </Section>
+                </div>
+              )}
 
-            {data.request?.description && (
-              <div className="animate-fade-up-1">
-                <Section title="Context">
-                  <p style={{
-                    margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem',
-                    color: 'var(--c-text-dim)', lineHeight: 1.75,
-                  }}>
-                    {data.request.description}
-                  </p>
-                </Section>
+              {data.evidence && (
+                <div className="animate-fade-up-2">
+                  <EvidenceSection evidence={data.evidence} />
+                </div>
+              )}
+
+              {pastIncidents.length > 0 && (
+                <div className="animate-fade-up-3">
+                  <SimilarIncidentsSection incidents={pastIncidents} />
+                </div>
+              )}
+
+              {data.rca?.evidence_references?.length > 0 && (
+                <div className="animate-fade-up-4">
+                  <EvidenceReferencesSection references={data.rca.evidence_references} />
+                </div>
+              )}
+
+              <div className="animate-fade-up-5">
+                <AuditTrailSection requestId={id!} defaultOpen={approvalStatus === 'executed'} />
               </div>
-            )}
-
-            {data.evidence && (
-              <div className="animate-fade-up-2">
-                <EvidenceSection evidence={data.evidence} />
-              </div>
-            )}
-
-            {pastIncidents.length > 0 && (
-              <div className="animate-fade-up-3">
-                <SimilarIncidentsSection incidents={pastIncidents} />
-              </div>
-            )}
-
-            {data.rca && (
-              <div className="animate-fade-up-4">
-                <RcaSection data={data} requestId={id!} />
-              </div>
-            )}
-
-            <div className="animate-fade-up-5">
-              <ApprovalSection
-                requestId={id!}
-                status={approvalStatus}
-                pendingAction={pendingAction}
-                onClearPendingAction={clearPendingAction}
-              />
-              <ExecutionSection requestId={id!} status={approvalStatus} />
-              <PostMortemSection requestId={id!} isExecuted={approvalStatus === 'executed'} />
-              <AuditTrailSection requestId={id!} defaultOpen={approvalStatus === 'executed'} />
             </div>
-          </>
+
+            {/* Right Column: Stepper, RCA, Approval, Fix Strategy */}
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 24,
+              position: 'sticky',
+              top: 24,
+              maxHeight: 'calc(100vh - 48px)',
+              overflowY: 'auto',
+              paddingRight: 8, // room for inner scrollbar
+              paddingBottom: 40,
+            }}>
+              <WorkflowStepper approvalStatus={approvalStatus} hasEvidence={hasEvidence} hasRca={hasRca} />
+
+              {data.rca && (
+                <div className="animate-fade-up-4">
+                  <RcaSection data={data} requestId={id!} />
+                </div>
+              )}
+
+              <div className="animate-fade-up-5" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <ApprovalSection
+                  requestId={id!}
+                  status={approvalStatus}
+                  pendingAction={pendingAction}
+                  onClearPendingAction={clearPendingAction}
+                />
+                <ExecutionSection requestId={id!} status={approvalStatus} />
+                <PostMortemSection requestId={id!} isExecuted={approvalStatus === 'executed'} />
+              </div>
+            </div>
+          </div>
         )}
       </div>
-
-      {showStickyBar && data?.rca && (
-        <StickyApprovalBar
-          serviceName={data.request.service_name}
-          environment={data.request.environment}
-          confidence={data.rca.confidence}
-          onApprove={() => scrollAndAct('approve')}
-          onReject={() => scrollAndAct('reject')}
-        />
-      )}
     </Layout>
   )
 }

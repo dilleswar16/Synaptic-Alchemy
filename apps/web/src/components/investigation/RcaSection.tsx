@@ -3,6 +3,7 @@
  * root cause card, analysis summary, contributing factors, and fix strategy preview.
  */
 import { Link } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
 import { Section } from '../Section'
 import type { InvestigationResult } from '../../api/client'
 
@@ -70,9 +71,9 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
         }}>
           Root Cause
         </div>
-        <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.9rem', color: 'var(--c-text)', lineHeight: 1.75 }}>
-          {rca.root_cause}
-        </p>
+        <div className="pm-prose" style={{ color: 'var(--c-text)' }}>
+          <ReactMarkdown>{rca.root_cause}</ReactMarkdown>
+        </div>
       </div>
 
       {/* Analysis summary */}
@@ -84,9 +85,9 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
         }}>
           Analysis
         </div>
-        <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem', color: 'var(--c-text-dim)', lineHeight: 1.75 }}>
-          {rca.summary}
-        </p>
+        <div className="pm-prose" style={{ color: 'var(--c-text-dim)' }}>
+          <ReactMarkdown>{rca.summary}</ReactMarkdown>
+        </div>
       </div>
 
       {/* Contributing factors */}
@@ -148,48 +149,6 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
                 </div>
               )
             })}
-          </div>
-        </div>
-      )}
-
-      {/* Evidence references — what the model used to reach its conclusion */}
-      {rca.evidence_references?.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
-            letterSpacing: '0.14em', textTransform: 'uppercase',
-            color: 'var(--c-text-muted)', marginBottom: 10,
-            display: 'flex', alignItems: 'center', gap: 10,
-          }}>
-            Evidence References
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontWeight: 400, fontSize: '0.6rem',
-              color: 'var(--c-text-faint)', textTransform: 'none', letterSpacing: 0,
-            }}>what the model saw</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {rca.evidence_references.map((ref: string, i: number) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-                padding: '8px 14px',
-                borderLeft: '2px solid rgba(249,115,22,0.35)',
-                background: 'rgba(249,115,22,0.025)',
-                borderRadius: '0 3px 3px 0',
-              }}>
-                <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.6rem',
-                  color: 'rgba(249,115,22,0.45)', marginTop: 4, flexShrink: 0,
-                }}>
-                  ↳
-                </span>
-                <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.78rem',
-                  color: 'var(--c-text-dim)', lineHeight: 1.6,
-                }}>
-                  {ref}
-                </span>
-              </div>
-            ))}
           </div>
         </div>
       )}
