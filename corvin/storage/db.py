@@ -1,8 +1,17 @@
 """
 Database engine and session factory.
 
-Reads connection settings from config/integrations/postgres.yaml (with env
-overlay) and from CORVIN_DB_* environment variables as fallback.
+Supports two backends selected by the DB_BACKEND environment variable:
+
+  DB_BACKEND=postgres  (default)
+      Connects to Azure Postgres using CORVIN_DB_* env vars or
+      config/integrations/postgres.yaml.  Requires network access.
+
+  DB_BACKEND=sqlite
+      Uses a local SQLite file (default: ./corvin.db, override with
+      CORVIN_SQLITE_PATH).  No network needed — ideal for org WiFi where
+      Azure Postgres is unreachable.  Tables are auto-created on startup
+      via Base.metadata.create_all(); Alembic is not used.
 
 Usage:
     from corvin.storage.db import get_session
@@ -24,7 +33,17 @@ from sqlalchemy.orm import Session, sessionmaker
 from corvin.core.config_loader import get_env, load_config
 
 
-def _build_url() -> str:
+def is_sqlite() -> bool:
+    """Return True when DB_BACKEND=sqlite is set in the environment."""
+    return os.environ.get("DB_BACKEND", "postgres").lower() == "sqlite"
+
+
+def _build_sqlite_url() -> str:
+    path = os.environ.get("CORVIN_SQLITE_PATH", "./corvin.db")
+    return f"sqlite:///{path}"
+
+
+def _build_postgres_url() -> str:
     """
     Build the Postgres DSN from config, with environment variable fallback.
 
@@ -48,6 +67,10 @@ def _build_url() -> str:
     password = _resolve("password", "CORVIN_DB_PASSWORD", "changeme")
 
     return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{database}?sslmode=require"
+
+
+# Keep old name as alias so any external callers are unaffected.
+_build_url = _build_postgres_url
 
 
 def _build_pool_kwargs() -> dict:
@@ -83,7 +106,13 @@ _SessionLocal: sessionmaker | None = None
 def get_engine():
     global _engine
     if _engine is None:
-        _engine = create_engine(_build_url(), **_build_pool_kwargs())
+        if is_sqlite():
+            _engine = create_engine(
+                _build_sqlite_url(),
+                connect_args={"check_same_thread": False},
+            )
+        else:
+            _engine = create_engine(_build_postgres_url(), **_build_pool_kwargs())
     return _engine
 
 

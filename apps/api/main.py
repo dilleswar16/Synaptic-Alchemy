@@ -19,16 +19,30 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.routes import investigations, triggers
 from apps.teams.router import router as teams_router
+from corvin.storage.db import get_engine, is_sqlite
+from corvin.storage.models import Base
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Auto-create all tables when running in SQLite mode (no Alembic required)."""
+    if is_sqlite():
+        Base.metadata.create_all(get_engine())
+    yield
+
 
 app = FastAPI(
     title="Corvin API",
     description="Azure-native investigation platform – V1 control plane",
     version="0.1.0",
+    lifespan=_lifespan,
 )
 
 _cors_origins_raw = os.environ.get("CORVIN_ALLOWED_ORIGINS", "http://localhost:5173").strip()
