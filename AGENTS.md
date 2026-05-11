@@ -19,12 +19,11 @@ and fix strategies. An SRE team then approves and executes fixes via Microsoft T
 
 ## Current Version
 
-**V1.5 is complete.** Real cloud integrations are wired and validated.  
-**Now building: V2** — Human-in-the-Loop Operations (Approval Lifecycle, ChatOps, Streaming).
+**V3+ enhancements complete. 381/381 tests passing.**  
+**Now building: V3.5** — Demo Core (Alert Simulator, Teams Adaptive Cards, Blast Radius, Corvin Score).
 
 Read the active version scope BEFORE writing any code:
-- `docs/copilot-context/versions/v2/01_scope_and_capabilities.md`
-- `docs/copilot-context/versions/v2/02_build_sequence_and_exit_criteria.md`
+- `docs/copilot-context/versions/hackathon-roadmap.md` ← **primary reference for V3.5 → V3.9**
 
 ---
 
@@ -36,10 +35,14 @@ Never build a feature from a future version while the current version is incompl
 | :--- | :--- | :--- |
 | V1 | ✅ Complete | 155+ tests passing |
 | V1.5 | ✅ Complete | All real Azure adapters connected and validated |
-| V2 | ✅ Code-complete + audit-hardened | 320/320 tests passing |
-| V2.5 | ✅ Code-complete | 318/318 tests passing on local venv (see progress.md V2.5 section) |
-| V3 | 🚧 In Progress | The UI & Post-Mortem update. |
-| V4 | 🔒 Locked | Semantic Search (Vector RAG) & Scaling |
+| V2 | ✅ Complete | 320/320 tests passing |
+| V2.5 | ✅ Complete | 318/318 tests passing |
+| V3 | ✅ Complete | 363/363 tests passing, full UI + post-mortem |
+| V3+ | ✅ Complete | 381/381 tests passing (ThinkingPanel, Incident Memory, Morning Briefing, Live Evidence, Refactor) |
+| V3.5 | 🚧 Next | Alert Simulator, Teams Adaptive Cards, Blast Radius Estimator, Corvin Score Gauge |
+| V3.7 | 🔒 Locked | Predictive Detection, SLA Countdown, Dependency Visualizer, Remediation Preview |
+| V3.9 | 🔒 Locked | Voice TTS, ROI Dashboard, 3AM Mode, Runbook Auto-Update, War Room, Confidence Routing |
+| V4 | 🔒 Locked | Semantic Search / Vector RAG (requires pgvector on Azure Postgres) |
 
 ---
 

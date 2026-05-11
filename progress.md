@@ -8,7 +8,9 @@
 
 ## Current Goal
 
-**V3+ enhancements complete. 381/381 tests passing.** Live Evidence Collection Progress feature shipped.
+**V3+ enhancements complete. 381/381 tests passing.**  
+**Next: V3.5** — Demo Core (Alert Simulator, Teams Adaptive Cards, Blast Radius Estimator, Corvin Score Gauge).  
+See `docs/copilot-context/versions/hackathon-roadmap.md` for full V3.5 → V3.9 → V4 plan.
 
 ---
 
