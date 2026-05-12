@@ -12,6 +12,14 @@
 **Next: V3.7** — Predictive Detection, SLA Countdown, Dependency Visualizer, Remediation Preview.  
 See `docs/copilot-context/versions/hackathon-roadmap.md` for full V3.7 → V4 plan.
 
+### Latest Frontend Redesign Slice
+
+- [x] Introduced dual-theme design system (light + dark) with CSS tokens for palette, spacing, radius, elevation, type scale, and motion.
+- [x] Implemented `ThemeProvider` + persisted theme selection + system preference detection + anti-FOUC inline script.
+- [x] Added animated `ThemeToggle` with sun/moon transition and focus-visible behavior.
+- [x] Refactored navigation to responsive header with mobile drawer, sticky glass nav, and desktop CTA.
+- [x] Added semantic footer and improved layout rhythm while preserving all existing routing and data-fetch behavior.
+
 ---
 
 ## V3.5 — Demo Core (COMPLETE)

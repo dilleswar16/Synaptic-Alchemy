@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { ThemeToggle } from './ThemeToggle'
 
 const NAV_LINKS = [
   { to: '/',               label: 'Dashboard' },
@@ -26,31 +27,44 @@ function LiveClock() {
 
 export default function NavBar() {
   const { pathname } = useLocation()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 900)
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 900)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
 
   return (
     <header style={{
       position: 'sticky',
       top: 0,
-      zIndex: 50,
-      background: 'rgba(3,5,7,0.96)',
-      backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
-      borderBottom: '1px solid var(--c-border-hi)',
+      zIndex: 60,
+      background: 'var(--c-surface)',
+      backdropFilter: 'blur(var(--glass-blur))',
+      WebkitBackdropFilter: 'blur(var(--glass-blur))',
+      borderBottom: '1px solid var(--c-border)',
+      transition: 'all var(--motion-300) var(--ease-out)',
     }}>
       {/* Amber top accent line */}
-      <div style={{ height: 2, background: 'linear-gradient(90deg, var(--c-signal) 0%, transparent 60%)' }} />
+      <div style={{ height: 2, background: 'linear-gradient(90deg, var(--c-signal) 0%, transparent 55%)' }} />
 
       <div style={{
         maxWidth: 1320,
         margin: '0 auto',
-        padding: '0 24px',
-        height: 52,
+        padding: isMobile ? '0 12px' : '0 24px',
+        height: 62,
         display: 'flex',
         alignItems: 'center',
-        gap: 32,
+        gap: isMobile ? 10 : 20,
       }}>
         {/* Wordmark */}
-        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           {/* Signal bars icon */}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 16 }}>
             {[6, 10, 14, 18].map((h, i) => (
@@ -66,7 +80,7 @@ export default function NavBar() {
             <span style={{
               fontFamily: 'var(--font-display)',
               fontWeight: 900,
-              fontSize: '1.1rem',
+              fontSize: isMobile ? '1rem' : '1.1rem',
               letterSpacing: '0.12em',
               color: 'var(--c-text)',
             }}>
@@ -77,6 +91,7 @@ export default function NavBar() {
               fontSize: '0.55rem',
               color: 'var(--c-signal)',
               letterSpacing: '0.16em',
+              display: isMobile ? 'none' : 'inline',
             }}>
               SRE CO-PILOT
             </span>
@@ -84,10 +99,10 @@ export default function NavBar() {
         </Link>
 
         {/* Separator */}
-        <div style={{ width: 1, height: 24, background: 'var(--c-border-hi)' }} />
+        {!isMobile && <div style={{ width: 1, height: 24, background: 'var(--c-border-hi)' }} />}
 
         {/* Navigation */}
-        <nav style={{ display: 'flex', gap: 2 }}>
+        {!isMobile && <nav style={{ display: 'flex', gap: 2 }}>
           {NAV_LINKS.map(({ to, label }) => {
             const active = to === '/' ? pathname === '/' : pathname.startsWith(to)
             return (
@@ -107,7 +122,7 @@ export default function NavBar() {
                 {active && (
                   <div style={{
                     position: 'absolute',
-                    bottom: -1,
+                    bottom: -5,
                     left: 14,
                     right: 14,
                     height: 2,
@@ -118,14 +133,14 @@ export default function NavBar() {
               </Link>
             )
           })}
-        </nav>
+        </nav>}
 
         {/* Right side */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 20 }}>
-          <LiveClock />
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14 }}>
+          {!isMobile && <LiveClock />}
 
           {/* Live indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {!isMobile && <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span
               className="animate-pulse-glow"
               style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--c-signal)', display: 'block' }}
@@ -139,19 +154,116 @@ export default function NavBar() {
             }}>
               LIVE
             </span>
-          </div>
+          </div>}
 
           {/* Version */}
-          <span style={{
+          {!isMobile && <span style={{
             fontFamily: 'var(--font-mono)',
             fontSize: '0.62rem',
             color: 'var(--c-text-faint)',
             letterSpacing: '0.06em',
           }}>
             V3
-          </span>
+          </span>}
+
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
+          {!isMobile && (
+            <Link
+              to="/investigations"
+              className="btn btn-primary"
+              style={{ padding: '8px 14px', fontSize: '0.78rem' }}
+            >
+              Open Queue
+            </Link>
+          )}
+
+          {isMobile && (
+            <button
+              aria-label="Toggle navigation menu"
+              onClick={() => setMenuOpen(v => !v)}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                border: '1px solid var(--c-border)',
+                background: 'var(--c-surface-2)',
+                color: 'var(--c-text)',
+                display: 'grid',
+                placeItems: 'center',
+              }}
+            >
+              <div style={{ display: 'grid', gap: 4 }}>
+                <span style={{ display: 'block', width: 16, height: 2, background: 'currentColor' }} />
+                <span style={{ display: 'block', width: 16, height: 2, background: 'currentColor' }} />
+                <span style={{ display: 'block', width: 16, height: 2, background: 'currentColor' }} />
+              </div>
+            </button>
+          )}
         </div>
       </div>
+
+      {isMobile && (
+        <>
+          <div
+            onClick={() => setMenuOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: menuOpen ? 58 : -1,
+              background: menuOpen ? 'rgba(2, 6, 23, 0.45)' : 'transparent',
+              opacity: menuOpen ? 1 : 0,
+              pointerEvents: menuOpen ? 'auto' : 'none',
+              transition: 'opacity var(--motion-200) var(--ease-out)',
+            }}
+          />
+          <nav
+            aria-label="Mobile navigation"
+            style={{
+              position: 'fixed',
+              top: 64,
+              right: 12,
+              zIndex: 59,
+              minWidth: 220,
+              borderRadius: 14,
+              border: '1px solid var(--c-border)',
+              background: 'var(--c-surface-2)',
+              boxShadow: 'var(--shadow-lg)',
+              transform: menuOpen ? 'translateY(0)' : 'translateY(-8px)',
+              opacity: menuOpen ? 1 : 0,
+              pointerEvents: menuOpen ? 'auto' : 'none',
+              transition: 'all var(--motion-200) var(--ease-out)',
+              padding: 8,
+            }}
+          >
+            {NAV_LINKS.map(({ to, label }) => {
+              const active = to === '/' ? pathname === '/' : pathname.startsWith(to)
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  style={{
+                    display: 'block',
+                    borderRadius: 10,
+                    padding: '10px 12px',
+                    marginBottom: 4,
+                    color: active ? 'var(--c-signal)' : 'var(--c-text)',
+                    background: active ? 'var(--c-signal-glow)' : 'transparent',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '0.86rem',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    textDecoration: 'none',
+                  }}
+                >
+                  {label}
+                </Link>
+              )
+            })}
+          </nav>
+        </>
+      )}
     </header>
   )
 }

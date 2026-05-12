@@ -25,31 +25,11 @@ export function Modal({ isOpen, onClose, children }: ModalProps) {
   if (!isOpen) return null
 
   const content = (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 99999,
-      background: 'rgba(11, 15, 26, 0.85)',
-      backdropFilter: 'blur(12px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '40px',
-    }} onClick={onClose}>
-      <div style={{
-        background: '#0B0F19',
-        border: '1px solid var(--c-border-glow)',
-        boxShadow: '0 8px 32px var(--c-signal-glow)',
-        borderRadius: 8,
-        width: '100%', maxWidth: 860, maxHeight: '90vh',
-        overflowY: 'auto',
-        padding: '40px',
-        position: 'relative',
-      }} onClick={e => e.stopPropagation()}>
+    <div className="corvin-modal-overlay" onClick={onClose}>
+      <div className="corvin-modal-card" onClick={e => e.stopPropagation()}>
         <button 
           onClick={onClose}
-          style={{
-            position: 'absolute', top: 20, right: 20,
-            background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)',
-            color: 'var(--c-text-muted)', width: 32, height: 32, borderRadius: 16,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-          }}
+          className="corvin-modal-close"
         >
           ✕
         </button>

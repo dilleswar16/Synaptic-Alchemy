@@ -14,6 +14,7 @@ import { useTypewriter } from '../hooks/useTypewriter'
 import { STATUS_CLS } from '../components/StatusBadge'
 import { ServiceHealthGauge } from '../components/ServiceHealthGauge'
 import { SimulateAlertPanel } from '../components/SimulateAlertPanel'
+import { useTheme } from '../context/ThemeContext'
 
 // ── Morning Briefing widget ───────────────────────────────────────────────
 
@@ -494,10 +495,10 @@ function VerticalBars({ bars }: { bars: { label: string; value: number; color: s
               position: 'absolute', bottom: 0, left: 0, right: 0,
               height: bar.value > 0 ? `${Math.max((bar.value / max) * 100, 5)}%` : '0%',
               background: bar.value > 0
-                ? `linear-gradient(to top, ${bar.color}, color-mix(in srgb, ${bar.color} 60%, transparent))`
+                ? `linear-gradient(180deg, color-mix(in srgb, ${bar.color} 25%, white) 0%, ${bar.color} 100%)`
                 : 'transparent',
               transition: 'height 0.8s cubic-bezier(0.34, 1.2, 0.64, 1)',
-              boxShadow: bar.value > 0 ? `0 -4px 16px color-mix(in srgb, ${bar.color} 35%, transparent)` : 'none',
+              boxShadow: bar.value > 0 ? `0 -4px 16px color-mix(in srgb, ${bar.color} 30%, transparent)` : 'none',
             }} />
           </div>
           {/* Label */}
@@ -526,7 +527,7 @@ function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?
       to={`/investigations/${inv.request_id}`}
       className="log-row animate-fade-up"
       style={{
-        gridTemplateColumns: '80px 1fr 100px 110px 90px 20px',
+        gridTemplateColumns: '100px 1fr 120px 120px 100px 20px',
         animationDelay: `${index * 35}ms`,
       }}
     >
@@ -558,6 +559,9 @@ function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const { theme } = useTheme()
+  const isLight = theme === 'light'
+
   const { data: stats, isLoading: statsLoading, isError: statsError, refetch: statsRefetch } = useQuery<InvestigationStats>({
     queryKey: ['stats'],
     queryFn: fetchInvestigationStats,
@@ -587,8 +591,8 @@ export default function DashboardPage() {
       {briefing && <BriefingWidget data={briefing} />}
 
       {/* ── V3.5: Service Health + Alert Simulator ───────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-        <div className="panel animate-fade-up" style={{ padding: '18px 20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 12, marginBottom: 16, alignItems: 'start' }}>
+        <div className="panel animate-fade-up" style={{ padding: '18px 20px', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%)' : undefined }}>
           <div style={{
             fontFamily: 'var(--font-display)', fontWeight: 700,
             fontSize: '0.62rem', letterSpacing: '0.18em', textTransform: 'uppercase',
@@ -596,7 +600,7 @@ export default function DashboardPage() {
           }}>
             Service Health
           </div>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-start', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 4 }}>
             <ServiceHealthGauge serviceName="fundapis" environment="dev" />
             <ServiceHealthGauge serviceName="fundsso" environment="dev" />
             <ServiceHealthGauge serviceName="partnerapis" environment="dev" />
@@ -604,6 +608,30 @@ export default function DashboardPage() {
         </div>
 
         <SimulateAlertPanel />
+      </div>
+
+      <div className="animate-fade-up" style={{ marginBottom: 14 }}>
+        <div style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '0.64rem',
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: 'var(--c-signal)',
+          marginBottom: 4,
+          fontWeight: 800,
+        }}>
+          Operations Center
+        </div>
+        <div style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '2rem',
+          lineHeight: 1,
+          letterSpacing: '0.03em',
+          fontWeight: 900,
+          color: 'var(--c-text)',
+        }}>
+          Live Investigation Overview
+        </div>
       </div>
 
       {/* ── Hero band ─────────────────────────────────────────────────────── */}
@@ -624,8 +652,29 @@ export default function DashboardPage() {
       )}
 
       {statsLoading && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)', marginBottom: 24 }}>
-          Loading…
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 12 }}>
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="metric-card scan-sweep" style={{ minHeight: 108 }}>
+                <div style={{ width: 90, height: 10, borderRadius: 999, background: 'var(--c-surface-3)', marginBottom: 10 }} />
+                <div style={{ width: 56, height: 24, borderRadius: 6, background: 'var(--c-surface-3)', marginBottom: 8 }} />
+                <div style={{ width: 120, height: 8, borderRadius: 999, background: 'var(--c-surface-3)' }} />
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
+            {[0, 1].map(i => (
+              <div key={i} className="panel scan-sweep" style={{ padding: '18px 20px' }}>
+                <div style={{ width: 130, height: 10, borderRadius: 999, background: 'var(--c-surface-3)', marginBottom: 16 }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  {[0, 1, 2].map(b => (
+                    <div key={b} style={{ height: 100, borderRadius: 8, background: 'var(--c-surface-3)' }} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {statsError && (
@@ -684,7 +733,7 @@ export default function DashboardPage() {
       {stats && (
         <>
           {/* ── Metric row ────────────────────────────────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 16 }}>
             <MetricCard
               label="Avg MTTR"
               value={stats.avg_mttr_minutes != null ? `${stats.avg_mttr_minutes}m` : '—'}
@@ -718,8 +767,8 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Charts row ────────────────────────────────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div className="panel animate-fade-up-3" style={{ padding: '18px 20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12, marginBottom: 16 }}>
+            <div className="panel animate-fade-up-3" style={{ padding: '18px 20px', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%)' : undefined }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
                 <span className="section-label">RCA Confidence</span>
                 {conf && (
@@ -737,7 +786,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="panel animate-fade-up-4" style={{ padding: '18px 20px' }}>
+            <div className="panel animate-fade-up-4" style={{ padding: '18px 20px', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%)' : undefined }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
                 <span className="section-label">Approval Pipeline</span>
                 {appr && (
@@ -759,7 +808,7 @@ export default function DashboardPage() {
 
           {/* ── Recent services ───────────────────────────────────────────── */}
           {stats.recent_services.length > 0 && (
-            <div className="panel animate-fade-up-5" style={{ padding: '14px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div className="panel animate-fade-up-5" style={{ padding: '14px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%)' : undefined }}>
               <span className="section-label" style={{ flexShrink: 0 }}>Active Services</span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {stats.recent_services.map(svc => (
@@ -767,10 +816,10 @@ export default function DashboardPage() {
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.72rem',
                     padding: '5px 14px',
-                    borderRadius: 2,
-                    background: 'rgba(249,115,22,0.08)',
-                    border: '1px solid rgba(249,115,22,0.2)',
-                    color: 'var(--c-signal)',
+                    borderRadius: 8,
+                    background: isLight ? 'rgba(0,102,204,0.08)' : 'rgba(249,115,22,0.08)',
+                    border: isLight ? '1px solid rgba(0,102,204,0.22)' : '1px solid rgba(249,115,22,0.2)',
+                    color: isLight ? 'var(--c-info)' : 'var(--c-signal)',
                     letterSpacing: '0.04em',
                   }}>
                     {svc}
@@ -783,11 +832,11 @@ export default function DashboardPage() {
       )}
 
       {/* ── Recent investigations ──────────────────────────────────────── */}
-      <div className="panel" style={{ overflow: 'hidden' }}>
+      <div className="panel" style={{ overflow: 'hidden', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f9fbff 100%)' : undefined }}>
         {/* Table header */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '80px 1fr 100px 110px 90px 20px',
+          gridTemplateColumns: '100px 1fr 120px 120px 100px 20px',
           gap: 16,
           padding: '10px 14px',
           borderBottom: '1px solid var(--c-border-hi)',

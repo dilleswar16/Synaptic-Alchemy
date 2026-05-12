@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import NavBar from './NavBar'
+import Footer from './Footer'
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
@@ -11,11 +12,12 @@ export default function Layout({ children }: { children: ReactNode }) {
           maxWidth: 1280,
           width: '100%',
           margin: '0 auto',
-          padding: '32px 24px',
+          padding: '28px 24px 40px',
         }}
       >
         {children}
       </main>
+      <Footer />
     </div>
   )
 }

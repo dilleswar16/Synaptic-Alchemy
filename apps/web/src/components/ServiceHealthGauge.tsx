@@ -10,8 +10,8 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchServiceScore, type ServiceScore } from '../api/client'
 
-const SIZE = 140
-const STROKE = 11
+const SIZE = 112
+const STROKE = 10
 const RADIUS = (SIZE - STROKE) / 2
 const CENTER = SIZE / 2
 const SWEEP_DEG = 220
@@ -92,7 +92,7 @@ export function ServiceHealthGauge({ serviceName, environment = 'dev' }: Props) 
         flexDirection: 'column',
         alignItems: 'center',
         gap: 6,
-        padding: '10px 12px',
+        padding: '8px 10px',
         borderRadius: 8,
         background: 'var(--c-surface-2)',
         border: '1px solid var(--c-border)',
@@ -131,7 +131,7 @@ export function ServiceHealthGauge({ serviceName, environment = 'dev' }: Props) 
           ) : (
             <>
               <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: '1.9rem',
+                fontFamily: 'var(--font-mono)', fontSize: '1.5rem',
                 fontWeight: 700, lineHeight: 1, color: colour,
                 letterSpacing: '-0.02em',
               }}>
