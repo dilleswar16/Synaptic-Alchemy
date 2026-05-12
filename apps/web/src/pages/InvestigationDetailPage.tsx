@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import Layout from '../components/Layout'
@@ -15,6 +15,7 @@ import { AuditTrailSection } from '../components/investigation/AuditTrailSection
 import { PostMortemSection } from '../components/investigation/PostMortemSection'
 import { TechnicalHighlighter } from '../components/TechnicalHighlighter'
 import { Section } from '../components/Section'
+import { BlastRadiusCard } from '../components/BlastRadiusCard'
 import {
   fetchInvestigation,
   fetchSimilarIncidents,
@@ -71,6 +72,7 @@ export default function InvestigationDetailPage() {
        data.evidence.azure_activity_changes.length > 0)
     : false
   const hasRca = !!data?.rca
+  const evidenceReferences = data?.rca?.evidence_references ?? []
 
   const scrollAndAct = (action: ApprovalAction) => {
     setSearchParams({ action })
@@ -78,18 +80,6 @@ export default function InvestigationDetailPage() {
       document.getElementById('approval-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 60)
   }
-
-  const [approvalInView, setApprovalInView] = useState(false)
-  useEffect(() => {
-    const el = document.getElementById('approval-section')
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => setApprovalInView(entry.isIntersecting),
-      { threshold: 0.15 },
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [data])
 
   const pendingAndRcaReady = approvalStatus === 'pending' && !!data?.rca && pendingAction === null
 
@@ -148,10 +138,14 @@ export default function InvestigationDetailPage() {
               Investigation
             </div>
             <h1 style={{
-              margin: '0 0 14px',
+              margin: '0 0 16px',
               fontFamily: 'var(--font-display)', fontWeight: 900,
-              fontSize: '2.2rem', letterSpacing: '0.04em',
+              fontSize: '2.6rem', letterSpacing: '0.05em',
               color: 'var(--c-text)', lineHeight: 1,
+              background: 'linear-gradient(135deg, var(--c-signal) 0%, var(--c-text) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
             }}>
               {data?.request?.service_name?.toUpperCase() ?? (isLoading ? '…' : 'INVESTIGATION')}
             </h1>
@@ -228,12 +222,14 @@ export default function InvestigationDetailPage() {
 
         {/* Main content */}
         {data && (
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'minmax(320px, 420px) 1fr', 
-            gap: 32, 
-            alignItems: 'start' 
-          }}>
+          <>
+            <BlastRadiusCard requestId={id!} />
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'minmax(320px, 420px) 1fr', 
+              gap: 32, 
+              alignItems: 'start' 
+            }}>
             {/* Left Column: Context, Evidence, Incidents, Audit Trail */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               {data.request?.description && (
@@ -261,9 +257,9 @@ export default function InvestigationDetailPage() {
                 </div>
               )}
 
-              {data.rca?.evidence_references?.length > 0 && (
+              {evidenceReferences.length > 0 && (
                 <div className="animate-fade-up-4">
-                  <EvidenceReferencesSection references={data.rca.evidence_references} />
+                  <EvidenceReferencesSection references={evidenceReferences} />
                 </div>
               )}
 
@@ -303,7 +299,8 @@ export default function InvestigationDetailPage() {
                 <PostMortemSection requestId={id!} isExecuted={approvalStatus === 'executed'} />
               </div>
             </div>
-          </div>
+            </div>
+          </>
         )}
       </div>
     </Layout>

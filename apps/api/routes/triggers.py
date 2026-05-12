@@ -15,6 +15,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends
+from pydantic import BaseModel
 
 from corvin.core.contracts import InvestigationRequest, TriggerSource
 from corvin.delivery.teams_adapter import TeamsAdapter
@@ -129,3 +130,70 @@ def manual_trigger(payload: dict[str, Any]) -> dict[str, str]:
     )
     # TODO (Slice 5+): hand off to orchestrator
     return {"request_id": request.id, "status": "accepted", "trigger_source": request.trigger_source}
+
+
+# ── V3.5 Alert Simulator ──────────────────────────────────────────────────────
+
+class SimulateAlertRequest(BaseModel):
+    """Request body for the alert simulator endpoint."""
+    service_name: str
+    environment: str = "dev"
+    scenario: str  # hpa_failure | five_zero_three_spike | auth_errors | memory_leak
+    description: str | None = None
+
+
+_SCENARIO_DESCRIPTIONS: dict[str, str] = {
+    "hpa_failure": "HPA not scaling — pods stuck at 1 replica despite 92% CPU. Partner integrations degraded.",
+    "five_zero_three_spike": "503 error rate spiked to 18% on /v1/funds endpoint. Two pods restarted in the last 30 minutes.",
+    "auth_errors": "JWT validation failures spiking — service returning 401 on 35% of SSO requests since 09:00.",
+    "memory_leak": "Heap usage climbing steadily — service at 89% memory limit, OOM kill expected within 2 hours.",
+}
+
+
+@router.post("/simulate", status_code=202)
+def simulate_alert(
+    body: SimulateAlertRequest,
+    background_tasks: BackgroundTasks,
+    engine: InvestigationEngine = Depends(get_engine),
+    repo: InvestigationRepository = Depends(get_repository),
+    teams: TeamsAdapter = Depends(get_teams_adapter),
+) -> dict[str, str]:
+    """
+    Fire a synthetic alert investigation without needing a real Azure Monitor event.
+
+    Builds a realistic-looking InvestigationRequest from the chosen scenario preset
+    and runs the full pipeline (evidence → RCA → fix strategy) in a background task,
+    exactly as a real Azure alert would.
+
+    Available scenarios: hpa_failure | five_zero_three_spike | auth_errors | memory_leak
+
+    Returns immediately with the new request_id so the UI can open the SSE stream.
+    """
+    description = body.description or _SCENARIO_DESCRIPTIONS.get(
+        body.scenario,
+        f"Simulated {body.scenario} scenario on {body.service_name}.",
+    )
+
+    request = InvestigationRequest(
+        trigger_source=TriggerSource.MANUAL_API,
+        service_name=body.service_name,
+        environment=body.environment,
+        description=f"[SIMULATED: {body.scenario}] {description}",
+    )
+
+    background_tasks.add_task(
+        _run_investigation_in_background,
+        request,
+        engine,
+        repo,
+        teams,
+    )
+
+    return {
+        "request_id": request.id,
+        "status": "accepted",
+        "scenario": body.scenario,
+        "service_name": body.service_name,
+        "environment": body.environment,
+    }
+

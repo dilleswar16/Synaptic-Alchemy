@@ -12,6 +12,8 @@ import {
 import { timeAgo, fmtTs } from '../utils/time'
 import { useTypewriter } from '../hooks/useTypewriter'
 import { STATUS_CLS } from '../components/StatusBadge'
+import { ServiceHealthGauge } from '../components/ServiceHealthGauge'
+import { SimulateAlertPanel } from '../components/SimulateAlertPanel'
 
 // ── Morning Briefing widget ───────────────────────────────────────────────
 
@@ -97,8 +99,12 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
           {/* Greeting */}
           <div style={{
             fontFamily: 'var(--font-display)', fontWeight: 900,
-            fontSize: '1.05rem', letterSpacing: '0.14em', textTransform: 'uppercase',
-            color: 'var(--c-text)', marginBottom: 12,
+            fontSize: '1.4rem', letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: 'var(--c-text)', marginBottom: 16,
+            background: 'linear-gradient(135deg, var(--c-text) 0%, var(--c-signal) 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
           }}>
             {greeting}, OPERATOR
           </div>
@@ -230,27 +236,29 @@ function HeroBand({
       style={{
         position: 'relative',
         overflow: 'hidden',
-        marginBottom: 16,
-        background: 'var(--c-surface)',
+        marginBottom: 20,
+        background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%), var(--c-surface)',
         border: '1px solid var(--c-border-hi)',
-        borderLeft: '3px solid var(--c-signal)',
-        borderRadius: 4,
+        borderLeft: '4px solid var(--c-signal)',
+        borderRadius: 8,
+        boxShadow: '0 0 60px rgba(249, 115, 22, 0.12), 0 4px 24px rgba(0, 0, 0, 0.3)',
       }}
     >
       {/* Atmospheric grid overlay */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
         backgroundImage:
-          'linear-gradient(90deg, rgba(249,115,22,0.025) 1px, transparent 1px),' +
-          'linear-gradient(rgba(249,115,22,0.025) 1px, transparent 1px)',
-        backgroundSize: '48px 48px',
+          'linear-gradient(90deg, rgba(249,115,22,0.015) 1px, transparent 1px),' +
+          'linear-gradient(rgba(249,115,22,0.015) 1px, transparent 1px)',
+        backgroundSize: '52px 52px',
       }} />
       {/* Ambient glow top-right */}
       <div style={{
-        position: 'absolute', top: -60, right: -60,
-        width: 260, height: 260, borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(249,115,22,0.1) 0%, transparent 70%)',
+        position: 'absolute', top: -100, right: -100,
+        width: 360, height: 360, borderRadius: '50%',
+        background: 'radial-gradient(ellipse, rgba(249,115,22,0.12) 0%, transparent 65%)',
         pointerEvents: 'none',
+        filter: 'blur(40px)',
       }} />
 
       <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr auto', gap: 0, padding: '28px 32px' }}>
@@ -272,10 +280,14 @@ function HeroBand({
           </div>
 
           <h1 style={{
-            margin: '0 0 8px',
+            margin: '0 0 12px',
             fontFamily: 'var(--font-display)', fontWeight: 900,
-            fontSize: '2.8rem', letterSpacing: '0.08em',
+            fontSize: '3.2rem', letterSpacing: '0.06em',
             color: 'var(--c-text)', lineHeight: 1,
+            background: 'linear-gradient(180deg, var(--c-text) 0%, var(--c-signal) 60%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
           }}>
             OPERATIONS CENTER
           </h1>
@@ -573,6 +585,26 @@ export default function DashboardPage() {
     <Layout>
       {/* ── Morning Briefing ──────────────────────────────────────────── */}
       {briefing && <BriefingWidget data={briefing} />}
+
+      {/* ── V3.5: Service Health + Alert Simulator ───────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div className="panel animate-fade-up" style={{ padding: '18px 20px' }}>
+          <div style={{
+            fontFamily: 'var(--font-display)', fontWeight: 700,
+            fontSize: '0.62rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            color: 'var(--c-text-muted)', marginBottom: 16,
+          }}>
+            Service Health
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <ServiceHealthGauge serviceName="fundapis" environment="dev" />
+            <ServiceHealthGauge serviceName="fundsso" environment="dev" />
+            <ServiceHealthGauge serviceName="partnerapis" environment="dev" />
+          </div>
+        </div>
+
+        <SimulateAlertPanel />
+      </div>
 
       {/* ── Hero band ─────────────────────────────────────────────────────── */}
       {stats && (

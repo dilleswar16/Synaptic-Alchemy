@@ -533,6 +533,103 @@ class InvestigationRepository:
                 generated_at=_as_utc(row.generated_at),
             )
 
+    def get_service_score(self, service_name: str, environment: str) -> dict:
+        """
+        Compute a Corvin Score (0–100) for a specific service/environment.
+
+        Formula (weighted):
+          - 30 pts: incident frequency (fewer = better, baseline = 10/month)
+          - 25 pts: average RCA confidence (high=1, medium=0.6, low=0.2)
+          - 25 pts: average MTTR (≤5 min = full pts, scaled up to 60 min cap)
+          - 20 pts: days since last incident (≥30 days = full pts)
+
+        Returns dict with: score, label, color, total, high_conf, avg_mttr_minutes,
+        days_since_last, last_incident_at.
+        """
+        CONF_WEIGHT = {"high": 1.0, "medium": 0.6, "low": 0.2}
+        LOOKBACK_DAYS = 30
+
+        with self._session_factory() as session:
+            rows = session.execute(
+                select(InvestigationRequestRow)
+                .where(InvestigationRequestRow.service_name == service_name)
+                .where(InvestigationRequestRow.environment == environment)
+                .order_by(InvestigationRequestRow.completed_at.desc())
+            ).scalars().all()
+
+            if not rows:
+                return {
+                    "score": 100,
+                    "label": "No Data",
+                    "color": "green",
+                    "total": 0,
+                    "high_conf": 0,
+                    "avg_mttr_minutes": None,
+                    "days_since_last": None,
+                    "last_incident_at": None,
+                }
+
+            now = datetime.now(timezone.utc)
+            cutoff = now - __import__('datetime').timedelta(days=LOOKBACK_DAYS)
+            recent = [r for r in rows if _as_utc(r.created_at) >= cutoff]
+
+            # --- Frequency score (30 pts) ---
+            freq_count = len(recent)
+            freq_score = max(0.0, 1.0 - freq_count / 10.0) * 30
+
+            # --- Confidence score (25 pts) ---
+            rca_rows = session.execute(
+                select(RCAOutputRow)
+                .join(InvestigationRequestRow, RCAOutputRow.request_id == InvestigationRequestRow.id)
+                .where(InvestigationRequestRow.service_name == service_name)
+                .where(InvestigationRequestRow.environment == environment)
+            ).scalars().all()
+
+            high_conf = sum(1 for r in rca_rows if r.confidence == "high")
+            if rca_rows:
+                avg_conf_weight = sum(CONF_WEIGHT.get(r.confidence, 0.6) for r in rca_rows) / len(rca_rows)
+            else:
+                avg_conf_weight = 0.6
+            conf_score = avg_conf_weight * 25
+
+            # --- MTTR score (25 pts) ---
+            mttr_values = []
+            for r in rows:
+                if r.created_at and r.completed_at:
+                    delta = (_as_utc(r.completed_at) - _as_utc(r.created_at)).total_seconds() / 60.0
+                    mttr_values.append(delta)
+            avg_mttr = sum(mttr_values) / len(mttr_values) if mttr_values else None
+            if avg_mttr is None:
+                mttr_score = 25.0
+            else:
+                mttr_score = max(0.0, 1.0 - min(avg_mttr, 60.0) / 60.0) * 25
+
+            # --- Recency score (20 pts) ---
+            last_row = rows[0]
+            last_at = _as_utc(last_row.completed_at)
+            days_since = (now - last_at).days
+            recency_score = min(days_since / 30.0, 1.0) * 20
+
+            score = round(freq_score + conf_score + mttr_score + recency_score)
+
+            if score >= 80:
+                label, color = "Healthy", "green"
+            elif score >= 50:
+                label, color = "Degraded", "amber"
+            else:
+                label, color = "Critical", "red"
+
+            return {
+                "score": score,
+                "label": label,
+                "color": color,
+                "total": len(rows),
+                "high_conf": high_conf,
+                "avg_mttr_minutes": round(avg_mttr, 1) if avg_mttr is not None else None,
+                "days_since_last": days_since,
+                "last_incident_at": last_at.isoformat(),
+            }
+
     def get_investigation_stats(self) -> dict:
         """
         Aggregate SRE health metrics from real Postgres data.

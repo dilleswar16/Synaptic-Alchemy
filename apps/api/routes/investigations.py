@@ -31,6 +31,8 @@ from corvin.investigation.engine import InvestigationEngine
 from corvin.investigation.stream import InvestigationStreamer
 from corvin.storage.repository import InvestigationRepository
 from corvin.strategy.postmortem_service import PostMortemService
+from corvin.strategy.blast_radius import estimate_blast_radius, BlastRadiusEstimate
+from corvin.core.config_loader import get_env, load_config
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
@@ -243,16 +245,46 @@ def get_briefing(
     hours: int = Query(default=24, ge=1, le=168, description="Look-back window in hours"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> dict:
-    """Return a Jarvis-style SRE briefing payload for the dashboard Morning Briefing widget.
-
-    Covers the last *hours* window (default 24h) and includes:
-    - total_investigations, pending_approval, high_confidence_pending
-    - confidence_breakdown (high/medium/low counts)
-    - top_services (up to 3, by volume)
-    - narrative: a plain-English AI-style briefing sentence
-    - generated_at: ISO timestamp
-    """
+    """Return a Jarvis-style SRE briefing payload for the dashboard Morning Briefing widget."""
     return repo.get_briefing(hours=hours)
+
+
+@router.get("/score", response_model=dict)
+def get_service_score(
+    service_name: str = Query(..., description="Service name to score"),
+    environment: str = Query(default="dev", description="Target environment"),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return the Corvin Score (0–100) for a specific service/environment.
+
+    Score is calculated from incident frequency, RCA confidence, MTTR, and
+    days since the last incident.  Used to render health gauges on the Dashboard.
+    """
+    return repo.get_service_score(service_name=service_name, environment=environment)
+
+
+@router.get("/{request_id}/blast-radius", response_model=dict)
+def get_blast_radius(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return a blast radius estimate for a completed investigation.
+
+    Pulls the stored evidence bundle and computes: affected services,
+    estimated users, revenue risk per minute.  No LLM call — pure calculation.
+    """
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    policy = load_config("policies/investigation", get_env())
+    estimate = estimate_blast_radius(
+        service_name=result.request.service_name,
+        environment=result.request.environment,
+        evidence=result.evidence,
+        policy=policy,
+    )
+    return estimate.model_dump()
 
 
 @router.get("/{request_id}", response_model=InvestigationResult)

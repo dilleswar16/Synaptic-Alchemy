@@ -20,7 +20,7 @@ import { useCallback, useRef, useState } from 'react'
 
 import { API_BASE } from '../api/baseUrl'
 
-export type StageStatus = 'started' | 'token' | 'complete' | 'error'
+export type StageStatus = 'started' | 'fetching' | 'token' | 'complete' | 'error'
 
 export interface StageEvent {
   stage: string

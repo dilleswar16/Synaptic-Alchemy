@@ -15,24 +15,24 @@ interface SectionProps {
 
 export function Section({ title, children, accent, id, headerRight }: SectionProps) {
   return (
-    <section id={id} style={{ marginTop: 20 }}>
+    <section id={id} style={{ marginTop: 24 }}>
       <div className={accent ? 'panel-signal' : 'panel'} style={{ overflow: 'hidden' }}>
         <div style={{
-          padding: '10px 18px',
+          padding: '12px 20px',
           borderBottom: '1px solid var(--c-border)',
-          background: 'var(--c-surface-2)',
+          background: 'linear-gradient(90deg, rgba(249,115,22,0.03) 0%, transparent 100%), var(--c-surface-2)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <span style={{
-            fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem',
-            letterSpacing: '0.14em', textTransform: 'uppercase',
-            color: accent ? 'var(--c-signal)' : 'var(--c-text-muted)',
+            fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.76rem',
+            letterSpacing: '0.16em', textTransform: 'uppercase',
+            color: accent ? 'var(--c-signal)' : 'var(--c-text-dim)',
           }}>
             {title}
           </span>
           {headerRight}
         </div>
-        <div style={{ padding: '16px 18px' }}>
+        <div style={{ padding: '18px 20px' }}>
           {children}
         </div>
       </div>

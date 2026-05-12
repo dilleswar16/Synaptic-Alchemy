@@ -249,3 +249,65 @@ export interface BriefingPayload {
 export function fetchBriefing(hours = 24) {
   return apiFetch<BriefingPayload>(`/investigations/briefing?hours=${hours}`)
 }
+
+// ── V3.5: Corvin Score ────────────────────────────────────────────────────
+
+export interface ServiceScore {
+  score: number                         // 0–100
+  label: 'Healthy' | 'Degraded' | 'Critical' | 'No Data'
+  color: 'green' | 'amber' | 'red'
+  total: number                         // all-time incidents for this service
+  high_conf: number                     // high-confidence RCAs count
+  avg_mttr_minutes: number | null
+  days_since_last: number | null
+  last_incident_at: string | null
+}
+
+export function fetchServiceScore(service_name: string, environment: string) {
+  const params = new URLSearchParams({ service_name, environment })
+  return apiFetch<ServiceScore>(`/investigations/score?${params}`)
+}
+
+// ── V3.5: Blast Radius ────────────────────────────────────────────────────
+
+export interface BlastRadiusEstimate {
+  service_name: string
+  environment: string
+  affected_services: string[]
+  downstream_api_count: number
+  estimated_users: number
+  revenue_risk_per_min: number
+  currency: string
+  replica_count: number
+  rationale: string
+}
+
+export function fetchBlastRadius(requestId: string) {
+  return apiFetch<BlastRadiusEstimate>(`/investigations/${requestId}/blast-radius`)
+    .catch(() => null)   // non-fatal — returns null when evidence is absent
+}
+
+// ── V3.5: Alert Simulator ─────────────────────────────────────────────────
+
+export interface SimulateAlertPayload {
+  service_name: string
+  environment: string
+  scenario: string
+  description?: string
+}
+
+export interface SimulateAlertResponse {
+  request_id: string
+  status: string
+  scenario: string
+  service_name: string
+  environment: string
+}
+
+export function simulateAlert(payload: SimulateAlertPayload) {
+  return apiFetch<SimulateAlertResponse>('/triggers/simulate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+

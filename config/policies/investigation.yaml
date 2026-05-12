@@ -23,3 +23,37 @@ require_evidence_before_rca: true
 # V1 only: fix strategies are informational and require human review.
 # Do not change to 'auto' in V1.
 fix_execution_mode: review_only
+
+# ── V3.5: Blast Radius Estimator ──────────────────────────────────────────────
+# Estimated users per healthy pod replica (used when AKS pod count is available).
+blast_radius_users_per_replica: 400
+# Revenue lost per affected user per minute (in blast_radius_currency).
+blast_radius_revenue_per_user_per_min: 0.003
+# Currency symbol used in the UI display.
+blast_radius_currency: GBP
+
+# ── V3.5: Alert Simulator presets ─────────────────────────────────────────────
+# These define the synthetic Azure Monitor payloads fired by the UI simulator.
+# Each preset maps to a service + description; actual alert JSON is built in
+# the /triggers/simulate endpoint at runtime.
+simulator_presets:
+  - id: hpa_failure
+    label: "⚠ HPA Failure"
+    service_name: partnerapis
+    environment: dev
+    description: "HPA not scaling — partnerapis pods stuck at 1 replica despite 92% CPU. Partner integrations degraded."
+  - id: five_zero_three_spike
+    label: "⚡ 503 Spike"
+    service_name: fundapis
+    environment: dev
+    description: "503 error rate spiked to 18% on /v1/funds endpoint. Two pods restarted in the last 30 minutes."
+  - id: auth_errors
+    label: "🔒 Auth Errors"
+    service_name: fundsso
+    environment: dev
+    description: "JWT validation failures spiking — fundsso returning 401 on 35% of SSO requests since 09:00."
+  - id: memory_leak
+    label: "💾 Memory Leak"
+    service_name: fundapis
+    environment: dev
+    description: "Heap usage climbing steadily — fundapis at 89% memory limit, OOM kill expected within 2 hours."

@@ -4,7 +4,6 @@
 import { useCallback, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { SemanticMarkdown } from '../SemanticMarkdown'
-import remarkGfm from 'remark-gfm'
 import { generatePostMortem, fetchPostMortem, type PostMortem } from '../../api/client'
 import { Section, AlertBanner } from '../Section'
 import { Modal } from '../Modal'

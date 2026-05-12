@@ -8,9 +8,24 @@
 
 ## Current Goal
 
-**V3+ enhancements complete. 381/381 tests passing.**  
-**Next: V3.5** — Demo Core (Alert Simulator, Teams Adaptive Cards, Blast Radius Estimator, Corvin Score Gauge).  
-See `docs/copilot-context/versions/hackathon-roadmap.md` for full V3.5 → V3.9 → V4 plan.
+**V3.5 COMPLETE — 400+ tests passing.**  
+**Next: V3.7** — Predictive Detection, SLA Countdown, Dependency Visualizer, Remediation Preview.  
+See `docs/copilot-context/versions/hackathon-roadmap.md` for full V3.7 → V4 plan.
+
+---
+
+## V3.5 — Demo Core (COMPLETE)
+
+- [x] **Corvin Score** — `repository.get_service_score()`: weighted 0–100 score from incident frequency, RCA confidence, MTTR, recency. `GET /investigations/score` endpoint registered BEFORE `/{id}` route. Green ≥80, amber 50–79, red <50.
+- [x] **Blast Radius Estimator** — `corvin/strategy/blast_radius.py`: pure calculation from EvidenceBundle (no LLM). Output: `BlastRadiusEstimate` (affected services, estimated users, revenue risk/min, replica count, rationale). `GET /investigations/{id}/blast-radius` endpoint.
+- [x] **Alert Simulator** — `POST /triggers/simulate`: 4 presets (hpa_failure, five_zero_three_spike, auth_errors, memory_leak). Reuses existing `_run_investigation_in_background`. Returns request_id immediately for SSE stream redirect.
+- [x] **Teams Adaptive Card** — `TeamsAdapter._build_card()` now accepts optional `BlastRadiusEstimate`. Blast radius section (💥) injected with affected services, estimated users, revenue risk, replica count. Colour-coded by severity.
+- [x] **ServiceHealthGauge** — SVG arc gauge (220° sweep, ease-out cubic animation), 3 services on Dashboard (fundapis, fundsso, partnerapis). Click → filtered investigations list.
+- [x] **BlastRadiusCard** — Amber/red banner at top of InvestigationDetailPage. Lazy-loads from `/blast-radius` endpoint. Shows severity chip, users, services, revenue risk/min, rationale.
+- [x] **SimulateAlertPanel** — Dashboard widget with 4 preset buttons, optional description, fire button. Navigates to new investigation detail on success.
+- [x] **Config additions** — `config/policies/investigation.yaml`: `blast_radius_users_per_replica`, `blast_radius_revenue_per_user_per_min`, `blast_radius_currency`, `simulator_presets`.
+- [x] **client.ts** — `ServiceScore`, `BlastRadiusEstimate`, `SimulateAlertPayload/Response` types. `fetchServiceScore()`, `fetchBlastRadius()`, `simulateAlert()` functions.
+- [x] **V3.5 tests** — `tests/slices/test_slice_v35_features.py`: 20 tests covering blast radius calculation, score repository, simulate endpoint, score endpoint, blast radius 404.
 
 ---
 
