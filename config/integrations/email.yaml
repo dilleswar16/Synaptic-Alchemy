@@ -1,0 +1,21 @@
+# Email delivery settings for RCA report notifications.
+# All values can be provided via environment variables.
+
+enabled: false
+
+# SMTP connection
+smtp_host: "${CORVIN_SMTP_HOST}"
+smtp_port: 587
+use_starttls: true
+smtp_username: "${CORVIN_SMTP_USERNAME}"
+smtp_password: "${CORVIN_SMTP_PASSWORD}"
+
+# Sender / recipients
+from_address: "${CORVIN_EMAIL_FROM}"
+# Comma-separated env var can be used for one or more addresses.
+to_addresses: "${CORVIN_EMAIL_TO}"
+
+# Automatically send an RCA email after investigation completes.
+auto_send_on_rca: true
+
+subject_prefix: "[Corvin RCA]"

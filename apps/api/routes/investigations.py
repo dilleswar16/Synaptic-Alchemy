@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 
 from corvin.core.contracts import ApprovalStatus, InvestigationRequest, InvestigationResult, TriggerSource
+from corvin.delivery.rca_notification import send_rca_email_if_enabled
+from corvin.delivery.rca_pdf import build_rca_pdf
 from corvin.delivery.teams_adapter import TeamsAdapter
 from corvin.execution.execution_service import ExecutionService
 from corvin.investigation.engine import InvestigationEngine
@@ -121,6 +123,10 @@ class BriefingResponse(BaseModel):
     narrative: str
 
 
+class RcaEmailRequest(BaseModel):
+    recipients: list[str] | None = None
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 
@@ -165,6 +171,9 @@ def start_investigation(
         teams.send_result(result)
     except Exception as exc:  # Teams failure must never break the investigation response
         _log.warning("Teams delivery failed (non-fatal): %s", exc)
+
+    # Optional and non-fatal: auto-send RCA PDF email when configured.
+    send_rca_email_if_enabled(result)
 
     return InvestigationAccepted(
         request_id=result.request_id,
@@ -297,6 +306,51 @@ def get_investigation(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
     return result
+
+
+@router.get("/{request_id}/rca.pdf", response_class=Response)
+def get_rca_pdf(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> Response:
+    """Generate and return a structured RCA report as PDF."""
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    pdf_bytes = build_rca_pdf(result)
+    filename = f"corvin-rca-{request_id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/{request_id}/rca/email", response_model=dict, status_code=200)
+def email_rca_pdf(
+    request_id: str,
+    body: RcaEmailRequest = Body(default=RcaEmailRequest()),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Send the RCA PDF report by email (best-effort, config-driven SMTP)."""
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    sent = send_rca_email_if_enabled(result, recipients=body.recipients, force=True)
+    if not sent:
+        return {
+            "request_id": request_id,
+            "sent": False,
+            "message": "Email not sent. Check email integration config and recipients.",
+        }
+
+    return {
+        "request_id": request_id,
+        "sent": True,
+        "message": "RCA PDF emailed successfully.",
+    }
 
 
 @router.post("/{request_id}/approve", response_model=ApprovalResponse, status_code=200)

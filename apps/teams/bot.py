@@ -33,6 +33,7 @@ from typing import Any
 from botbuilder.core import ActivityHandler, TurnContext
 
 from corvin.core.contracts import ApprovalStatus, InvestigationRequest, TriggerSource
+from corvin.delivery.rca_notification import send_rca_email_if_enabled
 from corvin.delivery.teams_adapter import TeamsAdapter
 from corvin.execution.execution_service import ExecutionService
 from corvin.investigation.engine import InvestigationEngine
@@ -382,6 +383,8 @@ class CorvinBot(ActivityHandler):
             result = await asyncio.to_thread(self._engine.run, request)
             # Post the result card via the outbound Teams webhook.
             self._teams.send_result(result)
+            # Optional and non-fatal: email RCA PDF when configured.
+            send_rca_email_if_enabled(result)
             _log.info(
                 "CorvinBot: investigation complete for service=%s env=%s request_id=%s",
                 service_name,

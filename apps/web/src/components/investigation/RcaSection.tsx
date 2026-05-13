@@ -3,8 +3,11 @@
  * root cause card, analysis summary, contributing factors, and fix strategy preview.
  */
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { Section } from '../Section'
 import { SemanticMarkdown } from '../SemanticMarkdown'
+import { downloadRcaPdf, emailRcaPdf } from '../../api/client'
 import type { InvestigationResult } from '../../api/client'
 
 interface RcaSectionProps {
@@ -14,8 +17,26 @@ interface RcaSectionProps {
 
 export function RcaSection({ data, requestId }: RcaSectionProps) {
   const { rca, fix_strategy } = data
+  const [emailOutcome, setEmailOutcome] = useState<{ ok: boolean; message: string } | null>(null)
 
   if (!rca) return null
+
+  const emailMutation = useMutation({
+    mutationFn: () => emailRcaPdf(requestId),
+    onSuccess: (resp) => {
+      setEmailOutcome({ ok: resp.sent, message: resp.message })
+    },
+    onError: (err: Error) => {
+      setEmailOutcome({ ok: false, message: err.message })
+    },
+  })
+
+  const exportMutation = useMutation({
+    mutationFn: () => downloadRcaPdf(requestId),
+    onError: (err: Error) => {
+      setEmailOutcome({ ok: false, message: err.message })
+    },
+  })
 
   const confColor = rca.confidence === 'high' ? 'var(--c-green)'
     : rca.confidence === 'low' ? 'var(--c-red)'
@@ -30,7 +51,43 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
     : 'badge-pending'
 
   return (
-    <Section title="Root Cause Analysis">
+    <Section
+      title="Root Cause Analysis"
+      headerRight={
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+            disabled={exportMutation.isPending}
+            onClick={() => exportMutation.mutate()}
+          >
+            {exportMutation.isPending ? 'Exporting…' : '↓ PDF'}
+          </button>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+            disabled={emailMutation.isPending}
+            onClick={() => emailMutation.mutate()}
+          >
+            {emailMutation.isPending ? 'Sending…' : '✉ Send Mail'}
+          </button>
+        </div>
+      }
+    >
+      {emailOutcome && (
+        <div style={{
+          marginBottom: 14,
+          padding: '8px 10px',
+          borderRadius: 3,
+          border: `1px solid ${emailOutcome.ok ? 'var(--c-success-border)' : 'var(--c-error-border)'}`,
+          background: emailOutcome.ok ? 'var(--c-success-bg)' : 'var(--c-error-bg)',
+          color: emailOutcome.ok ? 'var(--c-success)' : 'var(--c-error)',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.72rem',
+        }}>
+          {emailOutcome.ok ? '✓' : '✗'} {emailOutcome.message}
+        </div>
+      )}
       {/* Confidence bar */}
       <div style={{ marginBottom: 22 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: rca.confidence_reasoning ? 10 : 0 }}>

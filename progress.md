@@ -627,3 +627,24 @@ The project was renamed from **Corvin** to **Corvin**:
 - Ghost `mgplatform/` folder confirmed deleted
 - Install sequence: `pip install hatchling` first, then `pip install -e .` (corp proxy constraint)
 - **All 155 tests pass after rename** (verified 2026-04-04)
+
+## 2026-05-13 - RCA PDF Export + Email Delivery Slice
+
+- Added backend RCA PDF generation via `corvin/delivery/rca_pdf.py` (structured report with RCA, evidence, and fix strategy sections).
+- Added SMTP email adapter via `corvin/delivery/email_adapter.py` and config in `config/integrations/email.yaml`.
+- Added non-fatal RCA email delivery helper via `corvin/delivery/rca_notification.py`.
+- Wired auto-email dispatch after RCA generation in:
+  - `apps/api/routes/investigations.py` (manual API investigations)
+  - `apps/api/routes/triggers.py` (Azure alert + simulator background investigations)
+  - `apps/teams/bot.py` (Teams-initiated investigations)
+- Added API endpoints:
+  - `GET /investigations/{request_id}/rca.pdf` for PDF export
+  - `POST /investigations/{request_id}/rca/email` for on-demand email send
+- Added UI controls in `apps/web/src/components/investigation/RcaSection.tsx`:
+  - `↓ PDF` export button
+  - `✉ Send Mail` action button with success/error inline feedback
+- Added RCA client helpers in `apps/web/src/api/client.ts` for export and email actions.
+- Updated `.env.example` with SMTP/email placeholders.
+- Validation:
+  - `npm run build` (web) passes
+  - `pytest tests/slices/test_slice10_web_teams.py -q` passes (`12 passed`)

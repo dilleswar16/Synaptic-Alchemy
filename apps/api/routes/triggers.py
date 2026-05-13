@@ -18,6 +18,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel
 
 from corvin.core.contracts import InvestigationRequest, TriggerSource
+from corvin.delivery.rca_notification import send_rca_email_if_enabled
 from corvin.delivery.teams_adapter import TeamsAdapter
 from corvin.investigation.engine import InvestigationEngine
 from corvin.storage.repository import InvestigationRepository
@@ -78,6 +79,9 @@ def _run_investigation_in_background(
         teams.send_result(result)
     except Exception as exc:  # noqa: BLE001
         _log.warning("Teams delivery failed (non-fatal) for %s: %s", request.id, exc)
+
+    # Optional and non-fatal: email RCA PDF when configured.
+    send_rca_email_if_enabled(result)
 
 
 @router.post("/azure-alert", status_code=202)

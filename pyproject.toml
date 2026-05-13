@@ -29,6 +29,7 @@ dependencies = [
     "pyfiglet>=0.8.0",
     "botbuilder-core>=4.17.0",
     "botbuilder-integration-aiohttp>=4.17.0",
+    "reportlab>=4.4.0",
 ]
 
 [project.optional-dependencies]

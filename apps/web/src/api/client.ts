@@ -77,6 +77,30 @@ export function fetchInvestigation(id: string) {
   return apiFetch<InvestigationResult>(`/investigations/${id}`)
 }
 
+export async function downloadRcaPdf(id: string) {
+  const res = await fetch(`${API_BASE}/investigations/${id}/rca.pdf`)
+  if (!res.ok) {
+    throw new Error(`Corvin API error ${res.status}: ${res.statusText}`)
+  }
+
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `corvin-rca-${id}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}
+
+export function emailRcaPdf(id: string, recipients?: string[]) {
+  return apiFetch<{ request_id: string; sent: boolean; message: string }>(`/investigations/${id}/rca/email`, {
+    method: 'POST',
+    body: JSON.stringify({ recipients: recipients ?? null }),
+  })
+}
+
 export function startInvestigation(payload: {
   service_name: string
   environment: string
