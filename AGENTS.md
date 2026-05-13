@@ -19,11 +19,11 @@ and fix strategies. An SRE team then approves and executes fixes via Microsoft T
 
 ## Current Version
 
-**V3+ enhancements complete. 381/381 tests passing.**  
-**Now building: V3.5** — Demo Core (Alert Simulator, Teams Adaptive Cards, Blast Radius, Corvin Score).
+**V3.7 complete. All intelligence features verified live in browser (2026-05-13).**  
+**Now building: V3.9** — Voice TTS, ROI Dashboard, 3AM Mode, Runbook Auto-Update, War Room Channel, Confidence Routing.
 
 Read the active version scope BEFORE writing any code:
-- `docs/copilot-context/versions/hackathon-roadmap.md` ← **primary reference for V3.5 → V3.9**
+- `docs/copilot-context/versions/hackathon-roadmap.md` ← **primary reference for V3.9 → V4**
 
 ---
 
@@ -39,9 +39,9 @@ Never build a feature from a future version while the current version is incompl
 | V2.5 | ✅ Complete | 318/318 tests passing |
 | V3 | ✅ Complete | 363/363 tests passing, full UI + post-mortem |
 | V3+ | ✅ Complete | 381/381 tests passing (ThinkingPanel, Incident Memory, Morning Briefing, Live Evidence, Refactor) |
-| V3.5 | 🚧 Next | Alert Simulator, Teams Adaptive Cards, Blast Radius Estimator, Corvin Score Gauge |
-| V3.7 | 🔒 Locked | Predictive Detection, SLA Countdown, Dependency Visualizer, Remediation Preview |
-| V3.9 | 🔒 Locked | Voice TTS, ROI Dashboard, 3AM Mode, Runbook Auto-Update, War Room, Confidence Routing |
+| V3.5 | ✅ Complete | Alert Simulator, Teams Adaptive Cards, Blast Radius Estimator, Corvin Score Gauge |
+| V3.7 | ✅ Complete | Predictive Detections, SLA Countdown, Cross-Service Topology, Remediation Preview — all verified live in browser |
+| V3.9 | 🚧 Next | Voice TTS, ROI Dashboard, 3AM Mode, Runbook Auto-Update, War Room, Confidence Routing |
 | V4 | 🔒 Locked | Semantic Search / Vector RAG (requires pgvector on Azure Postgres) |
 
 ---

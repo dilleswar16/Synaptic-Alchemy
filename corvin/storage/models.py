@@ -151,3 +151,28 @@ class PostMortemRow(Base):
     request: Mapped[InvestigationRequestRow] = relationship(
         "InvestigationRequestRow", back_populates="post_mortem"
     )
+
+
+class PredictiveAlertRow(Base):
+    __tablename__ = "predictive_alerts"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    environment: Mapped[str] = mapped_column(String(100), nullable=False)
+    alert_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[str] = mapped_column(String(20), nullable=False)
+    confidence: Mapped[str] = mapped_column(String(20), nullable=False)
+    signal_value: Mapped[float] = mapped_column(nullable=False, default=0.0)
+    threshold_value: Mapped[float] = mapped_column(nullable=False, default=0.0)
+    estimated_breach_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    source_request_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="open")
+    investigation_request_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )

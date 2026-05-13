@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { SemanticMarkdown } from '../components/SemanticMarkdown'
 import { fetchInvestigation } from '../api/client'
 import Layout from '../components/Layout'
+import { RemediationPreviewPanel } from '../components/RemediationPreviewPanel'
 
 const RISK_CLS: Record<string, string> = {
   high:   'badge-rejected',
@@ -126,6 +127,8 @@ export default function FixStrategyPage() {
         {/* ── Content ──────────────────────────────────────────────────────── */}
         {fixStrategy && (
           <div className="animate-fade-up-1" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            <RemediationPreviewPanel requestId={id!} />
 
             {/* Summary + Justification layout */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 16 }}>

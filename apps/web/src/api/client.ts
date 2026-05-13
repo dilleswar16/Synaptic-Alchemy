@@ -335,3 +335,98 @@ export function simulateAlert(payload: SimulateAlertPayload) {
   })
 }
 
+// ── V3.7: Intelligence Layer ──────────────────────────────────────────────
+
+export interface PredictiveAlert {
+  id: string
+  service_name: string
+  environment: string
+  alert_type: string
+  title: string
+  summary: string
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  confidence: 'high' | 'medium' | 'low'
+  signal_value: number
+  threshold_value: number
+  estimated_breach_at: string | null
+  rationale: string
+  source_request_id: string | null
+  status: string
+  investigation_request_id: string | null
+  created_at: string
+}
+
+export function fetchPredictiveAlerts(refresh = true) {
+  return apiFetch<PredictiveAlert[]>(`/investigations/predictive-alerts?refresh=${refresh}`)
+}
+
+export function investigatePredictiveAlert(id: string) {
+  return apiFetch<{ request_id: string; status: string; message: string }>(`/investigations/predictive-alerts/${id}/investigate`, {
+    method: 'POST',
+  })
+}
+
+export interface SlaCountdown {
+  service_name: string
+  environment: string
+  sla_target_percent: number
+  monthly_budget_seconds: number
+  seconds_already_down_this_month: number
+  current_error_rate: number
+  remaining_budget_seconds: number
+  estimated_breach_in_seconds: number | null
+  severity: 'green' | 'amber' | 'red'
+  breached: boolean
+}
+
+export function fetchSlaCountdown(requestId: string) {
+  return apiFetch<SlaCountdown>(`/investigations/${requestId}/sla`).catch(() => null)
+}
+
+export interface RemediationPreviewItem {
+  title: string
+  action_type: string
+  risk_level: string
+  requires_approval: boolean
+  current_state: string
+  proposed_command: string
+  predicted_after_state: string
+  operator_notes: string[]
+}
+
+export interface RemediationPreview {
+  request_id: string
+  service_name: string
+  environment: string
+  current_replica_count: number
+  cpu_throttle_events_per_min: number
+  restart_count: number
+  items: RemediationPreviewItem[]
+}
+
+export function fetchFixPreview(requestId: string) {
+  return apiFetch<RemediationPreview>(`/investigations/${requestId}/fix-preview`)
+}
+
+export interface TopologyNode {
+  id: string
+  label: string
+  kind: string
+  status: string
+}
+
+export interface TopologyEdge {
+  source: string
+  target: string
+  label?: string | null
+}
+
+export interface ServiceTopology {
+  nodes: TopologyNode[]
+  edges: TopologyEdge[]
+}
+
+export function fetchTopology() {
+  return apiFetch<ServiceTopology>('/investigations/topology')
+}
+

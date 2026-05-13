@@ -53,6 +53,7 @@ from corvin.storage.models import (
     FixStrategyOutputRow,
     InvestigationRequestRow,
     PostMortemRow,
+    PredictiveAlertRow,
     RCAOutputRow,
 )
 
@@ -139,6 +140,8 @@ class InvestigationRepository:
                     environment=result.request.environment,
                     description=result.request.description,
                     raw_payload=result.request.raw_payload,
+                    approval_status=result.request.approval_status.value,
+                    lookback_minutes=result.request.lookback_minutes,
                     created_at=result.request.created_at,
                     completed_at=result.completed_at,
                 )
@@ -227,6 +230,8 @@ class InvestigationRepository:
                     "environment": req_row.environment,
                     "description": req_row.description,
                     "raw_payload": req_row.raw_payload,
+                    "approval_status": req_row.approval_status,
+                    "lookback_minutes": req_row.lookback_minutes,
                     "created_at": _as_utc(req_row.created_at),
                 }
             )
@@ -629,6 +634,141 @@ class InvestigationRepository:
                 "days_since_last": days_since,
                 "last_incident_at": last_at.isoformat(),
             }
+
+    def list_recent_results(self, limit: int = 20) -> list[InvestigationResult]:
+        """Return the most recent complete investigations, newest first."""
+        with self._session_factory() as session:
+            rows = session.execute(
+                select(InvestigationRequestRow.id).order_by(
+                    InvestigationRequestRow.completed_at.desc()
+                ).limit(limit)
+            ).scalars().all()
+
+        results: list[InvestigationResult] = []
+        for request_id in rows:
+            result = self.get_investigation_result(request_id)
+            if result is not None:
+                results.append(result)
+        return results
+
+    def get_monthly_downtime_seconds(self, service_name: str, environment: str) -> float:
+        """Approximate downtime budget already consumed this month for one service."""
+        from datetime import timedelta
+
+        now = datetime.now(timezone.utc)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        with self._session_factory() as session:
+            rows = session.execute(
+                select(InvestigationRequestRow)
+                .where(InvestigationRequestRow.service_name == service_name)
+                .where(InvestigationRequestRow.environment == environment)
+                .where(InvestigationRequestRow.created_at >= month_start)
+            ).scalars().all()
+
+        total_seconds = 0.0
+        for row in rows:
+            total_seconds += max(
+                0.0,
+                (_as_utc(row.completed_at) - _as_utc(row.created_at)).total_seconds(),
+            )
+        return total_seconds
+
+    def replace_predictive_alerts(self, alerts: list[dict[str, Any]]) -> None:
+        """Replace current predictive alerts with the latest refresh output."""
+        with self._session_factory() as session:
+            session.query(PredictiveAlertRow).delete()
+            for alert in alerts:
+                session.add(
+                    PredictiveAlertRow(
+                        id=alert["id"],
+                        service_name=alert["service_name"],
+                        environment=alert["environment"],
+                        alert_type=alert["alert_type"],
+                        title=alert["title"],
+                        summary=alert["summary"],
+                        severity=alert["severity"],
+                        confidence=alert["confidence"],
+                        signal_value=alert["signal_value"],
+                        threshold_value=alert["threshold_value"],
+                        estimated_breach_at=(
+                            datetime.fromisoformat(alert["estimated_breach_at"])
+                            if alert.get("estimated_breach_at")
+                            else None
+                        ),
+                        rationale=alert["rationale"],
+                        source_request_id=alert.get("source_request_id"),
+                        status=alert.get("status", "open"),
+                        investigation_request_id=alert.get("investigation_request_id"),
+                        created_at=(
+                            datetime.fromisoformat(alert["created_at"])
+                            if alert.get("created_at")
+                            else datetime.now(timezone.utc)
+                        ),
+                    )
+                )
+            session.commit()
+
+    def list_predictive_alerts(self) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            rows = session.execute(
+                select(PredictiveAlertRow).order_by(PredictiveAlertRow.created_at.desc())
+            ).scalars().all()
+
+        return [
+            {
+                "id": row.id,
+                "service_name": row.service_name,
+                "environment": row.environment,
+                "alert_type": row.alert_type,
+                "title": row.title,
+                "summary": row.summary,
+                "severity": row.severity,
+                "confidence": row.confidence,
+                "signal_value": row.signal_value,
+                "threshold_value": row.threshold_value,
+                "estimated_breach_at": _as_utc(row.estimated_breach_at).isoformat() if row.estimated_breach_at else None,
+                "rationale": row.rationale,
+                "source_request_id": row.source_request_id,
+                "status": row.status,
+                "investigation_request_id": row.investigation_request_id,
+                "created_at": _as_utc(row.created_at).isoformat(),
+            }
+            for row in rows
+        ]
+
+    def get_predictive_alert(self, alert_id: str) -> dict[str, Any] | None:
+        with self._session_factory() as session:
+            row = session.get(PredictiveAlertRow, alert_id)
+            if row is None:
+                return None
+            return {
+                "id": row.id,
+                "service_name": row.service_name,
+                "environment": row.environment,
+                "alert_type": row.alert_type,
+                "title": row.title,
+                "summary": row.summary,
+                "severity": row.severity,
+                "confidence": row.confidence,
+                "signal_value": row.signal_value,
+                "threshold_value": row.threshold_value,
+                "estimated_breach_at": _as_utc(row.estimated_breach_at).isoformat() if row.estimated_breach_at else None,
+                "rationale": row.rationale,
+                "source_request_id": row.source_request_id,
+                "status": row.status,
+                "investigation_request_id": row.investigation_request_id,
+                "created_at": _as_utc(row.created_at).isoformat(),
+            }
+
+    def mark_predictive_alert_investigated(self, alert_id: str, request_id: str) -> None:
+        with self._session_factory() as session:
+            row = session.get(PredictiveAlertRow, alert_id)
+            if row is None:
+                return
+            row.status = "investigated"
+            row.investigation_request_id = request_id
+            session.commit()
 
     def get_investigation_stats(self) -> dict:
         """

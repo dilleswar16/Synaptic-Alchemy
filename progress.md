@@ -8,9 +8,35 @@
 
 ## Current Goal
 
-**V3.5 COMPLETE — 400+ tests passing.**  
-**Next: V3.7** — Predictive Detection, SLA Countdown, Dependency Visualizer, Remediation Preview.  
-See `docs/copilot-context/versions/hackathon-roadmap.md` for full V3.7 → V4 plan.
+**V3.7 COMPLETE — 400+ tests passing. All intelligence features verified live in browser (2026-05-13).**  
+**Next: V3.9** — Voice Morning Briefing, ROI Dashboard, 3AM Mode, Runbook Auto-Update, War Room Channel, Confidence Routing.  
+See `docs/copilot-context/versions/hackathon-roadmap.md` for full V3.9 → V4 plan.
+
+---
+
+## V3.7 — Intelligence Layer (COMPLETE)
+
+**Exit criteria:** ✅ All 4 intelligence features verified live in browser. Focused slice tests green. V3.5 regression clean. TypeScript build clean.
+
+- [x] **Predictive Detections** — `corvin/triggers/predictive.py`: deterministic signal scorer (memory pressure, error acceleration, restart instability). `PredictiveAlertRow` ORM model + Alembic migration `0008_v37_predictive_alerts.py`. `GET /investigations/predictive-alerts?active_only=true` endpoint. Background refresh every 60s.
+  - UI: `PredictiveAlertPanel` on DashboardPage — "PRE-MORTEM MODE" label, live signal count, signal/target meters, ETA countdown (live ticking), "Investigate Now" button → launches investigation via `POST /investigations/predictive-alerts/{id}/investigate` → auto-navigates to investigation detail on completion.
+  - Browser verified: "Memory Pressure — 4h 0m to breach, Signal 89 / Target 95, fundsso · dev · confidence medium". Button shows "Launching…" during LLM pipeline.
+
+- [x] **SLA Countdown** — `corvin/strategy/sla.py`: error budget calculator from error rate + SLA target. `GET /investigations/{id}/sla` endpoint.
+  - UI: `SlaCountdownCard` on InvestigationDetailPage — "SLA COUNTDOWN", % breach label, budget-consumed % (right-aligned), green/amber/red progress bar, "remaining Xm Xs · error rate X% · burned X min this month".
+  - Browser verified: "99.9% breach in Stable · 12% budget consumed · remaining 37m 56s · error rate 0.0% · burned 5m this month".
+
+- [x] **Cross-Service Topology (Dependency Visualizer)** — `corvin/investigation/topology.py`: builds node/link graph from EvidenceBundle (services → pods). `GET /investigations/topology` endpoint. `TopologyRadar` SVG component renders positioned nodes with curved links.
+  - UI: "DEPENDENCY VISUALIZER · 15 nodes · 12 links" panel on DashboardPage. Service filter chips link to `/investigations?service=X`.
+  - Browser verified: fundsso (2 pods), partnerapis (2 pods), fundapis (2 pods) with real pod names from AKS knowledge.
+
+- [x] **Remediation Preview** — `corvin/execution/preview.py`: deterministic preview builder from fix actions. No LLM call. `GET /investigations/{id}/fix-preview` endpoint. Reads current AKS replica/throttle/restart state from EvidenceBundle.
+  - UI: `RemediationPreviewPanel` on FixStrategyPage — "REMEDIATION PREVIEW · What Corvin Will Run", current state metrics (Replicas / Throttle / Restarts), per-action table (CURRENT STATE | PROPOSED COMMAND | AFTER STATE), "Operator Notes: Corvin will not execute this action automatically."
+  - Browser verified: All 5 actions rendered with correct current state / proposed command / after state. Risk tags visible.
+
+- [x] **Tests** — `tests/slices/test_slice_v37_intelligence_layer.py` (9 tests), `tests/slices/test_slice_v37_remediation_preview.py` (4 tests). V3.5 regression: 23 tests green.
+
+---
 
 ### Latest Frontend Redesign Slice
 

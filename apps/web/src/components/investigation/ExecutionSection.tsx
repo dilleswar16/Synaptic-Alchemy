@@ -3,8 +3,10 @@
  * with a mandatory 2-step confirmation.
  */
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { executeInvestigation, type ExecutionResponse } from '../../api/client'
+import { previewSeenKey } from '../RemediationPreviewPanel'
 import { Section, AlertBanner } from '../Section'
 
 interface ExecutionSectionProps {
@@ -14,6 +16,7 @@ interface ExecutionSectionProps {
 
 export function ExecutionSection({ requestId, status }: ExecutionSectionProps) {
   const queryClient = useQueryClient()
+  const previewSeen = typeof window !== 'undefined' && !!window.sessionStorage.getItem(previewSeenKey(requestId))
   const [confirming, setConfirming] = useState(false)
   const [outcome, setOutcome] = useState<{
     ok: boolean; data: ExecutionResponse | null; message: string
@@ -60,9 +63,21 @@ export function ExecutionSection({ requestId, status }: ExecutionSectionProps) {
       )}
 
       {status === 'approved' && !outcome && !confirming && (
-        <button className="btn-primary" onClick={() => setConfirming(true)}>
-          ▶ Execute Fix Strategy
-        </button>
+        previewSeen ? (
+          <button className="btn-primary" onClick={() => setConfirming(true)}>
+            ▶ Execute Fix Strategy
+          </button>
+        ) : (
+          <AlertBanner
+            ok={false}
+            message="Execution locked until remediation preview is reviewed."
+            detail={(
+              <Link to={`/investigations/${requestId}/fix-strategy`} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>
+                Open Fix Preview →
+              </Link>
+            )}
+          />
+        )
       )}
 
       {status === 'approved' && confirming && !outcome && (

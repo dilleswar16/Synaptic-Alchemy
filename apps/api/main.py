@@ -7,6 +7,7 @@ Start the dev server with:
 
 from __future__ import annotations
 
+import asyncio
 import os
 import warnings
 
@@ -26,16 +27,34 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.routes import investigations, triggers
 from apps.teams.router import router as teams_router
+from corvin.core.config_loader import get_env, load_config
 from corvin.storage.db import get_engine, is_sqlite
 from corvin.storage.models import Base
+from corvin.triggers.predictive import PredictiveMonitor
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     """Auto-create all tables when running in SQLite mode (no Alembic required)."""
+    predictive_task: asyncio.Task | None = None
     if is_sqlite():
         Base.metadata.create_all(get_engine())
+    try:
+        policy = load_config("policies/investigation", get_env())
+        if policy.get("predictive_background_enabled", True):
+            interval_seconds = int(policy.get("predictive_interval_seconds", 300))
+            predictive_task = asyncio.create_task(
+                PredictiveMonitor().run_forever(interval_seconds=interval_seconds)
+            )
+    except Exception:
+        predictive_task = None
     yield
+    if predictive_task is not None:
+        predictive_task.cancel()
+        try:
+            await predictive_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(

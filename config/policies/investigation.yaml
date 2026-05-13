@@ -57,3 +57,11 @@ simulator_presets:
     service_name: fundapis
     environment: dev
     description: "Heap usage climbing steadily — fundapis at 89% memory limit, OOM kill expected within 2 hours."
+
+# ── V3.7: Intelligence Layer ─────────────────────────────────────────────────
+predictive_background_enabled: true
+predictive_interval_seconds: 300
+sla_target_percent: 99.9
+sla_month_minutes: 43200
+sla_amber_seconds: 7200
+sla_red_seconds: 1800

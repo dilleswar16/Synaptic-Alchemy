@@ -16,6 +16,7 @@ import { PostMortemSection } from '../components/investigation/PostMortemSection
 import { TechnicalHighlighter } from '../components/TechnicalHighlighter'
 import { Section } from '../components/Section'
 import { BlastRadiusCard } from '../components/BlastRadiusCard'
+import { SlaCountdownCard } from '../components/investigation/SlaCountdownCard'
 import {
   fetchInvestigation,
   fetchSimilarIncidents,
@@ -223,6 +224,7 @@ export default function InvestigationDetailPage() {
         {/* Main content */}
         {data && (
           <>
+            <SlaCountdownCard requestId={id!} status={approvalStatus} />
             <BlastRadiusCard requestId={id!} />
             <div style={{ 
               display: 'grid', 

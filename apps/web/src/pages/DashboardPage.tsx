@@ -14,6 +14,8 @@ import { useTypewriter } from '../hooks/useTypewriter'
 import { STATUS_CLS } from '../components/StatusBadge'
 import { ServiceHealthGauge } from '../components/ServiceHealthGauge'
 import { SimulateAlertPanel } from '../components/SimulateAlertPanel'
+import { PredictiveAlertPanel } from '../components/PredictiveAlertPanel'
+import { TopologyRadar } from '../components/TopologyRadar'
 import { useTheme } from '../context/ThemeContext'
 
 // ── Morning Briefing widget ───────────────────────────────────────────────
@@ -608,6 +610,11 @@ export default function DashboardPage() {
         </div>
 
         <SimulateAlertPanel />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 0.95fr) minmax(420px, 1.05fr)', gap: 12, marginBottom: 16, alignItems: 'start' }}>
+        <PredictiveAlertPanel />
+        <TopologyRadar />
       </div>
 
       <div className="animate-fade-up" style={{ marginBottom: 14 }}>

@@ -31,6 +31,7 @@ class TriggerSource(str, Enum):
     """All supported investigation trigger origins."""
 
     AZURE_ALERT = "azure_alert"
+    PREDICTIVE = "predictive"
     MANUAL_API = "manual_api"
     MANUAL_CLI = "manual_cli"
     TEAMS = "teams"
@@ -67,6 +68,7 @@ class InvestigationRequest(BaseModel):
         if self.trigger_source == TriggerSource.AZURE_ALERT:
             self.lookback_minutes = 15
         elif self.trigger_source in (
+            TriggerSource.PREDICTIVE,
             TriggerSource.MANUAL_CLI,
             TriggerSource.MANUAL_API,
             TriggerSource.TEAMS,

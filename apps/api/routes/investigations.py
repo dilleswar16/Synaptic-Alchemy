@@ -29,12 +29,16 @@ from corvin.delivery.rca_notification import send_rca_email_if_enabled
 from corvin.delivery.rca_pdf import build_rca_pdf
 from corvin.delivery.teams_adapter import TeamsAdapter
 from corvin.execution.execution_service import ExecutionService
+from corvin.execution.preview import build_remediation_preview
 from corvin.investigation.engine import InvestigationEngine
 from corvin.investigation.stream import InvestigationStreamer
+from corvin.investigation.topology import build_service_topology
 from corvin.storage.repository import InvestigationRepository
+from corvin.strategy.sla import build_sla_countdown
 from corvin.strategy.postmortem_service import PostMortemService
 from corvin.strategy.blast_radius import estimate_blast_radius, BlastRadiusEstimate
 from corvin.core.config_loader import get_env, load_config
+from corvin.triggers.predictive import PredictiveMonitor
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
@@ -258,6 +262,61 @@ def get_briefing(
     return repo.get_briefing(hours=hours)
 
 
+@router.get("/predictive-alerts", response_model=list[dict])
+def get_predictive_alerts(
+    refresh: bool = Query(default=True, description="Refresh predictive detections before returning."),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> list[dict]:
+    if refresh:
+        monitor = PredictiveMonitor(repo=repo)
+        return [alert.model_dump(mode="json") for alert in monitor.refresh_alerts()]
+    return repo.list_predictive_alerts()
+
+
+@router.post("/predictive-alerts/{alert_id}/investigate", response_model=InvestigationAccepted, status_code=200)
+def investigate_predictive_alert(
+    alert_id: str,
+    engine: InvestigationEngine = Depends(get_engine),
+    repo: InvestigationRepository = Depends(get_repository),
+    teams: TeamsAdapter = Depends(get_teams_adapter),
+) -> InvestigationAccepted:
+    alert = repo.get_predictive_alert(alert_id)
+    if alert is None:
+        raise HTTPException(status_code=404, detail=f"Predictive alert {alert_id!r} not found.")
+
+    request = InvestigationRequest(
+        trigger_source=TriggerSource.PREDICTIVE,
+        service_name=alert["service_name"],
+        environment=alert["environment"],
+        description=f"[PREDICTIVE] {alert['title']} — {alert['summary']}",
+        raw_payload=alert,
+    )
+    result = engine.run(request)
+    repo.save_investigation_result(result)
+    repo.mark_predictive_alert_investigated(alert_id, result.request_id)
+
+    try:
+        teams.send_result(result)
+    except Exception as exc:
+        _log.warning("Teams delivery failed (non-fatal): %s", exc)
+
+    send_rca_email_if_enabled(result)
+
+    return InvestigationAccepted(
+        request_id=result.request_id,
+        status="completed",
+        message="Predictive investigation completed and persisted.",
+    )
+
+
+@router.get("/topology", response_model=dict)
+def get_topology(
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    topology = build_service_topology(repo.list_recent_results(limit=30))
+    return topology.model_dump()
+
+
 @router.get("/score", response_model=dict)
 def get_service_score(
     service_name: str = Query(..., description="Service name to score"),
@@ -294,6 +353,38 @@ def get_blast_radius(
         policy=policy,
     )
     return estimate.model_dump()
+
+
+@router.get("/{request_id}/sla", response_model=dict)
+def get_sla_countdown(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    policy = load_config("policies/investigation", get_env())
+    countdown = build_sla_countdown(
+        result,
+        monthly_downtime_seconds=repo.get_monthly_downtime_seconds(
+            service_name=result.request.service_name,
+            environment=result.request.environment,
+        ),
+        policy=policy,
+    )
+    return countdown.model_dump()
+
+
+@router.get("/{request_id}/fix-preview", response_model=dict)
+def get_fix_preview(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+    return build_remediation_preview(result).model_dump()
 
 
 @router.get("/{request_id}", response_model=InvestigationResult)
