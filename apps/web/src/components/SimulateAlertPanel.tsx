@@ -12,7 +12,7 @@ import { simulateAlert } from '../api/client'
 interface Preset {
   id: string
   label: string
-  icon: string
+  icon: React.ReactNode
   service: string
   environment: string
   description: string
@@ -25,46 +25,46 @@ const PRESETS: Preset[] = [
   {
     id: 'hpa_failure',
     label: 'HPA Failure',
-    icon: '⚠',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>,
     service: 'partnerapis',
     environment: 'dev',
     description: 'HPA not scaling — pods stuck at 1 replica despite 92% CPU.',
     accentColor: '#f59e0b',
-    accentBg: 'rgba(245,158,11,0.10)',
-    accentBorder: 'rgba(245,158,11,0.45)',
+    accentBg: 'rgba(245,158,11,0.15)',
+    accentBorder: 'rgba(245,158,11,0.6)',
   },
   {
     id: 'five_zero_three_spike',
     label: '503 Spike',
-    icon: '⚡',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
     service: 'fundapis',
     environment: 'dev',
     description: '503 error rate spiked to 18% on /v1/funds. Two pods restarted.',
     accentColor: 'var(--c-red)',
-    accentBg: 'rgba(239,68,68,0.10)',
-    accentBorder: 'rgba(239,68,68,0.45)',
+    accentBg: 'rgba(239,68,68,0.15)',
+    accentBorder: 'rgba(239,68,68,0.6)',
   },
   {
     id: 'auth_errors',
     label: 'Auth Errors',
-    icon: '🔒',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
     service: 'fundsso',
     environment: 'dev',
     description: 'JWT validation failures — fundsso returning 401 on 35% of requests.',
     accentColor: '#a78bfa',
-    accentBg: 'rgba(167,139,250,0.10)',
-    accentBorder: 'rgba(167,139,250,0.45)',
+    accentBg: 'rgba(167,139,250,0.15)',
+    accentBorder: 'rgba(167,139,250,0.6)',
   },
   {
     id: 'memory_leak',
     label: 'Memory Leak',
-    icon: '💾',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>,
     service: 'fundapis',
     environment: 'dev',
     description: 'Heap at 89% — fundapis OOM kill expected within 2 hours.',
     accentColor: '#60a5fa',
-    accentBg: 'rgba(96,165,250,0.10)',
-    accentBorder: 'rgba(96,165,250,0.45)',
+    accentBg: 'rgba(96,165,250,0.15)',
+    accentBorder: 'rgba(96,165,250,0.6)',
   },
 ]
 
@@ -137,27 +137,30 @@ export function SimulateAlertPanel() {
               style={{
                 position: 'relative',
                 padding: '10px 12px',
-                borderRadius: 4,
-                background: isSelected ? preset.accentBg : 'var(--c-surface-2)',
-                border: `1px solid ${isSelected ? preset.accentBorder : 'var(--c-border)'}`,
+                borderRadius: 6,
+                background: isSelected ? `linear-gradient(135deg, ${preset.accentBg}, color-mix(in srgb, ${preset.accentBg} 10%, transparent))` : 'var(--c-surface-2)',
+                border: `1px solid ${isSelected ? preset.accentColor : 'var(--c-border)'}`,
+                boxShadow: isSelected ? `0 4px 20px color-mix(in srgb, ${preset.accentColor} 15%, transparent)` : 'none',
                 textAlign: 'left',
                 cursor: 'pointer',
-                transition: 'all 0.15s',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 outline: 'none',
               }}
             >
               {isSelected && (
                 <span style={{
-                  position: 'absolute', top: 6, right: 8,
-                  fontFamily: 'var(--font-mono)', fontSize: '0.6rem',
+                  position: 'absolute', top: 8, right: 10,
+                  fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
                   color: preset.accentColor, fontWeight: 700,
+                  textShadow: `0 0 8px color-mix(in srgb, ${preset.accentColor} 50%, transparent)`,
                 }}>✓</span>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <span style={{ fontSize: '0.9rem' }}>{preset.icon}</span>
+                <span style={{ color: isSelected ? preset.accentColor : 'var(--c-text-faint)' }}>{preset.icon}</span>
                 <span style={{
                   fontFamily: 'var(--font-display)', fontWeight: 700,
                   fontSize: '0.72rem', color: isSelected ? preset.accentColor : 'var(--c-text)',
+                  textShadow: isSelected ? `0 0 10px color-mix(in srgb, ${preset.accentColor} 40%, transparent)` : 'none',
                 }}>
                   {preset.label}
                 </span>
@@ -228,8 +231,8 @@ export function SimulateAlertPanel() {
         onClick={fire}
         disabled={!selected || firing}
         style={{
-          padding: '10px',
-          borderRadius: 4,
+          padding: '12px',
+          borderRadius: 6,
           border: selected && !firing ? '1px solid var(--c-signal)' : '1px solid var(--c-border)',
           background: selected && !firing ? 'var(--c-signal)' : 'var(--c-surface-2)',
           color: selected && !firing ? '#fff' : 'var(--c-text-faint)',
@@ -238,9 +241,9 @@ export function SimulateAlertPanel() {
           fontSize: '0.72rem',
           letterSpacing: '0.06em',
           cursor: selected && !firing ? 'pointer' : 'not-allowed',
-          transition: 'all 0.15s',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           opacity: !selected ? 0.6 : 1,
-          boxShadow: selected && !firing ? '0 0 14px rgba(249,115,22,0.3)' : 'none',
+          boxShadow: selected && !firing ? '0 0 24px color-mix(in srgb, var(--c-signal) 45%, transparent)' : 'none',
         }}
       >
         {firing ? (

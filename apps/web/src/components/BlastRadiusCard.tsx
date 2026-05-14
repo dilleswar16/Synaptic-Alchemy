@@ -17,22 +17,22 @@ function deriveSeverity(blast: BlastRadiusEstimate): 'critical' | 'high' | 'medi
 
 const SEVERITY_COLOUR: Record<string, string> = {
   critical: 'var(--c-red)',
-  high:     '#f59e0b',
-  medium:   '#f59e0b',
+  high:     'var(--c-signal)',
+  medium:   'var(--c-yellow)',
   low:      'var(--c-green)',
 }
 
 const SEVERITY_BG: Record<string, string> = {
   critical: 'rgba(239,68,68,0.08)',
-  high:     'rgba(245,158,11,0.08)',
-  medium:   'rgba(245,158,11,0.06)',
+  high:     'rgba(249,115,22,0.08)',
+  medium:   'rgba(250,204,21,0.06)',
   low:      'rgba(34,197,94,0.07)',
 }
 
 const SEVERITY_BORDER: Record<string, string> = {
   critical: 'rgba(239,68,68,0.35)',
-  high:     'rgba(245,158,11,0.35)',
-  medium:   'rgba(245,158,11,0.25)',
+  high:     'rgba(249,115,22,0.35)',
+  medium:   'rgba(250,204,21,0.25)',
   low:      'rgba(34,197,94,0.25)',
 }
 
@@ -79,8 +79,30 @@ export function BlastRadiusCard({ requestId }: Props) {
       marginBottom: 12,
     }}>
       {/* Left: icon + impact summary */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <span style={{ fontSize: '1.4rem', lineHeight: 1, marginTop: 2 }}>💥</span>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+        <div style={{
+          position: 'relative', width: 34, height: 34, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          {/* Animated pulse ring */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            borderRadius: '50%',
+            background: accentColour,
+            opacity: 0.15,
+            animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+          }} />
+          {/* Core icon */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={accentColour} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 4px color-mix(in srgb, ${accentColour} 60%, transparent))` }}>
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="6" />
+            <circle cx="12" cy="12" r="2" />
+            <line x1="12" y1="2" x2="12" y2="4" />
+            <line x1="12" y1="20" x2="12" y2="22" />
+            <line x1="2" y1="12" x2="4" y2="12" />
+            <line x1="20" y1="12" x2="22" y2="12" />
+          </svg>
+        </div>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <span style={{

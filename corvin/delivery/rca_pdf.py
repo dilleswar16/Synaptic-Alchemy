@@ -334,7 +334,30 @@ def build_rca_pdf(result: InvestigationResult) -> bytes:
     story.append(_p(styles["SectionHeading"], "2. Root Cause"))
     story.append(_p(styles["Body"], result.rca.root_cause))
     if result.rca.confidence_reasoning:
-        story.append(_p(styles["SectionBodyLead"], f"Confidence rationale: {result.rca.confidence_reasoning}"))
+        story.append(Spacer(1, 6))
+        explainer_table = Table(
+            [
+                [_p(styles["TinyLabel"], "🧠 WHAT WOULD A SENIOR SRE DO? · CORVIN'S RATIONALE")],
+                [_p(styles["SectionBodyLead"], result.rca.confidence_reasoning)],
+            ],
+            colWidths=[178 * mm],
+        )
+        explainer_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fff7ed")),
+                    ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#f97316")),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#fed7aa")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+        story.append(explainer_table)
+        story.append(Spacer(1, 6))
 
     story.append(_p(styles["SectionHeading"], "3. Contributing Factors"))
     if result.rca.contributing_factors:

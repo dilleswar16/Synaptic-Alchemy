@@ -19,6 +19,7 @@ import { TechnicalHighlighter } from '../components/TechnicalHighlighter'
 import { Section } from '../components/Section'
 import { BlastRadiusCard } from '../components/BlastRadiusCard'
 import { SlaCountdownCard } from '../components/investigation/SlaCountdownCard'
+import { useThreeAmMode } from '../hooks/useThreeAmMode'
 import {
   fetchInvestigation,
   fetchSimilarIncidents,
@@ -31,6 +32,7 @@ import { totalDuration } from '../utils/time'
 export default function InvestigationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
+  const { active: threeAm } = useThreeAmMode()
 
   const rawAction = searchParams.get('action')
   const pendingAction: ApprovalAction | null =
@@ -228,10 +230,12 @@ export default function InvestigationDetailPage() {
           <>
             <IncidentHeroCard data={data} approvalStatus={approvalStatus} />
             <SlaCountdownCard requestId={id!} status={approvalStatus} />
-            <BlastRadiusCard requestId={id!} />
+            <div className="three-am-hide">
+              <BlastRadiusCard requestId={id!} />
+            </div>
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'minmax(320px, 420px) 1fr', 
+              gridTemplateColumns: threeAm ? '1fr' : 'minmax(320px, 420px) 1fr', 
               gap: 32, 
               alignItems: 'start' 
             }}>
@@ -251,24 +255,24 @@ export default function InvestigationDetailPage() {
               )}
 
               {data.evidence && (
-                <div className="animate-fade-up-2">
+                <div className="animate-fade-up-2 three-am-hide">
                   <EvidenceSection evidence={data.evidence} />
                 </div>
               )}
 
               {pastIncidents.length > 0 && (
-                <div className="animate-fade-up-3">
+                <div className="animate-fade-up-3 three-am-hide">
                   <SimilarIncidentsSection incidents={pastIncidents} />
                 </div>
               )}
 
               {evidenceReferences.length > 0 && (
-                <div className="animate-fade-up-4">
+                <div className="animate-fade-up-4 three-am-hide">
                   <EvidenceReferencesSection references={evidenceReferences} />
                 </div>
               )}
 
-              <div className="animate-fade-up-5">
+              <div className="animate-fade-up-5 three-am-hide">
                 <AuditTrailSection requestId={id!} defaultOpen={approvalStatus === 'executed'} />
               </div>
             </div>
@@ -285,7 +289,9 @@ export default function InvestigationDetailPage() {
               paddingRight: 8, // room for inner scrollbar
               paddingBottom: 40,
             }}>
-              <WorkflowStepper approvalStatus={approvalStatus} hasEvidence={hasEvidence} hasRca={hasRca} />
+              <div className="three-am-hide">
+                <WorkflowStepper approvalStatus={approvalStatus} hasEvidence={hasEvidence} hasRca={hasRca} />
+              </div>
 
               {data.rca && (
                 <div className="animate-fade-up-4">
@@ -301,7 +307,9 @@ export default function InvestigationDetailPage() {
                   onClearPendingAction={clearPendingAction}
                 />
                 <ExecutionSection requestId={id!} status={approvalStatus} />
-                <PostMortemSection requestId={id!} isExecuted={approvalStatus === 'executed'} />
+                <div className="three-am-hide">
+                  <PostMortemSection requestId={id!} isExecuted={approvalStatus === 'executed'} />
+                </div>
                 {approvalStatus === 'executed' && (
                   <RunbookUpdatePrompt
                     requestId={id!}

@@ -6,7 +6,7 @@
  * Animated arc fill on mount. Click navigates to filtered investigations list.
  */
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchServiceScore, type ServiceScore } from '../api/client'
 
@@ -36,10 +36,13 @@ function buildArc(fraction: number): string {
   return `M ${x1} ${y1} A ${RADIUS} ${RADIUS} 0 ${largeArc} 1 ${x2} ${y2}`
 }
 
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS
+const ARC_LENGTH = (SWEEP_DEG / 360) * CIRCUMFERENCE
+
 const COLOR_MAP: Record<string, string> = {
-  green: '#22c55e',
-  amber: '#f59e0b',
-  red:   '#ef4444',
+  green: 'var(--c-green)',
+  amber: 'var(--c-signal)',
+  red:   'var(--c-red)',
 }
 
 const BG_ARC = buildArc(1)
@@ -52,37 +55,36 @@ interface Props {
 export function ServiceHealthGauge({ serviceName, environment = 'dev' }: Props) {
   const navigate = useNavigate()
   const [data, setData] = useState<ServiceScore | null>(null)
-  const [displayed, setDisplayed] = useState(0)
   const [loading, setLoading] = useState(true)
-  const animRef = useRef<number | null>(null)
+  const [animatedScore, setAnimatedScore] = useState(0)
 
   useEffect(() => {
     setLoading(true)
     fetchServiceScore(serviceName, environment)
       .then(d => {
         setData(d)
+        // Counter animation for the text number
         let start: number | null = null
         const target = d.score
         const step = (ts: number) => {
           if (!start) start = ts
           const elapsed = ts - start
-          const progress = Math.min(elapsed / 900, 1)
+          const progress = Math.min(elapsed / 1000, 1)
           const eased = 1 - Math.pow(1 - progress, 3)
-          setDisplayed(Math.round(target * eased))
-          if (progress < 1) {
-            animRef.current = requestAnimationFrame(step)
-          }
+          setAnimatedScore(Math.round(target * eased))
+          if (progress < 1) requestAnimationFrame(step)
         }
-        animRef.current = requestAnimationFrame(step)
+        requestAnimationFrame(step)
       })
       .catch(() => setData(null))
       .finally(() => setLoading(false))
-    return () => { if (animRef.current) cancelAnimationFrame(animRef.current) }
   }, [serviceName, environment])
 
-  const colour = data ? (COLOR_MAP[data.color] ?? '#f59e0b') : 'var(--c-text-faint)'
-  const fraction = data ? scoreFraction(displayed) : 0
-  const arcPath = buildArc(fraction)
+  const colour = data ? (COLOR_MAP[data.color] ?? 'var(--c-signal)') : 'var(--c-text-faint)'
+  
+  // Wait a tiny bit after loading to trigger the CSS transition
+  const fraction = data && !loading ? scoreFraction(data.score) : 0
+  const dashOffset = ARC_LENGTH * (1 - fraction)
 
   return (
     <button
@@ -113,12 +115,17 @@ export function ServiceHealthGauge({ serviceName, environment = 'dev' }: Props) 
             strokeLinecap="round"
           />
           <path
-            d={arcPath}
+            d={BG_ARC}
             fill="none"
             stroke={colour}
             strokeWidth={STROKE}
             strokeLinecap="round"
-            style={{ filter: `drop-shadow(0 0 5px ${colour}88)` }}
+            strokeDasharray={ARC_LENGTH}
+            strokeDashoffset={dashOffset}
+            style={{ 
+              filter: `drop-shadow(0 0 6px color-mix(in srgb, ${colour} 60%, transparent))`,
+              transition: 'stroke-dashoffset 1s cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.3s ease'
+            }}
           />
         </svg>
         <div style={{
@@ -134,8 +141,9 @@ export function ServiceHealthGauge({ serviceName, environment = 'dev' }: Props) 
                 fontFamily: 'var(--font-mono)', fontSize: '1.5rem',
                 fontWeight: 700, lineHeight: 1, color: colour,
                 letterSpacing: '-0.02em',
+                textShadow: `0 0 10px color-mix(in srgb, ${colour} 40%, transparent)`
               }}>
-                {data ? displayed : '—'}
+                {data ? animatedScore : '—'}
               </span>
               <span style={{
                 fontFamily: 'var(--font-display)', fontSize: '0.58rem',

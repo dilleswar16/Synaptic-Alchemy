@@ -179,7 +179,7 @@ export default function NavBar() {
               style={{
                 fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
                 fontWeight: 700, letterSpacing: '0.04em',
-                padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
                 background: threeAm ? 'rgba(59,130,246,0.18)' : 'var(--c-surface-2)',
                 color: threeAm ? '#60a5fa' : 'var(--c-text-dim)',
                 border: threeAm ? '1px solid rgba(59,130,246,0.35)' : '1px solid var(--c-border)',

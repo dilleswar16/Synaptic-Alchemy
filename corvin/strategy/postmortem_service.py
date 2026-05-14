@@ -143,6 +143,13 @@ class PostMortemService:
         lines = [
             f"**Root Cause**\n\n{rca.root_cause}",
         ]
+        
+        if rca.confidence_reasoning:
+            lines.append(
+                f"> 🧠 **What Would a Senior SRE Do? · Corvin's Rationale**  \n"
+                f"> {rca.confidence_reasoning}"
+            )
+
         if rca.contributing_factors:
             factors = "\n".join(f"- {f}" for f in rca.contributing_factors)
             lines.append(f"**Contributing Factors**\n\n{factors}")
@@ -161,9 +168,10 @@ class PostMortemService:
             "|---|---|---|---|---|",
         ]
         for i, a in enumerate(actions, 1):
+            risk_emoji = "🔴" if a.risk_level.value == "high" else "🟡" if a.risk_level.value == "medium" else "🟢"
             rows.append(
                 f"| {i} | {a.title} | `{a.action_type.value}` "
-                f"| {a.risk_level.value.upper()} | {a.estimated_impact} |"
+                f"| {risk_emoji} {a.risk_level.value.upper()} | {a.estimated_impact} |"
             )
 
         rows.append("")

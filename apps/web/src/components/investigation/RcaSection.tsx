@@ -101,16 +101,32 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
           </div>
         </div>
         {rca.confidence_reasoning && (
-          <p style={{
-            margin: 0,
-            fontSize: '0.78rem',
-            color: 'var(--c-text-faint)',
-            lineHeight: 1.6,
-            fontStyle: 'italic',
-            paddingLeft: 2,
+          <details style={{
+            background: 'var(--c-surface-2)',
+            border: '1px solid var(--c-border)',
+            borderRadius: 6,
+            overflow: 'hidden',
           }}>
-            {rca.confidence_reasoning}
-          </p>
+            <summary style={{
+              padding: '10px 14px',
+              fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: 'var(--c-signal)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8,
+              listStyle: 'none', userSelect: 'none',
+              background: 'rgba(249,115,22,0.04)',
+            }}>
+              <span style={{ fontSize: '0.9rem' }}>🧠</span> What Would a Senior SRE Do? · Corvin's Rationale
+            </summary>
+            <div style={{
+              padding: '12px 14px 14px',
+              borderTop: '1px solid var(--c-border)',
+              fontFamily: 'var(--font-body)', fontSize: '0.85rem',
+              color: 'var(--c-text-dim)', lineHeight: 1.6,
+            }}>
+              {rca.confidence_reasoning}
+            </div>
+          </details>
         )}
       </div>
 

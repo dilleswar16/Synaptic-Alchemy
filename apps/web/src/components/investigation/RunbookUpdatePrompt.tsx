@@ -139,7 +139,7 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
               alignSelf: 'flex-start',
               fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.7rem',
               letterSpacing: '0.1em', textTransform: 'uppercase',
-              padding: '9px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              padding: '9px 20px', borderRadius: 8, border: 'none',
               background: mutation.isPending ? 'var(--c-surface-2)' : '#f59e0b',
               color: mutation.isPending ? 'var(--c-text-muted)' : '#0d0f17',
               boxShadow: mutation.isPending ? 'none' : '0 0 18px rgba(245,158,11,0.4)',
