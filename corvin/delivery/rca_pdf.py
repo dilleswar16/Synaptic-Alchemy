@@ -229,6 +229,24 @@ def build_rca_pdf(result: InvestigationResult) -> bytes:
     story.append(_p(styles["CorvinSub"], "Structured Root Cause Analysis for SRE Review"))
     story.append(HRFlowable(width="100%", thickness=1.1, color=colors.HexColor("#f97316"), spaceAfter=10))
 
+    if result.confidence_warning:
+        warning_table = Table(
+            [[_p(styles["TinyLabel"], "⚠️ LOW CONFIDENCE"), _p(styles["Body"], "Corvin generated this RCA with low confidence due to insufficient or ambiguous evidence. Manual review is strongly recommended.")]],
+            colWidths=[38*mm, 140*mm]
+        )
+        warning_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fef2f2")),
+            ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#ef4444")),
+            ("TEXTCOLOR", (0, 0), (0, 0), colors.HexColor("#b91c1c")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0,0), (-1,-1), 6),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+            ("LEFTPADDING", (0,0), (-1,-1), 8),
+            ("RIGHTPADDING", (0,0), (-1,-1), 8),
+        ]))
+        story.append(warning_table)
+        story.append(Spacer(1, 10))
+
     meta_table = Table(
         [
             [_p(styles["TinyLabel"], "Generated"), _p(styles["TinyValue"], generated_at), _p(styles["TinyLabel"], "RCA Confidence"), Paragraph(f"<b>{escape(conf)}</b>", ParagraphStyle(name="_conf", parent=styles["TinyValue"], textColor=confidence_color))],

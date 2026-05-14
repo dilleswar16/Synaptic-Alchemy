@@ -106,7 +106,16 @@ class PostMortemService:
     def _build_incident_summary(self, result: InvestigationResult) -> str:
         confidence = result.rca.confidence.value.upper()
         action_count = len(result.fix_strategy.actions)
+        
+        warning_block = ""
+        if result.confidence_warning:
+            warning_block = (
+                "> ⚠️ **LOW CONFIDENCE WARNING**  \n"
+                "> Corvin generated this RCA with low confidence due to insufficient or ambiguous evidence. Manual review is strongly recommended.\n\n"
+            )
+
         return (
+            f"{warning_block}"
             f"**Service:** {result.request.service_name}  \n"
             f"**Environment:** {result.request.environment}  \n"
             f"**Trigger:** {result.request.trigger_source.value.replace('_', ' ').title()}  \n"
