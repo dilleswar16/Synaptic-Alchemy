@@ -8,9 +8,9 @@
 
 ## Current Goal
 
-**V3.7 COMPLETE — 400+ tests passing. All intelligence features verified live in browser (2026-05-13).**  
-**Next: V3.9** — Voice Morning Briefing, ROI Dashboard, 3AM Mode, Runbook Auto-Update, War Room Channel, Confidence Routing.  
-See `docs/copilot-context/versions/hackathon-roadmap.md` for full V3.9 → V4 plan.
+**V3.9 COMPLETE — 16 new tests passing (16/16). All enterprise-polish features implemented.**  
+**Next: V4** — Semantic Search / Vector RAG using pgvector on Azure Postgres.  
+See `docs/copilot-context/versions/hackathon-roadmap.md` for the V4 plan.
 
 ---
 

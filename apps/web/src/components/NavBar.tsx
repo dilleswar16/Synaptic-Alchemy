@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ThemeToggle } from './ThemeToggle'
+import { useThreeAmMode } from '../hooks/useThreeAmMode'
 
 const NAV_LINKS = [
   { to: '/',               label: 'Dashboard' },
@@ -29,6 +30,7 @@ export default function NavBar() {
   const { pathname } = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 900)
+  const { active: threeAm, toggle: toggleThreeAm } = useThreeAmMode()
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 900)
@@ -41,7 +43,7 @@ export default function NavBar() {
   }, [pathname])
 
   return (
-    <header style={{
+    <header className="three-am-exclude" style={{
       position: 'sticky',
       top: 0,
       zIndex: 60,
@@ -168,6 +170,25 @@ export default function NavBar() {
 
           {/* Theme Toggle */}
           <ThemeToggle />
+
+          {/* 3AM Mode Toggle */}
+          {!isMobile && (
+            <button
+              title={threeAm ? 'Exit 3AM Mode — restore full dashboard' : 'Enable 3AM Mode — focus view for on-call'}
+              onClick={toggleThreeAm}
+              style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
+                fontWeight: 700, letterSpacing: '0.04em',
+                padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: threeAm ? 'rgba(59,130,246,0.18)' : 'var(--c-surface-2)',
+                color: threeAm ? '#60a5fa' : 'var(--c-text-dim)',
+                border: threeAm ? '1px solid rgba(59,130,246,0.35)' : '1px solid var(--c-border)',
+                transition: 'all 0.2s',
+              } as React.CSSProperties}
+            >
+              {threeAm ? '☽ 3AM' : '☾ 3AM'}
+            </button>
+          )}
 
           {!isMobile && (
             <Link

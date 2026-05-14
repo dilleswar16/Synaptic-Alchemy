@@ -37,6 +37,7 @@ from corvin.storage.repository import InvestigationRepository
 from corvin.strategy.sla import build_sla_countdown
 from corvin.strategy.postmortem_service import PostMortemService
 from corvin.strategy.blast_radius import estimate_blast_radius, BlastRadiusEstimate
+from corvin.strategy.roi import build_roi_stats
 from corvin.core.config_loader import get_env, load_config
 from corvin.triggers.predictive import PredictiveMonitor
 
@@ -262,6 +263,82 @@ def get_briefing(
     return repo.get_briefing(hours=hours)
 
 
+@router.get("/briefing/audio")
+def get_briefing_audio(
+    hours: int = Query(default=24, ge=1, le=168),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> Response:
+    """Stream the morning briefing narrative as MP3 audio via Azure TTS.
+
+    Requires AZURE_SPEECH_KEY and AZURE_SPEECH_REGION environment variables.
+    Returns 503 when TTS is not configured or the policy flag is disabled.
+    """
+    import os
+
+    policy = load_config("policies/investigation", get_env())
+    if not policy.get("voice_briefing_enabled", True):
+        raise HTTPException(status_code=503, detail="Voice briefing is disabled in policy config.")
+
+    speech_key    = os.environ.get("AZURE_SPEECH_KEY", "")
+    speech_region = os.environ.get("AZURE_SPEECH_REGION", "")
+    if not speech_key or not speech_region:
+        raise HTTPException(status_code=503, detail="AZURE_SPEECH_KEY / AZURE_SPEECH_REGION not configured.")
+
+    briefing = repo.get_briefing(hours=hours)
+    narrative: str = briefing.get("narrative", "No briefing available.")
+    voice_name = policy.get("voice_name", "en-GB-RyanNeural")
+
+    try:
+        import azure.cognitiveservices.speech as speechsdk  # type: ignore
+
+        speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=speech_region)
+        speech_config.set_speech_synthesis_output_format(
+            speechsdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3
+        )
+        speech_config.speech_synthesis_voice_name = voice_name
+
+        synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
+        result = synthesizer.speak_text_async(narrative).get()
+
+        if result.reason != speechsdk.ResultReason.SynthesizingAudioCompleted:
+            raise HTTPException(status_code=502, detail=f"TTS synthesis failed: {result.reason}")
+
+        audio_bytes = result.audio_data
+
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="azure-cognitiveservices-speech SDK not installed. Run: pip install azure-cognitiveservices-speech",
+        )
+
+    return Response(
+        content=audio_bytes,
+        media_type="audio/mpeg",
+        headers={"Content-Disposition": 'inline; filename="briefing.mp3"'},
+    )
+
+@router.get("/roi", response_model=dict)
+def get_roi(
+    months: int = Query(default=1, ge=1, le=12, description="Look-back window in months"),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return ROI stats for the dashboard — hours saved, cost saved vs baseline MTTR."""
+    from datetime import datetime, timedelta, timezone
+    from corvin.strategy.roi import _parse_dt
+
+    investigations = repo.list_investigations()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=months * 30)
+    filtered = [
+        row for row in investigations
+        if (dt := _parse_dt(row.get("completed_at") or row.get("created_at"))) and dt >= cutoff
+    ]
+    policy = load_config("policies/investigation", get_env())
+    stats = build_roi_stats(filtered, policy=policy)
+    # Stamp the requested period so the frontend can label it correctly
+    stats.period_months = months
+    return stats.model_dump()
+
+
 @router.get("/predictive-alerts", response_model=list[dict])
 def get_predictive_alerts(
     refresh: bool = Query(default=True, description="Refresh predictive detections before returning."),
@@ -385,6 +462,66 @@ def get_fix_preview(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
     return build_remediation_preview(result).model_dump()
+
+
+@router.post("/{request_id}/update-runbook", response_model=dict)
+def update_runbook(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Generate a runbook resolution step from a completed investigation and append it.
+
+    Only permitted when approval_status is 'executed'. Returns the path written
+    and the markdown content so the UI can show a diff preview.
+    """
+    from corvin.core.knowledge_loader import KnowledgeLoader
+    import litellm
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+    if result.request.approval_status != ApprovalStatus.EXECUTED:
+        raise HTTPException(status_code=400, detail="Runbook update is only permitted after execution (approval_status=executed).")
+
+    policy = load_config("policies/investigation", get_env())
+    llm_cfg = load_config("models/llm", get_env())
+
+    prompt = (
+        f"You are a senior SRE. A fix was successfully executed for the following incident.\n\n"
+        f"Service: {result.request.service_name} ({result.request.environment})\n"
+        f"Root Cause: {result.rca.root_cause}\n"
+        f"Fix Applied: {result.fix_strategy.actions[0].title if result.fix_strategy.actions else 'Manual fix'}\n"
+        f"Summary: {result.fix_strategy.summary}\n\n"
+        f"Write a concise Markdown runbook step (heading + bullet steps) that captures what was done and when to apply it. "
+        f"Be specific. Max 200 words. Start with ## Resolution: <short title>."
+    )
+
+    try:
+        response = litellm.completion(
+            model=llm_cfg.get("model", "azure/responses/gpt-5.1"),
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=400,
+        )
+        step_md = response.choices[0].message.content.strip()
+    except Exception as exc:
+        _log.warning("LLM runbook generation failed: %s", exc)
+        step_md = (
+            f"## Resolution: {result.fix_strategy.summary}\n\n"
+            f"- Root cause: {result.rca.root_cause}\n"
+            f"- Fix applied: {result.fix_strategy.actions[0].title if result.fix_strategy.actions else 'Manual'}\n"
+            f"- Investigation: `{request_id}`\n"
+        )
+
+    loader = KnowledgeLoader()
+    runbook_path = loader.append_runbook_step(result.request.service_name, step_md)
+    loader.append_learning(request_id, step_md)
+
+    return {
+        "path": str(runbook_path),
+        "service_name": result.request.service_name,
+        "content": step_md,
+        "message": f"Runbook updated for {result.request.service_name}.",
+    }
 
 
 @router.get("/{request_id}", response_model=InvestigationResult)

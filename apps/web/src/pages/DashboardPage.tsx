@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import Layout from '../components/Layout'
 import {
   fetchInvestigationStats,
   fetchInvestigations,
   fetchBriefing,
+  fetchBriefingAudio,
   type InvestigationStats,
   type InvestigationSummary,
   type BriefingPayload,
@@ -16,6 +18,7 @@ import { ServiceHealthGauge } from '../components/ServiceHealthGauge'
 import { SimulateAlertPanel } from '../components/SimulateAlertPanel'
 import { PredictiveAlertPanel } from '../components/PredictiveAlertPanel'
 import { TopologyRadar } from '../components/TopologyRadar'
+import { RoiWidget } from '../components/RoiWidget'
 import { useTheme } from '../context/ThemeContext'
 
 // ── Morning Briefing widget ───────────────────────────────────────────────
@@ -33,6 +36,34 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
   const conf = data.confidence_breakdown
   const confTotal = conf.high + conf.medium + conf.low
   const maxConf = Math.max(conf.high, conf.medium, conf.low, 1)
+
+  // Voice TTS state
+  const [voiceState, setVoiceState] = useState<'idle' | 'loading' | 'playing' | 'error'>('idle')
+  const [voiceError, setVoiceError] = useState('')
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  async function handleVoice() {
+    if (voiceState === 'playing') {
+      audioRef.current?.pause()
+      setVoiceState('idle')
+      return
+    }
+    setVoiceState('loading')
+    setVoiceError('')
+    try {
+      const blob = await fetchBriefingAudio(data.period_hours)
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audioRef.current = audio
+      audio.onended = () => { setVoiceState('idle'); URL.revokeObjectURL(url) }
+      audio.onerror = () => { setVoiceState('error'); setVoiceError('Playback failed'); URL.revokeObjectURL(url) }
+      await audio.play()
+      setVoiceState('playing')
+    } catch (err) {
+      setVoiceState('error')
+      setVoiceError((err as Error).message)
+    }
+  }
 
   return (
     <div
@@ -92,6 +123,26 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
           }}>
             GPT-4.1
           </span>
+          {/* Voice button */}
+          <button
+            onClick={handleVoice}
+            title={voiceState === 'playing' ? 'Stop voice briefing' : 'Play voice briefing (Azure TTS)'}
+            style={{
+              fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 700,
+              padding: '3px 9px', borderRadius: 6, cursor: 'pointer',
+              background: voiceState === 'playing' ? 'rgba(59,130,246,0.2)' : 'rgba(249,115,22,0.1)',
+              color: voiceState === 'playing' ? '#60a5fa' : voiceState === 'error' ? '#ef4444' : 'var(--c-signal)',
+              border: `1px solid ${voiceState === 'playing' ? 'rgba(59,130,246,0.3)' : 'rgba(249,115,22,0.2)'}`,
+              transition: 'all 0.15s',
+            }}
+          >
+            {voiceState === 'loading' ? '…' : voiceState === 'playing' ? '⏹ Stop' : '▶ Hear'}
+          </button>
+          {voiceState === 'error' && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: '#ef4444' }}>
+              {voiceError}
+            </span>
+          )}
         </div>
       </div>
 
@@ -615,6 +666,10 @@ export default function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 0.95fr) minmax(420px, 1.05fr)', gap: 12, marginBottom: 16, alignItems: 'start' }}>
         <PredictiveAlertPanel />
         <TopologyRadar />
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <RoiWidget />
       </div>
 
       <div className="animate-fade-up" style={{ marginBottom: 14 }}>

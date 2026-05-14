@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Everyday Apps. Extraordinary Engineering.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #070b14;
+      --panel: #0e1527;
+      --text: #f4f7ff;
+      --muted: #b4bfd8;
+      --accent: #ff5f5f;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 20% 20%, #1a2440 0%, #070b14 55%), var(--bg);
+      color: var(--text);
+      font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    .deck {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: clamp(20px, 3vw, 42px);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(24px) scale(0.98);
+      transition: opacity 320ms ease, transform 320ms ease;
+      background:
+        radial-gradient(circle at 85% 10%, color-mix(in srgb, var(--accent), transparent 75%) 0%, transparent 40%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.04), transparent 40%),
+        var(--bg);
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0) scale(1);
+    }
+
+    .slide-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+      padding-bottom: 10px;
+    }
+
+    .kicker {
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .index {
+      color: var(--muted);
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    .content {
+      display: grid;
+      gap: 14px;
+      align-content: center;
+      max-width: 1050px;
+    }
+
+    h1, h2 {
+      margin: 0;
+      line-height: 1.1;
+      text-wrap: balance;
+      font-family: "Space Grotesk", "Manrope", sans-serif;
+    }
+
+    h1 { font-size: clamp(2rem, 5.8vw, 4rem); }
+    h2 { font-size: clamp(1.7rem, 4.2vw, 3rem); }
+
+    .sub {
+      margin: 0;
+      font-size: clamp(1rem, 2vw, 1.4rem);
+      color: var(--muted);
+      max-width: 900px;
+      text-wrap: pretty;
+    }
+
+    .card {
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: clamp(14px, 2vw, 22px);
+      max-width: 980px;
+    }
+
+    .card p {
+      margin: 0;
+      font-size: clamp(1rem, 2vw, 1.28rem);
+      line-height: 1.35;
+    }
+
+    .bullets {
+      margin: 0;
+      padding-left: 1.2em;
+      max-width: 980px;
+      color: var(--text);
+      font-size: clamp(1rem, 2vw, 1.26rem);
+      line-height: 1.38;
+      display: grid;
+      gap: 8px;
+    }
+
+    .wow {
+      border-left: 4px solid var(--accent);
+      padding-left: 14px;
+      font-size: clamp(1.03rem, 2.2vw, 1.35rem);
+      color: #fff;
+      max-width: 960px;
+      line-height: 1.34;
+    }
+
+    .visual {
+      margin-top: 2px;
+      height: clamp(180px, 30vh, 280px);
+      border-radius: 16px;
+      border: 1px dashed rgba(255, 255, 255, 0.28);
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05) 1px, transparent 1px, transparent 30px),
+        linear-gradient(120deg, color-mix(in srgb, var(--accent), transparent 72%), transparent 35%),
+        rgba(255, 255, 255, 0.04);
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-weight: 700;
+      text-align: center;
+      padding: 10px;
+      letter-spacing: 0.02em;
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .visual img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -2;
+      filter: saturate(1.08) contrast(1.04);
+      transform: scale(1.02);
+    }
+
+    .visual::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background:
+        linear-gradient(180deg, rgba(2, 7, 18, 0.16) 0%, rgba(2, 7, 18, 0.72) 100%),
+        linear-gradient(120deg, color-mix(in srgb, var(--accent), transparent 56%), transparent 56%);
+    }
+
+    .visual-label {
+      display: inline-block;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: clamp(0.8rem, 1.5vw, 0.95rem);
+      color: #f8fbff;
+      max-width: 95%;
+    }
+
+    .brand-badges {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 8px;
+      z-index: 2;
+    }
+
+    .brand-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: rgba(3, 8, 20, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      display: grid;
+      place-items: center;
+      backdrop-filter: blur(3px);
+    }
+
+    .brand-badge img {
+      width: 21px;
+      height: 21px;
+      object-fit: contain;
+    }
+
+    .topic-cover h2 {
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    .topic-cover .sub {
+      font-size: clamp(1.06rem, 2vw, 1.36rem);
+      color: #d7def3;
+    }
+
+    .logo-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .logo-chip {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.22);
+    }
+
+    .logo-chip img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+    }
+
+    .foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.16);
+      padding-top: 10px;
+    }
+
+    .progress {
+      width: min(38vw, 420px);
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      overflow: hidden;
+    }
+
+    .progress > div {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent), white 35%));
+      transition: width 240ms ease;
+    }
+
+    .help {
+      position: fixed;
+      right: 14px;
+      bottom: 12px;
+      color: #d6ddf2;
+      font-size: 0.78rem;
+      background: rgba(10, 16, 31, 0.66);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      padding: 7px 11px;
+      backdrop-filter: blur(4px);
+      z-index: 20;
+    }
+
+    .topic-1 { --accent: #e50914; }
+    .topic-2 { --accent: #f97316; }
+    .topic-3 { --accent: #3b82f6; }
+    .topic-4 { --accent: #38bdf8; }
+    .topic-5 { --accent: #22c55e; }
+    .topic-6 { --accent: #9ca3af; }
+
+    @media (max-width: 820px) {
+      .slide { padding: 16px; }
+      .visual { height: 170px; }
+      .help { display: none; }
+      .progress { width: 45vw; }
+    }
+
+    @media print {
+      html, body {
+        overflow: visible;
+        background: #050914;
+      }
+
+      .deck {
+        width: 100%;
+        height: auto;
+      }
+
+      .slide {
+        position: relative;
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
+        break-after: page;
+        min-height: 100vh;
+      }
+
+      .help {
+        display: none;
+      }
+
+      .progress {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" id="deck">
+    <!-- 1 -->
+    <section class="slide active" data-topic="intro">
+      <header class="slide-head">
+        <div class="kicker">Casual Knowledge Share</div>
+        <div class="index">1 / 38</div>
+      </header>
+      <div class="content">
+        <h1>Everyday Apps. Extraordinary Engineering.</h1>
+        <p class="sub">The tech hiding in plain sight</p>
+        <div class="card">
+          <p>[Your Name] | [Date]</p>
+          <div class="logo-strip" aria-label="Tech logos">
+            <span class="logo-chip"><img src="https://cdn.simpleicons.org/netflix/e50914" alt="Netflix" /></span>
+            <span class="logo-chip"><img src="https://cdn.simpleicons.org/swiggy/f97316" alt="Swiggy" /></span>
+            <span class="logo-chip"><img src="https://cdn.simpleicons.org/googlemaps/4285F4" alt="Google Maps" /></span>
+            <span class="logo-chip"><img src="https://cdn.simpleicons.org/shazam/38bdf8" alt="Shazam" /></span>
+            <span class="logo-chip"><img src="https://cdn.simpleicons.org/visa/1A1F71" alt="Visa" /></span>
+            <span class="logo-chip"><img src="https://cdn.simpleicons.org/mastercard/EB001B" alt="Mastercard" /></span>
+            <span class="logo-chip"><img src="https://cdn.simpleicons.org/android/3DDC84" alt="Android" /></span>
+            <span class="logo-chip"><img src="https://cdn.simpleicons.org/uber/ffffff" alt="Uber" /></span>
+          </div>
+        </div>
+        <div class="visual">Split visual: streaming, delivery, maps, music, payments, GPS</div>
+      </div>
+      <footer class="foot"><span>Theme: Dark + one visual + minimal words</span><div class="progress"><div></div></div></footer>
+    </section>
+
+    <!-- Topic 1 -->
+    <section class="slide topic-1 topic-cover"><header class="slide-head"><div class="kicker">Topic 1: OTT Thumbnails</div><div class="index">2 / 38</div></header><div class="content"><h2>When you drag seek, where does preview come from?</h2><p class="sub">Ask and let people guess first.</p><div class="visual">Seek bar + floating preview box</div></div><footer class="foot"><span>Hook</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-1"><header class="slide-head"><div class="kicker">Topic 1</div><div class="index">3 / 38</div></header><div class="content"><h2>Naive idea: hidden video playback</h2><p class="sub">Too slow and too expensive per seek interaction.</p><div class="visual">Tiny player trying to decode entire video repeatedly</div></div><footer class="foot"><span>Misconception</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-1"><header class="slide-head"><div class="kicker">Topic 1</div><div class="index">4 / 38</div></header><div class="content"><h2>Reality: one sprite sheet image</h2><ul class="bullets"><li>Backend grabs frames every ~10 seconds.</li><li>Frames stitched into one grid image.</li><li>Player downloads one image, not many clips.</li></ul><div class="visual">Grid of timestamped mini-frames in one large image</div></div><footer class="foot"><span>Build Once, Reuse Fast</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-1"><header class="slide-head"><div class="kicker">Topic 1</div><div class="index">5 / 38</div></header><div class="content"><h2>Seek 34% -> row 3, col 6</h2><ul class="bullets"><li>Player maps progress to a grid cell.</li><li>It crops that cell instantly.</li><li>No new media decode required.</li></ul><div class="visual">Progress arrow pointing to highlighted grid cell</div></div><footer class="foot"><span>Tiny math beats heavy playback</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-1"><header class="slide-head"><div class="kicker">Topic 1</div><div class="index">6 / 38</div></header><div class="content"><h2>Why instant? CDN edge caching</h2><p class="sub">Thumbnail sprite is already near users geographically.</p><div class="visual">World map with nearby edge server highlighted</div></div><footer class="foot"><span>Latency is mostly geography</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-1"><header class="slide-head"><div class="kicker">Topic 1 Wow</div><div class="index">7 / 38</div></header><div class="content"><h2>Platforms pre-position likely content before demand spikes</h2><p class="wow">Analogy: library moving popular books to neighborhood branch before weekend rush.</p><div class="visual">Delivery truck dropping movie reels at local depot</div></div><footer class="foot"><span>Memorable line</span><div class="progress"><div></div></div></footer></section>
+
+    <!-- Topic 2 -->
+    <section class="slide topic-2 topic-cover"><header class="slide-head"><div class="kicker">Topic 2: Rider Tracking</div><div class="index">8 / 38</div></header><div class="content"><h2>Is the bike icon truly live?</h2><p class="sub">Ask: how often do updates arrive?</p><div class="visual">Map with rider icon moving between roads</div></div><footer class="foot"><span>Hook</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-2"><header class="slide-head"><div class="kicker">Topic 2</div><div class="index">9 / 38</div></header><div class="content"><h2>Rider app sends GPS every 3-5 seconds</h2><ul class="bullets"><li>Background service reads location.</li><li>Coordinates sent to backend.</li><li>Battery and bandwidth kept manageable.</li></ul><div class="visual">Phone GPS ping -> cloud</div></div><footer class="foot"><span>Input stream</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-2"><header class="slide-head"><div class="kicker">Topic 2</div><div class="index">10 / 38</div></header><div class="content"><h2>One location update, many consumers</h2><ul class="bullets"><li>Customer app view.</li><li>Restaurant dashboard view.</li><li>Operations monitoring view.</li></ul><div class="visual">Fan-out diagram from one event stream</div></div><footer class="foot"><span>Event queue pattern</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-2"><header class="slide-head"><div class="kicker">Topic 2</div><div class="index">11 / 38</div></header><div class="content"><h2>REST asks repeatedly. WebSocket pushes immediately.</h2><p class="sub">Waiter analogy: polling vs callback.</p><div class="visual">Left: repeated calls. Right: instant push notification.</div></div><footer class="foot"><span>Most memorable explainer</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-2"><header class="slide-head"><div class="kicker">Topic 2 Secret</div><div class="index">12 / 38</div></header><div class="content"><h2>Smooth rider motion is interpolation, not raw GPS</h2><ul class="bullets"><li>Real points are jumpy and sparse.</li><li>UI predicts in-between path smoothly.</li><li>You watch an educated guess animation.</li></ul><div class="visual">Jumpy dots transformed into smooth arc</div></div><footer class="foot"><span>Wow Fact + Cricket trajectory analogy</span><div class="progress"><div></div></div></footer></section>
+
+    <!-- Topic 3 -->
+    <section class="slide topic-3 topic-cover"><header class="slide-head"><div class="kicker">Topic 3: Maps Traffic</div><div class="index">13 / 38</div></header><div class="content"><h2>Maps shows traffic without road cameras</h2><p class="sub">So where does road speed come from?</p><div class="visual">Red and orange road overlay with no cameras shown</div></div><footer class="foot"><span>Hook</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-3"><header class="slide-head"><div class="kicker">Topic 3</div><div class="index">14 / 38</div></header><div class="content"><h2>Your phone is a moving traffic sensor</h2><ul class="bullets"><li>Anonymous speed signals from many devices.</li><li>If expected 80, observed 8 -> jam.</li><li>Crowd signals beat fixed hardware coverage.</li></ul><div class="visual">Hundreds of phones feeding a road-speed model</div></div><footer class="foot"><span>Wow: users create the map</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-3"><header class="slide-head"><div class="kicker">Topic 3</div><div class="index">15 / 38</div></header><div class="content"><h2>Two brains: real-time and historical</h2><p class="sub">Now-data handles current conditions. History handles expected patterns.</p><div class="visual">Split panel: live stream vs calendar trend history</div></div><footer class="foot"><span>System decomposition</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-3"><header class="slide-head"><div class="kicker">Topic 3</div><div class="index">16 / 38</div></header><div class="content"><h2>Holiday prediction = pattern matching over years</h2><ul class="bullets"><li>Compare date, time, road segment.</li><li>Weight recent years more heavily.</li><li>Include events, schools, weekday effects.</li></ul><div class="visual">Five-year recurring holiday traffic spike chart</div></div><footer class="foot"><span>Predictive statistics, not fortune telling</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-3"><header class="slide-head"><div class="kicker">Topic 3</div><div class="index">17 / 38</div></header><div class="content"><h2>ETA blends history and live data continuously</h2><p class="sub">Far away: more historical. Near destination: more real-time.</p><div class="visual">Blend ratio dial shifting as route progresses</div></div><footer class="foot"><span>Practical heuristic in motion</span><div class="progress"><div></div></div></footer></section>
+
+    <!-- Topic 4 -->
+    <section class="slide topic-4 topic-cover"><header class="slide-head"><div class="kicker">Topic 4: Shazam</div><div class="index">18 / 38</div></header><div class="content"><h2>Five seconds in noise, exact song found</h2><p class="sub">Ask audience: lyrics? AI? full audio compare?</p><div class="visual">Phone listening in a noisy room</div></div><footer class="foot"><span>Hook</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-4"><header class="slide-head"><div class="kicker">Topic 4</div><div class="index">19 / 38</div></header><div class="content"><h2>What it is not doing</h2><ul class="bullets"><li>Not matching full song waveforms.</li><li>Not relying on lyrics transcription.</li><li>Not brute-force scanning raw audio.</li></ul><div class="visual">Three crossed-out heavy approaches</div></div><footer class="foot"><span>Clear misconceptions first</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-4"><header class="slide-head"><div class="kicker">Topic 4</div><div class="index">20 / 38</div></header><div class="content"><h2>Spectrogram peaks look like constellations</h2><ul class="bullets"><li>Convert audio into frequency over time.</li><li>Pick strongest distinctive points.</li><li>Those points survive many distortions.</li></ul><div class="visual">Star-map style peak dots on spectrogram</div></div><footer class="foot"><span>Main concept</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-4"><header class="slide-head"><div class="kicker">Topic 4</div><div class="index">21 / 38</div></header><div class="content"><h2>Pair peaks -> hash -> compact fingerprint</h2><p class="sub">Tiny signature sent, then matched against huge fingerprint index.</p><div class="visual">Peak A + Peak B -> hash token</div></div><footer class="foot"><span>Efficient identity trick</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-4"><header class="slide-head"><div class="kicker">Topic 4</div><div class="index">22 / 38</div></header><div class="content"><h2>Noise fails to repeat. Song structure repeats.</h2><p class="sub">Random chatter does not produce stable fingerprint pairs.</p><div class="visual">Noisy waveform vs stable peak anchors</div></div><footer class="foot"><span>Why robustness works</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-4"><header class="slide-head"><div class="kicker">Topic 4 Wow</div><div class="index">23 / 38</div></header><div class="content"><h2>Millions searched using only a tiny fingerprint sample</h2><p class="wow">Analogy: identify a face from a few distances, not full portrait pixels.</p><div class="visual">Fingerprint icon racing through a giant song library</div></div><footer class="foot"><span>Memorable line</span><div class="progress"><div></div></div></footer></section>
+
+    <!-- Topic 5 -->
+    <section class="slide topic-5 topic-cover"><header class="slide-head"><div class="kicker">Topic 5: OTP and Card Security</div><div class="index">24 / 38</div></header><div class="content"><h2>Phone and bank show same OTP with no chat</h2><p class="sub">How can both sides compute identical digits?</p><div class="visual">Two devices, same 6-digit code, no connecting line</div></div><footer class="foot"><span>Hook</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-5"><header class="slide-head"><div class="kicker">Topic 5</div><div class="index">25 / 38</div></header><div class="content"><h2>Shared secret + current time -> OTP</h2><ul class="bullets"><li>Secret copied once during setup QR.</li><li>Both sides use same 30s time bucket.</li><li>Hash function outputs matching digits.</li></ul><div class="visual">Equation block: secret + time -> code</div></div><footer class="foot"><span>TOTP in plain language</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-5"><header class="slide-head"><div class="kicker">Topic 5</div><div class="index">26 / 38</div></header><div class="content"><h2>Thirty-second window helps clock drift tolerance</h2><p class="sub">Not just security. It handles imperfect device clocks.</p><div class="visual">Two slightly offset clocks still matching in same window</div></div><footer class="foot"><span>Surprising reason</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-5"><header class="slide-head"><div class="kicker">Topic 5</div><div class="index">27 / 38</div></header><div class="content"><h2>Card number check digit is calculated, not random</h2><p class="sub">Last digit validates typing errors before server contact.</p><div class="visual">16-digit number with last digit highlighted</div></div><footer class="foot"><span>Act 2 starts</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-5"><header class="slide-head"><div class="kicker">Topic 5</div><div class="index">28 / 38</div></header><div class="content"><h2>Luhn algorithm catches many mistakes instantly</h2><ul class="bullets"><li>Double alternate digits from right.</li><li>If result > 9, subtract 9.</li><li>Total must be divisible by 10.</li></ul><div class="visual">Step-by-step validation flow</div></div><footer class="foot"><span>1954 math still everywhere</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-5"><header class="slide-head"><div class="kicker">Topic 5</div><div class="index">29 / 38</div></header><div class="content"><h2>CVV is typically not stored by merchants</h2><ul class="bullets"><li>Issuer can recompute expected CVV.</li><li>Storage is heavily restricted by PCI rules.</li><li>Breach dumps usually miss CVV values.</li></ul><div class="visual">Crossed-out database beside CVV field</div></div><footer class="foot"><span>Compliance meets cryptography</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-5"><header class="slide-head"><div class="kicker">Topic 5 Wow</div><div class="index">30 / 38</div></header><div class="content"><h2>Chip cards create unique cryptogram per transaction</h2><p class="wow">Analogy: magnetic stripe is photocopy ID; chip is changing secret handshake.</p><div class="visual">Transaction 1 code != Transaction 2 code</div></div><footer class="foot"><span>Replay attacks blocked</span><div class="progress"><div></div></div></footer></section>
+
+    <!-- Topic 6 -->
+    <section class="slide topic-6 topic-cover"><header class="slide-head"><div class="kicker">Topic 6: GPS and Einstein</div><div class="index">31 / 38</div></header><div class="content"><h2>GPS works without internet because phone mostly listens</h2><p class="sub">Location is solved from timing, not data connection.</p><div class="visual">Airplane mode phone still showing a location dot</div></div><footer class="foot"><span>Hook</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-6"><header class="slide-head"><div class="kicker">Topic 6</div><div class="index">32 / 38</div></header><div class="content"><h2>At least four satellites send precise time stamps</h2><ul class="bullets"><li>Signal travel time implies distance.</li><li>Nanoseconds matter at light speed.</li><li>Multiple distances narrow your position.</li></ul><div class="visual">Earth with 4 satellites and timing beams</div></div><footer class="foot"><span>Measurement setup</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-6"><header class="slide-head"><div class="kicker">Topic 6</div><div class="index">33 / 38</div></header><div class="content"><h2>Trilateration: intersect spheres to find one 3D point</h2><p class="sub">Fourth satellite helps fix altitude and clock offset.</p><div class="visual">Overlapping spheres converging to one point</div></div><footer class="foot"><span>Core geometry</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-6"><header class="slide-head"><div class="kicker">Topic 6 Wow</div><div class="index">34 / 38</div></header><div class="content"><h2>Ignoring relativity would break GPS by kilometers daily</h2><ul class="bullets"><li>Special relativity effect: about -7 microseconds/day.</li><li>General relativity effect: about +45 microseconds/day.</li><li>Net +38 microseconds/day causes huge position drift.</li></ul><div class="visual">Einstein pin icon over map with drifting path</div></div><footer class="foot"><span>Physics in production</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide topic-6"><header class="slide-head"><div class="kicker">Topic 6</div><div class="index">35 / 38</div></header><div class="content"><h2>Relativity correction is baked into satellite clock systems</h2><p class="sub">Your ride ETA depends on century-old equations.</p><div class="visual">Atomic clock calibration with correction offset</div></div><footer class="foot"><span>Closing wow for topic</span><div class="progress"><div></div></div></footer></section>
+
+    <!-- Closing -->
+    <section class="slide"><header class="slide-head"><div class="kicker">Closing</div><div class="index">36 / 38</div></header><div class="content"><h2>Common thread across all six systems</h2><p class="sub">Speed at scale from imperfect inputs and smart approximations.</p><div class="visual">Six topic icons arranged in one connected loop</div></div><footer class="foot"><span>Big picture</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide"><header class="slide-head"><div class="kicker">Takeaway</div><div class="index">37 / 38</div></header><div class="content"><h2>The magic is mostly old ideas, engineered extremely well</h2><ul class="bullets"><li>Streaming: sprites + CDN.</li><li>Delivery: interpolation + push updates.</li><li>Maps: crowdsensed data + prediction.</li><li>Shazam: sparse fingerprints.</li><li>Payments: checksum and cryptography.</li><li>GPS: relativity in hardware.</li></ul><div class="visual">Fast recap board of all secrets</div></div><footer class="foot"><span>One-line recap per topic</span><div class="progress"><div></div></div></footer></section>
+    <section class="slide"><header class="slide-head"><div class="kicker">Q and A</div><div class="index">38 / 38</div></header><div class="content"><h2>What everyday app should we decode next?</h2><p class="sub">Open discussion and team picks for the next session.</p><div class="visual">Magnifier over a smartphone home screen</div></div><footer class="foot"><span>Thanks</span><div class="progress"><div></div></div></footer></section>
+  </main>
+
+  <div class="help">Use Left/Right arrows, Space, or click screen edges</div>
+
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const total = slides.length;
+      let current = 0;
+
+      const slideImageOverride = {
+        1: 'https://source.unsplash.com/1600x900/?ott,streaming,netflix,ui',
+        2: 'https://source.unsplash.com/1600x900/?video,player,timeline',
+        3: 'https://source.unsplash.com/1600x900/?sprite,sheet,animation,grid',
+        4: 'https://source.unsplash.com/1600x900/?coding,grid,image,map',
+        5: 'https://source.unsplash.com/1600x900/?cdn,datacenter,network,map',
+        6: 'https://source.unsplash.com/1600x900/?library,books,delivery',
+        7: 'https://source.unsplash.com/1600x900/?food,delivery,scooter,india',
+        8: 'https://source.unsplash.com/1600x900/?delivery,rider,map,phone',
+        9: 'https://source.unsplash.com/1600x900/?kafka,stream,data,dashboard',
+        10: 'https://source.unsplash.com/1600x900/?websocket,chat,notification',
+        11: 'https://source.unsplash.com/1600x900/?gps,map,route,animation',
+        12: 'https://source.unsplash.com/1600x900/?google,maps,traffic,city',
+        13: 'https://source.unsplash.com/1600x900/?highway,traffic,cars,topview',
+        14: 'https://source.unsplash.com/1600x900/?data,stream,analytics,realtime',
+        15: 'https://source.unsplash.com/1600x900/?calendar,prediction,data',
+        16: 'https://source.unsplash.com/1600x900/?navigation,eta,route',
+        17: 'https://source.unsplash.com/1600x900/?concert,music,phone,bar',
+        18: 'https://source.unsplash.com/1600x900/?audio,waveform,spectrum',
+        19: 'https://source.unsplash.com/1600x900/?spectrogram,sound,analysis',
+        20: 'https://source.unsplash.com/1600x900/?fingerprint,security,hash',
+        21: 'https://source.unsplash.com/1600x900/?noise,music,headphones',
+        22: 'https://source.unsplash.com/1600x900/?music,library,digital',
+        23: 'https://source.unsplash.com/1600x900/?otp,authenticator,security',
+        24: 'https://source.unsplash.com/1600x900/?qr,code,security,phone',
+        25: 'https://source.unsplash.com/1600x900/?clock,time,sync',
+        26: 'https://source.unsplash.com/1600x900/?credit,card,payment,macro',
+        27: 'https://source.unsplash.com/1600x900/?numbers,math,algorithm',
+        28: 'https://source.unsplash.com/1600x900/?payment,breach,cybersecurity',
+        29: 'https://source.unsplash.com/1600x900/?chip,card,pos,terminal',
+        30: 'https://source.unsplash.com/1600x900/?gps,satellite,smartphone',
+        31: 'https://source.unsplash.com/1600x900/?satellite,earth,space,signal',
+        32: 'https://source.unsplash.com/1600x900/?trilateration,geometry,spheres',
+        33: 'https://source.unsplash.com/1600x900/?einstein,space,time,physics',
+        34: 'https://source.unsplash.com/1600x900/?atomic,clock,satellite',
+        35: 'https://source.unsplash.com/1600x900/?systems,engineering,network',
+        36: 'https://source.unsplash.com/1600x900/?technology,montage',
+        37: 'https://source.unsplash.com/1600x900/?qanda,presentation,audience'
+      };
+
+      const brandByTopic = {
+        'topic-1': [
+          { name: 'Netflix', icon: 'https://cdn.simpleicons.org/netflix/e50914' }
+        ],
+        'topic-2': [
+          { name: 'Swiggy', icon: 'https://cdn.simpleicons.org/swiggy/f97316' },
+          { name: 'Zomato', icon: 'https://cdn.simpleicons.org/zomato/e23744' }
+        ],
+        'topic-3': [
+          { name: 'Google Maps', icon: 'https://cdn.simpleicons.org/googlemaps/4285F4' },
+          { name: 'Android', icon: 'https://cdn.simpleicons.org/android/3DDC84' }
+        ],
+        'topic-4': [
+          { name: 'Shazam', icon: 'https://cdn.simpleicons.org/shazam/38bdf8' }
+        ],
+        'topic-5': [
+          { name: 'Visa', icon: 'https://cdn.simpleicons.org/visa/1A1F71' },
+          { name: 'Mastercard', icon: 'https://cdn.simpleicons.org/mastercard/EB001B' }
+        ],
+        'topic-6': [
+          { name: 'GPS', icon: 'https://cdn.simpleicons.org/googleearth/8AB4F8' }
+        ]
+      };
+
+      function appendBrandBadges(box, topicClass) {
+        const brands = brandByTopic[topicClass] || [];
+        if (!brands.length) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'brand-badges';
+
+        brands.forEach((b) => {
+          const badge = document.createElement('span');
+          badge.className = 'brand-badge';
+          badge.title = b.name;
+          const img = document.createElement('img');
+          img.src = b.icon;
+          img.alt = b.name;
+          badge.appendChild(img);
+          wrap.appendChild(badge);
+        });
+
+        box.appendChild(wrap);
+      }
+
+      function applyVisualMedia() {
+        const visuals = Array.from(document.querySelectorAll('.visual'));
+        visuals.forEach((box, i) => {
+          const label = box.textContent.trim();
+          const slide = box.closest('.slide');
+          const topicClass = Array.from(slide.classList).find((c) => c.startsWith('topic-'));
+          const slideNo = i + 1;
+          const curated = slideImageOverride[slideNo] || ('https://source.unsplash.com/1600x900/?' + encodeURIComponent(label + ',technology'));
+          const unsplashByQuery = 'https://source.unsplash.com/1600x900/?' + encodeURIComponent(label + ',technology');
+
+          const img = document.createElement('img');
+          img.alt = label || 'Slide visual';
+          img.loading = 'lazy';
+          img.src = curated;
+          img.onerror = function () {
+            img.onerror = function () {
+              img.src = 'https://picsum.photos/seed/slide-' + (i + 1) + '/1600/900';
+            };
+            img.src = unsplashByQuery;
+          };
+
+          const badge = document.createElement('div');
+          badge.className = 'visual-label';
+          badge.textContent = label;
+
+          box.textContent = '';
+          box.appendChild(img);
+          box.appendChild(badge);
+          appendBrandBadges(box, topicClass);
+        });
+      }
+
+      function render() {
+        slides.forEach((s, i) => s.classList.toggle('active', i === current));
+        const ratio = ((current + 1) / total) * 100;
+        document.querySelectorAll('.progress > div').forEach((bar) => {
+          bar.style.width = ratio + '%';
+        });
+      }
+
+      function next() {
+        if (current < total - 1) {
+          current += 1;
+          render();
+        }
+      }
+
+      function prev() {
+        if (current > 0) {
+          current -= 1;
+          render();
+        }
+      }
+
+      window.addEventListener('keydown', (e) => {
+        const k = e.key;
+        if (k === 'ArrowRight' || k === 'PageDown' || k === ' ') {
+          e.preventDefault();
+          next();
+        }
+        if (k === 'ArrowLeft' || k === 'PageUp' || k === 'Backspace') {
+          e.preventDefault();
+          prev();
+        }
+        if (k === 'Home') {
+          current = 0;
+          render();
+        }
+        if (k === 'End') {
+          current = total - 1;
+          render();
+        }
+        if (k.toLowerCase() === 'p') {
+          window.print();
+        }
+      });
+
+      window.addEventListener('click', (e) => {
+        const x = e.clientX;
+        if (x < window.innerWidth * 0.35) prev();
+        else next();
+      });
+
+      applyVisualMedia();
+      render();
+    })();
+  </script>
+</body>
+</html>

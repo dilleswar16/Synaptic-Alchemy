@@ -13,6 +13,8 @@ import { ApprovalSection, type ApprovalAction } from '../components/investigatio
 import { ExecutionSection } from '../components/investigation/ExecutionSection'
 import { AuditTrailSection } from '../components/investigation/AuditTrailSection'
 import { PostMortemSection } from '../components/investigation/PostMortemSection'
+import { IncidentHeroCard } from '../components/investigation/IncidentHeroCard'
+import { RunbookUpdatePrompt } from '../components/investigation/RunbookUpdatePrompt'
 import { TechnicalHighlighter } from '../components/TechnicalHighlighter'
 import { Section } from '../components/Section'
 import { BlastRadiusCard } from '../components/BlastRadiusCard'
@@ -224,6 +226,7 @@ export default function InvestigationDetailPage() {
         {/* Main content */}
         {data && (
           <>
+            <IncidentHeroCard data={data} approvalStatus={approvalStatus} />
             <SlaCountdownCard requestId={id!} status={approvalStatus} />
             <BlastRadiusCard requestId={id!} />
             <div style={{ 
@@ -299,6 +302,12 @@ export default function InvestigationDetailPage() {
                 />
                 <ExecutionSection requestId={id!} status={approvalStatus} />
                 <PostMortemSection requestId={id!} isExecuted={approvalStatus === 'executed'} />
+                {approvalStatus === 'executed' && (
+                  <RunbookUpdatePrompt
+                    requestId={id!}
+                    serviceName={data.request?.service_name ?? 'unknown'}
+                  />
+                )}
               </div>
             </div>
             </div>

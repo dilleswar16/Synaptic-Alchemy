@@ -58,6 +58,26 @@ simulator_presets:
     environment: dev
     description: "Heap usage climbing steadily — fundapis at 89% memory limit, OOM kill expected within 2 hours."
 
+# ── V3.9: ROI Dashboard ────────────────────────────────────────────────────────
+# Baseline MTTR (minutes) before Corvin — used to calculate time saved.
+baseline_mttr_minutes: 45
+# Loaded engineer cost per hour (salary + oncall premium).
+engineer_hourly_rate_gbp: 120
+# Currency label shown in the UI.
+roi_currency: GBP
+
+# ── V3.9: Voice Briefing (Azure TTS) ─────────────────────────────────────────
+# Set to false to disable TTS endpoint even if AZURE_SPEECH_KEY is set.
+voice_briefing_enabled: true
+# Azure TTS voice name. See: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support
+voice_name: en-GB-RyanNeural
+
+# ── V3.9: War Room ────────────────────────────────────────────────────────────
+# Set to true to enable auto-creation of Teams incident channels via Graph API.
+war_room_enabled: false
+# Minimum alert severity that triggers a war room channel (critical | high | medium)
+war_room_min_severity: critical
+
 # ── V3.7: Intelligence Layer ─────────────────────────────────────────────────
 predictive_background_enabled: true
 predictive_interval_seconds: 300

@@ -430,3 +430,66 @@ export function fetchTopology() {
   return apiFetch<ServiceTopology>('/investigations/topology')
 }
 
+// ── V3.9: ROI Dashboard ───────────────────────────────────────────────────
+
+export interface RoiStats {
+  period_months: number
+  total_incidents: number
+  baseline_mttr_minutes: number
+  corvin_mttr_minutes: number
+  hours_saved: number
+  cost_saved: number
+  currency: string
+  incidents_per_day: number
+  mttr_reduction_pct: number
+}
+
+export function fetchRoi() {
+  return apiFetch<RoiStats>('/investigations/roi')
+}
+
+// ── V3.9: Runbook Update ──────────────────────────────────────────────────
+
+export interface RunbookUpdateResult {
+  path: string
+  service_name: string
+  content: string
+  message: string
+}
+
+export function updateRunbook(requestId: string) {
+  return apiFetch<RunbookUpdateResult>(`/investigations/${requestId}/update-runbook`, {
+    method: 'POST',
+  })
+}
+
+// ── V3.9: Voice Briefing ──────────────────────────────────────────────────
+
+export async function fetchBriefingAudio(hours = 24): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/investigations/briefing/audio?hours=${hours}`)
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(detail.detail ?? `TTS error ${res.status}`)
+  }
+  return res.blob()
+}
+
+// ── V3.9: War Room ────────────────────────────────────────────────────────
+
+export interface WarRoomResult {
+  channel_name: string
+  channel_id: string
+  web_url: string
+  investigation_id: string
+  message: string
+}
+
+export function createWarRoom(payload: {
+  investigation_id: string
+  service_name: string
+  environment: string
+  severity: string
+}) {
+  return apiFetch<WarRoomResult>('/teams/war-room', { method: 'POST', body: JSON.stringify(payload) })
+}
+

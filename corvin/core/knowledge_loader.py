@@ -179,3 +179,59 @@ class KnowledgeLoader:
 
         combined = "\n\n---\n\n".join(parts)
         return combined[:max_chars]
+
+    # ── Write-back: learnings + runbook steps ─────────────────────────────────
+
+    def append_learning(self, investigation_id: str, content: str) -> Path:
+        """Write a learning entry to knowledge/learnings/<investigation_id>.md.
+
+        Creates the file if it does not exist; overwrites if it does.
+        Returns the path written.
+        """
+        learnings_dir = self._resolve("learnings_path")
+        learnings_dir.mkdir(parents=True, exist_ok=True)
+        path = learnings_dir / f"{investigation_id}.md"
+        path.write_text(content, encoding="utf-8")
+        return path
+
+    def append_runbook_step(self, service_name: str, step_markdown: str) -> Path:
+        """Append a resolution step to knowledge/runbooks/<service_name>.md.
+
+        Creates the runbook file if it does not exist. Also ensures a catalog
+        entry exists for the service so the runbook is matched in future prompts.
+        Returns the path written.
+        """
+        runbooks_dir = self._resolve("runbooks_path")
+        runbooks_dir.mkdir(parents=True, exist_ok=True)
+
+        runbook_path = runbooks_dir / f"{service_name}.md"
+        existing = _read_file(runbook_path)
+
+        separator = "\n\n---\n\n" if existing.strip() else ""
+        runbook_path.write_text(existing + separator + step_markdown, encoding="utf-8")
+
+        self._ensure_catalog_entry(service_name, runbooks_dir)
+        return runbook_path
+
+    def _ensure_catalog_entry(self, service_name: str, runbooks_dir: Path) -> None:
+        """Add a catalog.json entry for service_name if one does not exist."""
+        catalog_path = runbooks_dir / "catalog.json"
+        entries: list[dict] = []
+        if catalog_path.exists():
+            try:
+                payload = json.loads(catalog_path.read_text(encoding="utf-8"))
+                entries = payload if isinstance(payload, list) else payload.get("entries", [])
+            except (json.JSONDecodeError, AttributeError):
+                entries = []
+
+        if any(e.get("keyword") == service_name for e in entries):
+            return  # already registered
+
+        entries.append({
+            "keyword": service_name,
+            "title": f"{service_name.title()} Runbook",
+            "file": f"runbooks/{service_name}.md",
+            "match_patterns": [service_name],
+        })
+        catalog_path.write_text(json.dumps(entries, indent=2), encoding="utf-8")
+

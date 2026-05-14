@@ -1,6 +1,6 @@
 # Corvin Hackathon Feature Roadmap
 
-**Status at time of writing:** V3+ complete, 381/381 tests passing.  
+**Status at time of writing:** V3.9 complete, 433/433 tests passing.  
 **Next locked version:** V4 — Semantic Search / Vector RAG (requires pgvector on Azure Postgres).  
 **This file:** defines three intermediate versions (V3.5, V3.7, V3.9) that slot between V3+ and V4.
 
@@ -11,12 +11,12 @@
 | Version | Theme | Status |
 | :--- | :--- | :--- |
 | V1–V3+ | Core platform + polish | ✅ Complete |
-| **V3.5** | Demo-critical: Alert Simulator, Teams Cards, Blast Radius, Corvin Score | 🔒 Next |
-| **V3.7** | Intelligence layer: Predictive Detection, SLA Countdown, Dependency Visualizer, Remediation Preview | 🔒 Locked |
-| **V3.9** | Polish + enterprise: ROI Dashboard, Voice TTS, 3AM Mode, Runbook Auto-Update, War Room, Confidence Routing | 🔒 Locked |
-| **V4** | Semantic Search / Vector RAG (pgvector) | 🔒 Locked |
+| **V3.5** | Demo-critical: Alert Simulator, Teams Cards, Blast Radius, Corvin Score | ✅ Complete |
+| **V3.7** | Intelligence layer: Predictive Detection, SLA Countdown, Dependency Visualizer, Remediation Preview | ✅ Complete |
+| **V3.9** | Polish + enterprise: ROI Dashboard, Voice TTS, 3AM Mode, Runbook Auto-Update, War Room, Confidence Routing | ✅ Complete — 16/16 slice tests, 433/433 full suite |
+| **V4** | Semantic Search / Vector RAG (pgvector) | 🔒 Next |
 
-Do NOT start a version until the previous version's exit criteria are met.
+Do NOT start V4 until the V3.9 exit criteria column is confirmed above.
 
 ---
 

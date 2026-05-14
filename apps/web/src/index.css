@@ -990,4 +990,38 @@
     animation: scan-sweep 1.5s ease 0.2s both;
     pointer-events: none;
   }
+
+  /* ── 3AM Mode — focus view for on-call ──────────────────────────────────── */
+  /* When data-3am="1" on <html>, hide non-critical panels.
+     The hero card, SLA countdown, approval, and execution remain visible. */
+
+  [data-3am="1"] .three-am-hide {
+    display: none !important;
+  }
+
+  [data-3am="1"] .three-am-dim {
+    opacity: 0.45;
+    pointer-events: none;
+    filter: grayscale(0.4);
+    transition: opacity 0.3s, filter 0.3s;
+  }
+
+  /* Glow the page border blue-shift in 3AM mode.
+     NOTE: applying filter to body creates a new stacking context and breaks
+     position:fixed elements (NavBar, modals). Apply dimming to the app root
+     instead, and exclude the navbar from dimming via three-am-exclude. */
+  [data-3am="1"] #root {
+    filter: brightness(0.92) saturate(0.85);
+  }
+
+  /* Allow fixed/sticky elements (NavBar) to escape the 3AM dim */
+  [data-3am="1"] .three-am-exclude {
+    filter: none !important;
+  }
+
+  /* Skeleton loading pulse keyframe */
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
 }
