@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Everyday Apps. Extraordinary Engineering.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+  :root { --font: 'Inter', 'Segoe UI', sans-serif; }
+  
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #050810;
+  --panel: #0b1120;
+  --panel2: #111827;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --dimmed: #475569;
+  --accent: #6366f1;
+  --shadow: 0 24px 80px rgba(0,0,0,.55);
+  --radius: 18px;
+  --font: "Inter","Segoe UI","Helvetica Neue",Arial,sans-serif;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── deck & slide ─────────────────────────────────────────── */
+#deck {
+  width: 100vw; height: 100vh;
+  position: relative;
+}
+
+section.slide {
+  position: absolute; inset: 0;
+  opacity: 0; pointer-events: none;
+  transform: translateX(28px) scale(.985);
+  transition: opacity .38s cubic-bezier(.4,0,.2,1), transform .38s cubic-bezier(.4,0,.2,1);
+  background:
+    radial-gradient(ellipse 60% 55% at 90% 5%, color-mix(in srgb, var(--accent), transparent 74%), transparent 55%),
+    radial-gradient(ellipse 40% 35% at 8% 95%, color-mix(in srgb, var(--accent), transparent 82%), transparent 50%),
+    var(--bg);
+}
+
+section.slide.active {
+  opacity: 1; pointer-events: auto;
+  transform: translateX(0) scale(1);
+}
+
+section.slide.exit {
+  opacity: 0;
+  transform: translateX(-28px) scale(.985);
+}
+
+/* ── background image ─────────────────────────────────────── */
+.slide-bg-img {
+  position: absolute; inset: 0; z-index: 0;
+  overflow: hidden;
+}
+.slide-bg-img img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  filter: saturate(1.1) contrast(1.05);
+  transform: scale(1.04);
+  transition: transform 8s ease-out;
+}
+section.slide.active .slide-bg-img img { transform: scale(1); }
+.bg-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg,rgba(5,8,18,.88) 0%,rgba(5,8,18,.65) 100%);
+}
+
+/* ── inner ────────────────────────────────────────────────── */
+.slide-inner {
+  position: relative; z-index: 1;
+  width: 100%; height: 100%;
+  padding: clamp(22px,3.2vw,52px);
+  display: flex; flex-direction: column; gap: 16px;
+  justify-content: center;
+}
+
+.slide-num {
+  position: absolute; bottom: 20px; right: 26px;
+  font-size: .8rem; color: var(--dimmed);
+  letter-spacing: .04em; z-index: 10;
+}
+
+/* ── kicker ───────────────────────────────────────────────── */
+.kicker {
+  font-size: clamp(.7rem,.85vw,.9rem);
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex; align-items: center; gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+}
+.kicker::before {
+  content: '';
+  display: block; width: 22px; height: 3px;
+  border-radius: 99px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── titles ───────────────────────────────────────────────── */
+.slide-title {
+  font-size: clamp(1.9rem,4.5vw,3.6rem);
+  font-weight: 800;
+  line-height: 1.09;
+  letter-spacing: -.02em;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.slide-title2 {
+  font-size: clamp(1.4rem,3.2vw,2.7rem);
+  font-weight: 700;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.slide-body {
+  font-size: clamp(1rem,1.6vw,1.35rem);
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 860px;
+}
+
+/* ── bullets ──────────────────────────────────────────────── */
+.bullets {
+  list-style: none;
+  display: flex; flex-direction: column; gap: 9px;
+  max-width: 860px;
+}
+.bullets li {
+  font-size: clamp(.95rem,1.55vw,1.25rem);
+  color: #dde4f0;
+  line-height: 1.38;
+  padding-left: 1.6em;
+  position: relative;
+}
+.bullets li::before {
+  content: '▸';
+  position: absolute; left: 0;
+  color: var(--accent);
+  font-size: .95em;
+}
+
+/* ── wow box ─────────────────────────────────────────────── */
+.wow-box {
+  border-left: 4px solid var(--accent);
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--accent), transparent 90%);
+  border-radius: 0 12px 12px 0;
+  font-size: clamp(.95rem,1.55vw,1.22rem);
+  color: #f1f5f9;
+  line-height: 1.4;
+  max-width: 900px;
+}
+
+/* ── logo strip ───────────────────────────────────────────── */
+.logo-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.logo-chip {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.18);
+  display: grid; place-items: center;
+  box-shadow: 0 6px 24px rgba(0,0,0,.25);
+}
+.logo-chip img { width: 30px; height: 30px; object-fit: contain; }
+
+/* ── chips ────────────────────────────────────────────────── */
+.chip-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.topic-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid;
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+}
+.chip-icon { font-size: 1.3rem; }
+.chip-label { font-size: .88rem; font-weight: 600; }
+
+/* ── image wrapper ────────────────────────────────────────── */
+.slide-img-wrap {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: var(--shadow);
+}
+.slide-img-wrap img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 6s ease-out;
+}
+section.slide.active .slide-img-wrap img { transform: scale(1.03); }
+.img-credit {
+  position: absolute; bottom: 8px; right: 10px;
+  font-size: .68rem; color: rgba(255,255,255,.4);
+  background: rgba(0,0,0,.35); padding: 2px 7px; border-radius: 999px;
+}
+
+/* ══ LAYOUT: title ═══════════════════════════════════════════ */
+.layout-title {
+  justify-content: flex-end;
+  padding-bottom: clamp(28px,5vh,70px);
+}
+.layout-title .slide-title { font-size: clamp(2.4rem,7vw,5.5rem); }
+
+/* ══ LAYOUT: hook ════════════════════════════════════════════ */
+.layout-hook { justify-content: flex-end; }
+.hook-text { max-width: 780px; display: flex; flex-direction: column; gap: 14px; }
+.layout-hook .slide-title { font-size: clamp(2rem,5.5vw,4.2rem); }
+
+/* ══ LAYOUT: split ═══════════════════════════════════════════ */
+.layout-split {
+  flex-direction: row !important;
+  align-items: stretch;
+  gap: 28px;
+}
+.split-left {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 16px;
+  justify-content: center;
+}
+.split-right {
+  flex: 0 0 min(46%, 580px);
+  display: flex; flex-direction: column;
+}
+.split-right .slide-img-wrap { flex: 1; }
+
+/* ══ LAYOUT: two-col ════════════════════════════════════════ */
+.layout-two-col { gap: 14px; }
+.two-col-head { display: flex; flex-direction: column; gap: 6px; }
+.two-col-body {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  flex: 1; align-content: start;
+}
+.col-card {
+  background: var(--panel); border: 1px solid;
+  border-radius: var(--radius); padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 12px;
+  box-shadow: var(--shadow);
+}
+.col-head {
+  font-size: clamp(.95rem,1.5vw,1.2rem);
+  font-weight: 700; line-height: 1.2;
+}
+.col-bullets {
+  list-style: none; display: flex; flex-direction: column; gap: 8px;
+}
+.col-bullets li {
+  font-size: clamp(.88rem,1.3vw,1.08rem);
+  color: #c8d3e8; line-height: 1.35;
+  padding-left: 1.4em; position: relative;
+}
+.col-bullets li::before {
+  content: '›'; position: absolute; left: 0;
+  color: inherit; font-size: 1.1em;
+}
+
+/* ══ LAYOUT: myths ═══════════════════════════════════════════ */
+.layout-myths { gap: 18px; }
+.myth-row {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 20px;
+  flex: 1; align-content: start;
+}
+.myth-card {
+  background: var(--panel); border: 1px solid rgba(239,68,68,.25);
+  border-radius: var(--radius); padding: 22px 20px;
+  display: flex; flex-direction: column; gap: 10px;
+  box-shadow: var(--shadow);
+}
+.myth-icon { font-size: 2.2rem; }
+.myth-title {
+  font-size: clamp(1rem,1.6vw,1.25rem);
+  font-weight: 700; color: #ef4444;
+}
+.myth-reason {
+  font-size: clamp(.88rem,1.3vw,1.05rem);
+  color: var(--muted); line-height: 1.38;
+}
+
+/* ══ LAYOUT: agenda ══════════════════════════════════════════ */
+.layout-agenda { gap: 16px; }
+.agenda-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  flex: 1;
+}
+.agenda-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--panel); border: 1px solid;
+  border-radius: 14px; padding: 12px 16px;
+  box-shadow: var(--shadow);
+}
+.ag-num {
+  font-size: .78rem; font-weight: 800;
+  letter-spacing: .08em; padding: 4px 8px;
+  border-radius: 8px; flex-shrink: 0;
+}
+.ag-icon { font-size: 1.8rem; flex-shrink: 0; }
+.ag-title { font-size: clamp(.92rem,1.4vw,1.1rem); font-weight: 700; }
+.ag-sub { font-size: clamp(.8rem,1.15vw,.95rem); color: var(--muted); line-height: 1.3; }
+
+/* ══ LAYOUT: summary-grid ════════════════════════════════════ */
+.layout-summary { gap: 14px; }
+.summary-grid {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 14px;
+  flex: 1;
+}
+.summary-card {
+  background: var(--panel); border: 1px solid;
+  border-radius: var(--radius); padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  box-shadow: var(--shadow);
+}
+.sc-icon {
+  font-size: 1.8rem; width: 46px; height: 46px;
+  display: grid; place-items: center;
+  border-radius: 12px;
+}
+.sc-title { font-size: clamp(.92rem,1.4vw,1.1rem); font-weight: 700; }
+.sc-lesson { font-size: clamp(.82rem,1.2vw,.98rem); color: var(--muted); line-height: 1.38; }
+
+/* ══ LAYOUT: table ═══════════════════════════════════════════ */
+.layout-table { gap: 18px; }
+.table-wrap {
+  overflow: auto; border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,.1);
+  box-shadow: var(--shadow); flex: 1;
+}
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: clamp(.85rem,1.3vw,1.05rem);
+}
+thead tr {
+  background: var(--panel);
+  border-bottom: 1px solid rgba(255,255,255,.15);
+}
+thead th {
+  padding: 12px 16px; text-align: left;
+  font-weight: 700; color: var(--muted);
+  letter-spacing: .05em; text-transform: uppercase; font-size: .82em;
+}
+tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  transition: background .15s;
+}
+tbody tr:hover { background: rgba(255,255,255,.04); }
+tbody td { padding: 12px 16px; line-height: 1.35; }
+tbody td:nth-child(3) { color: var(--muted); font-style: italic; }
+
+/* ══ LAYOUT: vote ════════════════════════════════════════════ */
+.layout-vote { gap: 16px; }
+.vote-grid {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 14px;
+  flex: 1;
+}
+.vote-card {
+  background: var(--panel); border: 1px solid;
+  border-radius: var(--radius); padding: 18px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  box-shadow: var(--shadow);
+  transition: transform .18s, box-shadow .18s;
+  cursor: default;
+}
+.vote-card:hover { transform: translateY(-3px); box-shadow: 0 32px 90px rgba(0,0,0,.55); }
+.vote-num {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 1.1rem;
+}
+.vote-icon { font-size: 2rem; }
+.vote-title { font-size: clamp(.9rem,1.4vw,1.1rem); font-weight: 700; }
+.vote-hook { font-size: clamp(.8rem,1.2vw,.95rem); color: var(--muted); }
+.vote-raise {
+  font-size: .82rem; color: #facc15;
+  background: rgba(250,204,21,.12); border-radius: 999px;
+  padding: 4px 10px; align-self: flex-start; margin-top: auto;
+}
+
+/* ── animations ───────────────────────────────────────────── */
+section.slide.active .slide-inner > * {
+  animation: revealUp .52s cubic-bezier(.4,0,.2,1) both;
+}
+section.slide.active .slide-inner > *:nth-child(2) { animation-delay: .06s; }
+section.slide.active .slide-inner > *:nth-child(3) { animation-delay: .12s; }
+section.slide.active .slide-inner > *:nth-child(4) { animation-delay: .18s; }
+section.slide.active .slide-inner > *:nth-child(5) { animation-delay: .24s; }
+
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── nav overlay ──────────────────────────────────────────── */
+#nav-prev, #nav-next {
+  position: fixed; top: 0; height: 100%;
+  width: 48px; z-index: 50; cursor: pointer;
+  opacity: 0; transition: opacity .2s;
+  display: flex; align-items: center;
+  font-size: 2rem; color: #fff;
+  pointer-events: auto;
+}
+#nav-prev { left: 0;  justify-content: flex-start; padding-left: 14px; }
+#nav-next { right: 0; justify-content: flex-end;   padding-right: 14px; }
+#nav-prev:hover, #nav-next:hover { opacity: 1; }
+
+/* ── progress bar ────────────────────────────────────────── */
+#progress {
+  position: fixed; top: 0; left: 0;
+  height: 3px; width: 0%;
+  background: var(--accent);
+  transition: width .3s ease, background .4s;
+  z-index: 100;
+  box-shadow: 0 0 10px var(--accent);
+}
+
+/* ── help ────────────────────────────────────────────────── */
+#help {
+  position: fixed; bottom: 16px; left: 50%;
+  transform: translateX(-50%);
+  font-size: .78rem; color: var(--dimmed);
+  background: rgba(10,15,30,.7);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 999px; padding: 7px 14px;
+  backdrop-filter: blur(6px); z-index: 100;
+  pointer-events: none;
+}
+
+/* ── responsive ───────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .layout-split { flex-direction: column !important; }
+  .split-right { display: none; }
+  .two-col-body { grid-template-columns: 1fr; }
+  .myth-row { grid-template-columns: 1fr; }
+  .summary-grid { grid-template-columns: 1fr 1fr; }
+  .vote-grid { grid-template-columns: 1fr 1fr; }
+  .agenda-grid { grid-template-columns: 1fr; }
+}
+
+@media print {
+  html, body { overflow: visible; }
+  #deck { height: auto; }
+  section.slide {
+    position: relative; opacity: 1; pointer-events: auto;
+    transform: none; break-after: page; min-height: 100vh;
+  }
+  #nav-prev, #nav-next, #progress, #help { display: none; }
+}
+
+  </style>
+</head>
+<body>
+  <div id="progress"></div>
+  <div id="nav-prev" role="button" aria-label="Previous slide" tabindex="0">‹</div>
+  <div id="nav-next" role="button" aria-label="Next slide"     tabindex="0">›</div>
+  <main id="deck" role="main" aria-live="polite">
+
+  <section class="slide active" style="--accent:#6366f1" data-idx="0">
+    <div class="slide-bg-img">
+      <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1400&q=80" alt="" aria-hidden="true" loading="lazy" onerror="this.style.display='none'"/>
+      <div class="bg-overlay"></div>
+    </div>
+    <div class="slide-inner layout-title">
+      
+      
+      <h1 class="slide-title">Everyday Apps.</h1>
+<h2 class="slide-title2" style="color:#6366f1">Extraordinary Engineering.</h2>
+      <p class="slide-body">The tech hiding in plain sight 🚀</p>
+      <div class="chip-row"><div class="topic-chip" style="background:#e5091422;border-color:#e50914"><span class="chip-icon">🎬</span><span class="chip-label" style="color:#e50914">OTT</span></div><div class="topic-chip" style="background:#f9731622;border-color:#f97316"><span class="chip-icon">🛵</span><span class="chip-label" style="color:#f97316">Food</span></div><div class="topic-chip" style="background:#22c55e22;border-color:#22c55e"><span class="chip-icon">🗺️</span><span class="chip-label" style="color:#22c55e">Maps</span></div><div class="topic-chip" style="background:#38bdf822;border-color:#38bdf8"><span class="chip-icon">🎵</span><span class="chip-label" style="color:#38bdf8">Shazam</span></div><div class="topic-chip" style="background:#10b98122;border-color:#10b981"><span class="chip-icon">🔐</span><span class="chip-label" style="color:#10b981">OTP+Cards</span></div><div class="topic-chip" style="background:#8b5cf622;border-color:#8b5cf6"><span class="chip-icon">🛰️</span><span class="chip-label" style="color:#8b5cf6">GPS</span></div></div>
+    </div>
+    <div class="slide-num">1 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#facc15" data-idx="1">
+    <div class="slide-inner layout-agenda">
+      <div class="kicker">Session Map</div>
+      <h1 class="slide-title">Today's Lineup — 6 Topics</h1>
+      <div class="agenda-grid">
+        <div class="agenda-item" style="border-color:#e5091444">
+          <span class="ag-num" style="background:#e5091422;color:#e50914">01</span>
+          <span class="ag-icon">🎬</span>
+          <div class="ag-text">
+            <div class="ag-title" style="color:#e50914">OTT Thumbnails</div>
+            <div class="ag-sub">How Netflix previews a frame when you scrub</div>
+          </div>
+        </div>
+        <div class="agenda-item" style="border-color:#f9731644">
+          <span class="ag-num" style="background:#f9731622;color:#f97316">02</span>
+          <span class="ag-icon">🛵</span>
+          <div class="ag-text">
+            <div class="ag-title" style="color:#f97316">Food Delivery Tracking</div>
+            <div class="ag-sub">How the rider's dot moves live on the map</div>
+          </div>
+        </div>
+        <div class="agenda-item" style="border-color:#22c55e44">
+          <span class="ag-num" style="background:#22c55e22;color:#22c55e">03</span>
+          <span class="ag-icon">🗺️</span>
+          <div class="ag-text">
+            <div class="ag-title" style="color:#22c55e">Google Maps Traffic</div>
+            <div class="ag-sub">How it knows — and predicts — traffic jams</div>
+          </div>
+        </div>
+        <div class="agenda-item" style="border-color:#38bdf844">
+          <span class="ag-num" style="background:#38bdf822;color:#38bdf8">04</span>
+          <span class="ag-icon">🎵</span>
+          <div class="ag-text">
+            <div class="ag-title" style="color:#38bdf8">Shazam</div>
+            <div class="ag-sub">How it IDs a song in 5 sec from a noisy bar</div>
+          </div>
+        </div>
+        <div class="agenda-item" style="border-color:#10b98144">
+          <span class="ag-num" style="background:#10b98122;color:#10b981">05</span>
+          <span class="ag-icon">🔐</span>
+          <div class="ag-text">
+            <div class="ag-title" style="color:#10b981">OTP, Cards & CVV</div>
+            <div class="ag-sub">How your bank syncs a code with no internet</div>
+          </div>
+        </div>
+        <div class="agenda-item" style="border-color:#8b5cf644">
+          <span class="ag-num" style="background:#8b5cf622;color:#8b5cf6">06</span>
+          <span class="ag-icon">🛰️</span>
+          <div class="ag-text">
+            <div class="ag-title" style="color:#8b5cf6">GPS & Einstein</div>
+            <div class="ag-sub">How relativity corrects your Uber ETA</div>
+          </div>
+        </div></div>
+    </div>
+    <div class="slide-num">2 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#e50914" data-idx="2">
+    <div class="slide-bg-img">
+      <img src="https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?w=1400&q=80" alt="" aria-hidden="true" loading="lazy" onerror="this.style.display='none'"/>
+      <div class="bg-overlay" style="background:linear-gradient(160deg,rgba(5,8,20,.82) 0%,rgba(5,8,20,.6) 100%)"></div>
+    </div>
+    <div class="slide-inner layout-hook">
+      <div class="hook-text">
+        <div class="kicker">Topic 01 · OTT Thumbnails</div>
+        <h1 class="slide-title">When you drag the seek bar…</h1>
+<h2 class="slide-title2" style="color:#e50914">…how does a preview appear INSTANTLY?</h2>
+        
+        <div class="logo-strip"><span class="logo-chip"><img src="https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg" alt="logo" loading="lazy" onerror="this.style.display='none'"/></span><span class="logo-chip"><img src="https://upload.wikimedia.org/wikipedia/commons/1/11/Amazon_Prime_Video_logo.svg" alt="logo" loading="lazy" onerror="this.style.display='none'"/></span></div>
+      </div>
+    </div>
+    <div class="slide-num">3 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#e50914" data-idx="3">
+    <div class="slide-inner layout-two-col">
+      <div class="two-col-head">
+        <div class="kicker">Topic 01 · OTT Thumbnails</div>
+        <h1 class="slide-title">What people think:</h1>
+      </div>
+      <div class="two-col-body">
+        
+          <div class="col-card" style="border-color:#ef444433">
+            <div class="col-head" style="color:#ef4444">❌ The Myth</div>
+            <ul class="col-bullets"><li>Video is secretly playing in the background</li><li>AI is analysing frames in real time</li><li>A new network request fires on every drag pixel</li></ul>
+          </div>
+        
+          <div class="col-card" style="border-color:#94a3b833">
+            <div class="col-head" style="color:#94a3b8">🤔 Why That's Wrong</div>
+            <ul class="col-bullets"><li>Video decode = CPU heavy + seconds of load time</li><li>Drag events fire 60× per second — no API can keep up</li><li>Would kill your battery and data instantly</li></ul>
+          </div>
+      </div>
+      
+    </div>
+    <div class="slide-num">4 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#e50914" data-idx="4">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 01 · OTT Thumbnails</div>
+        <h1 class="slide-title">The Sprite Sheet</h1>
+<h2 class="slide-title2" style="color:#e50914">One image. Hundreds of thumbnails inside.</h2>
+        <ul class="bullets"><li>On upload, a job grabs 1 frame every 10 seconds — 2-hour movie = ~720 frames</li><li>All 720 frames stitched side-by-side into ONE wide image (like a film reel)</li><li>Math: seek to 34% → Frame# = 0.34 × 720 = 245</li><li>Row = 245 ÷ 10 = row 24   |   Col = 245 % 10 = col 5</li><li>Browser: background-position: -500px -240px — instant CSS crop, zero network call</li></ul>
+        <div class="wow-box" style="border-color:#e50914">💥 That sprite sheet is a literal film strip — every preview thumbnail packed into one file. The seek bar is doing basic division. No AI, no video decoding.</div>
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800&q=80" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Unsplash</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">5 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#e50914" data-idx="5">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 01 · OTT Thumbnails</div>
+        <h1 class="slide-title">Why is it so fast? The CDN.</h1>
+        <ul class="bullets"><li>CDN = Content Delivery Network — 15,000+ edge servers distributed worldwide</li><li>Without CDN: your request goes India → US data centre → back = 200ms+ delay</li><li>With CDN: your sprite sheet is cached on a server IN your city — 4ms round trip</li><li>Netflix pre-pushes popular content to edge nodes before you even open the app</li><li>Think of it as Amazon warehouses — stocked near you before you order</li></ul>
+        <div class="wow-box" style="border-color:#e50914">💥 Netflix pre-downloads what you're LIKELY to click next. 'Instant play' is instant reveal of pre-fetched content that was already sitting in a server near you.</div>
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/NCDN_-_CDN.svg/960px-NCDN_-_CDN.svg.png" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Wikimedia Commons</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">6 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#f97316" data-idx="6">
+    <div class="slide-bg-img">
+      <img src="https://images.unsplash.com/photo-1576866209830-589e1bfbaa4d?w=1400&q=80" alt="" aria-hidden="true" loading="lazy" onerror="this.style.display='none'"/>
+      <div class="bg-overlay" style="background:linear-gradient(160deg,rgba(5,8,20,.82) 0%,rgba(5,8,20,.6) 100%)"></div>
+    </div>
+    <div class="slide-inner layout-hook">
+      <div class="hook-text">
+        <div class="kicker">Topic 02 · Food Delivery Tracking</div>
+        <h1 class="slide-title">That 🛵 on the Swiggy map…</h1>
+<h2 class="slide-title2" style="color:#f97316">Is it truly live? Or is the app lying to you?</h2>
+        
+        <div class="logo-strip"><span class="logo-chip"><img src="https://upload.wikimedia.org/wikipedia/en/1/12/Swiggy_logo.svg" alt="logo" loading="lazy" onerror="this.style.display='none'"/></span><span class="logo-chip"><img src="https://upload.wikimedia.org/wikipedia/commons/7/75/Zomato_logo.png" alt="logo" loading="lazy" onerror="this.style.display='none'"/></span></div>
+      </div>
+    </div>
+    <div class="slide-num">7 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#f97316" data-idx="7">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 02 · Food Delivery Tracking</div>
+        <h1 class="slide-title">Step 1 — The Rider's Phone</h1>
+        <ul class="bullets"><li>Background GPS service reads coordinates every 3–5 seconds</li><li>Sends a tiny HTTPS POST: { "lat": 12.97, "lng": 77.59, "ts": ... }</li><li>Swiggy server receives it, stores the latest position</li><li>A message queue (Kafka) fans it out to: your app, restaurant, dashboards</li></ul>
+        
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=800&q=80" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Unsplash</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">8 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#f97316" data-idx="8">
+    <div class="slide-inner layout-two-col">
+      <div class="two-col-head">
+        <div class="kicker">Topic 02 · Food Delivery Tracking</div>
+        <h1 class="slide-title">REST vs WebSocket</h1>
+      </div>
+      <div class="two-col-body">
+        
+          <div class="col-card" style="border-color:#ef444433">
+            <div class="col-head" style="color:#ef4444">❌  REST — The Polling Way</div>
+            <ul class="col-bullets"><li>Your app asks every 3 seconds: "Where is rider?"</li><li>Server answers: "Here: 12.97, 77.59"</li><li>Your app asks again. Server answers again.</li><li>= Hammering the server. Battery drain. Lag.</li></ul>
+          </div>
+        
+          <div class="col-card" style="border-color:#22c55e33">
+            <div class="col-head" style="color:#22c55e">✅  WebSocket — The Push Way</div>
+            <ul class="col-bullets"><li>Your app opens ONE persistent connection</li><li>Server pushes update the moment it has one</li><li>One pipe. Data flows in when available.</li><li>= Efficient, fast, battery-friendly ⚡</li></ul>
+          </div>
+      </div>
+      <div class="wow-box" style="border-color:#f97316">📞 REST = calling the restaurant every 2 min asking 'is my food ready?' | WebSocket = they call YOU.</div>
+    </div>
+    <div class="slide-num">9 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#f97316" data-idx="9">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 02 · Food Delivery Tracking</div>
+        <h1 class="slide-title">The Dirty Secret 🤫</h1>
+<h2 class="slide-title2" style="color:#f97316">The smooth rider animation is FAKE.</h2>
+        <ul class="bullets"><li>Reality: GPS pings arrive every 3–5 sec — a raw dot that jumps, not flows</li><li>Swiggy calculates: speed + direction from the last 2 real pings</li><li>Between pings, the app predicts where the rider IS at this exact millisecond</li><li>Animates the dot along that predicted path — corrects when next real ping arrives</li><li>You're watching a continuous best-guess, not live reality</li></ul>
+        <div class="wow-box" style="border-color:#f97316">💥 Like cricket ball tracking on TV — the smooth arc between frames is computed by software, not filmed. You are watching software's best guess, not the rider's actual path.</div>
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://images.unsplash.com/photo-1519003300449-424ad0405076?w=800&q=80" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Unsplash</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">10 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#22c55e" data-idx="10">
+    <div class="slide-bg-img">
+      <img src="https://images.unsplash.com/photo-1568992688065-536aad8a12f6?w=1400&q=80" alt="" aria-hidden="true" loading="lazy" onerror="this.style.display='none'"/>
+      <div class="bg-overlay" style="background:linear-gradient(160deg,rgba(5,8,20,.82) 0%,rgba(5,8,20,.6) 100%)"></div>
+    </div>
+    <div class="slide-inner layout-hook">
+      <div class="hook-text">
+        <div class="kicker">Topic 03 · Google Maps Traffic</div>
+        <h1 class="slide-title">Red roads, orange roads, green roads.</h1>
+<h2 class="slide-title2" style="color:#22c55e">Google has no cameras on most roads. So… how?</h2>
+        
+        <div class="logo-strip"><span class="logo-chip"><img src="https://upload.wikimedia.org/wikipedia/commons/b/bd/Google_Maps_Logo_2020.svg" alt="logo" loading="lazy" onerror="this.style.display='none'"/></span></div>
+      </div>
+    </div>
+    <div class="slide-num">11 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#22c55e" data-idx="11">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 03 · Google Maps Traffic</div>
+        <h1 class="slide-title">You Are the Sensor 📡</h1>
+        <ul class="bullets"><li>Every Android phone with Location Services ON reports its GPS speed</li><li>Millions of phones at 8 km/h on a road rated 80 km/h = jam detected</li><li>No cameras. No infrastructure. Just crowd data.</li><li>This happens whether Google Maps is open or not</li></ul>
+        <div class="wow-box" style="border-color:#22c55e">💥 You are contributing to Google Maps traffic right now — as long as Location Services is ON. You are the sensor.</div>
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&q=80" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Unsplash</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">12 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#22c55e" data-idx="12">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 03 · Google Maps Traffic</div>
+        <h1 class="slide-title">Holiday Predictions — Diwali 2 Weeks Away?</h1>
+        <ul class="bullets"><li>Google logs GPS speed data for every road segment, every hour, for years</li><li>For Diwali 2026: pull same road + same time slot from 2025, 2024, 2023</li><li>Apply weighted average — recent years count more → predicted speed for 2026</li><li>Also layers in: day of week, school calendar, event permits</li><li>Result: a traffic colour prediction 14 days out — no fancy AI, pure statistics</li></ul>
+        <div class="wow-box" style="border-color:#22c55e">💥 Google can tell you — 2 weeks in advance — which street will be jammed on Diwali at 7 PM. It's pure statistics on your past collective behaviour.</div>
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Unsplash</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">13 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#22c55e" data-idx="13">
+    <div class="slide-inner layout-two-col">
+      <div class="two-col-head">
+        <div class="kicker">Topic 03 · Google Maps Traffic</div>
+        <h1 class="slide-title">ETA = 70% History + 30% Live, Blending Constantly</h1>
+      </div>
+      <div class="two-col-body">
+        
+          <div class="col-card" style="border-color:#22c55e33">
+            <div class="col-head" style="color:#22c55e">📅 Historical (far from destination)</div>
+            <ul class="col-bullets"><li>Diwali evening: always heavy</li><li>Monday 9 AM on MG Road: always slow</li><li>Sunday 2 PM: usually clear</li><li>Reliable baseline from years of data</li></ul>
+          </div>
+        
+          <div class="col-card" style="border-color:#38bdf833">
+            <div class="col-head" style="color:#38bdf8">📡 Live (getting close)</div>
+            <ul class="col-bullets"><li>Real phone speeds on your exact route</li><li>Accident reported 2 km ahead</li><li>Road closure pushed by authorities</li><li>Recalculated every 30 seconds as you drive</li></ul>
+          </div>
+      </div>
+      
+    </div>
+    <div class="slide-num">14 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#38bdf8" data-idx="14">
+    <div class="slide-bg-img">
+      <img src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1400&q=80" alt="" aria-hidden="true" loading="lazy" onerror="this.style.display='none'"/>
+      <div class="bg-overlay" style="background:linear-gradient(160deg,rgba(5,8,20,.82) 0%,rgba(5,8,20,.6) 100%)"></div>
+    </div>
+    <div class="slide-inner layout-hook">
+      <div class="hook-text">
+        <div class="kicker">Topic 04 · Shazam</div>
+        <h1 class="slide-title">You're in a noisy bar. 🍻</h1>
+<h2 class="slide-title2" style="color:#38bdf8">5 seconds. Exact song. How?</h2>
+        
+        <div class="logo-strip"><span class="logo-chip"><img src="https://upload.wikimedia.org/wikipedia/commons/c/c8/Shazam_logo.png" alt="logo" loading="lazy" onerror="this.style.display='none'"/></span></div>
+      </div>
+    </div>
+    <div class="slide-num">15 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#38bdf8" data-idx="15">
+    <div class="slide-inner layout-myths">
+      <div class="kicker">Topic 04 · Shazam</div>
+      <h1 class="slide-title">What it's NOT doing</h1>
+      <div class="myth-row">
+        <div class="myth-card">
+          <div class="myth-icon">❌</div>
+          <div class="myth-title">Comparing full audio</div>
+          <div class="myth-reason">A 3-min song = ~30 MB. Comparing millions = minutes. Noise would corrupt everything.</div>
+        </div>
+        <div class="myth-card">
+          <div class="myth-icon">❌</div>
+          <div class="myth-title">Recognising lyrics</div>
+          <div class="myth-reason">Works on instrumentals, any language, humming. Zero lyrics processing.</div>
+        </div>
+        <div class="myth-card">
+          <div class="myth-icon">❌</div>
+          <div class="myth-title">Modern AI / ML</div>
+          <div class="myth-reason">Core algorithm invented in 2003 — before smartphones. Pure elegant maths.</div>
+        </div></div>
+    </div>
+    <div class="slide-num">16 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#38bdf8" data-idx="16">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 04 · Shazam</div>
+        <h1 class="slide-title">Audio → Constellation Map</h1>
+        <ul class="bullets"><li>Convert audio to a spectrogram: frequency (Y) vs time (X)</li><li>Find the LOUDEST, most distinctive points — the 'peaks'</li><li>These peaks look like stars in a night sky</li><li>Background noise is random — it doesn't create consistent peaks</li><li>Song structure repeats perfectly — same peaks every time</li></ul>
+        
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/c/c5/Spectrogram-19thC.png" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Wikimedia Commons</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">17 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#38bdf8" data-idx="17">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 04 · Shazam</div>
+        <h1 class="slide-title">Peaks → Pairs → Tiny Fingerprint</h1>
+        <ul class="bullets"><li>Pair each peak with nearby peaks: (freq A, freq B, time gap) → hash</li><li>Create thousands of these hash pairs from your recording</li><li>Send only ~20 key pairs to server (< 1 KB total!)</li><li>Server matches against 11 million pre-indexed songs</li><li>Full song = 30 MB. Fingerprint = < 1 KB. Match in < 1 second.</li></ul>
+        <div class="wow-box" style="border-color:#38bdf8">💥 Like identifying a face not from a full photo, but just the distance between the eyes and shape of the nose tip. A few measurements. Unique enough.</div>
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/2/29/Spectrogram_of_violin.png" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Wikimedia Commons</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">18 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#10b981" data-idx="18">
+    <div class="slide-bg-img">
+      <img src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=1400&q=80" alt="" aria-hidden="true" loading="lazy" onerror="this.style.display='none'"/>
+      <div class="bg-overlay" style="background:linear-gradient(160deg,rgba(5,8,20,.82) 0%,rgba(5,8,20,.6) 100%)"></div>
+    </div>
+    <div class="slide-inner layout-hook">
+      <div class="hook-text">
+        <div class="kicker">Topic 05 · OTP, Cards & CVV</div>
+        <h1 class="slide-title">Your phone and your bank</h1>
+<h2 class="slide-title2" style="color:#10b981">show the same 6 digits with ZERO communication.</h2>
+        
+        <div class="logo-strip"><span class="logo-chip"><img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="logo" loading="lazy" onerror="this.style.display='none'"/></span><span class="logo-chip"><img src="https://upload.wikimedia.org/wikipedia/commons/a/a4/Mastercard_2019_logo.svg" alt="logo" loading="lazy" onerror="this.style.display='none'"/></span></div>
+      </div>
+    </div>
+    <div class="slide-num">19 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#10b981" data-idx="19">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 05 · OTP, Cards & CVV</div>
+        <h1 class="slide-title">Secret Key + Current Time = OTP</h1>
+        <ul class="bullets"><li>When you scanned that QR code → the secret key was transferred ONCE</li><li>Both your phone and the bank know: the secret key + current Unix timestamp</li><li>A hash function (HMAC-SHA1) combines them → outputs 6 digits</li><li>Same inputs → same output. Always. No internet needed.</li><li>OTP expires in 30s not for security — because clocks drift slightly</li></ul>
+        <div class="wow-box" style="border-color:#10b981">💥 That QR code was the last communication. After that, it's just math. Your phone and the bank are running the same calculation independently.</div>
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=800&q=80" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Unsplash</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">20 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#10b981" data-idx="20">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 05 · OTP, Cards & CVV</div>
+        <h1 class="slide-title">Your Card Number Isn't Random</h1>
+<h2 class="slide-title2" style="color:#10b981">The last digit is calculated from the other 15.</h2>
+        <ul class="bullets"><li>The Luhn Algorithm (invented 1954!) validates card numbers</li><li>Double every 2nd digit from right → if > 9, subtract 9 → sum all</li><li>Result must be divisible by 10</li><li>Mistype one digit? Your browser catches it BEFORE contacting any bank</li><li>Runs on every checkout form on the internet. Still. In 2026.</li></ul>
+        <div class="wow-box" style="border-color:#10b981">💥 A 1954 algorithm by Hans Peter Luhn is the first line of defence on every e-commerce site on Earth. 70+ years old and still running.</div>
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://images.unsplash.com/photo-1556742044-3c52d6e88c62?w=800&q=80" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Unsplash</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">21 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#10b981" data-idx="21">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 05 · OTP, Cards & CVV</div>
+        <h1 class="slide-title">CVV — Stored Nowhere. Not Even Your Bank.</h1>
+        <ul class="bullets"><li>Bank takes: Card Number + Expiry + Secret Bank Key</li><li>Runs a cryptographic hash → trims to 3 digits = your CVV</li><li>When you enter CVV, bank just recalculates and compares</li><li>They never need to store it. Math does the job.</li><li>PCI-DSS rules forbid storing CVV — and banks don't need to anyway</li></ul>
+        <div class="wow-box" style="border-color:#10b981">💥 When merchants get hacked, CVV is almost never in the leaked data. Not because it was deleted — because it was never there to begin with.</div>
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://images.unsplash.com/photo-1550565118-3a14e8d0386f?w=800&q=80" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Unsplash</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">22 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#10b981" data-idx="22">
+    <div class="slide-inner layout-two-col">
+      <div class="two-col-head">
+        <div class="kicker">Topic 05 · OTP, Cards & CVV</div>
+        <h1 class="slide-title">Chip vs Magnetic Stripe</h1>
+      </div>
+      <div class="two-col-body">
+        
+          <div class="col-card" style="border-color:#ef444433">
+            <div class="col-head" style="color:#ef4444">🧲 Magnetic Stripe</div>
+            <ul class="col-bullets"><li>Same static data every swipe</li><li>Skimmer reads it once → card cloned</li><li>Like a photocopy of your ID</li><li>❌ Fundamentally insecure</li></ul>
+          </div>
+        
+          <div class="col-card" style="border-color:#10b98133">
+            <div class="col-head" style="color:#10b981">💳 EMV Chip</div>
+            <ul class="col-bullets"><li>Unique cryptogram generated per transaction</li><li>Captured code can't be replayed — bank rejects it</li><li>Like a secret handshake that changes every time</li><li>✅ Skimming is mathematically impossible</li></ul>
+          </div>
+      </div>
+      
+    </div>
+    <div class="slide-num">23 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#8b5cf6" data-idx="23">
+    <div class="slide-bg-img">
+      <img src="https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=1400&q=80" alt="" aria-hidden="true" loading="lazy" onerror="this.style.display='none'"/>
+      <div class="bg-overlay" style="background:linear-gradient(160deg,rgba(5,8,20,.82) 0%,rgba(5,8,20,.6) 100%)"></div>
+    </div>
+    <div class="slide-inner layout-hook">
+      <div class="hook-text">
+        <div class="kicker">Topic 06 · GPS & Einstein</div>
+        <h1 class="slide-title">Airplane mode. No WiFi. No cell signal.</h1>
+<h2 class="slide-title2" style="color:#8b5cf6">GPS still shows exactly where you are. How?</h2>
+        
+        
+      </div>
+    </div>
+    <div class="slide-num">24 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#8b5cf6" data-idx="24">
+    <div class="slide-inner layout-split">
+      <div class="split-left">
+        <div class="kicker">Topic 06 · GPS & Einstein</div>
+        <h1 class="slide-title">4 Satellites. Pure Math. No Transmission.</h1>
+        <ul class="bullets"><li>Each satellite broadcasts: 'I am Sat #7. My position. Time is 14:23:00.000000000'</li><li>Your phone receives all 4 signals at slightly different times</li><li>Radio waves travel at the speed of light (~30 cm per nanosecond)</li><li>Time delay → distance from each satellite</li><li>4 distance measurements → one unique point in 3D space</li></ul>
+        
+      </div>
+      <div class="split-right">
+        
+        <div class="slide-img-wrap" style="height:100%">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/e/e5/GPS24goldenSMALL.gif" alt="Visual" loading="lazy" onerror="this.style.display='none'"/>
+          <span class="img-credit">Wikimedia Commons</span>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">25 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#8b5cf6" data-idx="25">
+    <div class="slide-inner layout-two-col">
+      <div class="two-col-head">
+        <div class="kicker">Topic 06 · GPS & Einstein</div>
+        <h1 class="slide-title">Without Einstein: GPS drifts 11 km per day</h1>
+      </div>
+      <div class="two-col-body">
+        
+          <div class="col-card" style="border-color:#8b5cf633">
+            <div class="col-head" style="color:#8b5cf6">⚡ Special Relativity</div>
+            <ul class="col-bullets"><li>Satellites move at 14,000 km/h</li><li>Fast clocks run SLOWER (time dilation)</li><li>Satellites lose 7 microseconds/day</li><li>Drift: −2 km/day if uncorrected</li></ul>
+          </div>
+        
+          <div class="col-card" style="border-color:#facc1533">
+            <div class="col-head" style="color:#facc15">🌌 General Relativity</div>
+            <ul class="col-bullets"><li>Satellites are 20,000 km up — weaker gravity</li><li>Weaker gravity = clocks run FASTER</li><li>Satellites gain 45 microseconds/day</li><li>Drift: +12 km/day if uncorrected</li></ul>
+          </div>
+      </div>
+      <div class="wow-box" style="border-color:#8b5cf6">💥 Net: +38 μs/day = 11 km of GPS error daily. Einstein's 1905 & 1915 equations are baked into satellite hardware, running in space right now, correcting your Uber ETA.</div>
+    </div>
+    <div class="slide-num">26 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#facc15" data-idx="26">
+    <div class="slide-inner layout-summary">
+      <div class="kicker">The Takeaway</div>
+      <h1 class="slide-title">The Common Thread</h1>
+      <div class="summary-grid">
+        <div class="summary-card" style="border-color:#e5091444">
+          <div class="sc-icon" style="background:#e5091422">🎬</div>
+          <div class="sc-title" style="color:#e50914">OTT</div>
+          <div class="sc-lesson">Pre-compute everything. Cache near users. Math beats decode.</div>
+        </div>
+        <div class="summary-card" style="border-color:#f9731644">
+          <div class="sc-icon" style="background:#f9731622">🛵</div>
+          <div class="sc-title" style="color:#f97316">Food</div>
+          <div class="sc-lesson">Push over poll. Interpolation fills the gaps humans can't notice.</div>
+        </div>
+        <div class="summary-card" style="border-color:#22c55e44">
+          <div class="sc-icon" style="background:#22c55e22">🗺️</div>
+          <div class="sc-title" style="color:#22c55e">Maps</div>
+          <div class="sc-lesson">The crowd IS the sensor. History IS the prediction.</div>
+        </div>
+        <div class="summary-card" style="border-color:#38bdf844">
+          <div class="sc-icon" style="background:#38bdf822">🎵</div>
+          <div class="sc-title" style="color:#38bdf8">Shazam</div>
+          <div class="sc-lesson">Fingerprint not full data. Sparse features identify uniquely.</div>
+        </div>
+        <div class="summary-card" style="border-color:#10b98144">
+          <div class="sc-icon" style="background:#10b98122">🔐</div>
+          <div class="sc-title" style="color:#10b981">OTP+Cards</div>
+          <div class="sc-lesson">Shared secrets + hash functions replace the need for storage.</div>
+        </div>
+        <div class="summary-card" style="border-color:#8b5cf644">
+          <div class="sc-icon" style="background:#8b5cf622">🛰️</div>
+          <div class="sc-title" style="color:#8b5cf6">GPS</div>
+          <div class="sc-lesson">Physics is the infrastructure. Einstein runs on every device.</div>
+        </div></div>
+      <p class="slide-body">"Any sufficiently understood technology is indistinguishable from elegance."</p>
+    </div>
+    <div class="slide-num">27 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#f1f5f9" data-idx="27">
+    <div class="slide-inner layout-table">
+      <div class="kicker">Cheat Sheet</div>
+      <h1 class="slide-title">Everything at a Glance</h1>
+      <div class="table-wrap">
+        <table><thead><tr><th>Topic</th><th>The Real Secret</th><th>Killer Analogy</th></tr></thead><tbody><tr style="border-left:4px solid #e50914"><td style="color:#e50914;font-weight:700">🎬 OTT Thumbnails</td><td style="color:#e2e8f0;font-weight:400">Sprite sheet + CDN edge cache</td><td style="color:#e2e8f0;font-weight:400">Flip book pre-built by robots</td></tr><tr style="border-left:4px solid #f97316"><td style="color:#f97316;font-weight:700">🛵 Food Tracking</td><td style="color:#e2e8f0;font-weight:400">WebSocket push + interpolation</td><td style="color:#e2e8f0;font-weight:400">Smooth path = educated guess</td></tr><tr style="border-left:4px solid #22c55e"><td style="color:#22c55e;font-weight:700">🗺️ Google Maps</td><td style="color:#e2e8f0;font-weight:400">Your phone = the sensor</td><td style="color:#e2e8f0;font-weight:400">You are contributing right now</td></tr><tr style="border-left:4px solid #38bdf8"><td style="color:#38bdf8;font-weight:700">🎵 Shazam</td><td style="color:#e2e8f0;font-weight:400">~20 hash pairs from peaks</td><td style="color:#e2e8f0;font-weight:400">Face ID from eye-distance only</td></tr><tr style="border-left:4px solid #10b981"><td style="color:#10b981;font-weight:700">🔐 OTP + Cards</td><td style="color:#e2e8f0;font-weight:400">HMAC-SHA1 + Luhn + CVV hash</td><td style="color:#e2e8f0;font-weight:400">Math needs no memory</td></tr><tr style="border-left:4px solid #8b5cf6"><td style="color:#8b5cf6;font-weight:700">🛰️ GPS + Einstein</td><td style="color:#e2e8f0;font-weight:400">38 μs/day corrected in hardware</td><td style="color:#e2e8f0;font-weight:400">Einstein runs on every satellite</td></tr></tbody></table>
+      </div>
+    </div>
+    <div class="slide-num">28 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#facc15" data-idx="28">
+    <div class="slide-inner layout-vote">
+      <div class="kicker">Team Vote</div>
+      <h1 class="slide-title">Which topic blew your mind most? 🗳️</h1>
+      <div class="vote-grid">
+        <div class="vote-card" style="border-color:#e5091455">
+          <div class="vote-num" style="background:#e50914;color:#fff">1</div>
+          <div class="vote-icon">🎬</div>
+          <div class="vote-title" style="color:#e50914">OTT Thumbnails</div>
+          <div class="vote-hook">The sprite sheet trick</div>
+          <div class="vote-raise">🙋 Raise hand!</div>
+        </div>
+        <div class="vote-card" style="border-color:#f9731655">
+          <div class="vote-num" style="background:#f97316;color:#fff">2</div>
+          <div class="vote-icon">🛵</div>
+          <div class="vote-title" style="color:#f97316">Food Tracking</div>
+          <div class="vote-hook">The animation is a lie</div>
+          <div class="vote-raise">🙋 Raise hand!</div>
+        </div>
+        <div class="vote-card" style="border-color:#22c55e55">
+          <div class="vote-num" style="background:#22c55e;color:#fff">3</div>
+          <div class="vote-icon">🗺️</div>
+          <div class="vote-title" style="color:#22c55e">Google Maps</div>
+          <div class="vote-hook">You are the sensor</div>
+          <div class="vote-raise">🙋 Raise hand!</div>
+        </div>
+        <div class="vote-card" style="border-color:#38bdf855">
+          <div class="vote-num" style="background:#38bdf8;color:#fff">4</div>
+          <div class="vote-icon">🎵</div>
+          <div class="vote-title" style="color:#38bdf8">Shazam</div>
+          <div class="vote-hook">11M songs, < 1 KB query</div>
+          <div class="vote-raise">🙋 Raise hand!</div>
+        </div>
+        <div class="vote-card" style="border-color:#10b98155">
+          <div class="vote-num" style="background:#10b981;color:#fff">5</div>
+          <div class="vote-icon">🔐</div>
+          <div class="vote-title" style="color:#10b981">OTP + Cards</div>
+          <div class="vote-hook">Math you use daily</div>
+          <div class="vote-raise">🙋 Raise hand!</div>
+        </div>
+        <div class="vote-card" style="border-color:#8b5cf655">
+          <div class="vote-num" style="background:#8b5cf6;color:#fff">6</div>
+          <div class="vote-icon">🛰️</div>
+          <div class="vote-title" style="color:#8b5cf6">GPS + Einstein</div>
+          <div class="vote-hook">Physics in your pocket</div>
+          <div class="vote-raise">🙋 Raise hand!</div>
+        </div></div>
+    </div>
+    <div class="slide-num">29 / 30</div>
+  </section>
+
+  <section class="slide" style="--accent:#6366f1" data-idx="29">
+    <div class="slide-bg-img">
+      <img src="https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1400&q=80" alt="" aria-hidden="true" loading="lazy" onerror="this.style.display='none'"/>
+      <div class="bg-overlay"></div>
+    </div>
+    <div class="slide-inner layout-title">
+      <div class="kicker">Q & A</div>
+      
+      <h1 class="slide-title">Q & A</h1>
+<h2 class="slide-title2" style="color:#6366f1">No wrong questions.</h2>
+      <p class="slide-body">What other everyday app do you want us to decode next? 🔍</p>
+      <div class="chip-row"><div class="topic-chip" style="background:#e5091422;border-color:#e50914"><span class="chip-icon">🎬</span><span class="chip-label" style="color:#e50914">OTT</span></div><div class="topic-chip" style="background:#f9731622;border-color:#f97316"><span class="chip-icon">🛵</span><span class="chip-label" style="color:#f97316">Food</span></div><div class="topic-chip" style="background:#22c55e22;border-color:#22c55e"><span class="chip-icon">🗺️</span><span class="chip-label" style="color:#22c55e">Maps</span></div><div class="topic-chip" style="background:#38bdf822;border-color:#38bdf8"><span class="chip-icon">🎵</span><span class="chip-label" style="color:#38bdf8">Shazam</span></div><div class="topic-chip" style="background:#10b98122;border-color:#10b981"><span class="chip-icon">🔐</span><span class="chip-label" style="color:#10b981">OTP+Cards</span></div><div class="topic-chip" style="background:#8b5cf622;border-color:#8b5cf6"><span class="chip-icon">🛰️</span><span class="chip-label" style="color:#8b5cf6">GPS</span></div></div>
+    </div>
+    <div class="slide-num">30 / 30</div>
+  </section>
+  </main>
+  <script>
+(function () {
+  const slides = Array.from(document.querySelectorAll('#deck .slide'));
+  const total = slides.length;
+  const bar = document.getElementById('progress');
+  let cur = 0;
+
+  function go(n) {
+    if (n < 0 || n >= total || n === cur) return;
+    const old = cur;
+    slides[old].classList.add('exit');
+    setTimeout(() => slides[old].classList.remove('active', 'exit'), 380);
+    cur = n;
+    slides[cur].classList.add('active');
+    // sync accent colour to progress bar
+    const accent = slides[cur].style.getPropertyValue('--accent') || '#6366f1';
+    bar.style.background = accent;
+    bar.style.boxShadow = '0 0 12px ' + accent;
+    bar.style.width = ((cur + 1) / total * 100) + '%';
+    // update aria
+    slides.forEach((s, i) => s.setAttribute('aria-hidden', i !== cur));
+  }
+
+  function next() { go(cur + 1); }
+  function prev() { go(cur - 1); }
+
+  // keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft' || e.key === 'Backspace' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+    if (e.key === 'Home') go(0);
+    if (e.key === 'End') go(total - 1);
+    if (e.key.toLowerCase() === 'p') window.print();
+  });
+
+  // click zones
+  document.getElementById('nav-next').addEventListener('click', next);
+  document.getElementById('nav-prev').addEventListener('click', prev);
+
+  // touch swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = tx - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 40) dx > 0 ? next() : prev();
+  }, { passive: true });
+
+  // init
+  slides.forEach((s, i) => s.setAttribute('aria-hidden', i !== 0));
+  bar.style.width = (1 / total * 100) + '%';
+})();
+</script>
+</body>
+</html>
