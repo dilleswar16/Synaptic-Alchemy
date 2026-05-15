@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Presenter Script — Everyday Apps. Extraordinary Engineering.</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3e;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent-ott: #e50914;
+    --accent-food: #f97316;
+    --accent-maps: #22c55e;
+    --accent-shazam: #38bdf8;
+    --accent-otp: #10b981;
+    --accent-gps: #8b5cf6;
+    --accent-title: #6366f1;
+    --nav-w: 220px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── NAV SIDEBAR ── */
+  nav {
+    width: var(--nav-w);
+    min-width: var(--nav-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 16px 0;
+    overflow-y: auto;
+    gap: 2px;
+  }
+
+  nav .nav-header {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 16px 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  nav a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: all .15s;
+    cursor: pointer;
+  }
+
+  nav a:hover { color: var(--text); background: rgba(255,255,255,.04); }
+
+  nav a.active {
+    color: var(--text);
+    background: rgba(255,255,255,.06);
+  }
+
+  nav a .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── MAIN SCROLL AREA ── */
+  main {
+    flex: 1;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    padding: 40px 48px 80px;
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    max-width: 780px;
+    margin: 0 auto 72px;
+    scroll-margin-top: 32px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-icon {
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .section-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-weight: 400;
+  }
+
+  .accent-bar {
+    width: 4px;
+    height: 44px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  /* ── SLIDE BLOCKS ── */
+  .slide-block {
+    margin-bottom: 32px;
+  }
+
+  .slide-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .slide-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── SPEECH LINES ── */
+  .line {
+    font-size: 17px;
+    line-height: 1.75;
+    color: var(--text);
+    margin-bottom: 16px;
+    padding: 18px 22px;
+    background: var(--surface);
+    border-radius: 10px;
+    border-left: 3px solid var(--border);
+    position: relative;
+  }
+
+  .line:hover {
+    border-left-color: rgba(255,255,255,.25);
+    background: #1e2233;
+  }
+
+  /* coloured left border per topic */
+  section[data-accent] .line { border-left-color: var(--topic-accent); }
+
+  .line em {
+    font-style: normal;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(255,255,255,.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .line .pause {
+    display: inline-block;
+    font-size: 12px;
+    color: var(--muted);
+    background: rgba(255,255,255,.06);
+    border-radius: 4px;
+    padding: 1px 7px;
+    margin-left: 6px;
+    vertical-align: middle;
+    font-style: italic;
+  }
+
+  /* ── TIPS BOX ── */
+  .tip-box {
+    background: #1a2033;
+    border: 1px solid #2e3a5a;
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-top: 40px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #93c5fd;
+  }
+
+  .tip-box h3 {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #60a5fa;
+    margin-bottom: 10px;
+  }
+
+  .tip-box ul { padding-left: 18px; }
+  .tip-box li { margin-bottom: 6px; }
+
+  /* ── PROGRESS BAR ── */
+  #progress-bar {
+    position: fixed;
+    top: 0; left: var(--nav-w); right: 0;
+    height: 3px;
+    background: var(--border);
+    z-index: 100;
+  }
+  #progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #38bdf8);
+    width: 0%;
+    transition: width .1s;
+  }
+
+  /* ── FONT SIZE CONTROLS ── */
+  #controls {
+    position: fixed;
+    bottom: 20px;
+    right: 24px;
+    display: flex;
+    gap: 8px;
+    z-index: 100;
+  }
+
+  #controls button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 16px;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  #controls button:hover { background: #2a2d3e; }
+
+  /* scrollbar */
+  main::-webkit-scrollbar { width: 6px; }
+  main::-webkit-scrollbar-track { background: transparent; }
+  main::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
+  nav::-webkit-scrollbar { width: 4px; }
+  nav::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- PROGRESS BAR -->
+<div id="progress-bar"><div id="progress-fill"></div></div>
+
+<!-- FONT SIZE CONTROLS -->
+<div id="controls">
+  <button onclick="resizeFont(-1)" title="Smaller">A−</button>
+  <button onclick="resizeFont(+1)" title="Larger">A+</button>
+</div>
+
+<!-- ── SIDEBAR NAV ── -->
+<nav id="sidebar">
+  <div class="nav-header">Presenter Script</div>
+  <a href="#opening"  onclick="setActive(this)"><span class="dot" style="background:#6366f1"></span>Opening</a>
+  <a href="#agenda"   onclick="setActive(this)"><span class="dot" style="background:#facc15"></span>Agenda</a>
+  <a href="#ott"      onclick="setActive(this)"><span class="dot" style="background:#e50914"></span>01 · OTT Thumbnails</a>
+  <a href="#food"     onclick="setActive(this)"><span class="dot" style="background:#f97316"></span>02 · Food Tracking</a>
+  <a href="#maps"     onclick="setActive(this)"><span class="dot" style="background:#22c55e"></span>03 · Google Maps</a>
+  <a href="#shazam"   onclick="setActive(this)"><span class="dot" style="background:#38bdf8"></span>04 · Shazam</a>
+  <a href="#otp"      onclick="setActive(this)"><span class="dot" style="background:#10b981"></span>05 · OTP &amp; Cards</a>
+  <a href="#gps"      onclick="setActive(this)"><span class="dot" style="background:#8b5cf6"></span>06 · GPS + Einstein</a>
+  <a href="#closing"  onclick="setActive(this)"><span class="dot" style="background:#facc15"></span>Closing</a>
+</nav>
+
+<!-- ── MAIN CONTENT ── -->
+<main id="main" onscroll="updateProgress()">
+
+  <!-- OPENING -->
+  <section id="opening" data-accent="#6366f1" style="--topic-accent:#6366f1">
+    <div class="section-header">
+      <div class="accent-bar" style="background:#6366f1"></div>
+      <div class="section-icon">🚀</div>
+      <div>
+        <div class="section-title">Opening</div>
+        <div class="section-sub">Title slide</div>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="line">
+        "Alright everyone — quick show of hands. Who used Netflix today? Who ordered food?  Who opened Google Maps? Who got an OTP?"
+        <span class="pause">pause — look around — almost everyone raises hand</span>
+      </div>
+      <div class="line">
+        "Perfect. Every single one of those apps did something genuinely clever in the background — and most of us have no idea how. Today we're going to fix that."
+      </div>
+      <div class="line">
+        "No roadmaps, no sprint reviews. Just six apps and the engineering hiding inside them. By the end you'll look at your phone differently. Let's go."
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENDA -->
+  <section id="agenda" data-accent="#facc15" style="--topic-accent:#facc15">
+    <div class="section-header">
+      <div class="accent-bar" style="background:#facc15"></div>
+      <div class="section-icon">📋</div>
+      <div>
+        <div class="section-title">Agenda</div>
+        <div class="section-sub">Session map slide</div>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="line">
+        "We've got six topics. OTT thumbnails — that seek bar trick on Netflix.
+        Food delivery — how does the rider dot move <em>so smoothly</em>?
+        Google Maps — how does it actually <em>know</em> there's a jam?"
+      </div>
+      <div class="line">
+        "Shazam — identifies a song in 5 seconds from a noisy bar, how?
+        OTP and credit cards — your phone and your bank show the same 6 digits with <em>zero</em> communication.
+        And GPS plus Einstein — yes, literally Einstein's relativity is running inside your Uber app."
+      </div>
+      <div class="line">"Let's start." <span class="pause">click →</span></div>
+    </div>
+  </section>
+
+  <!-- OTT -->
+  <section id="ott" data-accent="#e50914" style="--topic-accent:#e50914">
+    <div class="section-header">
+      <div class="accent-bar" style="background:#e50914"></div>
+      <div class="section-icon">🎬</div>
+      <div>
+        <div class="section-title">Topic 01 — OTT Thumbnails</div>
+        <div class="section-sub">3 slides: Hook · Myth · Sprite Sheet · CDN</div>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Hook slide</div>
+      <div class="line">
+        "Quick question — when you're scrubbing through a Netflix show, dragging the seek bar left and right really fast,
+        you see a preview thumbnail that appears <em>instantly</em>. No spinner, no delay. How?"
+        <span class="pause">pause — let them guess</span>
+      </div>
+      <div class="line">
+        "Is Netflix secretly playing the video in the background?
+        Is there an AI analysing frames in real time?
+        Is it firing a network request on every pixel you drag?"
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Myth slide</div>
+      <div class="line">
+        "All of those sound reasonable. All of them are wrong."
+      </div>
+      <div class="line">
+        "Decoding video is expensive — even a 2-second clip takes hundreds of milliseconds.
+        Drag events fire <em>60 times per second</em> — no API can keep up.
+        And background streaming would kill your battery instantly."
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Sprite Sheet slide</div>
+      <div class="line">
+        "This is the trick. It's called a <em>sprite sheet</em>. When a video is uploaded,
+        a background job grabs <em>one frame every 10 seconds</em>.
+        A two-hour movie — that's roughly 720 frames."
+      </div>
+      <div class="line">
+        "All 720 frames are stitched side by side into <em>one single image</em>.
+        Like a film strip. Downloaded once. Cached in your browser."
+      </div>
+      <div class="line">
+        "When you drag to 34% of the video, the browser does: 34% of 720 = frame 245.
+        Row = 245 ÷ 10 = row 24. Column = 245 mod 10 = column 5.
+        Then it shifts the CSS background position by a few pixels.
+        <em>No network call. No decoding. Under a millisecond.</em>"
+      </div>
+      <div class="line">
+        "That seek bar is just doing division. Zero AI involved."
+        <span class="pause">click →</span>
+      </div>
+      <div class="line" style="background:#1a2233;font-size:14px;font-style:italic;color:#cbd5e1;border-left-color:#6366f1;">
+        <strong>💡 Bonus point:</strong> By the way, when I say 'instant play',
+        I mean the <em>current video</em> starts instantly — not the next episode.
+        Netflix has already downloaded the first 30 seconds to the server near you
+        before you even opened the app. That's why pressing play = video plays immediately.
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">CDN slide</div>
+      <div class="line">
+        "Now why is it fast <em>globally</em>? The CDN — Content Delivery Network.
+        Without one, your request goes India → US data centre → back. That's 200ms minimum,
+        just from the physics of distance."
+      </div>
+      <div class="line">
+        "With a CDN, Netflix has <em>15,000+ edge servers</em> worldwide — including in your city.
+        Round trip is 4ms."
+      </div>
+      <div class="line">
+        "But here's the real trick — Netflix doesn't wait for you to press play.
+        They <em>pre-push popular content to edge servers before you even open the app</em>.
+        Think Amazon warehouses — stock is near you before you order. Netflix does the same with content."
+      </div>
+      <div class="line">
+        "'Instant play' is just revealing something that was already sitting near you."
+      </div>
+      <div class="line">
+        "And by the way — Netflix offline downloads? Same DRM encryption. The file is on your phone but locked to the app. Your gallery can't open it. Your phone has the bytes but not a usable video file. That's why the screen goes black when you try to screen-record Netflix — it detects the capture API and blocks it. Pure copyright protection."
+        <span class="pause">click →</span>
+      </div>
+      <div class="line" style="background:#1a2233;font-size:14px;font-style:italic;color:#cbd5e1;border-left-color:#6366f1;">
+        <strong>💡 Bonus points if asked:</strong>
+        <br>① <strong>What if content isn't cached?</strong>
+        If a niche indie doc isn't pre-pushed to your region, the request falls back to the origin server — maybe 200-500ms instead of 4ms. Still faster than no CDN, but noticeably slower.
+        <br>② <strong>How does Netflix decide what to pre-cache in India?</strong>
+        They analyze regional viewing patterns. In India, they pre-cache Bollywood and Hindi originals more aggressively than anime — because data shows Indians watch more Bollywood.
+        <br>③ <strong>Why do you see a BLACK SCREEN when recording Netflix?</strong>
+        That's DRM (Digital Rights Management) — Widevine protection. Not CDN-related. Netflix detects screen recording and goes black to prevent piracy. Same on Disney+, Amazon Prime, Spotify. It's copyright protection, not a delivery problem.
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOD TRANSITION -->
+  <section id="food" data-accent="#f97316" style="--topic-accent:#f97316">
+    <div class="section-header">
+      <div class="accent-bar" style="background:#f97316"></div>
+      <div class="section-icon">🛵</div>
+      <div>
+        <div class="section-title">Topic 02 — Food Delivery Tracking</div>
+        <div class="section-sub">3 slides: Hook · GPS · Interpolation</div>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Topic transition</div>
+      <div class="line">
+        "Alright, OTT done. Moving to something you probably checked while waiting for this session to start — your food delivery."
+        <span class="pause">light pause</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Hook slide</div>
+      <div class="line">
+        "You order on Swiggy or Zomato. Within seconds there's a little motorbike icon on the map.
+        And it moves. <em>Smoothly</em>. Like it's gliding. How?"
+        <span class="pause">pause — click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">GPS slide</div>
+      <div class="line">
+        "Your phone's GPS updates location every 1 to 4 seconds. And it's not perfectly accurate —
+        there's noise, signal bounce, a few metres of margin."
+      </div>
+      <div class="line">
+        "If you plotted raw GPS dots on a map, the rider would look like they're <em>jumping around randomly</em>.
+        Not smooth at all."
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Interpolation slide</div>
+      <div class="line">
+        "This is where interpolation comes in. The app doesn't show you where the rider <em>is</em> —
+        it shows you where it <em>thinks</em> the rider is between GPS pings."
+      </div>
+      <div class="line">
+        "GPS ping — rider at point A. 3 seconds later — rider at point B.
+        In between, the app animates the icon smoothly from A to B at a calculated speed.
+        <em>Linear interpolation.</em>"
+      </div>
+      <div class="line">
+        "On top of that, map-matching snaps the GPS coordinates to the actual road.
+        If GPS says the rider is 8m to the left of the road — physically impossible —
+        the algorithm corrects it to the road."
+      </div>
+      <div class="line">
+        "What looks like a live feed is a <em>prediction engine running at 60 frames per second</em>,
+        constantly filling in the gaps."
+        <span class="pause">click →</span>
+      </div>
+      <div class="line" style="background:#1a2233;font-size:14px;font-style:italic;color:#cbd5e1;border-left-color:#f97316;">
+        <strong>💡 Deep dive (if asked about backend):</strong>
+        So how does the rider's GPS actually get to your phone? It's not a direct connection.
+        <br>Here's the real flow: Rider's GPS → sent to backend API every 2-5 seconds → backend pushes to <em>Kafka</em> (a message queue, think middleman)
+        → Kafka broadcasts to all customers watching that rider → your phone receives via <em>WebSocket</em> (not polling).
+        <br>Why not direct? One rider might have 50 customers watching. Kafka handles all that broadcasting without the rider's phone breaking.
+        Plus if you disconnect and reconnect, Kafka has the last few updates queued so you catch up instantly.
+        <br>The smoothness you see? That's your browser doing interpolation after receiving each WebSocket update. Raw GPS (noisy) → backend → Kafka → WebSocket → your phone smooths it → animated dot.
+      </div>
+      <div class="line" style="background:#1a2233;font-size:14px;font-style:italic;color:#cbd5e1;border-left-color:#f97316;">
+        <strong>💡 Bonus connection (if someone asks about other apps):</strong>
+        By the way, this exact pattern — one WebSocket connection with multiple topic subscriptions — is used in <em>every</em> real-time app.
+        Groww and Zerodha use it for stock prices. One connection to the backend, subscribe to INFY + TCS + RELIANCE + your portfolio, and all updates come through the same pipe.
+        Gaming apps use it for multiplayer positions. Discord uses it for messages. The principle is the same everywhere: efficient, scalable, real-time.
+      </div>
+    </div>
+  </section>
+
+  <!-- MAPS -->
+  <section id="maps" data-accent="#22c55e" style="--topic-accent:#22c55e">
+    <div class="section-header">
+      <div class="accent-bar" style="background:#22c55e"></div>
+      <div class="section-icon">🗺️</div>
+      <div>
+        <div class="section-title">Topic 03 — Google Maps Traffic</div>
+        <div class="section-sub">3 slides: Hook · Sensors · Prediction</div>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Topic transition</div>
+      <div class="line">
+        "Okay, food delivery covered. Now — how many of you opened Google Maps today? Even once?"
+        <span class="pause">wait for hands</span>
+      </div>
+      <div class="line">
+        "The moment you opened it, you became a data point in Google's traffic system.
+        Not when your phone is idle — only when Maps is running.
+        But think about rush hour: millions of commuters have it open at the same time.
+        <em>That</em> is the crowd. And that's how Google knows about your jam before you're even in it."
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Hook slide</div>
+      <div class="line">
+        "Google Maps shows you real-time traffic — red, orange, green. How does it know?
+        Are there cameras on every road? Government sensors?"
+        <span class="pause">pause — click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Sensor slide</div>
+      <div class="line">
+        "Government sensors exist on some highways. They cover maybe <em>1% of roads globally</em>.
+        That's not what Maps is using."
+      </div>
+      <div class="line">
+        "The real source is <em>you</em>. Every phone running Maps continuously sends anonymised
+        location data — speed, heading, position. Millions of data points per minute."
+      </div>
+      <div class="line">
+        "If 50 phones on a stretch of road all report 8 km/h, Google knows there's a jam.
+        No camera needed. <em>They have a crowd.</em>"
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Prediction slide</div>
+      <div class="line">
+        "Real-time is only half of it. Maps blends current speed with <em>years of historical data</em>
+        using a weighted average — every road, every hour, every day of the week."
+      </div>
+      <div class="line">
+        "If there's a cricket match ending at 6pm nearby, Maps has seen what happens after
+        every IPL match at that stadium for 5 years. It factors that in."
+      </div>
+      <div class="line">
+        "When it says 'leave now — 32 minutes, leave in 10 — 45 minutes',
+        that's a <em>machine learning model trained on billions of historical trips</em>."
+        <span class="pause">click →</span>
+      </div>
+      <div class="line" style="background:#1a2233;font-size:14px;font-style:italic;color:#cbd5e1;border-left-color:#22c55e;">
+        <strong>💡 Bonus point (if asked about data accuracy or manipulation):</strong>
+        You might think: 'What if people are walking with phones? Won't that show as traffic?' or 'What if 50 people on a bus skew the data?'
+        <br>Google has filters. Pedestrians move 3-5 km/h — Google filters out anything below ~10 km/h on roads. Walking doesn't count as traffic.
+        <br>And if 50 phones cluster together moving at the same speed? Google treats them as one data point (assumes they're in the same vehicle).
+        <br>Plus <em>map-matching</em> snaps coordinates to actual road segments — data off-road is excluded.
+        <br>Bottom line: Google has <em>billions</em> of data points + ML filtering. A few anomalies don't move the needle. The aggregate pattern is too strong.
+      </div>
+    </div>
+  </section>
+
+  <!-- SHAZAM -->
+  <section id="shazam" data-accent="#38bdf8" style="--topic-accent:#38bdf8">
+    <div class="section-header">
+      <div class="accent-bar" style="background:#38bdf8"></div>
+      <div class="section-icon">🎵</div>
+      <div>
+        <div class="section-title">Topic 04 — Shazam</div>
+        <div class="section-sub">3 slides: Hook · Constellation · Fingerprint</div>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Topic transition</div>
+      <div class="line">
+        "Maps done. Now this next one — this is probably the most magical-feeling app on your phone.
+        And the engineering behind it is almost unfairly clever."
+        <span class="pause">pause</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Hook slide</div>
+      <div class="line">
+        "Noisy bar. Music playing. Someone's shouting next to you.
+        You hold your phone up for 5 seconds and Shazam tells you the <em>exact song, artist, album</em>. How?"
+        <span class="pause">pause — click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Constellation slide — spectrogram image</div>
+      <div class="line">
+        "Shazam converts the audio into a <em>spectrogram</em> — what you're looking at on screen.
+        Time on the X axis. Frequency on the Y axis. Brightness = loudness."
+      </div>
+      <div class="line">
+        "Every song has a unique fingerprint in a spectrogram.
+        The melody creates peaks at specific frequencies at specific times — like stars in a constellation."
+      </div>
+      <div class="line">
+        "Background noise IS in the spectrogram. But noise is <em>random</em> — scattered dots everywhere.
+        The song's peaks are consistent and structured. Shazam finds the loudest peaks and ignores the noise."
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Fingerprint slide — violin spectrogram</div>
+      <div class="line">
+        "See those bright lines on screen? Those are harmonics — the note plus its overtones.
+        Completely consistent. Every time you play that clip, those lines appear in <em>exactly the same place</em>."
+      </div>
+      <div class="line">
+        "Shazam doesn't send the full audio to the server.
+        It takes pairs of peaks — frequency A, frequency B, time gap — and hashes them into a number.
+        Your 5-second clip generates about 20 hash pairs. That's <em>less than 1 kilobyte</em>."
+      </div>
+      <div class="line">
+        "The server has pre-indexed <em>11 million songs</em> — same algorithm, same fingerprints.
+        It looks up your 20 hashes and finds the match in under a second."
+      </div>
+      <div class="line">
+        "Like identifying a face not from a full photo — just the distance between the eyes
+        and the shape of the nose. A few measurements. Unique enough."
+      </div>
+      <div class="line">
+        "Oh — and one more thing. Shazam was built in <em>2002</em>. Before smartphones existed.
+        The original product? You called a phone number, held your phone to the speaker,
+        and got a text message back with the song name. In 2002. On a feature phone.
+        The algorithm has been running for over 20 years."
+        <span class="pause">let that land — click →</span>
+      </div>
+      <div class="line" style="background:#1a2233;font-size:14px;font-style:italic;color:#cbd5e1;border-left-color:#38bdf8;">
+        <strong>💡 Bonus points (word-for-word if asked):</strong>
+        <br>"If you ask why Shazam is fast, here's the punchline: it uploads under 1 KB, not a full 30 MB song file."
+        <br>"If you ask about covers and remixes: Shazam usually identifies the exact version, because the peak pattern changes between studio, live, remix, and acoustic versions."
+        <br>"If you ask why it's called a constellation map: those bright spectral peaks look like stars in a sky, and each song has a unique star pattern."
+        <br>"If you ask about noisy places: random crowd noise does not form stable peak pairs, so the algorithm discards it and keeps only strong repeated peaks."
+      </div>
+    </div>
+  </section>
+
+  <!-- OTP -->
+  <section id="otp" data-accent="#10b981" style="--topic-accent:#10b981">
+    <div class="section-header">
+      <div class="accent-bar" style="background:#10b981"></div>
+      <div class="section-icon">🔐</div>
+      <div>
+        <div class="section-title">Topic 05 — OTP, Cards &amp; CVV</div>
+        <div class="section-sub">4 slides: Hook · TOTP · Luhn · CVV</div>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Topic transition</div>
+      <div class="line">
+        "Alright, Shazam done. Now we get into the one that touches money — always makes people pay attention."
+        <span class="pause">pause</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Hook slide</div>
+      <div class="line">
+        "You open your Authenticator app. Airplane mode on. No internet.
+        It still shows the correct 6-digit OTP. And your bank accepts it.
+        How are both sides generating the <em>same number with zero communication</em>?"
+        <span class="pause">pause — click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">TOTP slide</div>
+      <div class="line">
+        "It's called TOTP — Time-based One-Time Password.
+        When you scanned that QR code, your bank sent your phone one thing — a <em>shared secret key</em>.
+        Transferred once. Stored securely."
+      </div>
+      <div class="line">
+        "Every 30 seconds, both your phone and the bank's server independently run:
+        shared secret + current timestamp rounded to 30 seconds → HMAC-SHA1 hash → take 6 digits."
+      </div>
+      <div class="line">
+        "Same secret, same time — <em>same 6 digits</em>. No communication needed.
+        Expires every 30 seconds because the timestamp changes."
+      </div>
+      <div class="line">
+        "And if you're wondering — even in airplane mode, how does the server know which 30-second window your OTP came from?
+        It doesn't need to ask. Both clocks run independently. Server checks current window, previous window, and next window to handle minor clock drift.
+        No sync needed. Just math."
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Luhn slide</div>
+      <div class="line">
+        "Your card number also has math built in. The last digit is a <em>Luhn check digit</em>.
+        Double every second digit from the right. If it exceeds 9, subtract 9. Sum everything.
+        If divisible by 10 — valid card."
+      </div>
+      <div class="line">
+        "This is why when you mistype your card number online, the form catches it
+        <em>before any server is called</em>. Pure math, client-side. Invented in 1954."
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">CVV slide</div>
+      <div class="line">
+        "The CVV — 3 digits on the back. Not random.
+        It's computed from your card number + expiry date + a secret bank key using DES encryption."
+      </div>
+      <div class="line">
+        "The bank <em>never stores</em> your CVV. When you enter it online, they recompute it
+        and compare. No database lookup. If it matches — the card is genuine."
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Chip vs Magnetic Stripe slide</div>
+      <div class="line">
+        "Now this is the core difference between old magnetic-stripe cards and modern EMV chip cards."
+      </div>
+      <div class="line">
+        "On magnetic stripe, card data is static — same track data every swipe.
+        So if a skimmer — that's a hidden device criminals attach to ATMs or POS machines to read your card — captures that data once, they can clone your card and replay transactions."
+      </div>
+      <div class="line">
+        "On EMV chip, each transaction creates a fresh one-time cryptogram.
+        Even if someone captures one transaction, they cannot reuse it for the next payment."
+      </div>
+      <div class="line">
+        "Simple summary: magnetic stripe is reusable data, EMV is one-time proof.
+        That is why chip and tap are much safer than swipe."
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">OTP/Cards bonus Q&amp;A lines</div>
+      <div class="line" style="background:#1a2233;font-size:14px;font-style:italic;color:#cbd5e1;border-left-color:#10b981;">
+        <strong>💡 Bonus points (word-for-word if asked):</strong>
+        <br>"If you ask how OTP works without internet: both your phone and the bank already share the same secret key, and both run the same math every 30 seconds. Same secret + same time = same code."
+        <br>"If you ask why OTP expires: the timestamp window changes every 30 seconds, so old codes instantly become invalid."
+        <br>"If you ask whether CVV is stored: banks do not store CVV for normal payment processing. They recompute and verify in real time."
+        <br>"If you ask magnetic stripe vs chip: magnetic stripe is static data, so if copied once, it can be replayed. EMV chip creates a fresh cryptogram for every transaction, so copied data cannot be reused."
+        <br>"If you ask about tap payments: tap is still EMV security over NFC. The transport is contactless, but the cryptography is the same dynamic EMV model."
+        <br>"If you ask about safety: OTP proves you currently hold the second factor, but phishing can still steal it, so app-based authenticators are safer than SMS OTP."
+      </div>
+    </div>
+  </section>
+
+  <!-- GPS -->
+  <section id="gps" data-accent="#8b5cf6" style="--topic-accent:#8b5cf6">
+    <div class="section-header">
+      <div class="accent-bar" style="background:#8b5cf6"></div>
+      <div class="section-icon">🛰️</div>
+      <div>
+        <div class="section-title">Topic 06 — GPS &amp; Einstein</div>
+        <div class="section-sub">3 slides: Hook · How GPS works · Einstein</div>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Topic transition</div>
+      <div class="line">
+        "Last topic. And I saved this one for last because it has the biggest 'wait, what?' moment of the whole session.
+        This one involves physics. And a 100-year-old dead scientist. Let me explain."
+        <span class="pause">pause</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Hook slide</div>
+      <div class="line">
+        "24 satellites orbiting at 20,000km altitude.
+        Your phone figures out its position to within <em>3 metres</em>
+        using just radio waves and math. No internet. No ground stations."
+        <span class="pause">pause — click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">How GPS works — animated constellation GIF</div>
+      <div class="line">
+        "Watch the animation on screen — 24 satellites always arranged so at least
+        <em>4 are visible from any point on Earth</em> at any time."
+      </div>
+      <div class="line">
+        "Each satellite broadcasts: 'I am Satellite 7. My position is X, Y, Z.
+        The time is 14:23:00.000000000.' That's it. A simple radio broadcast."
+      </div>
+      <div class="line">
+        "Your phone receives 4 signals at slightly different times — because each satellite
+        is a different distance away. Radio waves travel at the speed of light —
+        <em>30 centimetres per nanosecond</em>.
+        So a 1-microsecond delay = 300 metres difference."
+      </div>
+      <div class="line">
+        "4 distance measurements → 4 spheres → one unique point where all 4 overlap.
+        That's your location. It's called <em>trilateration</em> — not triangulation,
+        people always say triangulation!"
+        <span class="pause">click →</span>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="slide-label">Einstein slide</div>
+      <div class="line">
+        "Without Einstein, your GPS would drift by <em>11 kilometres per day</em>."
+      </div>
+      <div class="line">
+        "Satellites move at 14,000 km/h. Special Relativity — moving clocks run slower.
+        Satellite clocks <em>lose 7 microseconds per day</em>."
+      </div>
+      <div class="line">
+        "But satellites are further from Earth's gravity. General Relativity —
+        clocks in weaker gravity run faster. Satellite clocks <em>gain 45 microseconds per day</em>."
+      </div>
+      <div class="line">
+        "Net effect: plus 38 microseconds per day.
+        At the speed of light, 38 microseconds = <em>11 kilometres of drift</em>."
+      </div>
+      <div class="line">
+        "So the satellites run their clocks <em>slightly slow on purpose</em> to compensate.
+        Einstein published his theory in 1905. GPS engineers implemented it in 1970s hardware."
+      </div>
+      <div class="line">
+        "Every time you drop a pin in Google Maps, you're using Einstein's theory of relativity. <em>Casually.</em>"
+        <span class="pause">click →</span>
+      </div>
+      <div class="line" style="background:#1a2233;font-size:14px;font-style:italic;color:#cbd5e1;border-left-color:#8b5cf6;">
+        <strong>💡 Bonus points (word-for-word if asked):</strong>
+        <br>"If you ask why GPS needs 4 satellites: three solve position, and the fourth corrects your phone clock error."
+        <br>"If you ask GPS vs internet: GPS gives location from satellites; internet only helps download maps and traffic layers faster."
+        <br>"If you ask why GPS fails near tall buildings: signals reflect off glass and concrete, creating multipath errors."
+        <br>"If you ask why I mention Einstein: because the correction is not theory only, it's literally hardcoded into satellite timing systems."
+        <br>"If you ask about India's own GPS: India has NavIC — Navigation with Indian Constellation — 7 satellites covering India and 1,500km around it. Used in modern Android phones and Indian defence systems. We're not just using American GPS anymore."
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <section id="closing" data-accent="#facc15" style="--topic-accent:#facc15">
+    <div class="section-header">
+      <div class="accent-bar" style="background:#facc15"></div>
+      <div class="section-icon">🎉</div>
+      <div>
+        <div class="section-title">Closing</div>
+        <div class="section-sub">Wrap-up</div>
+      </div>
+    </div>
+
+    <div class="slide-block">
+      <div class="line">
+        "So — six apps. Six layers of engineering that most people walk past every day without a second thought."
+      </div>
+      <div class="line">
+        "The seek bar is doing <em>arithmetic</em>.
+        The delivery dot is a <em>prediction</em>.
+        Traffic is a <em>crowd-sourced average of your own phones</em>.
+        Shazam sends <em>1 KB</em> to identify a song from 11 million — and it was doing this in 2002 on a feature phone.
+        Your OTP is a <em>shared secret and a clock</em>, no internet required.
+        And your GPS is corrected by <em>spacetime physics that Einstein figured out in 1905</em>."
+      </div>
+      <div class="line">
+        "None of this is magic. It's just really, really clever engineering.
+        And the best part? We build this kind of stuff too — maybe not GPS satellites,
+        but the same principles. Caching, interpolation, hashing, real-time data pipelines.
+        This is what good engineering looks like at scale."
+      </div>
+      <div class="line">
+        "Next time your Swiggy rider dot glides on the map, or Shazam nails a song in 3 seconds,
+        you'll know exactly what just happened."
+      </div>
+      <div class="line">
+        "Thanks everyone. Any questions — go for it."
+        <span class="pause">open floor — smile — you've got the bonus answers ready</span>
+      </div>
+    </div>
+
+    <div class="tip-box">
+      <h3>💡 Delivery Tips</h3>
+      <ul>
+        <li>Start with the <strong>raised-hand warm-up</strong> — instantly makes it interactive and personal.</li>
+        <li>Pause after every <strong>"How?"</strong> question — let the room guess before you reveal.</li>
+        <li>The <strong>Shazam 2002 feature-phone</strong> line always gets a reaction — pause after saying it.</li>
+        <li>The <strong>"you are a data point right now"</strong> line before Maps always makes people smile.</li>
+        <li>The <strong>Einstein finish</strong> lands best if you let "1905" sit for a moment before closing.</li>
+        <li>If anyone asks a question you covered in a bonus block, say "great question — exactly" then read the bonus line.</li>
+        <li>Use the <strong>A− / A+</strong> buttons (bottom-right) to resize text for your screen distance.</li>
+        <li>All sections are <strong>keyboard-scrollable</strong> — just hit the down arrow or Page Down.</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // ── Active nav item on click ──
+  function setActive(el) {
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  // ── Scroll progress bar ──
+  function updateProgress() {
+    const el = document.getElementById('main');
+    const pct = el.scrollTop / (el.scrollHeight - el.clientHeight) * 100;
+    document.getElementById('progress-fill').style.width = pct + '%';
+  }
+
+  // ── Highlight nav item based on scroll position ──
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav a');
+
+  document.getElementById('main').addEventListener('scroll', function () {
+    updateProgress();
+    let current = '';
+    sections.forEach(sec => {
+      if (this.scrollTop >= sec.offsetTop - 80) current = sec.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+
+  // ── Font size ──
+  let fontSize = 17;
+  function resizeFont(delta) {
+    fontSize = Math.min(26, Math.max(13, fontSize + delta));
+    document.querySelectorAll('.line').forEach(el => el.style.fontSize = fontSize + 'px');
+  }
+
+  // ── Keyboard nav ──
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') resizeFont(1);
+    if (e.key === '-') resizeFont(-1);
+  });
+</script>
+</body>
+</html>
