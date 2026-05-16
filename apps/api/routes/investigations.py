@@ -796,3 +796,31 @@ def get_postmortem(
             detail=f"No post-mortem found for {request_id!r}. Generate one first via POST.",
         )
     return cached.model_dump(mode="json")
+
+
+class ChatRequest(BaseModel):
+    messages: list[dict]
+
+@router.post("/{request_id}/chat")
+def chat_with_investigation(
+    request_id: str,
+    body: ChatRequest,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> StreamingResponse:
+    """Stream a chat conversation with the Copilot using the investigation context."""
+    from corvin.strategy.chat_service import ChatService
+    
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    svc = ChatService()
+    
+    return StreamingResponse(
+        svc.stream_chat(result, body.messages),
+        media_type="text/event-stream",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+        },
+    )

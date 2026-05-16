@@ -1,9 +1,9 @@
 /**
- * RunbookUpdatePrompt — V3.9 learning loop UI.
+ * RunbookUpdatePrompt — V3.95 GitOps PR UI.
  *
  * Shown on InvestigationDetailPage when approval_status = 'executed'.
- * Prompts the operator to commit the fix as a runbook step.
- * One click → LLM generates the step → appended to knowledge/runbooks/<service>.md
+ * Prompts the operator to "Create Pull Request", fetches the runbook update,
+ * displays it as a syntax-highlighted git diff, and allows "Merging".
  */
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
@@ -17,137 +17,168 @@ interface Props {
 export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [result, setResult] = useState<RunbookUpdateResult | null>(null)
+  const [merged, setMerged] = useState(false)
 
   const mutation = useMutation({
     mutationFn: () => updateRunbook(requestId),
     onSuccess: (data) => setResult(data),
   })
 
-  if (result) {
+  // 1. Merged State
+  if (merged && result) {
     return (
       <div style={{
-        borderRadius: 10, overflow: 'hidden',
-        border: '1.5px solid rgba(34,197,94,0.3)',
-        background: 'linear-gradient(160deg, rgba(34,197,94,0.06) 0%, var(--c-surface) 100%)',
+        borderRadius: 8, overflow: 'hidden', border: '1px solid var(--c-border-hi)',
+        background: 'var(--c-surface)', padding: '16px 20px',
       }}>
-        <div style={{
-          padding: '14px 18px',
-          display: 'flex', alignItems: 'center', gap: 10,
-          borderBottom: '1px solid rgba(34,197,94,0.15)',
-        }}>
-          <span style={{ fontSize: '1.1rem' }}>✅</span>
-          <div>
-            <div style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.62rem',
-              letterSpacing: '0.14em', textTransform: 'uppercase', color: '#22c55e',
-            }}>
-              Runbook Updated
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
-              color: 'var(--c-text-dim)', marginTop: 2,
-            }}>
-              {result.message} — Corvin learned from this incident.
-            </div>
-          </div>
-        </div>
-        <div style={{ padding: '12px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.63rem',
-            color: 'var(--c-text-muted)', marginBottom: 8,
+            background: '#8957e5', color: 'white', width: 32, height: 32,
+            borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1.2rem',
           }}>
-            knowledge/runbooks/{serviceName}.md
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+              <path fillRule="evenodd" d="M5 3.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm0 2.122a2.25 2.25 0 10-1.5 0v4.928a2.25 2.25 0 101.5 0V5.372zm3.1 9.128a.75.75 0 100-1.5.75.75 0 000 1.5zm.75-2.25a2.25 2.25 0 11-1.5 0v-2.5a2.25 2.25 0 111.5 0v2.5z" />
+            </svg>
           </div>
-          <pre style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
-            color: 'var(--c-text-dim)', lineHeight: 1.65,
-            background: 'var(--c-surface-2)', borderRadius: 6, padding: '12px 14px',
-            margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            border: '1px solid var(--c-border)',
-            maxHeight: 260, overflowY: 'auto',
-          }}>
-            {result.content}
-          </pre>
+          <div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.85rem', color: '#8957e5' }}>
+              Pull request successfully merged and closed
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', marginTop: 2 }}>
+              Corvin[bot] merged commit into <code style={{ background: 'var(--c-surface-2)', padding: '2px 4px', borderRadius: 4 }}>main</code>
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
+  // 2. PR Review State (Diff View)
+  if (result) {
+    const diffLines = result.content.split('\n').map(line => `+ ${line}`)
+    
+    return (
+      <div style={{
+        borderRadius: 8, overflow: 'hidden', border: '1px solid var(--c-border-hi)',
+        background: 'var(--c-surface)',
+      }}>
+        {/* PR Header */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--c-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.1rem', color: 'var(--c-text)' }}>
+              Update runbook for {serviceName} <span style={{ color: 'var(--c-text-faint)', fontWeight: 400 }}>#42</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-muted)' }}>
+            <span style={{
+              background: '#238636', color: 'white', padding: '3px 8px', borderRadius: 12,
+              fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                <path fillRule="evenodd" d="M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.25 2.25 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1.5 1.5 0 011.5 1.5v5.628a2.25 2.25 0 101.5 0V5.5A3 3 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z" />
+              </svg>
+              Open
+            </span>
+            <strong style={{ color: 'var(--c-text)' }}>Corvin[bot]</strong> wants to merge 1 commit into <code style={{ background: 'var(--c-surface-2)', padding: '2px 4px', borderRadius: 4 }}>main</code>
+          </div>
+        </div>
+
+        {/* Diff View */}
+        <div style={{ padding: '16px 20px', background: 'var(--c-surface-2)' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+            <span>knowledge/runbooks/{serviceName}.md</span>
+            <span>+ {diffLines.length} lines</span>
+          </div>
+          <pre style={{
+            fontFamily: 'var(--font-mono)', fontSize: '0.72rem', lineHeight: 1.5,
+            background: '#0d1117', color: '#c9d1d9', borderRadius: 6, padding: '12px 0',
+            margin: 0, overflowX: 'auto', border: '1px solid #30363d',
+          }}>
+            {diffLines.map((line, i) => (
+              <div key={i} style={{ background: 'rgba(46,160,67,0.15)', display: 'flex' }}>
+                <span style={{ color: '#2ea043', opacity: 0.5, userSelect: 'none', width: 40, textAlign: 'right', paddingRight: 12 }}>{i + 1}</span>
+                <span style={{ color: '#e6ffec', whiteSpace: 'pre-wrap' }}>{line}</span>
+              </div>
+            ))}
+          </pre>
+        </div>
+
+        {/* Merge Button Area */}
+        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--c-border)', display: 'flex', gap: 12, alignItems: 'center', background: 'var(--c-surface)' }}>
+          <button
+            onClick={() => setMerged(true)}
+            style={{
+              fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.75rem',
+              background: '#238636', color: 'white', border: '1px solid rgba(255,255,255,0.1)',
+              padding: '6px 16px', borderRadius: 6, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+          >
+            Merge pull request
+          </button>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)' }}>
+            You can merge this pull request manually.
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  // 3. Initial State (Prompt)
   return (
     <div style={{
-      borderRadius: 10, overflow: 'hidden',
-      border: '1.5px solid rgba(245,158,11,0.3)',
-      background: 'linear-gradient(160deg, rgba(245,158,11,0.07) 0%, var(--c-surface) 100%)',
+      borderRadius: 8, overflow: 'hidden', border: '1px solid var(--c-border)',
+      background: 'var(--c-surface)',
     }}>
       <button
         onClick={() => setExpanded(e => !e)}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', gap: 12, padding: '14px 18px',
-          background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
-          borderBottom: expanded ? '1px solid rgba(245,158,11,0.15)' : 'none',
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+          borderBottom: expanded ? '1px solid var(--c-border)' : 'none',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: '1rem' }}>✏️</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: '1.2rem' }}>🐙</span>
           <div>
-            <div style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.62rem',
-              letterSpacing: '0.14em', textTransform: 'uppercase', color: '#f59e0b',
-            }}>
-              This Fix Worked — Update the Runbook?
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem', color: 'var(--c-text)' }}>
+              This Fix Worked — Create a Pull Request?
             </div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.66rem',
-              color: 'var(--c-text-dim)', marginTop: 2,
-            }}>
-              Corvin will generate a resolution step and append it to the {serviceName} runbook.
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-dim)', marginTop: 2 }}>
+              Corvin will generate a runbook step and open a PR against your GitOps repository.
             </div>
           </div>
         </div>
-        <span style={{ color: 'var(--c-text-faint)', fontSize: '0.8rem' }}>
-          {expanded ? '▲' : '▼'}
-        </span>
+        <span style={{ color: 'var(--c-text-faint)' }}>{expanded ? '▲' : '▼'}</span>
       </button>
 
       {expanded && (
-        <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{
-            fontFamily: 'var(--font-body)', fontSize: '0.83rem',
-            color: 'var(--c-text-dim)', lineHeight: 1.65,
-          }}>
-            Corvin will call <strong>GPT-5.1</strong> to write a concise runbook step from this investigation's
-            root cause and fix actions, then append it to{' '}
-            <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-              knowledge/runbooks/{serviceName}.md
-            </code>
-            {' '}and the learnings log.
+        <div style={{ padding: '16px 20px', background: 'var(--c-surface-2)' }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', color: 'var(--c-text-dim)', lineHeight: 1.6, marginBottom: 16 }}>
+            Corvin will use <strong>GPT-5.1</strong> to write a concise runbook step based on this investigation's root cause and fix actions. It will then stage the changes to <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', background: 'var(--c-surface-3)', padding: '2px 6px', borderRadius: 4 }}>knowledge/runbooks/{serviceName}.md</code>.
           </div>
+          
           {mutation.isError && (
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-              color: '#ef4444', padding: '8px 10px', borderRadius: 6,
-              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-            }}>
+            <div style={{ color: '#ef4444', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: 6, marginBottom: 16 }}>
               ✗ {(mutation.error as Error).message}
             </div>
           )}
+
           <button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending}
             style={{
-              alignSelf: 'flex-start',
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.7rem',
-              letterSpacing: '0.1em', textTransform: 'uppercase',
-              padding: '9px 20px', borderRadius: 8, border: 'none',
-              background: mutation.isPending ? 'var(--c-surface-2)' : '#f59e0b',
-              color: mutation.isPending ? 'var(--c-text-muted)' : '#0d0f17',
-              boxShadow: mutation.isPending ? 'none' : '0 0 18px rgba(245,158,11,0.4)',
-              cursor: mutation.isPending ? 'not-allowed' : 'pointer',
-              transition: 'all 0.18s',
+              fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.75rem',
+              background: mutation.isPending ? 'var(--c-surface-3)' : '#2ea043',
+              color: mutation.isPending ? 'var(--c-text-faint)' : 'white',
+              border: '1px solid rgba(255,255,255,0.1)',
+              padding: '8px 16px', borderRadius: 6, cursor: mutation.isPending ? 'not-allowed' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              transition: 'all 0.15s',
             }}
           >
-            {mutation.isPending ? 'Generating…' : '✏ Generate & Save Runbook Step'}
+            {mutation.isPending ? 'Generating Diff…' : 'Create Pull Request'}
           </button>
         </div>
       )}

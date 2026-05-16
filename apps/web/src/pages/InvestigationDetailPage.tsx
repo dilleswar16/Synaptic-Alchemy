@@ -15,6 +15,7 @@ import { AuditTrailSection } from '../components/investigation/AuditTrailSection
 import { PostMortemSection } from '../components/investigation/PostMortemSection'
 import { IncidentHeroCard } from '../components/investigation/IncidentHeroCard'
 import { RunbookUpdatePrompt } from '../components/investigation/RunbookUpdatePrompt'
+import { CopilotChatWidget } from '../components/investigation/CopilotChatWidget'
 import { TechnicalHighlighter } from '../components/TechnicalHighlighter'
 import { Section } from '../components/Section'
 import { BlastRadiusCard } from '../components/BlastRadiusCard'
@@ -322,6 +323,7 @@ export default function InvestigationDetailPage() {
           </>
         )}
       </div>
+      <CopilotChatWidget requestId={id!} />
     </Layout>
   )
 }

@@ -6,6 +6,55 @@ whole file as context.
 
 ---
 
+## What is CHAD?
+
+**CHAD = Channel Application Digital APIs & Function Hub**
+
+CHAD is the name of the organisation's digital channel platform. It provides:
+- **Fund APIs** (`fundapis`) — backend APIs for fund-related operations, exposed via APIM.
+- **Partner APIs** (`partnerapis`) — APIs for partner integrations, exposed via APIM.
+- **Fund SSO** (`fundsso`) — the authentication/SSO service for the channel app, called **directly** by the client app (NOT through APIM).
+
+> ⚠️ Important: The APIM `BackendId: function-app-backend` is **not** a separate Azure Function App.
+> It is simply the APIM backend reference name pointing to `fundapis` and `partnerapis` running in AKS.
+
+---
+
+## Traffic Flow Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   CLIENT APPLICATION                     │
+│         (browser / mobile / partner system)              │
+└───────────┬──────────────────────────────┬──────────────┘
+            │  Fund & Partner API calls    │  SSO / Auth calls
+            │  (goes through APIM)         │  (hits AKS directly — NO APIM)
+            ▼                              ▼
+┌─────────────────────┐        ┌──────────────────────────┐
+│  Azure API Management│        │  AKS — chad namespace    │
+│  (APIM DV01)        │        │  ┌────────────────────┐  │
+│  - fundapis API  ───┼───────▶│  │   chad-fundsso     │  │
+│  - partnerapis API──┼──┐     │  │   (SSO service)    │  │
+└─────────────────────┘  │     │  └────────────────────┘  │
+                          │     └──────────────────────────┘
+                          │
+                          ▼
+           ┌──────────────────────────┐
+           │  AKS — chad namespace    │
+           │  ┌────────────────────┐  │
+           │  │   chad-fundapis    │  │
+           │  │  (Fund APIs, 2r)   │  │
+           │  ├────────────────────┤  │
+           │  │  chad-partnerapis  │  │
+           │  │  (Partner APIs)    │  │
+           │  └────────────────────┘  │
+           └──────────────────────────┘
+```
+
+**Key rule:** `fundsso` is a direct AKS service — client apps call it straight without APIM in the path. `fundapis` and `partnerapis` always flow through APIM first.
+
+---
+
 ## AKS Cluster
 
 - Cluster name:        `azaustaekub14470dv0101`
@@ -22,15 +71,15 @@ whole file as context.
 - Log Analytics workspace: `LogAnalytics-APIM-DV01`
 - Primary gateway log table: `ApiManagementGatewayLogs`
 - Known ApiId values:  `system`, `fundapis`, `partnerapis`
-- Known BackendId:     `function-app-backend`
+- Known BackendId:     `function-app-backend` ← this is the APIM name for `chad-fundapis` / `chad-partnerapis` in AKS (not a separate app)
 
 ## Monitored Services
 
-| Service Name   | AKS Deployment    | Namespace | Normal Replicas | Notes                          |
-|----------------|-------------------|-----------|-----------------|--------------------------------|
-| fundapis       | chad-fundapis     | chad      | 2               | Fund APIs backend              |
-| fundsso        | chad-fundsso      | chad      | 2               | Fund SSO service               |
-| partnerapis    | chad-partnerapis  | chad      | 2               | Partner APIs (1/2 ready — HPA metric issue noted) |
+| Service Name | AKS Deployment   | Namespace | Normal Replicas | Entry Point         | Notes                                      |
+|--------------|------------------|-----------|-----------------|---------------------|--------------------------------------------|
+| fundapis     | chad-fundapis    | chad      | 2               | APIM → AKS          | Fund APIs backend                          |
+| fundsso      | chad-fundsso     | chad      | 2               | **Direct (no APIM)**| Fund SSO / auth service                    |
+| partnerapis  | chad-partnerapis | chad      | 2               | APIM → AKS          | Partner APIs (1/2 ready — HPA metric issue)|
 
 ## Log Analytics Workspaces
 
@@ -59,6 +108,5 @@ whole file as context.
 - Elastic (`https://c697cd417c6c4a879c778dd74ff9e641.australiaeast.azure.elastic-cloud.com`) is blocked by org SSO — use Container Insights as the log source.
 - Azure Activity Log not yet flowing to APIM workspace — Diagnostic Setting needed on subscription/resource group.
 - `ContainerLogV2` table schema exists in AUCHAD workspace but has no ingested data — cluster is using legacy `ContainerLog` format.
-
 - V1 does not execute fixes. All FixStrategyOutput actions require human review.
 - Confidence threshold before surfacing RCA: `medium` (see `config/policies/investigation.yaml`)

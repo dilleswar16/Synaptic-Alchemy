@@ -391,3 +391,27 @@ This is what V3.5 enables (minimum viable demo):
 10. *(V3.9 add-on)* Voice: *"Incident resolved. Duration: 4 minutes 38 seconds."*
 
 **That sequence, running live, wins the hackathon.**
+
+---
+
+## V3.95 — The "Awestruck" Hackathon Pack
+
+**Theme:** Maximum visual and narrative impact for demo day.  
+**Exit criteria:** GitOps PR UI renders after fix execution. Copilot chat streams answers based on incident context.
+
+### Feature 16 — GitOps "Self-Healing" Pull Request UI
+**Why:** Bridges SRE operations with Infrastructure-as-Code. Replaces the generic runbook prompt with an authentic GitHub PR simulation.
+
+**What it does:**
+- Renders the LLM-generated runbook update as a syntax-highlighted Git Diff.
+- Replaces the generic "Update Runbook" button with a GitHub-styled "Merge pull request" button.
+- Appears on the Investigation Detail page only after a fix is executed.
+
+### Feature 17 — "Ask Corvin" Copilot Chat
+**Why:** Proves explainability and turns a static dashboard into an interactive pair-programmer. 
+
+**What it does:**
+- A beautiful glassmorphic chat widget on the Investigation Detail page.
+- Injects the entire RCA, Evidence, Fix Strategy, and CHAD Runbook into the LLM system prompt.
+- Maintains chat history for follow-up questions.
+- Streams the response back to the UI in real-time.
