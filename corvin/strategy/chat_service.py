@@ -35,6 +35,7 @@ class ChatService:
             "answer questions about the telemetry, and discuss fix strategies.\n\n"
             
             "=== INCIDENT CONTEXT ===\n"
+            f"Investigation ID: {result.request.id}\n"
             f"Service: {result.request.service_name} ({result.request.environment})\n"
             f"Trigger: {result.request.trigger_source.value} - {result.request.description}\n\n"
             
@@ -57,6 +58,7 @@ class ChatService:
             f"{runbook[:2000] if runbook else 'No runbook exists yet for this service. You may help draft one.'}\n\n"
 
             "Be concise, technical, and blameless. Respond in Markdown. "
+            "When greeting the user, introduce yourself as 'Corvin, your SRE copilot' and mention both the service name and the Investigation ID. "
             "Do not hallucinate data that is not present in the evidence or knowledge base."
         )
 
@@ -76,7 +78,6 @@ class ChatService:
             "model": model_name,
             "messages": llm_messages,
             "stream": True,
-            "max_tokens": 1000,
             "drop_params": True,  # silently ignore unsupported params per model
         }
         endpoint = os.environ.get("LITELLM_ENDPOINT", "").strip()

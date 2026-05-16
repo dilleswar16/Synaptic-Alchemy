@@ -6,6 +6,7 @@ import { useThreeAmMode } from '../hooks/useThreeAmMode'
 const NAV_LINKS = [
   { to: '/',               label: 'Dashboard' },
   { to: '/investigations', label: 'Investigations' },
+  { to: '/corvin',         label: '⬡ Corvin AI' },
 ]
 
 function LiveClock() {

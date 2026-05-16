@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 revision = "0008_v37_predictive_alerts"
-down_revision = "0007"
+down_revision = "0007_confidence_reasoning"
 branch_labels = None
 depends_on = None
 

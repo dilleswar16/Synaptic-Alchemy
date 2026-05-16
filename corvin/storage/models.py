@@ -66,6 +66,9 @@ class InvestigationRequestRow(Base):
     post_mortem: Mapped[PostMortemRow | None] = relationship(
         "PostMortemRow", back_populates="request", uselist=False
     )
+    chat_messages: Mapped[list[ChatMessageRow]] = relationship(
+        "ChatMessageRow", back_populates="request", order_by="ChatMessageRow.created_at"
+    )
 
 
 class RCAOutputRow(Base):
@@ -175,4 +178,64 @@ class PredictiveAlertRow(Base):
     investigation_request_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+
+class ChatMessageRow(Base):
+    """One chat turn (user or assistant) for an investigation's Copilot session."""
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    request_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("investigation_requests.id"), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String(20), nullable=False)   # "user" | "assistant"
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    request: Mapped[InvestigationRequestRow] = relationship(
+        "InvestigationRequestRow", back_populates="chat_messages"
+    )
+
+
+class CorvinSessionRow(Base):
+    """A top-level Corvin Command Center conversation (ChatGPT-style session)."""
+    __tablename__ = "corvin_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False, default="New conversation")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    messages: Mapped[list[CorvinMessageRow]] = relationship(
+        "CorvinMessageRow", back_populates="session", order_by="CorvinMessageRow.created_at"
+    )
+
+
+class CorvinMessageRow(Base):
+    """One chat turn in a Corvin Command Center session."""
+    __tablename__ = "corvin_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("corvin_sessions.id"), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String(20), nullable=False)   # "user" | "assistant"
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    # The agent's internal reasoning/thought process (monospaced in UI)
+    thinking: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    # Serialised list of tool calls made during this turn (JSON), null for user turns
+    tool_calls: Mapped[dict | None] = mapped_column(JSONB_COMPAT, nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    session: Mapped[CorvinSessionRow] = relationship(
+        "CorvinSessionRow", back_populates="messages"
     )

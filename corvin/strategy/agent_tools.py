@@ -1,0 +1,565 @@
+"""
+Corvin Command Center — Agent Tool Definitions & Executors.
+
+Each tool maps 1-to-1 with a real live endpoint or adapter in the platform.
+No fake data. Every executor calls the same code paths used by the existing
+investigation pipeline and dashboard pages.
+
+Tool groups
+-----------
+Platform (DB-backed):
+    get_platform_stats          → InvestigationRepository.get_investigation_stats()
+    list_recent_incidents       → InvestigationRepository.list_investigations()
+    get_investigation_detail    → InvestigationRepository.get_investigation_result()
+    get_predictive_alerts       → InvestigationRepository.list_predictive_alerts()
+    get_service_score           → build_service_score() (existing strategy module)
+    get_roi                     → build_roi_stats() (existing strategy module)
+    get_service_topology        → build_service_topology() (existing strategy module)
+    get_blast_radius            → InvestigationRepository + blast_radius logic
+    get_postmortem              → InvestigationRepository.get_post_mortem()
+    get_similar_incidents       → InvestigationRepository.get_similar_incidents()
+
+Knowledge (file-backed):
+    get_site_knowledge          → KnowledgeLoader.load_site_knowledge()
+    get_runbook                 → KnowledgeLoader.load_matching_runbooks()
+
+Data (Azure-backed — requires network to org cluster):
+    run_kql                     → LogAnalyticsAdapter.get_apim_logs()
+    get_aks_health              → AKSAdapter.get_pod_context()
+    run_elastic_query           → ElasticAdapter.get_logs() / get_metrics()
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from typing import Any
+
+_log = logging.getLogger(__name__)
+
+# ── Tool Schema Definitions (OpenAI function-calling format) ──────────────────
+
+TOOL_SCHEMAS: list[dict[str, Any]] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_platform_stats",
+            "description": (
+                "Return aggregated SRE health metrics for the entire Corvin platform: "
+                "total investigation count, today's count, mean time to resolve (MTTR), "
+                "confidence distribution (high/medium/low), approval and execution rates, "
+                "and the most recently investigated services. "
+                "Use this when the user asks about overall platform health, MTTR, or statistics."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_recent_incidents",
+            "description": (
+                "Return a list of the most recent investigations on the Corvin platform, "
+                "newest first. Each item includes: request_id, service_name, environment, "
+                "trigger_source, description, approval_status, created_at, completed_at. "
+                "Use this when the user asks about recent incidents, history, or wants to find an investigation."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of incidents to return (default 10, max 50).",
+                    },
+                    "service_name": {
+                        "type": "string",
+                        "description": "Optional filter: only return incidents for this service.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_investigation_detail",
+            "description": (
+                "Return the full details of a specific investigation by its ID, including "
+                "the RCA (root cause analysis), fix strategy, evidence bundle, and post-mortem "
+                "if generated. Use this when the user mentions a specific investigation ID or "
+                "asks for details about a particular incident."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "investigation_id": {
+                        "type": "string",
+                        "description": "The UUID of the investigation (request_id).",
+                    }
+                },
+                "required": ["investigation_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_predictive_alerts",
+            "description": (
+                "Return the current list of predictive alerts — proactive detections of "
+                "likely-upcoming incidents based on trend analysis. Each alert includes: "
+                "alert_type, title, summary, severity, confidence, estimated_breach_at. "
+                "Use this when the user asks about upcoming risks or predictive monitoring."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_service_score",
+            "description": (
+                "Return a composite health score (0–100) for a specific service and environment, "
+                "based on incident frequency, MTTR, confidence, and fix success rate. "
+                "Use this when the user asks 'how healthy is X service?' or 'what's the score for Y?'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "The service to score (e.g. 'fundsso', 'partnerapis').",
+                    },
+                    "environment": {
+                        "type": "string",
+                        "description": "Target environment (default: 'dev').",
+                    },
+                },
+                "required": ["service_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_roi",
+            "description": (
+                "Return ROI metrics for the Corvin platform: estimated engineering hours saved, "
+                "cost saved vs a manual baseline MTTR, and the number of incidents auto-resolved. "
+                "Use this when the user asks about value, savings, or ROI."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "months": {
+                        "type": "integer",
+                        "description": "Look-back window in months (1–12, default 1).",
+                    }
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_service_topology",
+            "description": (
+                "Return the service dependency topology derived from recent investigations: "
+                "which services call which, discovered dependencies, and incident hotspots. "
+                "Use this when the user asks about architecture, dependencies, or service maps."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_blast_radius",
+            "description": (
+                "Return the blast radius analysis for a specific investigation: which downstream "
+                "services and users are likely affected by this incident. "
+                "Use this when the user asks about impact, affected services, or blast radius."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "investigation_id": {
+                        "type": "string",
+                        "description": "The UUID of the investigation.",
+                    }
+                },
+                "required": ["investigation_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_postmortem",
+            "description": (
+                "Return the post-mortem document for a specific investigation, including "
+                "timeline, root cause, actions taken, and prevention recommendations. "
+                "Use this when the user asks for a post-mortem or incident report."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "investigation_id": {
+                        "type": "string",
+                        "description": "The UUID of the investigation.",
+                    }
+                },
+                "required": ["investigation_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_similar_incidents",
+            "description": (
+                "Return past incidents for the same service and environment. Useful for "
+                "identifying recurring patterns, known issues, or historical context for "
+                "a current incident. Use when the user asks 'has this happened before?' "
+                "or 'what are past issues with X?'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "Service name to look up.",
+                    },
+                    "environment": {
+                        "type": "string",
+                        "description": "Environment (default: 'dev').",
+                    },
+                    "n": {
+                        "type": "integer",
+                        "description": "Max results to return (default 5).",
+                    },
+                },
+                "required": ["service_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_site_knowledge",
+            "description": (
+                "Return the CHAD site knowledge base: architecture overview, service descriptions, "
+                "AKS cluster details, APIM configuration, namespaces, and infrastructure conventions. "
+                "Use this whenever the user asks about CHAD architecture, how services are deployed, "
+                "cluster names, namespaces, or any infrastructure-level question."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_runbook",
+            "description": (
+                "Return the runbook for a specific service or incident type from the CHAD knowledge base. "
+                "Runbooks contain step-by-step investigation and resolution procedures. "
+                "Use this when the user asks about how to fix or diagnose a specific service or issue."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": (
+                            "A keyword or phrase to match the correct runbook, e.g. "
+                            "'fundsso memory leak' or 'partnerapis 401 jwt'."
+                        ),
+                    }
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_kql",
+            "description": (
+                "Fetch APIM gateway logs from Azure Log Analytics for a named service. "
+                "Returns request logs, response codes, latency, and error details from the "
+                "Azure API Management gateway. Requires network access to the org Azure subscription. "
+                "Use this when the user asks about API logs, APIM errors, 4xx/5xx rates, or latency."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "The API or backend service name (e.g. 'partnerapis', 'fundapis').",
+                    },
+                    "environment": {
+                        "type": "string",
+                        "description": "Environment to filter by (default: 'dev').",
+                    },
+                    "time_range_minutes": {
+                        "type": "integer",
+                        "description": "How many minutes back to retrieve logs (default: 60).",
+                    },
+                },
+                "required": ["service_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_aks_health",
+            "description": (
+                "Fetch live AKS pod status, restart counts, resource pressure, recent events, "
+                "and deployment rollout state for a named service from the CHAD cluster. "
+                "Use this when the user asks about pod health, restarts, OOMKill, deployment status, "
+                "or anything Kubernetes-related."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "Kubernetes deployment or service name (e.g. 'fundsso', 'partnerapis').",
+                    },
+                    "namespace": {
+                        "type": "string",
+                        "description": "Kubernetes namespace (default: 'chad').",
+                    },
+                    "environment": {
+                        "type": "string",
+                        "description": "Target environment.",
+                    },
+                },
+                "required": ["service_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_elastic_query",
+            "description": (
+                "Fetch application logs or metrics from Elasticsearch/Elastic APM for a service. "
+                "Returns recent log entries and performance metrics. "
+                "Use this when the user asks about application logs, error messages, stack traces, "
+                "or app-level performance metrics."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "Service to query logs for.",
+                    },
+                    "environment": {
+                        "type": "string",
+                        "description": "Target environment (default: 'dev').",
+                    },
+                    "time_range_minutes": {
+                        "type": "integer",
+                        "description": "Look-back window in minutes (default: 60).",
+                    },
+                    "query_type": {
+                        "type": "string",
+                        "enum": ["logs", "metrics"],
+                        "description": "Whether to fetch logs or metrics (default: 'logs').",
+                    },
+                },
+                "required": ["service_name"],
+            },
+        },
+    },
+]
+
+
+# ── Tool Executors ────────────────────────────────────────────────────────────
+
+def execute_tool(tool_name: str, arguments: dict[str, Any]) -> Any:
+    """Dispatch a tool call to the appropriate live adapter or repository function.
+
+    All calls are live — no mock data. Functions mirror exactly what the
+    existing dashboard endpoints call.
+    """
+    try:
+        return _EXECUTORS[tool_name](arguments)
+    except KeyError:
+        raise ValueError(f"Unknown tool: {tool_name!r}")
+    except Exception as exc:
+        _log.warning("Tool %r failed: %s", tool_name, exc)
+        return {"error": str(exc), "tool": tool_name}
+
+
+def _exec_platform_stats(args: dict) -> dict:
+    from corvin.storage.repository import InvestigationRepository
+    repo = InvestigationRepository()
+    return repo.get_investigation_stats()
+
+
+def _exec_list_recent_incidents(args: dict) -> list:
+    from corvin.storage.repository import InvestigationRepository
+    limit = min(int(args.get("limit", 10)), 50)
+    service_filter = args.get("service_name", "").strip().lower()
+    repo = InvestigationRepository()
+    results = repo.list_investigations()
+    if service_filter:
+        results = [r for r in results if r.get("service_name", "").lower() == service_filter]
+    return results[:limit]
+
+
+def _exec_investigation_detail(args: dict) -> dict:
+    from corvin.storage.repository import InvestigationRepository
+    inv_id = args["investigation_id"]
+    repo = InvestigationRepository()
+    result = repo.get_investigation_result(inv_id)
+    if result is None:
+        return {"error": f"Investigation {inv_id!r} not found."}
+    import json as _json
+    return _json.loads(result.model_dump_json())
+
+
+def _exec_predictive_alerts(args: dict) -> list:
+    from corvin.storage.repository import InvestigationRepository
+    from corvin.triggers.predictive import PredictiveMonitor
+    repo = InvestigationRepository()
+    monitor = PredictiveMonitor(repo=repo)
+    alerts = monitor.refresh_alerts()
+    return [a.model_dump(mode="json") for a in alerts]
+
+
+def _exec_service_score(args: dict) -> dict:
+    from corvin.storage.repository import InvestigationRepository
+    service = args["service_name"]
+    env = args.get("environment", "dev")
+    repo = InvestigationRepository()
+    return repo.get_service_score(service_name=service, environment=env)
+
+
+def _exec_roi(args: dict) -> dict:
+    from corvin.storage.repository import InvestigationRepository
+    from corvin.strategy.roi import build_roi_stats, _parse_dt
+    from corvin.core.config_loader import get_env, load_config
+    from datetime import datetime, timedelta, timezone
+    months = max(1, min(int(args.get("months", 1)), 12))
+    repo = InvestigationRepository()
+    investigations = repo.list_investigations()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=months * 30)
+    filtered = [
+        r for r in investigations
+        if (dt := _parse_dt(r.get("completed_at") or r.get("created_at"))) and dt >= cutoff
+    ]
+    policy = load_config("policies/investigation", get_env())
+    stats = build_roi_stats(filtered, policy=policy)
+    stats.period_months = months
+    return stats.model_dump()
+
+
+def _exec_topology(args: dict) -> dict:
+    from corvin.storage.repository import InvestigationRepository
+    from corvin.investigation.topology import build_service_topology
+    repo = InvestigationRepository()
+    results = repo.list_recent_results(limit=30)
+    return build_service_topology(results).model_dump()
+
+
+def _exec_blast_radius(args: dict) -> dict:
+    from corvin.storage.repository import InvestigationRepository
+    inv_id = args["investigation_id"]
+    repo = InvestigationRepository()
+    result = repo.get_investigation_result(inv_id)
+    if result is None:
+        return {"error": f"Investigation {inv_id!r} not found."}
+    from corvin.strategy.blast_radius import estimate_blast_radius
+    return estimate_blast_radius(result).model_dump()
+
+
+def _exec_postmortem(args: dict) -> dict:
+    from corvin.storage.repository import InvestigationRepository
+    inv_id = args["investigation_id"]
+    repo = InvestigationRepository()
+    pm = repo.get_post_mortem(inv_id)
+    if pm is None:
+        return {"error": f"No post-mortem found for investigation {inv_id!r}."}
+    import json as _json
+    return _json.loads(pm.model_dump_json())
+
+
+def _exec_similar_incidents(args: dict) -> list:
+    from corvin.storage.repository import InvestigationRepository
+    service = args["service_name"]
+    env = args.get("environment", "dev")
+    n = max(1, min(int(args.get("n", 5)), 10))
+    repo = InvestigationRepository()
+    return repo.get_similar_incidents(service_name=service, environment=env, n=n)
+
+
+def _exec_site_knowledge(args: dict) -> str:
+    from corvin.core.knowledge_loader import KnowledgeLoader
+    return KnowledgeLoader().load_site_knowledge()
+
+
+def _exec_runbook(args: dict) -> str:
+    from corvin.core.knowledge_loader import KnowledgeLoader
+    query = args.get("query", "")
+    runbooks = KnowledgeLoader().load_matching_runbooks(query)
+    if not runbooks:
+        return f"No runbook found matching '{query}'. Consider drafting one."
+    return "\n\n---\n\n".join(runbooks)
+
+
+def _exec_run_kql(args: dict) -> Any:
+    from corvin.evidence.log_analytics_adapter import LogAnalyticsAdapter
+    adapter = LogAnalyticsAdapter()
+    return adapter.get_apim_logs(
+        service_name=args["service_name"],
+        environment=args.get("environment", "dev"),
+        time_range_minutes=int(args.get("time_range_minutes", 60)),
+    )
+
+
+def _exec_aks_health(args: dict) -> Any:
+    from corvin.evidence.aks_adapter import AKSAdapter
+    adapter = AKSAdapter()
+    return adapter.get_pod_context(
+        service_name=args["service_name"],
+        namespace=args.get("namespace"),
+        environment=args.get("environment"),
+    )
+
+
+def _exec_elastic_query(args: dict) -> Any:
+    from corvin.evidence.elastic_adapter import ElasticAdapter
+    adapter = ElasticAdapter()
+    service = args["service_name"]
+    env = args.get("environment", "dev")
+    minutes = int(args.get("time_range_minutes", 60))
+    query_type = args.get("query_type", "logs")
+    if query_type == "metrics":
+        return adapter.get_metrics(service_name=service, environment=env, time_range_minutes=minutes)
+    return adapter.get_logs(service_name=service, environment=env, time_range_minutes=minutes)
+
+
+_EXECUTORS = {
+    "get_platform_stats":       _exec_platform_stats,
+    "list_recent_incidents":    _exec_list_recent_incidents,
+    "get_investigation_detail": _exec_investigation_detail,
+    "get_predictive_alerts":    _exec_predictive_alerts,
+    "get_service_score":        _exec_service_score,
+    "get_roi":                  _exec_roi,
+    "get_service_topology":     _exec_topology,
+    "get_blast_radius":         _exec_blast_radius,
+    "get_postmortem":           _exec_postmortem,
+    "get_similar_incidents":    _exec_similar_incidents,
+    "get_site_knowledge":       _exec_site_knowledge,
+    "get_runbook":              _exec_runbook,
+    "run_kql":                  _exec_run_kql,
+    "get_aks_health":           _exec_aks_health,
+    "run_elastic_query":        _exec_elastic_query,
+}

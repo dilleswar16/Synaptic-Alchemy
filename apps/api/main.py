@@ -26,6 +26,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.routes import investigations, triggers
+from apps.api.routes.corvin_agent import router as corvin_router
 from apps.teams.router import router as teams_router
 from corvin.core.config_loader import get_env, load_config
 from corvin.storage.db import get_engine, is_sqlite
@@ -82,6 +83,7 @@ app.add_middleware(
 app.include_router(investigations.router, prefix="/investigations", tags=["investigations"])
 app.include_router(triggers.router, prefix="/triggers", tags=["triggers"])
 app.include_router(teams_router, prefix="/teams", tags=["teams"])
+app.include_router(corvin_router, prefix="/corvin", tags=["corvin"])
 
 
 @app.get("/health", tags=["health"])

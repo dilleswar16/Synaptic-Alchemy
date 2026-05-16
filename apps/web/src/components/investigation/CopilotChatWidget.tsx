@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { API_BASE } from '../../api/baseUrl'
@@ -12,6 +12,49 @@ interface Message {
 
 interface Props {
   requestId: string
+}
+
+// ── SVG Icons ──────────────────────────────────────────────────────────────────
+function CorvinBotIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="cg1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#f97316"/>
+          <stop offset="1" stopColor="#ea580c"/>
+        </linearGradient>
+      </defs>
+      {/* Hexagonal head */}
+      <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill="url(#cg1)" opacity="0.15" stroke="url(#cg1)" strokeWidth="1.5"/>
+      {/* Eyes */}
+      <rect x="9" y="13" width="5" height="2.5" rx="1.25" fill="#f97316"/>
+      <rect x="18" y="13" width="5" height="2.5" rx="1.25" fill="#f97316"/>
+      {/* Mouth / signal bar */}
+      <rect x="11" y="18.5" width="10" height="1.5" rx="0.75" fill="#f97316" opacity="0.7"/>
+      {/* Antenna */}
+      <line x1="16" y1="2" x2="16" y2="6" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="16" cy="5" r="1.5" fill="#f97316"/>
+    </svg>
+  )
+}
+
+function ChatBubbleIcon({ size = 26 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="cg2" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#fff" stopOpacity="0.95"/>
+          <stop offset="1" stopColor="#fed7aa"/>
+        </linearGradient>
+      </defs>
+      {/* Main bubble */}
+      <path d="M4 6 C4 4.9 4.9 4 6 4 L26 4 C27.1 4 28 4.9 28 6 L28 20 C28 21.1 27.1 22 26 22 L10 22 L4 28 L4 22 L4 6Z" fill="url(#cg2)"/>
+      {/* Circuit dots */}
+      <circle cx="11" cy="13" r="1.5" fill="#f97316"/>
+      <circle cx="16" cy="13" r="1.5" fill="#f97316"/>
+      <circle cx="21" cy="13" r="1.5" fill="#f97316"/>
+    </svg>
+  )
 }
 
 // ── ThinkingBlock ─────────────────────────────────────────────────────────────
@@ -140,11 +183,31 @@ export function CopilotChatWidget({ requestId }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Load persisted chat history the first time the widget is opened
+  const loadHistory = useCallback(async () => {
+    if (historyLoaded) return
+    try {
+      const res = await fetch(`${API_BASE}/investigations/${requestId}/chat/history`)
+      if (res.ok) {
+        const rows: Array<{ role: string; content: string }> = await res.json()
+        if (rows.length > 0) {
+          setMessages(rows.map(r => ({ role: r.role as 'user' | 'assistant', content: r.content })))
+        }
+      }
+    } catch { /* history fetch is non-critical */ }
+    finally { setHistoryLoaded(true) }
+  }, [requestId, historyLoaded])
+
+  useEffect(() => {
+    if (open) loadHistory()
+  }, [open, loadHistory])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -228,16 +291,16 @@ export function CopilotChatWidget({ requestId }: Props) {
           style={{
             position: 'fixed', bottom: 32, right: 32,
             width: 60, height: 60, borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--c-signal) 0%, #f97316 100%)',
-            color: '#fff', border: 'none', cursor: 'pointer',
-            boxShadow: '0 8px 32px rgba(249,115,22,0.4)',
+            background: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)',
+            border: 'none', cursor: 'pointer',
+            boxShadow: '0 8px 32px rgba(249,115,22,0.45)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.5rem', zIndex: 9999, transition: 'transform 0.2s',
+            zIndex: 9999, transition: 'transform 0.2s, box-shadow 0.2s',
           }}
-          onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(249,115,22,0.6)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(249,115,22,0.45)' }}
         >
-          💬
+          <ChatBubbleIcon size={28} />
         </button>
       </>
     )
@@ -258,9 +321,11 @@ export function CopilotChatWidget({ requestId }: Props) {
       }}>
 
         {/* Header */}
-        <div style={{ padding: '14px 18px', background: 'var(--c-surface-2)', borderBottom: '1px solid var(--c-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ padding: '12px 16px', background: 'var(--c-surface-2)', borderBottom: '1px solid var(--c-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: '1.2rem' }}>🤖</span>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, rgba(249,115,22,0.15) 0%, rgba(234,88,12,0.1) 100%)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CorvinBotIcon size={20} />
+            </div>
             <div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.8rem', color: 'var(--c-text)' }}>Ask Corvin</div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-signal)' }}>Copilot Active · incident context loaded</div>
@@ -287,7 +352,11 @@ export function CopilotChatWidget({ requestId }: Props) {
 
                 {(m.role === 'user' || m.content || isStreaming) && (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, maxWidth: '92%' }}>
-                    {m.role === 'assistant' && <span style={{ marginTop: 2, fontSize: '0.85rem', flexShrink: 0 }}>🤖</span>}
+                    {m.role === 'assistant' && (
+                      <div style={{ marginTop: 2, flexShrink: 0, width: 26, height: 26, borderRadius: 8, background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CorvinBotIcon size={16} />
+                      </div>
+                    )}
                     <div style={{
                       padding: '10px 14px',
                       borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',

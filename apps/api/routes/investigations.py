@@ -801,23 +801,109 @@ def get_postmortem(
 class ChatRequest(BaseModel):
     messages: list[dict]
 
+class ChatMessageOut(BaseModel):
+    id: int
+    role: str
+    content: str
+    created_at: str
+
+@router.get("/{request_id}/chat/history")
+def get_chat_history(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> list[ChatMessageOut]:
+    """Return the persisted chat message history for an investigation."""
+    from corvin.storage.models import ChatMessageRow
+    from corvin.storage.db import get_session
+    from sqlalchemy import select
+
+    # Verify investigation exists
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    with get_session() as session:
+        rows = session.execute(
+            select(ChatMessageRow)
+            .where(ChatMessageRow.request_id == request_id)
+            .order_by(ChatMessageRow.created_at)
+        ).scalars().all()
+        return [
+            ChatMessageOut(
+                id=r.id,
+                role=r.role,
+                content=r.content,
+                created_at=r.created_at.isoformat(),
+            )
+            for r in rows
+        ]
+
 @router.post("/{request_id}/chat")
 def chat_with_investigation(
     request_id: str,
     body: ChatRequest,
     repo: InvestigationRepository = Depends(get_repository),
 ) -> StreamingResponse:
-    """Stream a chat conversation with the Copilot using the investigation context."""
-    from corvin.strategy.chat_service import ChatService
+    """Stream a chat conversation with the Copilot using the investigation context.
     
+    The last user message and the assembled assistant reply are both persisted
+    to the ``chat_messages`` table so the conversation history survives page
+    refreshes and can be replayed on the frontend.
+    """
+    from corvin.strategy.chat_service import ChatService
+    from corvin.storage.models import ChatMessageRow
+    from corvin.storage.db import get_session
+
     result = repo.get_investigation_result(request_id)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
 
+    # Identify and persist the latest user message immediately
+    user_messages = [m for m in body.messages if m.get("role") == "user"]
+    if user_messages:
+        last_user_msg = user_messages[-1]
+        with get_session() as session:
+            session.add(ChatMessageRow(
+                request_id=request_id,
+                role="user",
+                content=last_user_msg.get("content", ""),
+            ))
+            session.commit()
+
     svc = ChatService()
-    
+
+    def _stream_and_persist():
+        """Yield SSE chunks and persist the assembled assistant reply at the end."""
+        assistant_chunks: list[str] = []
+        for chunk in svc.stream_chat(result, body.messages):
+            yield chunk
+            # Collect text chunks to assemble full assistant reply
+            if chunk.startswith("data: ") and chunk.strip() != "data: [DONE]":
+                try:
+                    import json as _json
+                    data = _json.loads(chunk[6:])
+                    if data.get("type") == "text" and data.get("text"):
+                        assistant_chunks.append(data["text"])
+                except Exception:
+                    pass
+
+        # Persist assembled assistant reply
+        full_reply = "".join(assistant_chunks)
+        if full_reply.strip():
+            try:
+                with get_session() as session:
+                    session.add(ChatMessageRow(
+                        request_id=request_id,
+                        role="assistant",
+                        content=full_reply,
+                    ))
+                    session.commit()
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning("Failed to persist assistant reply: %s", exc)
+
     return StreamingResponse(
-        svc.stream_chat(result, body.messages),
+        _stream_and_persist(),
         media_type="text/event-stream",
         headers={
             "X-Accel-Buffering": "no",
