@@ -14,9 +14,16 @@ interface ApprovalSectionProps {
   status: string
   pendingAction: ApprovalAction | null
   onClearPendingAction: () => void
+  /** RCA confidence score (0–100). Drives the Predicted Outcome gauge. */
+  confidence?: number
 }
 
-export function ApprovalSection({ requestId, status, pendingAction, onClearPendingAction }: ApprovalSectionProps) {
+export function ApprovalSection({ requestId, status, pendingAction, onClearPendingAction, confidence = 75 }: ApprovalSectionProps) {
+  // Derive gauge values from actual RCA confidence:
+  // degradedPct  = how degraded the service currently is (100 - confidence)
+  // restoredPct  = how much the fix is expected to restore (confidence)
+  const degradedPct = Math.max(10, 100 - confidence)
+  const restoredPct = confidence
   const queryClient = useQueryClient()
   const [confirmingAction, setConfirmingAction] = useState<ApprovalAction | null>(pendingAction)
   const [outcome, setOutcome] = useState<{ ok: boolean; message: string } | null>(null)
@@ -60,16 +67,16 @@ export function ApprovalSection({ requestId, status, pendingAction, onClearPendi
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ flex: 1 }}>
               <div style={{ height: 4, background: 'var(--c-surface-3)', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
-                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '25%', background: '#ef4444' }} />
-                <div style={{ position: 'absolute', left: '25%', top: 0, height: '100%', width: '65%', background: '#22c55e', opacity: 0.5, borderLeft: '2px solid #fff' }} />
+                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${degradedPct}%`, background: '#ef4444' }} />
+                <div style={{ position: 'absolute', left: `${degradedPct}%`, top: 0, height: '100%', width: `${restoredPct - degradedPct}%`, background: '#22c55e', opacity: 0.5, borderLeft: '2px solid #fff' }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: '0.55rem', fontFamily: 'var(--font-mono)' }}>
-                <span style={{ color: '#ef4444' }}>Current: 25%</span>
-                <span style={{ color: '#22c55e' }}>Predicted: 90%</span>
+                <span style={{ color: '#ef4444' }}>Degraded: {degradedPct}%</span>
+                <span style={{ color: '#22c55e' }}>Predicted: {restoredPct}%</span>
               </div>
             </div>
             <div style={{ fontSize: '0.65rem', color: 'var(--c-text-dim)', lineHeight: 1.4, fontStyle: 'italic' }}>
-              Corvin estimates this fix will restore <b>90%</b> of service health immediately.
+              Corvin estimates this fix will restore <b>{restoredPct}%</b> of service health.
             </div>
           </div>
         </div>

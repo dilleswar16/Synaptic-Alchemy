@@ -13,6 +13,30 @@ const ADAPTER_LABEL: Record<string, string> = {
   azure_activity_changes: 'Azure Activity',
 }
 
+function buildSummary(name: string, items: unknown[], count: number): string {
+  if (count === 0) return '—'
+  const first = items[0] as Record<string, unknown> | undefined
+  if (name === 'elastic_logs') {
+    const errors = items.filter((r: any) => /error|exception|fatal/i.test(JSON.stringify(r))).length
+    return errors > 0 ? `${count} log events · ${errors} errors/exceptions` : `${count} log events`
+  }
+  if (name === 'elastic_metrics') {
+    return `${count} metric data points`
+  }
+  if (name === 'log_analytics_apim') {
+    const codes5xx = items.filter((r: any) => String(r?.responseCode ?? r?.StatusCode ?? '').startsWith('5')).length
+    return codes5xx > 0 ? `${count} APIM events · ${codes5xx} 5xx responses` : `${count} APIM events`
+  }
+  if (name === 'aks_context') {
+    const pods = first ? Object.keys(first).filter(k => k.toLowerCase().includes('pod')).length : 0
+    return pods > 0 ? `AKS context captured · ${pods} pod field(s)` : 'AKS context captured'
+  }
+  if (name === 'azure_activity_changes') {
+    return `${count} Azure activity event${count !== 1 ? 's' : ''}`
+  }
+  return `${count} record${count !== 1 ? 's' : ''}`
+}
+
 function EvidenceSourceRow({
   name, records,
 }: {
@@ -25,6 +49,7 @@ function EvidenceSourceRow({
     : Object.keys(records).length > 0 ? [records] : []
   const count   = items.length
   const preview = items.slice(0, 10)
+  const summary = buildSummary(name, items, count)
 
   return (
     <div style={{ borderBottom: '1px solid var(--c-border)' }}>
@@ -48,21 +73,11 @@ function EvidenceSourceRow({
         
         {count > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ 
-              width: 40, height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden'
-            }}>
-               <div style={{ 
-                 height: '100%', 
-                 width: `${Math.min(100, (count / 50) * 100)}%`, 
-                 background: 'var(--c-signal)', 
-                 opacity: 0.6 
-               }} />
-            </div>
             <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
-              color: 'var(--c-text-dim)', minWidth: 70, textAlign: 'right',
+              fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
+              color: 'var(--c-text-faint)', textAlign: 'right',
             }}>
-              {count} pts
+              {summary}
             </span>
           </div>
         )}

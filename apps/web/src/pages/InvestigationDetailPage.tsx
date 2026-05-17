@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import Layout from '../components/Layout'
@@ -31,6 +31,8 @@ import {
 } from '../api/client'
 import { totalDuration } from '../utils/time'
 
+type TabId = 'rca' | 'evidence' | 'history'
+
 export default function InvestigationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -59,6 +61,7 @@ export default function InvestigationDetailPage() {
   )
 
   const approvalStatus = data?.request?.approval_status ?? 'pending'
+  const [activeTab, setActiveTab] = useState<TabId>('rca')
 
   const { data: replay } = useQuery<ReplayPayload>({
     queryKey: ['replay', id],
@@ -82,10 +85,11 @@ export default function InvestigationDetailPage() {
   const evidenceReferences = data?.rca?.evidence_references ?? []
 
   const scrollAndAct = (action: ApprovalAction) => {
+    setActiveTab('rca')
     setSearchParams({ action })
     setTimeout(() => {
       document.getElementById('approval-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }, 60)
+    }, 100)
   }
 
   const pendingAndRcaReady = approvalStatus === 'pending' && !!data?.rca && pendingAction === null
@@ -241,107 +245,175 @@ export default function InvestigationDetailPage() {
         {/* Main content */}
         {data && (
           <>
+            {/* Always-visible: hero + SLA + stepper */}
             <IncidentHeroCard data={data} approvalStatus={approvalStatus} />
             <SlaCountdownCard requestId={id!} status={approvalStatus} />
-            <div className="three-am-hide">
-              <BlastRadiusCard requestId={id!} />
+            <div className="three-am-hide" style={{ marginTop: 4 }}>
+              <WorkflowStepper approvalStatus={approvalStatus} hasEvidence={hasEvidence} hasRca={hasRca} />
             </div>
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: 32, 
-              alignItems: 'stretch',
-              maxWidth: 960,
-              margin: '0 auto'
-            }}>
-              
-              <div className="three-am-hide">
-                <WorkflowStepper approvalStatus={approvalStatus} hasEvidence={hasEvidence} hasRca={hasRca} />
-              </div>
 
-              {/* 1. CAUSE: RCA & Trace */}
-              {data.rca && (
+            {/* ── Tab bar ─────────────────────────────────────────────── */}
+            <div style={{
+              display: 'flex', gap: 0,
+              borderBottom: '2px solid var(--c-border)',
+              marginTop: 24, marginBottom: 28,
+            }}>
+              {([
+                { id: 'rca'      as TabId, label: 'RCA & Action' },
+                { id: 'evidence' as TabId, label: 'Evidence'      },
+                { id: 'history'  as TabId, label: 'History'       },
+              ]).map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    padding: '10px 22px', background: 'none', border: 'none',
+                    borderBottom: `2px solid ${activeTab === tab.id ? 'var(--c-signal)' : 'transparent'}`,
+                    marginBottom: -2,
+                    color: activeTab === tab.id ? 'var(--c-signal)' : 'var(--c-text-muted)',
+                    fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.7rem',
+                    letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
+                    transition: 'color 0.15s',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  {tab.label}
+                  {tab.id === 'rca' && approvalStatus === 'pending' && hasRca && (
+                    <span className="animate-pulse-glow" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-yellow)', display: 'inline-block', flexShrink: 0 }} />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* ── Tab panels ──────────────────────────────────────────── */}
+            <div style={{ maxWidth: 960, margin: '0 auto', paddingBottom: approvalStatus === 'pending' && !!data.rca ? 72 : 0 }}>
+
+              {/* TAB 1: RCA & Action */}
+              {activeTab === 'rca' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  <div className="animate-fade-up-2">
-                    <RcaSection data={data} requestId={id!} />
+                  <div className="three-am-hide">
+                    <BlastRadiusCard requestId={id!} />
                   </div>
-                  <div className="animate-fade-up-3">
-                    <TransparencyTrace rca={data.rca} serviceName={data.request?.service_name ?? 'service'} />
+                  {data.rca ? (
+                    <>
+                      <div className="animate-fade-up-2">
+                        <RcaSection data={data} requestId={id!} />
+                      </div>
+                      <div className="animate-fade-up-3 three-am-hide">
+                        <TransparencyTrace rca={data.rca} serviceName={data.request?.service_name ?? 'service'} />
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+                      padding: '40px 20px', textAlign: 'center',
+                      background: 'var(--c-surface)', border: '1px solid var(--c-border)',
+                      borderRadius: 8,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{
+                          width: 10, height: 10, borderRadius: '50%',
+                          border: '1.5px solid var(--c-signal)', borderTopColor: 'transparent',
+                          display: 'inline-block', animation: 'skeleton-sweep 0.7s linear infinite',
+                        }} />
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-signal)', letterSpacing: '0.08em' }}>
+                          RCA IN PROGRESS…
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--c-text-faint)', lineHeight: 1.6, maxWidth: 380 }}>
+                        Corvin is enriching evidence and generating the root cause analysis.
+                        This page refreshes automatically.
+                      </p>
+                    </div>
+                  )}
+                  <div className="animate-fade-up-4" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                    <ApprovalSection
+                      requestId={id!}
+                      status={approvalStatus}
+                      pendingAction={pendingAction}
+                      onClearPendingAction={clearPendingAction}
+                      confidence={
+                        data?.rca?.confidence === 'high' ? 85
+                        : data?.rca?.confidence === 'medium' ? 55
+                        : data?.rca?.confidence === 'low' ? 25
+                        : 75
+                      }
+                    />
+                    <ExecutionSection requestId={id!} status={approvalStatus} />
                   </div>
                 </div>
               )}
 
-              {/* 2. ACTION: Approval & Execution */}
-              <div className="animate-fade-up-4" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                <ApprovalSection
-                  requestId={id!}
-                  status={approvalStatus}
-                  pendingAction={pendingAction}
-                  onClearPendingAction={clearPendingAction}
-                />
-                <ExecutionSection requestId={id!} status={approvalStatus} />
-              </div>
+              {/* TAB 2: Evidence */}
+              {activeTab === 'evidence' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {data.request?.description && (
+                    <Section title="Context">
+                      <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem', color: 'var(--c-text-dim)', lineHeight: 1.75 }}>
+                        <TechnicalHighlighter text={data.request.description} />
+                      </p>
+                    </Section>
+                  )}
+                  {data.evidence && <EvidenceSection evidence={data.evidence} />}
+                  {pastIncidents.length > 0 && <SimilarIncidentsSection incidents={pastIncidents} />}
+                  {evidenceReferences.length > 0 && <EvidenceReferencesSection references={evidenceReferences} />}
+                </div>
+              )}
 
-              {/* 3. LEARNING: Post-Mortem */}
-              <div className="three-am-hide animate-fade-up-5" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                <PostMortemSection 
-                  requestId={id!} 
-                  isExecuted={approvalStatus === 'executed'} 
-                  serviceName={data.request?.service_name ?? 'service'}
-                  duration={totalDuration(data.request.created_at, data.completed_at)}
-                />
-                {approvalStatus === 'executed' && (
-                  <RunbookUpdatePrompt
+              {/* TAB 3: History */}
+              {activeTab === 'history' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  <PostMortemSection
                     requestId={id!}
-                    serviceName={data.request?.service_name ?? 'unknown'}
+                    isExecuted={approvalStatus === 'executed'}
+                    serviceName={data.request?.service_name ?? 'service'}
+                    duration={totalDuration(data.request.created_at, data.completed_at)}
                   />
-                )}
-              </div>
-
-              {/* 4. THE PROOF: Evidence & Audit (Collapsed by default) */}
-              <div className="animate-fade-up-5" style={{ display: 'flex', flexDirection: 'column', gap: 24, marginTop: 16, borderTop: '1px solid var(--c-border)', paddingTop: 32 }}>
-                <div style={{
-                  fontFamily: 'var(--font-display)', fontSize: '0.8rem', fontWeight: 800,
-                  letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)'
-                }}>
-                  Raw Telemetry & Audit
+                  {approvalStatus === 'executed' && (
+                    <RunbookUpdatePrompt
+                      requestId={id!}
+                      serviceName={data.request?.service_name ?? 'unknown'}
+                    />
+                  )}
+                  <AuditTrailSection requestId={id!} defaultOpen={true} />
                 </div>
-                
-                {data.request?.description && (
-                  <Section title="Context">
-                    <p style={{
-                      margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem',
-                      color: 'var(--c-text-dim)', lineHeight: 1.75,
-                    }}>
-                      <TechnicalHighlighter text={data.request.description} />
-                    </p>
-                  </Section>
-                )}
-
-                {data.evidence && (
-                  <div className="three-am-hide">
-                    <EvidenceSection evidence={data.evidence} />
-                  </div>
-                )}
-
-                {pastIncidents.length > 0 && (
-                  <div className="three-am-hide">
-                    <SimilarIncidentsSection incidents={pastIncidents} />
-                  </div>
-                )}
-
-                {evidenceReferences.length > 0 && (
-                  <div className="three-am-hide">
-                    <EvidenceReferencesSection references={evidenceReferences} />
-                  </div>
-                )}
-
-                <div className="three-am-hide">
-                  <AuditTrailSection requestId={id!} defaultOpen={false} />
-                </div>
-              </div>
+              )}
 
             </div>
+
+            {/* ── Sticky decision bar — only when approval is pending ── */}
+            {approvalStatus === 'pending' && !!data.rca && (
+              <div style={{
+                position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10000,
+                padding: '10px 32px',
+                background: 'rgba(9,14,22,0.95)', backdropFilter: 'blur(16px)',
+                borderTop: '1px solid rgba(249,115,22,0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
+                boxShadow: '0 -8px 32px rgba(0,0,0,0.4)',
+              }}>
+                <span className="animate-pulse-glow" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-yellow)', display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-yellow)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  Decision Required
+                </span>
+                <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
+                <button
+                  className="btn-success"
+                  onClick={() => { setActiveTab('rca'); setTimeout(() => scrollAndAct('approve'), 60) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  ✓ Approve
+                  <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', fontStyle: 'normal', fontWeight: 400 }}>A</kbd>
+                </button>
+                <button
+                  className="btn-danger"
+                  onClick={() => { setActiveTab('rca'); setTimeout(() => scrollAndAct('reject'), 60) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  ✗ Reject
+                  <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', fontStyle: 'normal', fontWeight: 400 }}>R</kbd>
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

@@ -657,10 +657,50 @@ export default function DashboardPage() {
       {/* ── 1. CONTEXT: Morning Briefing ────────────────────────────────── */}
       {briefing && <BriefingWidget data={briefing} />}
 
-      {/* ── 2. PULSE: Real-time background activity ───────────────────── */}
+      {/* ── 2. IDENTITY: Hero band + metric cards ─────────────────────── */}
+      {stats && (
+        <div style={{ marginBottom: 24 }}>
+          <HeroBand stats={stats} recent={recent ?? []} />
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 8 }}>
+            <MetricCard
+              label="Avg MTTR"
+              value={stats.avg_mttr_minutes != null ? `${stats.avg_mttr_minutes}m` : '—'}
+              sub="pipeline time"
+              accent="var(--c-signal)"
+              delay={80}
+            />
+            <MetricCard
+              label="High Confidence"
+              value={conf && (conf.high + conf.medium + conf.low) > 0
+                ? `${Math.round((conf.high / (conf.high + conf.medium + conf.low)) * 100)}%`
+                : '—'}
+              sub="of all RCAs"
+              accent="var(--c-green)"
+              delay={100}
+            />
+            <MetricCard
+              label="Executed"
+              value={appr?.executed ?? '—'}
+              sub="fix strategies run"
+              accent="var(--c-signal)"
+              delay={120}
+            />
+            <MetricCard
+              label="Rejected"
+              value={appr?.rejected ?? '—'}
+              sub="investigations rejected"
+              accent="var(--c-red)"
+              delay={140}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. PULSE: Real-time background activity ───────────────────── */}
       <PlatformPulse />
 
-      {/* ── 3. ACTIVE QUEUE: Recent investigations (TRIAGE FIRST) ─────── */}
+      {/* ── 4. ACTIVE QUEUE: Recent investigations ────────────────────── */}
       <div className="animate-fade-up" style={{ marginBottom: 24 }}>
         <div style={{
           fontFamily: 'var(--font-display)',
@@ -730,7 +770,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── 4. HEALTH & RISK: Service State + Topology ────────────────── */}
+      {/* ── 5. HEALTH & RISK: Service State + Topology ────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12, marginBottom: 16, alignItems: 'start' }}>
         <div className="panel animate-fade-up" style={{ padding: '18px 20px', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%)' : undefined }}>
           <div style={{
@@ -754,50 +794,10 @@ export default function DashboardPage() {
         <TopologyRadar />
       </div>
 
-      {/* ── 5. VALUE: ROI ──────────────────────────────────────────────── */}
+      {/* ── 6. VALUE: ROI ──────────────────────────────────────────────── */}
       <div style={{ marginBottom: 24 }}>
         <RoiWidget />
       </div>
-
-      {/* ── 6. STATS: Hero & Metric Cards ──────────────────────────────── */}
-      {stats && (
-        <div style={{ marginBottom: 32 }}>
-          <HeroBand stats={stats} recent={recent ?? []} />
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 16 }}>
-            <MetricCard
-              label="Avg MTTR"
-              value={stats.avg_mttr_minutes != null ? `${stats.avg_mttr_minutes}m` : '—'}
-              sub="pipeline time"
-              accent="var(--c-signal)"
-              delay={80}
-            />
-            <MetricCard
-              label="High Confidence"
-              value={conf && (conf.high + conf.medium + conf.low) > 0
-                ? `${Math.round((conf.high / (conf.high + conf.medium + conf.low)) * 100)}%`
-                : '—'}
-              sub="of all RCAs"
-              accent="var(--c-green)"
-              delay={100}
-            />
-            <MetricCard
-              label="Executed"
-              value={appr?.executed ?? '—'}
-              sub="fix strategies run"
-              accent="var(--c-signal)"
-              delay={120}
-            />
-            <MetricCard
-              label="Rejected"
-              value={appr?.rejected ?? '—'}
-              sub="investigations rejected"
-              accent="var(--c-red)"
-              delay={140}
-            />
-          </div>
-        </div>
-      )}
 
       {/* ── 7. TOOLS: Chaos Engineering (Red Team) ────────────────────── */}
       <div style={{ marginTop: 40, borderTop: '1px dashed var(--c-border)', paddingTop: 40 }}>

@@ -846,9 +846,6 @@ def sync_servicenow(
 ) -> SyncResponse:
     """Mocked export to ServiceNow INC (for hackathon demo purposes)."""
     import time
-    # Simulate network delay for high-fidelity feel
-    time.sleep(1.2)
-    
     # Verify investigation exists
     result = repo.get_investigation_result(request_id)
     if result is None:

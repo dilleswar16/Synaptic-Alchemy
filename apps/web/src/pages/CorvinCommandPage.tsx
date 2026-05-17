@@ -133,6 +133,7 @@ export default function CorvinCommandPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingSessions, setLoadingSessions] = useState(true)
+  const [showToolPanel, setShowToolPanel] = useState(true)
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const prevMessagesLengthRef = useRef(0)
@@ -209,10 +210,11 @@ export default function CorvinCommandPage() {
   }, [activeSessionId])
 
   // Send message
-  const handleSend = useCallback(async () => {
-    if (!input.trim() || loading || !activeSessionId) return
-    const userText = input.trim()
-    setInput('')
+  const handleSend = useCallback(async (textOverride?: string, sessionOverride?: string) => {
+    const sessionId = sessionOverride ?? activeSessionId
+    const userText = (textOverride ?? input).trim()
+    if (!userText || loading || !sessionId) return
+    if (!textOverride) setInput('')
     setLoading(true)
 
     const userMsg: UiMessage = { id: Date.now().toString(), role: 'user', content: userText }
@@ -222,7 +224,7 @@ export default function CorvinCommandPage() {
     setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', toolSteps: [], thinking: '' }])
 
     try {
-      for await (const event of streamChat(activeSessionId, userText)) {
+      for await (const event of streamChat(sessionId, userText)) {
         const ev = event as AgentEvent
         if (ev.type === 'thinking' && ev.text) {
           setMessages(prev => { const next=[...prev]; const last=next[next.length-1]; next[next.length-1]={...last,thinking:(last.thinking??'')+ev.text}; return next })
@@ -368,7 +370,7 @@ export default function CorvinCommandPage() {
               ].map(q => (
                 <button
                   key={q}
-                  onClick={async () => { const s = await createSession(); setSessions(p => [s, ...p]); setActiveSessionId(s.id); setMessages([]); setToolEvents([]); setInput(q) }}
+                  onClick={async () => { const s = await createSession(); setSessions(p => [s, ...p]); setActiveSessionId(s.id); setMessages([]); setToolEvents([]); handleSend(q, s.id) }}
                   style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)', color: 'var(--c-text-dim)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.72rem', transition: 'border-color 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.5)'; e.currentTarget.style.color = 'var(--c-signal)' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--c-border-hi)'; e.currentTarget.style.color = 'var(--c-text-dim)' }}
@@ -384,8 +386,25 @@ export default function CorvinCommandPage() {
         ) : (
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-            {/* ── CHAT PANEL (left 58%) ─────────────────────────────────── */}
-            <div style={{ flex: '0 0 58%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--c-border)', overflow: 'hidden' }}>
+            {/* ── CHAT PANEL ─────────────────────────────────────────────── */}
+            <div style={{ flex: showToolPanel ? '0 0 58%' : '1', display: 'flex', flexDirection: 'column', borderRight: showToolPanel ? '1px solid var(--c-border)' : 'none', overflow: 'hidden', transition: 'flex 0.2s' }}>
+              {/* Toolbar */}
+              <div style={{ padding: '7px 14px', borderBottom: '1px solid var(--c-border)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexShrink: 0, background: 'var(--c-surface)', gap: 8 }}>
+                <button
+                  onClick={() => setShowToolPanel(p => !p)}
+                  title={showToolPanel ? 'Hide live tool panel' : 'Show live tool panel'}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                    border: `1px solid ${showToolPanel ? 'rgba(249,115,22,0.4)' : 'var(--c-border)'}`,
+                    background: showToolPanel ? 'rgba(249,115,22,0.08)' : 'var(--c-surface-2)',
+                    color: showToolPanel ? 'var(--c-signal)' : 'var(--c-text-faint)',
+                    fontFamily: 'var(--font-mono)', fontSize: '0.62rem', letterSpacing: '0.04em',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {showToolPanel ? '⚡ Tools ▸' : '⚡ Tools ◂'}
+                </button>
+              </div>
               {/* Chat messages */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 8px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {messages.length === 0 && (
@@ -544,7 +563,7 @@ export default function CorvinCommandPage() {
             </div>
 
             {/* ── CONTEXT PANEL (right 42%) ──────────────────────────────── */}
-            <div style={{ flex: '0 0 42%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--c-bg)' }}>
+            {showToolPanel && <div style={{ flex: '0 0 42%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--c-bg)' }}>
               <div style={{ padding: '12px 16px 8px', borderBottom: '1px solid var(--c-border)', background: 'var(--c-surface)', flexShrink: 0 }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-signal)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                   ⚡ Live Tool Results
@@ -565,7 +584,7 @@ export default function CorvinCommandPage() {
                     : <ToolResultCard key={ev.id} toolName={ev.toolName} data={ev.data} timestamp={ev.timestamp} />
                 )}
               </div>
-            </div>
+            </div>}
 
           </div>
         )}
