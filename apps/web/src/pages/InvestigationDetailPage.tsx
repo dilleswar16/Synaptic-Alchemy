@@ -13,6 +13,7 @@ import { ApprovalSection, type ApprovalAction } from '../components/investigatio
 import { ExecutionSection } from '../components/investigation/ExecutionSection'
 import { AuditTrailSection } from '../components/investigation/AuditTrailSection'
 import { PostMortemSection } from '../components/investigation/PostMortemSection'
+import { TransparencyTrace } from '../components/investigation/TransparencyTrace'
 import { IncidentHeroCard } from '../components/investigation/IncidentHeroCard'
 import { RunbookUpdatePrompt } from '../components/investigation/RunbookUpdatePrompt'
 import { CopilotChatWidget } from '../components/investigation/CopilotChatWidget'
@@ -295,9 +296,12 @@ export default function InvestigationDetailPage() {
               </div>
 
               {data.rca && (
-                <div className="animate-fade-up-4">
-                  <RcaSection data={data} requestId={id!} />
-                </div>
+                <>
+                  <div className="animate-fade-up-4">
+                    <RcaSection data={data} requestId={id!} />
+                  </div>
+                  <TransparencyTrace rca={data.rca} serviceName={data.request?.service_name ?? 'service'} />
+                </>
               )}
 
               <div className="animate-fade-up-5" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -309,7 +313,12 @@ export default function InvestigationDetailPage() {
                 />
                 <ExecutionSection requestId={id!} status={approvalStatus} />
                 <div className="three-am-hide">
-                  <PostMortemSection requestId={id!} isExecuted={approvalStatus === 'executed'} />
+                  <PostMortemSection 
+                    requestId={id!} 
+                    isExecuted={approvalStatus === 'executed'} 
+                    serviceName={data.request?.service_name ?? 'service'}
+                    duration={totalDuration(data.request.created_at, data.completed_at)}
+                  />
                 </div>
                 {approvalStatus === 'executed' && (
                   <RunbookUpdatePrompt

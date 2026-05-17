@@ -24,47 +24,47 @@ interface Preset {
 const PRESETS: Preset[] = [
   {
     id: 'hpa_failure',
-    label: 'HPA Failure',
+    label: 'Inject Scale Lag',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>,
     service: 'partnerapis',
     environment: 'dev',
-    description: 'HPA not scaling — pods stuck at 1 replica despite 92% CPU.',
-    accentColor: '#f59e0b',
-    accentBg: 'rgba(245,158,11,0.15)',
-    accentBorder: 'rgba(245,158,11,0.6)',
+    description: 'Freeze HPA controller — pods stuck at 1 replica despite high load.',
+    accentColor: '#f97316',
+    accentBg: 'rgba(249,115,22,0.15)',
+    accentBorder: 'rgba(249,115,22,0.6)',
   },
   {
     id: 'five_zero_three_spike',
-    label: '503 Spike',
+    label: 'Flood 503 Errors',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
     service: 'fundapis',
     environment: 'dev',
-    description: '503 error rate spiked to 18% on /v1/funds. Two pods restarted.',
-    accentColor: 'var(--c-red)',
+    description: 'Simulate network partition — flood 18% error rate on /v1/funds.',
+    accentColor: '#ef4444',
     accentBg: 'rgba(239,68,68,0.15)',
     accentBorder: 'rgba(239,68,68,0.6)',
   },
   {
     id: 'auth_errors',
-    label: 'Auth Errors',
+    label: 'Poison JWT Tokens',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
     service: 'fundsso',
     environment: 'dev',
-    description: 'JWT validation failures — fundsso returning 401 on 35% of requests.',
-    accentColor: '#a78bfa',
-    accentBg: 'rgba(167,139,250,0.15)',
-    accentBorder: 'rgba(167,139,250,0.6)',
+    description: 'Corrupt identity cache — fundsso returning 401 on 35% of requests.',
+    accentColor: '#a855f7',
+    accentBg: 'rgba(168,85,247,0.15)',
+    accentBorder: 'rgba(168,85,247,0.6)',
   },
   {
     id: 'memory_leak',
-    label: 'Memory Leak',
+    label: 'Leak Heap Memory',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>,
     service: 'fundapis',
     environment: 'dev',
-    description: 'Heap at 89% — fundapis OOM kill expected within 2 hours.',
-    accentColor: '#60a5fa',
-    accentBg: 'rgba(96,165,250,0.15)',
-    accentBorder: 'rgba(96,165,250,0.6)',
+    description: 'Deploy memory pressure tool — simulate heap OOM trajectory.',
+    accentColor: '#3b82f6',
+    accentBg: 'rgba(59,130,246,0.15)',
+    accentBorder: 'rgba(59,130,246,0.6)',
   },
 ]
 
@@ -97,32 +97,49 @@ export function SimulateAlertPanel() {
 
   return (
     <div style={{
-      background: 'var(--c-surface)',
-      border: '1px solid var(--c-border-hi)',
-      borderRadius: 6,
-      padding: '18px 20px',
+      background: 'rgba(239,68,68,0.03)',
+      border: '1px solid rgba(239,68,68,0.2)',
+      borderRadius: 12,
+      padding: '24px',
       display: 'flex',
       flexDirection: 'column',
-      gap: 14,
+      gap: 16,
+      position: 'relative',
+      overflow: 'hidden'
     }}>
+      {/* Hazard stripes top border */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 4,
+        background: 'repeating-linear-gradient(45deg, #ef4444, #ef4444 10px, transparent 10px, transparent 20px)'
+      }} />
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: '1.1rem' }}>🧪</span>
-        <div>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontWeight: 700,
-            fontSize: '0.62rem', letterSpacing: '0.18em', textTransform: 'uppercase',
-            color: 'var(--c-text-muted)',
-          }}>
-            Alert Simulator
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 8px #ef4444)' }}>☣️</span>
+          <div>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontWeight: 800,
+              fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase',
+              color: '#ef4444',
+            }}>
+              Chaos Engineering Console
+            </div>
+            <p style={{
+              margin: '2px 0 0',
+              fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+              color: 'var(--c-text-faint)',
+            }}>
+              Select experiment to deploy into DEV environment
+            </p>
           </div>
-          <p style={{
-            margin: '2px 0 0',
-            fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
-            color: 'var(--c-text-faint)',
-          }}>
-            Fire a synthetic incident to demo Corvin in action
-          </p>
+        </div>
+        <div style={{ 
+          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', 
+          padding: '2px 8px', borderRadius: 4, color: '#ef4444', fontSize: '0.55rem', 
+          fontFamily: 'var(--font-mono)', fontWeight: 800 
+        }}>
+          RED TEAM MODE
         </div>
       </div>
 

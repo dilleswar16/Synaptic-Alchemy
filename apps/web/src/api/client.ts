@@ -484,12 +484,19 @@ export interface WarRoomResult {
   message: string
 }
 
-export function createWarRoom(payload: {
-  investigation_id: string
-  service_name: string
-  environment: string
-  severity: string
-}) {
-  return apiFetch<WarRoomResult>('/teams/war-room', { method: 'POST', body: JSON.stringify(payload) })
+// ── V3.99: Chaos & Sync ──────────────────────────────────────────────────
+
+export interface SyncResponse {
+  ticket_id: string
+  url?: string
+  message: string
+}
+
+export function syncAzureBoards(requestId: string) {
+  return apiFetch<SyncResponse>(`/investigations/${requestId}/sync/azure-boards`, { method: 'POST' })
+}
+
+export function syncServiceNow(requestId: string) {
+  return apiFetch<SyncResponse>(`/investigations/${requestId}/sync/servicenow`, { method: 'POST' })
 }
 

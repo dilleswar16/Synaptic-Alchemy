@@ -82,5 +82,5 @@ def test_chat_service_loads_runbook_correctly(mock_investigation_result):
         svc.knowledge.load_matching_runbooks.assert_called_once_with("auth-service")
         
         assert len(chunks) == 2
-        assert 'data: {"text": "Hi there!"}\n\n' in chunks[0]
+        assert 'data: {"type": "text", "text": "Hi there!"}\n\n' in chunks[0]
         assert 'data: [DONE]\n\n' in chunks[1]

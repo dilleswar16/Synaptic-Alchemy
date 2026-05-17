@@ -1,0 +1,22 @@
+# Azure DevOps (Boards) integration settings
+# Used to export investigations as work items (incidents/bugs).
+
+# Azure DevOps Organization name (e.g. "my-org" from dev.azure.com/my-org)
+# Env var: AZURE_DEVOPS_ORG
+org_name: "${AZURE_DEVOPS_ORG}"
+
+# Azure DevOps Project name
+# Env var: AZURE_DEVOPS_PROJECT
+project_name: "${AZURE_DEVOPS_PROJECT}"
+
+# Personal Access Token (PAT) with "Work Items: Read & Write" scope
+# Env var: AZURE_DEVOPS_PAT
+pat: "${AZURE_DEVOPS_PAT}"
+
+# Work item type to create (e.g. "Issue", "Bug", "Task", "Incident")
+# Note: "Incident" is only available in CMMI or custom processes. 
+# Defaulting to "Issue" (Agile) or "Task".
+work_item_type: "Issue"
+
+# Set to false to disable ADO delivery without removing the config.
+enabled: true

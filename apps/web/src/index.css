@@ -1025,3 +1025,21 @@
     50%       { opacity: 0.4; }
   }
 }
+
+  @keyframes pulse-glow {
+    0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+  }
+  .animate-pulse-glow {
+    animation: pulse-glow 2s infinite;
+  }
+
+  @keyframes vertical-flow {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 0% 100%; }
+  }
+  .animate-vertical-flow {
+    background-size: 100% 200%;
+    animation: vertical-flow 3s linear infinite;
+  }

@@ -19,6 +19,7 @@ import { SimulateAlertPanel } from '../components/SimulateAlertPanel'
 import { PredictiveAlertPanel } from '../components/PredictiveAlertPanel'
 import { TopologyRadar } from '../components/TopologyRadar'
 import { RoiWidget } from '../components/RoiWidget'
+import { PlatformPulse } from '../components/PlatformPulse'
 import { useTheme } from '../context/ThemeContext'
 
 // ── Morning Briefing widget ───────────────────────────────────────────────
@@ -691,9 +692,11 @@ export default function DashboardPage() {
           letterSpacing: '0.03em',
           fontWeight: 900,
           color: 'var(--c-text)',
+          marginBottom: 16
         }}>
           Live Investigation Overview
         </div>
+        <PlatformPulse />
       </div>
 
       {/* ── Hero band ─────────────────────────────────────────────────────── */}

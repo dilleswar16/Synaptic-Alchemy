@@ -7,7 +7,8 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Section } from '../Section'
 import { SemanticMarkdown } from '../SemanticMarkdown'
-import { downloadRcaPdf, emailRcaPdf } from '../../api/client'
+import { downloadRcaPdf, emailRcaPdf, syncAzureBoards, syncServiceNow } from '../../api/client'
+import { FixStrategyFlowchart } from './FixStrategyFlowchart'
 import type { InvestigationResult } from '../../api/client'
 
 interface RcaSectionProps {
@@ -16,26 +17,32 @@ interface RcaSectionProps {
 }
 
 export function RcaSection({ data, requestId }: RcaSectionProps) {
-  const { rca, fix_strategy } = data
-  const [emailOutcome, setEmailOutcome] = useState<{ ok: boolean; message: string } | null>(null)
+  const { rca, fix_strategy, request } = data
+  const [syncOutcome, setSyncOutcome] = useState<{ provider: string; id: string | null; ok: boolean; message: string } | null>(null)
 
   if (!rca) return null
 
   const emailMutation = useMutation({
     mutationFn: () => emailRcaPdf(requestId),
-    onSuccess: (resp) => {
-      setEmailOutcome({ ok: resp.sent, message: resp.message })
-    },
-    onError: (err: Error) => {
-      setEmailOutcome({ ok: false, message: err.message })
-    },
+    onSuccess: (resp) => setSyncOutcome({ provider: 'Email', id: null, ok: resp.sent, message: resp.message }),
+    onError: (err: Error) => setSyncOutcome({ provider: 'Email', id: null, ok: false, message: err.message }),
+  })
+
+  const syncAdoMutation = useMutation({
+    mutationFn: () => syncAzureBoards(requestId),
+    onSuccess: (resp) => setSyncOutcome({ provider: 'Azure Boards', id: resp.ticket_id, ok: true, message: resp.message }),
+    onError: (err: Error) => setSyncOutcome({ provider: 'Azure Boards', id: null, ok: false, message: err.message }),
+  })
+
+  const syncSnowMutation = useMutation({
+    mutationFn: () => syncServiceNow(requestId),
+    onSuccess: (resp) => setSyncOutcome({ provider: 'ServiceNow', id: resp.ticket_id, ok: true, message: resp.message }),
+    onError: (err: Error) => setSyncOutcome({ provider: 'ServiceNow', id: null, ok: false, message: err.message }),
   })
 
   const exportMutation = useMutation({
     mutationFn: () => downloadRcaPdf(requestId),
-    onError: (err: Error) => {
-      setEmailOutcome({ ok: false, message: err.message })
-    },
+    onError: (err: Error) => setSyncOutcome({ provider: 'PDF', id: null, ok: false, message: err.message }),
   })
 
   const confColor = rca.confidence === 'high' ? 'var(--c-green)'
@@ -54,40 +61,40 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
     <Section
       title="Root Cause Analysis"
       headerRight={
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            className="btn-ghost"
-            style={{ fontSize: '0.75rem', padding: '4px 10px' }}
-            disabled={exportMutation.isPending}
-            onClick={() => exportMutation.mutate()}
-          >
-            {exportMutation.isPending ? 'Exporting…' : '↓ PDF'}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '3px 8px' }} onClick={() => syncAdoMutation.mutate()} disabled={syncAdoMutation.isPending}>
+            {syncAdoMutation.isPending ? 'Syncing…' : 'Azure Boards'}
           </button>
-          <button
-            className="btn-ghost"
-            style={{ fontSize: '0.75rem', padding: '4px 10px' }}
-            disabled={emailMutation.isPending}
-            onClick={() => emailMutation.mutate()}
-          >
-            {emailMutation.isPending ? 'Sending…' : '✉ Send Mail'}
+          <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '3px 8px' }} onClick={() => syncSnowMutation.mutate()} disabled={syncSnowMutation.isPending}>
+            {syncSnowMutation.isPending ? 'Syncing…' : 'ServiceNow'}
+          </button>
+          <div style={{ width: 1, height: 16, background: 'var(--c-border)', margin: '0 4px' }} />
+          <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '3px 8px' }} onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
+            {exportMutation.isPending ? '...' : '↓ PDF'}
+          </button>
+          <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '3px 8px' }} onClick={() => emailMutation.mutate()} disabled={emailMutation.isPending}>
+            {emailMutation.isPending ? '...' : '✉ Mail'}
           </button>
         </div>
       }
     >
-      {emailOutcome && (
+      {syncOutcome && (
         <div style={{
-          marginBottom: 14,
-          padding: '8px 10px',
-          borderRadius: 3,
-          border: `1px solid ${emailOutcome.ok ? 'var(--c-success-border)' : 'var(--c-error-border)'}`,
-          background: emailOutcome.ok ? 'var(--c-success-bg)' : 'var(--c-error-bg)',
-          color: emailOutcome.ok ? 'var(--c-success)' : 'var(--c-error)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.72rem',
+          marginBottom: 16, padding: '10px 14px', borderRadius: 8,
+          border: `1px solid ${syncOutcome.ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+          background: syncOutcome.ok ? 'rgba(34,197,94,0.05)' : 'rgba(239,68,68,0.05)',
+          color: syncOutcome.ok ? 'var(--c-green)' : 'var(--c-red)',
+          fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
         }}>
-          {emailOutcome.ok ? '✓' : '✗'} {emailOutcome.message}
+          <div>
+            <span style={{ fontWeight: 800 }}>{syncOutcome.provider}:</span> {syncOutcome.message}
+            {syncOutcome.id && <span style={{ marginLeft: 8, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4 }}>ID: {syncOutcome.id}</span>}
+          </div>
+          <button onClick={() => setSyncOutcome(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', padding: '0 5px' }}>×</button>
         </div>
       )}
+
       {/* Confidence bar */}
       <div style={{ marginBottom: 22 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: rca.confidence_reasoning ? 10 : 0 }}>
@@ -130,50 +137,49 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
         )}
       </div>
 
-      {/* Root cause highlighted card */}
-      <div style={{
-        borderLeft: '3px solid var(--c-red)',
-        padding: '14px 18px',
-        background: 'rgba(239,68,68,0.04)',
-        marginBottom: 20, borderRadius: '0 3px 3px 0',
-      }}>
-        <div style={{
-          fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
-          letterSpacing: '0.14em', textTransform: 'uppercase',
-          color: 'var(--c-red)', marginBottom: 8,
-        }}>
-          Root Cause
+      {/* Executive Overview Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+        <div style={{ padding: '16px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10 }}>
+          <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--c-red)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Primary Root Cause</div>
+          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--c-text)', lineHeight: 1.4 }}>{rca.root_cause}</div>
         </div>
-        <div className="pm-prose" style={{ color: 'var(--c-text)' }}>
-          <SemanticMarkdown>{rca.root_cause}</SemanticMarkdown>
+        <div style={{ padding: '16px', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 10 }}>
+          <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--c-signal)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Service Context</div>
+          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--c-text)', lineHeight: 1.4 }}>
+            {request.service_name} <span style={{ opacity: 0.5, fontWeight: 400 }}>in</span> {request.environment}
+          </div>
+          <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', marginTop: 4 }}>Trigger: {request.trigger_source}</div>
         </div>
       </div>
 
       {/* Analysis summary */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 24 }}>
         <div style={{
           fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
           letterSpacing: '0.14em', textTransform: 'uppercase',
-          color: 'var(--c-text-muted)', marginBottom: 10,
+          color: 'var(--c-text-muted)', marginBottom: 12,
         }}>
-          Analysis
+          Detailed Analysis
         </div>
-        <div className="pm-prose" style={{ color: 'var(--c-text-dim)' }}>
+        <div className="pm-prose" style={{ color: 'var(--c-text-dim)', fontSize: '0.88rem' }}>
           <SemanticMarkdown>{rca.summary}</SemanticMarkdown>
         </div>
       </div>
 
+      {/* Decision Flowchart */}
+      {fix_strategy && <FixStrategyFlowchart serviceName={request.service_name} actions={fix_strategy.actions} />}
+
       {/* Contributing factors */}
       {rca.contributing_factors?.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 24 }}>
           <div style={{
             fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
             letterSpacing: '0.14em', textTransform: 'uppercase',
-            color: 'var(--c-text-muted)', marginBottom: 10,
+            color: 'var(--c-text-muted)', marginBottom: 12,
           }}>
-            Contributing Factors ({rca.contributing_factors.length})
+            Contributing Factors
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {rca.contributing_factors.map((f: string, i: number) => {
               const fl = f.toLowerCase()
               const chipLabel = (fl.includes('no ') || fl.includes('not ') || fl.includes('healthy') || fl.includes('no issue'))
@@ -191,34 +197,25 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
 
               return (
                 <div key={i} style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 12,
-                  padding: '10px 14px',
-                  background: 'rgba(249,115,22,0.04)',
-                  border: '1px solid rgba(249,115,22,0.1)',
-                  borderRadius: 2,
+                  display: 'flex', alignItems: 'flex-start', gap: 10,
+                  padding: '12px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid var(--c-border)',
+                  borderRadius: 8,
                 }}>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
-                    color: 'var(--c-signal)', marginTop: 2, flexShrink: 0, fontWeight: 700,
-                  }}>
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <span style={{
-                    fontFamily: 'var(--font-body)', fontSize: '0.85rem',
-                    color: 'var(--c-text-dim)', lineHeight: 1.6, flex: 1,
-                  }}>
-                    {f}
-                  </span>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '0.57rem',
-                    fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                    padding: '2px 6px', borderRadius: 2, flexShrink: 0, marginTop: 2,
-                    background: `${chipColor}18`,
-                    border: `1px solid ${chipColor}35`,
-                    color: chipColor,
-                  }}>
-                    {chipLabel}
-                  </span>
+                  <span style={{ fontSize: '0.8rem', marginTop: 2 }}>{chipLabel === 'no issue' ? '✅' : '🔴'}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)', fontSize: '0.55rem',
+                      fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase',
+                      color: chipColor, marginBottom: 4
+                    }}>
+                      {chipLabel}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.78rem', color: 'var(--c-text-dim)', lineHeight: 1.4 }}>
+                      {f}
+                    </div>
+                  </div>
                 </div>
               )
             })}
@@ -227,24 +224,24 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
       )}
 
       {/* Fix strategy preview (inline at bottom of RCA) */}
-      <div style={{ paddingTop: 16, borderTop: '1px solid var(--c-border)' }}>
+      <div style={{ paddingTop: 20, borderTop: '1px solid var(--c-border)' }}>
         {fix_strategy && fix_strategy.actions?.length > 0 ? (
           <div style={{
-            display: 'flex', alignItems: 'flex-start', gap: 14,
-            padding: '12px 14px',
-            background: 'var(--c-surface-2)',
-            border: '1px solid var(--c-border)',
-            borderRadius: 3,
+            display: 'flex', alignItems: 'center', gap: 16,
+            padding: '16px',
+            background: 'linear-gradient(135deg, rgba(249,115,22,0.1), rgba(0,0,0,0))',
+            border: '1px solid rgba(249,115,22,0.2)',
+            borderRadius: 12,
           }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700,
+                fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 800,
                 letterSpacing: '0.14em', textTransform: 'uppercase',
-                color: 'var(--c-text-muted)', marginBottom: 6,
+                color: 'var(--c-signal)', marginBottom: 4,
               }}>
-                Fix Strategy · {fix_strategy.actions.length} action{fix_strategy.actions.length !== 1 ? 's' : ''}
+                Proposed Fix Strategy
               </div>
-              <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--c-text-dim)', lineHeight: 1.6 }}>
+              <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.85rem', color: 'var(--c-text)', fontWeight: 500 }}>
                 {fix_strategy.summary}
               </p>
             </div>
@@ -252,16 +249,16 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
               to={`/investigations/${requestId}/fix-strategy`}
               style={{
                 flexShrink: 0,
-                fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.62rem',
-                letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: 'var(--c-signal)', textDecoration: 'none',
-                padding: '6px 12px', borderRadius: 2,
-                border: '1px solid rgba(249,115,22,0.3)',
-                background: 'rgba(249,115,22,0.06)',
+                fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem',
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                color: '#fff', textDecoration: 'none',
+                padding: '8px 16px', borderRadius: 6,
+                background: 'var(--c-signal)',
+                boxShadow: '0 4px 12px rgba(249,115,22,0.3)',
                 whiteSpace: 'nowrap',
               }}
             >
-              View →
+              Review Actions →
             </Link>
           </div>
         ) : (

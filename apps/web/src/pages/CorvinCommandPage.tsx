@@ -11,6 +11,8 @@ import {
 } from '../api/corvinApi'
 
 
+import MermaidChart from '../components/common/MermaidChart'
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ToolStep {
@@ -88,6 +90,9 @@ const mdComponents: Record<string, React.ComponentType<any>> = {
     </div>
   ),
   code: ({ className, children }) => {
+    if (className === 'language-mermaid') {
+      return <MermaidChart chart={String(children).trim()} />
+    }
     if (className?.startsWith('language-')) {
       return <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{children}</code>
     }

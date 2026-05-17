@@ -113,40 +113,81 @@ function PlatformStatsCard({ data }: { data: Record<string, unknown> }) {
   const mttr = typeof data.avg_mttr_minutes === 'number' ? data.avg_mttr_minutes.toFixed(1) : '—'
   const total = data.total_investigations ?? 0
   const today = data.today_investigations ?? 0
-  const high = (data.confidence_breakdown as any)?.high ?? 0
-  const medium = (data.confidence_breakdown as any)?.medium ?? 0
-  const low = (data.confidence_breakdown as any)?.low ?? 0
+  const high = (data.confidence_distribution as any)?.high ?? 0
+  const medium = (data.confidence_distribution as any)?.medium ?? 0
+  const low = (data.confidence_distribution as any)?.low ?? 0
   return (
-    <div>
-      <div style={ROW}><span>Total investigations</span><Pill value={String(total)} /></div>
-      <div style={ROW}><span>Today</span><Pill value={String(today)} /></div>
-      <div style={ROW}><span>Avg MTTR</span><Pill value={`${mttr} min`} /></div>
-      <div style={{ marginTop: 10, fontSize: '0.7rem', color: 'var(--c-text-muted)' }}>
-        Confidence: &nbsp;
-        <span style={{ color: '#22c55e' }}>High {high}</span> ·&nbsp;
-        <span style={{ color: '#f97316' }}>Med {medium}</span> ·&nbsp;
-        <span style={{ color: '#ef4444' }}>Low {low}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
+          <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Avg MTTR</div>
+          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--c-signal)' }}>{mttr}<span style={{ fontSize: '0.7rem', fontWeight: 400, marginLeft: 2 }}>min</span></div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
+          <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Investigations</div>
+          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--c-text)' }}>{total}</div>
+        </div>
+      </div>
+      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
+        <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 8 }}>Confidence Spread</div>
+        <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, display: 'flex', overflow: 'hidden' }}>
+          <div style={{ width: `${(high / total) * 100}%`, background: '#22c55e' }} title={`High: ${high}`} />
+          <div style={{ width: `${(medium / total) * 100}%`, background: '#f97316' }} title={`Med: ${medium}`} />
+          <div style={{ width: `${(low / total) * 100}%`, background: '#ef4444' }} title={`Low: ${low}`} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: '0.6rem' }}>
+          <span style={{ color: '#22c55e' }}>High {high}</span>
+          <span style={{ color: '#f97316' }}>Med {medium}</span>
+          <span style={{ color: '#ef4444' }}>Low {low}</span>
+        </div>
       </div>
     </div>
   )
 }
 
 function IncidentListCard({ data }: { data: unknown[] }) {
-  const items = data.slice(0, 8)
+  const items = data.slice(0, 6)
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {items.map((item: any, i) => (
-        <div key={i} style={{ ...ROW, flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--c-signal)', fontSize: '0.68rem' }}>
-              {item.service_name} · {item.environment}
+        <div key={i} style={{ 
+          background: 'rgba(255,255,255,0.02)', 
+          border: '1px solid var(--c-border)', 
+          borderRadius: 10, 
+          padding: '10px 12px',
+          transition: 'border-color 0.15s'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--c-signal)', fontSize: '0.7rem', fontWeight: 700 }}>
+              {item.service_name}
             </span>
-            <Pill value={item.approval_status ?? 'pending'} color={item.approval_status === 'approved' ? '#22c55e' : '#f97316'} />
+            <span style={{ 
+              fontSize: '0.55rem', 
+              textTransform: 'uppercase', 
+              letterSpacing: '0.05em',
+              background: item.approval_status === 'executed' ? 'rgba(34,197,94,0.1)' : 'rgba(249,115,22,0.1)',
+              color: item.approval_status === 'executed' ? '#22c55e' : '#f97316',
+              padding: '2px 6px',
+              borderRadius: 4,
+              border: `1px solid ${item.approval_status === 'executed' ? 'rgba(34,197,94,0.2)' : 'rgba(249,115,22,0.2)'}`
+            }}>
+              {item.approval_status ?? 'pending'}
+            </span>
           </div>
-          <span style={{ color: 'var(--c-text-faint)', fontSize: '0.67rem' }}>{item.description?.slice(0, 80)}</span>
+          <div style={{ color: 'var(--c-text-dim)', fontSize: '0.68rem', lineHeight: 1.4, marginBottom: 8 }}>
+            {item.description?.slice(0, 90)}...
+          </div>
           {item.request_id && (
-            <Link to={`/investigations/${item.request_id}`} style={{ color: 'var(--c-signal)', fontSize: '0.65rem', textDecoration: 'none' }}>
-              → View investigation
+            <Link to={`/investigations/${item.request_id}`} style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: 4, 
+              color: 'var(--c-text-faint)', 
+              fontSize: '0.62rem', 
+              textDecoration: 'none',
+              transition: 'color 0.15s'
+            }}>
+              <span style={{ color: 'var(--c-signal)' }}>→</span> Full RCA Report
             </Link>
           )}
         </div>
@@ -157,14 +198,27 @@ function IncidentListCard({ data }: { data: unknown[] }) {
 
 function ServiceScoreCard({ data }: { data: Record<string, unknown> }) {
   const score = typeof data.score === 'number' ? data.score : 0
-  const hue = score > 70 ? '#22c55e' : score > 40 ? '#f97316' : '#ef4444'
+  const color = score > 80 ? '#22c55e' : score > 50 ? '#f97316' : '#ef4444'
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: '2.5rem', fontFamily: 'var(--font-display)', color: hue, lineHeight: 1 }}>
-        {score.toFixed(0)}
+    <div style={{ textAlign: 'center', padding: '10px 0' }}>
+      <div style={{ position: 'relative', width: 100, height: 100, margin: '0 auto' }}>
+        <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
+          <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3" />
+          <circle cx="18" cy="18" r="16" fill="none" stroke={color} strokeWidth="3" 
+            strokeDasharray={`${score}, 100`} strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.8s ease' }} />
+        </svg>
+        <div style={{ 
+          position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', 
+          alignItems: 'center', justifyContent: 'center' 
+        }}>
+          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: color }}>{score}</div>
+          <div style={{ fontSize: '0.5rem', textTransform: 'uppercase', color: 'var(--c-text-faint)' }}>score</div>
+        </div>
       </div>
-      <div style={{ color: 'var(--c-text-muted)', marginTop: 4 }}>/ 100 — {String(data.service_name ?? '')}</div>
-      <div style={{ fontSize: '0.68rem', color: 'var(--c-text-faint)', marginTop: 6 }}>{String(data.summary ?? '')}</div>
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--c-text)' }}>{String(data.service_name ?? '')}</div>
+        <div style={{ fontSize: '0.65rem', color: color, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 2 }}>{String(data.label ?? '')}</div>
+      </div>
     </div>
   )
 }
@@ -176,56 +230,92 @@ function InvestigationResultCard({ data }: { data: any }) {
   const actions = fix.actions || []
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div>
-        <div style={{ ...LABEL, color: 'var(--c-text)', fontSize: '0.7rem', marginBottom: 4 }}>RCA SUMMARY</div>
-        <div style={{ fontSize: '0.78rem', color: 'var(--c-text)', fontWeight: 500, lineHeight: 1.4 }}>{rca.summary}</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.1), rgba(0,0,0,0))', padding: '14px', borderRadius: 12, border: '1px solid rgba(249,115,22,0.2)' }}>
+        <div style={{ ...LABEL, color: 'var(--c-signal)', fontSize: '0.65rem', marginBottom: 6 }}>Root Cause Summary</div>
+        <div style={{ fontSize: '0.82rem', color: 'var(--c-text)', fontWeight: 600, lineHeight: 1.5 }}>{rca.summary}</div>
       </div>
 
-      <div style={{ padding: '8px 10px', background: 'rgba(249,115,22,0.06)', borderRadius: 8, borderLeft: '3px solid #f97316' }}>
-        <div style={{ ...LABEL, fontSize: '0.6rem', marginBottom: 2 }}>ROOT CAUSE</div>
-        <div style={{ fontSize: '0.72rem', color: 'var(--c-text-dim)', lineHeight: 1.5 }}>{rca.root_cause}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Remediation Steps</div>
+        {actions.slice(0, 2).map((a: any, i: number) => (
+          <div key={i} style={{ 
+            padding: '8px 12px', 
+            background: 'rgba(255,255,255,0.02)', 
+            border: '1px solid var(--c-border)', 
+            borderRadius: 8,
+            display: 'flex',
+            gap: 10,
+            alignItems: 'center'
+          }}>
+            <span style={{ color: 'var(--c-signal)', fontSize: '0.8rem' }}>●</span>
+            <div style={{ fontSize: '0.72rem', color: 'var(--c-text-dim)' }}>{a.title}</div>
+          </div>
+        ))}
       </div>
 
-      {actions.length > 0 && (
-        <div>
-          <div style={{ ...LABEL, fontSize: '0.6rem', marginBottom: 6 }}>PROPOSED REMEDIATION</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {actions.map((a: any, i: number) => (
-              <div key={i} style={{ padding: '6px 8px', background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 6 }}>
-                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--c-signal)' }}>{a.title}</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', marginTop: 2 }}>{a.description?.slice(0, 100)}…</div>
-              </div>
-            ))}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--c-border)', paddingTop: 12 }}>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '0.55rem', color: 'var(--c-text-faint)', textTransform: 'uppercase' }}>Confidence</div>
+            <div style={{ fontSize: '0.7rem', color: rca.confidence === 'high' ? '#22c55e' : '#f97316', fontWeight: 700 }}>{rca.confidence?.toUpperCase()}</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '0.55rem', color: 'var(--c-text-faint)', textTransform: 'uppercase' }}>Status</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--c-text)', fontWeight: 700 }}>{req.approval_status?.toUpperCase()}</div>
           </div>
         </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 12, borderTop: '1px solid var(--c-border)', paddingTop: 10 }}>
-        <div>
-          <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase' }}>Status</div>
-          <div style={{ fontSize: '0.7rem', color: req.approval_status === 'rejected' ? '#ef4444' : '#22c55e', fontWeight: 600 }}>{req.approval_status?.toUpperCase()}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase' }}>Service</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--c-text)', fontWeight: 600 }}>{req.service_name} ({req.environment})</div>
-        </div>
-        <div style={{ marginLeft: 'auto' }}>
-          <Link to={`/investigations/${req.id}`} style={{ fontSize: '0.65rem', color: 'var(--c-signal)', textDecoration: 'none', borderBottom: '1px solid currentColor' }}>
-            Full Report →
-          </Link>
-        </div>
+        <Link to={`/investigations/${req.id}`} style={{ 
+          background: 'var(--c-signal)', 
+          color: '#fff', 
+          padding: '5px 12px', 
+          borderRadius: 6, 
+          fontSize: '0.65rem', 
+          fontWeight: 700, 
+          textDecoration: 'none',
+          boxShadow: '0 2px 8px rgba(249,115,22,0.3)'
+        }}>
+          Full Report →
+        </Link>
       </div>
     </div>
   )
 }
 
 function RoiCard({ data }: { data: Record<string, unknown> }) {
+  const hours = Number(data.hours_saved ?? 0).toFixed(1)
+  const cost = Number(data.cost_saved ?? 0).toLocaleString()
   return (
-    <div>
-      <div style={ROW}><span>Hours saved</span><Pill value={`${Number(data.hours_saved ?? 0).toFixed(1)} h`} color="#22c55e" /></div>
-      <div style={ROW}><span>Cost saved</span><Pill value={`$${Number(data.cost_saved ?? 0).toFixed(0)}`} color="#22c55e" /></div>
-      <div style={ROW}><span>Auto-resolved</span><Pill value={String(data.auto_resolved_count ?? 0)} /></div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ 
+        background: 'linear-gradient(135deg, rgba(34,197,94,0.15), rgba(0,0,0,0.2))', 
+        padding: '20px', 
+        borderRadius: 15, 
+        border: '1px solid rgba(34,197,94,0.3)',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Decorative glow */}
+        <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, background: 'rgba(34,197,94,0.2)', filter: 'blur(30px)', borderRadius: '50%' }} />
+        
+        <div style={{ fontSize: '0.7rem', color: 'rgba(34,197,94,0.8)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Total Cost Savings</div>
+        <div style={{ fontSize: '2.4rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+          <span style={{ fontSize: '1.2rem', verticalAlign: 'top', marginRight: 2, opacity: 0.7 }}>$</span>{cost}
+        </div>
+        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Estimated across {data.period_months ?? 1} month(s)</div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border)', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#22c55e' }}>{hours}<span style={{ fontSize: '0.7rem', fontWeight: 400, marginLeft: 2 }}>h</span></div>
+          <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginTop: 2 }}>Hours Saved</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border)', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--c-text)' }}>{String(data.auto_resolved_count ?? 0)}</div>
+          <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginTop: 2 }}>Auto-Resolved</div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -315,9 +405,42 @@ function JsonFallbackCard({ data }: { data: unknown }) {
   )
 }
 
+function TopologyCard({ data }: { data: any }) {
+  const nodes = data.nodes || []
+  const edges = data.edges || []
+  return (
+    <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+        {nodes.map((n: any, i: number) => (
+          <div key={i} style={{ 
+            padding: '4px 10px', 
+            background: n.status === 'hot' ? 'rgba(239,68,68,0.1)' : 'var(--c-surface)', 
+            border: `1px solid ${n.status === 'hot' ? 'rgba(239,68,68,0.3)' : 'var(--c-border)'}`,
+            borderRadius: 6,
+            fontSize: '0.65rem'
+          }}>
+            <span style={{ marginRight: 6 }}>{n.kind === 'pod' ? '📦' : n.kind === 'service' ? '⚙️' : '🌐'}</span>
+            <span style={{ fontWeight: 600, color: n.status === 'hot' ? '#ef4444' : 'var(--c-text)' }}>{n.label}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ borderTop: '1px solid var(--c-border)', paddingTop: 8 }}>
+        {edges.slice(0, 5).map((e: any, i: number) => (
+          <div key={i} style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', marginBottom: 2 }}>
+            {e.source} <span style={{ color: 'var(--c-signal)' }}>→ {e.label} →</span> {e.target}
+          </div>
+        ))}
+        {edges.length > 5 && <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', marginTop: 4 }}>+ {edges.length - 5} more connections</div>}
+      </div>
+    </div>
+  )
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function ToolResultCard({ toolName, data, timestamp }: ToolResultCardProps) {
+  const [collapsed, setCollapsed] = useState(true)
+
   const renderBody = () => {
     if (data === null || data === undefined) return <div style={{ color: 'var(--c-text-faint)' }}>No data returned.</div>
     if (typeof data === 'string') return <TextDataCard data={data} />
@@ -330,6 +453,8 @@ export function ToolResultCard({ toolName, data, timestamp }: ToolResultCardProp
       case 'get_similar_incidents': return Array.isArray(d) ? <IncidentListCard data={d} /> : <JsonFallbackCard data={d} />
       case 'get_service_score':     return <ServiceScoreCard data={d} />
       case 'get_roi':               return <RoiCard data={d} />
+      case 'get_blast_radius':      return <JsonFallbackCard data={d} />
+      case 'get_service_topology':  return <TopologyCard data={d} />
       case 'get_predictive_alerts': return Array.isArray(d) ? <AlertListCard data={d} /> : <JsonFallbackCard data={d} />
       case 'get_aks_health':        return <AksHealthCard data={d} />
       case 'run_kql':               return Array.isArray(d) ? <KqlResultCard data={d} /> : <JsonFallbackCard data={d} />
@@ -342,14 +467,18 @@ export function ToolResultCard({ toolName, data, timestamp }: ToolResultCardProp
 
   return (
     <div style={CARD_STYLE}>
-      <div style={LABEL}>
+      <div 
+        style={{ ...LABEL, cursor: 'pointer', margin: collapsed ? 0 : LABEL.marginBottom }} 
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <span style={{ fontSize: '0.8rem', color: 'var(--c-text-faint)' }}>{collapsed ? '▶' : '▼'}</span>
         <ToolIcon name={toolName} />
         <ToolLabel name={toolName} />
         <span style={{ marginLeft: 'auto', color: 'var(--c-text-faint)', fontSize: '0.6rem' }}>
           {new Date(timestamp).toLocaleTimeString()}
         </span>
       </div>
-      {renderBody()}
+      {!collapsed && renderBody()}
     </div>
   )
 }

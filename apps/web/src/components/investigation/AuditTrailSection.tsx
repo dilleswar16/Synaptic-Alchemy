@@ -102,11 +102,14 @@ function AuditTimeline({ replay }: { replay: ReplayPayload }) {
 
   return (
     <div style={{ position: 'relative', paddingLeft: 36 }}>
-      <div style={{
-        position: 'absolute', left: 6, top: 8, bottom: 8, width: 2,
-        background: 'linear-gradient(180deg, var(--c-signal) 0%, rgba(249,115,22,0.25) 65%, var(--c-green) 100%)',
-        opacity: 0.55, borderRadius: 1,
-      }} />
+      <div 
+        className="animate-vertical-flow"
+        style={{
+          position: 'absolute', left: 6, top: 8, bottom: 8, width: 2,
+          background: 'linear-gradient(180deg, var(--c-signal) 0%, rgba(249,115,22,0.1) 50%, var(--c-green) 100%)',
+          opacity: 0.8, borderRadius: 1,
+        }} 
+      />
 
       {stages.map((stage, i) => (
         <div key={i} style={{ position: 'relative', marginBottom: i < stages.length - 1 ? 26 : 0 }}>
@@ -204,25 +207,29 @@ export function AuditTrailSection({ requestId, defaultOpen = false }: { requestI
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem',
+              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.68rem',
               letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
             }}>
               Audit Trail
             </span>
-            {duration && (
-              <>
-                <span style={{ color: 'var(--c-border-hi)', fontSize: '0.7rem' }}>·</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-muted)' }}>6 stages</span>
-                <span style={{ color: 'var(--c-border-hi)', fontSize: '0.7rem' }}>·</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-signal)' }}>completed in {duration}</span>
-              </>
-            )}
-            {!duration && !isLoading && (
-              <>
-                <span style={{ color: 'var(--c-border-hi)', fontSize: '0.7rem' }}>·</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-faint)' }}>6 stages</span>
-              </>
-            )}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+               <span style={{ 
+                 fontFamily: 'var(--font-mono)', fontSize: '0.58rem', fontWeight: 800, 
+                 background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4,
+                 color: 'var(--c-text-faint)', border: '1px solid var(--c-border)'
+               }}>
+                 6 STAGES
+               </span>
+               {duration && (
+                 <span style={{ 
+                   fontFamily: 'var(--font-mono)', fontSize: '0.58rem', fontWeight: 800, 
+                   background: 'rgba(34,197,94,0.1)', padding: '2px 6px', borderRadius: 4,
+                   color: 'var(--c-green)', border: '1px solid rgba(34,197,94,0.3)'
+                 }}>
+                   {duration.toUpperCase()} RESOLUTION
+                 </span>
+               )}
+            </div>
           </div>
           <span style={{
             fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-text-muted)',

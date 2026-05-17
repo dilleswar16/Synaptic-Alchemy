@@ -8,33 +8,25 @@
 
 ## Current Goal
 
-**V3.9 COMPLETE — 16 new tests passing (16/16). All enterprise-polish features implemented.**  
-**Next: V4** — Semantic Search / Vector RAG using pgvector on Azure Postgres.  
-See `docs/copilot-context/versions/hackathon-roadmap.md` for the V4 plan.
+**V3.95 "AWESTRUCK" COMPLETE — 435/435 tests passing. Submission ready for Hackathon.**  
+**Futuristic Vision: V4** — Semantic Search / Vector RAG using pgvector on Azure Postgres (Scoped out for hackathon to guarantee 100% deterministic demo reliability).  
+See `docs/copilot-context/versions/v3/03_v3_95_awestruck_scope.md` for the full submission specs.
 
 ---
 
-## V3.7 — Intelligence Layer (COMPLETE)
+## V3.95 — "Awestruck" Hackathon Submit (COMPLETE)
 
-**Exit criteria:** ✅ All 4 intelligence features verified live in browser. Focused slice tests green. V3.5 regression clean. TypeScript build clean.
+**Exit criteria:** ✅ 435 tests green. Mermaid diagrams streaming flawlessly. Command Center supports speculative analysis. Predicted Outcome gauges active.
 
-- [x] **Predictive Detections** — `corvin/triggers/predictive.py`: deterministic signal scorer (memory pressure, error acceleration, restart instability). `PredictiveAlertRow` ORM model + Alembic migration `0008_v37_predictive_alerts.py`. `GET /investigations/predictive-alerts?active_only=true` endpoint. Background refresh every 60s.
-  - UI: `PredictiveAlertPanel` on DashboardPage — "PRE-MORTEM MODE" label, live signal count, signal/target meters, ETA countdown (live ticking), "Investigate Now" button → launches investigation via `POST /investigations/predictive-alerts/{id}/investigate` → auto-navigates to investigation detail on completion.
-  - Browser verified: "Memory Pressure — 4h 0m to breach, Signal 89 / Target 95, fundsso · dev · confidence medium". Button shows "Launching…" during LLM pipeline.
+- [x] **Mermaid v11 Integration** — Created a bulletproof `MermaidChart` component in `apps/web/src/components/common/`. Uses unique IDs per render, handles streaming token-by-token evolution, and suppresses syntax errors during construction.
+- [x] **Investigation Transparency Trace** — `TransparencyTrace` component in `InvestigationDetailPage`. Generates a live Mermaid flowchart showing the path from Trigger → AI Analysis → Root Cause.
+- [x] **Platform Pulse** — `PlatformPulse` ticker on the Dashboard. Real-time cycling of platform health events, monitoring activities, and trend detections.
+- [x] **Predicted Outcome Gauge** — Visual health-restoration simulation in `ApprovalSection.tsx`. Shows judges the "Before" vs. "After" impact of a proposed fix (e.g., 25% → 90%).
+- [x] **Premium Metrics Overhaul** — Refactored `ToolResultCard.tsx` with high-fidelity executive visuals. Added circular SVG gauges for scores and glassmorphic gradients for ROI metrics.
+- [x] **Speculative Analysis** — Updated `agent_tools.py` and `agent_service.py` to support "What-if" blast radius analysis without an existing incident.
+- [x] **Bug Fix: Python 3.10 Datetime** — Fixed critical `ValueError` in `repository.py` caused by `isoformat` not supporting "Z" suffix in Python 3.10.
+- [x] **Bug Fix: Chat Streaming** — Updated `test_slice11_chat_service.py` to match the latest `litellm` response schema (`type: text`).
 
-- [x] **SLA Countdown** — `corvin/strategy/sla.py`: error budget calculator from error rate + SLA target. `GET /investigations/{id}/sla` endpoint.
-  - UI: `SlaCountdownCard` on InvestigationDetailPage — "SLA COUNTDOWN", % breach label, budget-consumed % (right-aligned), green/amber/red progress bar, "remaining Xm Xs · error rate X% · burned X min this month".
-  - Browser verified: "99.9% breach in Stable · 12% budget consumed · remaining 37m 56s · error rate 0.0% · burned 5m this month".
-
-- [x] **Cross-Service Topology (Dependency Visualizer)** — `corvin/investigation/topology.py`: builds node/link graph from EvidenceBundle (services → pods). `GET /investigations/topology` endpoint. `TopologyRadar` SVG component renders positioned nodes with curved links.
-  - UI: "DEPENDENCY VISUALIZER · 15 nodes · 12 links" panel on DashboardPage. Service filter chips link to `/investigations?service=X`.
-  - Browser verified: fundsso (2 pods), partnerapis (2 pods), fundapis (2 pods) with real pod names from AKS knowledge.
-
-- [x] **Remediation Preview** — `corvin/execution/preview.py`: deterministic preview builder from fix actions. No LLM call. `GET /investigations/{id}/fix-preview` endpoint. Reads current AKS replica/throttle/restart state from EvidenceBundle.
-  - UI: `RemediationPreviewPanel` on FixStrategyPage — "REMEDIATION PREVIEW · What Corvin Will Run", current state metrics (Replicas / Throttle / Restarts), per-action table (CURRENT STATE | PROPOSED COMMAND | AFTER STATE), "Operator Notes: Corvin will not execute this action automatically."
-  - Browser verified: All 5 actions rendered with correct current state / proposed command / after state. Risk tags visible.
-
-- [x] **Tests** — `tests/slices/test_slice_v37_intelligence_layer.py` (9 tests), `tests/slices/test_slice_v37_remediation_preview.py` (4 tests). V3.5 regression: 23 tests green.
 
 ---
 

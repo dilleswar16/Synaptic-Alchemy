@@ -1,7 +1,7 @@
 # Corvin Hackathon Feature Roadmap
 
 **Status at time of writing:** V3.9 complete, 433/433 tests passing.  
-**Next locked version:** V4 — Semantic Search / Vector RAG (requires pgvector on Azure Postgres).  
+**Next locked version:** V4 — Semantic Search / Vector RAG (Futuristic Vision: Requires pgvector on Azure Postgres - purposefully scoped out of Hackathon for demo stability).  
 **This file:** defines three intermediate versions (V3.5, V3.7, V3.9) that slot between V3+ and V4.
 
 ---

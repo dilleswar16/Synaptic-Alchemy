@@ -692,7 +692,7 @@ class InvestigationRepository:
                         signal_value=alert["signal_value"],
                         threshold_value=alert["threshold_value"],
                         estimated_breach_at=(
-                            datetime.fromisoformat(alert["estimated_breach_at"])
+                            datetime.fromisoformat(alert["estimated_breach_at"].replace("Z", "+00:00"))
                             if alert.get("estimated_breach_at")
                             else None
                         ),
@@ -701,7 +701,7 @@ class InvestigationRepository:
                         status=alert.get("status", "open"),
                         investigation_request_id=alert.get("investigation_request_id"),
                         created_at=(
-                            datetime.fromisoformat(alert["created_at"])
+                            datetime.fromisoformat(alert["created_at"].replace("Z", "+00:00"))
                             if alert.get("created_at")
                             else datetime.now(timezone.utc)
                         ),

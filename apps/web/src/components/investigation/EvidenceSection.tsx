@@ -32,7 +32,7 @@ function EvidenceSourceRow({
         onClick={() => count > 0 && setOpen(o => !o)}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-          padding: '9px 0', background: 'none', border: 'none',
+          padding: '10px 0', background: 'none', border: 'none',
           cursor: count > 0 ? 'pointer' : 'default', textAlign: 'left',
         }}
       >
@@ -40,25 +40,47 @@ function EvidenceSourceRow({
           {count > 0 ? '●' : '○'}
         </span>
         <span style={{
-          fontFamily: 'var(--font-mono)', fontSize: '0.77rem',
+          fontFamily: 'var(--font-mono)', fontSize: '0.75rem',
           color: count > 0 ? 'var(--c-text)' : 'var(--c-text-faint)', flex: 1,
         }}>
           {ADAPTER_LABEL[name] ?? name}
         </span>
-        <span style={{
-          fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
-          color: count > 0 ? 'var(--c-text-dim)' : 'var(--c-text-faint)',
-          minWidth: 80, textAlign: 'right',
-        }}>
-          {count > 0 ? `${count} record${count !== 1 ? 's' : ''}` : '—'}
-        </span>
+        
         {count > 0 && (
-          <span style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--c-text-faint)',
-            marginLeft: 10, flexShrink: 0, transition: 'transform 0.15s',
-            transform: open ? 'rotate(90deg)' : 'none', display: 'inline-block',
-          }}>▶</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ 
+              width: 40, height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden'
+            }}>
+               <div style={{ 
+                 height: '100%', 
+                 width: `${Math.min(100, (count / 50) * 100)}%`, 
+                 background: 'var(--c-signal)', 
+                 opacity: 0.6 
+               }} />
+            </div>
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
+              color: 'var(--c-text-dim)', minWidth: 70, textAlign: 'right',
+            }}>
+              {count} pts
+            </span>
+          </div>
         )}
+        
+        {count === 0 && (
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
+            color: 'var(--c-text-faint)', minWidth: 70, textAlign: 'right',
+          }}>
+            —
+          </span>
+        )}
+
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--c-text-faint)',
+          marginLeft: 10, flexShrink: 0, transition: 'transform 0.15s',
+          transform: open ? 'rotate(90deg)' : 'none', display: 'inline-block',
+        }}>▶</span>
       </button>
 
       {open && count > 0 && (
@@ -114,20 +136,23 @@ export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
     <section style={{ marginTop: 20 }}>
       <div className="panel" style={{ overflow: 'hidden' }}>
         <div style={{
-          padding: '10px 18px',
+          padding: '12px 18px',
           borderBottom: '1px solid var(--c-border)',
-          background: 'var(--c-surface-2)',
-          display: 'flex', alignItems: 'center', gap: 0,
+          background: 'linear-gradient(90deg, var(--c-surface-2), transparent)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          <span style={{
-            fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem',
-            letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
-          }}>
-            Evidence Bundle &middot; {activeSources} adapters &middot; {totalRecords} records
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="animate-pulse-glow" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-signal)' }} />
+            <span style={{
+              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.68rem',
+              letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
+            }}>
+              Telemetry Intelligence &middot; {totalRecords} points
+            </span>
+          </div>
           {/* Signal bar */}
           <span style={{
-            display: 'inline-flex', gap: 3, marginLeft: 10,
+            display: 'inline-flex', gap: 3,
             alignItems: 'flex-end', verticalAlign: 'middle', height: 14,
           }}>
             {sources.map((s, i) => {
@@ -141,6 +166,7 @@ export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
                   borderRadius: 1,
                   background: active ? 'var(--c-signal)' : 'rgba(255,255,255,0.1)',
                   transition: 'height 0.3s ease, background 0.3s ease',
+                  opacity: active ? 1 : 0.3
                 }} />
               )
             })}

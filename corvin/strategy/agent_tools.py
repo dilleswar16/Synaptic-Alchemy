@@ -178,8 +178,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "function": {
             "name": "get_blast_radius",
             "description": (
-                "Return the blast radius analysis for a specific investigation: which downstream "
-                "services and users are likely affected by this incident. "
+                "Return the blast radius analysis: which downstream services and users are likely "
+                "affected by an incident or a hypothetical failure. Provide either an investigation_id "
+                "(for a real incident) or a service_name (for a speculative what-if scenario). "
                 "Use this when the user asks about impact, affected services, or blast radius."
             ),
             "parameters": {
@@ -187,10 +188,18 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "investigation_id": {
                         "type": "string",
-                        "description": "The UUID of the investigation.",
-                    }
+                        "description": "The UUID of a specific investigation (optional).",
+                    },
+                    "service_name": {
+                        "type": "string",
+                        "description": "The name of the service to analyze (optional, e.g. 'partnerapis').",
+                    },
+                    "environment": {
+                        "type": "string",
+                        "description": "Environment for speculative analysis (default: 'dev').",
+                    },
                 },
-                "required": ["investigation_id"],
+                "required": [],
             },
         },
     },
@@ -471,13 +480,40 @@ def _exec_topology(args: dict) -> dict:
 
 def _exec_blast_radius(args: dict) -> dict:
     from corvin.storage.repository import InvestigationRepository
-    inv_id = args["investigation_id"]
+    from corvin.strategy.blast_radius import estimate_blast_radius, BlastRadiusEstimate
+    from corvin.core.contracts import EvidenceBundle
+    from corvin.core.config_loader import get_env, load_config
+
+    inv_id = args.get("investigation_id")
     repo = InvestigationRepository()
-    result = repo.get_investigation_result(inv_id)
-    if result is None:
-        return {"error": f"Investigation {inv_id!r} not found."}
-    from corvin.strategy.blast_radius import estimate_blast_radius
-    return estimate_blast_radius(result).model_dump()
+    
+    if inv_id:
+        result = repo.get_investigation_result(inv_id)
+        if result is None:
+            return {"error": f"Investigation {inv_id!r} not found."}
+        return estimate_blast_radius(
+            service_name=result.request.service_name,
+            environment=result.request.environment,
+            evidence=result.evidence,
+            policy=load_config("policies/investigation", get_env())
+        ).model_dump()
+    
+    # Speculative analysis
+    service_name = args.get("service_name")
+    if not service_name:
+        return {"error": "Either investigation_id or service_name must be provided."}
+    
+    env = args.get("environment", "dev")
+    # For speculative analysis, we pass an empty evidence bundle
+    # The estimator will use downstream API counts if evidence is empty
+    # But here we should ideally try to find some recent evidence if possible
+    empty_evidence = EvidenceBundle(request_id="speculative")
+    return estimate_blast_radius(
+        service_name=service_name,
+        environment=env,
+        evidence=empty_evidence,
+        policy=load_config("policies/investigation", get_env())
+    ).model_dump()
 
 
 def _exec_postmortem(args: dict) -> dict:

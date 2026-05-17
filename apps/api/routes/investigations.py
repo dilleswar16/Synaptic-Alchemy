@@ -801,6 +801,65 @@ def get_postmortem(
 class ChatRequest(BaseModel):
     messages: list[dict]
 
+class SyncResponse(BaseModel):
+    ticket_id: str
+    url: str | None = None
+    message: str
+
+@router.post("/{request_id}/sync/azure-boards", response_model=SyncResponse)
+def sync_azure_boards(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> SyncResponse:
+    """Export the investigation result as a new Work Item in Azure Boards (ADO)."""
+    from corvin.delivery.azure_devops_adapter import AzureDevOpsAdapter
+    
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    config = load_config("integrations/azure_devops", get_env())
+    adapter = AzureDevOpsAdapter(config)
+    
+    work_item_id = adapter.create_incident(result)
+    if work_item_id is None:
+        raise HTTPException(
+            status_code=502, 
+            detail="Failed to create Azure Boards work item. Check adapter configuration."
+        )
+
+    # Build direct link to the work item if org/project are known
+    org = config.get("org_name")
+    proj = config.get("project_name")
+    url = f"https://dev.azure.com/{org}/{proj}/_workitems/edit/{work_item_id}" if org and proj else None
+
+    return SyncResponse(
+        ticket_id=work_item_id,
+        url=url,
+        message=f"Created Azure Boards work item {work_item_id}."
+    )
+
+@router.post("/{request_id}/sync/servicenow", response_model=SyncResponse)
+def sync_servicenow(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> SyncResponse:
+    """Mocked export to ServiceNow INC (for hackathon demo purposes)."""
+    import time
+    # Simulate network delay for high-fidelity feel
+    time.sleep(1.2)
+    
+    # Verify investigation exists
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    mock_inc = f"INC{int(time.time()) % 1000000:06d}"
+    return SyncResponse(
+        ticket_id=mock_inc,
+        message=f"Created ServiceNow Incident {mock_inc} and assigned to SRE team."
+    )
+
 class ChatMessageOut(BaseModel):
     id: int
     role: str

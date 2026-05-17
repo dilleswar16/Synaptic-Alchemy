@@ -2,6 +2,7 @@ import React from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { TechnicalHighlighter } from './TechnicalHighlighter'
+import MermaidChart from './common/MermaidChart'
 
 interface SemanticMarkdownProps {
   children: string
@@ -23,6 +24,9 @@ const components: Components = {
   th: ({ children, ...props }) => <th {...props}>{processChildren(children)}</th>,
   span: ({ children, ...props }) => <span {...props}>{processChildren(children)}</span>,
   code: ({ children, className, ...props }) => {
+    if (className === 'language-mermaid') {
+      return <MermaidChart chart={String(children).trim()} />
+    }
     const isInline = !className
     if (isInline && typeof children === 'string') {
       return <code {...props}><TechnicalHighlighter text={children} /></code>
