@@ -437,6 +437,11 @@ function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary
 
       {items.map((inv, i) => {
         const status = inv.approval_status ?? 'pending'
+        const priority = (inv as any).incident_priority ?? 'P3'
+        const priColor = priority === 'P1' ? 'var(--c-red)' : priority === 'P2' ? 'var(--c-signal)' : 'var(--c-text-muted)'
+        const priBg = priority === 'P1' ? 'rgba(239,68,68,0.1)' : priority === 'P2' ? 'rgba(249,115,22,0.1)' : 'var(--c-surface-2)'
+        const priBorder = priority === 'P1' ? '1px solid rgba(239,68,68,0.3)' : priority === 'P2' ? '1px solid rgba(249,115,22,0.3)' : '1px solid var(--c-border)'
+
         return (
           <Link
             key={inv.request_id}
@@ -450,7 +455,14 @@ function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-faint)' }}>
               {fmtTs(inv.completed_at ?? inv.created_at)}
             </span>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ 
+                fontFamily: 'var(--font-mono)', fontSize: '0.55rem', fontWeight: 800, 
+                color: priColor, background: priBg, border: priBorder,
+                padding: '2px 6px', borderRadius: 4, flexShrink: 0
+              }}>
+                {priority}
+              </span>
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.88rem', color: 'var(--c-text)' }}>
                 {inv.service_name}
               </span>

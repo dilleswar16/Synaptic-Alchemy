@@ -157,6 +157,17 @@ export default function InvestigationDetailPage() {
               {data?.request?.service_name?.toUpperCase() ?? (isLoading ? '…' : 'INVESTIGATION')}
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {data?.request?.incident_priority && (
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800,
+                  padding: '3px 10px', borderRadius: 4,
+                  background: data.request.incident_priority === 'P1' ? 'rgba(239,68,68,0.1)' : data.request.incident_priority === 'P2' ? 'rgba(249,115,22,0.1)' : 'var(--c-surface-2)',
+                  border: data.request.incident_priority === 'P1' ? '1px solid rgba(239,68,68,0.3)' : data.request.incident_priority === 'P2' ? '1px solid rgba(249,115,22,0.3)' : '1px solid var(--c-border)',
+                  color: data.request.incident_priority === 'P1' ? 'var(--c-red)' : data.request.incident_priority === 'P2' ? 'var(--c-signal)' : 'var(--c-text-muted)',
+                }}>
+                  {data.request.incident_priority}
+                </span>
+              )}
               {data?.request?.environment && (
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
@@ -236,15 +247,67 @@ export default function InvestigationDetailPage() {
               <BlastRadiusCard requestId={id!} />
             </div>
             <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: threeAm ? '1fr' : 'minmax(320px, 420px) 1fr', 
+              display: 'flex', 
+              flexDirection: 'column', 
               gap: 32, 
-              alignItems: 'start' 
+              alignItems: 'stretch',
+              maxWidth: 960,
+              margin: '0 auto'
             }}>
-            {/* Left Column: Context, Evidence, Incidents, Audit Trail */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-              {data.request?.description && (
-                <div className="animate-fade-up-1">
+              
+              <div className="three-am-hide">
+                <WorkflowStepper approvalStatus={approvalStatus} hasEvidence={hasEvidence} hasRca={hasRca} />
+              </div>
+
+              {/* 1. CAUSE: RCA & Trace */}
+              {data.rca && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  <div className="animate-fade-up-2">
+                    <RcaSection data={data} requestId={id!} />
+                  </div>
+                  <div className="animate-fade-up-3">
+                    <TransparencyTrace rca={data.rca} serviceName={data.request?.service_name ?? 'service'} />
+                  </div>
+                </div>
+              )}
+
+              {/* 2. ACTION: Approval & Execution */}
+              <div className="animate-fade-up-4" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <ApprovalSection
+                  requestId={id!}
+                  status={approvalStatus}
+                  pendingAction={pendingAction}
+                  onClearPendingAction={clearPendingAction}
+                />
+                <ExecutionSection requestId={id!} status={approvalStatus} />
+              </div>
+
+              {/* 3. LEARNING: Post-Mortem */}
+              <div className="three-am-hide animate-fade-up-5" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <PostMortemSection 
+                  requestId={id!} 
+                  isExecuted={approvalStatus === 'executed'} 
+                  serviceName={data.request?.service_name ?? 'service'}
+                  duration={totalDuration(data.request.created_at, data.completed_at)}
+                />
+                {approvalStatus === 'executed' && (
+                  <RunbookUpdatePrompt
+                    requestId={id!}
+                    serviceName={data.request?.service_name ?? 'unknown'}
+                  />
+                )}
+              </div>
+
+              {/* 4. THE PROOF: Evidence & Audit (Collapsed by default) */}
+              <div className="animate-fade-up-5" style={{ display: 'flex', flexDirection: 'column', gap: 24, marginTop: 16, borderTop: '1px solid var(--c-border)', paddingTop: 32 }}>
+                <div style={{
+                  fontFamily: 'var(--font-display)', fontSize: '0.8rem', fontWeight: 800,
+                  letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)'
+                }}>
+                  Raw Telemetry & Audit
+                </div>
+                
+                {data.request?.description && (
                   <Section title="Context">
                     <p style={{
                       margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem',
@@ -253,81 +316,31 @@ export default function InvestigationDetailPage() {
                       <TechnicalHighlighter text={data.request.description} />
                     </p>
                   </Section>
-                </div>
-              )}
-
-              {data.evidence && (
-                <div className="animate-fade-up-2 three-am-hide">
-                  <EvidenceSection evidence={data.evidence} />
-                </div>
-              )}
-
-              {pastIncidents.length > 0 && (
-                <div className="animate-fade-up-3 three-am-hide">
-                  <SimilarIncidentsSection incidents={pastIncidents} />
-                </div>
-              )}
-
-              {evidenceReferences.length > 0 && (
-                <div className="animate-fade-up-4 three-am-hide">
-                  <EvidenceReferencesSection references={evidenceReferences} />
-                </div>
-              )}
-
-              <div className="animate-fade-up-5 three-am-hide">
-                <AuditTrailSection requestId={id!} defaultOpen={approvalStatus === 'executed'} />
-              </div>
-            </div>
-
-            {/* Right Column: Stepper, RCA, Approval, Fix Strategy */}
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: 24,
-              position: 'sticky',
-              top: 24,
-              maxHeight: 'calc(100vh - 48px)',
-              overflowY: 'auto',
-              paddingRight: 8, // room for inner scrollbar
-              paddingBottom: 40,
-            }}>
-              <div className="three-am-hide">
-                <WorkflowStepper approvalStatus={approvalStatus} hasEvidence={hasEvidence} hasRca={hasRca} />
-              </div>
-
-              {data.rca && (
-                <>
-                  <div className="animate-fade-up-4">
-                    <RcaSection data={data} requestId={id!} />
-                  </div>
-                  <TransparencyTrace rca={data.rca} serviceName={data.request?.service_name ?? 'service'} />
-                </>
-              )}
-
-              <div className="animate-fade-up-5" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                <ApprovalSection
-                  requestId={id!}
-                  status={approvalStatus}
-                  pendingAction={pendingAction}
-                  onClearPendingAction={clearPendingAction}
-                />
-                <ExecutionSection requestId={id!} status={approvalStatus} />
-                <div className="three-am-hide">
-                  <PostMortemSection 
-                    requestId={id!} 
-                    isExecuted={approvalStatus === 'executed'} 
-                    serviceName={data.request?.service_name ?? 'service'}
-                    duration={totalDuration(data.request.created_at, data.completed_at)}
-                  />
-                </div>
-                {approvalStatus === 'executed' && (
-                  <RunbookUpdatePrompt
-                    requestId={id!}
-                    serviceName={data.request?.service_name ?? 'unknown'}
-                  />
                 )}
+
+                {data.evidence && (
+                  <div className="three-am-hide">
+                    <EvidenceSection evidence={data.evidence} />
+                  </div>
+                )}
+
+                {pastIncidents.length > 0 && (
+                  <div className="three-am-hide">
+                    <SimilarIncidentsSection incidents={pastIncidents} />
+                  </div>
+                )}
+
+                {evidenceReferences.length > 0 && (
+                  <div className="three-am-hide">
+                    <EvidenceReferencesSection references={evidenceReferences} />
+                  </div>
+                )}
+
+                <div className="three-am-hide">
+                  <AuditTrailSection requestId={id!} defaultOpen={false} />
+                </div>
               </div>
-            </div>
+
             </div>
           </>
         )}

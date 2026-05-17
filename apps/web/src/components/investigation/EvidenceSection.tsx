@@ -114,6 +114,8 @@ function EvidenceSourceRow({
 }
 
 export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
+  const [isOpen, setIsOpen] = useState(false)
+  
   const sources = [
     { name: 'elastic_logs',           data: evidence.elastic_logs },
     { name: 'elastic_metrics',        data: evidence.elastic_metrics },
@@ -135,19 +137,27 @@ export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
   return (
     <section style={{ marginTop: 20 }}>
       <div className="panel" style={{ overflow: 'hidden' }}>
-        <div style={{
-          padding: '12px 18px',
-          borderBottom: '1px solid var(--c-border)',
-          background: 'linear-gradient(90deg, var(--c-surface-2), transparent)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
+        <button 
+          onClick={() => setIsOpen(!isOpen)}
+          style={{
+            width: '100%',
+            padding: '12px 18px',
+            borderBottom: isOpen ? '1px solid var(--c-border)' : 'none',
+            background: 'linear-gradient(90deg, var(--c-surface-2), transparent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            border: 'none', cursor: 'pointer', textAlign: 'left'
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="animate-pulse-glow" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-signal)' }} />
+            <span className={isOpen ? "animate-pulse-glow" : ""} style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-signal)' }} />
             <span style={{
               fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.68rem',
               letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
             }}>
               Telemetry Intelligence &middot; {totalRecords} points
+            </span>
+            <span style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', marginLeft: 8 }}>
+              {isOpen ? '▼' : '▶'}
             </span>
           </div>
           {/* Signal bar */}
@@ -171,12 +181,14 @@ export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
               )
             })}
           </span>
-        </div>
-        <div style={{ padding: '16px 18px' }}>
-          {sources.map(s => (
-            <EvidenceSourceRow key={s.name} name={s.name} records={s.data} />
-          ))}
-        </div>
+        </button>
+        {isOpen && (
+          <div style={{ padding: '16px 18px' }}>
+            {sources.map(s => (
+              <EvidenceSourceRow key={s.name} name={s.name} records={s.data} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

@@ -60,6 +60,7 @@ class InvestigationRequest(BaseModel):
     description: str
     raw_payload: dict[str, Any] = Field(default_factory=dict)
     approval_status: ApprovalStatus = ApprovalStatus.PENDING
+    incident_priority: str = Field(default="P3")
     lookback_minutes: int = Field(default=60)
     created_at: datetime = Field(default_factory=_utcnow)
 
@@ -75,6 +76,17 @@ class InvestigationRequest(BaseModel):
             TriggerSource.MANUAL_WEB,
         ):
             self.lookback_minutes = 60
+            
+        # V4.0: Automatic Priority Classification
+        if self.environment.lower() != "prod":
+            self.incident_priority = "P3"
+        elif self.trigger_source == TriggerSource.PREDICTIVE:
+            self.incident_priority = "P3"
+        elif self.service_name.lower() == "fundsso":
+            self.incident_priority = "P1" # Core authentication is critical
+        else:
+            self.incident_priority = "P2" # Standard degradation
+            
         return self
 
 

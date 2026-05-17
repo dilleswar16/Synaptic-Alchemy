@@ -9,7 +9,21 @@
 ## Current Goal
 
 **V3.95 "AWESTRUCK" COMPLETE — 435/435 tests passing. Submission ready for Hackathon.**  
-**Futuristic Vision: V4** — Semantic Search / Vector RAG using pgvector on Azure Postgres (Scoped out for hackathon to guarantee 100% deterministic demo reliability).  
+**V4.1 "ENTERPRISE MATURITY" COMPLETE — 437/437 tests passing. Final Sign-Off for Hackathon Submission.**  
+See `docs/copilot-context/versions/v4_enterprise_maturity.md` for the priority logic and UI hierarchy specs.
+
+---
+
+## V4.1 — Enterprise Maturity & UI Polish (COMPLETE)
+
+**Exit criteria:** ✅ P1/P2/P3 logic active. Single-column "Cause ➔ Action" flow. Evidence logs collapsed. Dashboard triaged.
+
+- [x] **Automatic Priority Classification** — Logic in `contracts.py` automatically flags `fundsso` as P1 and `dev`/`predictive` as P3. Database migration `21871e3fb4d7` applied.
+- [x] **Progressive Disclosure UI** — Overhauled `InvestigationDetailPage.tsx` to hide dense Telemetry and Audit logs by default. Moved RCA and Visual Traces to the top.
+- [x] **SRE Triage Dashboard** — Reordered `DashboardPage.tsx` to put the "Active Investigation Queue" at the very top for immediate triage.
+- [x] **Red Team Console** — Final styling and branding for the Chaos Engineering Console.
+- [x] **High-Contrast Badges** — Integrated P1/P2/P3 badges into every list and header across the platform.
+  
 See `docs/copilot-context/versions/v3/03_v3_95_awestruck_scope.md` for the full submission specs.
 
 ---

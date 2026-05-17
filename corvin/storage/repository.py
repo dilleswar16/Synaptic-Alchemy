@@ -141,6 +141,7 @@ class InvestigationRepository:
                     description=result.request.description,
                     raw_payload=result.request.raw_payload,
                     approval_status=result.request.approval_status.value,
+                    incident_priority=result.request.incident_priority,
                     lookback_minutes=result.request.lookback_minutes,
                     created_at=result.request.created_at,
                     completed_at=result.completed_at,
@@ -231,6 +232,7 @@ class InvestigationRepository:
                     "description": req_row.description,
                     "raw_payload": req_row.raw_payload,
                     "approval_status": req_row.approval_status,
+                    "incident_priority": req_row.incident_priority,
                     "lookback_minutes": req_row.lookback_minutes,
                     "created_at": _as_utc(req_row.created_at),
                 }
@@ -399,6 +401,7 @@ class InvestigationRepository:
                     "environment": r.environment,
                     "trigger_source": r.trigger_source,
                     "approval_status": r.approval_status,
+                    "incident_priority": r.incident_priority,
                     "approved_by": r.approved_by,
                     "approved_at": _as_utc(r.approved_at).isoformat() if r.approved_at else None,
                     "completed_at": _as_utc(r.completed_at).isoformat(),

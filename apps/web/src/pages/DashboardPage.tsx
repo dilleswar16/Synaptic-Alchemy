@@ -573,9 +573,15 @@ function VerticalBars({ bars }: { bars: { label: string; value: number; color: s
 
 // ── Log row ───────────────────────────────────────────────────────────────────
 
-function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?: string }; index: number }) {
+function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?: string, incident_priority?: string }; index: number }) {
   const status = inv.approval_status ?? 'pending'
   const tsStr = inv.completed_at ?? inv.created_at
+  const priority = inv.incident_priority ?? 'P3'
+  
+  const priColor = priority === 'P1' ? 'var(--c-red)' : priority === 'P2' ? 'var(--c-signal)' : 'var(--c-text-muted)'
+  const priBg = priority === 'P1' ? 'rgba(239,68,68,0.1)' : priority === 'P2' ? 'rgba(249,115,22,0.1)' : 'var(--c-surface-2)'
+  const priBorder = priority === 'P1' ? '1px solid rgba(239,68,68,0.3)' : priority === 'P2' ? '1px solid rgba(249,115,22,0.3)' : '1px solid var(--c-border)'
+
   return (
     <Link
       to={`/investigations/${inv.request_id}`}
@@ -588,11 +594,18 @@ function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', letterSpacing: '0.02em' }}>
         {fmtTs(tsStr)}
       </span>
-      <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ 
+          fontFamily: 'var(--font-mono)', fontSize: '0.55rem', fontWeight: 800, 
+          color: priColor, background: priBg, border: priBorder,
+          padding: '2px 6px', borderRadius: 4, flexShrink: 0
+        }}>
+          {priority}
+        </span>
         <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--c-text)' }}>
           {inv.service_name}
         </span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', marginLeft: 8 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>
           {inv.environment}
         </span>
       </div>
@@ -641,39 +654,14 @@ export default function DashboardPage() {
 
   return (
     <Layout>
-      {/* ── Morning Briefing ──────────────────────────────────────────── */}
+      {/* ── 1. CONTEXT: Morning Briefing ────────────────────────────────── */}
       {briefing && <BriefingWidget data={briefing} />}
 
-      {/* ── V3.5: Service Health + Alert Simulator ───────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 12, marginBottom: 16, alignItems: 'start' }}>
-        <div className="panel animate-fade-up" style={{ padding: '18px 20px', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%)' : undefined }}>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontWeight: 700,
-            fontSize: '0.62rem', letterSpacing: '0.18em', textTransform: 'uppercase',
-            color: 'var(--c-text-muted)', marginBottom: 16,
-          }}>
-            Service Health
-          </div>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-start', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 4 }}>
-            <ServiceHealthGauge serviceName="fundapis" environment="dev" />
-            <ServiceHealthGauge serviceName="fundsso" environment="dev" />
-            <ServiceHealthGauge serviceName="partnerapis" environment="dev" />
-          </div>
-        </div>
+      {/* ── 2. PULSE: Real-time background activity ───────────────────── */}
+      <PlatformPulse />
 
-        <SimulateAlertPanel />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 0.95fr) minmax(420px, 1.05fr)', gap: 12, marginBottom: 16, alignItems: 'start' }}>
-        <PredictiveAlertPanel />
-        <TopologyRadar />
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <RoiWidget />
-      </div>
-
-      <div className="animate-fade-up" style={{ marginBottom: 14 }}>
+      {/* ── 3. ACTIVE QUEUE: Recent investigations (TRIAGE FIRST) ─────── */}
+      <div className="animate-fade-up" style={{ marginBottom: 24 }}>
         <div style={{
           fontFamily: 'var(--font-display)',
           fontSize: '0.64rem',
@@ -694,110 +682,88 @@ export default function DashboardPage() {
           color: 'var(--c-text)',
           marginBottom: 16
         }}>
-          Live Investigation Overview
+          Active Investigation Queue
         </div>
-        <PlatformPulse />
+
+        <div className="panel" style={{ overflow: 'hidden', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f9fbff 100%)' : undefined }}>
+          {/* Table header */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '100px 1fr 120px 120px 100px 20px',
+            gap: 16,
+            padding: '10px 14px',
+            borderBottom: '1px solid var(--c-border-hi)',
+            background: 'var(--c-surface-2)',
+          }}>
+            {['TIME', 'SERVICE', 'SOURCE', 'STATUS', 'AGO', ''].map((h, i) => (
+              <span key={i} className="section-label">{h}</span>
+            ))}
+          </div>
+
+          {/* Rows */}
+          {(recent ?? []).slice(0, 8).map((inv, i) => (
+            <LogRow key={inv.request_id} inv={inv} index={i} />
+          ))}
+
+          {(recent ?? []).length === 0 && (
+            <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>
+              No investigations yet — start one from the <Link to="/investigations" style={{ color: 'var(--c-signal)' }}>Investigations</Link> page.
+            </div>
+          )}
+
+          {/* Footer */}
+          {(recent ?? []).length > 8 && (
+            <div style={{ padding: '10px 14px', borderTop: '1px solid var(--c-border)', textAlign: 'center' }}>
+              <Link to="/investigations" style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'var(--c-signal)',
+                textDecoration: 'none',
+              }}>
+                View All {(recent ?? []).length} Investigations →
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── Hero band ─────────────────────────────────────────────────────── */}
-      {stats && (
-        <HeroBand stats={stats} recent={recent ?? []} />
-      )}
-      {!stats && !statsLoading && (
-        <div className="animate-fade-up" style={{ marginBottom: 32, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 4 }}>
-              Operations Center
-            </div>
-            <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '2.2rem', fontWeight: 900, letterSpacing: '0.04em', color: 'var(--c-text)', lineHeight: 1 }}>
-              SRE DASHBOARD
-            </h1>
-          </div>
-        </div>
-      )}
-
-      {statsLoading && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 12 }}>
-            {[0, 1, 2, 3].map(i => (
-              <div key={i} className="metric-card scan-sweep" style={{ minHeight: 108 }}>
-                <div style={{ width: 90, height: 10, borderRadius: 999, background: 'var(--c-surface-3)', marginBottom: 10 }} />
-                <div style={{ width: 56, height: 24, borderRadius: 6, background: 'var(--c-surface-3)', marginBottom: 8 }} />
-                <div style={{ width: 120, height: 8, borderRadius: 999, background: 'var(--c-surface-3)' }} />
-              </div>
-            ))}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
-            {[0, 1].map(i => (
-              <div key={i} className="panel scan-sweep" style={{ padding: '18px 20px' }}>
-                <div style={{ width: 130, height: 10, borderRadius: 999, background: 'var(--c-surface-3)', marginBottom: 16 }} />
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                  {[0, 1, 2].map(b => (
-                    <div key={b} style={{ height: 100, borderRadius: 8, background: 'var(--c-surface-3)' }} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {statsError && (
-        <div className="animate-fade-up" style={{
-          marginBottom: 24,
-          padding: '22px 28px',
-          background: 'var(--c-surface)',
-          border: '1px solid var(--c-red-border)',
-          borderLeft: '3px solid var(--c-red)',
-          borderRadius: 4,
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 18,
-        }}>
+      {/* ── 4. HEALTH & RISK: Service State + Topology ────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12, marginBottom: 16, alignItems: 'start' }}>
+        <div className="panel animate-fade-up" style={{ padding: '18px 20px', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%)' : undefined }}>
           <div style={{
-            width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-            border: '1px solid var(--c-red-border)',
-            background: 'var(--c-red-bg)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--font-mono)', fontSize: '0.9rem', color: 'var(--c-red)',
-          }}>✗</div>
-          <div style={{ flex: 1 }}>
-            <div style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.82rem',
-              letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: 'var(--c-red)', marginBottom: 6,
-            }}>
-              API Unreachable
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.74rem',
-              color: 'var(--c-text-muted)', lineHeight: 1.65, marginBottom: 12,
-            }}>
-              Cannot connect to the Corvin API at{' '}
-              <code style={{ color: 'var(--c-text-dim)', background: 'var(--c-surface-2)', padding: '1px 6px', borderRadius: 2 }}>
-                localhost:8000
-              </code>
-              {' '}— check that the FastAPI server is running.
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button
-                onClick={() => statsRefetch()}
-                className="btn-ghost"
-                style={{ fontSize: '0.72rem', padding: '5px 12px' }}
-              >
-                ↺ Retry
-              </button>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)' }}>
-                uvicorn apps.api.main:app --reload --port 8000
-              </span>
-            </div>
+            fontFamily: 'var(--font-display)', fontWeight: 700,
+            fontSize: '0.62rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            color: 'var(--c-text-muted)', marginBottom: 16,
+          }}>
+            Service Health
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-start', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 4 }}>
+            <ServiceHealthGauge serviceName="fundapis" environment="dev" />
+            <ServiceHealthGauge serviceName="fundsso" environment="dev" />
+            <ServiceHealthGauge serviceName="partnerapis" environment="dev" />
           </div>
         </div>
-      )}
 
+        <PredictiveAlertPanel />
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <TopologyRadar />
+      </div>
+
+      {/* ── 5. VALUE: ROI ──────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 24 }}>
+        <RoiWidget />
+      </div>
+
+      {/* ── 6. STATS: Hero & Metric Cards ──────────────────────────────── */}
       {stats && (
-        <>
-          {/* ── Metric row ────────────────────────────────────────────────── */}
+        <div style={{ marginBottom: 32 }}>
+          <HeroBand stats={stats} recent={recent ?? []} />
+          
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 16 }}>
             <MetricCard
               label="Avg MTTR"
@@ -830,116 +796,16 @@ export default function DashboardPage() {
               delay={140}
             />
           </div>
-
-          {/* ── Charts row ────────────────────────────────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12, marginBottom: 16 }}>
-            <div className="panel animate-fade-up-3" style={{ padding: '18px 20px', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%)' : undefined }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
-                <span className="section-label">RCA Confidence</span>
-                {conf && (
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>
-                    {conf.high + conf.medium + conf.low} total
-                  </span>
-                )}
-              </div>
-              {conf && (
-                <VerticalBars bars={[
-                  { label: 'HIGH',   value: conf.high,   color: 'var(--c-green)'  },
-                  { label: 'MEDIUM', value: conf.medium, color: 'var(--c-yellow)' },
-                  { label: 'LOW',    value: conf.low,    color: 'var(--c-red)'    },
-                ]} />
-              )}
-            </div>
-
-            <div className="panel animate-fade-up-4" style={{ padding: '18px 20px', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%)' : undefined }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
-                <span className="section-label">Approval Pipeline</span>
-                {appr && (
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>
-                    {appr.pending + appr.approved + appr.executed + appr.rejected} total
-                  </span>
-                )}
-              </div>
-              {appr && (
-                <VerticalBars bars={[
-                  { label: 'EXEC',   value: appr.executed, color: 'var(--c-signal)' },
-                  { label: 'APPR',   value: appr.approved, color: 'var(--c-green)'  },
-                  { label: 'PEND',   value: appr.pending,  color: 'var(--c-yellow)' },
-                  { label: 'REJ',    value: appr.rejected, color: 'var(--c-red)'    },
-                ]} />
-              )}
-            </div>
-          </div>
-
-          {/* ── Recent services ───────────────────────────────────────────── */}
-          {stats.recent_services.length > 0 && (
-            <div className="panel animate-fade-up-5" style={{ padding: '14px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%)' : undefined }}>
-              <span className="section-label" style={{ flexShrink: 0 }}>Active Services</span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {stats.recent_services.map(svc => (
-                  <span key={svc} style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.72rem',
-                    padding: '5px 14px',
-                    borderRadius: 8,
-                    background: isLight ? 'rgba(0,102,204,0.08)' : 'rgba(249,115,22,0.08)',
-                    border: isLight ? '1px solid rgba(0,102,204,0.22)' : '1px solid rgba(249,115,22,0.2)',
-                    color: isLight ? 'var(--c-info)' : 'var(--c-signal)',
-                    letterSpacing: '0.04em',
-                  }}>
-                    {svc}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       )}
 
-      {/* ── Recent investigations ──────────────────────────────────────── */}
-      <div className="panel" style={{ overflow: 'hidden', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f9fbff 100%)' : undefined }}>
-        {/* Table header */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '100px 1fr 120px 120px 100px 20px',
-          gap: 16,
-          padding: '10px 14px',
-          borderBottom: '1px solid var(--c-border-hi)',
-          background: 'var(--c-surface-2)',
-        }}>
-          {['TIME', 'SERVICE', 'SOURCE', 'STATUS', 'AGO', ''].map((h, i) => (
-            <span key={i} className="section-label">{h}</span>
-          ))}
+      {/* ── 7. TOOLS: Chaos Engineering (Red Team) ────────────────────── */}
+      <div style={{ marginTop: 40, borderTop: '1px dashed var(--c-border)', paddingTop: 40 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+           <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.6rem', color: 'var(--c-red)', fontWeight: 800, letterSpacing: '0.2em' }}>SYSTEM STRESS TESTING</div>
+           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 900, color: 'var(--c-text)' }}>Chaos Control Center</h2>
         </div>
-
-        {/* Rows */}
-        {(recent ?? []).slice(0, 10).map((inv, i) => (
-          <LogRow key={inv.request_id} inv={inv} index={i} />
-        ))}
-
-        {(recent ?? []).length === 0 && (
-          <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>
-            No investigations yet — start one from the{' '}
-            <Link to="/investigations" style={{ color: 'var(--c-signal)' }}>Investigations</Link> page.
-          </div>
-        )}
-
-        {/* Footer */}
-        {(recent ?? []).length > 10 && (
-          <div style={{ padding: '10px 14px', borderTop: '1px solid var(--c-border)', textAlign: 'center' }}>
-            <Link to="/investigations" style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              color: 'var(--c-signal)',
-              textDecoration: 'none',
-            }}>
-              View All {(recent ?? []).length} Investigations →
-            </Link>
-          </div>
-        )}
+        <SimulateAlertPanel />
       </div>
     </Layout>
   )

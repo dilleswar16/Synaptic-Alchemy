@@ -42,6 +42,7 @@ class InvestigationRequestRow(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     raw_payload: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
     approval_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    incident_priority: Mapped[str] = mapped_column(String(10), nullable=False, default="P3")
     lookback_minutes: Mapped[int] = mapped_column(nullable=False, default=60)
     approved_by: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     approved_at: Mapped[datetime | None] = mapped_column(
