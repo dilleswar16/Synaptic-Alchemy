@@ -82,19 +82,27 @@ function extractPreview(toolName: string, data: unknown): string {
 // ── Markdown components (reuse widget pattern) ─────────────────────────────────
 
 const mdComponents: Record<string, React.ComponentType<any>> = {
-  pre: ({ children }) => (
-    <div style={{ overflowX: 'auto', margin: '8px 0' }}>
-      <pre style={{ margin: 0, background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: 8, fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
-        {children}
-      </pre>
-    </div>
-  ),
+  // Suppress the <pre> wrapper for mermaid blocks so the diagram renders clean.
+  // For all other code blocks render a styled <pre>.
+  pre: ({ children }) => {
+    // children is typically a <code> element — check if it's a mermaid block
+    const child = Array.isArray(children) ? children[0] : children
+    const isMermaid = child?.props?.className === 'language-mermaid'
+    if (isMermaid) return <>{children}</>
+    return (
+      <div style={{ overflowX: 'auto', margin: '8px 0', borderRadius: 8, border: '1px solid var(--c-border)' }}>
+        <pre style={{ margin: 0, background: 'rgba(0,0,0,0.35)', padding: '10px 14px', borderRadius: 8, fontSize: '0.75rem', fontFamily: 'var(--font-mono)', overflowX: 'auto' }}>
+          {children}
+        </pre>
+      </div>
+    )
+  },
   code: ({ className, children }) => {
     if (className === 'language-mermaid') {
       return <MermaidChart chart={String(children).trim()} />
     }
     if (className?.startsWith('language-')) {
-      return <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{children}</code>
+      return <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{children}</code>
     }
     return <code style={{ background: 'rgba(249,115,22,0.15)', color: '#f97316', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}>{children}</code>
   },
@@ -133,7 +141,7 @@ export default function CorvinCommandPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingSessions, setLoadingSessions] = useState(true)
-  const [showToolPanel, setShowToolPanel] = useState(true)
+  const [showToolPanel, setShowToolPanel] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const prevMessagesLengthRef = useRef(0)
@@ -142,7 +150,7 @@ export default function CorvinCommandPage() {
   // Auto-scroll chat
   useEffect(() => {
     const lastMsg = messages[messages.length - 1]
-    const contentChanged = lastMsg?.role === 'assistant' && lastMsg.content.length > prevLastMessageContentRef.current
+    const contentChanged = lastMsg?.role === 'assistant' && lastMsg.content.length > prevLastMessageContentRef.current.length
     const newMsgAdded = messages.length > prevMessagesLengthRef.current
 
     if (newMsgAdded || contentChanged) {
@@ -214,9 +222,17 @@ export default function CorvinCommandPage() {
     const sessionId = sessionOverride ?? activeSessionId
     const userText = (textOverride ?? input).trim()
     if (!userText || loading || !sessionId) return
-    if (!textOverride) setInput('')
+    if (!textOverride) {
+      setInput('')
+      // Reset textarea height to 1 row after sending
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto'
+      }
+    }
     setLoading(true)
 
+    // Clear tool panel on each new turn so it only shows current turn's results
+    setToolEvents([])
     const userMsg: UiMessage = { id: Date.now().toString(), role: 'user', content: userText }
     setMessages(prev => [...prev, userMsg])
 
@@ -259,14 +275,37 @@ export default function CorvinCommandPage() {
         @keyframes fadeSlideIn { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
         @keyframes spin { to { transform:rotate(360deg) } }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-        @keyframes thinkPulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
-        .corvin-md p { margin: 6px 0; }
-        .corvin-md ul, .corvin-md ol { margin: 6px 0; padding-left: 20px; }
-        .corvin-md li { margin: 3px 0; }
-        .corvin-md h2 { font-size:0.85rem; font-weight:700; margin:12px 0 4px; color:var(--c-text); }
-        .corvin-md h3 { font-size:0.78rem; font-weight:700; margin:10px 0 3px; color:var(--c-text); }
+        @keyframes thinkPulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+        @keyframes thinkScan {
+          0%   { transform: translateX(-100%); opacity: 0; }
+          20%  { opacity: 0.7; }
+          80%  { opacity: 0.7; }
+          100% { transform: translateX(300%); opacity: 0; }
+        }
+        /* ── Markdown body ── */
+        /* ── Markdown body — Corvin Command Center ── */
+        .corvin-md { line-height: 1.75; font-size: 0.875rem; color: var(--c-text-dim); }
+        .corvin-md p { margin: 0 0 10px; }
+        .corvin-md p:last-child { margin-bottom: 0; }
+        /* Lists */
+        .corvin-md ul { margin: 4px 0 10px; padding-left: 0; list-style: none; }
+        .corvin-md ol { margin: 4px 0 10px; padding-left: 20px; }
+        .corvin-md ul > li { position: relative; padding-left: 14px; margin: 5px 0; }
+        .corvin-md ul > li::before { content:''; position:absolute; left:1px; top:0.58em; width:5px; height:5px; border-radius:50%; background: rgba(249,115,22,0.65); }
+        .corvin-md ol > li { margin: 5px 0; }
+        .corvin-md li > ul { margin: 4px 0 0; }
+        .corvin-md li > ul > li::before { background: rgba(249,115,22,0.3); width:4px; height:4px; top:0.62em; }
+        /* Inline */
+        .corvin-md strong { color: var(--c-text); font-weight: 600; }
+        .corvin-md em { color: var(--c-text-muted); font-style: italic; }
+        .corvin-md a { color: var(--c-signal); text-decoration: underline; text-underline-offset: 2px; }
+        /* Headings — clear visual hierarchy */
+        .corvin-md h1 { font-size: 1rem; font-weight: 700; margin: 16px 0 6px; color: var(--c-text); letter-spacing: -0.01em; }
+        .corvin-md h2 { font-size: 0.875rem; font-weight: 700; margin: 14px 0 5px; color: var(--c-text); border-bottom: 1px solid rgba(249,115,22,0.12); padding-bottom: 4px; }
+        .corvin-md h3 { font-size: 0.8rem; font-weight: 600; margin: 10px 0 4px; color: var(--c-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+        /* Horizontal rule */
+        .corvin-md hr { border: none; border-top: 1px solid var(--c-border); margin: 12px 0; }
         .corvin-cmd-session:hover .corvin-del { opacity:1 !important; }
-        .corvin-tool-row:hover { background: rgba(249,115,22,0.06) !important; }
       `}</style>
       <NavBar />
 
@@ -286,7 +325,7 @@ export default function CorvinCommandPage() {
               </div>
               <div>
                 <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.78rem', color: 'var(--c-text)' }}>CORVIN</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--c-signal)', letterSpacing: '0.08em' }}>COMMAND CENTER</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-signal)', letterSpacing: '0.08em' }}>COMMAND CENTER</div>
               </div>
             </div>
             <button
@@ -331,7 +370,7 @@ export default function CorvinCommandPage() {
                 <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: activeSessionId === s.id ? 'var(--c-signal)' : 'var(--c-text-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: 22 }}>
                   {s.title}
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--c-text-faint)', marginTop: 2 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', marginTop: 2 }}>
                   {s.message_count} msg · {new Date(s.updated_at).toLocaleDateString()}
                 </div>
                 <button
@@ -398,7 +437,7 @@ export default function CorvinCommandPage() {
                     border: `1px solid ${showToolPanel ? 'rgba(249,115,22,0.4)' : 'var(--c-border)'}`,
                     background: showToolPanel ? 'rgba(249,115,22,0.08)' : 'var(--c-surface-2)',
                     color: showToolPanel ? 'var(--c-signal)' : 'var(--c-text-faint)',
-                    fontFamily: 'var(--font-mono)', fontSize: '0.62rem', letterSpacing: '0.04em',
+                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem', letterSpacing: '0.04em',
                     transition: 'all 0.15s',
                   }}
                 >
@@ -418,9 +457,13 @@ export default function CorvinCommandPage() {
                 )}
                 {messages.map((m, i) => {
                   const isStreaming = loading && i === messages.length - 1 && m.role === 'assistant'
+                  // Show reasoning on the most-recent completed assistant message too (not just while streaming)
+                  // Show reasoning on every assistant message that has thinking — same as VS Code / Claude.
+                  // The block is collapsible so it doesn't clutter older turns.
+                  const showThinking = m.thinking && m.role === 'assistant'
                   return (
                     <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, maxWidth: '90%' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, maxWidth: m.role === 'user' ? '75%' : '88%' }}>
                         {m.role === 'assistant' && (
                           <div style={{ marginTop: 2, flexShrink: 0, width: 26, height: 26, borderRadius: 8, background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <CorvinIcon size={15} />
@@ -430,56 +473,94 @@ export default function CorvinCommandPage() {
                           padding: '10px 14px',
                           borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                           background: m.role === 'user'
-                            ? 'linear-gradient(135deg, rgba(249,115,22,0.18), rgba(249,115,22,0.08))'
+                            ? 'linear-gradient(135deg, rgba(249,115,22,0.15), rgba(249,115,22,0.06))'
                             : 'var(--c-surface-2)',
-                          border: `1px solid ${m.role === 'user' ? 'rgba(249,115,22,0.3)' : 'var(--c-border-hi)'}`,
+                          border: `1px solid ${m.role === 'user' ? 'rgba(249,115,22,0.28)' : 'var(--c-border)'}`,
                           color: m.role === 'user' ? 'var(--c-signal)' : 'var(--c-text-dim)',
                           fontFamily: m.role === 'user' ? 'var(--font-mono)' : 'var(--font-body)',
-                          fontSize: '0.78rem', lineHeight: 1.6, minWidth: 0, overflow: 'hidden',
+                          fontSize: '0.875rem', lineHeight: 1.7, minWidth: 0, overflow: 'hidden',
                           animation: 'fadeSlideIn 0.2s ease',
                         }}>
                           {m.role === 'user' ? m.content : (
                             <div>
                               {/* ── Section 1: Reasoning block ── */}
-                              {m.thinking && (
-                                <div style={{ marginBottom: 8 }}>
+                              {showThinking && (
+                                <div style={{ marginBottom: 10, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(139,92,246,0.2)', background: 'rgba(139,92,246,0.04)' }}>
+                                  {/* Header row */}
                                   <button
                                     onClick={() => setMessages(prev => prev.map(msg => msg.id === m.id ? { ...msg, thinkingCollapsed: !msg.thinkingCollapsed } : msg))}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '3px 0', width: '100%' }}
+                                    style={{
+                                      width: '100%', display: 'flex', alignItems: 'center', gap: 7,
+                                      padding: '7px 10px', background: 'none', border: 'none',
+                                      borderBottom: m.thinkingCollapsed ? 'none' : '1px solid rgba(139,92,246,0.15)',
+                                      cursor: 'pointer',
+                                    }}
                                   >
-                                    <span style={{ fontSize: '0.65rem', color: 'var(--c-signal)', animation: isStreaming && !m.thinkingCollapsed ? 'thinkPulse 1.5s ease infinite' : 'none' }}>
-                                      {m.thinkingCollapsed ? '▶' : '▼'}
+                                    {/* Animated brain icon */}
+                                    <span style={{ fontSize: '0.78rem', lineHeight: 1, filter: isStreaming && !m.thinkingCollapsed ? 'drop-shadow(0 0 4px #a78bfa)' : 'none', transition: 'filter 0.3s' }}>🧠</span>
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#a78bfa', flex: 1, textAlign: 'left' }}>
+                                      Reasoning
+                                      {isStreaming && <span style={{ animation: 'thinkPulse 1.2s ease infinite', display: 'inline-block', marginLeft: 6 }}>·</span>}
                                     </span>
-                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-signal)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                                      💭 Reasoning {(m.toolSteps ?? []).length > 0 && `· ${(m.toolSteps ?? []).length} tools`} {isStreaming && !m.thinkingCollapsed && !m.content ? '·' : ''}
-                                    </span>
-                                    {isStreaming && !m.thinkingCollapsed && !m.content && (
-                                      <span style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid #f97316', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite', marginLeft: 2 }} />
+                                    {isStreaming && (
+                                      <span style={{ width: 9, height: 9, borderRadius: '50%', border: '1.5px solid #a78bfa', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
                                     )}
+                                    <span style={{ fontSize: '0.68rem', color: 'rgba(139,92,246,0.5)', marginLeft: 2 }}>{m.thinkingCollapsed ? '▶' : '▼'}</span>
                                   </button>
+                                  {/* Content */}
                                   {!m.thinkingCollapsed && (
-                                    <div style={{ marginTop: 4, padding: '8px 10px', background: 'rgba(249,115,22,0.05)', borderLeft: '2px solid rgba(249,115,22,0.35)', borderRadius: '0 6px 6px 0', fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-faint)', lineHeight: 1.6, maxHeight: 160, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
-                                      {m.thinking}
+                                    <div style={{ position: 'relative', overflow: 'hidden' }}>
+                                      {/* Scan line animation while streaming */}
+                                      {isStreaming && (
+                                        <div style={{ position: 'absolute', top: 0, left: 0, width: '25%', height: '100%', background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.12), transparent)', animation: 'thinkScan 2s ease-in-out infinite', pointerEvents: 'none' }} />
+                                      )}
+                                      <div style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '0.66rem', color: 'rgba(167,139,250,0.75)', lineHeight: 1.7, maxHeight: 180, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+                                        {m.thinking}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
                               )}
 
-                              {/* ── Section 2: Tool call timeline ── */}
+                              {/* ── Section 2: Tool calls ── */}
                               {(m.toolSteps ?? []).length > 0 && (
-                                <div style={{ marginBottom: m.content ? 10 : 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <div style={{ marginBottom: m.content ? 12 : 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
                                   {(m.toolSteps ?? []).map(step => (
-                                    <div key={step.id} className="corvin-tool-row" style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 6px', borderRadius: 6, background: 'rgba(0,0,0,0.15)', cursor: 'default', transition: 'background 0.15s' }}>
-                                      {step.status === 'calling' ? (
-                                        <span style={{ width: 12, height: 12, flexShrink: 0, borderRadius: '50%', border: '1.5px solid #f97316', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                                      ) : (
-                                        <span style={{ fontSize: '0.7rem', flexShrink: 0, color: '#22c55e' }}>✓</span>
-                                      )}
-                                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: step.status === 'calling' ? 'var(--c-signal)' : 'var(--c-text-dim)' }}>
-                                        {TOOL_ICONS[step.toolName] ?? '🛠'} {step.status === 'calling' ? 'Calling' : ''} <strong>{TOOL_LABELS[step.toolName] ?? step.toolName}</strong>
+                                    <div key={step.id} style={{
+                                      display: 'flex', alignItems: 'center', gap: 8,
+                                      padding: '7px 10px', borderRadius: 7,
+                                      background: step.status === 'calling'
+                                        ? 'rgba(249,115,22,0.07)'
+                                        : 'rgba(14,165,233,0.05)',
+                                      border: `1px solid ${step.status === 'calling' ? 'rgba(249,115,22,0.22)' : 'rgba(14,165,233,0.18)'}`,
+                                      transition: 'all 0.25s',
+                                    }}>
+                                      {/* Left: status icon */}
+                                      <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        background: step.status === 'calling' ? 'rgba(249,115,22,0.12)' : 'rgba(14,165,233,0.1)',
+                                      }}>
+                                        {step.status === 'calling'
+                                          ? <span style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid #f97316', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                                          : <span style={{ fontSize: '0.72rem', color: '#0ea5e9' }}>✓</span>
+                                        }
+                                      </div>
+                                      {/* Badge */}
+                                      <span style={{
+                                        fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 800,
+                                        letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0,
+                                        padding: '2px 5px', borderRadius: 3,
+                                        background: step.status === 'calling' ? 'rgba(249,115,22,0.18)' : 'rgba(14,165,233,0.12)',
+                                        color: step.status === 'calling' ? '#f97316' : '#38bdf8',
+                                      }}>
+                                        {step.status === 'calling' ? 'calling' : 'done'}
                                       </span>
+                                      {/* Tool name */}
+                                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.69rem', color: step.status === 'calling' ? 'var(--c-text)' : 'var(--c-text-dim)', fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {TOOL_ICONS[step.toolName] ?? '🛠'} {TOOL_LABELS[step.toolName] ?? step.toolName}
+                                      </span>
+                                      {/* Result preview — right-aligned */}
                                       {step.resultPreview && (
-                                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--c-text-faint)', marginLeft: 'auto' }}>
+                                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', flexShrink: 0, opacity: 0.7 }}>
                                           {step.resultPreview}
                                         </span>
                                       )}
@@ -531,7 +612,12 @@ export default function CorvinCommandPage() {
                   <textarea
                     ref={inputRef}
                     value={input}
-                    onChange={e => setInput(e.target.value)}
+                    onChange={e => {
+                      setInput(e.target.value)
+                      // Auto-grow: reset then expand to scrollHeight
+                      e.target.style.height = 'auto'
+                      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+                    }}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask Corvin anything about your platform…"
                     rows={1}
@@ -539,11 +625,11 @@ export default function CorvinCommandPage() {
                     style={{
                       flex: 1, background: 'none', border: 'none', outline: 'none', resize: 'none',
                       color: 'var(--c-text)', fontFamily: 'var(--font-body)', fontSize: '0.82rem',
-                      lineHeight: 1.5, maxHeight: 120, overflowY: 'auto',
+                      lineHeight: 1.5, maxHeight: 120, overflowY: 'hidden', height: 'auto',
                     }}
                   />
                   <button
-                    onClick={handleSend}
+                    onClick={() => handleSend()}
                     disabled={loading || !input.trim()}
                     style={{
                       width: 34, height: 34, borderRadius: 8, flexShrink: 0,
@@ -556,7 +642,7 @@ export default function CorvinCommandPage() {
                     {loading ? '⟳' : '↑'}
                   </button>
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--c-text-faint)', marginTop: 5, textAlign: 'center' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', marginTop: 5, textAlign: 'center' }}>
                   Shift+Enter for new line · Enter to send
                 </div>
               </div>
@@ -568,7 +654,7 @@ export default function CorvinCommandPage() {
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-signal)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                   ⚡ Live Tool Results
                 </div>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', color: 'var(--c-text-faint)', marginTop: 2 }}>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--c-text-faint)', marginTop: 2 }}>
                   Tool calls and live data appear here as Corvin works
                 </div>
               </div>

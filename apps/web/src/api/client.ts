@@ -45,6 +45,7 @@ export interface InvestigationResult {
     description: string
     created_at: string
     approval_status: string
+    incident_priority?: string
   }
   evidence: EvidenceBundle
   rca: {
@@ -428,6 +429,10 @@ export interface ServiceTopology {
 
 export function fetchTopology() {
   return apiFetch<ServiceTopology>('/investigations/topology')
+}
+
+export function fetchTopologyLive() {
+  return apiFetch<ServiceTopology>('/investigations/topology/live')
 }
 
 // ── V3.9: ROI Dashboard ───────────────────────────────────────────────────

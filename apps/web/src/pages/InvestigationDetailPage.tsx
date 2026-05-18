@@ -36,7 +36,7 @@ type TabId = 'rca' | 'evidence' | 'history'
 export default function InvestigationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { active: threeAm } = useThreeAmMode()
+  useThreeAmMode()
 
   const rawAction = searchParams.get('action')
   const pendingAction: ApprovalAction | null =
@@ -127,7 +127,7 @@ export default function InvestigationDetailPage() {
               <Link
                 to={`/investigations?service=${encodeURIComponent(data.request.service_name)}&env=${encodeURIComponent(data.request.environment)}`}
                 style={{
-                  fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.62rem',
+                  fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.68rem',
                   letterSpacing: '0.1em', textTransform: 'uppercase',
                   color: 'var(--c-text-faint)', textDecoration: 'none',
                   padding: '4px 10px', borderRadius: 2,
@@ -142,7 +142,7 @@ export default function InvestigationDetailPage() {
 
           <div style={{ marginTop: 14 }}>
             <div style={{
-              fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700,
+              fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
               letterSpacing: '0.18em', textTransform: 'uppercase',
               color: 'var(--c-signal)', marginBottom: 6,
             }}>
@@ -198,7 +198,7 @@ export default function InvestigationDetailPage() {
               {data?.request?.id && <CopyableId requestId={data.request.id} />}
               {rcaDuration && (
                 <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+                  fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
                   padding: '2px 8px', borderRadius: 2,
                   background: 'rgba(34,197,94,0.08)',
                   border: '1px solid rgba(34,197,94,0.2)',
@@ -300,7 +300,7 @@ export default function InvestigationDetailPage() {
                         <RcaSection data={data} requestId={id!} />
                       </div>
                       <div className="animate-fade-up-3 three-am-hide">
-                        <TransparencyTrace rca={data.rca} serviceName={data.request?.service_name ?? 'service'} />
+                        <TransparencyTrace rca={data.rca} serviceName={data.request?.service_name ?? 'service'} environment={data.request?.environment} />
                       </div>
                     </>
                   ) : (
@@ -392,7 +392,7 @@ export default function InvestigationDetailPage() {
                 boxShadow: '0 -8px 32px rgba(0,0,0,0.4)',
               }}>
                 <span className="animate-pulse-glow" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-yellow)', display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-yellow)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-yellow)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   Decision Required
                 </span>
                 <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
@@ -402,7 +402,7 @@ export default function InvestigationDetailPage() {
                   style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                 >
                   ✓ Approve
-                  <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', fontStyle: 'normal', fontWeight: 400 }}>A</kbd>
+                  <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontStyle: 'normal', fontWeight: 400 }}>A</kbd>
                 </button>
                 <button
                   className="btn-danger"
@@ -410,7 +410,7 @@ export default function InvestigationDetailPage() {
                   style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                 >
                   ✗ Reject
-                  <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', fontStyle: 'normal', fontWeight: 400 }}>R</kbd>
+                  <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontStyle: 'normal', fontWeight: 400 }}>R</kbd>
                 </button>
               </div>
             )}

@@ -57,7 +57,7 @@ export function SlaCountdownCard({ requestId, status }: { requestId: string; sta
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.62rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: accent, marginBottom: 4 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: accent, marginBottom: 4 }}>
             SLA Countdown
           </div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.15rem', color: 'var(--c-text)' }}>
@@ -66,7 +66,7 @@ export function SlaCountdownCard({ requestId, status }: { requestId: string; sta
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.1rem', color: accent, fontWeight: 700 }}>{Math.round(burnPct)}%</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.64rem', color: 'var(--c-text-faint)' }}>budget consumed</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)' }}>budget consumed</div>
         </div>
       </div>
       <div style={{ height: 8, borderRadius: 999, background: 'var(--c-surface-2)', overflow: 'hidden', marginBottom: 10 }}>

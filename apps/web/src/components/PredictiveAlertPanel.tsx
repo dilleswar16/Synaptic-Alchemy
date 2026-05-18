@@ -51,7 +51,7 @@ export function PredictiveAlertPanel() {
       }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.64rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>
             Pre-Mortem Mode
           </div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.25rem', color: 'var(--c-text)', letterSpacing: '0.03em' }}>
@@ -86,13 +86,13 @@ export function PredictiveAlertPanel() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
                 <span style={{
-                  fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.58rem',
+                  fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.68rem',
                   letterSpacing: '0.16em', textTransform: 'uppercase', color: accent,
                 }}>
                   {alert.alert_type.replace(/_/g, ' ')}
                 </span>
                 <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-muted)',
+                  fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-muted)',
                   padding: '3px 8px', borderRadius: 999, border: '1px solid var(--c-border)',
                 }}>
                   {etaLabel(alert.estimated_breach_at)}
@@ -106,11 +106,11 @@ export function PredictiveAlertPanel() {
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                 <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--c-surface)', border: '1px solid var(--c-border)' }}>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.54rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 4 }}>Signal</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 4 }}>Signal</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1rem', color: accent }}>{alert.signal_value}</div>
                 </div>
                 <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--c-surface)', border: '1px solid var(--c-border)' }}>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.54rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 4 }}>Target</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 4 }}>Target</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1rem', color: 'var(--c-text)' }}>{alert.threshold_value}</div>
                 </div>
               </div>

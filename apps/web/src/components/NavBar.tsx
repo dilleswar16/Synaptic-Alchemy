@@ -91,7 +91,7 @@ export default function NavBar() {
             </span>
             <span style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.55rem',
+              fontSize: '0.68rem',
               color: 'var(--c-signal)',
               letterSpacing: '0.16em',
               display: isMobile ? 'none' : 'inline',
@@ -162,7 +162,7 @@ export default function NavBar() {
           {/* Version */}
           {!isMobile && <span style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '0.62rem',
+            fontSize: '0.7rem',
             color: 'var(--c-text-faint)',
             letterSpacing: '0.06em',
           }}>

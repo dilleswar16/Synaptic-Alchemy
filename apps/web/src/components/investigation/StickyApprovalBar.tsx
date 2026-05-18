@@ -67,7 +67,7 @@ export function StickyApprovalBar({
 
       <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
         <span style={{
-          fontFamily: 'var(--font-mono)', fontSize: '0.56rem',
+          fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
           color: 'var(--c-text-faint)', letterSpacing: '0.06em',
           whiteSpace: 'nowrap', marginRight: 4,
         }}>

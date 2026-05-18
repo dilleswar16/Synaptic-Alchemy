@@ -69,16 +69,27 @@ class ChatService:
                 llm_messages.append({"role": msg["role"], "content": msg["content"]})
 
         llm_cfg = load_config("models/llm", get_env())
-        model_name = llm_cfg.get("model", "azure/responses/gpt-5.1")
 
-        # Build kwargs the same way rca_generator does — read from env vars so
-        # this works out of the box in any environment where the RCA already works.
+        # Chat needs low latency (sub-3s TTFT). The primary model is a reasoning
+        # model (azure/responses/gpt-5.1 with reasoning_effort=medium) which runs
+        # its entire chain-of-thought before emitting a single token — causing
+        # 60-90 second delays. Use the fast chat_model if configured, otherwise
+        # fall back to fallback_model, otherwise strip the /responses/ prefix.
+        model_name: str = (
+            llm_cfg.get("chat_model")
+            or llm_cfg.get("fallback_model")
+            or llm_cfg.get("model", "azure/gpt-4.1-mini").replace("azure/responses/", "azure/")
+        )
+
+        # Build kwargs. Do NOT forward reasoning_effort — chat uses a fast
+        # non-reasoning model. drop_params=True still silently drops unknown
+        # params if we ever switch model families.
         import os
         completion_kwargs: dict = {
             "model": model_name,
             "messages": llm_messages,
             "stream": True,
-            "drop_params": True,  # silently ignore unsupported params per model
+            "drop_params": True,
         }
         endpoint = os.environ.get("LITELLM_ENDPOINT", "").strip()
         api_key  = os.environ.get("LITELLM_API_KEY", "").strip()
@@ -90,10 +101,7 @@ class ChatService:
         if api_version:
             completion_kwargs["api_version"] = api_version
 
-        # Forward reasoning_effort if the model supports it (e.g. gpt-5.1, o-series)
-        reasoning_effort = llm_cfg.get("reasoning_effort")
-        if reasoning_effort:
-            completion_kwargs["reasoning_effort"] = reasoning_effort
+        # DO NOT forward reasoning_effort — this is a fast chat path, not RCA.
 
         try:
             response = litellm.completion(**completion_kwargs)

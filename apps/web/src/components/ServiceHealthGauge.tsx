@@ -146,7 +146,7 @@ export function ServiceHealthGauge({ serviceName, environment = 'dev' }: Props) 
                 {data ? animatedScore : '—'}
               </span>
               <span style={{
-                fontFamily: 'var(--font-display)', fontSize: '0.58rem',
+                fontFamily: 'var(--font-display)', fontSize: '0.68rem',
                 fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
                 color: 'var(--c-text-muted)', marginTop: 3,
               }}>
@@ -169,14 +169,14 @@ export function ServiceHealthGauge({ serviceName, environment = 'dev' }: Props) 
         {data && data.total > 0 && (
           <p style={{
             margin: '2px 0 0', fontFamily: 'var(--font-mono)',
-            fontSize: '0.58rem', color: 'var(--c-text-faint)',
+            fontSize: '0.68rem', color: 'var(--c-text-faint)',
           }}>
             {data.total} incident{data.total !== 1 ? 's' : ''}
             {data.avg_mttr_minutes != null ? ` · ${Math.round(data.avg_mttr_minutes)}m MTTR` : ''}
           </p>
         )}
         {data && data.total === 0 && (
-          <p style={{ margin: '2px 0 0', fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--c-text-faint)' }}>
+          <p style={{ margin: '2px 0 0', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)' }}>
             No incidents
           </p>
         )}

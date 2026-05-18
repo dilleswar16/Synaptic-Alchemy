@@ -51,7 +51,7 @@ export default function FixStrategyPage() {
           </Link>
           <div style={{ marginTop: 14 }}>
             <div style={{
-              fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700,
+              fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
               letterSpacing: '0.18em', textTransform: 'uppercase',
               color: 'var(--c-signal)', marginBottom: 6,
             }}>
@@ -94,8 +94,26 @@ export default function FixStrategyPage() {
 
         {/* ── States ───────────────────────────────────────────────────────── */}
         {isLoading && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>
-            Loading…
+          <div style={{
+            padding: '32px 0',
+            display: 'flex', flexDirection: 'column', gap: 16,
+          }}>
+            {/* Skeleton: action cards */}
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{
+                background: 'var(--c-surface)',
+                border: '1px solid var(--c-border)',
+                borderRadius: 8,
+                padding: '20px 24px',
+                animation: 'shimmer 1.8s linear infinite',
+                backgroundImage: 'linear-gradient(90deg, var(--c-surface) 0%, var(--c-surface-2) 45%, var(--c-surface) 100%)',
+                backgroundSize: '600px 100%',
+              }}>
+                <div style={{ height: 14, width: `${55 + i * 10}%`, background: 'var(--c-border-hi)', borderRadius: 3, marginBottom: 12 }} />
+                <div style={{ height: 10, width: '80%', background: 'var(--c-border)', borderRadius: 3, marginBottom: 8 }} />
+                <div style={{ height: 10, width: '60%', background: 'var(--c-border)', borderRadius: 3 }} />
+              </div>
+            ))}
           </div>
         )}
         {isError && (
@@ -170,7 +188,7 @@ export default function FixStrategyPage() {
                   marginBottom: 12, marginTop: 4,
                 }}>
                   <span style={{
-                    fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700,
+                    fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
                     letterSpacing: '0.16em', textTransform: 'uppercase',
                     color: 'var(--c-text-muted)', flexShrink: 0,
                   }}>
@@ -245,7 +263,7 @@ export default function FixStrategyPage() {
                             borderTop: '1px solid var(--c-border)',
                           }}>
                             <span style={{
-                              fontFamily: 'var(--font-display)', fontSize: '0.58rem', fontWeight: 700,
+                              fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
                               letterSpacing: '0.12em', textTransform: 'uppercase',
                               color: 'var(--c-text-muted)', flexShrink: 0,
                             }}>

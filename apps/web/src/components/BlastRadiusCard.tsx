@@ -114,7 +114,7 @@ export function BlastRadiusCard({ requestId }: Props) {
             </span>
             <span style={{
               fontFamily: 'var(--font-display)', fontWeight: 700,
-              fontSize: '0.54rem', letterSpacing: '0.14em', textTransform: 'uppercase',
+              fontSize: '0.65rem', letterSpacing: '0.14em', textTransform: 'uppercase',
               color: accentColour,
               padding: '2px 7px',
               border: `1px solid ${accentColour}44`,

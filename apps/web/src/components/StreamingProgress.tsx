@@ -115,7 +115,7 @@ function EvidenceAccordion({
         }}
       >
         <span style={{
-          fontSize: '0.6rem', color: 'var(--c-text-faint)',
+          fontSize: '0.68rem', color: 'var(--c-text-faint)',
           transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none',
           display: 'inline-block', flexShrink: 0,
         }}>▶</span>
@@ -126,7 +126,7 @@ function EvidenceAccordion({
           }} />
         )}
         <span style={{
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.62rem',
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.7rem',
           letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
         }}>
           Evidence Sources
@@ -156,7 +156,7 @@ function EvidenceAccordion({
               }}>
                 {/* Status icon */}
                 <span style={{
-                  fontSize: running ? '1rem' : '0.6rem', lineHeight: 1,
+                  fontSize: running ? '1rem' : '0.75rem', lineHeight: 1,
                   color: running ? 'var(--c-signal)' : hasData ? 'var(--c-green)' : 'var(--c-text-faint)',
                 }} className={running ? 'animate-pulse-glow' : ''}>
                   {running ? '⟳' : hasData ? '●' : '○'}
@@ -171,7 +171,7 @@ function EvidenceAccordion({
                     {SOURCE_LABEL[row.source] ?? row.source}
                   </span>
                   <span style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-faint)',
+                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)',
                   }}>
                     {row.table}
                   </span>
@@ -199,7 +199,7 @@ function EvidenceAccordion({
           {/* Wall-clock total */}
           {!anyRunning && totalElapsedMs !== undefined && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '5px 14px' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.63rem', color: 'var(--c-text-faint)' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)' }}>
                 total {fmtMs(totalElapsedMs)}
               </span>
             </div>
@@ -320,7 +320,7 @@ function ThinkingPanel({ text, isActive, label = 'Model Reasoning' }: { text: st
         }}
       >
         <span style={{
-          fontSize: '0.6rem', color: 'rgba(167,139,250,0.7)',
+          fontSize: '0.68rem', color: 'rgba(167,139,250,0.7)',
           transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none',
           display: 'inline-block', flexShrink: 0,
         }}>▶</span>
@@ -332,7 +332,7 @@ function ThinkingPanel({ text, isActive, label = 'Model Reasoning' }: { text: st
           }} />
         )}
         <span style={{
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.62rem',
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.7rem',
           letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(167,139,250,0.8)',
         }}>
           {label}{isActive ? ' · live' : ''}
@@ -539,7 +539,7 @@ function RCASummary({ s }: { s: StageEvent }) {
                     background: 'rgba(249,115,22,0.03)',
                     borderRadius: '0 4px 4px 0',
                   }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'rgba(249,115,22,0.5)', marginTop: 3, flexShrink: 0 }}>↳</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'rgba(249,115,22,0.5)', marginTop: 3, flexShrink: 0 }}>↳</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-text-dim)', lineHeight: 1.55 }}>{r}</span>
                   </div>
                 ))}

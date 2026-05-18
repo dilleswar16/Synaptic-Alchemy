@@ -120,22 +120,22 @@ function PlatformStatsCard({ data }: { data: Record<string, unknown> }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
-          <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Avg MTTR</div>
+          <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Avg MTTR</div>
           <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--c-signal)' }}>{mttr}<span style={{ fontSize: '0.7rem', fontWeight: 400, marginLeft: 2 }}>min</span></div>
         </div>
         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
-          <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Investigations</div>
+          <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Investigations</div>
           <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--c-text)' }}>{total}</div>
         </div>
       </div>
       <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
-        <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 8 }}>Confidence Spread</div>
+        <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 8 }}>Confidence Spread</div>
         <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, display: 'flex', overflow: 'hidden' }}>
           <div style={{ width: `${(high / total) * 100}%`, background: '#22c55e' }} title={`High: ${high}`} />
           <div style={{ width: `${(medium / total) * 100}%`, background: '#f97316' }} title={`Med: ${medium}`} />
           <div style={{ width: `${(low / total) * 100}%`, background: '#ef4444' }} title={`Low: ${low}`} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: '0.6rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: '0.65rem' }}>
           <span style={{ color: '#22c55e' }}>High {high}</span>
           <span style={{ color: '#f97316' }}>Med {medium}</span>
           <span style={{ color: '#ef4444' }}>Low {low}</span>
@@ -162,7 +162,7 @@ function IncidentListCard({ data }: { data: unknown[] }) {
               {item.service_name}
             </span>
             <span style={{ 
-              fontSize: '0.55rem', 
+              fontSize: '0.68rem', 
               textTransform: 'uppercase', 
               letterSpacing: '0.05em',
               background: item.approval_status === 'executed' ? 'rgba(34,197,94,0.1)' : 'rgba(249,115,22,0.1)',
@@ -183,7 +183,7 @@ function IncidentListCard({ data }: { data: unknown[] }) {
               alignItems: 'center', 
               gap: 4, 
               color: 'var(--c-text-faint)', 
-              fontSize: '0.62rem', 
+              fontSize: '0.7rem', 
               textDecoration: 'none',
               transition: 'color 0.15s'
             }}>
@@ -212,7 +212,7 @@ function ServiceScoreCard({ data }: { data: Record<string, unknown> }) {
           alignItems: 'center', justifyContent: 'center' 
         }}>
           <div style={{ fontSize: '1.6rem', fontWeight: 800, color: color }}>{score}</div>
-          <div style={{ fontSize: '0.5rem', textTransform: 'uppercase', color: 'var(--c-text-faint)' }}>score</div>
+          <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--c-text-faint)' }}>score</div>
         </div>
       </div>
       <div style={{ marginTop: 12 }}>
@@ -237,7 +237,7 @@ function InvestigationResultCard({ data }: { data: any }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Remediation Steps</div>
+        <div style={{ fontSize: '0.68rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Remediation Steps</div>
         {actions.slice(0, 2).map((a: any, i: number) => (
           <div key={i} style={{ 
             padding: '8px 12px', 
@@ -257,11 +257,11 @@ function InvestigationResultCard({ data }: { data: any }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--c-border)', paddingTop: 12 }}>
         <div style={{ display: 'flex', gap: 12 }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '0.55rem', color: 'var(--c-text-faint)', textTransform: 'uppercase' }}>Confidence</div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--c-text-faint)', textTransform: 'uppercase' }}>Confidence</div>
             <div style={{ fontSize: '0.7rem', color: rca.confidence === 'high' ? '#22c55e' : '#f97316', fontWeight: 700 }}>{rca.confidence?.toUpperCase()}</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '0.55rem', color: 'var(--c-text-faint)', textTransform: 'uppercase' }}>Status</div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--c-text-faint)', textTransform: 'uppercase' }}>Status</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--c-text)', fontWeight: 700 }}>{req.approval_status?.toUpperCase()}</div>
           </div>
         </div>
@@ -309,11 +309,11 @@ function RoiCard({ data }: { data: Record<string, unknown> }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border)', textAlign: 'center' }}>
           <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#22c55e' }}>{hours}<span style={{ fontSize: '0.7rem', fontWeight: 400, marginLeft: 2 }}>h</span></div>
-          <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginTop: 2 }}>Hours Saved</div>
+          <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginTop: 2 }}>Hours Saved</div>
         </div>
         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border)', textAlign: 'center' }}>
           <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--c-text)' }}>{String(data.auto_resolved_count ?? 0)}</div>
-          <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginTop: 2 }}>Auto-Resolved</div>
+          <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginTop: 2 }}>Auto-Resolved</div>
         </div>
       </div>
     </div>
@@ -430,7 +430,7 @@ function TopologyCard({ data }: { data: any }) {
             {e.source} <span style={{ color: 'var(--c-signal)' }}>→ {e.label} →</span> {e.target}
           </div>
         ))}
-        {edges.length > 5 && <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', marginTop: 4 }}>+ {edges.length - 5} more connections</div>}
+        {edges.length > 5 && <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', marginTop: 4 }}>+ {edges.length - 5} more connections</div>}
       </div>
     </div>
   )
@@ -474,7 +474,7 @@ export function ToolResultCard({ toolName, data, timestamp }: ToolResultCardProp
         <span style={{ fontSize: '0.8rem', color: 'var(--c-text-faint)' }}>{collapsed ? '▶' : '▼'}</span>
         <ToolIcon name={toolName} />
         <ToolLabel name={toolName} />
-        <span style={{ marginLeft: 'auto', color: 'var(--c-text-faint)', fontSize: '0.6rem' }}>
+        <span style={{ marginLeft: 'auto', color: 'var(--c-text-faint)', fontSize: '0.65rem' }}>
           {new Date(timestamp).toLocaleTimeString()}
         </span>
       </div>

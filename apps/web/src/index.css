@@ -827,6 +827,24 @@
       grid-template-columns: 1fr;
     }
   }
+
+  /* ── SemanticMarkdown (investigation pages) list bullets ────────────── */
+  /* Only ul items get orange dots; ol items use the browser decimal counter */
+  .corvin-sm-ul > li {
+    position: relative;
+    list-style: none;
+  }
+  .corvin-sm-ul > li::before {
+    content: '';
+    position: absolute;
+    left: 1px;
+    top: 0.6em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(249, 115, 22, 0.6);
+  }
+
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

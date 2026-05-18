@@ -127,7 +127,7 @@ export function SimulateAlertPanel() {
             </div>
             <p style={{
               margin: '2px 0 0',
-              fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+              fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
               color: 'var(--c-text-faint)',
             }}>
               Select experiment to deploy into DEV environment
@@ -136,7 +136,7 @@ export function SimulateAlertPanel() {
         </div>
         <div style={{ 
           background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', 
-          padding: '2px 8px', borderRadius: 4, color: '#ef4444', fontSize: '0.55rem', 
+          padding: '2px 8px', borderRadius: 4, color: '#ef4444', fontSize: '0.68rem', 
           fontFamily: 'var(--font-mono)', fontWeight: 800 
         }}>
           RED TEAM MODE
@@ -184,7 +184,7 @@ export function SimulateAlertPanel() {
               </div>
               <p style={{
                 margin: 0,
-                fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+                fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
                 color: 'var(--c-text-faint)', lineHeight: 1.5,
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
@@ -195,7 +195,7 @@ export function SimulateAlertPanel() {
               </p>
               <p style={{
                 margin: '4px 0 0',
-                fontFamily: 'var(--font-mono)', fontSize: '0.55rem',
+              fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
                 color: 'var(--c-text-faint)', opacity: 0.6,
               }}>
                 {preset.service} / {preset.environment}
@@ -211,7 +211,7 @@ export function SimulateAlertPanel() {
           <label style={{
             display: 'block', marginBottom: 4,
             fontFamily: 'var(--font-display)', fontWeight: 700,
-            fontSize: '0.58rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+            fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase',
             color: 'var(--c-text-muted)',
           }}>
             Custom description (optional)

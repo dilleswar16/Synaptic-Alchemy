@@ -118,7 +118,7 @@ export function RoiWidget() {
       {/* Header */}
       <div style={{ marginBottom: 18 }}>
         <div style={{
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.58rem',
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.68rem',
           letterSpacing: '0.2em', textTransform: 'uppercase',
           color: 'var(--c-signal)', marginBottom: 5,
         }}>
@@ -152,7 +152,7 @@ export function RoiWidget() {
             }}
           >
             <div style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.5rem',
+              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem',
               letterSpacing: '0.16em', textTransform: 'uppercase', color: s.colour, opacity: 0.9,
             }}>
               {s.label}
@@ -164,7 +164,7 @@ export function RoiWidget() {
               {s.value}
             </div>
             <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+              fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
               color: 'var(--c-text-faint)', lineHeight: 1.35,
             }}>
               {s.sub}
@@ -175,7 +175,7 @@ export function RoiWidget() {
 
       {/* Footer */}
       <div style={{
-        marginTop: 12, fontFamily: 'var(--font-mono)', fontSize: '0.6rem',
+        marginTop: 12, fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
         color: 'var(--c-text-faint)', textAlign: 'right',
       }}>
         Based on {data.total_incidents} investigations · baseline {Math.round(data.baseline_mttr_minutes)}min MTTR without Corvin

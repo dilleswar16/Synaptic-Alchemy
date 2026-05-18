@@ -13,7 +13,7 @@ export function CopyableId({ requestId }: { requestId: string }) {
       onClick={copy}
       title={`Copy ID: ${requestId}`}
       style={{
-        fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+        fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
         color: copied ? 'var(--c-green)' : 'var(--c-text-faint)',
         letterSpacing: '0.04em', background: 'none', border: 'none',
         cursor: 'pointer', padding: '1px 4px', borderRadius: 2,

@@ -32,7 +32,7 @@ export function EvidenceReferencesSection({ references }: EvidenceReferencesSect
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
-                  fontFamily: 'var(--font-display)', fontSize: '0.55rem', fontWeight: 800,
+                  fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 800,
                   letterSpacing: '0.12em', textTransform: 'uppercase',
                   padding: '2px 6px', borderRadius: 2,
                   background: `color-mix(in srgb, ${badge.color} 15%, transparent)`,

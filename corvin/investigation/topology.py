@@ -38,7 +38,15 @@ def _inject_apim_topology(
     nodes: dict[str, TopologyNode],
     edges: dict[tuple[str, str, str | None], TopologyEdge],
 ) -> None:
-    """Inject the APIM gateway and known API routes in front of the AKS services."""
+    """Inject the APIM gateway, known API routes, and PingFederate into the topology.
+
+    APIM front-door:
+        APIM Gateway → fundapis API → svc:fundapis
+        APIM Gateway → partnerapis API → svc:partnerapis
+
+    fundsso routes DIRECT (no APIM) but depends on PingFederate for SSO federation:
+        svc:fundsso → backend:pingfederate
+    """
     if not any(k.startswith("svc:") for k in nodes):
         return
 
@@ -61,6 +69,18 @@ def _inject_apim_topology(
         )
         edges[(api_node_id, service_id, "routes")] = TopologyEdge(
             source=api_node_id, target=service_id, label="routes"
+        )
+
+    # PingFederate — external IdP for fundsso
+    fundsso_id = "svc:fundsso"
+    if fundsso_id in nodes:
+        pf_id = "backend:pingfederate"
+        nodes.setdefault(
+            pf_id,
+            TopologyNode(id=pf_id, label="PingFederate SSO", kind="backend", status="supporting"),
+        )
+        edges[(fundsso_id, pf_id, "depends-on")] = TopologyEdge(
+            source=fundsso_id, target=pf_id, label="depends-on"
         )
 
 

@@ -472,10 +472,51 @@ def _exec_roi(args: dict) -> dict:
 
 def _exec_topology(args: dict) -> dict:
     from corvin.storage.repository import InvestigationRepository
-    from corvin.investigation.topology import build_service_topology
+    from corvin.investigation.topology import build_service_topology, ServiceTopology, TopologyNode, TopologyEdge, _inject_apim_topology
     repo = InvestigationRepository()
     results = repo.list_recent_results(limit=30)
-    return build_service_topology(results).model_dump()
+
+    if results:
+        # Use DB-backed topology when investigations exist
+        return build_service_topology(results).model_dump()
+
+    # No investigations yet — fall back to static CHAD architecture + live AKS pods
+    STATIC_SERVICES = [
+        ("fundapis",    "high"),
+        ("partnerapis", "high"),
+        ("fundsso",     "high"),
+    ]
+    nodes: dict[str, TopologyNode] = {}
+    edges: dict[tuple, TopologyEdge] = {}
+    for svc_name, status in STATIC_SERVICES:
+        svc_id = f"svc:{svc_name}"
+        nodes[svc_id] = TopologyNode(id=svc_id, label=svc_name, kind="service", status=status)
+    _inject_apim_topology(nodes, edges)
+
+    try:
+        from corvin.evidence.aks_adapter import AKSAdapter
+        _AKS_NAME_MAP = {
+            "chad-fundapis":    "fundapis",
+            "chad-fundsso":     "fundsso",
+            "chad-partnerapis": "partnerapis",
+        }
+        adapter = AKSAdapter()
+        live = adapter.list_all_pods()
+        for svc in live.get("services", []):
+            raw_name = svc["name"]
+            svc_name = _AKS_NAME_MAP.get(raw_name, raw_name)
+            svc_id = f"svc:{svc_name}"
+            if svc_id in nodes:
+                nodes[svc_id] = TopologyNode(id=svc_id, label=svc_name, kind="service", status=svc.get("status", "high"))
+            for pod in svc.get("pods", []):
+                pod_name = pod.get("name", "")
+                pod_id = f"pod:{pod_name}"
+                nodes[pod_id] = TopologyNode(id=pod_id, label=pod_name, kind="pod", status="high")
+                edges[(svc_id, pod_id, "runs")] = TopologyEdge(source=svc_id, target=pod_id, label="runs")
+    except Exception:
+        pass
+
+    return ServiceTopology(nodes=list(nodes.values()), edges=list(edges.values())).model_dump()
 
 
 def _exec_blast_radius(args: dict) -> dict:

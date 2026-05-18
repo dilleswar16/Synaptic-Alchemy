@@ -54,7 +54,7 @@ export function ApprovalSection({ requestId, status, pendingAction, onClearPendi
           marginBottom: 16, 
           padding: '12px', 
           background: 'rgba(34,197,94,0.03)', 
-          border: '1px solid rgba(34,197,94,0.15)', 
+          border: '1px solid var(--c-success-border)', 
           borderRadius: 8,
           display: 'flex',
           flexDirection: 'column',
@@ -62,17 +62,17 @@ export function ApprovalSection({ requestId, status, pendingAction, onClearPendi
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: '0.8rem' }}>✨</span>
-            <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Predicted Outcome</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--c-success)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Predicted Outcome</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ flex: 1 }}>
               <div style={{ height: 4, background: 'var(--c-surface-3)', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
-                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${degradedPct}%`, background: '#ef4444' }} />
-                <div style={{ position: 'absolute', left: `${degradedPct}%`, top: 0, height: '100%', width: `${restoredPct - degradedPct}%`, background: '#22c55e', opacity: 0.5, borderLeft: '2px solid #fff' }} />
+                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${degradedPct}%`, background: 'var(--c-error)' }} />
+                <div style={{ position: 'absolute', left: `${degradedPct}%`, top: 0, height: '100%', width: `${restoredPct - degradedPct}%`, background: 'var(--c-success)', opacity: 0.5, borderLeft: '2px solid #fff' }} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: '0.55rem', fontFamily: 'var(--font-mono)' }}>
-                <span style={{ color: '#ef4444' }}>Degraded: {degradedPct}%</span>
-                <span style={{ color: '#22c55e' }}>Predicted: {restoredPct}%</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}>
+                <span style={{ color: 'var(--c-error)' }}>Degraded: {degradedPct}%</span>
+                <span style={{ color: 'var(--c-success)' }}>Predicted: {restoredPct}%</span>
               </div>
             </div>
             <div style={{ fontSize: '0.65rem', color: 'var(--c-text-dim)', lineHeight: 1.4, fontStyle: 'italic' }}>

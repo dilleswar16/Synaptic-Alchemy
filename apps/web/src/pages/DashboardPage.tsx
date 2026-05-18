@@ -105,18 +105,18 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
           )}
           <span style={{
             fontFamily: 'var(--font-display)', fontWeight: 700,
-            fontSize: '0.64rem', letterSpacing: '0.2em', textTransform: 'uppercase',
+            fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase',
             color: urgent ? 'var(--c-signal)' : 'var(--c-text-muted)',
           }}>
             Daily Briefing
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--c-text-faint)', letterSpacing: '0.04em' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', letterSpacing: '0.04em' }}>
             {fmtTime} · {data.period_hours}h window
           </span>
           <span style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.58rem', letterSpacing: '0.06em',
+            fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.06em',
             padding: '2px 7px', borderRadius: 2,
             background: 'rgba(249,115,22,0.07)',
             border: '1px solid rgba(249,115,22,0.15)',
@@ -131,16 +131,16 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
             style={{
               fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 700,
               padding: '3px 9px', borderRadius: 6, cursor: 'pointer',
-              background: voiceState === 'playing' ? 'rgba(59,130,246,0.2)' : 'rgba(249,115,22,0.1)',
-              color: voiceState === 'playing' ? '#60a5fa' : voiceState === 'error' ? '#ef4444' : 'var(--c-signal)',
-              border: `1px solid ${voiceState === 'playing' ? 'rgba(59,130,246,0.3)' : 'rgba(249,115,22,0.2)'}`,
+              background: voiceState === 'playing' ? 'rgba(96,165,250,0.15)' : 'rgba(249,115,22,0.1)',
+              color: voiceState === 'playing' ? 'var(--c-info)' : voiceState === 'error' ? 'var(--c-error)' : 'var(--c-signal)',
+              border: `1px solid ${voiceState === 'playing' ? 'var(--c-info-border)' : 'rgba(249,115,22,0.2)'}`,
               transition: 'all 0.15s',
             }}
           >
             {voiceState === 'loading' ? '…' : voiceState === 'playing' ? '⏹ Stop' : '▶ Hear'}
           </button>
           {voiceState === 'error' && (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: '#ef4444' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-error)' }}>
               {voiceError}
             </span>
           )}
@@ -187,7 +187,7 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 fontFamily: 'var(--font-display)', fontWeight: 700,
-                fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+                fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase',
                 padding: '5px 12px', borderRadius: 2,
                 background: 'rgba(249,115,22,0.1)',
                 border: '1px solid rgba(249,115,22,0.4)',
@@ -221,7 +221,7 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
           }}>
             <div style={{
               fontFamily: 'var(--font-display)', fontWeight: 700,
-              fontSize: '0.58rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+              fontSize: '0.68rem', letterSpacing: '0.15em', textTransform: 'uppercase',
               color: 'var(--c-text-faint)', marginBottom: 4,
             }}>
               Confidence
@@ -234,7 +234,7 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
               <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span style={{
                   fontFamily: 'var(--font-display)', fontWeight: 700,
-                  fontSize: '0.52rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+                  fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase',
                   color: b.value > 0 ? 'var(--c-text-muted)' : 'var(--c-text-faint)',
                   minWidth: 44,
                 }}>
@@ -327,7 +327,7 @@ function HeroBand({
               style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--c-signal)', flexShrink: 0 }}
             />
             <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.62rem', fontWeight: 600,
+              fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 600,
               letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-signal)',
             }}>
               System Operational
@@ -382,7 +382,7 @@ function HeroBand({
                     </span>
                   </div>
                   <div style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
                     color: 'var(--c-text-muted)', marginTop: 6, textAlign: 'center',
                   }}>
                     {s.sub}
@@ -438,7 +438,7 @@ function HeroBand({
           </div>
           {lastTs && (
             <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+              fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
               color: 'var(--c-text-muted)', marginTop: 3, textAlign: 'right',
             }}>
               last: {lastTs}
@@ -489,7 +489,7 @@ function MetricCard({
     >
       <div style={{
         fontFamily: 'var(--font-display)',
-        fontSize: '0.62rem',
+        fontSize: '0.7rem',
         fontWeight: 700,
         letterSpacing: '0.14em',
         textTransform: 'uppercase',
@@ -559,7 +559,7 @@ function VerticalBars({ bars }: { bars: { label: string; value: number; color: s
           <div style={{ borderTop: '1px solid var(--c-border-hi)', width: '100%', paddingTop: 6, textAlign: 'center' }}>
             <span style={{
               fontFamily: 'var(--font-display)', fontWeight: 700,
-              fontSize: '0.55rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+              fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase',
               color: bar.value > 0 ? 'var(--c-text-dim)' : 'var(--c-text-faint)',
             }}>
               {bar.label}
@@ -596,7 +596,7 @@ function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?
       </span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ 
-          fontFamily: 'var(--font-mono)', fontSize: '0.55rem', fontWeight: 800, 
+          fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 800, 
           color: priColor, background: priBg, border: priBorder,
           padding: '2px 6px', borderRadius: 4, flexShrink: 0
         }}>
@@ -704,7 +704,7 @@ export default function DashboardPage() {
       <div className="animate-fade-up" style={{ marginBottom: 24 }}>
         <div style={{
           fontFamily: 'var(--font-display)',
-          fontSize: '0.64rem',
+          fontSize: '0.72rem',
           letterSpacing: '0.18em',
           textTransform: 'uppercase',
           color: 'var(--c-signal)',
@@ -775,7 +775,7 @@ export default function DashboardPage() {
         <div className="panel animate-fade-up" style={{ padding: '18px 20px', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%)' : undefined }}>
           <div style={{
             fontFamily: 'var(--font-display)', fontWeight: 700,
-            fontSize: '0.62rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            fontSize: '0.7rem', letterSpacing: '0.18em', textTransform: 'uppercase',
             color: 'var(--c-text-muted)', marginBottom: 16,
           }}>
             Service Health
@@ -802,7 +802,7 @@ export default function DashboardPage() {
       {/* ── 7. TOOLS: Chaos Engineering (Red Team) ────────────────────── */}
       <div style={{ marginTop: 40, borderTop: '1px dashed var(--c-border)', paddingTop: 40 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-           <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.6rem', color: 'var(--c-red)', fontWeight: 800, letterSpacing: '0.2em' }}>SYSTEM STRESS TESTING</div>
+           <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', color: 'var(--c-red)', fontWeight: 800, letterSpacing: '0.2em' }}>SYSTEM STRESS TESTING</div>
            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 900, color: 'var(--c-text)' }}>Chaos Control Center</h2>
         </div>
         <SimulateAlertPanel />

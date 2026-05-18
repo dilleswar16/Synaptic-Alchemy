@@ -62,7 +62,7 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
         <div style={{
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.52rem',
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem',
           letterSpacing: '0.22em', textTransform: 'uppercase', color: '#ef4444',
         }}>
           ① What Broke
@@ -75,14 +75,14 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.63rem', padding: '2px 9px',
+            fontFamily: 'var(--font-mono)', fontSize: '0.7rem', padding: '2px 9px',
             borderRadius: 999, background: 'rgba(249,115,22,0.1)',
             border: '1px solid rgba(249,115,22,0.25)', color: 'var(--c-signal)',
           }}>
             {request.environment}
           </span>
           <span style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.63rem', padding: '2px 9px',
+            fontFamily: 'var(--font-mono)', fontSize: '0.7rem', padding: '2px 9px',
             borderRadius: 999, background: `color-mix(in srgb, ${statusColour} 12%, transparent)`,
             border: `1px solid color-mix(in srgb, ${statusColour} 30%, transparent)`,
             color: statusColour, textTransform: 'uppercase', letterSpacing: '0.06em',
@@ -93,8 +93,8 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
         {/* confidence mini-bar */}
         <div style={{ marginTop: 4 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--c-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>RCA Confidence</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.64rem', color: confColour, fontWeight: 700 }}>{rca.confidence.toUpperCase()}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>RCA Confidence</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: confColour, fontWeight: 700 }}>{rca.confidence.toUpperCase()}</span>
           </div>
           <div style={{ height: 4, background: 'var(--c-surface-2)', borderRadius: 2, overflow: 'hidden' }}>
             <div style={{ width: `${confPct}%`, height: '100%', background: confColour, borderRadius: 2, transition: 'width 0.6s ease-out' }} />
@@ -110,7 +110,7 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
         <div style={{
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.52rem',
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem',
           letterSpacing: '0.22em', textTransform: 'uppercase', color: '#f97316',
         }}>
           ② Why It Broke
@@ -140,7 +140,7 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
         <div style={{
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.52rem',
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem',
           letterSpacing: '0.22em', textTransform: 'uppercase', color: '#22c55e',
         }}>
           ③ What To Do
@@ -164,7 +164,7 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
               {topAction.risk_level && (
                 <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.58rem', padding: '2px 7px',
+                  fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '2px 7px',
                   borderRadius: 999,
                   background: topAction.risk_level === 'high' ? 'rgba(239,68,68,0.12)' : topAction.risk_level === 'medium' ? 'rgba(249,115,22,0.12)' : 'rgba(34,197,94,0.12)',
                   border: `1px solid ${topAction.risk_level === 'high' ? 'rgba(239,68,68,0.3)' : topAction.risk_level === 'medium' ? 'rgba(249,115,22,0.3)' : 'rgba(34,197,94,0.3)'}`,
@@ -176,7 +176,7 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
               )}
               {topAction.requires_approval && (
                 <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.58rem', padding: '2px 7px',
+                  fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '2px 7px',
                   borderRadius: 999, background: 'rgba(139,92,246,0.1)',
                   border: '1px solid rgba(139,92,246,0.25)', color: '#a78bfa',
                   textTransform: 'uppercase', letterSpacing: '0.08em',
@@ -193,7 +193,7 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
         )}
         {fix_strategy?.actions && fix_strategy.actions.length > 1 && (
           <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+              fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
             color: 'var(--c-text-faint)', marginTop: 4,
           }}>
             +{fix_strategy.actions.length - 1} more action{fix_strategy.actions.length > 2 ? 's' : ''} — see Fix Strategy below

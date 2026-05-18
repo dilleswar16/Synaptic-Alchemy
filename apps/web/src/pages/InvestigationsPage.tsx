@@ -94,11 +94,11 @@ function SelectField({
       {open && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
-          background: 'rgb(18, 24, 38)',
+          background: 'var(--c-surface-3)',
           border: '1px solid rgba(249,115,22,0.35)',
           borderTop: '1px solid rgba(249,115,22,0.15)',
           borderRadius: '0 0 4px 4px',
-          boxShadow: '0 12px 40px rgba(0,0,0,0.75)',
+          boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
           overflow: 'hidden',
         }}>
           {options.map((opt, i) => {
@@ -112,13 +112,13 @@ function SelectField({
                   padding: '9px 12px',
                   display: 'flex', alignItems: 'center', gap: 8,
                   cursor: isDisabled ? 'not-allowed' : 'pointer',
-                  background: isSelected ? 'rgba(249,115,22,0.14)' : 'rgb(18,24,38)',
+                  background: isSelected ? 'rgba(249,115,22,0.1)' : 'var(--c-surface-3)',
                   borderTop: i > 0 ? '1px solid var(--c-border)' : 'none',
                   transition: 'background 0.1s',
                   opacity: isDisabled ? 0.4 : 1,
                 }}
-                onMouseEnter={e => { if (!isDisabled) (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'rgba(249,115,22,0.18)' : 'rgb(28,35,52)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'rgba(249,115,22,0.14)' : 'rgb(18,24,38)' }}
+                onMouseEnter={e => { if (!isDisabled) (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'rgba(249,115,22,0.16)' : 'var(--c-surface-2)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'rgba(249,115,22,0.1)' : 'var(--c-surface-3)' }}
               >
                 {/* Selected indicator */}
                 <span style={{
@@ -293,8 +293,8 @@ function StartInvestigationForm() {
         {/* Demo preset buttons */}
         <div style={{ marginBottom: 16 }}>
           <div style={{
-            fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
-            letterSpacing: '0.14em', textTransform: 'uppercase',
+            fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
+            letterSpacing: '0.12em', textTransform: 'uppercase',
             color: 'var(--c-text-muted)', marginBottom: 8,
           }}>
             Demo Presets
@@ -429,7 +429,7 @@ function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary
       }}>
         {['TIME', 'SERVICE', 'ENV', 'STATUS', 'AGO', ''].map((h, i) => (
           <span key={i} style={{
-            fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+            fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
             letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
           }}>{h}</span>
         ))}
@@ -457,7 +457,7 @@ function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ 
-                fontFamily: 'var(--font-mono)', fontSize: '0.55rem', fontWeight: 800, 
+                fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 800, 
                 color: priColor, background: priBg, border: priBorder,
                 padding: '2px 6px', borderRadius: 4, flexShrink: 0
               }}>
@@ -540,7 +540,7 @@ export default function InvestigationsPage() {
       {/* ── Investigation log ─────────────────────────────────────────────── */}
       <div style={{ marginTop: 28, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{
-          fontFamily: 'var(--font-display)', fontSize: '0.62rem', fontWeight: 700,
+          fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
           letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
           flexShrink: 0,
         }}>

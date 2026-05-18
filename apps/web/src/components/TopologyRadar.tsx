@@ -18,7 +18,7 @@ import {
   MarkerType,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { fetchTopology, type ServiceTopology, type TopologyNode } from '../api/client'
+import { fetchTopology, fetchTopologyLive, type ServiceTopology, type TopologyNode } from '../api/client'
 
 // ── Status → accent colour ────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ function ServiceNode({ data }: { data: { label: string; status: string; sublabel
       }}
     >
       <Handle type="target" position={Position.Left} style={{ background: accent, borderColor: accent, width: 8, height: 8 }} />
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.55rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: accent, marginBottom: 4 }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: accent, marginBottom: 4 }}>
         {data.sublabel ?? 'SERVICE'}
       </div>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '0.88rem', color: 'var(--c-text)', letterSpacing: '0.02em' }}>
@@ -58,7 +58,7 @@ function ServiceNode({ data }: { data: { label: string; status: string; sublabel
       </div>
       {data.status !== 'engine' && (
         <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 4 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', padding: '2px 7px', borderRadius: 999, background: `color-mix(in srgb, ${accent} 20%, transparent)`, color: accent, border: `1px solid color-mix(in srgb, ${accent} 40%, transparent)` }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', padding: '2px 7px', borderRadius: 999, background: `color-mix(in srgb, ${accent} 20%, transparent)`, color: accent, border: `1px solid color-mix(in srgb, ${accent} 40%, transparent)` }}>
             {data.status}
           </span>
         </div>
@@ -98,10 +98,10 @@ function PodNode({ data }: { data: { label: string; status: string; sublabel?: s
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: accent, boxShadow: `0 0 8px ${accent}`, flexShrink: 0 }} />
         <div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.56rem', color: accent, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 1, opacity: 0.85 }}>{typeLabel}</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: accent, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 1, opacity: 0.85 }}>{typeLabel}</div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: '#e2e8f0', lineHeight: 1.3 }}>{base}</div>
           {suffix && (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.63rem', color: '#93c5fd', lineHeight: 1.25, marginTop: 1 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: '#93c5fd', lineHeight: 1.25, marginTop: 1 }}>
               {suffix}
             </div>
           )}
@@ -122,7 +122,7 @@ function ApiNode({ data }: { data: { label: string; sublabel?: string } }) {
       textAlign: 'center', minWidth: 110,
     }}>
       <Handle type="target" position={Position.Left} style={{ background: '#8b5cf6', borderColor: '#8b5cf6', width: 7, height: 7 }} />
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.52rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#a78bfa', marginBottom: 3 }}>{data.sublabel ?? 'API ROUTE'}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#a78bfa', marginBottom: 3 }}>{data.sublabel ?? 'API ROUTE'}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '0.82rem', color: 'var(--c-text)' }}>{data.label}</div>
       <Handle type="source" position={Position.Right} style={{ background: '#8b5cf6', borderColor: '#8b5cf6', width: 7, height: 7 }} />
     </div>
@@ -138,7 +138,7 @@ function GatewayNode({ data }: { data: { label: string; sublabel?: string } }) {
       boxShadow: '0 0 36px color-mix(in srgb, #0ea5e9 32%, transparent), 0 4px 18px rgba(0,0,0,0.35)',
       textAlign: 'center', minWidth: 130,
     }}>
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.52rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#38bdf8', marginBottom: 5 }}>{data.sublabel ?? 'APIM'}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#38bdf8', marginBottom: 5 }}>{data.sublabel ?? 'APIM'}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '0.9rem', color: 'var(--c-text)', letterSpacing: '0.01em' }}>{data.label}</div>
       <Handle type="source" position={Position.Right} style={{ background: '#0ea5e9', borderColor: '#0ea5e9', width: 9, height: 9 }} />
     </div>
@@ -155,7 +155,7 @@ function BackendNode({ data }: { data: { label: string; sublabel?: string } }) {
       textAlign: 'center', minWidth: 160,
     }}>
       <Handle type="target" position={Position.Left} style={{ background: '#10b981', borderColor: '#10b981', width: 7, height: 7 }} />
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.52rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#34d399', marginBottom: 3 }}>{data.sublabel ?? 'FUNCTION APP'}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#34d399', marginBottom: 3 }}>{data.sublabel ?? 'FUNCTION APP'}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem', color: 'var(--c-text)' }}>{data.label}</div>
       <Handle type="source" position={Position.Right} style={{ background: '#10b981', borderColor: '#10b981', width: 7, height: 7 }} />
     </div>
@@ -429,6 +429,14 @@ export function TopologyRadar() {
   const navigate = useNavigate()
   const [viewMode, setViewMode] = useState<ViewMode>('app')
 
+  // Live AKS pods — used for CHAD App Topology view
+  const { data: liveData, isLoading: liveLoading } = useQuery({
+    queryKey: ['topology-live'],
+    queryFn: fetchTopologyLive,
+    refetchInterval: 30_000,  // refresh every 30s so pods reflect current state
+  })
+
+  // DB-backed topology — used for Corvin Investigation Flow view
   const { data, isLoading } = useQuery({
     queryKey: ['topology'],
     queryFn: fetchTopology,
@@ -439,17 +447,83 @@ export function TopologyRadar() {
     navigate(`/investigations?service=${encodeURIComponent(label)}`)
   }, [navigate])
 
+  // App view: live pods from AKS. Corvin view: DB-backed investigation graph.
+  const activeSource = viewMode === 'app' ? liveData : data
+
   const { nodes: appNodes, edges: appEdges } = useMemo(
-    () => data ? buildFlowElements(data, onServiceClick) : { nodes: [], edges: [] },
-    [data, onServiceClick],
+    () => activeSource ? buildFlowElements(activeSource, onServiceClick) : { nodes: [], edges: [] },
+    [activeSource, onServiceClick],
   )
 
-  const serviceNodes = data?.nodes.filter(n => n.kind === 'service') ?? []
+  const serviceNodes = activeSource?.nodes.filter(n => n.kind === 'service') ?? []
   const activeNodes = viewMode === 'app' ? appNodes : CORVIN_NODES
   const activeEdges = viewMode === 'app' ? appEdges : CORVIN_EDGES
 
-  if (isLoading || !data) {
-    return <div className="panel scan-sweep" style={{ minHeight: 540 }} />
+  const currentlyLoading = viewMode === 'app' ? liveLoading : isLoading
+  if (currentlyLoading && !activeSource) {
+    return (
+      <div className="panel animate-fade-up" style={{ padding: '18px 20px', overflow: 'hidden' }}>
+        {/* Header skeleton */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>
+              Dependency Visualizer
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.2rem', color: 'var(--c-text)' }}>
+              {viewMode === 'app' ? 'CHAD App Topology' : 'Corvin Investigation Flow'}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: 3 }}>
+            {(['app', 'corvin'] as ViewMode[]).map(mode => (
+              <button key={mode} onClick={() => setViewMode(mode)} style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 700,
+                padding: '5px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                letterSpacing: '0.06em', textTransform: 'uppercase', transition: 'all 0.18s',
+                background: viewMode === mode ? (mode === 'app' ? '#f97316' : '#f59e0b') : 'transparent',
+                color: viewMode === mode ? '#0d0f17' : 'var(--c-text-dim)',
+              }}>
+                {mode === 'app' ? 'App Architecture' : 'Corvin Flow'}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Canvas loading state */}
+        <div style={{
+          height: 500, borderRadius: 12, border: '1px solid var(--c-border)',
+          background: 'linear-gradient(160deg, #0d0f17 0%, #111420 100%)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18,
+        }}>
+          {/* Pulsing ring */}
+          <div style={{ position: 'relative', width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(249,115,22,0.15)', animation: 'signal-pulse 2s ease-in-out infinite' }} />
+            <div style={{ position: 'absolute', inset: 8, borderRadius: '50%', border: '2px solid rgba(249,115,22,0.25)', animation: 'signal-pulse 2s ease-in-out infinite 0.3s' }} />
+            <span style={{ width: 28, height: 28, borderRadius: '50%', border: '2.5px solid rgba(249,115,22,0.3)', borderTopColor: '#f97316', display: 'inline-block', animation: 'spin 0.85s linear infinite' }} />
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 6 }}>
+              {viewMode === 'app' ? 'Connecting to AKS Cluster' : 'Loading Graph'}
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', lineHeight: 1.8 }}>
+              {viewMode === 'app'
+                ? <>Querying live pod state · namespace <span style={{ color: 'var(--c-text-dim)' }}>chad</span></>
+                : 'Loading investigation topology…'}
+            </div>
+            {viewMode === 'app' && (
+              <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center' }}>
+                {['fundapis', 'fundsso', 'partnerapis'].map((s, i) => (
+                  <span key={s} style={{
+                    fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '3px 9px',
+                    borderRadius: 999, border: '1px solid rgba(249,115,22,0.2)',
+                    background: 'rgba(249,115,22,0.06)', color: 'var(--c-text-faint)',
+                    animation: `signal-pulse 1.8s ease-in-out ${i * 0.25}s infinite`,
+                  }}>{s}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -457,7 +531,7 @@ export function TopologyRadar() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.64rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>
             Dependency Visualizer
           </div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.2rem', color: 'var(--c-text)' }}>
@@ -492,7 +566,30 @@ export function TopologyRadar() {
         height: 500, borderRadius: 12, overflow: 'hidden',
         border: '1px solid var(--c-border)',
         background: 'linear-gradient(160deg, #0d0f17 0%, #111420 100%)',
+        position: 'relative',
       }}>
+        {/* Loading overlay — shown while fetching */}
+        {currentlyLoading && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, background: 'rgba(13,15,23,0.85)', backdropFilter: 'blur(4px)' }}>
+            <span style={{ width: 32, height: 32, borderRadius: '50%', border: '2.5px solid rgba(249,115,22,0.3)', borderTopColor: '#f97316', display: 'inline-block', animation: 'spin 0.9s linear infinite', marginBottom: 12 }} />
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-signal)', letterSpacing: '0.1em' }}>
+              {viewMode === 'app' ? 'QUERYING AKS CLUSTER…' : 'LOADING GRAPH…'}
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', marginTop: 4 }}>
+              {viewMode === 'app' ? 'Fetching live pod state from chad namespace' : ''}
+            </div>
+          </div>
+        )}
+        {/* Empty state — data loaded but no nodes (AKS unreachable, kubeconfig missing) */}
+        {!currentlyLoading && activeNodes.length === 0 && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', textAlign: 'center', lineHeight: 2 }}>
+              {viewMode === 'app'
+                ? <>No live pod data available.<br /><span style={{ fontSize: '0.65rem' }}>AKS cluster unreachable — check kubeconfig or cluster access.</span></>
+                : <>No investigation data yet.<br /><span style={{ fontSize: '0.65rem' }}>Run an investigation to populate this graph.</span></>}
+            </div>
+          </div>
+        )}
         <ReactFlowProvider>
           <TopologyFlow key={viewMode} appNodes={activeNodes} appEdges={activeEdges} />
         </ReactFlowProvider>
@@ -521,7 +618,7 @@ export function TopologyRadar() {
           ].map(({ colour, label }) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 24, height: 2, background: colour, borderRadius: 2, display: 'inline-block' }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>{label}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-dim)' }}>{label}</span>
             </div>
           ))}
         </div>

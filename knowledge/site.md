@@ -75,11 +75,26 @@ CHAD is the name of the organisation's digital channel platform. It provides:
 
 ## Monitored Services
 
-| Service Name | AKS Deployment   | Namespace | Normal Replicas | Entry Point         | Notes                                      |
-|--------------|------------------|-----------|-----------------|---------------------|--------------------------------------------|
-| fundapis     | chad-fundapis    | chad      | 2               | APIM → AKS          | Fund APIs backend                          |
-| fundsso      | chad-fundsso     | chad      | 2               | **Direct (no APIM)**| Fund SSO / auth service                    |
-| partnerapis  | chad-partnerapis | chad      | 2               | APIM → AKS          | Partner APIs (1/2 ready — HPA metric issue)|
+| Service Name | AKS Deployment   | Namespace | Normal Replicas | Entry Point         | Notes                                                                                     |
+|--------------|------------------|-----------|-----------------|---------------------|-------------------------------------------------------------------------------------------|
+| fundapis     | chad-fundapis    | chad      | 2               | APIM → AKS          | Fund APIs backend                                                                         |
+| fundsso      | chad-fundsso     | chad      | 2               | **Direct (no APIM)**| Fund SSO / auth service — depends on **PingFederate** for token validation/federation     |
+| partnerapis  | chad-partnerapis | chad      | 2               | APIM → AKS          | Partner APIs (1/2 ready — HPA metric issue)                                               |
+
+## External Dependencies
+
+### PingFederate (Identity Provider)
+- **fundsso** relies on **PingFederate** as its upstream identity provider / federation server.
+- PingFederate handles SAML/OAuth token issuance and validation for the SSO flow.
+- If PingFederate is unreachable or returns errors, `fundsso` authentication failures will cascade to all services that rely on the channel app SSO.
+- PingFederate is **not** hosted in the CHAD AKS cluster — it is a separate on-premises or managed service.
+- When investigating `fundsso` 401/403 errors or auth timeouts, always check PingFederate health as a likely upstream cause.
+
+### Azure Cosmos DB
+- CHAD applications (`fundapis`, `partnerapis`) use **Azure Cosmos DB** as their primary data store for fund and partner records.
+- Cosmos DB RU (Request Unit) throttling (`429 Too Many Requests`) is a common cause of latency spikes and 5xx errors in `fundapis` and `partnerapis`.
+- If APIM logs show elevated error rates with `429` or `503` backend responses, check Cosmos DB metrics (RU consumption, throttled requests) in Azure Monitor.
+- The Cosmos DB account is in the same region (`australiaeast`) and resource group as the CHAD application layer.
 
 ## Log Analytics Workspaces
 

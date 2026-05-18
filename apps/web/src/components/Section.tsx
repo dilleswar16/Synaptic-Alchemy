@@ -45,7 +45,7 @@ export function InfoRow({ label, children }: { label: string; children: ReactNod
   return (
     <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 10, minHeight: 20 }}>
       <span style={{
-        fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+        fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
         letterSpacing: '0.12em', textTransform: 'uppercase',
         color: 'var(--c-text-muted)', minWidth: 120, paddingTop: 2,
       }}>

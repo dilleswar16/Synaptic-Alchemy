@@ -1,12 +1,71 @@
-import React, { useState, useEffect, useId } from 'react'
+import { useState, useEffect, useId } from 'react'
 import mermaid from 'mermaid'
 
-// Global configuration
+// Inject global CSS once to fix Mermaid SVG text clipping and overflow in dark mode
+if (typeof document !== 'undefined' && !document.getElementById('corvin-mermaid-css')) {
+  const s = document.createElement('style')
+  s.id = 'corvin-mermaid-css'
+  s.textContent = `
+    .corvin-mermaid svg { max-width: 100%; height: auto; overflow: visible; }
+    .corvin-mermaid svg .node rect,
+    .corvin-mermaid svg .node circle,
+    .corvin-mermaid svg .node ellipse,
+    .corvin-mermaid svg .node polygon { overflow: visible; }
+    .corvin-mermaid svg text { font-family: 'JetBrains Mono', 'Fira Mono', monospace; }
+    .corvin-mermaid svg .edgeLabel { font-size: 11px; }
+    .corvin-mermaid svg .cluster rect { rx: 8; ry: 8; }
+  `
+  document.head.appendChild(s)
+}
+
+// Corvin Mermaid theme: neutral-dark nodes (legible at any scale) + brand orange on edges only.
+// Philosophy: diagrams are engineering artifacts inside the UI, not UI chrome.
+// Neutral slate nodes = text always readable. Orange edges = brand presence without noise.
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'dark',
+  theme: 'base',
   securityLevel: 'loose',
-  fontFamily: 'var(--font-mono)',
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  flowchart: {
+    htmlLabels: true,
+    curve: 'basis',
+    nodeSpacing: 55,
+    rankSpacing: 65,
+    padding: 14,
+  },
+  themeVariables: {
+    // ── Surfaces (neutral slate — not branded) ──
+    background:           '#0d1117',
+    mainBkg:              '#161b22',
+    secondBkg:            '#1c2333',
+    tertiaryBkg:          '#1c2333',
+    // ── Borders (subtle, not orange) ──
+    nodeBorder:           '#30363d',
+    clusterBkg:           'rgba(22,27,34,0.7)',
+    clusterBorder:        '#30363d',
+    // ── Text (always legible on slate) ──
+    nodeTextColor:        '#e6edf3',
+    edgeLabelBackground:  '#0d1117',
+    labelTextColor:       '#8b949e',
+    titleColor:           '#e6edf3',
+    // ── Edges: brand orange — the ONE orange touch ──
+    lineColor:            '#f97316',
+    // ── Node variants (all neutral, different depths) ──
+    primaryColor:         '#1c2333',
+    primaryBorderColor:   '#30363d',
+    primaryTextColor:     '#e6edf3',
+    secondaryColor:       '#161b22',
+    secondaryBorderColor: '#30363d',
+    secondaryTextColor:   '#e6edf3',
+    tertiaryColor:        '#21262d',
+    tertiaryBorderColor:  '#30363d',
+    tertiaryTextColor:    '#e6edf3',
+    // ── Misc ──
+    labelBoxBkgColor:     '#161b22',
+    labelBoxBorderColor:  '#30363d',
+    fontFamily:           'ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontSize:             '12px',
+  },
 })
 
 interface MermaidChartProps {
@@ -18,7 +77,7 @@ interface MermaidChartProps {
  * Bulletproof Mermaid v11 component for React.
  * Handles high-frequency updates during AI streaming.
  */
-export function MermaidChart({ chart, background = 'rgba(0,0,0,0.2)' }: MermaidChartProps) {
+export function MermaidChart({ chart, background }: MermaidChartProps) {
   const [svg, setSvg] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [isRendering, setIsRendering] = useState(false)
@@ -36,8 +95,23 @@ export function MermaidChart({ chart, background = 'rgba(0,0,0,0.2)' }: MermaidC
         // Pre-process common LLM errors:
         // 1. Replace literal \n with <br/> inside quoted strings or labels
         let processedChart = cleanChart.replace(/\\n/g, '<br/>')
-        
-        // 2. Try to wrap unquoted labels that contain special chars (advanced, but let's stick to basics first)
+
+        // 2. Mermaid 11 does not support rgba() in classDef — replace with hex equivalents
+        processedChart = processedChart.replace(
+          /\bclassDef\b([^\n]*)/g,
+          (_line: string, rest: string) => {
+            const fixed = rest.replace(/rgba?\([^)]+\)/g, (rgba: string) => {
+              // Extract r,g,b from rgba/rgb and convert to hex
+              const m = rgba.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
+              if (!m) return '#374151'
+              const r = parseInt(m[1]).toString(16).padStart(2, '0')
+              const g = parseInt(m[2]).toString(16).padStart(2, '0')
+              const b = parseInt(m[3]).toString(16).padStart(2, '0')
+              return `#${r}${g}${b}`
+            })
+            return `classDef${fixed}`
+          }
+        )
 
         // v11 render is async and requires a unique ID per call to avoid cache collisions
         const renderId = `mermaid-${uniqueId}-${Math.random().toString(36).slice(2, 6)}`
@@ -73,19 +147,26 @@ export function MermaidChart({ chart, background = 'rgba(0,0,0,0.2)' }: MermaidC
   if (svg) {
     return (
       <div style={{ position: 'relative', margin: '16px 0', width: '100%' }}>
-        <div 
-          dangerouslySetInnerHTML={{ __html: svg }} 
-          style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            background, 
-            padding: '24px', 
-            borderRadius: 12, 
-            border: '1px solid var(--c-border-hi)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+        {/* Label above diagram */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(249,115,22,0.12)' }} />
+          <span style={{ fontFamily: 'monospace', fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(249,115,22,0.45)' }}>diagram</span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(249,115,22,0.12)' }} />
+        </div>
+        <div
+          className="corvin-mermaid"
+          dangerouslySetInnerHTML={{ __html: svg }}
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            background: background ?? 'linear-gradient(160deg, #0d0f17 0%, #111420 100%)',
+            padding: '20px 16px',
+            borderRadius: 10,
+            border: '1px solid rgba(249,115,22,0.12)',
+            boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3), 0 4px 24px rgba(0,0,0,0.3)',
             overflowX: 'auto',
             transition: 'opacity 0.2s',
-            opacity: isRendering ? 0.8 : 1
+            opacity: isRendering ? 0.75 : 1
           }} 
         />
         {isRendering && (
@@ -93,7 +174,7 @@ export function MermaidChart({ chart, background = 'rgba(0,0,0,0.2)' }: MermaidC
              position: 'absolute', top: 12, right: 12,
              display: 'flex', alignItems: 'center', gap: 6,
              background: 'rgba(0,0,0,0.5)', padding: '4px 10px', borderRadius: 6,
-             fontSize: '0.6rem', color: 'var(--c-signal)', fontFamily: 'var(--font-mono)',
+             fontSize: '0.65rem', color: 'var(--c-signal)', fontFamily: 'var(--font-mono)',
              backdropFilter: 'blur(4px)', border: '1px solid rgba(249,115,22,0.2)'
            }}>
              <div style={{ width: 8, height: 8, borderRadius: '50%', border: '1px solid currentColor', borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />

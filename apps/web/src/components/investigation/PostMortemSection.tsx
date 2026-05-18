@@ -19,7 +19,7 @@ export function PostMortemSection({ requestId, isExecuted, serviceName, duration
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
 
-  const { data: existing, isLoading: checking } = useQuery<PostMortem>({
+  const { data: existing } = useQuery<PostMortem>({
     queryKey: ['postmortem', requestId],
     queryFn: () => fetchPostMortem(requestId),
     retry: false,
@@ -57,7 +57,7 @@ export function PostMortemSection({ requestId, isExecuted, serviceName, duration
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {!isExecuted && (
             <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.62rem', fontWeight: 700,
+              fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
               letterSpacing: '0.1em', padding: '2px 7px', borderRadius: 2,
               background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)',
               color: 'var(--c-yellow)', textTransform: 'uppercase',
@@ -108,15 +108,15 @@ export function PostMortemSection({ requestId, isExecuted, serviceName, duration
             border: '1px solid var(--c-border)', borderRadius: 12
           }}>
             <div style={{ textAlign: 'center', borderRight: '1px solid var(--c-border)' }}>
-              <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Service</div>
+              <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Service</div>
               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--c-text)' }}>{serviceName}</div>
             </div>
             <div style={{ textAlign: 'center', borderRight: '1px solid var(--c-border)' }}>
-              <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>TTR (Resolution)</div>
+              <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>TTR (Resolution)</div>
               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--c-green)' }}>{duration || '—'}</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Learning Loop</div>
+              <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Learning Loop</div>
               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--c-signal)' }}>CAPTURED</div>
             </div>
           </div>

@@ -92,7 +92,7 @@ function EvidenceSourceRow({
         )}
 
         <span style={{
-          fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--c-text-faint)',
+          fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)',
           marginLeft: 10, flexShrink: 0, transition: 'transform 0.15s',
           transform: open ? 'rotate(90deg)' : 'none', display: 'inline-block',
         }}>▶</span>
@@ -105,10 +105,10 @@ function EvidenceSourceRow({
             background: 'var(--c-surface-2)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-faint)' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)' }}>
               {count > 10 ? `first 10 of ${count} records` : `${count} record${count !== 1 ? 's' : ''}`}
             </span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--c-signal)' }}>JSON</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-signal)' }}>JSON</span>
           </div>
           <pre style={{
             margin: 0, padding: '12px 14px',
@@ -143,10 +143,6 @@ export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
     if (Array.isArray(s.data)) return sum + s.data.length
     return sum + (Object.keys(s.data).length > 0 ? 1 : 0)
   }, 0)
-  const activeSources = sources.filter(s =>
-    Array.isArray(s.data) ? s.data.length > 0 : Object.keys(s.data).length > 0
-  ).length
-
   const segHeights = [14, 11, 8, 12, 9]
 
   return (
@@ -171,7 +167,7 @@ export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
             }}>
               Telemetry Intelligence &middot; {totalRecords} points
             </span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', marginLeft: 8 }}>
+            <span style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', marginLeft: 8 }}>
               {isOpen ? '▼' : '▶'}
             </span>
           </div>

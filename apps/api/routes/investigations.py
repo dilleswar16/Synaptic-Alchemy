@@ -394,6 +394,72 @@ def get_topology(
     return topology.model_dump()
 
 
+@router.get("/topology/live", response_model=dict)
+def get_topology_live() -> dict:
+    """Return live pod state from AKS, grouped by service, in ServiceTopology format.
+
+    Unlike /topology (which is built from past DB investigations), this endpoint
+    calls the AKS API directly so it always reflects the current running state.
+
+    Even when AKS is unreachable, the known CHAD service architecture (APIM gateway,
+    fundapis, partnerapis, fundsso with correct routing) is always included as static
+    nodes so the canvas is never blank.
+    """
+    from corvin.evidence.aks_adapter import AKSAdapter
+    from corvin.investigation.topology import (
+        ServiceTopology, TopologyNode, TopologyEdge,
+        _inject_apim_topology,
+    )
+
+    # AKS deployment label → logical CHAD service name.
+    # The `app` label in k8s is "chad-fundapis" but we call it "fundapis" everywhere.
+    _AKS_NAME_MAP: dict[str, str] = {
+        "chad-fundapis":    "fundapis",
+        "chad-fundsso":     "fundsso",
+        "chad-partnerapis": "partnerapis",
+    }
+
+    # ── Static CHAD architecture — always shown regardless of AKS reachability ──
+    # Start with the three logical service nodes. Live pod data will update their
+    # status and attach pod children to these same nodes (not duplicate them).
+    nodes: dict[str, TopologyNode] = {
+        "svc:fundapis":    TopologyNode(id="svc:fundapis",    label="fundapis",    kind="service", status="high"),
+        "svc:partnerapis": TopologyNode(id="svc:partnerapis", label="partnerapis", kind="service", status="high"),
+        "svc:fundsso":     TopologyNode(id="svc:fundsso",     label="fundsso",     kind="service", status="high"),
+    }
+    edges: dict[tuple[str, str, str | None], TopologyEdge] = {}
+
+    # Inject APIM gateway + API route nodes (fundapis/partnerapis) + PingFederate (fundsso)
+    _inject_apim_topology(nodes, edges)
+
+    # ── Live pod data from AKS — overlay status + pod children ───────────────
+    try:
+        adapter = AKSAdapter()
+        result = adapter.list_all_pods()
+        for svc in result.get("services", []):
+            raw_name = svc["name"]
+            # Normalise "chad-fundapis" → "fundapis" so pods attach to the right node
+            logical_name = _AKS_NAME_MAP.get(raw_name, raw_name)
+            svc_id = f"svc:{logical_name}"
+            live_status = svc.get("status", "high")
+            # Update or create the service node with the live status
+            nodes[svc_id] = TopologyNode(id=svc_id, label=logical_name, kind="service", status=live_status)
+            for pod in svc.get("pods", []):
+                pod_name = pod.get("name", "")
+                pod_id = f"pod:{pod_name}"
+                phase = pod.get("phase") or "Unknown"
+                containers = pod.get("containers", [])
+                any_bad = any(not c.get("ready", True) for c in containers)
+                pod_status = "hot" if (phase not in ("Running", "Succeeded") or any_bad) else "high"
+                nodes[pod_id] = TopologyNode(id=pod_id, label=pod_name, kind="pod", status=pod_status)
+                edges[(svc_id, pod_id, "runs")] = TopologyEdge(source=svc_id, target=pod_id, label="runs")
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("topology/live AKS call failed (static nodes still returned): %s", exc)
+
+    return ServiceTopology(nodes=list(nodes.values()), edges=list(edges.values())).model_dump()
+
+
 @router.get("/score", response_model=dict)
 def get_service_score(
     service_name: str = Query(..., description="Service name to score"),

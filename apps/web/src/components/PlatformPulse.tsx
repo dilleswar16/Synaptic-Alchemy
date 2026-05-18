@@ -44,7 +44,7 @@ export function PlatformPulse() {
       }} />
       <span style={{ 
         fontFamily: 'var(--font-mono)', 
-        fontSize: '0.62rem', 
+        fontSize: '0.7rem', 
         color: 'var(--c-signal)', 
         textTransform: 'uppercase',
         fontWeight: 700,

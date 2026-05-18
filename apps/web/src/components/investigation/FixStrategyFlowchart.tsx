@@ -1,44 +1,78 @@
-import React from 'react'
 import MermaidChart from '../common/MermaidChart'
+
+interface FixAction {
+  title: string
+  risk_level: string
+  estimated_impact?: string
+}
 
 interface FixStrategyFlowchartProps {
   serviceName: string
-  actions: Array<{ title: string; risk_level: string }>
+  actions: FixAction[]
+  rcaConfidence?: string
 }
 
-export function FixStrategyFlowchart({ serviceName, actions }: FixStrategyFlowchartProps) {
+const RISK_LABEL: Record<string, string> = { low: 'LOW', medium: 'MEDIUM', high: 'HIGH' }
+
+/** Word-wrap into Mermaid <br/>-joined lines */
+function wrapText(text: string, maxLen = 38): string {
+  if (text.length <= maxLen) return text
+  const words = text.split(' ')
+  const lines: string[] = []
+  let cur = ''
+  for (const w of words) {
+    const next = cur ? `${cur} ${w}` : w
+    if (next.length > maxLen) { if (cur) lines.push(cur); cur = w } else cur = next
+  }
+  if (cur) lines.push(cur)
+  return lines.join('<br/>')
+}
+
+/** Escape special Mermaid chars, then wrap */
+function safeLabel(raw: string, maxWrap = 38): string {
+  const safe = String(raw || '')
+    .replace(/"/g, "'")
+    .replace(/[\[\]{}]/g, '')
+    .replace(/\n/g, ' ')
+    .trim()
+  return wrapText(safe, maxWrap)
+}
+
+/** Extract key clause from a long string (up to first comma or maxChars) */
+function digest(raw: string, maxChars = 52): string {
+  const t = String(raw || '').trim()
+  const ci = t.search(/,/)
+  const clause = (ci > 20 && ci <= 72) ? t.slice(0, ci) : t.slice(0, maxChars)
+  return safeLabel(clause.trim())
+}
+
+export function FixStrategyFlowchart({ serviceName, actions, rcaConfidence }: FixStrategyFlowchartProps) {
   if (!actions || actions.length === 0) return null
 
-  // Safe escaping for Mermaid labels
-  const esc = (str: string) => str.replace(/"/g, "'").replace(/\n/g, '<br/>')
+  const confSuffix = rcaConfidence ? ` · ${rcaConfidence} confidence` : ''
+  const svcLabel = safeLabel(serviceName, 22)
 
   let chart = 'graph TD\n'
-  chart += `  Start(["Trigger: ${esc(serviceName)} Alert"]) --> Analysis{"Analyze Evidence"}\n`
-  chart += `  Analysis --> Detect{"Root Cause Detected"}\n`
-  
+  chart += `  Start["⚠ ${svcLabel}<br/>RCA Confirmed${confSuffix}"] --> A0\n`
+
   actions.forEach((action, i) => {
     const risk = action.risk_level.toLowerCase()
-    const style = risk === 'high' ? 'critical' : risk === 'medium' ? 'warn' : 'safe'
-    const nodeId = `Action${i}`
-    chart += `  Detect --> ${nodeId}["${esc(action.title)}"]:::${style}\n`
+    const riskTag = RISK_LABEL[risk] ?? risk.toUpperCase()
+    const titleLabel = digest(action.title, 50)
+    const nextId = i < actions.length - 1 ? `A${i + 1}` : 'Gate'
+    chart += `  A${i}["${i + 1}. ${titleLabel}<br/>${riskTag} RISK"] --> ${nextId}\n`
   })
-  
-  chart += '  Detect --> Manual["Manual SRE Review"]:::warn\n'
-  
-  // Styles
-  chart += '  classDef critical fill:rgba(239,68,68,0.1),stroke:#ef4444,color:#ef4444,stroke-width:2px\n'
-  chart += '  classDef warn fill:rgba(249,115,22,0.1),stroke:#f97316,color:#f97316\n'
-  chart += '  classDef safe fill:rgba(34,197,94,0.1),stroke:#22c55e,color:#22c55e\n'
-  chart += '  classDef default fill:rgba(255,255,255,0.05),stroke:rgba(255,255,255,0.2),color:#fff\n'
+
+  chart += `  Gate[["Human Approval Required<br/>${actions.length} action${actions.length > 1 ? 's' : ''} need SRE sign-off"]]\n`
 
   return (
     <div style={{ marginTop: 24, marginBottom: 24 }}>
       <div style={{
-        fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+        fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
         letterSpacing: '0.14em', textTransform: 'uppercase',
         color: 'var(--c-text-muted)', marginBottom: 12,
       }}>
-        Fix Decision Tree
+        Fix Execution Plan
       </div>
       <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: 8, border: '1px solid var(--c-border)' }}>
         <MermaidChart chart={chart} background="transparent" />

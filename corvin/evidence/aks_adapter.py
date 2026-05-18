@@ -255,6 +255,61 @@ class AKSAdapter:
 
         return deleted
 
+    def list_all_pods(self, namespace: str | None = None) -> dict[str, Any]:
+        """List ALL pods in the namespace, grouped by service (via the `app` label).
+
+        Returns a dict with key ``services``: a list of dicts, each with:
+          - ``name``: service/deployment label value
+          - ``namespace``: kubernetes namespace
+          - ``pods``: list of pod dicts (same format as get_pod_context)
+          - ``status``: 'hot' | 'recovering' | 'high' (healthy)
+
+        Returns ``{"services": []}`` if clients are not configured or on error.
+        """
+        if self._core_v1 is None:
+            logger.warning("AKSAdapter.list_all_pods skipped: clients not configured")
+            return {"services": []}
+
+        ns = namespace or self._config.get("default_namespace", "default")
+        try:
+            pod_list = self._core_v1.list_namespaced_pod(namespace=ns)
+        except Exception as exc:
+            logger.warning("AKSAdapter.list_all_pods failed: %s", exc)
+            return {"services": []}
+
+        # Group pods by their `app` label (fall back to deployment prefix)
+        by_service: dict[str, list[dict[str, Any]]] = {}
+        for pod in pod_list.items:
+            labels = pod.metadata.labels or {}
+            svc = labels.get("app") or labels.get("app.kubernetes.io/name") or ""
+            if not svc:
+                # Derive from pod name: strip last two hash segments
+                parts = (pod.metadata.name or "").split("-")
+                svc = "-".join(parts[:-2]) if len(parts) > 2 else pod.metadata.name
+            by_service.setdefault(svc, []).append(_pod_to_dict(pod))
+
+        services = []
+        for svc_name, pods in by_service.items():
+            # Determine service status from pod health
+            any_failed = any(
+                p.get("phase") not in ("Running", "Succeeded") or
+                any(not c.get("ready", True) for c in p.get("containers", []))
+                for p in pods
+            )
+            any_restarting = any(
+                any(c.get("restart_count", 0) > 3 for c in p.get("containers", []))
+                for p in pods
+            )
+            status = "hot" if any_failed else ("recovering" if any_restarting else "high")
+            services.append({
+                "name": svc_name,
+                "namespace": ns,
+                "pods": pods,
+                "status": status,
+            })
+
+        return {"services": services}
+
     def rollback_deployment(
         self,
         service_name: str,

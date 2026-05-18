@@ -140,7 +140,7 @@ function AuditTimeline({ replay }: { replay: ReplayPayload }) {
                 </span>
                 {stage.chip && (
                   <span style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '0.58rem', fontWeight: 700,
+                    fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 700,
                     letterSpacing: '0.07em', textTransform: 'uppercase',
                     padding: '2px 7px', borderRadius: 3,
                     background: `${stage.chipColor}18`,
@@ -165,7 +165,7 @@ function AuditTimeline({ replay }: { replay: ReplayPayload }) {
                 {stage.timestamp}
               </div>
               {stage.delta && (
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-signal)', marginTop: 3, letterSpacing: '0.04em' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-signal)', marginTop: 3, letterSpacing: '0.04em' }}>
                   {stage.delta}
                 </div>
               )}
@@ -214,7 +214,7 @@ export function AuditTrailSection({ requestId, defaultOpen = false }: { requestI
             </span>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                <span style={{ 
-                 fontFamily: 'var(--font-mono)', fontSize: '0.58rem', fontWeight: 800, 
+                 fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 800, 
                  background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4,
                  color: 'var(--c-text-faint)', border: '1px solid var(--c-border)'
                }}>
@@ -222,7 +222,7 @@ export function AuditTrailSection({ requestId, defaultOpen = false }: { requestI
                </span>
                {duration && (
                  <span style={{ 
-                   fontFamily: 'var(--font-mono)', fontSize: '0.58rem', fontWeight: 800, 
+                   fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 800, 
                    background: 'rgba(34,197,94,0.1)', padding: '2px 6px', borderRadius: 4,
                    color: 'var(--c-green)', border: '1px solid rgba(34,197,94,0.3)'
                  }}>

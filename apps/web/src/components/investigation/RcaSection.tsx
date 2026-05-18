@@ -140,11 +140,11 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
       {/* Executive Overview Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
         <div style={{ padding: '16px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10 }}>
-          <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--c-red)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Primary Root Cause</div>
+          <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--c-red)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Primary Root Cause</div>
           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--c-text)', lineHeight: 1.4 }}>{rca.root_cause}</div>
         </div>
         <div style={{ padding: '16px', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 10 }}>
-          <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--c-signal)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Service Context</div>
+          <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--c-signal)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Service Context</div>
           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--c-text)', lineHeight: 1.4 }}>
             {request.service_name} <span style={{ opacity: 0.5, fontWeight: 400 }}>in</span> {request.environment}
           </div>
@@ -155,7 +155,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
       {/* Analysis summary */}
       <div style={{ marginBottom: 24 }}>
         <div style={{
-          fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+          fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
           letterSpacing: '0.14em', textTransform: 'uppercase',
           color: 'var(--c-text-muted)', marginBottom: 12,
         }}>
@@ -167,13 +167,13 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
       </div>
 
       {/* Decision Flowchart */}
-      {fix_strategy && <FixStrategyFlowchart serviceName={request.service_name} actions={fix_strategy.actions} />}
+      {fix_strategy && <FixStrategyFlowchart serviceName={request.service_name} actions={fix_strategy.actions} rcaConfidence={rca.confidence} />}
 
       {/* Contributing factors */}
       {rca.contributing_factors?.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <div style={{
-            fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 700,
+            fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
             letterSpacing: '0.14em', textTransform: 'uppercase',
             color: 'var(--c-text-muted)', marginBottom: 12,
           }}>
@@ -206,7 +206,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
                   <span style={{ fontSize: '0.8rem', marginTop: 2 }}>{chipLabel === 'no issue' ? '✅' : '🔴'}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{
-                      fontFamily: 'var(--font-mono)', fontSize: '0.55rem',
+                      fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
                       fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase',
                       color: chipColor, marginBottom: 4
                     }}>
@@ -235,7 +235,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
           }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                fontFamily: 'var(--font-display)', fontSize: '0.6rem', fontWeight: 800,
+                fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 800,
                 letterSpacing: '0.14em', textTransform: 'uppercase',
                 color: 'var(--c-signal)', marginBottom: 4,
               }}>

@@ -74,7 +74,7 @@ export function SimilarIncidentsSection({ incidents }: { incidents: SimilarIncid
               {isOpen && (
                 <div style={{ padding: '14px' }}>
                   <div style={{
-                    fontFamily: 'var(--font-display)', fontSize: '0.58rem', fontWeight: 700,
+                    fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
                     letterSpacing: '0.13em', textTransform: 'uppercase',
                     color: 'var(--c-text-muted)', marginBottom: 6,
                   }}>
@@ -84,7 +84,7 @@ export function SimilarIncidentsSection({ incidents }: { incidents: SimilarIncid
                     {inc.root_cause}
                   </p>
                   <div style={{
-                    fontFamily: 'var(--font-display)', fontSize: '0.58rem', fontWeight: 700,
+                    fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
                     letterSpacing: '0.13em', textTransform: 'uppercase',
                     color: 'var(--c-text-muted)', marginBottom: 6,
                   }}>
