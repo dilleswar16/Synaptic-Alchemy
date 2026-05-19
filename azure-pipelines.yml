@@ -1,0 +1,34 @@
+# Azure DevOps Pipeline — Corvin UI → Azure Static Web Apps
+#
+# Required pipeline variables (set in ADO → Pipelines → Library):
+#   AZURE_STATIC_WEB_APPS_API_TOKEN  (secret)
+#     Azure Portal → your Static Web App → Overview → "Manage deployment token"
+#   VITE_API_URL  (plain)
+#     https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net
+
+trigger:
+  branches:
+    include:
+      - feature/azure-openai
+      - main
+  paths:
+    include:
+      - apps/web/**
+      - azure-pipelines.yml
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+    submodules: false
+
+  - task: AzureStaticWebApp@0
+    displayName: 'Build and Deploy Corvin UI to Azure SWA'
+    inputs:
+      app_location: 'apps/web'
+      api_location: ''
+      output_location: 'dist'
+      azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN)
+    env:
+      VITE_API_URL: $(VITE_API_URL)
