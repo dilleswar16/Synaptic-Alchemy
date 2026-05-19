@@ -520,7 +520,7 @@ export default function ApimChart({ data, compact = false }: ApimChartProps) {
   return (
     <div style={{
       marginTop: 4,
-      background: 'rgba(0,0,0,0.25)',
+      background: 'var(--c-surface-2)',
       border: '1px solid var(--c-border-hi)',
       borderRadius: 12,
       overflow: 'hidden',

@@ -1,5 +1,6 @@
 import { useState, useEffect, useId } from 'react'
 import mermaid from 'mermaid'
+import { useTheme } from '../../context/ThemeContext'
 
 // Inject global CSS. Force-replace on HMR reloads so changes take effect immediately.
 // SVG spec: CSS properties always beat SVG presentation attributes (fill="...").
@@ -9,34 +10,81 @@ if (typeof document !== 'undefined') {
   const css = `
     .corvin-mermaid svg { max-width: 100%; height: auto; overflow: visible; }
 
-    /* ALL rects → white. Covers node boxes, edge label pills, everything.
-       Specificity: (0,1,2). Beats any SVG fill attribute. */
+    /* ── Dark mode (default): dark elevated nodes, light text ── */
     .corvin-mermaid svg rect {
-      fill: #ffffff;
-      stroke: #94a3b8;
+      fill: #1e2433 !important;
+      stroke: #3a4558 !important;
     }
 
-    /* Cluster/subgraph rects → dark navy. Specificity (0,2,1) beats rule above. */
     .corvin-mermaid svg .cluster rect {
-      fill: #131c2e;
-      stroke: #475569;
+      fill: #111827 !important;
+      stroke: #2d3748 !important;
     }
 
-    /* Edge label pills — subtle orange tint to tie them to their arrow */
     .corvin-mermaid svg .edgeLabel rect {
-      fill: #1c1a14;
-      stroke: rgba(249,115,22,0.3);
+      fill: #2a2318 !important;
+      stroke: rgba(249,115,22,0.4) !important;
     }
 
-    /* ALL text → dark (#1e293b). White rects everywhere means dark text everywhere. */
-    .corvin-mermaid svg text {
-      fill: #1e293b;
+    .corvin-mermaid svg text, .corvin-mermaid svg tspan {
+      fill: #e2e8f0 !important;
       font-family: 'JetBrains Mono', 'Fira Mono', monospace;
     }
 
-    /* Cluster title text → light (cluster bg is dark). Specificity (0,2,1). */
-    .corvin-mermaid svg .cluster text {
-      fill: #94a3b8;
+    .corvin-mermaid svg .cluster text, .corvin-mermaid svg .cluster tspan {
+      fill: #94a3b8 !important;
+    }
+
+    .corvin-mermaid svg .edgeLabel text, .corvin-mermaid svg .edgeLabel tspan {
+      fill: #f97316 !important;
+    }
+
+    /* ── Light mode: white nodes on subtle gray canvas ── */
+    [data-theme="light"] .corvin-mermaid svg rect {
+      fill: #ffffff !important;
+      stroke: #64748b !important;
+    }
+    [data-theme="light"] .corvin-mermaid svg .cluster rect {
+      fill: #f8fafc !important;
+      stroke: #64748b !important;
+    }
+    [data-theme="light"] .corvin-mermaid svg .edgeLabel rect {
+      fill: #fff7ed !important;
+      stroke: rgba(234,88,12,0.4) !important;
+    }
+    [data-theme="light"] .corvin-mermaid svg text, [data-theme="light"] .corvin-mermaid svg tspan {
+      fill: #0f172a !important;
+    }
+    [data-theme="light"] .corvin-mermaid svg foreignObject span,
+    [data-theme="light"] .corvin-mermaid svg foreignObject div,
+    [data-theme="light"] .corvin-mermaid svg foreignObject p {
+      color: #0f172a !important;
+    }
+    [data-theme="light"] .corvin-mermaid svg .cluster text, [data-theme="light"] .corvin-mermaid svg .cluster tspan {
+      fill: #334155 !important;
+    }
+    [data-theme="light"] .corvin-mermaid svg .cluster foreignObject span,
+    [data-theme="light"] .corvin-mermaid svg .cluster foreignObject div {
+      color: #334155 !important;
+    }
+    [data-theme="light"] .corvin-mermaid svg .edgeLabel text, [data-theme="light"] .corvin-mermaid svg .edgeLabel tspan {
+      fill: #c2410c !important;
+    }
+    [data-theme="light"] .corvin-mermaid svg .edgeLabel foreignObject span,
+    [data-theme="light"] .corvin-mermaid svg .edgeLabel foreignObject div {
+      color: #c2410c !important;
+    }
+    [data-theme="light"] .corvin-mermaid svg .edgePaths path {
+      stroke: #ea580c !important;
+    }
+    [data-theme="light"] .corvin-mermaid svg path.flowchart-link {
+      stroke: #ea580c !important;
+    }
+
+    /* Light-mode container: slate-tinted canvas so white nodes pop */
+    [data-theme="light"] .corvin-mermaid {
+      background: linear-gradient(160deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+      border-color: #cbd5e1 !important;
     }
   `
   if (existing) {
@@ -50,23 +98,97 @@ if (typeof document !== 'undefined') {
 }
 
 /**
- * Patch Mermaid SVG string: strip gradient defs and replace url() fill refs.
- * With htmlLabels:false there is no foreignObject, so no CSS gradient pattern issue.
+ * Patch Mermaid SVG using DOM parsing — regex is unreliable on complex SVG.
+ * Sets theme-correct fills/strokes on every element directly.
  */
-function sanitizeSvg(raw: string): string {
-  let out = raw
-    // Remove gradient/pattern defs
-    .replace(/<linearGradient[\s\S]*?<\/linearGradient>/g, '')
-    .replace(/<pattern[\s\S]*?<\/pattern>/g, '')
-    // Replace url() fill refs on rects with white (node boxes)
-    .replace(/(<rect(?:[^>]*?))fill="url\([^)]*\)"([^>]*?>)/g, '$1fill="#ffffff"$2')
-    .replace(/fill="url\([^)]*\)"/g, 'fill="#ffffff"')
-    // Stamp node text fill as dark so it wins over the global light default
-    // Works by targeting text elements that are siblings of rects with white fill
-    // Mermaid sets fill as a presentation attribute; CSS overrides it, so this is belt-and-suspenders
-    .replace(/(<text[^>]*class="[^"]*(?:nodeLabel|label)[^"]*"[^>]*)>/g,
-      (_m, prefix) => prefix.includes('fill=') ? `${prefix}>` : `${prefix} fill="#1e293b">`)
-  return out
+function setFillStroke(el: Element, fill: string, stroke?: string) {
+  el.setAttribute('fill', fill)
+  ;(el as HTMLElement).style?.setProperty?.('fill', fill, 'important')
+  // Also set directly on style attribute string for SVG elements without style object
+  const existingStyle = el.getAttribute('style') || ''
+  const cleaned = existingStyle
+    .replace(/fill\s*:\s*[^;]+;?/gi, '')
+    .replace(/stroke\s*:\s*[^;]+;?/gi, '')
+    .trim()
+  let newStyle = `fill: ${fill} !important;`
+  if (stroke) {
+    el.setAttribute('stroke', stroke)
+    newStyle += ` stroke: ${stroke} !important;`
+  }
+  el.setAttribute('style', cleaned ? `${cleaned}; ${newStyle}` : newStyle)
+}
+
+function sanitizeSvg(raw: string, isLight: boolean): string {
+  const textColor   = isLight ? '#0f172a' : '#e2e8f0'
+  const nodeFill    = isLight ? '#ffffff' : '#1e2433'
+  const nodeStroke  = isLight ? '#64748b' : '#3a4558'
+  const clusterFill = isLight ? '#f8fafc' : '#111827'
+  const clusterStroke = isLight ? '#64748b' : '#2d3748'
+  const edgeLabelBg   = isLight ? '#fff7ed' : '#2a2318'
+  const edgeLabelText = isLight ? '#c2410c' : '#f97316'
+  const clusterText   = isLight ? '#334155' : '#94a3b8'
+  const edgeColor     = isLight ? '#ea580c' : '#f97316'
+
+  const wrapper = document.createElement('div')
+  wrapper.innerHTML = raw
+  const svg = wrapper.querySelector('svg')
+  if (!svg) return raw
+
+  // Remove gradients and patterns that cause url() fill issues
+  svg.querySelectorAll('linearGradient, pattern').forEach(el => el.remove())
+
+  // --- Edge labels (specific — must come before general) ---
+  svg.querySelectorAll('.edgeLabel rect').forEach(r => setFillStroke(r, edgeLabelBg, 'rgba(249,115,22,0.4)'))
+  svg.querySelectorAll('.edgeLabel text, .edgeLabel tspan').forEach(t => setFillStroke(t, edgeLabelText))
+
+  // --- Clusters ---
+  svg.querySelectorAll('.cluster rect').forEach(r => setFillStroke(r, clusterFill, clusterStroke))
+  svg.querySelectorAll('.cluster text, .cluster tspan').forEach(t => setFillStroke(t, clusterText))
+
+  // --- General rects (nodes) — skip those already handled ---
+  svg.querySelectorAll('rect').forEach(r => {
+    if (r.closest('.edgeLabel') || r.closest('.cluster')) return
+    setFillStroke(r, nodeFill, nodeStroke)
+  })
+
+  // --- All text/tspan NOT in edgeLabel or cluster ---
+  svg.querySelectorAll('text, tspan').forEach(t => {
+    if (t.closest('.edgeLabel') || t.closest('.cluster')) return
+    setFillStroke(t, textColor)
+  })
+
+  // --- foreignObject HTML labels (span, div, p) ---
+  svg.querySelectorAll('foreignObject span, foreignObject div, foreignObject p').forEach(el => {
+    const parent = el.closest('.edgeLabel') || el.closest('.cluster')
+    let color = textColor
+    if (el.closest('.edgeLabel')) color = edgeLabelText
+    else if (el.closest('.cluster')) color = clusterText
+    ;(el as HTMLElement).style.setProperty('color', color, 'important')
+  })
+
+  // --- Polygons (diamond/decision shapes) ---
+  svg.querySelectorAll('polygon').forEach(p => {
+    if (p.closest('.edgeLabel') || p.closest('.cluster')) return
+    setFillStroke(p, nodeFill, nodeStroke)
+  })
+
+  // --- Circles (for circular/stadium nodes) ---
+  svg.querySelectorAll('circle').forEach(c => {
+    if (c.closest('.edgeLabel') || c.closest('.cluster') || c.closest('marker')) return
+    setFillStroke(c, nodeFill, nodeStroke)
+  })
+
+  // --- Edge paths ---
+  svg.querySelectorAll('.edgePaths path, path.flowchart-link').forEach(p => {
+    p.setAttribute('stroke', edgeColor)
+    const s = p.getAttribute('style') || ''
+    p.setAttribute('style', s.replace(/stroke\s*:[^;]+;?/gi, '') + `; stroke: ${edgeColor} !important;`)
+  })
+
+  // --- Arrowhead markers ---
+  svg.querySelectorAll('marker path').forEach(p => setFillStroke(p, edgeColor, edgeColor))
+
+  return wrapper.innerHTML
 }
 
 // htmlLabels: false — pure SVG <text>/<tspan> rendering.
@@ -86,26 +208,26 @@ mermaid.initialize({
   },
   themeVariables: {
     background:           '#0d1117',
-    mainBkg:              '#ffffff',
-    primaryColor:         '#ffffff',
-    secondaryColor:       '#ffffff',
-    tertiaryColor:        '#ffffff',
-    nodeBorder:           '#94a3b8',
-    primaryBorderColor:   '#94a3b8',
-    secondaryBorderColor: '#94a3b8',
-    tertiaryBorderColor:  '#94a3b8',
-    primaryTextColor:     '#1e293b',
-    secondaryTextColor:   '#1e293b',
-    tertiaryTextColor:    '#1e293b',
-    nodeTextColor:        '#1e293b',
+    mainBkg:              '#1e2433',
+    primaryColor:         '#1e2433',
+    secondaryColor:       '#1e2433',
+    tertiaryColor:        '#1e2433',
+    nodeBorder:           '#3a4558',
+    primaryBorderColor:   '#3a4558',
+    secondaryBorderColor: '#3a4558',
+    tertiaryBorderColor:  '#3a4558',
+    primaryTextColor:     '#e2e8f0',
+    secondaryTextColor:   '#e2e8f0',
+    tertiaryTextColor:    '#e2e8f0',
+    nodeTextColor:        '#e2e8f0',
     lineColor:            '#f97316',
-    edgeLabelBackground:  '#ffffff',
-    labelTextColor:       '#1e293b',
-    clusterBkg:           '#131c2e',
-    clusterBorder:        '#475569',
-    titleColor:           '#e2e8f0',
-    labelBoxBkgColor:     '#ffffff',
-    labelBoxBorderColor:  '#94a3b8',
+    edgeLabelBackground:  '#2a2318',
+    labelTextColor:       '#e2e8f0',
+    clusterBkg:           '#111827',
+    clusterBorder:        '#2d3748',
+    titleColor:           '#94a3b8',
+    labelBoxBkgColor:     '#1e2433',
+    labelBoxBorderColor:  '#3a4558',
     fontFamily:           'ui-monospace, SFMono-Regular, Menlo, monospace',
     fontSize:             '12px',
   },
@@ -121,6 +243,8 @@ interface MermaidChartProps {
  * Handles high-frequency updates during AI streaming.
  */
 export function MermaidChart({ chart, background }: MermaidChartProps) {
+  const { theme } = useTheme()
+  const isLight = theme === 'light'
   const [svg, setSvg] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [isRendering, setIsRendering] = useState(false)
@@ -165,7 +289,7 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
         const { svg: rawSvg } = await mermaid.render(renderId, processedChart)
         
         if (isMounted) {
-          setSvg(sanitizeSvg(rawSvg))
+          setSvg(sanitizeSvg(rawSvg, isLight))
           setError(null)
         }
       } catch (err: any) {
@@ -187,7 +311,7 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
       isMounted = false
       clearTimeout(timeout)
     }
-  }, [chart, uniqueId])
+  }, [chart, uniqueId, isLight])
 
   // If we have a valid SVG, show it (even if we are currently re-rendering)
   if (svg) {
@@ -205,11 +329,13 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
           style={{
             display: 'flex',
             justifyContent: 'center',
-            background: background ?? 'linear-gradient(160deg, #0d0f17 0%, #111420 100%)',
+            background: background ?? (isLight
+              ? 'linear-gradient(160deg, #f1f5f9 0%, #e2e8f0 100%)'
+              : 'linear-gradient(160deg, var(--c-surface) 0%, var(--c-surface-2) 100%)'),
             padding: '24px 20px',
             borderRadius: 10,
-            border: '1px solid var(--c-border)',
-            boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3), 0 4px 24px rgba(0,0,0,0.3)',
+            border: isLight ? '1px solid #cbd5e1' : '1px solid var(--c-border-hi)',
+            boxShadow: isLight ? '0 2px 12px rgba(0,0,0,0.08)' : 'var(--shadow-md, 0 4px 24px rgba(0,0,0,0.3))',
             overflowX: 'auto',
             transition: 'opacity 0.2s',
             opacity: isRendering ? 0.75 : 1

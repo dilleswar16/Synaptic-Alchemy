@@ -19,6 +19,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { fetchTopology, fetchTopologyLive, type ServiceTopology, type TopologyNode } from '../api/client'
+import { useTheme } from '../context/ThemeContext'
 
 // ── Status → accent colour ────────────────────────────────────────────────────
 
@@ -377,7 +378,7 @@ const CORVIN_EDGES: Edge[] = [
 
 // ── Inner flow ────────────────────────────────────────────────────────────────
 
-function TopologyFlow({ appNodes, appEdges }: { appNodes: Node[]; appEdges: Edge[] }) {
+function TopologyFlow({ appNodes, appEdges, colorMode }: { appNodes: Node[]; appEdges: Edge[]; colorMode: 'dark' | 'light' }) {
   const [nodes, , onNodesChange] = useNodesState(appNodes)
   const [edges, , onEdgesChange] = useEdgesState(appEdges)
 
@@ -392,7 +393,7 @@ function TopologyFlow({ appNodes, appEdges }: { appNodes: Node[]; appEdges: Edge
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       nodeTypes={NODE_TYPES}
-      colorMode="dark"
+      colorMode={colorMode}
       fitView
       fitViewOptions={{ padding: 0.1 }}
       onInit={handleInit}
@@ -405,7 +406,7 @@ function TopologyFlow({ appNodes, appEdges }: { appNodes: Node[]; appEdges: Edge
         variant={BackgroundVariant.Dots}
         gap={22}
         size={1.2}
-        color="rgba(249,115,22,0.14)"
+        color={colorMode === 'light' ? 'rgba(234,88,12,0.18)' : 'rgba(249,115,22,0.14)'}
       />
       <Controls
         showInteractive={false}
@@ -428,6 +429,7 @@ type ViewMode = 'app' | 'corvin'
 export function TopologyRadar() {
   const navigate = useNavigate()
   const [viewMode, setViewMode] = useState<ViewMode>('app')
+  const { theme } = useTheme()
 
   // Live AKS pods — used for CHAD App Topology view
   const { data: liveData, isLoading: liveLoading } = useQuery({
@@ -513,8 +515,8 @@ export function TopologyRadar() {
                 {['fundapis', 'fundsso', 'partnerapis'].map((s, i) => (
                   <span key={s} style={{
                     fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '3px 9px',
-                    borderRadius: 999, border: '1px solid rgba(249,115,22,0.2)',
-                    background: 'rgba(249,115,22,0.06)', color: 'var(--c-text-faint)',
+                    borderRadius: 999, border: '1px solid var(--c-signal-dim)',
+                    background: 'var(--c-signal-light)', color: 'var(--c-text-faint)',
                     animation: `signal-pulse 1.8s ease-in-out ${i * 0.25}s infinite`,
                   }}>{s}</span>
                 ))}
@@ -591,7 +593,7 @@ export function TopologyRadar() {
           </div>
         )}
         <ReactFlowProvider>
-          <TopologyFlow key={viewMode} appNodes={activeNodes} appEdges={activeEdges} />
+          <TopologyFlow key={`${viewMode}-${theme}`} appNodes={activeNodes} appEdges={activeEdges} colorMode={theme} />
         </ReactFlowProvider>
       </div>
 
