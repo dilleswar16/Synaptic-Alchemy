@@ -12,9 +12,9 @@
 import type { InvestigationResult } from '../../api/client'
 
 const CONF_COLOUR: Record<string, string> = {
-  high:   '#22c55e',
-  medium: '#f59e0b',
-  low:    '#ef4444',
+  high:   'var(--c-green)',
+  medium: 'var(--c-warning)',
+  low:    'var(--c-red)',
 }
 
 interface Props {
@@ -23,18 +23,18 @@ interface Props {
 }
 
 const STATUS_COLOUR: Record<string, string> = {
-  pending:  '#f97316',
-  approved: '#22c55e',
-  rejected: '#ef4444',
-  executed: '#60a5fa',
+  pending:  'var(--c-signal)',
+  approved: 'var(--c-green)',
+  rejected: 'var(--c-red)',
+  executed: 'var(--c-info)',
 }
 
 export function IncidentHeroCard({ data, approvalStatus }: Props) {
   const { rca, fix_strategy, request } = data
   if (!rca) return null
 
-  const confColour   = CONF_COLOUR[rca.confidence]  ?? '#94a3b8'
-  const statusColour = STATUS_COLOUR[approvalStatus] ?? '#94a3b8'
+  const confColour   = CONF_COLOUR[rca.confidence]  ?? 'var(--c-text-muted)'
+  const statusColour = STATUS_COLOUR[approvalStatus] ?? 'var(--c-text-muted)'
   const topAction    = fix_strategy?.actions?.[0]
 
   const confPct = rca.confidence === 'high' ? 85 : rca.confidence === 'medium' ? 52 : 20
@@ -51,19 +51,19 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
         border: '1.5px solid var(--c-border-hi)',
         marginBottom: 28,
         background: 'var(--c-surface)',
-        boxShadow: '0 4px 32px rgba(0,0,0,0.28)',
+        boxShadow: '0 4px 32px var(--c-shadow)',
       }}
     >
       {/* ── WHAT BROKE ── */}
       <div style={{
         padding: '22px 26px',
-        background: `linear-gradient(160deg, color-mix(in srgb, #ef4444 10%, var(--c-surface)) 0%, var(--c-surface) 100%)`,
+        background: `linear-gradient(160deg, color-mix(in srgb, var(--c-red) 10%, var(--c-surface)) 0%, var(--c-surface) 100%)`,
         borderRight: '1px solid var(--c-border)',
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
         <div style={{
           fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem',
-          letterSpacing: '0.22em', textTransform: 'uppercase', color: '#ef4444',
+          letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--c-red)',
         }}>
           ① What Broke
         </div>
@@ -76,8 +76,8 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{
             fontFamily: 'var(--font-mono)', fontSize: '0.7rem', padding: '2px 9px',
-            borderRadius: 999, background: 'rgba(249,115,22,0.1)',
-            border: '1px solid rgba(249,115,22,0.25)', color: 'var(--c-signal)',
+            borderRadius: 999, background: 'var(--c-signal-light)',
+            border: '1px solid var(--c-signal-dim)', color: 'var(--c-signal)',
           }}>
             {request.environment}
           </span>
@@ -105,13 +105,13 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
       {/* ── WHY IT BROKE ── */}
       <div style={{
         padding: '22px 26px',
-        background: `linear-gradient(160deg, color-mix(in srgb, #f97316 8%, var(--c-surface)) 0%, var(--c-surface) 100%)`,
+        background: `linear-gradient(160deg, color-mix(in srgb, var(--c-signal) 8%, var(--c-surface)) 0%, var(--c-surface) 100%)`,
         borderRight: '1px solid var(--c-border)',
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
         <div style={{
           fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem',
-          letterSpacing: '0.22em', textTransform: 'uppercase', color: '#f97316',
+          letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--c-signal)',
         }}>
           ② Why It Broke
         </div>
@@ -125,7 +125,7 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
             {rca.contributing_factors.slice(0, 2).map((f, i) => (
               <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                <span style={{ color: '#f97316', fontSize: '0.7rem', marginTop: 1, flexShrink: 0 }}>▸</span>
+                <span style={{ color: 'var(--c-signal)', fontSize: '0.7rem', marginTop: 1, flexShrink: 0 }}>▸</span>
                 <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.78rem', color: 'var(--c-text-dim)', lineHeight: 1.45 }}>{f}</span>
               </div>
             ))}
@@ -136,12 +136,12 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
       {/* ── WHAT TO DO ── */}
       <div style={{
         padding: '22px 26px',
-        background: `linear-gradient(160deg, color-mix(in srgb, #22c55e 8%, var(--c-surface)) 0%, var(--c-surface) 100%)`,
+        background: `linear-gradient(160deg, color-mix(in srgb, var(--c-green) 8%, var(--c-surface)) 0%, var(--c-surface) 100%)`,
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
         <div style={{
           fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem',
-          letterSpacing: '0.22em', textTransform: 'uppercase', color: '#22c55e',
+          letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--c-green)',
         }}>
           ③ What To Do
         </div>
@@ -166,9 +166,9 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '2px 7px',
                   borderRadius: 999,
-                  background: topAction.risk_level === 'high' ? 'rgba(239,68,68,0.12)' : topAction.risk_level === 'medium' ? 'rgba(249,115,22,0.12)' : 'rgba(34,197,94,0.12)',
-                  border: `1px solid ${topAction.risk_level === 'high' ? 'rgba(239,68,68,0.3)' : topAction.risk_level === 'medium' ? 'rgba(249,115,22,0.3)' : 'rgba(34,197,94,0.3)'}`,
-                  color: topAction.risk_level === 'high' ? '#ef4444' : topAction.risk_level === 'medium' ? '#f97316' : '#22c55e',
+                  background: topAction.risk_level === 'high' ? 'var(--c-error-bg)' : topAction.risk_level === 'medium' ? 'var(--c-signal-light)' : 'var(--c-success-bg)',
+                  border: `1px solid ${topAction.risk_level === 'high' ? 'var(--c-error-border)' : topAction.risk_level === 'medium' ? 'var(--c-signal-dim)' : 'var(--c-success-border)'}`,
+                  color: topAction.risk_level === 'high' ? 'var(--c-red)' : topAction.risk_level === 'medium' ? 'var(--c-signal)' : 'var(--c-green)',
                   textTransform: 'uppercase', letterSpacing: '0.08em',
                 }}>
                   {topAction.risk_level} risk
@@ -177,8 +177,8 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
               {topAction.requires_approval && (
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '2px 7px',
-                  borderRadius: 999, background: 'rgba(139,92,246,0.1)',
-                  border: '1px solid rgba(139,92,246,0.25)', color: '#a78bfa',
+                  borderRadius: 999, background: 'var(--c-purple-bg)',
+                  border: '1px solid var(--c-purple-border)', color: 'var(--c-purple)',
                   textTransform: 'uppercase', letterSpacing: '0.08em',
                 }}>
                   Approval required

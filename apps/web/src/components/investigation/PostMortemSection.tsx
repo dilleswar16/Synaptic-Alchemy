@@ -115,7 +115,7 @@ export function PostMortemSection({ requestId, isExecuted, hasRca, serviceName, 
       {generateMutation.isPending && !pm && (
         <div style={{
           padding: '24px', borderRadius: 12, border: '1px dashed var(--c-border)',
-          background: 'rgba(255,255,255,0.02)', textAlign: 'center',
+          background: 'var(--c-surface-2)', textAlign: 'center',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12
         }}>
           <div className="animate-pulse-glow" style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid var(--c-signal)', borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
@@ -133,7 +133,7 @@ export function PostMortemSection({ requestId, isExecuted, hasRca, serviceName, 
       {!pm && !generateMutation.isPending && !generateMutation.isError && (hasRca || isExecuted) && (
         <div style={{
           padding: '28px', borderRadius: 12, border: '1px dashed var(--c-border)',
-          background: 'rgba(255,255,255,0.02)', textAlign: 'center',
+          background: 'var(--c-surface-2)', textAlign: 'center',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
         }}>
           <div style={{ fontSize: '2rem' }}>📄</div>

@@ -58,7 +58,7 @@ const CHART_STYLE: React.CSSProperties = {
 }
 
 const AXIS_TICK = { fill: 'var(--c-text-faint)', fontSize: 10 }
-const GRID_STROKE = 'rgba(255,255,255,0.06)'
+const GRID_STROKE = 'var(--c-border)'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -283,7 +283,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
 
   // Power-curve color: transparent near 0, glowing orange at max
   function cellBg(v: number): string {
-    if (v === 0) return 'rgba(255,255,255,0.03)'
+    if (v === 0) return 'var(--c-surface-2)'
     const t = Math.pow(v / maxVal, 0.55)
     // interpolate: #1a0a00 (very dark amber) → #f97316 (bright orange)
     const r = Math.round(26 + (249 - 26) * t)
@@ -332,7 +332,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
                     height: cellH,
                     borderRadius: 4,
                     background: cellBg(v),
-                    border: v > 0 ? '1px solid rgba(249,115,22,0.25)' : '1px solid rgba(255,255,255,0.04)',
+                    border: v > 0 ? '1px solid var(--c-signal-dim)' : '1px solid var(--c-border)',
                     cursor: v > 0 ? 'crosshair' : 'default',
                     transition: 'transform 0.1s, box-shadow 0.1s',
                     boxShadow: v > 0 && v === maxVal ? '0 0 8px rgba(249,115,22,0.5)' : 'none',
@@ -368,7 +368,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
         <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)' }}>0</span>
         <div style={{
           flex: 1, maxWidth: 140, height: 6, borderRadius: 3,
-          background: 'linear-gradient(to right, rgba(255,255,255,0.05), #f97316)',
+          background: 'linear-gradient(to right, var(--c-surface-3), var(--c-signal))',
         }} />
         <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)' }}>{maxVal.toLocaleString()}</span>
       </div>
@@ -386,8 +386,8 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
           zIndex: 9999, whiteSpace: 'nowrap',
           boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
         }}>
-          <span style={{ color: '#f97316', fontWeight: 700 }}>{tooltip.fund}</span>
-          {' '}&nbsp;at <span style={{ color: '#facc15' }}>{tooltip.hour}:00</span>
+          <span style={{ color: 'var(--c-signal)', fontWeight: 700 }}>{tooltip.fund}</span>
+          {' '}&nbsp;at <span style={{ color: 'var(--c-warning)' }}>{tooltip.hour}:00</span>
           {' — '}<span style={{ fontWeight: 700 }}>{tooltip.count.toLocaleString()} req</span>
         </div>
       )}
@@ -402,17 +402,17 @@ function TilesView({ data }: { data: ApimChartData }) {
   const entries = Object.entries(row).filter(([, v]) => v !== null && v !== undefined)
 
   const metricColors: Record<string, string> = {
-    SuccessRate: '#22c55e',
-    ErrorCount: '#ef4444',
-    AvgResponseTimeMs: '#f97316',
-    UniqueMembers: '#38bdf8',
-    TotalRequests: '#a78bfa',
+    SuccessRate: 'var(--c-green)',
+    ErrorCount: 'var(--c-red)',
+    AvgResponseTimeMs: 'var(--c-signal)',
+    UniqueMembers: 'var(--c-info)',
+    TotalRequests: 'var(--c-purple)',
   }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
       {entries.map(([key, val]) => {
-        const color = metricColors[key] ?? '#94a3b8'
+        const color = metricColors[key] ?? 'var(--c-text-muted)'
         const isRate = key.toLowerCase().includes('rate')
         const isMs = key.toLowerCase().includes('ms')
         const suffix = isRate ? '%' : isMs ? 'ms' : ''
@@ -448,7 +448,7 @@ function TableView({ data, compact }: { data: ApimChartData; compact: boolean })
     <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: compact ? 240 : 360, borderRadius: 8, border: '1px solid var(--c-border)' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.68rem', fontFamily: 'var(--font-mono)' }}>
         <thead>
-          <tr style={{ background: 'rgba(255,255,255,0.04)', position: 'sticky', top: 0, zIndex: 1 }}>
+          <tr style={{ background: 'var(--c-surface-2)', position: 'sticky', top: 0, zIndex: 1 }}>
             {columns.map(c => (
               <th key={c} style={{
                 padding: '7px 10px', textAlign: 'left', borderBottom: '1px solid var(--c-border)',
@@ -462,7 +462,7 @@ function TableView({ data, compact }: { data: ApimChartData; compact: boolean })
         </thead>
         <tbody>
           {displayRows.map((row, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
+            <tr key={i} style={{ borderBottom: '1px solid var(--c-border)', background: i % 2 === 0 ? 'transparent' : 'var(--c-surface-2)' }}>
               {columns.map(c => {
                 const v = row[c]
                 const isNum = numericSet.has(c)
@@ -504,7 +504,7 @@ function EmptyState() {
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
+    <div style={{ padding: '12px 14px', borderRadius: 8, background: 'var(--c-error-bg)', border: '1px solid var(--c-error-border)', color: 'var(--c-red)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
       ⚠ {message}
     </div>
   )
@@ -526,19 +526,19 @@ export default function ApimChart({ data, compact = false }: ApimChartProps) {
       overflow: 'hidden',
     }}>
       {/* Header */}
-      <div style={{ padding: '10px 14px 6px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ padding: '10px 14px 6px', borderBottom: '1px solid var(--c-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--c-text)', fontFamily: 'var(--font-body)' }}>
             {title}
           </div>
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
             {api_filter && api_filter !== 'all' && (
-              <span style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.3)', color: '#f97316', fontSize: '0.62rem', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ padding: '2px 7px', borderRadius: 4, background: 'var(--c-signal-light)', border: '1px solid var(--c-signal-dim)', color: 'var(--c-signal)', fontSize: '0.62rem', fontFamily: 'var(--font-mono)' }}>
                 {api_filter}
               </span>
             )}
             {time_range_minutes && (
-              <span style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--c-text-faint)', fontSize: '0.62rem', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ padding: '2px 7px', borderRadius: 4, background: 'var(--c-surface-3)', border: '1px solid var(--c-border)', color: 'var(--c-text-faint)', fontSize: '0.62rem', fontFamily: 'var(--font-mono)' }}>
                 {time_range_minutes >= 10080 ? `${Math.round(time_range_minutes / 10080)}w`
                   : time_range_minutes >= 1440 ? `${Math.round(time_range_minutes / 1440)}d`
                   : time_range_minutes >= 60 ? `${Math.round(time_range_minutes / 60)}h`
@@ -546,7 +546,7 @@ export default function ApimChart({ data, compact = false }: ApimChartProps) {
               </span>
             )}
             {row_count !== undefined && (
-              <span style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', color: '#38bdf8', fontSize: '0.62rem', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', color: 'var(--c-info)', fontSize: '0.62rem', fontFamily: 'var(--font-mono)' }}>
                 {row_count} rows
               </span>
             )}

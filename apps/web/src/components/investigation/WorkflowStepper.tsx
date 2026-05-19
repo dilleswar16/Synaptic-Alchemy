@@ -36,13 +36,13 @@ export function WorkflowStepper({ approvalStatus, hasEvidence, hasRca }: Workflo
         const dotSize   = isActive ? 12 : 8
         const dotBg     = stage.rejected ? 'var(--c-red)'
           : isAfter ? 'transparent' : 'var(--c-signal)'
-        const dotBorder = isAfter ? '1.5px solid rgba(255,255,255,0.15)' : 'none'
+        const dotBorder = isAfter ? '1.5px solid var(--c-text-faint)' : 'none'
         const dotGlow   = isActive && !stage.rejected
-          ? '0 0 0 3px rgba(249,115,22,0.2), 0 0 10px rgba(249,115,22,0.6)' : 'none'
+          ? '0 0 0 3px var(--c-signal-light), 0 0 10px var(--c-signal-glow)' : 'none'
         const labelColor = stage.rejected ? 'var(--c-red)'
           : isActive ? 'var(--c-signal)'
           : isBefore ? 'var(--c-text-dim)' : 'var(--c-text-faint)'
-        const lineColor  = isBefore ? 'rgba(249,115,22,0.4)' : 'var(--c-border)'
+        const lineColor  = isBefore ? 'var(--c-signal-dim)' : 'var(--c-border)'
 
         return (
           <div

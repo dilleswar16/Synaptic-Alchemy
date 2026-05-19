@@ -13,13 +13,13 @@ name: Azure Static Web Apps — Corvin UI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/azure-openai]
     paths:
       - 'apps/web/**'
       - '.github/workflows/azure-static-web-apps.yml'
   pull_request:
     types: [opened, synchronize, reopened, closed]
-    branches: [main]
+    branches: [main, feature/azure-openai]
     paths:
       - 'apps/web/**'
 

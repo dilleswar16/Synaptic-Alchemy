@@ -24,11 +24,11 @@ export function StickyApprovalBar({
         position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
         zIndex: 1000, display: 'flex', alignItems: 'center', gap: 16,
         padding: '12px 18px',
-        background: 'rgba(4,7,10,0.97)',
+        background: 'color-mix(in srgb, var(--c-surface) 97%, transparent)',
         backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(249,115,22,0.35)',
+        border: '1px solid var(--c-signal-dim)',
         borderRadius: 8,
-        boxShadow: '0 12px 48px rgba(0,0,0,0.8), 0 0 0 1px rgba(249,115,22,0.08), inset 0 1px 0 rgba(255,255,255,0.04)',
+        boxShadow: '0 12px 48px rgba(0,0,0,0.8), 0 0 0 1px var(--c-signal-light), inset 0 1px 0 rgba(255,255,255,0.04)',
         width: 'max-content',
       }}
     >
@@ -76,7 +76,7 @@ export function StickyApprovalBar({
         <button
           onClick={onReject}
           className="btn-ghost"
-          style={{ fontSize: '0.7rem', padding: '7px 14px', color: 'var(--c-red)', borderColor: 'rgba(239,68,68,0.3)' }}
+          style={{ fontSize: '0.7rem', padding: '7px 14px', color: 'var(--c-red)', borderColor: 'var(--c-error-border)' }}
         >
           ✗ Reject
         </button>

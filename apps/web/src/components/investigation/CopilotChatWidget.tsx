@@ -15,7 +15,7 @@ interface Props {
 }
 
 // ── SVG Icons ──────────────────────────────────────────────────────────────────
-function CorvinBotIcon({ size = 22, color = '#f97316' }: { size?: number; color?: string }) {
+function CorvinBotIcon({ size = 22, color = 'var(--c-signal)' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -34,25 +34,6 @@ function CorvinBotIcon({ size = 22, color = '#f97316' }: { size?: number; color?
       {/* Antenna */}
       <line x1="16" y1="2" x2="16" y2="6" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
       <circle cx="16" cy="5" r="1.5" fill={color}/>
-    </svg>
-  )
-}
-
-function ChatBubbleIcon({ size = 26 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="cg2" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#fff" stopOpacity="0.95"/>
-          <stop offset="1" stopColor="#fed7aa"/>
-        </linearGradient>
-      </defs>
-      {/* Main bubble */}
-      <path d="M4 6 C4 4.9 4.9 4 6 4 L26 4 C27.1 4 28 4.9 28 6 L28 20 C28 21.1 27.1 22 26 22 L10 22 L4 28 L4 22 L4 6Z" fill="url(#cg2)"/>
-      {/* Circuit dots */}
-      <circle cx="11" cy="13" r="1.5" fill="#f97316"/>
-      <circle cx="16" cy="13" r="1.5" fill="#f97316"/>
-      <circle cx="21" cy="13" r="1.5" fill="#f97316"/>
     </svg>
   )
 }
@@ -113,18 +94,18 @@ const mdComponents = {
   // v10 fix: `inline` prop is removed. Detect block vs inline by className.
   // Block code has className="language-xxx"; inline code has none.
   pre: ({ children }: { children?: React.ReactNode }) => (
-    <pre style={{ background: '#0d1117', border: '1px solid #30363d', borderRadius: 6, padding: '10px 12px', overflowX: 'auto', margin: '8px 0' }}>
+    <pre style={{ background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 6, padding: '10px 12px', overflowX: 'auto', margin: '8px 0' }}>
       {children}
     </pre>
   ),
   code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
     const isBlock = Boolean(className) // block code has e.g. "language-bash"
     if (isBlock) {
-      return <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72em', color: '#c9d1d9' }}>{children}</code>
+      return <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72em', color: 'var(--c-text-dim)' }}>{children}</code>
     }
     // Inline code
     return (
-      <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78em', background: 'rgba(255,255,255,0.09)', padding: '2px 5px', borderRadius: 4, color: 'var(--c-text)' }}>
+      <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78em', background: 'var(--c-surface-3)', padding: '2px 5px', borderRadius: 4, color: 'var(--c-text)' }}>
         {children}
       </code>
     )
@@ -148,7 +129,7 @@ const mdStyles = `
   .corvin-md h3 { font-size: 0.8rem; }
   .corvin-md blockquote {
     border-left: 3px solid var(--c-signal); margin: 0 0 8px; padding: 4px 10px;
-    color: var(--c-text-dim); background: rgba(249,115,22,0.06); border-radius: 0 4px 4px 0;
+    color: var(--c-text-dim); background: var(--c-signal-light); border-radius: 0 4px 4px 0;
   }
   .corvin-md hr { border: none; border-top: 1px solid var(--c-border); margin: 10px 0; }
   @keyframes corvin-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
@@ -290,15 +271,15 @@ export function CopilotChatWidget({ requestId }: Props) {
           title="Ask Corvin"
           style={{
             position: 'fixed', bottom: 32, right: 32,
-            width: 60, height: 60, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)',
+            width: 56, height: 56, borderRadius: '50%',
+            background: 'var(--c-signal)',
             border: 'none', cursor: 'pointer',
-            boxShadow: '0 8px 32px rgba(249,115,22,0.45)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 9999, transition: 'transform 0.2s, box-shadow 0.2s',
+            zIndex: 9999, transition: 'transform 0.15s, box-shadow 0.15s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(249,115,22,0.6)' }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(249,115,22,0.45)' }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,0.35)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25)' }}
         >
           <CorvinBotIcon size={30} color="rgba(255,255,255,0.95)" />
         </button>
@@ -311,7 +292,7 @@ export function CopilotChatWidget({ requestId }: Props) {
       <style>{mdStyles}</style>
       <div style={{
         position: 'fixed', bottom: 32, right: 32,
-        width: 430, height: 590, borderRadius: 16,
+        width: 'min(430px, calc(100vw - 48px))', height: 'min(590px, calc(100vh - 80px))', borderRadius: 16,
         background: 'color-mix(in srgb, var(--c-surface) 90%, transparent)',
         backdropFilter: 'blur(20px)',
         border: '1px solid var(--c-border-hi)',
@@ -323,7 +304,7 @@ export function CopilotChatWidget({ requestId }: Props) {
         {/* Header */}
         <div style={{ padding: '12px 16px', background: 'var(--c-surface-2)', borderBottom: '1px solid var(--c-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, rgba(249,115,22,0.15) 0%, rgba(234,88,12,0.1) 100%)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--c-signal-light)', border: '1px solid var(--c-signal-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <CorvinBotIcon size={20} />
             </div>
             <div>
@@ -353,7 +334,7 @@ export function CopilotChatWidget({ requestId }: Props) {
                 {(m.role === 'user' || m.content || isStreaming) && (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, maxWidth: '92%' }}>
                     {m.role === 'assistant' && (
-                      <div style={{ marginTop: 2, flexShrink: 0, width: 26, height: 26, borderRadius: 8, background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ marginTop: 2, flexShrink: 0, width: 26, height: 26, borderRadius: 8, background: 'var(--c-signal-light)', border: '1px solid var(--c-signal-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <CorvinBotIcon size={16} />
                       </div>
                     )}
@@ -361,9 +342,9 @@ export function CopilotChatWidget({ requestId }: Props) {
                       padding: '10px 14px',
                       borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                       background: m.role === 'user'
-                        ? 'linear-gradient(135deg, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0.08) 100%)'
+                        ? 'linear-gradient(135deg, var(--c-signal-light) 0%, transparent 100%)'
                         : 'var(--c-surface-2)',
-                      border: `1px solid ${m.role === 'user' ? 'rgba(249,115,22,0.3)' : 'var(--c-border-hi)'}`,
+                      border: `1px solid ${m.role === 'user' ? 'var(--c-signal-dim)' : 'var(--c-border-hi)'}`,
                       color: m.role === 'user' ? 'var(--c-signal)' : 'var(--c-text-dim)',
                       fontFamily: m.role === 'user' ? 'var(--font-mono)' : 'var(--font-body)',
                       fontSize: '0.78rem', lineHeight: 1.55,

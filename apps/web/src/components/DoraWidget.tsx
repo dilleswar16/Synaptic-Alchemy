@@ -11,9 +11,9 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchDora } from '../api/client'
 
 const TREND_COLOR: Record<string, string> = {
-  improving:  '#22c55e',
-  stable:     '#f59e0b',
-  degrading:  '#ef4444',
+  improving:  'var(--c-green)',
+  stable:     'var(--c-warning)',
+  degrading:  'var(--c-red)',
 }
 
 const TREND_LABEL: Record<string, string> = {
@@ -86,7 +86,7 @@ export function DoraWidget() {
       label: 'Incident Frequency',
       value: `${data.deployment_frequency}/day`,
       sub:   `${data.total_investigations} incidents · ${data.period_days}d`,
-      color: '#3b82f6',
+      color: 'var(--c-info)',
     },
     {
       label: 'Lead Time (MTTR)',
@@ -100,13 +100,13 @@ export function DoraWidget() {
             ? `${data.mttr_prior_minutes}m`
             : `${(data.mttr_prior_minutes / 60).toFixed(1)}h`}`
         : 'No prior data',
-      color: '#8b5cf6',
+      color: 'var(--c-purple)',
     },
     {
       label: 'Change Failure Rate',
       value: `${data.change_failure_rate_pct}%`,
       sub:   `${data.high_confidence_count} high-confidence`,
-      color: data.change_failure_rate_pct > 60 ? '#ef4444' : '#f59e0b',
+      color: data.change_failure_rate_pct > 60 ? 'var(--c-red)' : 'var(--c-warning)',
     },
     {
       label: 'Recovery Trend',

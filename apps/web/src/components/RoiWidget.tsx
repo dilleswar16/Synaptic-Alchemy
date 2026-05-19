@@ -7,12 +7,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchRoi } from '../api/client'
 
-/** Per-colour tinted backgrounds using rgba so all browsers are happy. */
+/** Per-colour tinted backgrounds using token vars. */
 const TINTS: Record<string, string> = {
-  '#f97316': 'rgba(249,115,22,0.08)',
-  '#22c55e': 'rgba(34,197,94,0.08)',
-  '#3b82f6': 'rgba(59,130,246,0.08)',
-  '#f59e0b': 'rgba(245,158,11,0.08)',
+  'var(--c-signal)': 'var(--c-signal-light)',
+  'var(--c-green)': 'var(--c-success-bg)',
+  'var(--c-info)': 'rgba(59,130,246,0.08)',
+  'var(--c-warning)': 'var(--c-warning-bg)',
 }
 
 function LoadingSkeleton() {
@@ -91,25 +91,25 @@ export function RoiWidget() {
       label:   'Incidents Handled',
       value:   String(data.total_incidents),
       sub:     `${data.incidents_per_day.toFixed(1)}/day avg`,
-      colour:  '#f97316',
+      colour:  'var(--c-signal)',
     },
     {
       label:   'MTTR Reduction',
       value:   `${data.mttr_reduction_pct}%`,
       sub:     `${Math.round(data.corvin_mttr_minutes)}min vs ${Math.round(data.baseline_mttr_minutes)}min baseline`,
-      colour:  '#22c55e',
+      colour:  'var(--c-green)',
     },
     {
       label:   'Engineer Hours Saved',
       value:   `${data.hours_saved}h`,
       sub:     `${Math.round(mttrSavedMin)}min saved per incident`,
-      colour:  '#3b82f6',
+      colour:  'var(--c-info)',
     },
     {
       label:   'Cost Saved This Month',
       value:   savingStr,
       sub:     `vs ${Math.round(data.baseline_mttr_minutes)}min baseline · ${data.period_months}mo window`,
-      colour:  '#f59e0b',
+      colour:  'var(--c-warning)',
     },
   ]
 
@@ -118,14 +118,14 @@ export function RoiWidget() {
       {/* Header */}
       <div style={{ marginBottom: 18 }}>
         <div style={{
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.68rem',
+          fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.75rem',
           letterSpacing: '0.2em', textTransform: 'uppercase',
           color: 'var(--c-signal)', marginBottom: 5,
         }}>
           Corvin ROI
         </div>
         <div style={{
-          fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.1rem',
+          fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.125rem',
           color: 'var(--c-text)',
         }}>
           Business Impact This Month
@@ -152,14 +152,14 @@ export function RoiWidget() {
             }}
           >
             <div style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem',
-              letterSpacing: '0.16em', textTransform: 'uppercase', color: s.colour, opacity: 0.9,
+              fontWeight: 600, fontSize: '0.75rem',
+              letterSpacing: '0.03em', textTransform: 'uppercase', color: s.colour, opacity: 0.9,
             }}>
               {s.label}
             </div>
             <div style={{
-              fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.75rem',
-              color: 'var(--c-text)', lineHeight: 1, letterSpacing: '-0.01em',
+              fontWeight: 700, fontSize: '1.5rem',
+              color: 'var(--c-text)', lineHeight: 1, letterSpacing: '-0.02em',
             }}>
               {s.value}
             </div>

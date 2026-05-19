@@ -68,8 +68,8 @@ export function FixStrategyFlowchart({ serviceName, actions, rcaConfidence }: Fi
   return (
     <div style={{ marginTop: 24, marginBottom: 24 }}>
       <div style={{
-        fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
-        letterSpacing: '0.14em', textTransform: 'uppercase',
+        fontSize: '0.8125rem', fontWeight: 600,
+        letterSpacing: '0.02em',
         color: 'var(--c-text-muted)', marginBottom: 12,
       }}>
         Fix Execution Plan

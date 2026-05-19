@@ -33,7 +33,7 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            background: '#8957e5', color: 'white', width: 32, height: 32,
+            background: 'var(--c-purple)', color: 'white', width: 32, height: 32,
             borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '1.2rem',
           }}>
@@ -42,7 +42,7 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
             </svg>
           </div>
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.85rem', color: '#8957e5' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--c-purple)' }}>
               Pull request successfully merged and closed
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', marginTop: 2 }}>
@@ -72,7 +72,7 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-muted)' }}>
             <span style={{
-              background: '#238636', color: 'white', padding: '3px 8px', borderRadius: 12,
+              background: 'var(--c-green)', color: 'white', padding: '3px 8px', borderRadius: 12,
               fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4,
             }}>
               <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
@@ -92,13 +92,13 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
           </div>
           <pre style={{
             fontFamily: 'var(--font-mono)', fontSize: '0.72rem', lineHeight: 1.5,
-            background: '#0d1117', color: '#c9d1d9', borderRadius: 6, padding: '12px 0',
-            margin: 0, overflowX: 'auto', border: '1px solid #30363d',
+            background: 'var(--c-surface-2)', color: 'var(--c-text-dim)', borderRadius: 6, padding: '12px 0',
+            margin: 0, overflowX: 'auto', border: '1px solid var(--c-border)',
           }}>
             {diffLines.map((line, i) => (
-              <div key={i} style={{ background: 'rgba(46,160,67,0.15)', display: 'flex' }}>
-                <span style={{ color: '#2ea043', opacity: 0.5, userSelect: 'none', width: 40, textAlign: 'right', paddingRight: 12 }}>{i + 1}</span>
-                <span style={{ color: '#e6ffec', whiteSpace: 'pre-wrap' }}>{line}</span>
+              <div key={i} style={{ background: 'var(--c-success-bg)', display: 'flex' }}>
+                <span style={{ color: 'var(--c-green)', opacity: 0.5, userSelect: 'none', width: 40, textAlign: 'right', paddingRight: 12 }}>{i + 1}</span>
+                <span style={{ color: 'var(--c-green)', whiteSpace: 'pre-wrap' }}>{line}</span>
               </div>
             ))}
           </pre>
@@ -110,7 +110,7 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
             onClick={() => setMerged(true)}
             style={{
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.75rem',
-              background: '#238636', color: 'white', border: '1px solid rgba(255,255,255,0.1)',
+              background: 'var(--c-green)', color: 'white', border: '1px solid var(--c-success-border)',
               padding: '6px 16px', borderRadius: 6, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 8,
             }}
@@ -160,7 +160,7 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
           </div>
           
           {mutation.isError && (
-            <div style={{ color: '#ef4444', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: 6, marginBottom: 16 }}>
+            <div style={{ color: 'var(--c-red)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', padding: '8px 12px', background: 'var(--c-error-bg)', borderRadius: 6, marginBottom: 16 }}>
               ✗ {(mutation.error as Error).message}
             </div>
           )}
@@ -170,9 +170,9 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
             disabled={mutation.isPending}
             style={{
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.75rem',
-              background: mutation.isPending ? 'var(--c-surface-3)' : '#2ea043',
+              background: mutation.isPending ? 'var(--c-surface-3)' : 'var(--c-green)',
               color: mutation.isPending ? 'var(--c-text-faint)' : 'white',
-              border: '1px solid rgba(255,255,255,0.1)',
+              border: '1px solid var(--c-success-border)',
               padding: '8px 16px', borderRadius: 6, cursor: mutation.isPending ? 'not-allowed' : 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 8,
               transition: 'all 0.15s',

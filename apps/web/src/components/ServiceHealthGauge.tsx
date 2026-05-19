@@ -100,8 +100,9 @@ export function ServiceHealthGauge({ serviceName, environment = 'dev' }: Props) 
         border: '1px solid var(--c-border)',
         cursor: 'pointer',
         transition: 'border-color 0.2s',
-        outline: 'none',
       }}
+      onFocus={e => e.currentTarget.style.outline = '2px solid var(--c-signal)'}
+      onBlur={e => e.currentTarget.style.outline = 'none'}
       title={`View investigations for ${serviceName}`}
     >
       {/* SVG Gauge */}
@@ -110,7 +111,7 @@ export function ServiceHealthGauge({ serviceName, environment = 'dev' }: Props) 
           <path
             d={BG_ARC}
             fill="none"
-            stroke="rgba(148,163,184,0.12)"
+            stroke="var(--c-border)"
             strokeWidth={STROKE}
             strokeLinecap="round"
           />

@@ -41,10 +41,10 @@ export function PredictiveAlertPanel() {
     return (
       <div className="panel animate-fade-up" style={{ padding: '18px 20px', overflow: 'hidden', position: 'relative' }}>
         <div style={{ position: 'relative' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.03em', textTransform: 'uppercase', color: 'var(--c-text-muted)', marginBottom: 5 }}>
             Pre-Mortem Mode
           </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.25rem', color: 'var(--c-text)', letterSpacing: '0.03em', marginBottom: 18 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.125rem', color: 'var(--c-text)', letterSpacing: '-0.01em', marginBottom: 18 }}>
             Predictive Detections
           </div>
         </div>
@@ -83,14 +83,14 @@ export function PredictiveAlertPanel() {
     <div className="panel animate-fade-up" style={{ padding: '18px 20px', overflow: 'hidden', position: 'relative' }}>
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(circle at 85% 10%, rgba(249,115,22,0.12), transparent 35%)',
+        background: 'radial-gradient(circle at 85% 10%, var(--c-signal-glow), transparent 35%)',
       }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.03em', textTransform: 'uppercase', color: 'var(--c-text-muted)', marginBottom: 5 }}>
             Pre-Mortem Mode
           </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.25rem', color: 'var(--c-text)', letterSpacing: '0.03em' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.125rem', color: 'var(--c-text)', letterSpacing: '-0.01em' }}>
             Predictive Detections
           </div>
         </div>

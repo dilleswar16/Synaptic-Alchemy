@@ -43,36 +43,35 @@ export default function FixStrategyPage() {
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <div className="animate-fade-up" style={{ marginBottom: 28 }}>
           <Link to={`/investigations/${id}`} style={{
-            fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
+            fontFamily: 'var(--font-display)', fontSize: '0.8125rem', fontWeight: 500,
             color: 'var(--c-text-muted)', textDecoration: 'none',
           }}>
             ← Investigation
           </Link>
           <div style={{ marginTop: 14 }}>
             <div style={{
-              fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
-              letterSpacing: '0.18em', textTransform: 'uppercase',
-              color: 'var(--c-signal)', marginBottom: 6,
+              fontSize: '0.75rem', fontWeight: 500,
+              letterSpacing: '0.03em', textTransform: 'uppercase',
+              color: 'var(--c-signal)', marginBottom: 4,
             }}>
               Fix Strategy
             </div>
             <h1 style={{
               margin: '0 0 14px',
-              fontFamily: 'var(--font-display)', fontWeight: 900,
-              fontSize: '2.2rem', letterSpacing: '0.04em',
-              color: 'var(--c-text)', lineHeight: 1,
+              fontFamily: 'var(--font-display)', fontWeight: 700,
+              fontSize: '1.75rem', letterSpacing: '-0.02em',
+              color: 'var(--c-text)', lineHeight: 1.2,
             }}>
-              {data?.request?.service_name?.toUpperCase() ?? (isLoading ? '…' : 'FIX STRATEGY')}
+              {data?.request?.service_name ?? (isLoading ? '…' : 'Fix Strategy')}
             </h1>
             {data && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {data.request?.environment && (
                   <span style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-                    padding: '3px 10px', borderRadius: 2,
-                    background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)',
-                    color: 'var(--c-signal)', letterSpacing: '0.04em',
+                    fontFamily: 'var(--font-mono)', fontSize: '0.75rem',
+                    padding: '3px 10px', borderRadius: 6,
+                    background: 'var(--c-signal-glow)', border: '1px solid var(--c-border-glow)',
+                    color: 'var(--c-signal)',
                   }}>
                     {data.request.environment}
                   </span>

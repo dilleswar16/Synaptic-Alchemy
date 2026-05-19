@@ -23,20 +23,20 @@ import { fetchTopology, fetchTopologyLive, type ServiceTopology, type TopologyNo
 // ── Status → accent colour ────────────────────────────────────────────────────
 
 const STATUS_HEX: Record<string, string> = {
-  hot:        '#ef4444',
-  recovering: '#f59e0b',
-  high:       '#22c55e',
-  medium:     '#f97316',
-  low:        '#94a3b8',
-  observed:   '#3b82f6',
-  supporting: '#60a5fa',  // steel-blue — visible on dark bg unlike slate-500
-  engine:     '#f97316',  // brand orange for Corvin Engine node
+  hot:        'var(--c-red)',
+  recovering: 'var(--c-warning)',
+  high:       'var(--c-green)',
+  medium:     'var(--c-signal)',
+  low:        'var(--c-text-faint)',
+  observed:   'var(--c-info)',
+  supporting: 'var(--c-info)',
+  engine:     'var(--c-signal)',
 }
 
 // ── Custom node components ─────────────────────────────────────────────────────
 
 function ServiceNode({ data }: { data: { label: string; status: string; sublabel?: string; onClick: () => void } }) {
-  const accent = STATUS_HEX[data.status] ?? '#6b7280'
+  const accent = STATUS_HEX[data.status] ?? 'var(--c-text-faint)'
   return (
     <div
       onClick={data.onClick}
@@ -84,13 +84,13 @@ function splitPodName(name: string): [string, string] {
 }
 
 function PodNode({ data }: { data: { label: string; status: string; sublabel?: string } }) {
-  const accent = STATUS_HEX[data.status] ?? '#6b7280'
+  const accent = STATUS_HEX[data.status] ?? 'var(--c-text-faint)'
   const [base, suffix] = splitPodName(data.label)
   const typeLabel = data.sublabel ?? 'pod'
   return (
     <div style={{
       padding: '8px 12px', minWidth: 200, borderRadius: 8,
-      background: `color-mix(in srgb, ${accent} 14%, #0c0e18)`,
+      background: `color-mix(in srgb, ${accent} 14%, var(--c-surface))`,  
       border: `1px solid color-mix(in srgb, ${accent} 50%, transparent)`,
       boxShadow: `0 0 16px color-mix(in srgb, ${accent} 25%, transparent)`,
     }}>
@@ -99,9 +99,9 @@ function PodNode({ data }: { data: { label: string; status: string; sublabel?: s
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: accent, boxShadow: `0 0 8px ${accent}`, flexShrink: 0 }} />
         <div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: accent, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 1, opacity: 0.85 }}>{typeLabel}</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: '#e2e8f0', lineHeight: 1.3 }}>{base}</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--c-text)', lineHeight: 1.3 }}>{base}</div>
           {suffix && (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: '#93c5fd', lineHeight: 1.25, marginTop: 1 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-info)', lineHeight: 1.25, marginTop: 1 }}>
               {suffix}
             </div>
           )}
@@ -116,15 +116,15 @@ function ApiNode({ data }: { data: { label: string; sublabel?: string } }) {
   return (
     <div style={{
       padding: '10px 14px', borderRadius: 10,
-      background: 'linear-gradient(135deg, color-mix(in srgb, #8b5cf6 22%, var(--c-surface)) 0%, var(--c-surface-2) 100%)',
-      border: '1.5px solid color-mix(in srgb, #8b5cf6 45%, var(--c-border-hi))',
-      boxShadow: '0 0 20px color-mix(in srgb, #8b5cf6 22%, transparent), 0 4px 14px rgba(0,0,0,0.3)',
+      background: 'linear-gradient(135deg, color-mix(in srgb, var(--c-purple) 22%, var(--c-surface)) 0%, var(--c-surface-2) 100%)',
+      border: '1.5px solid color-mix(in srgb, var(--c-purple) 45%, var(--c-border-hi))',
+      boxShadow: '0 0 20px color-mix(in srgb, var(--c-purple) 22%, transparent), 0 4px 14px rgba(0,0,0,0.3)',
       textAlign: 'center', minWidth: 110,
     }}>
-      <Handle type="target" position={Position.Left} style={{ background: '#8b5cf6', borderColor: '#8b5cf6', width: 7, height: 7 }} />
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#a78bfa', marginBottom: 3 }}>{data.sublabel ?? 'API ROUTE'}</div>
+      <Handle type="target" position={Position.Left} style={{ background: 'var(--c-purple)', borderColor: 'var(--c-purple)', width: 7, height: 7 }} />
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--c-purple)', marginBottom: 3 }}>{data.sublabel ?? 'API ROUTE'}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '0.82rem', color: 'var(--c-text)' }}>{data.label}</div>
-      <Handle type="source" position={Position.Right} style={{ background: '#8b5cf6', borderColor: '#8b5cf6', width: 7, height: 7 }} />
+      <Handle type="source" position={Position.Right} style={{ background: 'var(--c-purple)', borderColor: 'var(--c-purple)', width: 7, height: 7 }} />
     </div>
   )
 }
@@ -133,14 +133,14 @@ function GatewayNode({ data }: { data: { label: string; sublabel?: string } }) {
   return (
     <div style={{
       padding: '14px 20px', borderRadius: 14,
-      background: 'linear-gradient(135deg, color-mix(in srgb, #0ea5e9 22%, var(--c-surface)) 0%, var(--c-surface-2) 100%)',
-      border: '2px solid color-mix(in srgb, #0ea5e9 60%, var(--c-border-hi))',
-      boxShadow: '0 0 36px color-mix(in srgb, #0ea5e9 32%, transparent), 0 4px 18px rgba(0,0,0,0.35)',
+      background: 'linear-gradient(135deg, color-mix(in srgb, var(--c-info) 22%, var(--c-surface)) 0%, var(--c-surface-2) 100%)',
+      border: '2px solid color-mix(in srgb, var(--c-info) 60%, var(--c-border-hi))',
+      boxShadow: '0 0 36px color-mix(in srgb, var(--c-info) 32%, transparent), 0 4px 18px rgba(0,0,0,0.35)',
       textAlign: 'center', minWidth: 130,
     }}>
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#38bdf8', marginBottom: 5 }}>{data.sublabel ?? 'APIM'}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--c-info)', marginBottom: 5 }}>{data.sublabel ?? 'APIM'}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '0.9rem', color: 'var(--c-text)', letterSpacing: '0.01em' }}>{data.label}</div>
-      <Handle type="source" position={Position.Right} style={{ background: '#0ea5e9', borderColor: '#0ea5e9', width: 9, height: 9 }} />
+      <Handle type="source" position={Position.Right} style={{ background: 'var(--c-info)', borderColor: 'var(--c-info)', width: 9, height: 9 }} />
     </div>
   )
 }
@@ -149,15 +149,15 @@ function BackendNode({ data }: { data: { label: string; sublabel?: string } }) {
   return (
     <div style={{
       padding: '9px 14px', borderRadius: 10,
-      background: 'linear-gradient(135deg, color-mix(in srgb, #10b981 16%, var(--c-surface)) 0%, var(--c-surface-2) 100%)',
-      border: '1.5px solid color-mix(in srgb, #10b981 40%, var(--c-border-hi))',
-      boxShadow: '0 0 18px color-mix(in srgb, #10b981 18%, transparent), 0 4px 12px rgba(0,0,0,0.3)',
+      background: 'linear-gradient(135deg, color-mix(in srgb, var(--c-green) 16%, var(--c-surface)) 0%, var(--c-surface-2) 100%)',
+      border: '1.5px solid color-mix(in srgb, var(--c-green) 40%, var(--c-border-hi))',
+      boxShadow: '0 0 18px color-mix(in srgb, var(--c-green) 18%, transparent), 0 4px 12px rgba(0,0,0,0.3)',
       textAlign: 'center', minWidth: 160,
     }}>
-      <Handle type="target" position={Position.Left} style={{ background: '#10b981', borderColor: '#10b981', width: 7, height: 7 }} />
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#34d399', marginBottom: 3 }}>{data.sublabel ?? 'FUNCTION APP'}</div>
+      <Handle type="target" position={Position.Left} style={{ background: 'var(--c-green)', borderColor: 'var(--c-green)', width: 7, height: 7 }} />
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--c-green)', marginBottom: 3 }}>{data.sublabel ?? 'FUNCTION APP'}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem', color: 'var(--c-text)' }}>{data.label}</div>
-      <Handle type="source" position={Position.Right} style={{ background: '#10b981', borderColor: '#10b981', width: 7, height: 7 }} />
+      <Handle type="source" position={Position.Right} style={{ background: 'var(--c-green)', borderColor: 'var(--c-green)', width: 7, height: 7 }} />
     </div>
   )
 }
@@ -410,8 +410,8 @@ function TopologyFlow({ appNodes, appEdges }: { appNodes: Node[]; appEdges: Edge
       <Controls
         showInteractive={false}
         style={{
-          background: 'rgba(15,17,24,0.85)',
-          border: '1px solid rgba(249,115,22,0.2)',
+          background: 'color-mix(in srgb, var(--c-surface) 85%, transparent)',
+          border: '1px solid var(--c-border-glow)',
           borderRadius: 8,
           overflow: 'hidden',
           backdropFilter: 'blur(8px)',
@@ -479,8 +479,8 @@ export function TopologyRadar() {
                 fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 700,
                 padding: '5px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
                 letterSpacing: '0.06em', textTransform: 'uppercase', transition: 'all 0.18s',
-                background: viewMode === mode ? (mode === 'app' ? '#f97316' : '#f59e0b') : 'transparent',
-                color: viewMode === mode ? '#0d0f17' : 'var(--c-text-dim)',
+                background: viewMode === mode ? (mode === 'app' ? 'var(--c-signal)' : 'var(--c-warning)') : 'transparent',
+                color: viewMode === mode ? 'var(--c-bg)' : 'var(--c-text-dim)',
               }}>
                 {mode === 'app' ? 'App Architecture' : 'Corvin Flow'}
               </button>
@@ -490,14 +490,14 @@ export function TopologyRadar() {
         {/* Canvas loading state */}
         <div style={{
           height: 500, borderRadius: 12, border: '1px solid var(--c-border)',
-          background: 'linear-gradient(160deg, #0d0f17 0%, #111420 100%)',
+          background: 'linear-gradient(160deg, var(--c-surface) 0%, var(--c-surface-2) 100%)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18,
         }}>
           {/* Pulsing ring */}
           <div style={{ position: 'relative', width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(249,115,22,0.15)', animation: 'signal-pulse 2s ease-in-out infinite' }} />
-            <div style={{ position: 'absolute', inset: 8, borderRadius: '50%', border: '2px solid rgba(249,115,22,0.25)', animation: 'signal-pulse 2s ease-in-out infinite 0.3s' }} />
-            <span style={{ width: 28, height: 28, borderRadius: '50%', border: '2.5px solid rgba(249,115,22,0.3)', borderTopColor: '#f97316', display: 'inline-block', animation: 'spin 0.85s linear infinite' }} />
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid var(--c-signal-glow)', animation: 'signal-pulse 2s ease-in-out infinite' }} />
+            <div style={{ position: 'absolute', inset: 8, borderRadius: '50%', border: '2px solid var(--c-border-glow)', animation: 'signal-pulse 2s ease-in-out infinite 0.3s' }} />
+            <span style={{ width: 28, height: 28, borderRadius: '50%', border: '2.5px solid var(--c-border-glow)', borderTopColor: 'var(--c-signal)', display: 'inline-block', animation: 'spin 0.85s linear infinite' }} />
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 6 }}>
@@ -550,9 +550,9 @@ export function TopologyRadar() {
                 padding: '5px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
                 letterSpacing: '0.06em', textTransform: 'uppercase',
                 transition: 'all 0.18s',
-                background: viewMode === mode ? (mode === 'app' ? '#f97316' : '#f59e0b') : 'transparent',
-                color: viewMode === mode ? '#0d0f17' : 'var(--c-text-dim)',
-                boxShadow: viewMode === mode ? `0 0 18px ${mode === 'app' ? 'rgba(249,115,22,0.5)' : 'rgba(245,158,11,0.5)'}` : 'none',
+                background: viewMode === mode ? (mode === 'app' ? 'var(--c-signal)' : 'var(--c-warning)') : 'transparent',
+                color: viewMode === mode ? 'var(--c-bg)' : 'var(--c-text-dim)',
+                boxShadow: viewMode === mode ? `0 0 18px ${mode === 'app' ? 'var(--c-signal-glow)' : 'var(--c-warning-bg)'}` : 'none',
               }}
             >
               {mode === 'app' ? 'App Architecture' : 'Corvin Flow'}
@@ -565,13 +565,13 @@ export function TopologyRadar() {
       <div style={{
         height: 500, borderRadius: 12, overflow: 'hidden',
         border: '1px solid var(--c-border)',
-        background: 'linear-gradient(160deg, #0d0f17 0%, #111420 100%)',
+        background: 'linear-gradient(160deg, var(--c-surface) 0%, var(--c-surface-2) 100%)',
         position: 'relative',
       }}>
         {/* Loading overlay — shown while fetching */}
         {currentlyLoading && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, background: 'rgba(13,15,23,0.85)', backdropFilter: 'blur(4px)' }}>
-            <span style={{ width: 32, height: 32, borderRadius: '50%', border: '2.5px solid rgba(249,115,22,0.3)', borderTopColor: '#f97316', display: 'inline-block', animation: 'spin 0.9s linear infinite', marginBottom: 12 }} />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, background: 'color-mix(in srgb, var(--c-bg) 85%, transparent)', backdropFilter: 'blur(4px)' }}>
+            <span style={{ width: 32, height: 32, borderRadius: '50%', border: '2.5px solid var(--c-border-glow)', borderTopColor: 'var(--c-signal)', display: 'inline-block', animation: 'spin 0.9s linear infinite', marginBottom: 12 }} />
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-signal)', letterSpacing: '0.1em' }}>
               {viewMode === 'app' ? 'QUERYING AKS CLUSTER…' : 'LOADING GRAPH…'}
             </div>

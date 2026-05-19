@@ -95,7 +95,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
         }}>
           <div>
             <span style={{ fontWeight: 800 }}>{syncOutcome.provider}:</span> {syncOutcome.message}
-            {syncOutcome.id && <span style={{ marginLeft: 8, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4 }}>ID: {syncOutcome.id}</span>}
+            {syncOutcome.id && <span style={{ marginLeft: 8, background: 'var(--c-border)', padding: '2px 6px', borderRadius: 4 }}>ID: {syncOutcome.id}</span>}
           </div>
           <button onClick={() => setSyncOutcome(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', padding: '0 5px' }}>×</button>
         </div>
@@ -205,7 +205,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
                 <div key={i} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 10,
                   padding: '12px',
-                  background: 'rgba(255,255,255,0.02)',
+                  background: 'var(--c-surface-2)',
                   border: '1px solid var(--c-border)',
                   borderRadius: 8,
                 }}>

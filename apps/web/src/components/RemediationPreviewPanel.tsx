@@ -30,13 +30,13 @@ export function RemediationPreviewPanel({ requestId }: { requestId: string }) {
   if (!data) return null
 
   return (
-    <div className="panel animate-fade-up" style={{ padding: '22px 24px', background: 'linear-gradient(180deg, var(--c-surface) 0%, color-mix(in srgb, var(--c-signal) 3%, var(--c-surface)) 100%)' }}>
+    <div className="panel animate-fade-up" style={{ padding: '22px 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>
+          <div style={{ fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.03em', textTransform: 'uppercase', color: 'var(--c-text-muted)', marginBottom: 5 }}>
             Remediation Preview
           </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.3rem', color: 'var(--c-text)' }}>
+          <div style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--c-text)' }}>
             What Corvin Will Run
           </div>
         </div>

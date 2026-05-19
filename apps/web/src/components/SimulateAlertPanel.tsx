@@ -29,9 +29,9 @@ const PRESETS: Preset[] = [
     service: 'partnerapis',
     environment: 'dev',
     description: 'Freeze HPA controller — pods stuck at 1 replica despite high load.',
-    accentColor: '#f97316',
-    accentBg: 'rgba(249,115,22,0.15)',
-    accentBorder: 'rgba(249,115,22,0.6)',
+    accentColor: 'var(--c-signal)',
+    accentBg: 'var(--c-signal-light)',
+    accentBorder: 'var(--c-signal-dim)',
   },
   {
     id: 'five_zero_three_spike',
@@ -40,9 +40,9 @@ const PRESETS: Preset[] = [
     service: 'fundapis',
     environment: 'dev',
     description: 'Simulate network partition — flood 18% error rate on /v1/funds.',
-    accentColor: '#ef4444',
-    accentBg: 'rgba(239,68,68,0.15)',
-    accentBorder: 'rgba(239,68,68,0.6)',
+    accentColor: 'var(--c-red)',
+    accentBg: 'var(--c-error-bg)',
+    accentBorder: 'var(--c-error-border)',
   },
   {
     id: 'auth_errors',
@@ -51,9 +51,9 @@ const PRESETS: Preset[] = [
     service: 'fundsso',
     environment: 'dev',
     description: 'Corrupt identity cache — fundsso returning 401 on 35% of requests.',
-    accentColor: '#a855f7',
-    accentBg: 'rgba(168,85,247,0.15)',
-    accentBorder: 'rgba(168,85,247,0.6)',
+    accentColor: 'var(--c-purple)',
+    accentBg: 'var(--c-purple-bg)',
+    accentBorder: 'var(--c-purple-border)',
   },
   {
     id: 'memory_leak',
@@ -62,7 +62,7 @@ const PRESETS: Preset[] = [
     service: 'fundapis',
     environment: 'dev',
     description: 'Deploy memory pressure tool — simulate heap OOM trajectory.',
-    accentColor: '#3b82f6',
+    accentColor: 'var(--c-info)',
     accentBg: 'rgba(59,130,246,0.15)',
     accentBorder: 'rgba(59,130,246,0.6)',
   },
@@ -97,8 +97,8 @@ export function SimulateAlertPanel() {
 
   return (
     <div style={{
-      background: 'rgba(239,68,68,0.03)',
-      border: '1px solid rgba(239,68,68,0.2)',
+      background: 'var(--c-error-bg)',
+      border: '1px solid var(--c-error-border)',
       borderRadius: 12,
       padding: '24px',
       display: 'flex',
@@ -110,18 +110,18 @@ export function SimulateAlertPanel() {
       {/* Hazard stripes top border */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: 4,
-        background: 'repeating-linear-gradient(45deg, #ef4444, #ef4444 10px, transparent 10px, transparent 20px)'
+        background: 'repeating-linear-gradient(45deg, var(--c-red), var(--c-red) 10px, transparent 10px, transparent 20px)'
       }} />
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 8px #ef4444)' }}>☣️</span>
+          <span style={{ fontSize: '1.4rem' }}>☣️</span>
           <div>
             <div style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800,
-              fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase',
-              color: '#ef4444',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              color: 'var(--c-text)',
             }}>
               Chaos Engineering Console
             </div>
@@ -135,9 +135,9 @@ export function SimulateAlertPanel() {
           </div>
         </div>
         <div style={{ 
-          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', 
-          padding: '2px 8px', borderRadius: 4, color: '#ef4444', fontSize: '0.68rem', 
-          fontFamily: 'var(--font-mono)', fontWeight: 800 
+          background: 'var(--c-error-bg)', border: '1px solid var(--c-error-border)', 
+          padding: '2px 8px', borderRadius: 6, color: 'var(--c-red)', fontSize: '0.6875rem', 
+          fontFamily: 'var(--font-mono)', fontWeight: 600 
         }}>
           RED TEAM MODE
         </div>

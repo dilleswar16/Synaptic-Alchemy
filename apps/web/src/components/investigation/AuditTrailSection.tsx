@@ -133,8 +133,8 @@ function AuditTimeline({ replay }: { replay: ReplayPayload }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                 <span style={{
-                  fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 800,
-                  letterSpacing: '0.13em', textTransform: 'uppercase', color: stage.dotColor,
+                  fontWeight: 600, fontSize: '0.75rem',
+                  letterSpacing: '0.02em', color: stage.dotColor,
                 }}>
                   {stage.label}
                 </span>
@@ -143,8 +143,8 @@ function AuditTimeline({ replay }: { replay: ReplayPayload }) {
                     fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 700,
                     letterSpacing: '0.07em', textTransform: 'uppercase',
                     padding: '2px 7px', borderRadius: 3,
-                    background: `${stage.chipColor}18`,
-                    border: `1px solid ${stage.chipColor}44`,
+                    background: `color-mix(in srgb, ${stage.chipColor} 10%, transparent)`,
+                    border: `1px solid color-mix(in srgb, ${stage.chipColor} 27%, transparent)`,
                     color: stage.chipColor,
                   }}>
                     {stage.chip}
@@ -207,15 +207,15 @@ export function AuditTrailSection({ requestId, defaultOpen = false }: { requestI
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.68rem',
-              letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
+              fontWeight: 600, fontSize: '0.75rem',
+              letterSpacing: '0.02em', color: 'var(--c-text-muted)',
             }}>
               Audit Trail
             </span>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                <span style={{ 
                  fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 800, 
-                 background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4,
+                 background: 'var(--c-surface-3)', padding: '2px 6px', borderRadius: 4,
                  color: 'var(--c-text-faint)', border: '1px solid var(--c-border)'
                }}>
                  6 STAGES

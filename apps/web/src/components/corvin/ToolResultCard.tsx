@@ -112,34 +112,33 @@ function ToolLabel({ name }: { name: string }) {
 
 function PlatformStatsCard({ data }: { data: Record<string, unknown> }) {
   const mttr = typeof data.avg_mttr_minutes === 'number' ? data.avg_mttr_minutes.toFixed(1) : '—'
-  const total = data.total_investigations ?? 0
-  const today = data.today_investigations ?? 0
-  const high = (data.confidence_distribution as any)?.high ?? 0
-  const medium = (data.confidence_distribution as any)?.medium ?? 0
-  const low = (data.confidence_distribution as any)?.low ?? 0
+  const total = Number(data.total_investigations ?? 0)
+  const high = Number((data.confidence_distribution as any)?.high ?? 0)
+  const medium = Number((data.confidence_distribution as any)?.medium ?? 0)
+  const low = Number((data.confidence_distribution as any)?.low ?? 0)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
+        <div style={{ background: 'var(--c-surface-2)', padding: '12px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
           <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Avg MTTR</div>
           <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--c-signal)' }}>{mttr}<span style={{ fontSize: '0.7rem', fontWeight: 400, marginLeft: 2 }}>min</span></div>
         </div>
-        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
+        <div style={{ background: 'var(--c-surface-2)', padding: '12px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
           <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 4 }}>Investigations</div>
           <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--c-text)' }}>{total}</div>
         </div>
       </div>
-      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
+      <div style={{ background: 'var(--c-surface-2)', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--c-border)' }}>
         <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginBottom: 8 }}>Confidence Spread</div>
-        <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, display: 'flex', overflow: 'hidden' }}>
-          <div style={{ width: `${(high / total) * 100}%`, background: '#22c55e' }} title={`High: ${high}`} />
-          <div style={{ width: `${(medium / total) * 100}%`, background: '#f97316' }} title={`Med: ${medium}`} />
-          <div style={{ width: `${(low / total) * 100}%`, background: '#ef4444' }} title={`Low: ${low}`} />
+        <div style={{ height: 6, background: 'var(--c-surface-3)', borderRadius: 3, display: 'flex', overflow: 'hidden' }}>
+          <div style={{ width: `${(high / total) * 100}%`, background: 'var(--c-green)' }} title={`High: ${high}`} />
+          <div style={{ width: `${(medium / total) * 100}%`, background: 'var(--c-signal)' }} title={`Med: ${medium}`} />
+          <div style={{ width: `${(low / total) * 100}%`, background: 'var(--c-red)' }} title={`Low: ${low}`} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: '0.65rem' }}>
-          <span style={{ color: '#22c55e' }}>High {high}</span>
-          <span style={{ color: '#f97316' }}>Med {medium}</span>
-          <span style={{ color: '#ef4444' }}>Low {low}</span>
+          <span style={{ color: 'var(--c-green)' }}>High {high}</span>
+          <span style={{ color: 'var(--c-signal)' }}>Med {medium}</span>
+          <span style={{ color: 'var(--c-red)' }}>Low {low}</span>
         </div>
       </div>
     </div>
@@ -152,8 +151,8 @@ function IncidentListCard({ data }: { data: unknown[] }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {items.map((item: any, i) => (
         <div key={i} style={{ 
-          background: 'rgba(255,255,255,0.02)', 
-          border: '1px solid var(--c-border)', 
+          background: 'var(--c-surface-2)', 
+          border: '1px solid var(--c-border)',
           borderRadius: 10, 
           padding: '10px 12px',
           transition: 'border-color 0.15s'
@@ -204,7 +203,7 @@ function ServiceScoreCard({ data }: { data: Record<string, unknown> }) {
     <div style={{ textAlign: 'center', padding: '10px 0' }}>
       <div style={{ position: 'relative', width: 100, height: 100, margin: '0 auto' }}>
         <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
-          <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3" />
+          <circle cx="18" cy="18" r="16" fill="none" stroke="var(--c-surface-3)" strokeWidth="3" />
           <circle cx="18" cy="18" r="16" fill="none" stroke={color} strokeWidth="3" 
             strokeDasharray={`${score}, 100`} strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.8s ease' }} />
         </svg>
@@ -232,7 +231,7 @@ function InvestigationResultCard({ data }: { data: any }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.1), rgba(0,0,0,0))', padding: '14px', borderRadius: 12, border: '1px solid rgba(249,115,22,0.2)' }}>
+      <div style={{ background: 'var(--c-signal-glow)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border-glow)' }}>
         <div style={{ ...LABEL, color: 'var(--c-signal)', fontSize: '0.65rem', marginBottom: 6 }}>Root Cause Summary</div>
         <div style={{ fontSize: '0.82rem', color: 'var(--c-text)', fontWeight: 600, lineHeight: 1.5 }}>{rca.summary}</div>
       </div>
@@ -242,7 +241,7 @@ function InvestigationResultCard({ data }: { data: any }) {
         {actions.slice(0, 2).map((a: any, i: number) => (
           <div key={i} style={{ 
             padding: '8px 12px', 
-            background: 'rgba(255,255,255,0.02)', 
+            background: 'var(--c-surface-2)', 
             border: '1px solid var(--c-border)', 
             borderRadius: 8,
             display: 'flex',
@@ -304,15 +303,15 @@ function RoiCard({ data }: { data: Record<string, unknown> }) {
         <div style={{ fontSize: '2.4rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
           <span style={{ fontSize: '1.2rem', verticalAlign: 'top', marginRight: 2, opacity: 0.7 }}>$</span>{cost}
         </div>
-        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Estimated across {data.period_months ?? 1} month(s)</div>
+        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Estimated across {Number(data.period_months ?? 1)} month(s)</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border)', textAlign: 'center' }}>
+        <div style={{ background: 'var(--c-surface-2)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border)', textAlign: 'center' }}>
           <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#22c55e' }}>{hours}<span style={{ fontSize: '0.7rem', fontWeight: 400, marginLeft: 2 }}>h</span></div>
           <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginTop: 2 }}>Hours Saved</div>
         </div>
-        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border)', textAlign: 'center' }}>
+        <div style={{ background: 'var(--c-surface-2)', padding: '14px', borderRadius: 12, border: '1px solid var(--c-border)', textAlign: 'center' }}>
           <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--c-text)' }}>{String(data.auto_resolved_count ?? 0)}</div>
           <div style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', marginTop: 2 }}>Auto-Resolved</div>
         </div>
@@ -491,9 +490,9 @@ export function ToolCallingSkeleton({ toolName }: { toolName: string }) {
   return (
     <div style={{
       ...CARD_STYLE,
-      border: '1px solid rgba(249,115,22,0.35)',
-      background: 'rgba(249,115,22,0.04)',
-      boxShadow: '0 0 12px rgba(249,115,22,0.08)',
+      border: '1px solid var(--c-border-glow)',
+      background: 'var(--c-signal-glow)',
+      boxShadow: 'none',
     }}>
       {/* Header row: status badge + icon + label */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -514,8 +513,8 @@ export function ToolCallingSkeleton({ toolName }: { toolName: string }) {
           </div>
         </div>
         <span style={{
-          fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 800,
-          letterSpacing: '0.12em', textTransform: 'uppercase',
+          fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 600,
+          letterSpacing: '0.03em', textTransform: 'uppercase',
           padding: '2px 7px', borderRadius: 4,
           background: 'rgba(249,115,22,0.15)',
           border: '1px solid rgba(249,115,22,0.35)',

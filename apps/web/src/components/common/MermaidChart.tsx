@@ -195,9 +195,9 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
       <div style={{ position: 'relative', margin: '16px 0', width: '100%' }}>
         {/* Label above diagram */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          <div style={{ flex: 1, height: 1, background: 'rgba(249,115,22,0.12)' }} />
-          <span style={{ fontFamily: 'monospace', fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(249,115,22,0.45)' }}>diagram</span>
-          <div style={{ flex: 1, height: 1, background: 'rgba(249,115,22,0.12)' }} />
+          <div style={{ flex: 1, height: 1, background: 'var(--c-border)' }} />
+          <span style={{ fontFamily: 'monospace', fontSize: '0.6875rem', letterSpacing: '0.03em', textTransform: 'uppercase', color: 'var(--c-text-faint)' }}>diagram</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--c-border)' }} />
         </div>
         <div
           className="corvin-mermaid"
@@ -208,7 +208,7 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
             background: background ?? 'linear-gradient(160deg, #0d0f17 0%, #111420 100%)',
             padding: '24px 20px',
             borderRadius: 10,
-            border: '1px solid rgba(249,115,22,0.1)',
+            border: '1px solid var(--c-border)',
             boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3), 0 4px 24px rgba(0,0,0,0.3)',
             overflowX: 'auto',
             transition: 'opacity 0.2s',
@@ -221,7 +221,7 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
              display: 'flex', alignItems: 'center', gap: 6,
              background: 'rgba(0,0,0,0.5)', padding: '4px 10px', borderRadius: 6,
              fontSize: '0.65rem', color: 'var(--c-signal)', fontFamily: 'var(--font-mono)',
-             backdropFilter: 'blur(4px)', border: '1px solid rgba(249,115,22,0.2)'
+             backdropFilter: 'blur(4px)', border: '1px solid var(--c-border)'
            }}>
              <div style={{ width: 8, height: 8, borderRadius: '50%', border: '1px solid currentColor', borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
              SYNCING
@@ -236,8 +236,8 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
     return (
       <div style={{ margin: '16px 0' }}>
         <pre style={{ 
-          margin: 0, padding: '16px', background: 'rgba(239,68,68,0.05)', 
-          border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8,
+          margin: 0, padding: '16px', background: 'var(--c-error-bg)', 
+          border: '1px solid var(--c-error-border)', borderRadius: 8,
           fontSize: '0.75rem', color: 'var(--c-text-dim)', overflowX: 'auto'
         }}>
           {chart}
@@ -256,7 +256,7 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
       padding: '40px 20px', 
       borderRadius: 12, 
       border: '1px solid var(--c-border)', 
-      background: 'rgba(249,115,22,0.03)',
+      background: 'var(--c-surface-2)',
       textAlign: 'center',
       display: 'flex',
       flexDirection: 'column',

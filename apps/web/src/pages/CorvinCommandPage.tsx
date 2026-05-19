@@ -94,7 +94,7 @@ const mdComponents: Record<string, React.ComponentType<any>> = {
     if (isMermaid) return <>{children}</>
     return (
       <div style={{ overflowX: 'auto', margin: '8px 0', borderRadius: 8, border: '1px solid var(--c-border)' }}>
-        <pre style={{ margin: 0, background: 'rgba(0,0,0,0.35)', padding: '10px 14px', borderRadius: 8, fontSize: '0.75rem', fontFamily: 'var(--font-mono)', overflowX: 'auto' }}>
+        <pre style={{ margin: 0, background: 'var(--c-surface-2)', padding: '10px 14px', borderRadius: 8, fontSize: '0.75rem', fontFamily: 'var(--font-mono)', overflowX: 'auto' }}>
           {children}
         </pre>
       </div>
@@ -107,7 +107,7 @@ const mdComponents: Record<string, React.ComponentType<any>> = {
     if (className?.startsWith('language-')) {
       return <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{children}</code>
     }
-    return <code style={{ background: 'rgba(249,115,22,0.15)', color: '#f97316', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}>{children}</code>
+    return <code style={{ background: 'var(--c-surface-3)', color: 'var(--c-signal)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}>{children}</code>
   },
   table: ({ children }) => <div style={{ overflowX: 'auto', margin: '8px 0' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.75rem' }}>{children}</table></div>,
   th: ({ children }) => <th style={{ border: '1px solid var(--c-border)', padding: '6px 10px', background: 'var(--c-surface)', color: 'var(--c-signal)', textAlign: 'left' }}>{children}</th>,
@@ -354,22 +354,22 @@ export default function CorvinCommandPage() {
           {/* Header */}
           <div style={{ padding: '16px 14px 10px', borderBottom: '1px solid var(--c-border)', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--c-signal-glow)', border: '1px solid var(--c-border-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <CorvinIcon size={16} />
               </div>
               <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.78rem', color: 'var(--c-text)' }}>CORVIN</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-signal)', letterSpacing: '0.08em' }}>COMMAND CENTER</div>
+                <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--c-text)' }}>Corvin</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--c-text-muted)' }}>Command Center</div>
               </div>
             </div>
             <button
               onClick={handleNewChat}
               style={{
                 width: '100%', padding: '8px 0', borderRadius: 8,
-                background: 'linear-gradient(135deg, #ea580c, #f97316)',
+                background: 'var(--c-signal)',
                 border: 'none', color: '#fff', cursor: 'pointer',
-                fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700,
-                letterSpacing: '0.05em', transition: 'opacity 0.15s',
+                fontSize: '0.8125rem', fontWeight: 500,
+                transition: 'opacity 0.15s',
               }}
               onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
               onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
@@ -395,8 +395,8 @@ export default function CorvinCommandPage() {
                 onClick={() => selectSession(s.id)}
                 style={{
                   padding: '9px 10px', borderRadius: 8, cursor: 'pointer', marginBottom: 2,
-                  background: activeSessionId === s.id ? 'rgba(249,115,22,0.12)' : 'transparent',
-                  border: activeSessionId === s.id ? '1px solid rgba(249,115,22,0.3)' : '1px solid transparent',
+                  background: activeSessionId === s.id ? 'var(--c-signal-glow)' : 'transparent',
+                  border: activeSessionId === s.id ? '1px solid var(--c-border-glow)' : '1px solid transparent',
                   transition: 'background 0.15s',
                   position: 'relative',
                 }}
@@ -423,12 +423,12 @@ export default function CorvinCommandPage() {
         {!activeSessionId ? (
           // Empty state
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-            <div style={{ width: 64, height: 64, borderRadius: 18, background: 'rgba(249,115,22,0.12)', border: '2px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--c-signal-glow)', border: '1px solid var(--c-border-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <CorvinIcon size={36} />
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.4rem', color: 'var(--c-text)' }}>Corvin Command Center</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-text-muted)', marginTop: 6 }}>
+              <div style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--c-text)' }}>Corvin Command Center</div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--c-text-muted)', marginTop: 6 }}>
                 Your AI SRE copilot with live access to the entire platform.
               </div>
             </div>
@@ -449,18 +449,18 @@ export default function CorvinCommandPage() {
                   key={q}
                   onClick={async () => { const s = await createSession(); setSessions(p => [s, ...p]); setActiveSessionId(s.id); setMessages([]); setToolEvents([]); handleSend(q, s.id) }}
                   style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)', color: 'var(--c-text-dim)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.72rem', transition: 'border-color 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.5)'; e.currentTarget.style.color = 'var(--c-signal)' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--c-border-glow)'; e.currentTarget.style.color = 'var(--c-signal)' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--c-border-hi)'; e.currentTarget.style.color = 'var(--c-text-dim)' }}
                 >
                   {q}
                 </button>
               ))}
             </div>
-            <button onClick={handleNewChat} style={{ marginTop: 8, padding: '10px 28px', borderRadius: 10, background: 'linear-gradient(135deg, #ea580c, #f97316)', border: 'none', color: '#fff', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.05em' }}>
+            <button onClick={handleNewChat} style={{ marginTop: 8, padding: '10px 28px', borderRadius: 10, background: 'var(--c-signal)', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 500, fontSize: '0.8125rem' }}>
               Start a new conversation
             </button>
             {sessionError && (
-              <div style={{ marginTop: 12, padding: '10px 16px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', color: '#f87171', fontFamily: 'var(--font-mono)', fontSize: '0.74rem', maxWidth: 480, textAlign: 'center' }}>
+              <div style={{ marginTop: 12, padding: '10px 16px', borderRadius: 8, background: 'var(--c-error-bg)', border: '1px solid var(--c-error-border)', color: 'var(--c-error)', fontSize: '0.8125rem', maxWidth: 480, textAlign: 'center' }}>
                 {sessionError}
               </div>
             )}
@@ -508,7 +508,7 @@ export default function CorvinCommandPage() {
                     <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, maxWidth: m.role === 'user' ? '75%' : '88%' }}>
                         {m.role === 'assistant' && (
-                          <div style={{ marginTop: 2, flexShrink: 0, width: 26, height: 26, borderRadius: 8, background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ marginTop: 2, flexShrink: 0, width: 26, height: 26, borderRadius: 8, background: 'var(--c-signal-glow)', border: '1px solid var(--c-border-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <CorvinIcon size={15} />
                           </div>
                         )}
@@ -516,11 +516,10 @@ export default function CorvinCommandPage() {
                           padding: '10px 14px',
                           borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                           background: m.role === 'user'
-                            ? 'linear-gradient(135deg, rgba(249,115,22,0.15), rgba(249,115,22,0.06))'
+                            ? 'var(--c-signal-glow)'
                             : 'var(--c-surface-2)',
-                          border: `1px solid ${m.role === 'user' ? 'rgba(249,115,22,0.28)' : 'var(--c-border)'}`,
-                          color: m.role === 'user' ? 'var(--c-signal)' : 'var(--c-text-dim)',
-                          fontFamily: m.role === 'user' ? 'var(--font-mono)' : 'var(--font-body)',
+                          border: `1px solid ${m.role === 'user' ? 'var(--c-border-glow)' : 'var(--c-border)'}`,
+                          color: m.role === 'user' ? 'var(--c-text)' : 'var(--c-text-dim)',
                           fontSize: '0.875rem', lineHeight: 1.7, minWidth: 0, overflow: 'hidden',
                           animation: 'fadeSlideIn 0.2s ease',
                         }}>
@@ -541,7 +540,7 @@ export default function CorvinCommandPage() {
                                   >
                                     {/* Animated brain icon */}
                                     <span style={{ fontSize: '0.78rem', lineHeight: 1, filter: isStreaming && !m.thinkingCollapsed ? 'drop-shadow(0 0 4px #a78bfa)' : 'none', transition: 'filter 0.3s' }}>🧠</span>
-                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#a78bfa', flex: 1, textAlign: 'left' }}>
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'uppercase', color: '#a78bfa', flex: 1, textAlign: 'left' }}>
                                       Reasoning
                                       {isStreaming && <span style={{ animation: 'thinkPulse 1.2s ease infinite', display: 'inline-block', marginLeft: 6 }}>·</span>}
                                     </span>
@@ -589,10 +588,10 @@ export default function CorvinCommandPage() {
                                       </div>
                                       {/* Badge */}
                                       <span style={{
-                                        fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 800,
-                                        letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0,
+                                        fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 600,
+                                        letterSpacing: '0.02em', textTransform: 'uppercase', flexShrink: 0,
                                         padding: '2px 5px', borderRadius: 3,
-                                        background: step.status === 'calling' ? 'rgba(249,115,22,0.18)' : 'rgba(14,165,233,0.12)',
+                                        background: step.status === 'calling' ? 'rgba(249,115,22,0.1)' : 'rgba(14,165,233,0.08)',
                                         color: step.status === 'calling' ? '#f97316' : '#38bdf8',
                                       }}>
                                         {step.status === 'calling' ? 'calling' : 'done'}
@@ -656,7 +655,7 @@ export default function CorvinCommandPage() {
               {/* Input bar */}
               <div style={{ padding: '12px 16px', borderTop: '1px solid var(--c-border)', background: 'var(--c-surface)', flexShrink: 0 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)', borderRadius: 12, padding: '8px 12px', transition: 'border-color 0.15s' }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(249,115,22,0.5)')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--c-border-glow)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--c-border-hi)')}>
                   <textarea
                     ref={inputRef}
@@ -682,7 +681,7 @@ export default function CorvinCommandPage() {
                     disabled={loading || !input.trim()}
                     style={{
                       width: 34, height: 34, borderRadius: 8, flexShrink: 0,
-                      background: loading || !input.trim() ? 'rgba(249,115,22,0.2)' : 'linear-gradient(135deg, #ea580c, #f97316)',
+                      background: loading || !input.trim() ? 'var(--c-surface-3)' : 'var(--c-signal)',
                       border: 'none', cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
                       color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '1rem', transition: 'background 0.15s',

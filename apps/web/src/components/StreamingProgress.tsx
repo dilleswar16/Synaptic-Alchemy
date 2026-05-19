@@ -129,8 +129,9 @@ function EvidenceAccordion({
           }} />
         )}
         <span style={{
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.7rem',
-          letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
+          fontWeight: 600, fontSize: '0.8125rem',
+          letterSpacing: '0.02em',
+          color: 'var(--c-text-muted)',
         }}>
           Evidence Sources
         </span>
@@ -244,13 +245,13 @@ function StageTracker({ stages }: { stages: StageEvent[] }) {
                     ? 'var(--c-green)'
                     : active
                     ? 'rgba(249,115,22,0.15)'
-                    : 'rgba(255,255,255,0.04)',
+                    : 'var(--c-surface-2)',
                   border: done
                     ? '2px solid var(--c-green)'
                     : active
                     ? '2px solid var(--c-signal)'
                     : '2px solid var(--c-border)',
-                  color: done ? '#0b0f1a' : active ? 'var(--c-signal)' : 'var(--c-text-faint)',
+                  color: done ? 'var(--c-bg)' : active ? 'var(--c-signal)' : 'var(--c-text-faint)',
                   boxShadow: active ? '0 0 16px rgba(249,115,22,0.5)' : 'none',
                 }}
                 className={active ? 'animate-pulse-glow' : ''}
@@ -490,7 +491,7 @@ function RCASummary({ s }: { s: StageEvent }) {
 
         {/* Summary */}
         {typeof s.summary === 'string' && (
-          <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--c-border)' }}>
+          <div style={{ padding: '12px 14px', borderRadius: 8, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 6 }}>Summary</div>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--c-text-muted)', lineHeight: 1.65 }}>{s.summary}</p>
           </div>
@@ -498,7 +499,7 @@ function RCASummary({ s }: { s: StageEvent }) {
 
         {/* Root cause */}
         {typeof s.root_cause === 'string' && (
-          <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(248,113,113,0.04)', border: '1px solid rgba(248,113,113,0.15)' }}>
+          <div style={{ padding: '12px 14px', borderRadius: 8, background: 'var(--c-error-bg)', border: '1px solid var(--c-error-border)' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--c-red)', marginBottom: 6 }}>Root Cause</div>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--c-text-muted)', lineHeight: 1.65 }}>{s.root_cause}</p>
           </div>
@@ -506,7 +507,7 @@ function RCASummary({ s }: { s: StageEvent }) {
 
         {/* Confidence reasoning */}
         {typeof s.confidence_reasoning === 'string' && s.confidence_reasoning && (
-          <div style={{ padding: '10px 14px', borderRadius: 6, background: 'rgba(249,115,22,0.04)', border: '1px solid rgba(249,115,22,0.15)' }}>
+          <div style={{ padding: '10px 14px', borderRadius: 6, background: 'var(--c-signal-light)', border: '1px solid var(--c-signal-dim)' }}>
             <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>Why this confidence</div>
             <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--c-text-muted)', lineHeight: 1.6, fontStyle: 'italic' }}>{s.confidence_reasoning as string}</p>
           </div>
@@ -514,7 +515,7 @@ function RCASummary({ s }: { s: StageEvent }) {
 
         {/* Contributing factors */}
         {factors.length > 0 && (
-          <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--c-border)' }}>
+          <div style={{ padding: '12px 14px', borderRadius: 8, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 8 }}>Contributing Factors</div>
             <ul style={{ margin: 0, paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: 4 }}>
               {factors.map((f, i) => (
@@ -529,7 +530,7 @@ function RCASummary({ s }: { s: StageEvent }) {
           const refs = Array.isArray(s.evidence_references) ? (s.evidence_references as string[]) : []
           if (!refs.length) return null
           return (
-            <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.015)', border: '1px solid var(--c-border)' }}>
+            <div style={{ padding: '12px 14px', borderRadius: 8, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 8 }}>
                 Evidence References <span style={{ fontWeight: 400, opacity: 0.6 }}>· what the model saw</span>
               </div>
@@ -538,11 +539,11 @@ function RCASummary({ s }: { s: StageEvent }) {
                   <div key={i} style={{
                     display: 'flex', alignItems: 'flex-start', gap: 8,
                     padding: '7px 12px',
-                    borderLeft: '2px solid rgba(249,115,22,0.4)',
-                    background: 'rgba(249,115,22,0.03)',
+                    borderLeft: '2px solid var(--c-signal-dim)',
+                    background: 'var(--c-signal-light)',
                     borderRadius: '0 4px 4px 0',
                   }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'rgba(249,115,22,0.5)', marginTop: 3, flexShrink: 0 }}>↳</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-signal-dim)', marginTop: 3, flexShrink: 0 }}>↳</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-text-dim)', lineHeight: 1.55 }}>{r}</span>
                   </div>
                 ))}
@@ -576,7 +577,7 @@ function FixStrategySummary({ s }: { s: StageEvent }) {
         </div>
       )}
       {typeof s.summary === 'string' && (
-        <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(249,115,22,0.04)', border: '1px solid rgba(249,115,22,0.2)' }}>
+        <div style={{ padding: '12px 14px', borderRadius: 8, background: 'var(--c-signal-light)', border: '1px solid var(--c-signal-dim)' }}>
           <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 6 }}>Strategy</div>
           <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--c-text-muted)', lineHeight: 1.65 }}>{s.summary}</p>
         </div>
@@ -590,7 +591,7 @@ function FixStrategySummary({ s }: { s: StageEvent }) {
               gap: 10,
               padding: '10px 14px',
               borderRadius: 8,
-              background: 'rgba(255,255,255,0.02)',
+              background: 'var(--c-surface-2)',
               border: '1px solid var(--c-border)',
             }}>
               <span style={{
@@ -598,8 +599,8 @@ function FixStrategySummary({ s }: { s: StageEvent }) {
                 width: 22,
                 height: 22,
                 borderRadius: '50%',
-              background: 'rgba(249,115,22,0.1)',
-              border: '1px solid rgba(249,115,22,0.3)',
+              background: 'var(--c-signal-light)',
+              border: '1px solid var(--c-signal-dim)',
                 color: 'var(--c-signal)',
                 fontSize: '0.7rem',
                 fontWeight: 800,
@@ -825,9 +826,9 @@ export default function StreamingProgress({
                 display: 'inline-flex', alignItems: 'center', gap: 4,
                 fontSize: '0.72rem', fontWeight: 600, padding: '3px 8px',
                 borderRadius: 4,
-                background: adoWorkItemId ? 'rgba(0,120,212,0.15)' : 'rgba(120,120,140,0.12)',
-                color: adoWorkItemId ? '#60a5fa' : 'var(--c-text-faint)',
-                border: `1px solid ${adoWorkItemId ? 'rgba(0,120,212,0.35)' : 'rgba(120,120,140,0.2)'}`,
+                background: adoWorkItemId ? 'rgba(0,120,212,0.15)' : 'var(--c-surface-3)',
+                color: adoWorkItemId ? 'var(--c-info)' : 'var(--c-text-faint)',
+                border: `1px solid ${adoWorkItemId ? 'rgba(0,120,212,0.35)' : 'var(--c-border)'}`,
               }}>
                 {adoWorkItemId ? (
                   <>
@@ -844,9 +845,9 @@ export default function StreamingProgress({
                 display: 'inline-flex', alignItems: 'center', gap: 4,
                 fontSize: '0.72rem', fontWeight: 600, padding: '3px 8px',
                 borderRadius: 4,
-                background: emailSent ? 'rgba(34,197,94,0.12)' : 'rgba(120,120,140,0.12)',
-                color: emailSent ? '#4ade80' : 'var(--c-text-faint)',
-                border: `1px solid ${emailSent ? 'rgba(34,197,94,0.3)' : 'rgba(120,120,140,0.2)'}`,
+                background: emailSent ? 'var(--c-success-bg)' : 'var(--c-surface-3)',
+                color: emailSent ? 'var(--c-green)' : 'var(--c-text-faint)',
+                border: `1px solid ${emailSent ? 'var(--c-success-border)' : 'var(--c-border)'}`,
               }}>
                 {emailSent
                   ? <><span style={{ fontSize: '0.8em' }}>✓</span> RCA email sent</>

@@ -73,21 +73,13 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
       style={{
         marginBottom: 16,
         background: 'var(--c-surface)',
-        border: `1px solid ${urgent ? 'rgba(249,115,22,0.4)' : 'var(--c-border-hi)'}`,
+        border: `1px solid ${urgent ? 'var(--c-warning-border)' : 'var(--c-border)'}`,
         borderLeft: `3px solid ${urgent ? 'var(--c-signal)' : 'var(--c-border-hi)'}`,
-        borderRadius: 4,
+        borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
         position: 'relative',
       }}
     >
-      {/* Atmospheric grid */}
-      <div style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none',
-        backgroundImage:
-          'linear-gradient(90deg, rgba(249,115,22,0.018) 1px, transparent 1px),' +
-          'linear-gradient(rgba(249,115,22,0.018) 1px, transparent 1px)',
-        backgroundSize: '36px 36px',
-      }} />
 
       {/* Header bar */}
       <div style={{
@@ -97,31 +89,30 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
         borderBottom: '1px solid var(--c-border)',
         background: 'var(--c-surface-2)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {urgent && (
             <span
               className="animate-pulse-glow"
-              style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--c-signal)', display: 'inline-block', flexShrink: 0 }}
+              style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-signal)', display: 'inline-block', flexShrink: 0 }}
             />
           )}
           <span style={{
-            fontFamily: 'var(--font-display)', fontWeight: 700,
-            fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+            fontSize: '0.75rem', fontWeight: 600,
+            letterSpacing: '0.03em', textTransform: 'uppercase',
             color: urgent ? 'var(--c-signal)' : 'var(--c-text-muted)',
           }}>
             Daily Briefing
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', letterSpacing: '0.04em' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)' }}>
             {fmtTime} · {data.period_hours}h window
           </span>
           <span style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.06em',
-            padding: '2px 7px', borderRadius: 2,
-            background: 'rgba(249,115,22,0.07)',
-            border: '1px solid rgba(249,115,22,0.15)',
-            color: 'var(--c-text-faint)',
+            fontFamily: 'var(--font-mono)', fontSize: '0.6875rem',
+            padding: '2px 8px', borderRadius: 4,
+            background: 'var(--c-surface-3)',
+            color: 'var(--c-text-muted)',
           }}>
             GPT-4.1
           </span>
@@ -154,15 +145,11 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
         <div>
           {/* Greeting */}
           <div style={{
-            fontFamily: 'var(--font-display)', fontWeight: 900,
-            fontSize: '1.4rem', letterSpacing: '0.12em', textTransform: 'uppercase',
-            color: 'var(--c-text)', marginBottom: 16,
-            background: 'linear-gradient(135deg, var(--c-text) 0%, var(--c-signal) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            fontFamily: 'var(--font-display)', fontWeight: 700,
+            fontSize: '1.25rem', letterSpacing: '-0.01em',
+            color: 'var(--c-text)', marginBottom: 12,
           }}>
-            {greeting}, OPERATOR
+            {greeting.charAt(0) + greeting.slice(1).toLowerCase()}, Operator
           </div>
 
           {/* Typewriter narrative */}
@@ -186,16 +173,15 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
             {data.high_confidence_pending > 0 && (
               <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                fontFamily: 'var(--font-display)', fontWeight: 700,
-                fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase',
-                padding: '5px 12px', borderRadius: 2,
-                background: 'rgba(249,115,22,0.1)',
-                border: '1px solid rgba(249,115,22,0.4)',
-                color: 'var(--c-signal)',
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: '0.75rem', fontWeight: 500,
+                padding: '4px 10px', borderRadius: 6,
+                background: 'var(--c-warning-bg)',
+                border: '1px solid var(--c-warning-border)',
+                color: 'var(--c-warning)',
               }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--c-signal)', display: 'inline-block', flexShrink: 0 }} />
-                {data.high_confidence_pending} HIGH-CONF NEEDS APPROVAL
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--c-warning)', display: 'inline-block', flexShrink: 0 }} />
+                {data.high_confidence_pending} high-conf needs approval
               </span>
             )}
             {data.top_services.map((svc, i) => (
@@ -221,8 +207,8 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
             paddingLeft: 24,
           }}>
             <div style={{
-              fontFamily: 'var(--font-display)', fontWeight: 700,
-              fontSize: '0.68rem', letterSpacing: '0.15em', textTransform: 'uppercase',
+              fontSize: '0.6875rem', fontWeight: 600,
+              letterSpacing: '0.03em', textTransform: 'uppercase',
               color: 'var(--c-text-faint)', marginBottom: 4,
             }}>
               Confidence
@@ -234,8 +220,8 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
             ].map(b => (
               <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span style={{
-                  fontFamily: 'var(--font-display)', fontWeight: 700,
-                  fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+                  fontSize: '0.6875rem', fontWeight: 500,
+                  letterSpacing: '0.03em', textTransform: 'uppercase',
                   color: b.value > 0 ? 'var(--c-text-muted)' : 'var(--c-text-faint)',
                   minWidth: 44,
                 }}>
@@ -245,8 +231,7 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
                   height: 4, borderRadius: 2,
                   width: b.value > 0 ? `${Math.max((b.value / maxConf) * 72, 6)}px` : '4px',
                   background: b.value > 0 ? b.color : 'var(--c-surface-3)',
-                  transition: 'width 0.9s cubic-bezier(0.34,1.2,0.64,1)',
-                  boxShadow: b.value > 0 ? `0 0 6px color-mix(in srgb, ${b.color} 40%, transparent)` : 'none',
+                  transition: 'width 0.6s ease-out',
                 }} />
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontWeight: 700,
@@ -293,59 +278,33 @@ function HeroBand({
         position: 'relative',
         overflow: 'hidden',
         marginBottom: 20,
-        background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%), var(--c-surface)',
-        border: '1px solid var(--c-border-hi)',
-        borderLeft: '4px solid var(--c-signal)',
-        borderRadius: 8,
-        boxShadow: '0 0 60px rgba(249, 115, 22, 0.12), 0 4px 24px rgba(0, 0, 0, 0.3)',
+        background: 'var(--c-surface)',
+        border: '1px solid var(--c-border)',
+        borderRadius: 'var(--radius-lg)',
       }}
     >
-      {/* Atmospheric grid overlay */}
-      <div style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none',
-        backgroundImage:
-          'linear-gradient(90deg, rgba(249,115,22,0.015) 1px, transparent 1px),' +
-          'linear-gradient(rgba(249,115,22,0.015) 1px, transparent 1px)',
-        backgroundSize: '52px 52px',
-      }} />
-      {/* Ambient glow top-right */}
-      <div style={{
-        position: 'absolute', top: -100, right: -100,
-        width: 360, height: 360, borderRadius: '50%',
-        background: 'radial-gradient(ellipse, rgba(249,115,22,0.12) 0%, transparent 65%)',
-        pointerEvents: 'none',
-        filter: 'blur(40px)',
-      }} />
-
       <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr auto', gap: 0, padding: '28px 32px' }}>
 
         {/* ── Left: identity + pipeline ── */}
         <div style={{ paddingRight: 32 }}>
           {/* Status beacon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <span
-              className="animate-pulse-glow"
-              style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--c-signal)', flexShrink: 0 }}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--c-success)', flexShrink: 0 }} />
             <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 600,
-              letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-signal)',
+              fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 500,
+              color: 'var(--c-success)',
             }}>
               System Operational
             </span>
           </div>
 
           <h1 style={{
-            margin: '0 0 12px',
-            fontFamily: 'var(--font-display)', fontWeight: 900,
-            fontSize: '3.2rem', letterSpacing: '0.06em',
-            color: 'var(--c-text)', lineHeight: 1,
-            background: 'linear-gradient(180deg, var(--c-text) 0%, var(--c-signal) 60%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            margin: '0 0 10px',
+            fontFamily: 'var(--font-display)', fontWeight: 700,
+            fontSize: '1.75rem', letterSpacing: '-0.02em',
+            color: 'var(--c-text)', lineHeight: 1.2,
           }}>
-            OPERATIONS CENTER
+            Operations Center
           </h1>
           <p style={{
             margin: '0 0 28px',
@@ -363,20 +322,18 @@ function HeroBand({
               <div key={s.stage} style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '6px 14px',
-                    border: '1px solid rgba(249,115,22,0.28)',
-                    borderRadius: 2,
-                    background: 'rgba(249,115,22,0.07)',
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    padding: '5px 12px',
+                    border: '1px solid var(--c-border-hi)',
+                    borderRadius: 6,
+                    background: 'var(--c-surface-2)',
                   }}>
                     <span style={{
-                      width: 7, height: 7, borderRadius: '50%',
+                      width: 6, height: 6, borderRadius: '50%',
                       background: 'var(--c-signal)', display: 'inline-block', flexShrink: 0,
-                      boxShadow: '0 0 6px rgba(249,115,22,0.6)',
                     }} />
                     <span style={{
-                      fontFamily: 'var(--font-display)', fontWeight: 700,
-                      fontSize: '0.72rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+                      fontSize: '0.75rem', fontWeight: 500,
                       color: 'var(--c-text)',
                     }}>
                       {s.stage}
@@ -408,25 +365,23 @@ function HeroBand({
           minWidth: 180,
         }}>
           <div style={{
-            fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700,
-            letterSpacing: '0.18em', textTransform: 'uppercase',
+            fontFamily: 'var(--font-display)', fontSize: '0.6875rem', fontWeight: 600,
+            letterSpacing: '0.03em', textTransform: 'uppercase',
             color: 'var(--c-text-muted)', marginBottom: 4,
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-red)', boxShadow: '0 0 8px var(--c-red)' }} className="animate-pulse-glow" />
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-red)' }} />
             Live Today
           </div>
           <div
             className="animate-count-up"
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '5.5rem',
+              fontSize: '3.5rem',
               fontWeight: 700,
               color: 'var(--c-signal)',
               lineHeight: 1,
-              animation: 'count-up 0.5s 0.1s ease both, glow-pulse 3s 0.6s ease-in-out infinite',
               letterSpacing: '-0.02em',
-              textShadow: '0 0 24px rgba(249,115,22,0.3)',
             }}
           >
             {stats.today_count}
@@ -506,7 +461,6 @@ function MetricCard({
         lineHeight: 1.1,
         letterSpacing: '-0.01em',
         marginTop: 6,
-        textShadow: empty ? 'none' : `0 0 12px color-mix(in srgb, ${accent ?? 'var(--c-text)'} 30%, transparent)`,
       }}>
         {value}
       </div>
@@ -520,54 +474,6 @@ function MetricCard({
           {sub}
         </div>
       )}
-    </div>
-  )
-}
-
-// ── Vertical bar chart ───────────────────────────────────────────────────────
-
-function VerticalBars({ bars }: { bars: { label: string; value: number; color: string }[] }) {
-  const max = Math.max(...bars.map(b => b.value), 1)
-  return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', paddingTop: 4 }}>
-      {bars.map((bar, i) => (
-        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-          {/* Count */}
-          <span style={{
-            fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.92rem',
-            color: bar.value > 0 ? bar.color : 'var(--c-text-faint)',
-            minHeight: '1.2em',
-          }}>
-            {bar.value > 0 ? bar.value : '·'}
-          </span>
-          {/* Bar track */}
-          <div style={{ width: '100%', height: 80, position: 'relative', borderRadius: '2px 2px 0 0', overflow: 'hidden' }}>
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'var(--c-surface-3)',
-            }} />
-            <div style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0,
-              height: bar.value > 0 ? `${Math.max((bar.value / max) * 100, 5)}%` : '0%',
-              background: bar.value > 0
-                ? `linear-gradient(180deg, color-mix(in srgb, ${bar.color} 25%, white) 0%, ${bar.color} 100%)`
-                : 'transparent',
-              transition: 'height 0.8s cubic-bezier(0.34, 1.2, 0.64, 1)',
-              boxShadow: bar.value > 0 ? `0 -4px 16px color-mix(in srgb, ${bar.color} 30%, transparent)` : 'none',
-            }} />
-          </div>
-          {/* Label */}
-          <div style={{ borderTop: '1px solid var(--c-border-hi)', width: '100%', paddingTop: 6, textAlign: 'center' }}>
-            <span style={{
-              fontFamily: 'var(--font-display)', fontWeight: 700,
-              fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: bar.value > 0 ? 'var(--c-text-dim)' : 'var(--c-text-faint)',
-            }}>
-              {bar.label}
-            </span>
-          </div>
-        </div>
-      ))}
     </div>
   )
 }
@@ -627,10 +533,9 @@ function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { theme } = useTheme()
-  const isLight = theme === 'light'
+  const { theme: _theme } = useTheme()
 
-  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: statsRefetch } = useQuery<InvestigationStats>({
+  const { data: stats } = useQuery<InvestigationStats>({
     queryKey: ['stats'],
     queryFn: fetchInvestigationStats,
     refetchInterval: 30_000,
@@ -705,28 +610,28 @@ export default function DashboardPage() {
       <div className="animate-fade-up" style={{ marginBottom: 24 }}>
         <div style={{
           fontFamily: 'var(--font-display)',
-          fontSize: '0.72rem',
-          letterSpacing: '0.18em',
+          fontSize: '0.75rem',
+          fontWeight: 500,
+          letterSpacing: '0.03em',
           textTransform: 'uppercase',
           color: 'var(--c-signal)',
           marginBottom: 4,
-          fontWeight: 800,
         }}>
           Operations Center
         </div>
         <div style={{
           fontFamily: 'var(--font-display)',
-          fontSize: '2rem',
-          lineHeight: 1,
-          letterSpacing: '0.03em',
-          fontWeight: 900,
+          fontSize: '1.5rem',
+          lineHeight: 1.2,
+          letterSpacing: '-0.01em',
+          fontWeight: 700,
           color: 'var(--c-text)',
           marginBottom: 16
         }}>
           Active Investigation Queue
         </div>
 
-        <div className="panel" style={{ overflow: 'hidden', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f9fbff 100%)' : undefined }}>
+        <div className="panel" style={{ overflow: 'hidden' }}>
           {/* Table header */}
           <div style={{
             display: 'grid',
@@ -773,10 +678,10 @@ export default function DashboardPage() {
 
       {/* ── 5. HEALTH & RISK: Service State + Topology ────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12, marginBottom: 16, alignItems: 'start' }}>
-        <div className="panel animate-fade-up" style={{ padding: '18px 20px', background: isLight ? 'linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%)' : undefined }}>
+        <div className="panel animate-fade-up" style={{ padding: '18px 20px' }}>
           <div style={{
-            fontFamily: 'var(--font-display)', fontWeight: 700,
-            fontSize: '0.7rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            fontSize: '0.75rem', fontWeight: 600,
+            letterSpacing: '0.03em', textTransform: 'uppercase',
             color: 'var(--c-text-muted)', marginBottom: 16,
           }}>
             Service Health
@@ -804,10 +709,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── 7. TOOLS: Chaos Engineering (Red Team) ────────────────────── */}
-      <div style={{ marginTop: 40, borderTop: '1px dashed var(--c-border)', paddingTop: 40 }}>
+      <div style={{ marginTop: 40, borderTop: '1px solid var(--c-border)', paddingTop: 40 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-           <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', color: 'var(--c-red)', fontWeight: 800, letterSpacing: '0.2em' }}>SYSTEM STRESS TESTING</div>
-           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 900, color: 'var(--c-text)' }}>Chaos Control Center</h2>
+           <div style={{ fontSize: '0.75rem', color: 'var(--c-text-muted)', fontWeight: 500, letterSpacing: '0.03em', textTransform: 'uppercase' }}>System Stress Testing</div>
+           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--c-text)', marginTop: 4 }}>Chaos Control Center</h2>
         </div>
         <SimulateAlertPanel />
       </div>

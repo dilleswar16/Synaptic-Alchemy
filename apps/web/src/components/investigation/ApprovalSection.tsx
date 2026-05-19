@@ -99,7 +99,7 @@ export function ApprovalSection({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: '0.8rem' }}>✨</span>
-            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--c-success)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Predicted Outcome</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--c-success)', letterSpacing: '0.02em' }}>Predicted Outcome</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ flex: 1 }}>

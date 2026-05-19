@@ -20,12 +20,12 @@ export function Section({ title, children, accent, id, headerRight }: SectionPro
         <div style={{
           padding: '12px 20px',
           borderBottom: '1px solid var(--c-border)',
-          background: 'linear-gradient(90deg, rgba(249,115,22,0.03) 0%, transparent 100%), var(--c-surface-2)',
+          background: 'var(--c-surface-2)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <span style={{
-            fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.76rem',
-            letterSpacing: '0.16em', textTransform: 'uppercase',
+            fontWeight: 600, fontSize: '0.8125rem',
+            letterSpacing: '0.02em',
             color: accent ? 'var(--c-signal)' : 'var(--c-text-dim)',
           }}>
             {title}
@@ -45,8 +45,8 @@ export function InfoRow({ label, children }: { label: string; children: ReactNod
   return (
     <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 10, minHeight: 20 }}>
       <span style={{
-        fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
-        letterSpacing: '0.12em', textTransform: 'uppercase',
+        fontSize: '0.75rem', fontWeight: 500,
+        letterSpacing: '0.03em', textTransform: 'uppercase',
         color: 'var(--c-text-muted)', minWidth: 120, paddingTop: 2,
       }}>
         {label}

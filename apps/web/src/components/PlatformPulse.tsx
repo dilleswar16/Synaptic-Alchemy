@@ -28,8 +28,8 @@ export function PlatformPulse() {
 
   return (
     <div style={{
-      background: 'rgba(249,115,22,0.05)',
-      border: '1px solid rgba(249,115,22,0.15)',
+      background: 'var(--c-surface-2)',
+      border: '1px solid var(--c-border)',
       borderRadius: 6,
       padding: '6px 14px',
       display: 'flex',

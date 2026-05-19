@@ -68,8 +68,8 @@ function SelectField({
           width: '100%', boxSizing: 'border-box',
           padding: '9px 30px 9px 12px',
           background: open ? 'var(--c-surface-2)' : 'var(--c-surface)',
-          border: `1px solid ${open ? 'rgba(249,115,22,0.5)' : 'var(--c-border)'}`,
-          borderRadius: open ? '3px 3px 0 0' : 3,
+          border: `1px solid ${open ? 'var(--c-border-glow)' : 'var(--c-border)'}`,
+          borderRadius: open ? '6px 6px 0 0' : 6,
           color: disabled ? 'var(--c-text-faint)' : 'var(--c-text)',
           fontFamily: 'var(--font-mono)', fontSize: '0.82rem',
           textAlign: 'left', cursor: disabled ? 'not-allowed' : 'pointer',
@@ -95,9 +95,9 @@ function SelectField({
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
           background: 'var(--c-surface-3)',
-          border: '1px solid rgba(249,115,22,0.35)',
-          borderTop: '1px solid rgba(249,115,22,0.15)',
-          borderRadius: '0 0 4px 4px',
+          border: '1px solid var(--c-border-glow)',
+          borderTop: '1px solid var(--c-border)',
+          borderRadius: '0 0 6px 6px',
           boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
           overflow: 'hidden',
         }}>
@@ -112,13 +112,13 @@ function SelectField({
                   padding: '9px 12px',
                   display: 'flex', alignItems: 'center', gap: 8,
                   cursor: isDisabled ? 'not-allowed' : 'pointer',
-                  background: isSelected ? 'rgba(249,115,22,0.1)' : 'var(--c-surface-3)',
+                  background: isSelected ? 'var(--c-signal-glow)' : 'var(--c-surface-3)',
                   borderTop: i > 0 ? '1px solid var(--c-border)' : 'none',
                   transition: 'background 0.1s',
                   opacity: isDisabled ? 0.4 : 1,
                 }}
-                onMouseEnter={e => { if (!isDisabled) (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'rgba(249,115,22,0.16)' : 'var(--c-surface-2)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'rgba(249,115,22,0.1)' : 'var(--c-surface-3)' }}
+                onMouseEnter={e => { if (!isDisabled) (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'var(--c-signal-glow)' : 'var(--c-surface-2)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'var(--c-signal-glow)' : 'var(--c-surface-3)' }}
               >
                 {/* Selected indicator */}
                 <span style={{
@@ -517,7 +517,7 @@ export default function InvestigationsPage() {
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 4 }}>
             Investigation Console
           </div>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 900, letterSpacing: '0.04em', color: 'var(--c-text)', lineHeight: 1 }}>
+          <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--c-text)', lineHeight: 1.2 }}>
             INVESTIGATIONS
           </h1>
         </div>

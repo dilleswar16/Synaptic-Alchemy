@@ -125,8 +125,7 @@ export default function InvestigationDetailPage() {
             <Link
               to="/investigations"
               style={{
-                fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
-                letterSpacing: '0.1em', textTransform: 'uppercase',
+                fontFamily: 'var(--font-display)', fontSize: '0.8125rem', fontWeight: 500,
                 color: 'var(--c-text-muted)', textDecoration: 'none',
               }}
             >
@@ -136,38 +135,33 @@ export default function InvestigationDetailPage() {
               <Link
                 to={`/investigations?service=${encodeURIComponent(data.request.service_name)}&env=${encodeURIComponent(data.request.environment)}`}
                 style={{
-                  fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.68rem',
-                  letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: 'var(--c-text-faint)', textDecoration: 'none',
-                  padding: '4px 10px', borderRadius: 2,
+                  fontSize: '0.75rem', fontWeight: 500,
+                  color: 'var(--c-text-muted)', textDecoration: 'none',
+                  padding: '4px 10px', borderRadius: 6,
                   border: '1px solid var(--c-border)',
                   background: 'var(--c-surface-2)',
                 }}
               >
-                All {data.request.service_name.toUpperCase()} →
+                All {data.request.service_name} →
               </Link>
             )}
           </div>
 
           <div style={{ marginTop: 14 }}>
             <div style={{
-              fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
-              letterSpacing: '0.18em', textTransform: 'uppercase',
-              color: 'var(--c-signal)', marginBottom: 6,
+              fontSize: '0.75rem', fontWeight: 500,
+              letterSpacing: '0.03em', textTransform: 'uppercase',
+              color: 'var(--c-signal)', marginBottom: 4,
             }}>
               Investigation
             </div>
             <h1 style={{
-              margin: '0 0 16px',
-              fontFamily: 'var(--font-display)', fontWeight: 900,
-              fontSize: '2.6rem', letterSpacing: '0.05em',
-              color: 'var(--c-text)', lineHeight: 1,
-              background: 'linear-gradient(135deg, var(--c-signal) 0%, var(--c-text) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
+              margin: '0 0 14px',
+              fontFamily: 'var(--font-display)', fontWeight: 700,
+              fontSize: '1.75rem', letterSpacing: '-0.02em',
+              color: 'var(--c-text)', lineHeight: 1.2,
             }}>
-              {data?.request?.service_name?.toUpperCase() ?? (isLoading ? '…' : 'INVESTIGATION')}
+              {data?.request?.service_name ?? (isLoading ? '…' : 'Investigation')}
             </h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {data?.request?.incident_priority && (
@@ -183,11 +177,11 @@ export default function InvestigationDetailPage() {
               )}
               {data?.request?.environment && (
                 <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-                  padding: '3px 10px', borderRadius: 2,
-                  background: 'rgba(249,115,22,0.08)',
-                  border: '1px solid rgba(249,115,22,0.2)',
-                  color: 'var(--c-signal)', letterSpacing: '0.04em',
+                  fontFamily: 'var(--font-mono)', fontSize: '0.75rem',
+                  padding: '3px 10px', borderRadius: 6,
+                  background: 'var(--c-signal-glow)',
+                  border: '1px solid var(--c-border-glow)',
+                  color: 'var(--c-signal)',
                 }}>
                   {data.request.environment}
                 </span>
@@ -252,7 +246,7 @@ export default function InvestigationDetailPage() {
                 <div style={{ height: 36, background: 'var(--c-surface-2)', borderBottom: '1px solid var(--c-border)' }} />
                 <div style={{
                   height: '100%',
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.02) 50%, transparent 100%)',
+                  background: 'linear-gradient(90deg, transparent 0%, var(--c-surface-2) 50%, transparent 100%)',
                   backgroundSize: '200% 100%',
                   animation: 'skeleton-sweep 1.5s ease-in-out infinite',
                 }} />
@@ -299,9 +293,9 @@ export default function InvestigationDetailPage() {
                     padding: '10px 22px', background: 'none', border: 'none',
                     borderBottom: `2px solid ${activeTab === tab.id ? 'var(--c-signal)' : 'transparent'}`,
                     marginBottom: -2,
-                    color: activeTab === tab.id ? 'var(--c-signal)' : 'var(--c-text-muted)',
-                    fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.7rem',
-                    letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
+                    color: activeTab === tab.id ? 'var(--c-text)' : 'var(--c-text-muted)',
+                    fontWeight: 500, fontSize: '0.8125rem',
+                    cursor: 'pointer',
                     transition: 'color 0.15s',
                     display: 'flex', alignItems: 'center', gap: 6,
                   }}
@@ -417,16 +411,16 @@ export default function InvestigationDetailPage() {
               <div style={{
                 position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10000,
                 padding: '10px 32px',
-                background: 'rgba(9,14,22,0.95)', backdropFilter: 'blur(16px)',
-                borderTop: '1px solid rgba(249,115,22,0.35)',
+                background: 'var(--c-surface)',
+                borderTop: '1px solid var(--c-border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
-                boxShadow: '0 -8px 32px rgba(0,0,0,0.4)',
+                boxShadow: 'var(--shadow-lg)',
               }}>
                 <span className="animate-pulse-glow" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-yellow)', display: 'inline-block', flexShrink: 0 }} />
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-yellow)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   Decision Required
                 </span>
-                <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
+                <div style={{ width: 1, height: 16, background: 'var(--c-border)', flexShrink: 0 }} />
                 <button
                   className="btn-success"
                   onClick={() => { setActiveTab('rca'); setTimeout(() => scrollAndAct('approve'), 60) }}

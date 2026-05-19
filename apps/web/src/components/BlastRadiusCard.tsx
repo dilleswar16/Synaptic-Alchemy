@@ -23,15 +23,15 @@ const SEVERITY_COLOUR: Record<string, string> = {
 }
 
 const SEVERITY_BG: Record<string, string> = {
-  critical: 'rgba(239,68,68,0.08)',
-  high:     'rgba(249,115,22,0.08)',
+  critical: 'var(--c-error-bg)',
+  high:     'var(--c-signal-glow)',
   medium:   'rgba(250,204,21,0.06)',
   low:      'rgba(34,197,94,0.07)',
 }
 
 const SEVERITY_BORDER: Record<string, string> = {
-  critical: 'rgba(239,68,68,0.35)',
-  high:     'rgba(249,115,22,0.35)',
+  critical: 'var(--c-error-border)',
+  high:     'var(--c-border-glow)',
   medium:   'rgba(250,204,21,0.25)',
   low:      'rgba(34,197,94,0.25)',
 }
@@ -106,19 +106,19 @@ export function BlastRadiusCard({ requestId }: Props) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <span style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800,
-              fontSize: '0.78rem', letterSpacing: '0.06em',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
               color: 'var(--c-text)',
             }}>
               Blast Radius Estimate
             </span>
             <span style={{
-              fontFamily: 'var(--font-display)', fontWeight: 700,
-              fontSize: '0.65rem', letterSpacing: '0.14em', textTransform: 'uppercase',
+              fontWeight: 500,
+              fontSize: '0.6875rem', textTransform: 'uppercase',
               color: accentColour,
               padding: '2px 7px',
-              border: `1px solid ${accentColour}44`,
-              borderRadius: 2,
+              border: `1px solid color-mix(in srgb, ${accentColour} 27%, transparent)`,
+              borderRadius: 6,
             }}>
               {severity}
             </span>

@@ -162,8 +162,8 @@ export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span className={isOpen ? "animate-pulse-glow" : ""} style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-signal)' }} />
             <span style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.68rem',
-              letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
+              fontWeight: 600, fontSize: '0.75rem',
+              letterSpacing: '0.02em', color: 'var(--c-text-muted)',
             }}>
               Telemetry Intelligence &middot; {totalRecords} points
             </span>
@@ -185,7 +185,7 @@ export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
                   display: 'inline-block', width: 3,
                   height: active ? segHeights[i] : 4,
                   borderRadius: 1,
-                  background: active ? 'var(--c-signal)' : 'rgba(255,255,255,0.1)',
+                  background: active ? 'var(--c-signal)' : 'var(--c-border)',
                   transition: 'height 0.3s ease, background 0.3s ease',
                   opacity: active ? 1 : 0.3
                 }} />
