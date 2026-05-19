@@ -14,7 +14,7 @@ interface FixStrategyFlowchartProps {
 
 const RISK_LABEL: Record<string, string> = { low: 'LOW', medium: 'MEDIUM', high: 'HIGH' }
 
-/** Word-wrap into Mermaid <br/>-joined lines */
+/** Word-wrap into Mermaid newline-joined lines (htmlLabels:false uses \n not <br/>) */
 function wrapText(text: string, maxLen = 38): string {
   if (text.length <= maxLen) return text
   const words = text.split(' ')
@@ -25,7 +25,7 @@ function wrapText(text: string, maxLen = 38): string {
     if (next.length > maxLen) { if (cur) lines.push(cur); cur = w } else cur = next
   }
   if (cur) lines.push(cur)
-  return lines.join('<br/>')
+  return lines.join('\n')
 }
 
 /** Escape special Mermaid chars, then wrap */
@@ -74,8 +74,8 @@ export function FixStrategyFlowchart({ serviceName, actions, rcaConfidence }: Fi
       }}>
         Fix Execution Plan
       </div>
-      <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: 8, border: '1px solid var(--c-border)' }}>
-        <MermaidChart chart={chart} background="transparent" />
+      <div style={{ borderRadius: 8, border: '1px solid var(--c-border)' }}>
+        <MermaidChart chart={chart} />
       </div>
     </div>
   )

@@ -8,8 +8,9 @@ import { API_BASE } from './baseUrl'
  */
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const isWrite = init?.method && init.method !== 'GET' && init.method !== 'HEAD'
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: isWrite ? { 'Content-Type': 'application/json', ...init?.headers } : { ...init?.headers },
     ...init,
   })
   if (!res.ok) {
@@ -23,6 +24,9 @@ export interface InvestigationSummary {
   service_name: string
   environment: string
   trigger_source: string
+  description: string
+  approval_status: string
+  incident_priority: string
   completed_at: string
   created_at: string
 }
@@ -451,6 +455,24 @@ export interface RoiStats {
 
 export function fetchRoi() {
   return apiFetch<RoiStats>('/investigations/roi')
+}
+
+// ── DORA Metrics ──────────────────────────────────────────────────────────
+
+export interface DoraMetrics {
+  period_days: number
+  total_investigations: number
+  high_confidence_count: number
+  deployment_frequency: number
+  lead_time_minutes: number
+  mttr_minutes: number
+  mttr_prior_minutes: number
+  mttr_trend: 'improving' | 'stable' | 'degrading'
+  change_failure_rate_pct: number
+}
+
+export function fetchDora(days = 30) {
+  return apiFetch<DoraMetrics>(`/investigations/dora?days=${days}`)
 }
 
 // ── V3.9: Runbook Update ──────────────────────────────────────────────────

@@ -18,10 +18,12 @@ V2.5: GET /investigations/{id}/replay  returns full transparency payload.
 from __future__ import annotations
 
 import logging
+import os
 
+import litellm
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 
 from corvin.core.contracts import ApprovalStatus, InvestigationRequest, InvestigationResult, TriggerSource
@@ -39,6 +41,7 @@ from corvin.strategy.postmortem_service import PostMortemService
 from corvin.strategy.blast_radius import estimate_blast_radius, BlastRadiusEstimate
 from corvin.strategy.roi import build_roi_stats
 from corvin.core.config_loader import get_env, load_config
+from corvin.core.knowledge_loader import KnowledgeLoader
 from corvin.triggers.predictive import PredictiveMonitor
 
 router = APIRouter()
@@ -77,9 +80,9 @@ def get_postmortem_service() -> PostMortemService:
 
 
 class StartInvestigationRequest(BaseModel):
-    service_name: str
-    environment: str
-    description: str = "Manual investigation"
+    service_name: str = Field(..., min_length=1, max_length=255)
+    environment: str = Field(..., min_length=1, max_length=100)
+    description: str = Field(default="Manual investigation", max_length=2000)
 
 
 class InvestigationAccepted(BaseModel):
@@ -132,6 +135,34 @@ class RcaEmailRequest(BaseModel):
     recipients: list[str] | None = None
 
 
+# ── Internal helpers ──────────────────────────────────────────────────────────
+
+
+def _auto_sync_ado(result: InvestigationResult, repo: InvestigationRepository) -> str | None:
+    """Auto-create an Azure Boards work item for a completed investigation.
+
+    Non-fatal: logs a warning and returns None on any failure.
+    Stores the work item ID in the DB and returns the full URL for email linking.
+    """
+    try:
+        from corvin.delivery.azure_devops_adapter import AzureDevOpsAdapter
+        ado_cfg = load_config("integrations/azure_devops", get_env())
+        if not ado_cfg.get("enabled", False):
+            return None
+        ado_adapter = AzureDevOpsAdapter(ado_cfg)
+        work_item_id = ado_adapter.create_incident(result)
+        if not work_item_id:
+            return None
+        repo.set_ado_work_item_id(result.request_id, work_item_id)
+        org = str(ado_cfg.get("org_name", "")).strip()
+        proj = str(ado_cfg.get("project_name", "")).strip()
+        if org and proj and not org.startswith("${") and not proj.startswith("${"):
+            return f"https://dev.azure.com/{org}/{proj}/_workitems/edit/{work_item_id}"
+    except Exception as exc:
+        _log.warning("Azure Boards auto-sync failed (non-fatal): %s", exc)
+    return None
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 
@@ -177,8 +208,9 @@ def start_investigation(
     except Exception as exc:  # Teams failure must never break the investigation response
         _log.warning("Teams delivery failed (non-fatal): %s", exc)
 
-    # Optional and non-fatal: auto-send RCA PDF email when configured.
-    send_rca_email_if_enabled(result)
+    # Auto-create Azure Boards work item, then send RCA email with the link (both non-fatal).
+    ado_url = _auto_sync_ado(result, repo)
+    send_rca_email_if_enabled(result, ado_work_item_url=ado_url)
 
     return InvestigationAccepted(
         request_id=result.request_id,
@@ -273,8 +305,6 @@ def get_briefing_audio(
     Requires AZURE_SPEECH_KEY and AZURE_SPEECH_REGION environment variables.
     Returns 503 when TTS is not configured or the policy flag is disabled.
     """
-    import os
-
     policy = load_config("policies/investigation", get_env())
     if not policy.get("voice_briefing_enabled", True):
         raise HTTPException(status_code=503, detail="Voice briefing is disabled in policy config.")
@@ -339,9 +369,85 @@ def get_roi(
     return stats.model_dump()
 
 
+@router.get("/dora", response_model=dict)
+def get_dora_metrics(
+    days: int = Query(default=30, ge=1, le=365, description="Look-back window in days"),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return DORA four-key engineering metrics computed from Corvin investigation data.
+
+    Metrics returned:
+      - deployment_frequency:   investigations per day (proxy for change frequency)
+      - lead_time_minutes:      avg time from trigger to RCA complete (Corvin MTTR)
+      - change_failure_rate:    % of investigations that were HIGH confidence (real incidents)
+      - mttr_minutes:           mean time to resolve (avg investigation duration)
+      - mttr_trend:             'improving' | 'stable' | 'degrading' vs prior period
+      - total_investigations:   count in window
+      - high_confidence_count:  count with confidence=high
+    """
+    from datetime import datetime, timedelta, timezone
+    from corvin.strategy.roi import _parse_dt
+
+    all_rows = repo.list_investigations()
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=days)
+    prior_cutoff = cutoff - timedelta(days=days)
+
+    def in_window(row: dict, start, end) -> bool:
+        dt = _parse_dt(row.get("completed_at") or row.get("created_at"))
+        return dt is not None and start <= dt < end
+
+    current = [r for r in all_rows if in_window(r, cutoff, now)]
+    prior   = [r for r in all_rows if in_window(r, prior_cutoff, cutoff)]
+
+    def avg_duration(rows: list[dict]) -> float:
+        durations = []
+        for row in rows:
+            try:
+                t0 = _parse_dt(row["created_at"])
+                t1 = _parse_dt(row["completed_at"])
+                if t0 and t1 and t1 > t0:
+                    durations.append((t1 - t0).total_seconds() / 60.0)
+            except (KeyError, TypeError):
+                pass
+        return round(sum(durations) / len(durations), 1) if durations else 0.0
+
+    total = len(current)
+    high_conf = sum(1 for r in current if str(r.get("rca_confidence", "")).lower() == "high"
+                    or str(r.get("confidence", "")).lower() == "high")
+
+    mttr_current = avg_duration(current)
+    mttr_prior   = avg_duration(prior)
+
+    if mttr_prior == 0 or mttr_current == 0:
+        trend = "stable"
+    elif mttr_current < mttr_prior * 0.95:
+        trend = "improving"
+    elif mttr_current > mttr_prior * 1.05:
+        trend = "degrading"
+    else:
+        trend = "stable"
+
+    # Change failure rate: fraction that needed investigation = 100% (all are real incidents in Corvin)
+    # More meaningful: % that were HIGH confidence (signal vs noise)
+    cfr = round(high_conf / total * 100, 1) if total > 0 else 0.0
+
+    return {
+        "period_days": days,
+        "total_investigations": total,
+        "high_confidence_count": high_conf,
+        "deployment_frequency": round(total / days, 2),
+        "lead_time_minutes": mttr_current,
+        "mttr_minutes": mttr_current,
+        "mttr_prior_minutes": mttr_prior,
+        "mttr_trend": trend,
+        "change_failure_rate_pct": cfr,
+    }
+
+
 @router.get("/predictive-alerts", response_model=list[dict])
 def get_predictive_alerts(
-    refresh: bool = Query(default=True, description="Refresh predictive detections before returning."),
+    refresh: bool = Query(default=False, description="Refresh predictive detections before returning. Defaults to False to avoid slow heuristic scan on every dashboard load."),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> list[dict]:
     if refresh:
@@ -377,7 +483,9 @@ def investigate_predictive_alert(
     except Exception as exc:
         _log.warning("Teams delivery failed (non-fatal): %s", exc)
 
-    send_rca_email_if_enabled(result)
+    # Auto-create Azure Boards work item, then send RCA email with the link (both non-fatal).
+    ado_url = _auto_sync_ado(result, repo)
+    send_rca_email_if_enabled(result, ado_work_item_url=ado_url)
 
     return InvestigationAccepted(
         request_id=result.request_id,
@@ -540,9 +648,6 @@ def update_runbook(
     Only permitted when approval_status is 'executed'. Returns the path written
     and the markdown content so the UI can show a diff preview.
     """
-    from corvin.core.knowledge_loader import KnowledgeLoader
-    import litellm
-
     result = repo.get_investigation_result(request_id)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
@@ -632,7 +737,25 @@ def email_rca_pdf(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
 
-    sent = send_rca_email_if_enabled(result, recipients=body.recipients, force=True)
+    # Look up any stored AzDO work item and build the URL for the email body.
+    ado_work_item_url: str | None = None
+    ado_id = repo.get_ado_work_item_id(request_id)
+    if ado_id:
+        try:
+            ado_cfg = load_config("integrations/azure_devops", get_env())
+            org = str(ado_cfg.get("org_name", "")).strip()
+            proj = str(ado_cfg.get("project_name", "")).strip()
+            if org and proj and not org.startswith("${") and not proj.startswith("${"):
+                ado_work_item_url = f"https://dev.azure.com/{org}/{proj}/_workitems/edit/{ado_id}"
+        except Exception:
+            pass
+
+    sent = send_rca_email_if_enabled(
+        result,
+        recipients=body.recipients,
+        force=True,
+        ado_work_item_url=ado_work_item_url,
+    )
     if not sent:
         return {
             "request_id": request_id,
@@ -840,7 +963,14 @@ def generate_postmortem(
     approved_by = replay["approval"]["approved_by"] if replay else None
 
     pm = pm_service.generate(result, approved_by=approved_by)
-    repo.save_post_mortem(pm)
+    try:
+        repo.save_post_mortem(pm)
+    except Exception:
+        # Concurrent request already inserted — return whichever was saved first
+        cached = repo.get_post_mortem(request_id)
+        if cached is not None:
+            return cached.model_dump(mode="json")
+        raise
 
     _log.info("Post-mortem generated and cached for request_id=%s", request_id)
     return pm.model_dump(mode="json")

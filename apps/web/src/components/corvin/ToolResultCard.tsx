@@ -483,22 +483,57 @@ export function ToolResultCard({ toolName, data, timestamp }: ToolResultCardProp
   )
 }
 
-/** Compact "tool calling" skeleton shown while the tool is executing. */
+/** Prominent "tool calling" card shown while the tool is executing. */
 export function ToolCallingSkeleton({ toolName }: { toolName: string }) {
   return (
     <div style={{
       ...CARD_STYLE,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      opacity: 0.75,
+      border: '1px solid rgba(249,115,22,0.35)',
+      background: 'rgba(249,115,22,0.04)',
+      boxShadow: '0 0 12px rgba(249,115,22,0.08)',
     }}>
-      <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid var(--c-signal)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
-      <div>
-        <div style={{ ...LABEL, marginBottom: 2 }}>
-          <ToolIcon name={toolName} /> <ToolLabel name={toolName} />
+      {/* Header row: status badge + icon + label */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        {/* Spinning ring */}
+        <div style={{
+          width: 20, height: 20, borderRadius: '50%',
+          border: '2px solid rgba(249,115,22,0.25)',
+          borderTopColor: '#f97316',
+          animation: 'spin 0.75s linear infinite',
+          flexShrink: 0,
+        }} />
+        {/* Big tool emoji */}
+        <span style={{ fontSize: '1.1rem', lineHeight: 1 }}><ToolIcon name={toolName} /></span>
+        {/* Label + calling badge */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, color: 'var(--c-text)', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <ToolLabel name={toolName} />
+          </div>
         </div>
-        <div style={{ color: 'var(--c-text-faint)', fontSize: '0.67rem' }}>Querying live data…</div>
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 800,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          padding: '2px 7px', borderRadius: 4,
+          background: 'rgba(249,115,22,0.15)',
+          border: '1px solid rgba(249,115,22,0.35)',
+          color: '#f97316',
+        }}>
+          calling
+        </span>
+      </div>
+
+      {/* Animated shimmer bar */}
+      <div style={{ height: 3, borderRadius: 2, background: 'rgba(249,115,22,0.1)', overflow: 'hidden' }}>
+        <div style={{
+          height: '100%',
+          width: '40%',
+          background: 'linear-gradient(90deg, transparent, #f97316, transparent)',
+          animation: 'shimmerSlide 1.2s ease-in-out infinite',
+        }} />
+      </div>
+
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-faint)', marginTop: 8 }}>
+        Querying live data…
       </div>
     </div>
   )

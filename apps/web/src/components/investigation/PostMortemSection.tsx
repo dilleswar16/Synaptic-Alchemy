@@ -1,23 +1,26 @@
 /**
  * PostMortemSection — generate, view, and download a blameless post-mortem.
  */
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { SemanticMarkdown } from '../SemanticMarkdown'
 import { generatePostMortem, fetchPostMortem, type PostMortem } from '../../api/client'
 import { Section, AlertBanner } from '../Section'
 import { Modal } from '../Modal'
+import { exportPostMortemPdf } from '../../utils/postmortemPdf'
 
 interface PostMortemSectionProps {
   requestId: string
   isExecuted: boolean
+  hasRca?: boolean
   serviceName: string
   duration?: string
 }
 
-export function PostMortemSection({ requestId, isExecuted, serviceName, duration }: PostMortemSectionProps) {
+export function PostMortemSection({ requestId, isExecuted, hasRca, serviceName, duration }: PostMortemSectionProps) {
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
 
   const { data: existing } = useQuery<PostMortem>({
     queryKey: ['postmortem', requestId],
@@ -30,12 +33,18 @@ export function PostMortemSection({ requestId, isExecuted, serviceName, duration
     onSuccess: (data) => queryClient.setQueryData(['postmortem', requestId], data),
   })
 
-  // Zero-click auto-generation: fire when status is executed and no PM exists
+  // Guard: prevent double-call from React StrictMode double-effect invocation
+  const autoGenFiredRef = useRef(false)
+
+  // Auto-generation: fire when RCA is complete (executed or just has RCA) and no PM exists yet
+  const shouldAutoGenerate = (isExecuted || hasRca) && !existing && !generateMutation.isPending && !generateMutation.isError && !generateMutation.data
   useEffect(() => {
-    if (isExecuted && !existing && !generateMutation.isPending && !generateMutation.isError && !generateMutation.data) {
+    if (shouldAutoGenerate && !autoGenFiredRef.current) {
+      autoGenFiredRef.current = true
       generateMutation.mutate()
     }
-  }, [isExecuted, existing, generateMutation])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldAutoGenerate])
 
   const pm: PostMortem | undefined = existing ?? generateMutation.data
 
@@ -49,6 +58,16 @@ export function PostMortemSection({ requestId, isExecuted, serviceName, duration
     a.click()
     URL.revokeObjectURL(url)
   }, [pm, requestId])
+
+  const downloadPdf = useCallback(async () => {
+    if (!pm || pdfLoading) return
+    setPdfLoading(true)
+    try {
+      await exportPostMortemPdf(pm)
+    } finally {
+      setPdfLoading(false)
+    }
+  }, [pm, pdfLoading])
 
   return (
     <Section
@@ -73,6 +92,17 @@ export function PostMortemSection({ requestId, isExecuted, serviceName, duration
               <button onClick={downloadMarkdown} className="btn-ghost" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
                 ↓ Markdown
               </button>
+              <button onClick={downloadPdf} disabled={pdfLoading} className="btn-ghost" style={{ fontSize: '0.75rem', padding: '4px 10px', color: pdfLoading ? 'var(--c-text-faint)' : 'var(--c-signal)', opacity: pdfLoading ? 0.6 : 1 }}>
+                {pdfLoading ? '⏳ Generating…' : '📄 Export PDF'}
+              </button>
+              <button
+                onClick={() => { autoGenFiredRef.current = false; generateMutation.mutate() }}
+                className="btn-ghost"
+                style={{ fontSize: '0.75rem', padding: '4px 10px', color: 'var(--c-text-muted)' }}
+                title="Re-generate post-mortem"
+              >
+                ↺ Regenerate
+              </button>
             </>
           )}
         </div>
@@ -82,7 +112,7 @@ export function PostMortemSection({ requestId, isExecuted, serviceName, duration
         AI-generated incident report with timeline, impact, and prevention recommendations.
       </div>
 
-      {generateMutation.isPending && (
+      {generateMutation.isPending && !pm && (
         <div style={{
           padding: '24px', borderRadius: 12, border: '1px dashed var(--c-border)',
           background: 'rgba(255,255,255,0.02)', textAlign: 'center',
@@ -97,6 +127,27 @@ export function PostMortemSection({ requestId, isExecuted, serviceName, duration
 
       {generateMutation.isError && (
         <AlertBanner ok={false} message={(generateMutation.error as Error).message} />
+      )}
+
+      {/* Fallback: RCA exists, not generating, no PM yet — manual trigger */}
+      {!pm && !generateMutation.isPending && !generateMutation.isError && (hasRca || isExecuted) && (
+        <div style={{
+          padding: '28px', borderRadius: 12, border: '1px dashed var(--c-border)',
+          background: 'rgba(255,255,255,0.02)', textAlign: 'center',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+        }}>
+          <div style={{ fontSize: '2rem' }}>📄</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--c-text-muted)' }}>
+            No post-mortem generated yet.
+          </div>
+          <button
+            onClick={() => generateMutation.mutate()}
+            className="btn-primary"
+            style={{ fontSize: '0.75rem', padding: '7px 18px' }}
+          >
+            Generate Post-Mortem
+          </button>
+        </div>
       )}
 
       {pm && (

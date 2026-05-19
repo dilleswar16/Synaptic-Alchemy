@@ -1,14 +1,45 @@
 import httpx
 import logging
 import base64
+import random
 from typing import Optional, Dict, Any
 from corvin.core.contracts import InvestigationResult
 
 logger = logging.getLogger(__name__)
 
+_CONFIDENCE_PRIORITY = {"high": 1, "medium": 2, "low": 3}
+
+
+def _classify_incident(root_cause: str, routing: dict) -> str:
+    """
+    Classify an incident as 'code', 'devops', or 'default' based on root cause keywords.
+    Returns a category key matching assignment_routing config.
+    """
+    text = root_cause.lower()
+    for category, cfg in routing.items():
+        if category == "default_assignee":
+            continue
+        for kw in cfg.get("keywords", []):
+            if kw.lower() in text:
+                return category
+    return "default"
+
+
+def _pick_assignee(category: str, routing: dict) -> Optional[str]:
+    """Round-robin pick from the assignees list for the given category."""
+    if category == "default":
+        return routing.get("default_assignee")
+    cfg = routing.get(category, {})
+    assignees = cfg.get("assignees", [])
+    if not assignees:
+        return routing.get("default_assignee")
+    # Random pick for load distribution (no persistent state needed for now)
+    return random.choice(assignees)
+
+
 class AzureDevOpsAdapter:
     """
-    Adapter for creating Work Items in Azure Boards (Azure DevOps).
+    Adapter for creating and updating Work Items in Azure Boards (Azure DevOps).
     """
 
     def __init__(self, config: Dict[str, Any]):
@@ -19,73 +50,190 @@ class AzureDevOpsAdapter:
         self.pat = config.get("pat")
         self.item_type = config.get("work_item_type", "Issue")
 
-    def create_incident(self, result: InvestigationResult) -> Optional[str]:
-        """
-        Creates a new Work Item in Azure Boards based on the investigation result.
-        Returns the ID of the created item or None if failed/disabled.
-        """
-        if not self.enabled or not self.org or not self.project or not self.pat:
-            logger.warning("Azure DevOps adapter is disabled or missing credentials.")
-            return None
+    # ── Auth ──────────────────────────────────────────────────────────────────
 
-        url = f"https://dev.azure.com/{self.org}/{self.project}/_apis/wit/workitems/${self.item_type}?api-version=7.1"
-        
-        # Prepare Auth Header (PAT is used with Basic auth, empty username)
+    def _build_auth_headers(self) -> dict:
         auth_str = f":{self.pat}"
-        auth_bytes = auth_str.encode("ascii")
-        auth_base64 = base64.b64encode(auth_bytes).decode("ascii")
-        
-        headers = {
-            "Content-Type": "application/json-patch+json",
-            "Authorization": f"Basic {auth_base64}"
+        auth_b64 = base64.b64encode(auth_str.encode("ascii")).decode("ascii")
+        return {
+            "Authorization": f"Basic {auth_b64}",
         }
 
-        # Build Work Item fields
-        # Note: Azure DevOps uses JSON Patch format for creation
+    def _is_configured(self) -> bool:
+        if not self.enabled or not self.org or not self.project or not self.pat:
+            logger.warning("Azure DevOps adapter is disabled or missing credentials.")
+            return False
+        return True
+
+    # ── Create ────────────────────────────────────────────────────────────────
+
+    def create_incident(self, result: InvestigationResult) -> Optional[str]:
+        """
+        Creates a new Work Item in Azure Boards from an investigation result.
+        Returns the work item ID string, or None on failure / disabled.
+        """
+        if not self._is_configured():
+            return None
+
+        url = (
+            f"https://dev.azure.com/{self.org}/{self.project}"
+            f"/_apis/wit/workitems/${self.item_type}?api-version=7.1"
+        )
+
+        confidence = result.rca.confidence.value if hasattr(result.rca.confidence, "value") else str(result.rca.confidence)
+        priority = _CONFIDENCE_PRIORITY.get(confidence.lower(), 2)
+        fixed_tags = self.config.get("fixed_tags", "corvin")
+        tags = f"{fixed_tags}; {result.request.environment}; {result.request.service_name}; {confidence}"
+
+        headers = {**self._build_auth_headers(), "Content-Type": "application/json-patch+json"}
+
         payload = [
             {
                 "op": "add",
                 "path": "/fields/System.Title",
-                "value": f"[Corvin] Incident: {result.request.service_name} ({result.request.environment})"
+                "value": (
+                    f"[Corvin] {result.request.service_name} ({result.request.environment})"
+                    f" — {result.rca.root_cause[:80]}"
+                ),
             },
             {
                 "op": "add",
                 "path": "/fields/System.Description",
-                "value": self._build_description(result)
-            }
+                "value": self._build_description(result),
+            },
+            # ADO "Issue" type renders description in ReproSteps — set both so it shows regardless of work item type
+            {
+                "op": "add",
+                "path": "/fields/Microsoft.VSTS.TCM.ReproSteps",
+                "value": self._build_description(result),
+            },
+            {
+                "op": "add",
+                "path": "/fields/Microsoft.VSTS.Common.Priority",
+                "value": priority,
+            },
+            {
+                "op": "add",
+                "path": "/fields/System.Tags",
+                "value": tags,
+            },
         ]
+
+        area_path = self.config.get("area_path")
+        if area_path:
+            payload.append({
+                "op": "add",
+                "path": "/fields/System.AreaPath",
+                "value": area_path,
+            })
+
+        # Auto-assign based on incident category
+        routing = self.config.get("assignment_routing", {})
+        if routing:
+            category = _classify_incident(result.rca.root_cause, routing)
+            assignee = _pick_assignee(category, routing)
+            if assignee:
+                payload.append({
+                    "op": "add",
+                    "path": "/fields/System.AssignedTo",
+                    "value": assignee,
+                })
+                logger.info("Assigning work item to %s (category: %s)", assignee, category)
 
         try:
             with httpx.Client() as client:
                 response = client.post(url, json=payload, headers=headers)
                 response.raise_for_status()
                 data = response.json()
-                work_item_id = data.get("id")
-                logger.info(f"Created Azure Boards work item {work_item_id} for investigation {result.request.id}")
-                return str(work_item_id)
-        except Exception as e:
-            logger.error(f"Failed to create Azure Boards work item: {str(e)}")
+                work_item_id = str(data.get("id"))
+                logger.info(
+                    "Created Azure Boards work item %s for investigation %s",
+                    work_item_id, result.request_id,
+                )
+                return work_item_id
+        except Exception as exc:
+            logger.error("Failed to create Azure Boards work item: %s", exc)
             return None
 
+    # ── Update state ──────────────────────────────────────────────────────────
+
+    def update_work_item_state(self, work_item_id: str, state: str) -> bool:
+        """
+        Update the State field of an existing work item.
+        state — e.g. "Active", "Resolved", "Closed"
+        Returns True on success, False on failure / disabled.
+        """
+        if not self._is_configured():
+            return False
+
+        url = (
+            f"https://dev.azure.com/{self.org}/{self.project}"
+            f"/_apis/wit/workitems/{work_item_id}?api-version=7.1"
+        )
+        headers = {**self._build_auth_headers(), "Content-Type": "application/json-patch+json"}
+        payload = [{"op": "replace", "path": "/fields/System.State", "value": state}]
+
+        try:
+            with httpx.Client() as client:
+                response = client.patch(url, json=payload, headers=headers)
+                response.raise_for_status()
+                logger.info("Updated work item %s state → %s", work_item_id, state)
+                return True
+        except Exception as exc:
+            logger.error("Failed to update work item %s state: %s", work_item_id, exc)
+            return False
+
+    # ── Add comment ───────────────────────────────────────────────────────────
+
+    def add_comment(self, work_item_id: str, comment_html: str) -> bool:
+        """
+        Add an HTML comment to an existing Azure Boards work item.
+        Returns True on success, False on failure / disabled.
+        """
+        if not self._is_configured():
+            return False
+
+        url = (
+            f"https://dev.azure.com/{self.org}/{self.project}"
+            f"/_apis/wit/workitems/{work_item_id}/comments?api-version=7.1-preview.3"
+        )
+        headers = {**self._build_auth_headers(), "Content-Type": "application/json"}
+        payload = {"text": comment_html}
+
+        try:
+            with httpx.Client() as client:
+                response = client.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                logger.info("Added comment to work item %s", work_item_id)
+                return True
+        except Exception as exc:
+            logger.error("Failed to add comment to work item %s: %s", work_item_id, exc)
+            return False
+
+    # ── Description builder ───────────────────────────────────────────────────
+
     def _build_description(self, result: InvestigationResult) -> str:
-        """Builds a rich HTML description for the Work Item."""
+        """Build a rich HTML description for the Work Item."""
         rca = result.rca
         fix = result.fix_strategy
-        
-        html = f"<h2>Corvin Investigation Report</h2>"
-        html += f"<p><b>Investigation ID:</b> {result.request.id}</p>"
-        html += f"<p><b>Service:</b> {result.request.service_name}</p>"
-        html += f"<p><b>Confidence:</b> {rca.confidence}</p>"
-        html += f"<h3>Root Cause Summary</h3>"
+        confidence = rca.confidence.value if hasattr(rca.confidence, "value") else str(rca.confidence)
+
+        html = "<h2>Corvin Investigation Report</h2>"
+        html += f"<p><b>Investigation ID:</b> {result.request_id}</p>"
+        html += f"<p><b>Service:</b> {result.request.service_name} ({result.request.environment})</p>"
+        html += f"<p><b>Confidence:</b> {confidence.upper()}</p>"
+        html += f"<p><b>Trigger:</b> {result.request.trigger_source.value}</p>"
+        html += "<h3>Root Cause Summary</h3>"
         html += f"<p>{rca.summary}</p>"
-        html += f"<h3>Root Cause Detail</h3>"
+        html += "<h3>Root Cause Detail</h3>"
         html += f"<p>{rca.root_cause}</p>"
-        
+
         if fix.actions:
-            html += f"<h3>Proposed Fixes</h3><ul>"
+            html += "<h3>Proposed Fix Actions</h3><ul>"
             for action in fix.actions:
                 html += f"<li><b>{action.title}</b>: {action.description}</li>"
             html += "</ul>"
-            
+
         html += f"<p><i>Generated by Corvin AI SRE Co-Pilot</i></p>"
         return html
+

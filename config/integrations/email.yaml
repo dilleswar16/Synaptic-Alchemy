@@ -1,21 +1,18 @@
 # Email delivery settings for RCA report notifications.
-# All values can be provided via environment variables.
+# Uses Azure Communication Services Email SDK (no SMTP required).
+# Set AZURE_COMMUNICATION_CONNECTION_STRING, CORVIN_EMAIL_FROM, CORVIN_EMAIL_TO in .env
 
-enabled: false
+enabled: true
 
-# SMTP connection
-smtp_host: "${CORVIN_SMTP_HOST}"
-smtp_port: 587
-use_starttls: true
-smtp_username: "${CORVIN_SMTP_USERNAME}"
-smtp_password: "${CORVIN_SMTP_PASSWORD}"
-
-# Sender / recipients
+# Sender address — must be a verified domain on your ACS Email resource.
+# e.g. DoNotReply@<subdomain>.azurecomm.net
 from_address: "${CORVIN_EMAIL_FROM}"
-# Comma-separated env var can be used for one or more addresses.
+
+# Recipient(s) — comma-separated list or single address.
 to_addresses: "${CORVIN_EMAIL_TO}"
 
-# Automatically send an RCA email after investigation completes.
+# Automatically send an RCA email after each investigation completes.
+# Set to false to disable auto-send (email still available manually via POST /{id}/rca/email).
 auto_send_on_rca: true
 
 subject_prefix: "[Corvin RCA]"

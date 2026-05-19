@@ -111,6 +111,10 @@ def get_engine():
                 _build_sqlite_url(),
                 connect_args={"check_same_thread": False},
             )
+            # Auto-create all tables from the ORM models so tests and local SQLite
+            # mode always have an up-to-date schema without running Alembic.
+            from corvin.storage.models import Base
+            Base.metadata.create_all(_engine)
         else:
             _engine = create_engine(_build_postgres_url(), **_build_pool_kwargs())
     return _engine

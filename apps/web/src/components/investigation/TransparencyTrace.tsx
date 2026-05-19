@@ -7,7 +7,7 @@ interface TransparencyTraceProps {
   environment?: string
 }
 
-/** Word-wrap into Mermaid <br/>-joined lines */
+/** Word-wrap into Mermaid newline-joined lines (htmlLabels:false uses \n not <br/>) */
 function wrapText(text: string, maxLen = 34): string {
   if (text.length <= maxLen) return text
   const words = text.split(' ')
@@ -18,7 +18,7 @@ function wrapText(text: string, maxLen = 34): string {
     if (next.length > maxLen) { if (cur) lines.push(cur); cur = w } else cur = next
   }
   if (cur) lines.push(cur)
-  return lines.join('<br/>')
+  return lines.join('\n')
 }
 
 /** Escape special Mermaid chars, then wrap */

@@ -38,7 +38,43 @@ export function PredictiveAlertPanel() {
   })
 
   if (isLoading) {
-    return <div className="panel scan-sweep" style={{ minHeight: 196 }} />
+    return (
+      <div className="panel animate-fade-up" style={{ padding: '18px 20px', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ position: 'relative' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 5 }}>
+            Pre-Mortem Mode
+          </div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.25rem', color: 'var(--c-text)', letterSpacing: '0.03em', marginBottom: 18 }}>
+            Predictive Detections
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{
+              borderRadius: 8, padding: '16px 16px 14px', animationDelay: `${i * 80}ms`,
+              border: '1px solid var(--c-border-hi)', background: 'var(--c-surface-2)',
+              display: 'flex', flexDirection: 'column', gap: 8,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 10, height: 10, borderRadius: '50%', background: 'var(--c-signal)',
+                  animation: 'pulse-glow 1.2s ease-in-out infinite', animationDelay: `${i * 200}ms`,
+                  boxShadow: '0 0 6px var(--c-signal)',
+                }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-text-muted)' }}>
+                  Scanning for predictive signals
+                  <span style={{ animation: 'blink 1s step-end infinite' }}>...</span>
+                </span>
+              </div>
+              <div style={{ height: 10, borderRadius: 4, background: 'var(--c-border-hi)', width: `${60 + i * 15}%`, overflow: 'hidden', position: 'relative' }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.4), transparent)', animation: 'shimmerSlide 1.5s ease-in-out infinite', animationDelay: `${i * 200}ms` }} />
+              </div>
+              <div style={{ height: 8, borderRadius: 4, background: 'var(--c-border-hi)', width: '40%' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   const alerts = (data ?? []).slice(0, 3)

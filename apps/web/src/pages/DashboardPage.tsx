@@ -19,6 +19,7 @@ import { SimulateAlertPanel } from '../components/SimulateAlertPanel'
 import { PredictiveAlertPanel } from '../components/PredictiveAlertPanel'
 import { TopologyRadar } from '../components/TopologyRadar'
 import { RoiWidget } from '../components/RoiWidget'
+import { DoraWidget } from '../components/DoraWidget'
 import { PlatformPulse } from '../components/PlatformPulse'
 import { useTheme } from '../context/ThemeContext'
 
@@ -794,9 +795,12 @@ export default function DashboardPage() {
         <TopologyRadar />
       </div>
 
-      {/* ── 6. VALUE: ROI ──────────────────────────────────────────────── */}
-      <div style={{ marginBottom: 24 }}>
+      {/* ── 6. VALUE: ROI + DORA ─────────────────────────────────────── */}
+      <div style={{ marginBottom: 16 }}>
         <RoiWidget />
+      </div>
+      <div style={{ marginBottom: 24 }}>
+        <DoraWidget />
       </div>
 
       {/* ── 7. TOOLS: Chaos Engineering (Red Team) ────────────────────── */}

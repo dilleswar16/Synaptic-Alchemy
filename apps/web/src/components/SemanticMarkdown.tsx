@@ -76,6 +76,19 @@ const components: Components = {
   td: ({ children, ...props }) => <td {...props}>{processChildren(children)}</td>,
   th: ({ children, ...props }) => <th {...props}>{processChildren(children)}</th>,
   span: ({ children, ...props }) => <span {...props}>{processChildren(children)}</span>,
+  blockquote: ({ children }) => (
+    <div style={{
+      margin: '10px 0',
+      padding: '10px 14px 10px 16px',
+      borderLeft: '3px solid rgba(249,115,22,0.5)',
+      background: 'rgba(249,115,22,0.05)',
+      borderRadius: '0 6px 6px 0',
+      color: 'var(--c-text-dim)',
+      fontStyle: 'italic',
+    }}>
+      {children}
+    </div>
+  ),
   code: ({ children, className, ...props }) => {
     if (className === 'language-mermaid') {
       return <MermaidChart chart={String(children).trim()} />

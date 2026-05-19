@@ -1,68 +1,111 @@
 import { useState, useEffect, useId } from 'react'
 import mermaid from 'mermaid'
 
-// Inject global CSS once to fix Mermaid SVG text clipping and overflow in dark mode
-if (typeof document !== 'undefined' && !document.getElementById('corvin-mermaid-css')) {
-  const s = document.createElement('style')
-  s.id = 'corvin-mermaid-css'
-  s.textContent = `
+// Inject global CSS. Force-replace on HMR reloads so changes take effect immediately.
+// SVG spec: CSS properties always beat SVG presentation attributes (fill="...").
+// So one blanket rect rule is sufficient — no class-name guessing needed.
+if (typeof document !== 'undefined') {
+  const existing = document.getElementById('corvin-mermaid-css')
+  const css = `
     .corvin-mermaid svg { max-width: 100%; height: auto; overflow: visible; }
-    .corvin-mermaid svg .node rect,
-    .corvin-mermaid svg .node circle,
-    .corvin-mermaid svg .node ellipse,
-    .corvin-mermaid svg .node polygon { overflow: visible; }
-    .corvin-mermaid svg text { font-family: 'JetBrains Mono', 'Fira Mono', monospace; }
-    .corvin-mermaid svg .edgeLabel { font-size: 11px; }
-    .corvin-mermaid svg .cluster rect { rx: 8; ry: 8; }
+
+    /* ALL rects → white. Covers node boxes, edge label pills, everything.
+       Specificity: (0,1,2). Beats any SVG fill attribute. */
+    .corvin-mermaid svg rect {
+      fill: #ffffff;
+      stroke: #94a3b8;
+    }
+
+    /* Cluster/subgraph rects → dark navy. Specificity (0,2,1) beats rule above. */
+    .corvin-mermaid svg .cluster rect {
+      fill: #131c2e;
+      stroke: #475569;
+    }
+
+    /* Edge label pills — subtle orange tint to tie them to their arrow */
+    .corvin-mermaid svg .edgeLabel rect {
+      fill: #1c1a14;
+      stroke: rgba(249,115,22,0.3);
+    }
+
+    /* ALL text → dark (#1e293b). White rects everywhere means dark text everywhere. */
+    .corvin-mermaid svg text {
+      fill: #1e293b;
+      font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+    }
+
+    /* Cluster title text → light (cluster bg is dark). Specificity (0,2,1). */
+    .corvin-mermaid svg .cluster text {
+      fill: #94a3b8;
+    }
   `
-  document.head.appendChild(s)
+  if (existing) {
+    existing.textContent = css
+  } else {
+    const s = document.createElement('style')
+    s.id = 'corvin-mermaid-css'
+    s.textContent = css
+    document.head.appendChild(s)
+  }
 }
 
-// Corvin Mermaid theme: neutral-dark nodes (legible at any scale) + brand orange on edges only.
-// Philosophy: diagrams are engineering artifacts inside the UI, not UI chrome.
-// Neutral slate nodes = text always readable. Orange edges = brand presence without noise.
+/**
+ * Patch Mermaid SVG string: strip gradient defs and replace url() fill refs.
+ * With htmlLabels:false there is no foreignObject, so no CSS gradient pattern issue.
+ */
+function sanitizeSvg(raw: string): string {
+  let out = raw
+    // Remove gradient/pattern defs
+    .replace(/<linearGradient[\s\S]*?<\/linearGradient>/g, '')
+    .replace(/<pattern[\s\S]*?<\/pattern>/g, '')
+    // Replace url() fill refs on rects with white (node boxes)
+    .replace(/(<rect(?:[^>]*?))fill="url\([^)]*\)"([^>]*?>)/g, '$1fill="#ffffff"$2')
+    .replace(/fill="url\([^)]*\)"/g, 'fill="#ffffff"')
+    // Stamp node text fill as dark so it wins over the global light default
+    // Works by targeting text elements that are siblings of rects with white fill
+    // Mermaid sets fill as a presentation attribute; CSS overrides it, so this is belt-and-suspenders
+    .replace(/(<text[^>]*class="[^"]*(?:nodeLabel|label)[^"]*"[^>]*)>/g,
+      (_m, prefix) => prefix.includes('fill=') ? `${prefix}>` : `${prefix} fill="#1e293b">`)
+  return out
+}
+
+// htmlLabels: false — pure SVG <text>/<tspan> rendering.
+// Eliminates <foreignObject> and its HTML/CSS gradient background entirely.
+// This is the only reliable way to get clean white nodes with no line artifacts.
 mermaid.initialize({
   startOnLoad: false,
   theme: 'base',
   securityLevel: 'loose',
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
   flowchart: {
-    htmlLabels: true,
+    htmlLabels: false,
     curve: 'basis',
     nodeSpacing: 55,
     rankSpacing: 65,
     padding: 14,
   },
   themeVariables: {
-    // ── Surfaces (neutral slate — not branded) ──
     background:           '#0d1117',
-    mainBkg:              '#161b22',
-    secondBkg:            '#1c2333',
-    tertiaryBkg:          '#1c2333',
-    // ── Borders (subtle, not orange) ──
-    nodeBorder:           '#30363d',
-    clusterBkg:           'rgba(22,27,34,0.7)',
-    clusterBorder:        '#30363d',
-    // ── Text (always legible on slate) ──
-    nodeTextColor:        '#e6edf3',
-    edgeLabelBackground:  '#0d1117',
-    labelTextColor:       '#8b949e',
-    titleColor:           '#e6edf3',
-    // ── Edges: brand orange — the ONE orange touch ──
+    mainBkg:              '#ffffff',
+    primaryColor:         '#ffffff',
+    secondaryColor:       '#ffffff',
+    tertiaryColor:        '#ffffff',
+    nodeBorder:           '#94a3b8',
+    primaryBorderColor:   '#94a3b8',
+    secondaryBorderColor: '#94a3b8',
+    tertiaryBorderColor:  '#94a3b8',
+    primaryTextColor:     '#1e293b',
+    secondaryTextColor:   '#1e293b',
+    tertiaryTextColor:    '#1e293b',
+    nodeTextColor:        '#1e293b',
     lineColor:            '#f97316',
-    // ── Node variants (all neutral, different depths) ──
-    primaryColor:         '#1c2333',
-    primaryBorderColor:   '#30363d',
-    primaryTextColor:     '#e6edf3',
-    secondaryColor:       '#161b22',
-    secondaryBorderColor: '#30363d',
-    secondaryTextColor:   '#e6edf3',
-    tertiaryColor:        '#21262d',
-    tertiaryBorderColor:  '#30363d',
-    tertiaryTextColor:    '#e6edf3',
-    // ── Misc ──
-    labelBoxBkgColor:     '#161b22',
-    labelBoxBorderColor:  '#30363d',
+    edgeLabelBackground:  '#ffffff',
+    labelTextColor:       '#1e293b',
+    clusterBkg:           '#131c2e',
+    clusterBorder:        '#475569',
+    titleColor:           '#e2e8f0',
+    labelBoxBkgColor:     '#ffffff',
+    labelBoxBorderColor:  '#94a3b8',
     fontFamily:           'ui-monospace, SFMono-Regular, Menlo, monospace',
     fontSize:             '12px',
   },
@@ -93,8 +136,11 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
       setIsRendering(true)
       try {
         // Pre-process common LLM errors:
-        // 1. Replace literal \n with <br/> inside quoted strings or labels
-        let processedChart = cleanChart.replace(/\\n/g, '<br/>')
+        // 1. With htmlLabels:false, replace literal \n and <br/> with actual newlines
+        //    Mermaid SVG text mode uses \n for multi-line tspan rendering
+        let processedChart = cleanChart
+          .replace(/\\n/g, '\n')
+          .replace(/<br\s*\/?>/gi, '\n')
 
         // 2. Mermaid 11 does not support rgba() in classDef — replace with hex equivalents
         processedChart = processedChart.replace(
@@ -116,10 +162,10 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
         // v11 render is async and requires a unique ID per call to avoid cache collisions
         const renderId = `mermaid-${uniqueId}-${Math.random().toString(36).slice(2, 6)}`
         
-        const { svg: html } = await mermaid.render(renderId, processedChart)
+        const { svg: rawSvg } = await mermaid.render(renderId, processedChart)
         
         if (isMounted) {
-          setSvg(html)
+          setSvg(sanitizeSvg(rawSvg))
           setError(null)
         }
       } catch (err: any) {
@@ -160,9 +206,9 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
             display: 'flex',
             justifyContent: 'center',
             background: background ?? 'linear-gradient(160deg, #0d0f17 0%, #111420 100%)',
-            padding: '20px 16px',
+            padding: '24px 20px',
             borderRadius: 10,
-            border: '1px solid rgba(249,115,22,0.12)',
+            border: '1px solid rgba(249,115,22,0.1)',
             boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3), 0 4px 24px rgba(0,0,0,0.3)',
             overflowX: 'auto',
             transition: 'opacity 0.2s',

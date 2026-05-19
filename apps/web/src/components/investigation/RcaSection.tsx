@@ -7,8 +7,9 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Section } from '../Section'
 import { SemanticMarkdown } from '../SemanticMarkdown'
-import { downloadRcaPdf, emailRcaPdf, syncAzureBoards, syncServiceNow } from '../../api/client'
+import { emailRcaPdf, syncAzureBoards, syncServiceNow } from '../../api/client'
 import { FixStrategyFlowchart } from './FixStrategyFlowchart'
+import { exportRcaPdf } from '../../utils/rcaPdf'
 import type { InvestigationResult } from '../../api/client'
 
 interface RcaSectionProps {
@@ -40,10 +41,15 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
     onError: (err: Error) => setSyncOutcome({ provider: 'ServiceNow', id: null, ok: false, message: err.message }),
   })
 
-  const exportMutation = useMutation({
-    mutationFn: () => downloadRcaPdf(requestId),
-    onError: (err: Error) => setSyncOutcome({ provider: 'PDF', id: null, ok: false, message: err.message }),
-  })
+  const [pdfLoading, setPdfLoading] = useState(false)
+
+  const handleExportPdf = async () => {
+    if (pdfLoading) return
+    setPdfLoading(true)
+    try { await exportRcaPdf(data) }
+    catch (err: unknown) { setSyncOutcome({ provider: 'PDF', id: null, ok: false, message: (err as Error).message }) }
+    finally { setPdfLoading(false) }
+  }
 
   const confColor = rca.confidence === 'high' ? 'var(--c-green)'
     : rca.confidence === 'low' ? 'var(--c-red)'
@@ -69,8 +75,8 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
             {syncSnowMutation.isPending ? 'Syncing…' : 'ServiceNow'}
           </button>
           <div style={{ width: 1, height: 16, background: 'var(--c-border)', margin: '0 4px' }} />
-          <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '3px 8px' }} onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
-            {exportMutation.isPending ? '...' : '↓ PDF'}
+          <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '3px 8px', color: pdfLoading ? 'var(--c-text-faint)' : undefined }} onClick={handleExportPdf} disabled={pdfLoading}>
+            {pdfLoading ? '⏳…' : '📄 Export PDF'}
           </button>
           <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '3px 8px' }} onClick={() => emailMutation.mutate()} disabled={emailMutation.isPending}>
             {emailMutation.isPending ? '...' : '✉ Mail'}

@@ -44,6 +44,7 @@ class InvestigationRequestRow(Base):
     approval_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     incident_priority: Mapped[str] = mapped_column(String(10), nullable=False, default="P3")
     lookback_minutes: Mapped[int] = mapped_column(nullable=False, default=60)
+    ado_work_item_id: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)
     approved_by: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     approved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None

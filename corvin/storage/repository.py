@@ -322,6 +322,22 @@ class InvestigationRepository:
             session.refresh(row)
             return row
 
+    def get_ado_work_item_id(self, request_id: str) -> str | None:
+        """Return the ADO work item ID linked to this investigation, or None."""
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is None:
+                return None
+            return getattr(row, "ado_work_item_id", None)
+
+    def set_ado_work_item_id(self, request_id: str, work_item_id: str) -> None:
+        """Persist the ADO work item ID for this investigation."""
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is not None:
+                row.ado_work_item_id = work_item_id
+                session.commit()
+
     def get_similar_incidents(
         self,
         service_name: str,

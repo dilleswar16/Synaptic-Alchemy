@@ -75,20 +75,9 @@ def build_roi_stats(
     if baseline_mttr > 0:
         reduction_pct = round(max(0.0, (baseline_mttr - corvin_mttr) / baseline_mttr * 100), 1)
 
-    # Days span from oldest to newest
-    dates = []
-    for row in investigation_rows:
-        try:
-            dt = _parse_dt(row.get("created_at") or row.get("completed_at"))
-            if dt:
-                dates.append(dt)
-        except (TypeError, ValueError):
-            pass
-    if len(dates) >= 2:
-        span_days = max(1.0, (max(dates) - min(dates)).total_seconds() / 86400)
-    else:
-        span_days = 30.0
-    incidents_per_day = round(total / span_days, 2)
+    # Use the configured period window as denominator so this matches DORA's frequency
+    period_days = period_months * 30
+    incidents_per_day = round(total / period_days, 2)
 
     return RoiStats(
         period_months=period_months,

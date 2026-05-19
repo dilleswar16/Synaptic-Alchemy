@@ -366,6 +366,7 @@ export default function InvestigationDetailPage() {
                   <PostMortemSection
                     requestId={id!}
                     isExecuted={approvalStatus === 'executed'}
+                    hasRca={hasRca}
                     serviceName={data.request?.service_name ?? 'service'}
                     duration={totalDuration(data.request.created_at, data.completed_at)}
                   />

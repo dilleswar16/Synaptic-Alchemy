@@ -37,6 +37,18 @@ def _load_yaml(path: Path) -> dict[str, Any]:
         return yaml.safe_load(fh) or {}
 
 
+def _expand(value: Any) -> Any:
+    """Recursively expand ${VAR_NAME} placeholders using os.environ."""
+    if isinstance(value, str):
+        import re
+        return re.sub(r"\$\{([^}]+)\}", lambda m: os.environ.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _expand(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_expand(item) for item in value]
+    return value
+
+
 def get_env() -> str:
     """Return the active environment name from CORVIN_ENV (default: local)."""
     return os.environ.get("CORVIN_ENV", "local")
@@ -66,4 +78,4 @@ def load_config(concern: str, env: str | None = None) -> dict[str, Any]:
         if isinstance(env_overrides, dict):
             base = {**base, **env_overrides}
 
-    return base
+    return _expand(base)

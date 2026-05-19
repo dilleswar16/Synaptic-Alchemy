@@ -16,6 +16,7 @@ def send_rca_email_if_enabled(
     *,
     recipients: Iterable[str] | None = None,
     force: bool = False,
+    ado_work_item_url: str | None = None,
 ) -> bool:
     """Best-effort RCA email delivery with PDF attachment.
 
@@ -29,7 +30,12 @@ def send_rca_email_if_enabled(
 
         pdf_bytes = build_rca_pdf(result)
         adapter = EmailAdapter(config=cfg)
-        return adapter.send_rca_pdf(result, pdf_bytes, recipients=recipients)
+        return adapter.send_rca_pdf(
+            result,
+            pdf_bytes,
+            recipients=recipients,
+            ado_work_item_url=ado_work_item_url,
+        )
     except Exception as exc:  # noqa: BLE001
         _log.warning("RCA email delivery failed (non-fatal) for %s: %s", result.request_id, exc)
         return False

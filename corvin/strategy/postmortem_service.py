@@ -203,9 +203,12 @@ class PostMortemService:
             indent=2,
         )
         prompt = _PREVENTION_PROMPT.format(context=context)
+        # Use fallback_model (regular completion path, no Responses API) so that
+        # api_base is resolved from AZURE_API_BASE env var automatically.
+        model = self._model_config.get("fallback_model") or self._model_config["model"]
         try:
             response = litellm.completion(
-                model=self._model_config["model"],
+                model=model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=self._model_config.get("temperature", 0.3),
                 max_tokens=600,

@@ -141,6 +141,7 @@ export default function CorvinCommandPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingSessions, setLoadingSessions] = useState(true)
+  const [sessionError, setSessionError] = useState<string | null>(null)
   const [showToolPanel, setShowToolPanel] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -202,7 +203,7 @@ export default function CorvinCommandPage() {
       setActiveSessionId(session.id)
       setMessages([])
       setToolEvents([])
-    } catch (e) { console.error(e) }
+    } catch (e) { setSessionError('Failed to create session. Check that the API is running.') }
   }, [])
 
   // Delete session
@@ -276,6 +277,7 @@ export default function CorvinCommandPage() {
         @keyframes spin { to { transform:rotate(360deg) } }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
         @keyframes thinkPulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+        @keyframes shimmerSlide { 0%{transform:translateX(-200%)} 100%{transform:translateX(400%)} }
         @keyframes thinkScan {
           0%   { transform: translateX(-100%); opacity: 0; }
           20%  { opacity: 0.7; }
@@ -421,6 +423,11 @@ export default function CorvinCommandPage() {
             <button onClick={handleNewChat} style={{ marginTop: 8, padding: '10px 28px', borderRadius: 10, background: 'linear-gradient(135deg, #ea580c, #f97316)', border: 'none', color: '#fff', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.05em' }}>
               Start a new conversation
             </button>
+            {sessionError && (
+              <div style={{ marginTop: 12, padding: '10px 16px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', color: '#f87171', fontFamily: 'var(--font-mono)', fontSize: '0.74rem', maxWidth: 480, textAlign: 'center' }}>
+                {sessionError}
+              </div>
+            )}
           </div>
         ) : (
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -666,8 +673,8 @@ export default function CorvinCommandPage() {
                 )}
                 {toolEvents.map(ev =>
                   ev.type === 'calling'
-                    ? <ToolCallingSkeleton key={ev.id} toolName={ev.toolName} />
-                    : <ToolResultCard key={ev.id} toolName={ev.toolName} data={ev.data} timestamp={ev.timestamp} />
+                    ? <ToolCallingSkeleton key={`${ev.id}-calling`} toolName={ev.toolName} />
+                    : <ToolResultCard key={`${ev.id}-result`} toolName={ev.toolName} data={ev.data} timestamp={ev.timestamp} />
                 )}
               </div>
             </div>}
