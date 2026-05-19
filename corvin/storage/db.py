@@ -103,6 +103,27 @@ _engine = None
 _SessionLocal: sessionmaker | None = None
 
 
+# Columns added to existing tables after initial release.
+# Each entry: (table, column, sqlite_type).
+# We try to ADD each column and silently ignore "duplicate column" errors.
+_SQLITE_COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
+    ("corvin_messages", "tool_results", "JSON"),
+]
+
+
+def _sqlite_migrate(engine) -> None:
+    """Apply additive column migrations to an existing SQLite database."""
+    import sqlalchemy
+    with engine.connect() as conn:
+        for table, col, col_type in _SQLITE_COLUMN_MIGRATIONS:
+            try:
+                conn.execute(sqlalchemy.text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+                conn.commit()
+            except Exception:
+                # Column already exists — safe to ignore
+                pass
+
+
 def get_engine():
     global _engine
     if _engine is None:
@@ -115,6 +136,10 @@ def get_engine():
             # mode always have an up-to-date schema without running Alembic.
             from corvin.storage.models import Base
             Base.metadata.create_all(_engine)
+            # Ensure columns added after the initial create_all are present.
+            # SQLite doesn't support ALTER TABLE ... ADD COLUMN IF NOT EXISTS,
+            # so we attempt each migration and silently skip if already applied.
+            _sqlite_migrate(_engine)
         else:
             _engine = create_engine(_build_postgres_url(), **_build_pool_kwargs())
     return _engine

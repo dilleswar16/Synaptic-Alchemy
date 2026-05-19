@@ -8,6 +8,7 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import ApimChart from '../charts/ApimChart'
 
 interface ToolResultCardProps {
   toolName: string
@@ -439,7 +440,8 @@ function TopologyCard({ data }: { data: any }) {
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function ToolResultCard({ toolName, data, timestamp }: ToolResultCardProps) {
-  const [collapsed, setCollapsed] = useState(true)
+  // Auto-expand analytics results since the chart is the main value
+  const [collapsed, setCollapsed] = useState(toolName !== 'query_apim_analytics')
 
   const renderBody = () => {
     if (data === null || data === undefined) return <div style={{ color: 'var(--c-text-faint)' }}>No data returned.</div>
@@ -459,6 +461,7 @@ export function ToolResultCard({ toolName, data, timestamp }: ToolResultCardProp
       case 'get_aks_health':        return <AksHealthCard data={d} />
       case 'run_kql':               return Array.isArray(d) ? <KqlResultCard data={d} /> : <JsonFallbackCard data={d} />
       case 'run_elastic_query':     return Array.isArray(d) ? <KqlResultCard data={d} /> : <JsonFallbackCard data={d} />
+      case 'query_apim_analytics':  return <ApimChart data={d} compact />
       case 'get_site_knowledge':
       case 'get_runbook':           return typeof d === 'string' ? <TextDataCard data={d} /> : <JsonFallbackCard data={d} />
       default:                      return <JsonFallbackCard data={d} />

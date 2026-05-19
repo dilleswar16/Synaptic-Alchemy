@@ -1,0 +1,509 @@
+"""
+APIM Analytics Adapter — Named KQL template executor.
+
+Wraps LogAnalyticsAdapter with a library of 20+ pre-validated KQL queries
+sourced from the CHAD Azure Monitor Workbook (partnerapis & fundapis).
+
+Each template accepts `time_range_minutes` and `api_filter` parameters and
+returns a unified response dict that the frontend chart renderer can consume
+directly without any post-processing:
+
+    {
+        "rows":               list[dict],   # query result rows
+        "columns":            list[str],    # column names in order
+        "chart_type":         str,          # "area"|"bar"|"pie"|"heatmap"|"table"|"tiles"
+        "title":              str,          # human-readable chart title
+        "subtitle":           str,          # chart subtitle / description
+        "template_name":      str,          # which template was executed
+        "time_range_minutes": int,
+        "api_filter":         str,
+        "row_count":          int,
+    }
+"""
+from __future__ import annotations
+
+import logging
+from datetime import timedelta
+from typing import Any
+
+from corvin.evidence.log_analytics_adapter import LogAnalyticsAdapter
+
+_log = logging.getLogger(__name__)
+
+# ── KQL Template Library ──────────────────────────────────────────────────────
+# Format: template_name → (kql_str, chart_type, title, subtitle)
+# Placeholders in kql_str:
+#   {minutes}            → int (lookback window)
+#   {api_filter_clause}  → str (optional extra `| where ApiId == "..."` line)
+#
+# NOTE: KQL regex patterns use {{}} to escape the Python .format() braces.
+
+_TEMPLATES: dict[str, tuple[str, str, str, str]] = {
+
+    "kpi_summary": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| summarize\n'
+        '    TotalRequests     = count(),\n'
+        '    SuccessRate       = round(100.0 * countif(IsRequestSuccess == true) / count(), 1),\n'
+        '    ErrorCount        = countif(ResponseCode >= 400),\n'
+        '    AvgResponseTimeMs = round(avg(TotalTime), 0),\n'
+        '    UniqueMembers     = dcount(extract(@"/members/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})", 1, Url))',
+        "tiles",
+        "📊 APIM Key Metrics",
+        "Headline numbers for all APIs in the selected time window.",
+    ),
+
+    "traffic_over_time": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| summarize\n'
+        "    ['Total Requests'] = count(),\n"
+        '    Success            = countif(IsRequestSuccess == true),\n'
+        '    Errors             = countif(IsRequestSuccess == false)\n'
+        '    by bin(TimeGenerated, 1h)\n'
+        '| order by TimeGenerated asc',
+        "area",
+        "📈 Request Traffic Over Time",
+        "Hourly request volume split by success and failure.",
+    ),
+
+    "success_rate": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| summarize SuccessRate = round(100.0 * countif(IsRequestSuccess == true) / count(), 1)\n'
+        '    by bin(TimeGenerated, 1h)\n'
+        '| order by TimeGenerated asc',
+        "area",
+        "✅ Success Rate % Over Time",
+        "Percentage of requests returning 2xx per hour. Sustained drop below 99% warrants investigation.",
+    ),
+
+    "response_code_distribution": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| extend ResponseCategory = case(\n'
+        '    ResponseCode between (200 .. 299), "2xx Success",\n'
+        '    ResponseCode between (400 .. 499), "4xx Client Error",\n'
+        '    ResponseCode between (500 .. 599), "5xx Server Error",\n'
+        '    "Other")\n'
+        '| summarize RequestCount = count() by ResponseCategory\n'
+        '| order by RequestCount desc',
+        "pie",
+        "🔵 Response Code Distribution",
+        "Breakdown of all responses by HTTP status category.",
+    ),
+
+    "api_traffic_split": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '| summarize RequestCount = count() by ApiId\n'
+        '| order by RequestCount desc',
+        "pie",
+        "↔️ Traffic Split: partnerapis vs fundapis",
+        "Proportion of traffic going to each API over the selected period.",
+    ),
+
+    "unique_members_by_fund": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| extend MemberUUID = extract(@"/members/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})", 1, Url)\n'
+        '| extend FundCode   = toupper(extract(@"/schemes/([^/]+)/", 1, Url))\n'
+        '| extend FundCode   = iff(FundCode == "CARESUPER", "CARE", FundCode)\n'
+        '| where isnotempty(MemberUUID) and isnotempty(FundCode)\n'
+        '| summarize UniqueMembers = dcount(MemberUUID) by FundCode, bin(TimeGenerated, 1h)\n'
+        '| order by TimeGenerated asc',
+        "area",
+        "👥 Unique Members by Fund Over Time",
+        "Distinct member UUIDs per fund bucketed hourly — shows which fund is active and how member reach evolves.",
+    ),
+
+    "requests_by_fund": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| extend FundCode = toupper(extract(@"/schemes/([^/]+)/", 1, Url))\n'
+        '| extend FundCode = iff(FundCode == "CARESUPER", "CARE", FundCode)\n'
+        '| where isnotempty(FundCode)\n'
+        '| summarize\n'
+        '    RequestCount  = count(),\n'
+        '    ErrorCount    = countif(ResponseCode >= 400),\n'
+        '    UniqueMembers = dcount(extract(@"/members/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})", 1, Url))\n'
+        '    by FundCode\n'
+        '| order by RequestCount desc',
+        "bar",
+        "🏦 Requests by Fund Code",
+        "Total requests, errors, and unique member reach per superannuation fund.",
+    ),
+
+    "top_members": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| extend FundCode   = toupper(extract(@"/schemes/([^/]+)/", 1, Url))\n'
+        '| extend FundCode   = iff(FundCode == "CARESUPER", "CARE", FundCode)\n'
+        '| extend MemberUUID = extract(@"/members/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})", 1, Url)\n'
+        '| where isnotempty(MemberUUID)\n'
+        '| summarize\n'
+        '    RequestCount = count(),\n'
+        '    ErrorCount   = countif(ResponseCode >= 400),\n'
+        '    LastSeen     = max(TimeGenerated),\n'
+        '    FundCode     = any(FundCode)\n'
+        '    by MemberUUID\n'
+        '| order by RequestCount desc\n'
+        '| take 10',
+        "table",
+        "🏆 Top 10 Members by Request Volume",
+        "Members with the highest request count — review for unusual volumes or repeated errors.",
+    ),
+
+    "fund_activity_heatmap": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| extend FundCode  = toupper(extract(@"/schemes/([^/]+)/", 1, Url))\n'
+        '| extend FundCode  = iff(FundCode == "CARESUPER", "CARE", FundCode)\n'
+        '| where isnotempty(FundCode)\n'
+        '| extend HourOfDay = datetime_part("Hour", TimeGenerated)\n'
+        '| summarize RequestCount = count() by FundCode, HourOfDay\n'
+        '| order by FundCode asc, HourOfDay asc',
+        "heatmap",
+        "🕒 Fund Activity by Hour of Day",
+        "Request volume per fund by hour of day — useful for understanding peak load patterns.",
+    ),
+
+    "partnerapis_operations": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId == "partnerapis"\n'
+        '| summarize\n'
+        '    Requests = count(),\n'
+        '    Success  = countif(IsRequestSuccess == true),\n'
+        '    Errors   = countif(ResponseCode >= 400)\n'
+        '    by OperationId\n'
+        '| order by Requests desc',
+        "bar",
+        "🔎 partnerapis — Operations Breakdown",
+        "Per-operation request, success, and error counts for partnerapis.",
+    ),
+
+    "fundapis_traffic": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId == "fundapis"\n'
+        '| summarize\n'
+        '    TotalRequests = count(),\n'
+        '    Errors        = countif(ResponseCode >= 400),\n'
+        '    ErrorRate_pct = round(100.0 * countif(ResponseCode >= 400) / count(), 1)\n'
+        '    by bin(TimeGenerated, 1h)\n'
+        '| order by TimeGenerated asc',
+        "area",
+        "💰 Fund API — Traffic & Error Rate",
+        "Hourly request and error volume for the fundapis pipeline.",
+    ),
+
+    "fundapis_operations_by_fund": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId == "fundapis"\n'
+        '| extend FundCode = toupper(extract(@"/schemes/([^/]+)/", 1, Url))\n'
+        '| extend FundCode = iff(FundCode == "CARESUPER", "CARE", FundCode)\n'
+        '| summarize\n'
+        '    RequestCount  = count(),\n'
+        '    ErrorCount    = countif(ResponseCode >= 400),\n'
+        '    ErrorRate_pct = round(100.0 * countif(ResponseCode >= 400) / count(), 1),\n'
+        '    AvgTime_ms    = round(avg(TotalTime), 0)\n'
+        '    by OperationId, FundCode\n'
+        '| order by FundCode asc, OperationId asc',
+        "table",
+        "📋 Fund API — Operations by Fund Code",
+        "Per-operation and per-fund breakdown for fundapis including error rates and latency.",
+    ),
+
+    "latency_percentiles": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| summarize\n'
+        '    P50_ms = percentile(TotalTime, 50),\n'
+        '    P95_ms = percentile(TotalTime, 95),\n'
+        '    P99_ms = percentile(TotalTime, 99),\n'
+        '    Avg_ms = round(avg(TotalTime), 0)\n'
+        '    by bin(TimeGenerated, 1h)\n'
+        '| order by TimeGenerated asc',
+        "area",
+        "⏱ Latency Percentiles Over Time (ms)",
+        "P50 is median response time; P99 is worst-case. A large P99/P50 gap indicates tail latency.",
+    ),
+
+    "backend_vs_overhead": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| summarize\n'
+        "    BackendTime_ms  = round(avg(BackendTime), 0),\n"
+        "    APIMOverhead_ms = round(avg(TotalTime - BackendTime), 0)\n"
+        '    by bin(TimeGenerated, 1h)\n'
+        '| order by TimeGenerated asc',
+        "area",
+        "⚙️ Backend Time vs APIM Gateway Overhead",
+        "Time in backend service vs APIM gateway processing. High overhead = policy or routing issues.",
+    ),
+
+    "slowest_operations": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| summarize\n'
+        '    RequestCount = count(),\n'
+        '    AvgTime_ms   = round(avg(TotalTime), 0),\n'
+        '    P95_ms       = percentile(TotalTime, 95),\n'
+        '    P99_ms       = percentile(TotalTime, 99)\n'
+        '    by OperationId, ApiId\n'
+        '| order by P95_ms desc\n'
+        '| take 15',
+        "table",
+        "🐢 Slowest Operations (by P95 latency)",
+        "Top 15 operations by P95 latency — start here when prioritising backend performance improvements.",
+    ),
+
+    "error_rate": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| summarize\n'
+        '    TotalRequests = count(),\n'
+        '    ErrorCount    = countif(ResponseCode >= 400),\n'
+        '    ErrorRate_pct = round(100.0 * countif(ResponseCode >= 400) / count(), 2)\n'
+        '    by bin(TimeGenerated, 1h)\n'
+        '| order by TimeGenerated asc',
+        "area",
+        "📉 Error Rate Over Time",
+        "Hourly error rate % alongside raw counts. Spikes correlate with incidents or backend degradation.",
+    ),
+
+    "errors_by_code": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| where ResponseCode >= 400\n'
+        '| summarize ErrorCount = count() by ResponseCode, OperationId, ApiId\n'
+        '| order by ErrorCount desc',
+        "bar",
+        "🚨 Errors by Response Code & Operation",
+        "HTTP error codes per operation — helps triage 4xx vs 5xx issues.",
+    ),
+
+    "error_origin": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| where ResponseCode >= 400\n'
+        '| extend ErrorOrigin = case(\n'
+        '    BackendResponseCode >= 400,                        "Backend Error",\n'
+        '    ResponseCode >= 400 and BackendResponseCode < 400, "APIM Policy Error",\n'
+        '    isempty(tostring(BackendResponseCode)),            "Blocked at Gateway",\n'
+        '    "Other")\n'
+        '| summarize Count = count() by ErrorOrigin, ResponseCode, ApiId\n'
+        '| order by Count desc',
+        "bar",
+        "🔍 Error Origin — Backend vs APIM vs Gateway",
+        "Classifies each error as backend fault, APIM policy rejection, or gateway block.",
+    ),
+
+    "top_caller_ips": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| summarize\n'
+        '    RequestCount = count(),\n'
+        '    ErrorCount   = countif(ResponseCode >= 400)\n'
+        '    by CallerIpAddress\n'
+        '| order by RequestCount desc\n'
+        '| take 20',
+        "table",
+        "🌐 Top 20 Caller IP Addresses",
+        "IPs making the most requests. Unexpected sources or high error rates may indicate probing.",
+    ),
+
+    "tls_versions": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| summarize RequestCount = count() by ClientTlsVersion\n'
+        '| order by RequestCount desc',
+        "pie",
+        "🔒 TLS Version Distribution",
+        "All traffic should use TLS 1.3. Any older version is a security compliance risk.",
+    ),
+
+    "traffic_source": (
+        'ApiManagementGatewayLogs\n'
+        '| where TimeGenerated >= ago({minutes}m)\n'
+        '| where ApiId in ("partnerapis", "fundapis")\n'
+        '{api_filter_clause}'
+        '| extend TrafficSource = tostring(parse_json(BackendRequestHeaders)["X-Traffic-Source"])\n'
+        '| summarize RequestCount = count() by TrafficSource\n'
+        '| order by RequestCount desc',
+        "pie",
+        "🚦 Traffic Source (X-Traffic-Source header)",
+        "Which client systems or environments are calling the API.",
+    ),
+}
+
+# Public list for LLM tool description
+TEMPLATE_NAMES: list[str] = sorted(_TEMPLATES.keys())
+
+
+class APIMAnalyticsAdapter(LogAnalyticsAdapter):
+    """APIM-focused analytics adapter with named KQL templates.
+
+    Inherits workspace_id and LogsQueryClient from LogAnalyticsAdapter.
+    Adds a library of pre-validated KQL templates from the CHAD workbook
+    and a generic raw-KQL execution path.
+    """
+
+    def query_template(
+        self,
+        template_name: str,
+        time_range_minutes: int = 1440,
+        api_filter: str = "all",
+    ) -> dict[str, Any]:
+        """Execute a named KQL template and return structured chart data.
+
+        Args:
+            template_name:      One of the keys in TEMPLATE_NAMES.
+            time_range_minutes: Lookback window (default 1440 = 24h / today).
+            api_filter:         "all" | "partnerapis" | "fundapis".
+
+        Returns:
+            Unified chart payload: {rows, columns, chart_type, title, subtitle, ...}
+        """
+        if template_name not in _TEMPLATES:
+            available = ", ".join(TEMPLATE_NAMES)
+            return {
+                "error": f"Unknown template {template_name!r}.",
+                "available_templates": available,
+                "template_name": template_name,
+                "rows": [],
+                "columns": [],
+                "chart_type": "table",
+                "title": "Unknown Template",
+                "subtitle": "",
+                "row_count": 0,
+                "time_range_minutes": time_range_minutes,
+                "api_filter": api_filter,
+            }
+
+        query_tmpl, chart_type, title, subtitle = _TEMPLATES[template_name]
+
+        # Build optional API filter clause (extra pipe-where line)
+        if api_filter and api_filter.lower() not in ("all", ""):
+            safe = api_filter.replace('"', '')
+            api_filter_clause = f'| where ApiId == "{safe}"\n'
+        else:
+            api_filter_clause = ""
+
+        query = query_tmpl.format(
+            minutes=time_range_minutes,
+            api_filter_clause=api_filter_clause,
+        )
+
+        rows = self._run_kql(query, time_range_minutes)
+        columns = list(rows[0].keys()) if rows else []
+
+        return {
+            "rows": rows,
+            "columns": columns,
+            "chart_type": chart_type,
+            "title": title,
+            "subtitle": subtitle,
+            "template_name": template_name,
+            "time_range_minutes": time_range_minutes,
+            "api_filter": api_filter,
+            "row_count": len(rows),
+        }
+
+    def run_kql_raw(
+        self,
+        kql: str,
+        time_range_minutes: int = 1440,
+        chart_type: str = "table",
+        title: str = "Custom Query",
+        subtitle: str = "",
+    ) -> dict[str, Any]:
+        """Execute an arbitrary KQL query and return structured chart data.
+
+        Use this when the user asks a question that doesn't match any named template.
+        The LLM should generate a valid KQL query targeting ApiManagementGatewayLogs.
+        """
+        rows = self._run_kql(kql, time_range_minutes)
+        columns = list(rows[0].keys()) if rows else []
+        return {
+            "rows": rows,
+            "columns": columns,
+            "chart_type": chart_type,
+            "title": title,
+            "subtitle": subtitle,
+            "template_name": "custom",
+            "time_range_minutes": time_range_minutes,
+            "api_filter": "all",
+            "row_count": len(rows),
+        }
+
+    # ── Internal ──────────────────────────────────────────────────────────────
+
+    def _run_kql(self, query: str, time_range_minutes: int) -> list[dict[str, Any]]:
+        """Execute a KQL query against the configured Log Analytics workspace."""
+        try:
+            from azure.monitor.query import LogsQueryStatus
+        except ImportError:
+            _log.warning("APIMAnalyticsAdapter: azure-monitor-query not installed.")
+            return []
+
+        if self._client is None:
+            _log.warning("APIMAnalyticsAdapter: LogsQueryClient not configured — returning [].")
+            return []
+
+        try:
+            result = self._client.query_workspace(
+                workspace_id=self._workspace_id,
+                query=query,
+                timespan=timedelta(minutes=time_range_minutes),
+            )
+            if result.status != LogsQueryStatus.SUCCESS or not result.tables:
+                return []
+            log_table = result.tables[0]
+            cols = [c.name if hasattr(c, "name") else c for c in log_table.columns]
+            return [
+                {
+                    k: (v.isoformat() if hasattr(v, "isoformat") else v)
+                    for k, v in zip(cols, row)
+                }
+                for row in log_table.rows
+            ]
+        except Exception as exc:
+            _log.warning("APIMAnalyticsAdapter._run_kql failed: %s", exc)
+            return []

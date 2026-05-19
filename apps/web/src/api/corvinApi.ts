@@ -19,6 +19,7 @@ export interface CorvinMessage {
   content: string
   thinking?: string | null
   tool_calls?: { calls: { tool_name: string; arguments: Record<string, unknown> }[] } | null
+  tool_results?: Record<string, unknown> | null
   created_at: string
 }
 

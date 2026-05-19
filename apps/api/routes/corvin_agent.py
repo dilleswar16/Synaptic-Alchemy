@@ -47,6 +47,7 @@ class MessageOut(BaseModel):
     content: str
     thinking: str | None = None
     tool_calls: dict | list | None = None
+    tool_results: dict | None = None
     created_at: str
 
 
@@ -128,6 +129,7 @@ def get_session_detail(session_id: str) -> SessionDetailOut:
                 content=m.content,
                 thinking=m.thinking,
                 tool_calls=m.tool_calls,
+                tool_results=m.tool_results,
                 created_at=m.created_at.isoformat(),
             )
             for m in msg_rows
@@ -213,6 +215,8 @@ def chat(
         text_chunks: list[str] = []
         thinking_chunks: list[str] = []
         tool_calls_seen: list[dict] = []
+        # key: tool_name → last result payload (for tools called multiple times, last wins)
+        tool_results_seen: dict[str, object] = {}
 
         for chunk in svc.stream_chat_simple(history):
             yield chunk
@@ -228,6 +232,8 @@ def chat(
                             "tool_name": data.get("tool_name"),
                             "arguments": data.get("arguments"),
                         })
+                    elif data.get("type") == "tool_result" and data.get("tool_name"):
+                        tool_results_seen[data["tool_name"]] = data.get("data")
                 except Exception:
                     pass
 
@@ -243,6 +249,7 @@ def chat(
                         content=full_reply,
                         thinking="".join(thinking_chunks) if thinking_chunks else None,
                         tool_calls={"calls": tool_calls_seen} if tool_calls_seen else None,
+                        tool_results=tool_results_seen if tool_results_seen else None,
                         created_at=persist_now,
                     ))
                     session_row = db.get(CorvinSessionRow, session_id)

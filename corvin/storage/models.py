@@ -234,6 +234,8 @@ class CorvinMessageRow(Base):
     thinking: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     # Serialised list of tool calls made during this turn (JSON), null for user turns
     tool_calls: Mapped[dict | None] = mapped_column(JSONB_COMPAT, nullable=True, default=None)
+    # Serialised tool results keyed by tool_name — allows UI to re-render charts after reload
+    tool_results: Mapped[dict | None] = mapped_column(JSONB_COMPAT, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

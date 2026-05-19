@@ -10,8 +10,8 @@ import {
   type CorvinSession, type AgentEvent,
 } from '../api/corvinApi'
 
-
 import MermaidChart from '../components/common/MermaidChart'
+import ApimChart, { type ApimChartData } from '../components/charts/ApimChart'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,6 +29,7 @@ interface UiMessage {
   thinking?: string
   thinkingCollapsed?: boolean
   toolSteps?: ToolStep[]
+  chartData?: ApimChartData | null
 }
 
 interface ToolEvent {
@@ -49,7 +50,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_postmortem: 'Post-Mortem', get_similar_incidents: 'Similar Incidents',
   get_site_knowledge: 'CHAD Architecture', get_runbook: 'Runbook',
   run_kql: 'Log Analytics Query', get_aks_health: 'AKS Health',
-  run_elastic_query: 'Elastic Logs',
+  run_elastic_query: 'Elastic Logs', query_apim_analytics: 'APIM Analytics',
 }
 
 const TOOL_ICONS: Record<string, string> = {
@@ -58,6 +59,7 @@ const TOOL_ICONS: Record<string, string> = {
   get_service_topology: '🗺️', get_blast_radius: '💥', get_postmortem: '📄',
   get_similar_incidents: '🔁', get_site_knowledge: '🏗️', get_runbook: '📖',
   run_kql: '🔬', get_aks_health: '☸️', run_elastic_query: '📡',
+  query_apim_analytics: '📈',
 }
 
 function extractPreview(toolName: string, data: unknown): string {
@@ -73,6 +75,7 @@ function extractPreview(toolName: string, data: unknown): string {
     case 'get_roi': return `${Number(d.hours_saved ?? 0).toFixed(1)}h saved · $${Number(d.cost_saved ?? 0).toFixed(0)}`
     case 'get_aks_health': return `${(d.pods as any[])?.length ?? 0} pods`
     case 'run_kql': return Array.isArray(d) ? `${d.length} rows` : 'Query complete'
+    case 'query_apim_analytics': return d.row_count != null ? `${d.row_count} rows · ${d.title ?? ''}`.slice(0, 60) : 'Chart ready'
     case 'get_site_knowledge': return `${Math.round((typeof d === 'string' ? d.length : 0) / 100) / 10}k chars`
     case 'get_runbook': return 'Runbook loaded'
     default: return 'Done'
@@ -162,6 +165,8 @@ export default function CorvinCommandPage() {
     prevLastMessageContentRef.current = lastMsg?.content || ''
   }, [messages])
 
+
+
   // Load session list
   const refreshSessions = useCallback(async () => {
     try {
@@ -179,19 +184,26 @@ export default function CorvinCommandPage() {
     setToolEvents([])
     try {
       const detail = await getSession(sessionId)
-      setMessages(detail.messages.map(m => ({
-        id: String(m.id),
-        role: m.role,
-        content: m.content,
-        thinking: m.thinking || undefined,
-        thinkingCollapsed: true, // historical messages start collapsed
-        toolSteps: m.tool_calls?.calls.map((c, i) => ({
-          id: `hist-${m.id}-${i}`,
-          toolName: c.tool_name,
-          status: 'done' as const,
-          resultPreview: 'Done',
-        })) || [],
-      })))
+      setMessages(detail.messages.map((m) => {
+        // Restore chart data from DB-stored tool_results
+        const apimResult = m.tool_results?.['query_apim_analytics'] as ApimChartData | undefined
+        return {
+          id: String(m.id),
+          role: m.role,
+          content: m.content,
+          thinking: m.thinking || undefined,
+          thinkingCollapsed: true,
+          chartData: apimResult ?? null,
+          toolSteps: m.tool_calls?.calls.map((c, i) => ({
+            id: `hist-${m.id}-${i}`,
+            toolName: c.tool_name,
+            status: 'done' as const,
+            resultPreview: c.tool_name === 'query_apim_analytics' && apimResult
+              ? `${apimResult.row_count ?? '?'} rows`
+              : 'Done',
+          })) || [],
+        }
+      }))
     } catch { setMessages([]) }
   }, [])
 
@@ -251,8 +263,28 @@ export default function CorvinCommandPage() {
           setToolEvents(prev => [...prev, {id:stepId,type:'calling',toolName:ev.tool_name!,timestamp:new Date().toISOString()}])
         } else if (ev.type === 'tool_result') {
           const preview = extractPreview(ev.tool_name!, ev.data)
-          setMessages(prev => { const next=[...prev]; const last=next[next.length-1]; const steps=(last.toolSteps??[]).map(s=>s.toolName===ev.tool_name&&s.status==='calling'?{...s,status:'done' as const,resultPreview:preview}:s); next[next.length-1]={...last,toolSteps:steps}; return next })
-          setToolEvents(prev => { const u=[...prev]; const idx=[...u].reverse().findIndex(t=>t.type==='calling'&&t.toolName===ev.tool_name); if(idx!==-1)u[u.length-1-idx]={...u[u.length-1-idx],type:'result',data:ev.data}; return u })
+          setMessages(prev => {
+            const next = [...prev]
+            const last = next[next.length - 1]
+            const steps = (last.toolSteps ?? []).map(s =>
+              s.toolName === ev.tool_name && s.status === 'calling'
+                ? { ...s, status: 'done' as const, resultPreview: preview }
+                : s
+            )
+            // Capture chart data inline in the message for query_apim_analytics
+            const chartData =
+              ev.tool_name === 'query_apim_analytics' && ev.data
+                ? (ev.data as ApimChartData)
+                : last.chartData ?? null
+            next[next.length - 1] = { ...last, toolSteps: steps, chartData }
+            return next
+          })
+          setToolEvents(prev => {
+            const u = [...prev]
+            const idx = [...u].reverse().findIndex(t => t.type === 'calling' && t.toolName === ev.tool_name)
+            if (idx !== -1) u[u.length - 1 - idx] = { ...u[u.length - 1 - idx], type: 'result', data: ev.data }
+            return u
+          })
         } else if (ev.type === 'text' && ev.text) {
           setMessages(prev => { const next=[...prev]; const last=next[next.length-1]; const collapsed=last.thinking?true:last.thinkingCollapsed; next[next.length-1]={...last,content:last.content+ev.text,thinkingCollapsed:collapsed}; return next })
         }
@@ -402,12 +434,16 @@ export default function CorvinCommandPage() {
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 520 }}>
               {[
-                'What\'s the MTTR this week?',
+                "What's the MTTR this week?",
                 'Show me recent incidents',
                 'Is fundsso healthy?',
                 'Tell me about CHAD architecture',
                 'Any predictive alerts?',
-                'What\'s the ROI this month?',
+                "What's the ROI this month?",
+                'How many unique members per fund today?',
+                'Show me APIM error rate last 24h',
+                'Which partnerapis operations are slowest?',
+                'Show fund activity heatmap this week',
               ].map(q => (
                 <button
                   key={q}
@@ -590,6 +626,12 @@ export default function CorvinCommandPage() {
                                       <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'var(--c-signal)', marginLeft: 1, animation: 'blink 0.7s steps(1) infinite' }} />
                                     )}
                                   </div>
+                                  {/* ── Inline chart for query_apim_analytics ── */}
+                                  {m.chartData && !isStreaming && (
+                                    <div style={{ marginTop: 10 }}>
+                                      <ApimChart data={m.chartData} compact={false} />
+                                    </div>
+                                  )}
                                 </>
                               )}
 

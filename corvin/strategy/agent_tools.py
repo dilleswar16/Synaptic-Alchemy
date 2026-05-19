@@ -354,6 +354,97 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "query_apim_analytics",
+            "description": (
+                "Query live APIM gateway analytics from Azure Log Analytics. "
+                "Returns structured data with rows, columns, and a chart_type hint "
+                "(area, bar, pie, heatmap, table, tiles) that the UI renders as a visual chart. "
+                "ALWAYS use this — not run_kql — when the user asks about: API traffic volumes, "
+                "success/error rates, latency percentiles, unique member counts, fund code "
+                "breakdowns, caller IPs, TLS compliance, peak hours, or anything about "
+                "partnerapis or fundapis performance. "
+                "TWO MODES: "
+                "(1) Template mode: pass template_name to use a pre-validated query. "
+                "(2) Custom mode: if no template fits, write your own KQL and pass it as `kql`. "
+                "Available templates: kpi_summary, traffic_over_time, success_rate, "
+                "response_code_distribution, api_traffic_split, unique_members_by_fund, "
+                "requests_by_fund, top_members, fund_activity_heatmap, partnerapis_operations, "
+                "fundapis_traffic, fundapis_operations_by_fund, latency_percentiles, "
+                "backend_vs_overhead, slowest_operations, error_rate, errors_by_code, "
+                "error_origin, top_caller_ips, tls_versions, traffic_source."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "template_name": {
+                        "type": "string",
+                        "description": (
+                            "The pre-validated analytics template to run. Choose based on the user's question. "
+                            "'how many users/members today' → unique_members_by_fund. "
+                            "'overall health/KPIs/summary' → kpi_summary. "
+                            "'traffic over time' → traffic_over_time. "
+                            "'error rate/errors' → error_rate or errors_by_code. "
+                            "'latency/performance/slow' → latency_percentiles or slowest_operations. "
+                            "'which fund gets most traffic' → requests_by_fund. "
+                            "'peak hours/heatmap' → fund_activity_heatmap. "
+                            "'backend vs gateway overhead' → backend_vs_overhead. "
+                            "'partnerapis ops' → partnerapis_operations. "
+                            "'fundapis ops/flow' → fundapis_operations_by_fund. "
+                            "'tls/security' → tls_versions. "
+                            "'caller ips' → top_caller_ips. "
+                            "Omit this field when using custom `kql` mode."
+                        ),
+                    },
+                    "kql": {
+                        "type": "string",
+                        "description": (
+                            "Custom KQL query to execute. Use this when the user's question "
+                            "cannot be answered by any named template. "
+                            "The primary table is ApiManagementGatewayLogs. "
+                            "Do NOT include a top-level `| where TimeGenerated` filter — "
+                            "the time range is applied automatically via time_range_minutes. "
+                            "Example: 'ApiManagementGatewayLogs | summarize count() by ResponseCode | order by count_ desc'. "
+                            "Omit this field when using template_name mode."
+                        ),
+                    },
+                    "chart_type": {
+                        "type": "string",
+                        "enum": ["area", "bar", "pie", "heatmap", "table", "tiles"],
+                        "description": (
+                            "Chart type hint for the UI renderer. Required in custom kql mode. "
+                            "'area' for time-series, 'bar' for category comparisons, "
+                            "'pie' for distribution/share, 'heatmap' for fund×hour grids, "
+                            "'tiles' for single-row KPI aggregates, 'table' for raw rows. "
+                            "Default: 'table'."
+                        ),
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Human-readable chart title. Required in custom kql mode.",
+                    },
+                    "time_range_minutes": {
+                        "type": "integer",
+                        "description": (
+                            "Lookback window in minutes. Convert the user's exact phrasing — "
+                            "any integer is valid, do NOT round to presets unless the user is vague. "
+                            "'last 5 minutes' → 5, 'last 50 minutes' → 50, 'last 90 minutes' → 90, "
+                            "'last hour' → 60, 'last 4 hours' → 240, 'today' → 1440, "
+                            "'this week' → 10080. Default when no time hint given: 1440."
+                        ),
+                    },
+                    "api_filter": {
+                        "type": "string",
+                        "enum": ["all", "partnerapis", "fundapis"],
+                        "description": "Filter to a specific API. Only applies in template mode. Default: 'all'.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "run_elastic_query",
             "description": (
                 "Fetch application logs or metrics from Elasticsearch/Elastic APM for a service. "
@@ -601,6 +692,43 @@ def _exec_run_kql(args: dict) -> Any:
     )
 
 
+def _exec_apim_analytics(args: dict) -> dict:
+    from corvin.evidence.apim_analytics_adapter import APIMAnalyticsAdapter
+    adapter = APIMAnalyticsAdapter()
+    time_range = int(args.get("time_range_minutes", 1440))
+
+    if args.get("kql"):
+        # Custom mode — LLM wrote its own KQL query
+        return adapter.run_kql_raw(
+            kql=args["kql"],
+            time_range_minutes=time_range,
+            chart_type=args.get("chart_type", "table"),
+            title=args.get("title", "Custom Query"),
+            subtitle="",
+        )
+
+    template = args.get("template_name")
+    if not template:
+        return {
+            "error": "Provide either template_name or kql.",
+            "row_count": 0,
+            "rows": [],
+            "columns": [],
+            "chart_type": "table",
+            "title": "No query specified",
+            "subtitle": "",
+            "template_name": "none",
+            "time_range_minutes": time_range,
+            "api_filter": "all",
+        }
+
+    return adapter.query_template(
+        template_name=template,
+        time_range_minutes=time_range,
+        api_filter=args.get("api_filter", "all"),
+    )
+
+
 def _exec_aks_health(args: dict) -> Any:
     from corvin.evidence.aks_adapter import AKSAdapter
     adapter = AKSAdapter()
@@ -639,4 +767,5 @@ _EXECUTORS = {
     "run_kql":                  _exec_run_kql,
     "get_aks_health":           _exec_aks_health,
     "run_elastic_query":        _exec_elastic_query,
+    "query_apim_analytics":     _exec_apim_analytics,
 }
