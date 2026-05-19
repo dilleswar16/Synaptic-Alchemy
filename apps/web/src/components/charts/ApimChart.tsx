@@ -281,39 +281,43 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
   let maxVal = 1
   funds.forEach(f => hours.forEach(h => { maxVal = Math.max(maxVal, grouped[f][h] ?? 0) }))
 
-  // Power-curve color: transparent near 0, glowing orange at max
-  function cellBg(v: number): string {
-    if (v === 0) return 'var(--c-surface-2)'
-    const t = Math.pow(v / maxVal, 0.55)
-    // interpolate: #1a0a00 (very dark amber) → #f97316 (bright orange)
-    const r = Math.round(26 + (249 - 26) * t)
-    const g = Math.round(10 + (115 - 10) * t)
-    const b = Math.round(0 + (22 - 0) * t)
-    const a = 0.18 + 0.82 * t
-    return `rgba(${r},${g},${b},${a})`
+  // 5-stop color ramp: empty → faint → warm → hot → peak
+  function cellColor(v: number): { bg: string; border: string } {
+    if (v === 0) return { bg: 'var(--c-surface-3)', border: 'var(--c-border)' }
+    const t = Math.pow(v / maxVal, 0.5)
+    if (t < 0.2) return { bg: 'rgba(251,146,60,0.12)', border: 'rgba(251,146,60,0.2)' }
+    if (t < 0.45) return { bg: 'rgba(249,115,22,0.3)', border: 'rgba(249,115,22,0.4)' }
+    if (t < 0.7) return { bg: 'rgba(234,88,12,0.55)', border: 'rgba(234,88,12,0.65)' }
+    if (t < 0.9) return { bg: 'rgba(194,65,12,0.75)', border: 'rgba(194,65,12,0.85)' }
+    return { bg: '#ea580c', border: '#c2410c' }
   }
 
-  const cellH = compact ? 30 : 40
-  const labelW = 56
-  // Show hour labels only every 3 hours
-  const showLabel = (h: number) => h % 3 === 0
+  const cellH = compact ? 36 : 48
+  const labelW = 72
+  const gap = 3
 
   return (
     <div style={{ position: 'relative', userSelect: 'none' }}>
-      {/* Y-axis legend */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4, paddingLeft: labelW }}>
-        <span style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-          Hour of Day (0–23)
-        </span>
+      {/* Column headers (hours) */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', paddingLeft: labelW, marginBottom: 6, gap }}>
+        {hours.map(h => (
+          <div key={h} style={{
+            flex: 1, textAlign: 'center',
+            fontSize: '0.6rem', color: h % 3 === 0 ? 'var(--c-text-muted)' : 'transparent',
+            fontFamily: 'var(--font-mono)', fontWeight: 500,
+          }}>
+            {String(h).padStart(2, '0')}
+          </div>
+        ))}
       </div>
 
       {/* Grid rows */}
       {funds.map(fund => (
-        <div key={fund} style={{ display: 'flex', alignItems: 'center', marginBottom: 3 }}>
+        <div key={fund} style={{ display: 'flex', alignItems: 'center', marginBottom: gap }}>
           {/* Fund label */}
           <div style={{
-            width: labelW, minWidth: labelW, textAlign: 'right', paddingRight: 8,
-            fontSize: '0.68rem', fontWeight: 700, color: 'var(--c-text-muted)',
+            width: labelW, minWidth: labelW, textAlign: 'right', paddingRight: 10,
+            fontSize: '0.72rem', fontWeight: 600, color: 'var(--c-text)',
             fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           }}>
@@ -321,74 +325,82 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
           </div>
 
           {/* Cells */}
-          <div style={{ display: 'flex', flex: 1, gap: 2 }}>
+          <div style={{ display: 'flex', flex: 1, gap }}>
             {hours.map(h => {
               const v = grouped[fund][h] ?? 0
+              const { bg, border } = cellColor(v)
+              const isPeak = v === maxVal && v > 0
               return (
                 <div
                   key={h}
                   style={{
                     flex: 1,
                     height: cellH,
-                    borderRadius: 4,
-                    background: cellBg(v),
-                    border: v > 0 ? '1px solid var(--c-signal-dim)' : '1px solid var(--c-border)',
+                    borderRadius: 6,
+                    background: bg,
+                    border: `1px solid ${border}`,
                     cursor: v > 0 ? 'crosshair' : 'default',
-                    transition: 'transform 0.1s, box-shadow 0.1s',
-                    boxShadow: v > 0 && v === maxVal ? '0 0 8px color-mix(in srgb, var(--c-signal) 50%, transparent)' : 'none',
+                    transition: 'transform 0.12s, box-shadow 0.12s',
+                    boxShadow: isPeak ? '0 0 12px rgba(234,88,12,0.5), inset 0 0 8px rgba(234,88,12,0.15)' : 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                   onMouseEnter={e => {
-                    if (v > 0) setTooltip({ fund, hour: h, count: v, x: (e.target as HTMLElement).getBoundingClientRect().left, y: (e.target as HTMLElement).getBoundingClientRect().top })
+                    if (v > 0) {
+                      const rect = (e.target as HTMLElement).getBoundingClientRect()
+                      setTooltip({ fund, hour: h, count: v, x: rect.left + rect.width / 2, y: rect.top })
+                    }
                   }}
                   onMouseLeave={() => setTooltip(null)}
-                />
+                >
+                  {/* Show count inside large cells when value is significant */}
+                  {v > 0 && !compact && cellH >= 44 && (
+                    <span style={{
+                      fontSize: '0.6rem', fontWeight: 700,
+                      fontFamily: 'var(--font-mono)',
+                      color: Math.pow(v / maxVal, 0.5) > 0.5 ? 'rgba(255,255,255,0.9)' : 'var(--c-text-muted)',
+                      lineHeight: 1,
+                    }}>
+                      {v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
+                    </span>
+                  )}
+                </div>
               )
             })}
           </div>
         </div>
       ))}
 
-      {/* X-axis labels */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', marginTop: 4, paddingLeft: labelW }}>
-        <div style={{ display: 'flex', flex: 1, gap: 2 }}>
-          {hours.map(h => (
-            <div key={h} style={{
-              flex: 1, textAlign: 'center',
-              fontSize: '0.6rem', color: showLabel(h) ? 'var(--c-text-faint)' : 'transparent',
-              fontFamily: 'var(--font-mono)',
-            }}>
-              {h}
-            </div>
+      {/* Color legend */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, paddingLeft: labelW }}>
+        <span style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)' }}>0</span>
+        <div style={{ display: 'flex', gap: 2, flex: 1, maxWidth: 180 }}>
+          {['rgba(251,146,60,0.12)', 'rgba(249,115,22,0.3)', 'rgba(234,88,12,0.55)', 'rgba(194,65,12,0.75)', '#ea580c'].map((c, i) => (
+            <div key={i} style={{ flex: 1, height: 8, borderRadius: 4, background: c }} />
           ))}
         </div>
-      </div>
-
-      {/* Color legend bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, paddingLeft: labelW }}>
-        <span style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)' }}>0</span>
-        <div style={{
-          flex: 1, maxWidth: 140, height: 6, borderRadius: 3,
-          background: 'linear-gradient(to right, var(--c-surface-3), var(--c-signal))',
-        }} />
-        <span style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)' }}>{maxVal.toLocaleString()}</span>
+        <span style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)' }}>{maxVal.toLocaleString()}</span>
       </div>
 
       {/* Hover tooltip */}
       {tooltip && (
         <div style={{
           position: 'fixed',
-          left: tooltip.x + 8, top: tooltip.y - 48,
-          background: 'var(--c-surface-2)',
-          border: '1px solid var(--c-signal-dim)',
-          borderRadius: 8, padding: '6px 10px',
-          fontSize: '0.72rem', fontFamily: 'var(--font-mono)',
+          left: tooltip.x, top: tooltip.y - 52,
+          transform: 'translateX(-50%)',
+          background: 'var(--c-surface)', border: '1px solid var(--c-border-hi)',
+          borderRadius: 10, padding: '8px 14px',
+          fontSize: '0.75rem', fontFamily: 'var(--font-mono)',
           color: 'var(--c-text)', pointerEvents: 'none',
           zIndex: 9999, whiteSpace: 'nowrap',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+          boxShadow: 'var(--shadow-lg)',
         }}>
-          <span style={{ color: 'var(--c-signal)', fontWeight: 700 }}>{tooltip.fund}</span>
-          {' '}&nbsp;at <span style={{ color: 'var(--c-warning)' }}>{tooltip.hour}:00</span>
-          {' — '}<span style={{ fontWeight: 700 }}>{tooltip.count.toLocaleString()} req</span>
+          <div style={{ fontWeight: 600, color: 'var(--c-signal)', marginBottom: 2 }}>{tooltip.fund}</div>
+          <div>
+            <span style={{ color: 'var(--c-text-muted)' }}>{String(tooltip.hour).padStart(2, '0')}:00</span>
+            {' — '}
+            <span style={{ fontWeight: 700 }}>{tooltip.count.toLocaleString()}</span>
+            <span style={{ color: 'var(--c-text-muted)' }}> requests</span>
+          </div>
         </div>
       )}
     </div>

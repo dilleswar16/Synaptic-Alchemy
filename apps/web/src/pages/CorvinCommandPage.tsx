@@ -613,6 +613,12 @@ export default function CorvinCommandPage() {
                               )}
 
                               {/* ── Section 3: Final answer ── */}
+                              {/* ── Inline chart — show immediately when data arrives ── */}
+                              {m.chartData && (
+                                <div style={{ marginTop: 4, marginBottom: 8 }}>
+                                  <ApimChart data={m.chartData} compact={false} />
+                                </div>
+                              )}
                               {(m.content || (isStreaming && !(m.toolSteps?.some(s => s.status === 'calling')))) && (
                                 <>
                                   {(m.toolSteps ?? []).length > 0 && m.content && (
@@ -626,12 +632,6 @@ export default function CorvinCommandPage() {
                                       <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'var(--c-signal)', marginLeft: 1, animation: 'blink 0.7s steps(1) infinite' }} />
                                     )}
                                   </div>
-                                  {/* ── Inline chart for query_apim_analytics ── */}
-                                  {m.chartData && !isStreaming && (
-                                    <div style={{ marginTop: 10 }}>
-                                      <ApimChart data={m.chartData} compact={false} />
-                                    </div>
-                                  )}
                                 </>
                               )}
 
