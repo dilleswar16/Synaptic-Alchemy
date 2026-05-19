@@ -156,7 +156,16 @@ class FixStrategyGenerator:
         actions = output.actions[:max_actions]
 
         if self._policy_config.get("fix_execution_mode") == "review_only":
-            actions = [action.model_copy(update={"requires_approval": True}) for action in actions]
+            # Only force requires_approval=True on non-trivial actions.
+            # Purely informational/low-risk actions (no cluster changes) are left
+            # as-is so the UI can detect them and show "Acknowledge & Close" instead
+            # of the full Approve/Reject flow.
+            all_informational = all(
+                a.risk_level.value == "low" if hasattr(a.risk_level, "value") else str(a.risk_level).lower() == "low"
+                for a in actions
+            )
+            if not all_informational:
+                actions = [action.model_copy(update={"requires_approval": True}) for action in actions]
 
         return output.model_copy(update={"actions": actions})
 

@@ -61,6 +61,15 @@ export default function InvestigationDetailPage() {
   )
 
   const approvalStatus = data?.request?.approval_status ?? 'pending'
+
+  // Detect "informational" investigations: service is healthy, no real fixes needed.
+  // True when every fix action is low-risk (informational review, no cluster changes).
+  // We intentionally do NOT check requires_approval here — the backend forces that flag
+  // via review_only policy even on harmless actions for pre-existing investigations.
+  const isInformational = !!data?.fix_strategy && (
+    data.fix_strategy.actions.length === 0
+    || data.fix_strategy.actions.every((a) => a.risk_level === 'low')
+  )
   const [activeTab, setActiveTab] = useState<TabId>('rca')
 
   const { data: replay } = useQuery<ReplayPayload>({
@@ -196,6 +205,26 @@ export default function InvestigationDetailPage() {
               )}
               {data && <StatusBadge status={approvalStatus} />}
               {data?.request?.id && <CopyableId requestId={data.request.id} />}
+              {data?.ado_work_item_id && (
+                <a
+                  href={data.ado_url ?? '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
+                    padding: '3px 10px', borderRadius: 2, textDecoration: 'none',
+                    background: 'rgba(0,120,212,0.1)',
+                    border: '1px solid rgba(0,120,212,0.3)',
+                    color: '#60a5fa',
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+                  </svg>
+                  Azure Boards #{data.ado_work_item_id}
+                </a>
+              )}
               {rcaDuration && (
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
@@ -332,6 +361,7 @@ export default function InvestigationDetailPage() {
                       status={approvalStatus}
                       pendingAction={pendingAction}
                       onClearPendingAction={clearPendingAction}
+                      isInformational={isInformational}
                       confidence={
                         data?.rca?.confidence === 'high' ? 85
                         : data?.rca?.confidence === 'medium' ? 55

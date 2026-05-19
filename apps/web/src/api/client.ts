@@ -72,6 +72,8 @@ export interface InvestigationResult {
     }>
   } | null
   completed_at: string
+  ado_work_item_id: string | null
+  ado_url: string | null
 }
 
 export function fetchInvestigations() {
@@ -129,6 +131,10 @@ export function approveInvestigation(id: string) {
 
 export function rejectInvestigation(id: string) {
   return apiFetch<ApprovalResponse>(`/investigations/${id}/reject`, { method: 'POST' })
+}
+
+export function acknowledgeInvestigation(id: string) {
+  return apiFetch<ApprovalResponse>(`/investigations/${id}/acknowledge`, { method: 'POST' })
 }
 
 export interface ExecutionOutcome {

@@ -135,34 +135,6 @@ class RcaEmailRequest(BaseModel):
     recipients: list[str] | None = None
 
 
-# ── Internal helpers ──────────────────────────────────────────────────────────
-
-
-def _auto_sync_ado(result: InvestigationResult, repo: InvestigationRepository) -> str | None:
-    """Auto-create an Azure Boards work item for a completed investigation.
-
-    Non-fatal: logs a warning and returns None on any failure.
-    Stores the work item ID in the DB and returns the full URL for email linking.
-    """
-    try:
-        from corvin.delivery.azure_devops_adapter import AzureDevOpsAdapter
-        ado_cfg = load_config("integrations/azure_devops", get_env())
-        if not ado_cfg.get("enabled", False):
-            return None
-        ado_adapter = AzureDevOpsAdapter(ado_cfg)
-        work_item_id = ado_adapter.create_incident(result)
-        if not work_item_id:
-            return None
-        repo.set_ado_work_item_id(result.request_id, work_item_id)
-        org = str(ado_cfg.get("org_name", "")).strip()
-        proj = str(ado_cfg.get("project_name", "")).strip()
-        if org and proj and not org.startswith("${") and not proj.startswith("${"):
-            return f"https://dev.azure.com/{org}/{proj}/_workitems/edit/{work_item_id}"
-    except Exception as exc:
-        _log.warning("Azure Boards auto-sync failed (non-fatal): %s", exc)
-    return None
-
-
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 
@@ -208,9 +180,8 @@ def start_investigation(
     except Exception as exc:  # Teams failure must never break the investigation response
         _log.warning("Teams delivery failed (non-fatal): %s", exc)
 
-    # Auto-create Azure Boards work item, then send RCA email with the link (both non-fatal).
-    ado_url = _auto_sync_ado(result, repo)
-    send_rca_email_if_enabled(result, ado_work_item_url=ado_url)
+    # Optional and non-fatal: auto-send RCA PDF email when configured.
+    send_rca_email_if_enabled(result)
 
     return InvestigationAccepted(
         request_id=result.request_id,
@@ -483,9 +454,7 @@ def investigate_predictive_alert(
     except Exception as exc:
         _log.warning("Teams delivery failed (non-fatal): %s", exc)
 
-    # Auto-create Azure Boards work item, then send RCA email with the link (both non-fatal).
-    ado_url = _auto_sync_ado(result, repo)
-    send_rca_email_if_enabled(result, ado_work_item_url=ado_url)
+    send_rca_email_if_enabled(result)
 
     return InvestigationAccepted(
         request_id=result.request_id,
@@ -737,25 +706,7 @@ def email_rca_pdf(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
 
-    # Look up any stored AzDO work item and build the URL for the email body.
-    ado_work_item_url: str | None = None
-    ado_id = repo.get_ado_work_item_id(request_id)
-    if ado_id:
-        try:
-            ado_cfg = load_config("integrations/azure_devops", get_env())
-            org = str(ado_cfg.get("org_name", "")).strip()
-            proj = str(ado_cfg.get("project_name", "")).strip()
-            if org and proj and not org.startswith("${") and not proj.startswith("${"):
-                ado_work_item_url = f"https://dev.azure.com/{org}/{proj}/_workitems/edit/{ado_id}"
-        except Exception:
-            pass
-
-    sent = send_rca_email_if_enabled(
-        result,
-        recipients=body.recipients,
-        force=True,
-        ado_work_item_url=ado_work_item_url,
-    )
+    sent = send_rca_email_if_enabled(result, recipients=body.recipients, force=True)
     if not sent:
         return {
             "request_id": request_id,
