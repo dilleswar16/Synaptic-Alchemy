@@ -78,7 +78,7 @@ export function PostMortemSection({ requestId, isExecuted, hasRca, serviceName, 
             <span style={{
               fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
               letterSpacing: '0.1em', padding: '2px 7px', borderRadius: 2,
-              background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)',
+              background: 'var(--c-warning-bg)', border: '1px solid var(--c-warning-border)',
               color: 'var(--c-yellow)', textTransform: 'uppercase',
             }}>
               PREVIEW
@@ -155,7 +155,7 @@ export function PostMortemSection({ requestId, isExecuted, hasRca, serviceName, 
           {/* Executive Summary Header */}
           <div style={{ 
             display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12,
-            padding: '16px', background: 'rgba(255,255,255,0.03)', 
+            padding: '16px', background: 'var(--c-surface-2)', 
             border: '1px solid var(--c-border)', borderRadius: 12
           }}>
             <div style={{ textAlign: 'center', borderRight: '1px solid var(--c-border)' }}>

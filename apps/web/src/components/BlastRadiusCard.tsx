@@ -25,15 +25,15 @@ const SEVERITY_COLOUR: Record<string, string> = {
 const SEVERITY_BG: Record<string, string> = {
   critical: 'var(--c-error-bg)',
   high:     'var(--c-signal-glow)',
-  medium:   'rgba(250,204,21,0.06)',
-  low:      'rgba(34,197,94,0.07)',
+  medium:   'var(--c-warning-bg)',
+  low:      'var(--c-success-bg)',
 }
 
 const SEVERITY_BORDER: Record<string, string> = {
   critical: 'var(--c-error-border)',
   high:     'var(--c-border-glow)',
-  medium:   'rgba(250,204,21,0.25)',
-  low:      'rgba(34,197,94,0.25)',
+  medium:   'var(--c-warning-border)',
+  low:      'var(--c-success-border)',
 }
 
 interface Props {

@@ -64,6 +64,7 @@ function SelectField({
       <button
         type="button"
         onClick={() => !disabled && setOpen(o => !o)}
+        className="corvin-interactive"
         style={{
           width: '100%', boxSizing: 'border-box',
           padding: '9px 30px 9px 12px',
@@ -73,7 +74,7 @@ function SelectField({
           color: disabled ? 'var(--c-text-faint)' : 'var(--c-text)',
           fontFamily: 'var(--font-mono)', fontSize: '0.82rem',
           textAlign: 'left', cursor: disabled ? 'not-allowed' : 'pointer',
-          outline: 'none', transition: 'border-color 0.15s, background 0.1s',
+          transition: 'border-color 0.15s, background 0.1s',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}
       >
@@ -168,15 +169,16 @@ function DescriptionField({
         disabled={disabled}
         rows={3}
         placeholder="e.g. Elevated 5xx errors since 14:00, two pods restarted, latency spiked to 4 s on /checkout endpoint…"
+        className="corvin-interactive"
         style={{
           width: '100%', boxSizing: 'border-box', padding: '9px 12px',
           resize: 'vertical', minHeight: 72, fontFamily: 'var(--font-body)',
           fontSize: '0.82rem', lineHeight: 1.65,
           background: 'var(--c-surface)', border: '1px solid var(--c-border)',
-          borderRadius: 3, color: 'var(--c-text)', outline: 'none',
+          borderRadius: 3, color: 'var(--c-text)',
           transition: 'border-color 0.15s',
         }}
-        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.5)' }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'var(--c-signal-dim)' }}
         onBlur={e => { e.currentTarget.style.borderColor = 'var(--c-border)' }}
       />
     </div>
@@ -274,7 +276,7 @@ function StartInvestigationForm() {
         padding: '14px 20px',
         borderBottom: '1px solid var(--c-border)',
         display: 'flex', alignItems: 'center', gap: 10,
-        background: 'rgba(249,115,22,0.04)',
+        background: 'var(--c-signal-light)',
       }}>
         <div style={{
           width: 8, height: 8, borderRadius: '50%',
@@ -442,8 +444,8 @@ function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary
         const status = inv.approval_status ?? 'pending'
         const priority = (inv as any).incident_priority ?? 'P3'
         const priColor = priority === 'P1' ? 'var(--c-red)' : priority === 'P2' ? 'var(--c-signal)' : 'var(--c-text-muted)'
-        const priBg = priority === 'P1' ? 'rgba(239,68,68,0.1)' : priority === 'P2' ? 'rgba(249,115,22,0.1)' : 'var(--c-surface-2)'
-        const priBorder = priority === 'P1' ? '1px solid rgba(239,68,68,0.3)' : priority === 'P2' ? '1px solid rgba(249,115,22,0.3)' : '1px solid var(--c-border)'
+        const priBg = priority === 'P1' ? 'var(--c-error-bg)' : priority === 'P2' ? 'var(--c-signal-light)' : 'var(--c-surface-2)'
+        const priBorder = priority === 'P1' ? '1px solid var(--c-error-border)' : priority === 'P2' ? '1px solid var(--c-signal-dim)' : '1px solid var(--c-border)'
 
         return (
           <Link
@@ -525,8 +527,8 @@ export default function InvestigationsPage() {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '8px 16px',
-            background: 'rgba(234,179,8,0.08)',
-            border: '1px solid rgba(234,179,8,0.25)',
+            background: 'var(--c-warning-bg)',
+            border: '1px solid var(--c-warning-border)',
             borderRadius: 3,
           }}>
             <span className="animate-pulse-glow" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-yellow)', display: 'inline-block', flexShrink: 0 }} />

@@ -161,8 +161,8 @@ export function SimulateAlertPanel() {
                 textAlign: 'left',
                 cursor: 'pointer',
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                outline: 'none',
               }}
+              className="corvin-interactive"
             >
               {isSelected && (
                 <span style={{
@@ -221,13 +221,13 @@ export function SimulateAlertPanel() {
             value={customDesc}
             onChange={e => setCustomDesc(e.target.value)}
             placeholder={activePreset.description}
+            className="corvin-interactive"
             style={{
               width: '100%', boxSizing: 'border-box',
               fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
               color: 'var(--c-text)', background: 'var(--c-surface-2)',
               border: '1px solid var(--c-border-hi)',
               borderRadius: 4, padding: '8px 10px', resize: 'none',
-              outline: 'none',
             }}
           />
         </div>
@@ -252,7 +252,7 @@ export function SimulateAlertPanel() {
           borderRadius: 6,
           border: selected && !firing ? '1px solid var(--c-signal)' : '1px solid var(--c-border)',
           background: selected && !firing ? 'var(--c-signal)' : 'var(--c-surface-2)',
-          color: selected && !firing ? '#fff' : 'var(--c-text-faint)',
+          color: selected && !firing ? 'white' : 'var(--c-text-faint)',
           fontFamily: 'var(--font-display)',
           fontWeight: 700,
           fontSize: '0.72rem',

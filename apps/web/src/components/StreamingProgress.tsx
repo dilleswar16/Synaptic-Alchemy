@@ -309,10 +309,10 @@ function ThinkingPanel({ text, isActive, label = 'Model Reasoning' }: { text: st
   return (
     <div style={{
       marginTop: 12,
-      border: '1px solid rgba(139,92,246,0.25)',
+      border: '1px solid var(--c-purple-border)',
       borderRadius: 6,
       overflow: 'hidden',
-      background: 'rgba(139,92,246,0.05)',
+      background: 'var(--c-purple-bg)',
     }}>
       {/* Toggle header */}
       <button
@@ -324,26 +324,26 @@ function ThinkingPanel({ text, isActive, label = 'Model Reasoning' }: { text: st
         }}
       >
         <span style={{
-          fontSize: '0.68rem', color: 'rgba(167,139,250,0.7)',
+          fontSize: '0.68rem', color: 'color-mix(in srgb, var(--c-purple) 70%, var(--c-text))',
           transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none',
           display: 'inline-block', flexShrink: 0,
         }}>▶</span>
         {isActive && (
           <span className="animate-pulse-glow" style={{
             width: 7, height: 7, borderRadius: '50%',
-            background: 'rgba(139,92,246,0.9)', flexShrink: 0,
+            background: 'color-mix(in srgb, var(--c-purple) 90%, transparent)', flexShrink: 0,
             display: 'inline-block',
           }} />
         )}
         <span style={{
           fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.7rem',
-          letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(167,139,250,0.8)',
+          letterSpacing: '0.12em', textTransform: 'uppercase', color: 'color-mix(in srgb, var(--c-purple) 80%, var(--c-text))',
         }}>
           {label}{isActive ? ' · live' : ''}
         </span>
         <span style={{
           fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
-          color: 'rgba(139,92,246,0.5)', marginLeft: 'auto',
+          color: 'color-mix(in srgb, var(--c-purple) 50%, transparent)', marginLeft: 'auto',
         }}>
           {open ? 'collapse' : `${text.length} chars · click to expand`}
         </span>
@@ -353,20 +353,20 @@ function ThinkingPanel({ text, isActive, label = 'Model Reasoning' }: { text: st
         <div
           ref={scrollRef}
           style={{
-            borderTop: '1px solid rgba(139,92,246,0.15)',
+            borderTop: '1px solid color-mix(in srgb, var(--c-purple) 15%, transparent)',
             padding: '12px 16px',
             maxHeight: 220,
             overflowY: 'auto',
             fontSize: '0.8rem',
             lineHeight: 1.7,
-            color: 'rgba(196,181,253,0.85)',
+            color: 'color-mix(in srgb, var(--c-purple) 85%, var(--c-text))',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
             fontFamily: 'var(--font-body)',
           }}
         >
           {text}
-          {isActive && <span className="animate-cursor" style={{ color: 'rgba(139,92,246,0.9)', fontWeight: 700 }}>▋</span>}
+          {isActive && <span className="animate-cursor" style={{ color: 'color-mix(in srgb, var(--c-purple) 90%, transparent)', fontWeight: 700 }}>▋</span>}
         </div>
       )}
     </div>

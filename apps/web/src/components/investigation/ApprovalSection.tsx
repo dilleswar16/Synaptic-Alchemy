@@ -71,8 +71,8 @@ export function ApprovalSection({
       {isInformational && status === 'pending' && (
         <div style={{
           marginBottom: 16, padding: '14px 16px',
-          background: 'rgba(34,197,94,0.06)',
-          border: '1px solid rgba(34,197,94,0.25)',
+          background: 'var(--c-success-bg)',
+          border: '1px solid var(--c-success-border)',
           borderRadius: 6,
           display: 'flex', alignItems: 'flex-start', gap: 12,
         }}>
@@ -93,7 +93,7 @@ export function ApprovalSection({
       {!isInformational && status === 'pending' && (
         <div style={{
           marginBottom: 16, padding: '12px',
-          background: 'rgba(34,197,94,0.03)',
+          background: 'color-mix(in srgb, var(--c-green) 3%, transparent)',
           border: '1px solid var(--c-success-border)',
           borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10,
         }}>
@@ -105,7 +105,7 @@ export function ApprovalSection({
             <div style={{ flex: 1 }}>
               <div style={{ height: 4, background: 'var(--c-surface-3)', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
                 <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${degradedPct}%`, background: 'var(--c-error)' }} />
-                <div style={{ position: 'absolute', left: `${degradedPct}%`, top: 0, height: '100%', width: `${restoredPct - degradedPct}%`, background: 'var(--c-success)', opacity: 0.5, borderLeft: '2px solid #fff' }} />
+                <div style={{ position: 'absolute', left: `${degradedPct}%`, top: 0, height: '100%', width: `${restoredPct - degradedPct}%`, background: 'var(--c-success)', opacity: 0.5, borderLeft: '2px solid var(--c-text)' }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}>
                 <span style={{ color: 'var(--c-error)' }}>Degraded: {degradedPct}%</span>
@@ -138,8 +138,8 @@ export function ApprovalSection({
           {confirmingAck && (
             <div style={{
               marginTop: 12, padding: '14px 16px',
-              background: 'rgba(34,197,94,0.06)',
-              border: '1px solid rgba(34,197,94,0.25)',
+              background: 'var(--c-success-bg)',
+              border: '1px solid var(--c-success-border)',
               borderRadius: 3,
             }}>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--c-text-dim)', marginBottom: 12 }}>

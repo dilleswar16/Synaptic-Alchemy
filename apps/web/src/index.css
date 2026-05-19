@@ -838,6 +838,22 @@
 }
 
 /* ── Global animations (outside layers for specificity) ────────────────── */
+
+/* ── Accessible outline suppression ────────────────────────────────────── */
+.corvin-interactive:focus:not(:focus-visible) {
+  outline: none;
+}
+.corvin-interactive:focus-visible {
+  outline: 2px solid var(--c-signal);
+  outline-offset: 2px;
+}
+
+/* ── Light-mode kbd ────────────────────────────────────────────────────── */
+[data-theme="light"] kbd {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
 @keyframes pulse-glow {
   0%   { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.25); }
   70%  { box-shadow: 0 0 0 6px rgba(249, 115, 22, 0); }

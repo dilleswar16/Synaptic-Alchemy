@@ -223,8 +223,8 @@ export function AuditTrailSection({ requestId, defaultOpen = false }: { requestI
                {duration && (
                  <span style={{ 
                    fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 800, 
-                   background: 'rgba(34,197,94,0.1)', padding: '2px 6px', borderRadius: 4,
-                   color: 'var(--c-green)', border: '1px solid rgba(34,197,94,0.3)'
+                   background: 'var(--c-success-bg)', padding: '2px 6px', borderRadius: 4,
+                   color: 'var(--c-green)', border: '1px solid var(--c-success-border)'
                  }}>
                    {duration.toUpperCase()} RESOLUTION
                  </span>

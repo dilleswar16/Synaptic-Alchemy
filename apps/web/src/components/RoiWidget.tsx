@@ -11,7 +11,7 @@ import { fetchRoi } from '../api/client'
 const TINTS: Record<string, string> = {
   'var(--c-signal)': 'var(--c-signal-light)',
   'var(--c-green)': 'var(--c-success-bg)',
-  'var(--c-info)': 'rgba(59,130,246,0.08)',
+  'var(--c-info)': 'var(--c-info-bg)',
   'var(--c-warning)': 'var(--c-warning-bg)',
 }
 

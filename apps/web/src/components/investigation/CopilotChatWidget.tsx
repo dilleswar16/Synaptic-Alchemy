@@ -51,19 +51,19 @@ function ThinkingBlock({ text, streaming }: { text: string; streaming: boolean }
     }
   }, [streaming])
   return (
-    <div style={{ marginBottom: 8, borderRadius: 8, border: '1px solid rgba(139,92,246,0.3)', overflow: 'hidden', background: 'rgba(139,92,246,0.05)' }}>
+    <div style={{ marginBottom: 8, borderRadius: 8, border: '1px solid var(--c-purple-border)', overflow: 'hidden', background: 'var(--c-purple-bg)' }}>
       <button onClick={() => setOpen(o => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
         <span style={{ fontSize: '0.75rem' }}>🧠</span>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.1em', color: '#a78bfa', textTransform: 'uppercase' }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.1em', color: 'var(--c-purple)', textTransform: 'uppercase' }}>
           {streaming ? 'Thinking…' : 'Reasoning'}
         </span>
-        {streaming && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#a78bfa', marginLeft: 2, animation: 'corvin-blink 0.7s steps(1) infinite' }} />}
-        <span style={{ marginLeft: 'auto', color: '#a78bfa', fontSize: '0.7rem' }}>{open ? '▲' : '▼'}</span>
+        {streaming && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--c-purple)', marginLeft: 2, animation: 'corvin-blink 0.7s steps(1) infinite' }} />}
+        <span style={{ marginLeft: 'auto', color: 'var(--c-purple)', fontSize: '0.7rem' }}>{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div style={{ padding: '6px 12px 10px', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: '#c4b5fd', lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 180, overflowY: 'auto', borderTop: '1px solid rgba(139,92,246,0.2)' }}>
+        <div style={{ padding: '6px 12px 10px', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'color-mix(in srgb, var(--c-purple) 85%, var(--c-text))', lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 180, overflowY: 'auto', borderTop: '1px solid var(--c-purple-border)' }}>
           {text}
-          {streaming && <span style={{ display: 'inline-block', width: 2, height: '1em', background: '#a78bfa', marginLeft: 1, animation: 'corvin-blink 0.7s steps(1) infinite' }} />}
+          {streaming && <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'var(--c-purple)', marginLeft: 1, animation: 'corvin-blink 0.7s steps(1) infinite' }} />}
         </div>
       )}
     </div>
@@ -379,7 +379,8 @@ export function CopilotChatWidget({ requestId }: Props) {
             onChange={e => setInput(e.target.value)}
             placeholder="Ask about this incident..."
             disabled={loading}
-            style={{ flex: 1, padding: '9px 13px', borderRadius: 8, background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)', color: 'var(--c-text)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', outline: 'none' }}
+            className="corvin-interactive"
+            style={{ flex: 1, padding: '9px 13px', borderRadius: 8, background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)', color: 'var(--c-text)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
           />
           <button
             type="submit"
@@ -387,7 +388,7 @@ export function CopilotChatWidget({ requestId }: Props) {
             style={{
               padding: '0 16px', borderRadius: 8,
               background: loading || !input.trim() ? 'var(--c-surface-3)' : 'var(--c-signal)',
-              color: loading || !input.trim() ? 'var(--c-text-faint)' : '#fff',
+              color: loading || !input.trim() ? 'var(--c-text-faint)' : 'white',
               border: 'none', cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.75rem',
               transition: 'background 0.15s', whiteSpace: 'nowrap',

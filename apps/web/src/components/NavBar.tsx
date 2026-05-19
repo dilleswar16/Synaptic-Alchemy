@@ -79,7 +79,7 @@ export default function NavBar() {
               fontFamily: 'var(--font-display)',
               fontWeight: 700,
               fontSize: '0.8rem',
-              color: '#fff',
+              color: 'white',
               lineHeight: 1,
             }}>C</span>
           </div>

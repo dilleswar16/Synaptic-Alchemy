@@ -145,11 +145,11 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
 
       {/* Executive Overview Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
-        <div style={{ padding: '16px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10 }}>
+        <div style={{ padding: '16px', background: 'var(--c-error-bg)', border: '1px solid var(--c-error-border)', borderRadius: 10 }}>
           <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--c-red)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Primary Root Cause</div>
           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--c-text)', lineHeight: 1.4 }}>{rca.root_cause}</div>
         </div>
-        <div style={{ padding: '16px', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 10 }}>
+        <div style={{ padding: '16px', background: 'var(--c-signal-light)', border: '1px solid var(--c-signal-dim)', borderRadius: 10 }}>
           <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--c-signal)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Service Context</div>
           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--c-text)', lineHeight: 1.4 }}>
             {request.service_name} <span style={{ opacity: 0.5, fontWeight: 400 }}>in</span> {request.environment}
@@ -235,8 +235,8 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 16,
             padding: '16px',
-            background: 'linear-gradient(135deg, rgba(249,115,22,0.1), rgba(0,0,0,0))',
-            border: '1px solid rgba(249,115,22,0.2)',
+            background: 'linear-gradient(135deg, var(--c-signal-light), rgba(0,0,0,0))',
+            border: '1px solid var(--c-signal-dim)',
             borderRadius: 12,
           }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -257,7 +257,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
                 flexShrink: 0,
                 fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.65rem',
                 letterSpacing: '0.08em', textTransform: 'uppercase',
-                color: '#fff', textDecoration: 'none',
+                color: 'white', textDecoration: 'none',
                 padding: '8px 16px', borderRadius: 6,
                 background: 'var(--c-signal)',
                 boxShadow: '0 4px 12px rgba(249,115,22,0.3)',

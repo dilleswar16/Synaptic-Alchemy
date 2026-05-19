@@ -123,9 +123,9 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
             style={{
               fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 700,
               padding: '3px 9px', borderRadius: 6, cursor: 'pointer',
-              background: voiceState === 'playing' ? 'rgba(96,165,250,0.15)' : 'rgba(249,115,22,0.1)',
+              background: voiceState === 'playing' ? 'var(--c-info-bg)' : 'var(--c-signal-light)',
               color: voiceState === 'playing' ? 'var(--c-info)' : voiceState === 'error' ? 'var(--c-error)' : 'var(--c-signal)',
-              border: `1px solid ${voiceState === 'playing' ? 'var(--c-info-border)' : 'rgba(249,115,22,0.2)'}`,
+              border: `1px solid ${voiceState === 'playing' ? 'var(--c-info-border)' : 'var(--c-signal-dim)'}`,
               transition: 'all 0.15s',
             }}
           >
@@ -486,8 +486,8 @@ function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?
   const priority = inv.incident_priority ?? 'P3'
   
   const priColor = priority === 'P1' ? 'var(--c-red)' : priority === 'P2' ? 'var(--c-signal)' : 'var(--c-text-muted)'
-  const priBg = priority === 'P1' ? 'rgba(239,68,68,0.1)' : priority === 'P2' ? 'rgba(249,115,22,0.1)' : 'var(--c-surface-2)'
-  const priBorder = priority === 'P1' ? '1px solid rgba(239,68,68,0.3)' : priority === 'P2' ? '1px solid rgba(249,115,22,0.3)' : '1px solid var(--c-border)'
+  const priBg = priority === 'P1' ? 'var(--c-error-bg)' : priority === 'P2' ? 'var(--c-signal-light)' : 'var(--c-surface-2)'
+  const priBorder = priority === 'P1' ? '1px solid var(--c-error-border)' : priority === 'P2' ? '1px solid var(--c-signal-dim)' : '1px solid var(--c-border)'
 
   return (
     <Link

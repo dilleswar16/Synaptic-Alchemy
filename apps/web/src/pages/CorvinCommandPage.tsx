@@ -325,17 +325,17 @@ export default function CorvinCommandPage() {
         .corvin-md ul { margin: 4px 0 10px; padding-left: 0; list-style: none; }
         .corvin-md ol { margin: 4px 0 10px; padding-left: 20px; }
         .corvin-md ul > li { position: relative; padding-left: 14px; margin: 5px 0; }
-        .corvin-md ul > li::before { content:''; position:absolute; left:1px; top:0.58em; width:5px; height:5px; border-radius:50%; background: rgba(249,115,22,0.65); }
+        .corvin-md ul > li::before { content:''; position:absolute; left:1px; top:0.58em; width:5px; height:5px; border-radius:50%; background: var(--c-signal-dim); }
         .corvin-md ol > li { margin: 5px 0; }
         .corvin-md li > ul { margin: 4px 0 0; }
-        .corvin-md li > ul > li::before { background: rgba(249,115,22,0.3); width:4px; height:4px; top:0.62em; }
+        .corvin-md li > ul > li::before { background: color-mix(in srgb, var(--c-signal) 30%, transparent); width:4px; height:4px; top:0.62em; }
         /* Inline */
         .corvin-md strong { color: var(--c-text); font-weight: 600; }
         .corvin-md em { color: var(--c-text-muted); font-style: italic; }
         .corvin-md a { color: var(--c-signal); text-decoration: underline; text-underline-offset: 2px; }
         /* Headings — clear visual hierarchy */
         .corvin-md h1 { font-size: 1rem; font-weight: 700; margin: 16px 0 6px; color: var(--c-text); letter-spacing: -0.01em; }
-        .corvin-md h2 { font-size: 0.875rem; font-weight: 700; margin: 14px 0 5px; color: var(--c-text); border-bottom: 1px solid rgba(249,115,22,0.12); padding-bottom: 4px; }
+        .corvin-md h2 { font-size: 0.875rem; font-weight: 700; margin: 14px 0 5px; color: var(--c-text); border-bottom: 1px solid var(--c-signal-dim); padding-bottom: 4px; }
         .corvin-md h3 { font-size: 0.8rem; font-weight: 600; margin: 10px 0 4px; color: var(--c-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
         /* Horizontal rule */
         .corvin-md hr { border: none; border-top: 1px solid var(--c-border); margin: 12px 0; }
@@ -367,7 +367,7 @@ export default function CorvinCommandPage() {
               style={{
                 width: '100%', padding: '8px 0', borderRadius: 8,
                 background: 'var(--c-signal)',
-                border: 'none', color: '#fff', cursor: 'pointer',
+                border: 'none', color: 'white', cursor: 'pointer',
                 fontSize: '0.8125rem', fontWeight: 500,
                 transition: 'opacity 0.15s',
               }}
@@ -456,7 +456,7 @@ export default function CorvinCommandPage() {
                 </button>
               ))}
             </div>
-            <button onClick={handleNewChat} style={{ marginTop: 8, padding: '10px 28px', borderRadius: 10, background: 'var(--c-signal)', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 500, fontSize: '0.8125rem' }}>
+            <button onClick={handleNewChat} style={{ marginTop: 8, padding: '10px 28px', borderRadius: 10, background: 'var(--c-signal)', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 500, fontSize: '0.8125rem' }}>
               Start a new conversation
             </button>
             {sessionError && (
@@ -477,8 +477,8 @@ export default function CorvinCommandPage() {
                   title={showToolPanel ? 'Hide live tool panel' : 'Show live tool panel'}
                   style={{
                     padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
-                    border: `1px solid ${showToolPanel ? 'rgba(249,115,22,0.4)' : 'var(--c-border)'}`,
-                    background: showToolPanel ? 'rgba(249,115,22,0.08)' : 'var(--c-surface-2)',
+                    border: `1px solid ${showToolPanel ? 'var(--c-signal-dim)' : 'var(--c-border)'}`,
+                    background: showToolPanel ? 'var(--c-signal-light)' : 'var(--c-surface-2)',
                     color: showToolPanel ? 'var(--c-signal)' : 'var(--c-text-faint)',
                     fontFamily: 'var(--font-mono)', fontSize: '0.7rem', letterSpacing: '0.04em',
                     transition: 'all 0.15s',
@@ -527,36 +527,36 @@ export default function CorvinCommandPage() {
                             <div>
                               {/* ── Section 1: Reasoning block ── */}
                               {showThinking && (
-                                <div style={{ marginBottom: 10, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(139,92,246,0.2)', background: 'rgba(139,92,246,0.04)' }}>
+                                  <div style={{ marginBottom: 10, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--c-purple-border)', background: 'var(--c-purple-bg)' }}>
                                   {/* Header row */}
                                   <button
                                     onClick={() => setMessages(prev => prev.map(msg => msg.id === m.id ? { ...msg, thinkingCollapsed: !msg.thinkingCollapsed } : msg))}
                                     style={{
                                       width: '100%', display: 'flex', alignItems: 'center', gap: 7,
                                       padding: '7px 10px', background: 'none', border: 'none',
-                                      borderBottom: m.thinkingCollapsed ? 'none' : '1px solid rgba(139,92,246,0.15)',
+                                      borderBottom: m.thinkingCollapsed ? 'none' : '1px solid color-mix(in srgb, var(--c-purple) 15%, transparent)',
                                       cursor: 'pointer',
                                     }}
                                   >
                                     {/* Animated brain icon */}
-                                    <span style={{ fontSize: '0.78rem', lineHeight: 1, filter: isStreaming && !m.thinkingCollapsed ? 'drop-shadow(0 0 4px #a78bfa)' : 'none', transition: 'filter 0.3s' }}>🧠</span>
-                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'uppercase', color: '#a78bfa', flex: 1, textAlign: 'left' }}>
+                                    <span style={{ fontSize: '0.78rem', lineHeight: 1, filter: isStreaming && !m.thinkingCollapsed ? 'drop-shadow(0 0 4px var(--c-purple))' : 'none', transition: 'filter 0.3s' }}>🧠</span>
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--c-purple)', flex: 1, textAlign: 'left' }}>
                                       Reasoning
                                       {isStreaming && <span style={{ animation: 'thinkPulse 1.2s ease infinite', display: 'inline-block', marginLeft: 6 }}>·</span>}
                                     </span>
                                     {isStreaming && (
-                                      <span style={{ width: 9, height: 9, borderRadius: '50%', border: '1.5px solid #a78bfa', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+                                      <span style={{ width: 9, height: 9, borderRadius: '50%', border: '1.5px solid var(--c-purple)', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
                                     )}
-                                    <span style={{ fontSize: '0.68rem', color: 'rgba(139,92,246,0.5)', marginLeft: 2 }}>{m.thinkingCollapsed ? '▶' : '▼'}</span>
+                                    <span style={{ fontSize: '0.68rem', color: 'color-mix(in srgb, var(--c-purple) 50%, transparent)', marginLeft: 2 }}>{m.thinkingCollapsed ? '▶' : '▼'}</span>
                                   </button>
                                   {/* Content */}
                                   {!m.thinkingCollapsed && (
                                     <div style={{ position: 'relative', overflow: 'hidden' }}>
                                       {/* Scan line animation while streaming */}
                                       {isStreaming && (
-                                        <div style={{ position: 'absolute', top: 0, left: 0, width: '25%', height: '100%', background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.12), transparent)', animation: 'thinkScan 2s ease-in-out infinite', pointerEvents: 'none' }} />
+                                        <div style={{ position: 'absolute', top: 0, left: 0, width: '25%', height: '100%', background: 'linear-gradient(90deg, transparent, color-mix(in srgb, var(--c-purple) 12%, transparent), transparent)', animation: 'thinkScan 2s ease-in-out infinite', pointerEvents: 'none' }} />
                                       )}
-                                      <div style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '0.66rem', color: 'rgba(167,139,250,0.75)', lineHeight: 1.7, maxHeight: 180, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+                                      <div style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '0.66rem', color: 'color-mix(in srgb, var(--c-purple) 75%, var(--c-text))', lineHeight: 1.7, maxHeight: 180, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
                                         {m.thinking}
                                       </div>
                                     </div>
@@ -572,18 +572,19 @@ export default function CorvinCommandPage() {
                                       display: 'flex', alignItems: 'center', gap: 8,
                                       padding: '7px 10px', borderRadius: 7,
                                       background: step.status === 'calling'
-                                        ? 'rgba(249,115,22,0.07)'
-                                        : 'rgba(14,165,233,0.05)',
-                                      border: `1px solid ${step.status === 'calling' ? 'rgba(249,115,22,0.22)' : 'rgba(14,165,233,0.18)'}`,
+                                        ? 'color-mix(in srgb, var(--c-signal) 7%, transparent)'
+                                        : 'color-mix(in srgb, var(--c-info) 5%, transparent)',
+                                      border: `1px solid ${step.status === 'calling' ? 'color-mix(in srgb, var(--c-signal) 22%, transparent)' : 'color-mix(in srgb, var(--c-info) 18%, transparent)'}`,
                                       transition: 'all 0.25s',
                                     }}>
                                       {/* Left: status icon */}
                                       <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        background: step.status === 'calling' ? 'rgba(249,115,22,0.12)' : 'rgba(14,165,233,0.1)',
+                                        background: step.status === 'calling' ? 'var(--c-signal-light)' : 'var(--c-info-bg)',
+                                      border: `1px solid ${step.status === 'calling' ? 'var(--c-signal-dim)' : 'var(--c-info-border)'}`,
                                       }}>
                                         {step.status === 'calling'
-                                          ? <span style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid #f97316', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                                          : <span style={{ fontSize: '0.72rem', color: '#0ea5e9' }}>✓</span>
+                                          ? <span style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid var(--c-signal)', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                                          : <span style={{ fontSize: '0.72rem', color: 'var(--c-info)' }}>✓</span>
                                         }
                                       </div>
                                       {/* Badge */}
@@ -591,8 +592,8 @@ export default function CorvinCommandPage() {
                                         fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 600,
                                         letterSpacing: '0.02em', textTransform: 'uppercase', flexShrink: 0,
                                         padding: '2px 5px', borderRadius: 3,
-                                        background: step.status === 'calling' ? 'rgba(249,115,22,0.1)' : 'rgba(14,165,233,0.08)',
-                                        color: step.status === 'calling' ? '#f97316' : '#38bdf8',
+                                        background: step.status === 'calling' ? 'var(--c-signal-light)' : 'var(--c-info-bg)',
+                                        color: step.status === 'calling' ? 'var(--c-signal)' : 'var(--c-info)',
                                       }}>
                                         {step.status === 'calling' ? 'calling' : 'done'}
                                       </span>
@@ -637,7 +638,7 @@ export default function CorvinCommandPage() {
                               {/* ── Waiting state: no content yet, tool still calling ── */}
                               {isStreaming && !m.content && !(m.toolSteps ?? []).length && !m.thinking && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
-                                  <span style={{ width: 12, height: 12, borderRadius: '50%', border: '1.5px solid #f97316', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                                  <span style={{ width: 12, height: 12, borderRadius: '50%', border: '1.5px solid var(--c-signal)', borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
                                   Corvin is thinking…
                                 </div>
                               )}
@@ -670,8 +671,9 @@ export default function CorvinCommandPage() {
                     placeholder="Ask Corvin anything about your platform…"
                     rows={1}
                     disabled={loading}
+                    className="corvin-interactive"
                     style={{
-                      flex: 1, background: 'none', border: 'none', outline: 'none', resize: 'none',
+                      flex: 1, background: 'none', border: 'none', resize: 'none',
                       color: 'var(--c-text)', fontFamily: 'var(--font-body)', fontSize: '0.82rem',
                       lineHeight: 1.5, maxHeight: 120, overflowY: 'hidden', height: 'auto',
                     }}
@@ -683,7 +685,7 @@ export default function CorvinCommandPage() {
                       width: 34, height: 34, borderRadius: 8, flexShrink: 0,
                       background: loading || !input.trim() ? 'var(--c-surface-3)' : 'var(--c-signal)',
                       border: 'none', cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
-                      color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '1rem', transition: 'background 0.15s',
                     }}
                   >

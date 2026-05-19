@@ -168,8 +168,8 @@ export default function InvestigationDetailPage() {
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800,
                   padding: '3px 10px', borderRadius: 4,
-                  background: data.request.incident_priority === 'P1' ? 'rgba(239,68,68,0.1)' : data.request.incident_priority === 'P2' ? 'rgba(249,115,22,0.1)' : 'var(--c-surface-2)',
-                  border: data.request.incident_priority === 'P1' ? '1px solid rgba(239,68,68,0.3)' : data.request.incident_priority === 'P2' ? '1px solid rgba(249,115,22,0.3)' : '1px solid var(--c-border)',
+                  background: data.request.incident_priority === 'P1' ? 'var(--c-error-bg)' : data.request.incident_priority === 'P2' ? 'var(--c-signal-light)' : 'var(--c-surface-2)',
+                  border: data.request.incident_priority === 'P1' ? '1px solid var(--c-error-border)' : data.request.incident_priority === 'P2' ? '1px solid var(--c-signal-dim)' : '1px solid var(--c-border)',
                   color: data.request.incident_priority === 'P1' ? 'var(--c-red)' : data.request.incident_priority === 'P2' ? 'var(--c-signal)' : 'var(--c-text-muted)',
                 }}>
                   {data.request.incident_priority}
@@ -208,9 +208,9 @@ export default function InvestigationDetailPage() {
                     display: 'inline-flex', alignItems: 'center', gap: 5,
                     fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
                     padding: '3px 10px', borderRadius: 2, textDecoration: 'none',
-                    background: 'rgba(0,120,212,0.1)',
-                    border: '1px solid rgba(0,120,212,0.3)',
-                    color: '#60a5fa',
+                    background: 'var(--c-info-bg)',
+                    border: '1px solid var(--c-info-border)',
+                    color: 'var(--c-info)',
                   }}
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
@@ -223,8 +223,8 @@ export default function InvestigationDetailPage() {
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
                   padding: '2px 8px', borderRadius: 2,
-                  background: 'rgba(34,197,94,0.08)',
-                  border: '1px solid rgba(34,197,94,0.2)',
+                  background: 'var(--c-success-bg)',
+                  border: '1px solid var(--c-success-border)',
                   color: 'var(--c-green)', letterSpacing: '0.03em',
                 }}>
                   ⏱ RCA in {rcaDuration}
@@ -427,7 +427,7 @@ export default function InvestigationDetailPage() {
                   style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                 >
                   ✓ Approve
-                  <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontStyle: 'normal', fontWeight: 400 }}>A</kbd>
+                  <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'var(--c-surface-3)', border: '1px solid var(--c-border-hi)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontStyle: 'normal', fontWeight: 400 }}>A</kbd>
                 </button>
                 <button
                   className="btn-danger"
@@ -435,7 +435,7 @@ export default function InvestigationDetailPage() {
                   style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                 >
                   ✗ Reject
-                  <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontStyle: 'normal', fontWeight: 400 }}>R</kbd>
+                  <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'var(--c-surface-3)', border: '1px solid var(--c-border-hi)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontStyle: 'normal', fontWeight: 400 }}>R</kbd>
                 </button>
               </div>
             )}

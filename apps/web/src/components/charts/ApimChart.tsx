@@ -302,7 +302,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
     <div style={{ position: 'relative', userSelect: 'none' }}>
       {/* Y-axis legend */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4, paddingLeft: labelW }}>
-        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           Hour of Day (0–23)
         </span>
       </div>
@@ -313,7 +313,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
           {/* Fund label */}
           <div style={{
             width: labelW, minWidth: labelW, textAlign: 'right', paddingRight: 8,
-            fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.7)',
+            fontSize: '0.68rem', fontWeight: 700, color: 'var(--c-text-muted)',
             fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           }}>
@@ -335,7 +335,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
                     border: v > 0 ? '1px solid var(--c-signal-dim)' : '1px solid var(--c-border)',
                     cursor: v > 0 ? 'crosshair' : 'default',
                     transition: 'transform 0.1s, box-shadow 0.1s',
-                    boxShadow: v > 0 && v === maxVal ? '0 0 8px rgba(249,115,22,0.5)' : 'none',
+                    boxShadow: v > 0 && v === maxVal ? '0 0 8px color-mix(in srgb, var(--c-signal) 50%, transparent)' : 'none',
                   }}
                   onMouseEnter={e => {
                     if (v > 0) setTooltip({ fund, hour: h, count: v, x: (e.target as HTMLElement).getBoundingClientRect().left, y: (e.target as HTMLElement).getBoundingClientRect().top })
@@ -354,7 +354,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
           {hours.map(h => (
             <div key={h} style={{
               flex: 1, textAlign: 'center',
-              fontSize: '0.6rem', color: showLabel(h) ? 'rgba(255,255,255,0.35)' : 'transparent',
+              fontSize: '0.6rem', color: showLabel(h) ? 'var(--c-text-faint)' : 'transparent',
               fontFamily: 'var(--font-mono)',
             }}>
               {h}
@@ -365,12 +365,12 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
 
       {/* Color legend bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, paddingLeft: labelW }}>
-        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)' }}>0</span>
+        <span style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)' }}>0</span>
         <div style={{
           flex: 1, maxWidth: 140, height: 6, borderRadius: 3,
           background: 'linear-gradient(to right, var(--c-surface-3), var(--c-signal))',
         }} />
-        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)' }}>{maxVal.toLocaleString()}</span>
+        <span style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)' }}>{maxVal.toLocaleString()}</span>
       </div>
 
       {/* Hover tooltip */}
@@ -378,11 +378,11 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
         <div style={{
           position: 'fixed',
           left: tooltip.x + 8, top: tooltip.y - 48,
-          background: 'var(--c-surface-2, #1e2130)',
-          border: '1px solid rgba(249,115,22,0.4)',
+          background: 'var(--c-surface-2)',
+          border: '1px solid var(--c-signal-dim)',
           borderRadius: 8, padding: '6px 10px',
           fontSize: '0.72rem', fontFamily: 'var(--font-mono)',
-          color: 'rgba(255,255,255,0.9)', pointerEvents: 'none',
+          color: 'var(--c-text)', pointerEvents: 'none',
           zIndex: 9999, whiteSpace: 'nowrap',
           boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
         }}>
@@ -546,7 +546,7 @@ export default function ApimChart({ data, compact = false }: ApimChartProps) {
               </span>
             )}
             {row_count !== undefined && (
-              <span style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', color: 'var(--c-info)', fontSize: '0.62rem', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ padding: '2px 7px', borderRadius: 4, background: 'var(--c-info-bg)', border: '1px solid var(--c-info-border)', color: 'var(--c-info)', fontSize: '0.62rem', fontFamily: 'var(--font-mono)' }}>
                 {row_count} rows
               </span>
             )}
