@@ -223,7 +223,7 @@ function StartInvestigationForm() {
   const [queueDone, setQueueDone] = useState(0)
   const queryClient = useQueryClient()
 
-  const { stages, streamText, fetchingEvents, isStreaming, isComplete, error, requestId, start, reset } =
+  const { stages, streamText, fetchingEvents, isStreaming, isComplete, error, requestId, adoWorkItemId, adoUrl, emailSent, start, reset } =
     useInvestigationStream()
 
   const handleComplete = () => {
@@ -379,6 +379,9 @@ function StartInvestigationForm() {
             isComplete={isComplete}
             error={error}
             requestId={requestId}
+            adoWorkItemId={adoWorkItemId}
+            adoUrl={adoUrl}
+            emailSent={emailSent}
             onReset={() => { pendingQueue.current = []; setQueueTotal(0); setQueueDone(0); reset(); handleComplete() }}
           />
         )}

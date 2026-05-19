@@ -10,17 +10,17 @@ logger = logging.getLogger(__name__)
 _CONFIDENCE_PRIORITY = {"high": 1, "medium": 2, "low": 3}
 
 
-def _classify_incident(root_cause: str, routing: dict) -> str:
+def _classify_incident(root_cause: str | None, routing: dict) -> str:
     """
     Classify an incident as 'code', 'devops', or 'default' based on root cause keywords.
     Returns a category key matching assignment_routing config.
     """
-    text = root_cause.lower()
+    text = (root_cause or "").lower()
     for category, cfg in routing.items():
         if category == "default_assignee":
             continue
         for kw in cfg.get("keywords", []):
-            if kw.lower() in text:
+            if kw and kw.lower() in text:
                 return category
     return "default"
 
@@ -80,20 +80,22 @@ class AzureDevOpsAdapter:
             f"/_apis/wit/workitems/${self.item_type}?api-version=7.1"
         )
 
-        confidence = result.rca.confidence.value if hasattr(result.rca.confidence, "value") else str(result.rca.confidence)
-        priority = _CONFIDENCE_PRIORITY.get(confidence.lower(), 2)
+        confidence_raw = result.rca.confidence.value if hasattr(result.rca.confidence, "value") else str(result.rca.confidence or "medium")
+        confidence = (confidence_raw or "medium").lower()
+        priority = _CONFIDENCE_PRIORITY.get(confidence, 2)
         fixed_tags = self.config.get("fixed_tags", "corvin")
         tags = f"{fixed_tags}; {result.request.environment}; {result.request.service_name}; {confidence}"
 
         headers = {**self._build_auth_headers(), "Content-Type": "application/json-patch+json"}
 
+        _root_cause_text = (result.rca.root_cause or "No root cause identified")
         payload = [
             {
                 "op": "add",
                 "path": "/fields/System.Title",
                 "value": (
                     f"[Corvin] {result.request.service_name} ({result.request.environment})"
-                    f" — {result.rca.root_cause[:80]}"
+                    f" — {_root_cause_text[:80]}"
                 ),
             },
             {
@@ -130,7 +132,7 @@ class AzureDevOpsAdapter:
         # Auto-assign based on incident category
         routing = self.config.get("assignment_routing", {})
         if routing:
-            category = _classify_incident(result.rca.root_cause, routing)
+            category = _classify_incident(result.rca.root_cause or None, routing)
             assignee = _pick_assignee(category, routing)
             if assignee:
                 payload.append({
@@ -216,12 +218,13 @@ class AzureDevOpsAdapter:
         """Build a rich HTML description for the Work Item."""
         rca = result.rca
         fix = result.fix_strategy
-        confidence = rca.confidence.value if hasattr(rca.confidence, "value") else str(rca.confidence)
+        confidence_raw_d = rca.confidence.value if hasattr(rca.confidence, "value") else str(rca.confidence or "medium")
+        confidence_d = (confidence_raw_d or "medium").upper()
 
         html = "<h2>Corvin Investigation Report</h2>"
         html += f"<p><b>Investigation ID:</b> {result.request_id}</p>"
         html += f"<p><b>Service:</b> {result.request.service_name} ({result.request.environment})</p>"
-        html += f"<p><b>Confidence:</b> {confidence.upper()}</p>"
+        html += f"<p><b>Confidence:</b> {confidence_d}</p>"
         html += f"<p><b>Trigger:</b> {result.request.trigger_source.value}</p>"
         html += "<h3>Root Cause Summary</h3>"
         html += f"<p>{rca.summary}</p>"

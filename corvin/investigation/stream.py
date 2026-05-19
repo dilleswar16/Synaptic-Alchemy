@@ -44,6 +44,7 @@ from corvin.enrich.enrichment_service import EnrichmentService
 from corvin.investigation.prompt_builder import PromptBuilder
 from corvin.strategy.fix_strategy_generator import FixStrategyGenerator
 from corvin.strategy.rca_generator import RCAGenerator
+from corvin.delivery.rca_notification import send_rca_email_if_enabled
 
 _log = logging.getLogger(__name__)
 
@@ -230,6 +231,10 @@ class InvestigationStreamer:
             fix_strategy=fix_strategy,
         )
 
+        ado_url: str | None = None
+        ado_work_item_id: str | None = None
+        email_sent: bool = False
+
         # Persist if a repository was provided (mirrors POST /investigations/ behaviour).
         if self._repository is not None:
             try:
@@ -241,11 +246,40 @@ class InvestigationStreamer:
                     persist_exc,
                 )
 
+            # Auto-create Azure Boards work item and send email (both non-fatal).
+            ado_url: str | None = None
+            ado_work_item_id: str | None = None
+            try:
+                from corvin.core.config_loader import get_env, load_config
+                from corvin.delivery.azure_devops_adapter import AzureDevOpsAdapter
+
+                ado_cfg = load_config("integrations/azure_devops", get_env())
+                if ado_cfg.get("enabled", False):
+                    ado_adapter = AzureDevOpsAdapter(ado_cfg)
+                    ado_work_item_id = ado_adapter.create_incident(result)
+                    if ado_work_item_id:
+                        self._repository.set_ado_work_item_id(result.request_id, ado_work_item_id)
+                        org = str(ado_cfg.get("org_name", "")).strip()
+                        proj = str(ado_cfg.get("project_name", "")).strip()
+                        if org and proj and not org.startswith("${") and not proj.startswith("${"):
+                            ado_url = f"https://dev.azure.com/{org}/{proj}/_workitems/edit/{ado_work_item_id}"
+            except Exception as ado_exc:  # noqa: BLE001
+                import traceback
+                _log.warning(
+                    "InvestigationStreamer: AzDO auto-sync failed (non-fatal): %s\n%s",
+                    ado_exc, traceback.format_exc()
+                )
+
+            email_sent = send_rca_email_if_enabled(result, ado_work_item_url=ado_url)
+
         yield _stage_event(
             "complete",
             "complete",
             "Investigation complete.",
             request_id=result.request_id,
+            ado_work_item_id=ado_work_item_id,
+            ado_url=ado_url,
+            email_sent=email_sent,
         )
 
     # ── Helpers ───────────────────────────────────────────────────────────────

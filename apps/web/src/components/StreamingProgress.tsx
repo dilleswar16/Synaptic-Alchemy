@@ -38,6 +38,9 @@ interface StreamingProgressProps {
   isComplete: boolean
   error: string | null
   requestId: string | null
+  adoWorkItemId?: string | null
+  adoUrl?: string | null
+  emailSent?: boolean
   onReset: () => void
 }
 
@@ -715,6 +718,9 @@ export default function StreamingProgress({
   isComplete,
   error,
   requestId,
+  adoWorkItemId = null,
+  adoUrl = null,
+  emailSent = false,
   onReset,
 }: StreamingProgressProps) {
   const navigate = useNavigate()
@@ -804,7 +810,7 @@ export default function StreamingProgress({
       {isComplete && !error && requestId && (
         <div
           className="glass glass-accent animate-fade-up"
-          style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
         >
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--c-green)' }}>
@@ -812,6 +818,40 @@ export default function StreamingProgress({
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--c-text-faint)', marginTop: 2 }}>
               ID: <code style={{ color: 'var(--c-signal)' }}>{requestId}</code>
+            </div>
+            {/* Post-completion status badges */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: '0.72rem', fontWeight: 600, padding: '3px 8px',
+                borderRadius: 4,
+                background: adoWorkItemId ? 'rgba(0,120,212,0.15)' : 'rgba(120,120,140,0.12)',
+                color: adoWorkItemId ? '#60a5fa' : 'var(--c-text-faint)',
+                border: `1px solid ${adoWorkItemId ? 'rgba(0,120,212,0.35)' : 'rgba(120,120,140,0.2)'}`,
+              }}>
+                {adoWorkItemId ? (
+                  <>
+                    <span style={{ fontSize: '0.8em' }}>✓</span>
+                    {adoUrl
+                      ? <a href={adoUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>Azure Boards #{adoWorkItemId}</a>
+                      : <>Azure Boards #{adoWorkItemId}</>}
+                  </>
+                ) : (
+                  <><span style={{ fontSize: '0.8em' }}>–</span> Azure Boards skipped</>
+                )}
+              </span>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: '0.72rem', fontWeight: 600, padding: '3px 8px',
+                borderRadius: 4,
+                background: emailSent ? 'rgba(34,197,94,0.12)' : 'rgba(120,120,140,0.12)',
+                color: emailSent ? '#4ade80' : 'var(--c-text-faint)',
+                border: `1px solid ${emailSent ? 'rgba(34,197,94,0.3)' : 'rgba(120,120,140,0.2)'}`,
+              }}>
+                {emailSent
+                  ? <><span style={{ fontSize: '0.8em' }}>✓</span> RCA email sent</>
+                  : <><span style={{ fontSize: '0.8em' }}>–</span> Email skipped</>}
+              </span>
             </div>
           </div>
           <button

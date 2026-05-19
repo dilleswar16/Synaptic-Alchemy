@@ -63,27 +63,219 @@ class EmailAdapter:
         subject_prefix = str(self._config.get("subject_prefix", "[Corvin RCA]")).strip()
         subject = f"{subject_prefix} {service} ({env}) - {confidence} confidence"
 
-        body_lines = [
-            f"A Corvin RCA investigation has completed for {service} in {env}.",
-            "",
-            f"Description:  {description}",
-            f"What Broke:   {root_cause}",
-            f"Confidence:   {confidence}",
-            "",
-        ]
+        # ── Confidence colours — matches frontend exactly ─────────────────────
+        conf_colours = {
+            "HIGH":   ("#22c55e", "#f0fdf4", "#bbf7d0", "✓ ALL CLEAR — HIGH CONFIDENCE"),
+            "MEDIUM": ("#f97316", "#fff7ed", "#fed7aa", "⚠ MEDIUM CONFIDENCE"),
+            "LOW":    ("#ef4444", "#fef2f2", "#fecaca", "⚠ LOW CONFIDENCE"),
+        }
+        conf_hex, conf_bg, conf_border, conf_banner = conf_colours.get(
+            confidence, ("#6b7280", "#f9fafb", "#e5e7eb", confidence)
+        )
+
+        ado_row = ""
         if ado_work_item_url:
-            body_lines += [
-                "Azure DevOps Work Item:",
-                f"  {ado_work_item_url}",
-                "",
-            ]
-        body_lines += [
-            "The full RCA report (root cause, evidence summary, fix strategy) is attached as a PDF.",
-            "",
-            "--",
-            "Corvin AI SRE Co-Pilot",
-        ]
-        body = "\n".join(body_lines)
+            ado_row = f"""
+            <tr>
+              <td style="padding:14px 0;border-bottom:1px solid #e2e8f0;
+                   font-size:12px;text-transform:uppercase;letter-spacing:1.5px;
+                   color:#64748b;font-weight:700;width:160px;vertical-align:top;">
+                Azure DevOps
+              </td>
+              <td style="padding:14px 0;border-bottom:1px solid #e2e8f0;vertical-align:top;">
+                <a href="{ado_work_item_url}"
+                   style="display:inline-block;padding:8px 20px;
+                          background:#0078d4;color:#ffffff;border-radius:6px;
+                          text-decoration:none;font-size:13px;font-weight:700;">
+                  📋 View Work Item →
+                </a>
+              </td>
+            </tr>"""
+
+        # ── Plain-text fallback ───────────────────────────────────────────────
+        plain_text = "\n".join(filter(None, [
+            f"Corvin RCA — {service} ({env})",
+            f"Confidence: {confidence}",
+            f"Description: {description}",
+            f"What Broke: {root_cause}",
+            f"Azure DevOps: {ado_work_item_url}" if ado_work_item_url else "",
+            "Full RCA report attached as PDF.",
+            "--", "Corvin AI SRE Co-Pilot",
+        ]))
+
+        html_body = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Corvin RCA</title>
+</head>
+<body style="margin:0;padding:0;background:#dde3ea;
+     font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#dde3ea;padding:28px 0;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0"
+       style="max-width:700px;width:100%;border-radius:6px;overflow:hidden;
+              box-shadow:0 4px 24px rgba(0,0,0,.18);">
+
+  <!-- ══ HEADER ══ -->
+  <tr><td style="background:linear-gradient(135deg,#050d1a 0%,#0d2137 30%,#0a3d7a 65%,#0078d4 100%);
+      padding:40px 52px 36px;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="vertical-align:middle;">
+        <!-- Glow dot accent -->
+        <div style="width:42px;height:4px;border-radius:4px;
+             background:linear-gradient(90deg,#22c55e,#0078d4);margin-bottom:14px;"></div>
+        <div style="font-size:10px;letter-spacing:4px;text-transform:uppercase;
+             color:#60a5fa;font-weight:700;margin-bottom:10px;">AI SRE CO-PILOT</div>
+        <div style="font-size:38px;font-weight:900;color:#ffffff;letter-spacing:-1.5px;
+             line-height:1.05;">⚡ Corvin</div>
+        <div style="font-size:13px;color:#93c5fd;margin-top:8px;letter-spacing:.3px;">
+          Root Cause Analysis Report
+        </div>
+      </td>
+      <td align="right" style="vertical-align:middle;">
+        <div style="background:rgba(255,255,255,.09);
+             border:1px solid rgba(255,255,255,.18);border-radius:10px;
+             padding:16px 24px;text-align:center;min-width:100px;">
+          <div style="font-size:10px;color:#93c5fd;text-transform:uppercase;
+               letter-spacing:2px;margin-bottom:6px;font-weight:600;">Environment</div>
+          <div style="font-size:22px;font-weight:900;color:#38bdf8;
+               letter-spacing:2px;">{env.upper()}</div>
+        </div>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <!-- ══ CONFIDENCE BANNER ══ -->
+  <tr><td style="background:{conf_bg};border-bottom:3px solid {conf_hex};
+      padding:15px 52px;">
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="vertical-align:middle;padding-right:10px;">
+        <div style="width:12px;height:12px;border-radius:50%;
+             background:{conf_hex};"></div>
+      </td>
+      <td style="vertical-align:middle;">
+        <span style="font-size:13px;font-weight:800;color:{conf_hex};
+              letter-spacing:1.5px;text-transform:uppercase;">
+          {conf_banner}
+        </span>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <!-- ══ BODY ══ -->
+  <tr><td style="background:#ffffff;padding:38px 52px;">
+
+    <!-- Service block -->
+    <div style="margin-bottom:30px;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;
+           color:#94a3b8;font-weight:700;margin-bottom:6px;">Service Under Investigation</div>
+      <div style="font-size:30px;font-weight:800;color:#0d2137;letter-spacing:-.5px;">
+        {service}
+      </div>
+    </div>
+
+    <!-- Data table -->
+    <table width="100%" cellpadding="0" cellspacing="0"
+           style="border-top:1px solid #e2e8f0;">
+
+      <!-- Description row -->
+      <tr>
+        <td style="padding:18px 20px 18px 0;border-bottom:1px solid #e2e8f0;
+             font-size:11px;text-transform:uppercase;letter-spacing:1.5px;
+             color:#64748b;font-weight:700;width:140px;vertical-align:top;">
+          Description
+        </td>
+        <td style="padding:18px 0;border-bottom:1px solid #e2e8f0;
+             font-size:14px;color:#334155;line-height:1.7;vertical-align:top;">
+          {description}
+        </td>
+      </tr>
+
+      <!-- What Broke row -->
+      <tr>
+        <td style="padding:18px 20px 18px 0;border-bottom:1px solid #e2e8f0;
+             font-size:11px;text-transform:uppercase;letter-spacing:1.5px;
+             color:#64748b;font-weight:700;vertical-align:top;">
+          What Broke
+        </td>
+        <td style="padding:18px 0;border-bottom:1px solid #e2e8f0;vertical-align:top;">
+          <div style="background:{conf_bg};border-left:4px solid {conf_hex};
+               border-radius:0 6px 6px 0;padding:14px 18px;
+               font-size:14px;color:#1e293b;line-height:1.75;font-weight:500;">
+            {root_cause}
+          </div>
+        </td>
+      </tr>
+
+      <!-- Confidence row -->
+      <tr>
+        <td style="padding:18px 20px 18px 0;border-bottom:1px solid #e2e8f0;
+             font-size:11px;text-transform:uppercase;letter-spacing:1.5px;
+             color:#64748b;font-weight:700;vertical-align:middle;">
+          Confidence
+        </td>
+        <td style="padding:18px 0;border-bottom:1px solid #e2e8f0;vertical-align:middle;">
+          <span style="display:inline-block;padding:6px 20px;
+                background:{conf_bg};border:2px solid {conf_border};
+                border-radius:50px;font-size:13px;font-weight:800;
+                color:{conf_hex};letter-spacing:.5px;">
+            {confidence}
+          </span>
+        </td>
+      </tr>
+
+      <!-- AzDO row (conditional) -->
+      {ado_row}
+
+      <!-- PDF row -->
+      <tr>
+        <td style="padding:18px 20px 18px 0;font-size:11px;text-transform:uppercase;
+             letter-spacing:1.5px;color:#64748b;font-weight:700;vertical-align:middle;">
+          RCA Report
+        </td>
+        <td style="padding:18px 0;vertical-align:middle;">
+          <table cellpadding="0" cellspacing="0"><tr>
+            <td style="font-size:30px;vertical-align:middle;padding-right:14px;">📄</td>
+            <td style="vertical-align:middle;">
+              <div style="font-size:14px;font-weight:700;color:#0d2137;">
+                Full Report Attached
+              </div>
+              <div style="font-size:12px;color:#64748b;margin-top:3px;">
+                Evidence summary · Root cause · Fix strategy
+              </div>
+            </td>
+          </tr></table>
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+
+  <!-- ══ FOOTER ══ -->
+  <tr><td style="background:#f1f5f9;padding:18px 52px;border-top:1px solid #e2e8f0;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="font-size:12px;color:#94a3b8;">
+        Generated by <strong style="color:#0078d4;">Corvin AI SRE Co-Pilot</strong>
+        &nbsp;·&nbsp; ID:
+        <span style="font-family:monospace;color:#64748b;">{result.request_id[:8]}…</span>
+      </td>
+      <td align="right" style="font-size:11px;color:#cbd5e1;font-weight:600;">
+        MetLife · Australia
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <!-- ══ BOTTOM ACCENT ══ -->
+  <tr><td style="height:5px;
+      background:linear-gradient(90deg,#0078d4 0%,#22c55e 50%,#0078d4 100%);"></td></tr>
+
+</table>
+</td></tr>
+</table>
+</body></html>"""
 
         try:
             from azure.communication.email import EmailClient  # type: ignore
@@ -103,7 +295,8 @@ class EmailAdapter:
             },
             "content": {
                 "subject": subject,
-                "plainText": body,
+                "plainText": plain_text,
+                "html": html_body,
             },
             "attachments": [
                 {

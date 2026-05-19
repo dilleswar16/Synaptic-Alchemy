@@ -51,6 +51,12 @@ export interface UseInvestigationStreamResult {
   error: string | null
   /** request_id from the 'complete' event — available to navigate to the result. */
   requestId: string | null
+  /** Azure Boards work item ID created after investigation, if any. */
+  adoWorkItemId: string | null
+  /** Full URL to the Azure Boards work item, if created. */
+  adoUrl: string | null
+  /** Whether the RCA email was sent automatically. */
+  emailSent: boolean
   /** Open the stream with the given params. Resets state first. */
   start: (params: StreamParams) => void
   /** Close the stream and clear all state. */
@@ -65,6 +71,9 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
   const [isComplete, setIsComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [requestId, setRequestId] = useState<string | null>(null)
+  const [adoWorkItemId, setAdoWorkItemId] = useState<string | null>(null)
+  const [adoUrl, setAdoUrl] = useState<string | null>(null)
+  const [emailSent, setEmailSent] = useState(false)
 
   const esRef = useRef<EventSource | null>(null)
 
@@ -80,6 +89,9 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
     setIsComplete(false)
     setError(null)
     setRequestId(null)
+    setAdoWorkItemId(null)
+    setAdoUrl(null)
+    setEmailSent(false)
   }, [])
 
   const start = useCallback(
@@ -131,6 +143,9 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
 
           if (data.stage === 'complete') {
             setRequestId((data.request_id as string) ?? null)
+            setAdoWorkItemId((data.ado_work_item_id as string | null) ?? null)
+            setAdoUrl((data.ado_url as string | null) ?? null)
+            setEmailSent((data.email_sent as boolean) ?? false)
             setIsComplete(true)
             setIsStreaming(false)
             es.close()
@@ -156,5 +171,5 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
     [reset],
   )
 
-  return { stages, streamText, fetchingEvents, isStreaming, isComplete, error, requestId, start, reset }
+  return { stages, streamText, fetchingEvents, isStreaming, isComplete, error, requestId, adoWorkItemId, adoUrl, emailSent, start, reset }
 }
