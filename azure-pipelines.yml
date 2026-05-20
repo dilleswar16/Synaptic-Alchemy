@@ -9,6 +9,7 @@
 trigger:
   branches:
     include:
+      - feature/cyan-ui
       - feature/azure-openai
       - main
   paths:
@@ -44,3 +45,5 @@ steps:
       output_location: 'dist'
       skip_app_build: true
       azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN)
+    env:
+      VITE_API_URL: $(VITE_API_URL)
