@@ -29,4 +29,6 @@ jobs:
       api_location: "" # Api source code path - optional
       output_location: "dist" # Built app content directory - optional
 ###### End of Repository/Build Configurations ######
+    env:
+      VITE_API_URL: https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net
 
