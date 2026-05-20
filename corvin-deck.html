@@ -1,1176 +1,1302 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Corvin — AI SRE Co-Pilot</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
-  <style>
-:root {
-  --bg: #050a12;
-  --panel: #0b1322;
-  --panel2: #111d2e;
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --dimmed: #475569;
-  --teal: #0d9488;
-  --teal-dim: #0f766e;
-  --teal-bright: #2dd4bf;
-  --teal-glow: #14b8a6;
-  --amber: #f59e0b;
-  --red: #ef4444;
-  --green: #22c55e;
-  --shadow: 0 24px 80px rgba(0,0,0,.55);
-  --radius: 18px;
-  --font: "Inter","Segoe UI","Helvetica Neue",Arial,sans-serif;
-  --mono: "JetBrains Mono","Fira Code",monospace;
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Corvin — Hackathon Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ── Reset & Base ───────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:#050a0e;color:#e2e8f0;overflow:hidden;-webkit-font-smoothing:antialiased}
+code,.mono{font-family:'JetBrains Mono',monospace}
+
+/* ── Palette ────────────────────────────────────────────── */
+:root{
+  --teal-50:#f0fdfa;--teal-100:#ccfbf1;--teal-200:#99f6e4;--teal-300:#5eead4;
+  --teal-400:#2dd4bf;--teal-500:#14b8a6;--teal-600:#0d9488;--teal-700:#0f766e;
+  --teal-800:#115e59;--teal-900:#134e4a;
+  --bg-deep:#050a0e;--bg-card:rgba(15,25,35,0.7);
+  --glass:rgba(255,255,255,0.04);--glass-border:rgba(255,255,255,0.08);
+  --text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#64748b;
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html, body {
-  width: 100%; height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  overflow: hidden;
-  -webkit-font-smoothing: antialiased;
+/* ── Slide Engine ───────────────────────────────────────── */
+.deck{position:relative;width:100vw;height:100vh}
+.slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;padding:4rem 6rem;
+  opacity:0;visibility:hidden;transition:opacity .6s ease,transform .6s ease;
+  transform:translateY(30px);z-index:0;overflow:hidden;
 }
+.slide.active{opacity:1;visibility:visible;transform:translateY(0);z-index:10}
+.slide.exit-up{opacity:0;transform:translateY(-30px);z-index:5}
 
-/* ── deck & slide ──────────────────────────────── */
-#deck { width: 100vw; height: 100vh; position: relative; }
-
-section.slide {
-  position: absolute; inset: 0;
-  opacity: 0; pointer-events: none;
-  transform: translateX(28px) scale(.985);
-  transition: opacity .38s cubic-bezier(.4,0,.2,1), transform .38s cubic-bezier(.4,0,.2,1);
-  background:
-    radial-gradient(ellipse 60% 55% at 90% 5%, color-mix(in srgb, var(--teal), transparent 78%), transparent 55%),
-    radial-gradient(ellipse 40% 35% at 8% 95%, color-mix(in srgb, var(--teal), transparent 85%), transparent 50%),
-    var(--bg);
-}
-section.slide.active {
-  opacity: 1; pointer-events: auto;
-  transform: translateX(0) scale(1);
-}
-section.slide.exit {
-  opacity: 0; transform: translateX(-28px) scale(.985);
+/* ── Grid background ───────────────────────────────────── */
+.grid-bg{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(13,148,136,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(13,148,136,.06) 1px,transparent 1px);
+  background-size:60px 60px;
+  mask-image:radial-gradient(ellipse 70% 60% at 50% 40%,black 20%,transparent 70%);
+  -webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 40%,black 20%,transparent 70%);
+  pointer-events:none;z-index:0;
 }
 
-/* ── backgrounds ──────────────────────────────── */
-.slide-bg {
-  position: absolute; inset: 0; z-index: 0; overflow: hidden;
+/* ── Glow orbs ─────────────────────────────────────────── */
+.orb{
+  position:absolute;border-radius:50%;filter:blur(120px);opacity:.25;
+  pointer-events:none;z-index:0;animation:float 12s ease-in-out infinite alternate;
 }
-.slide-bg img {
-  width: 100%; height: 100%; object-fit: cover;
-  filter: saturate(1.1) contrast(1.05);
-  transform: scale(1.04);
-  transition: transform 8s ease-out;
-}
-section.slide.active .slide-bg img { transform: scale(1); }
-.bg-overlay {
-  position: absolute; inset: 0;
-  background: linear-gradient(160deg,rgba(5,10,18,.90) 0%,rgba(5,10,18,.72) 100%);
+.orb-teal{background:var(--teal-600);width:500px;height:500px}
+.orb-cyan{background:#06b6d4;width:400px;height:400px}
+.orb-emerald{background:#059669;width:350px;height:350px}
+@keyframes float{0%{transform:translate(0,0) scale(1)}100%{transform:translate(30px,-20px) scale(1.1)}}
+
+/* ── Progress bar ──────────────────────────────────────── */
+#progress{
+  position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--teal-600),var(--teal-400));
+  transition:width .4s ease;z-index:100;box-shadow:0 0 12px var(--teal-500);
 }
 
-/* ── inner layout ─────────────────────────────── */
-.slide-inner {
-  position: relative; z-index: 1;
-  width: 100%; height: 100%;
-  padding: clamp(22px,3.2vw,52px);
-  display: flex; flex-direction: column; gap: 16px;
-  justify-content: center;
-}
-.slide-num {
-  position: absolute; bottom: 20px; right: 26px;
-  font-size: .78rem; color: var(--dimmed);
-  letter-spacing: .04em; z-index: 10;
-  font-family: var(--mono);
+/* ── Slide counter ─────────────────────────────────────── */
+#counter{
+  position:fixed;bottom:2rem;right:3rem;font-size:.8rem;color:var(--text-muted);
+  font-family:'JetBrains Mono',monospace;z-index:100;letter-spacing:.05em;
 }
 
-/* ── kicker ───────────────────────────────────── */
-.kicker {
-  font-size: clamp(.7rem,.85vw,.9rem);
-  font-weight: 700; letter-spacing: .14em;
-  text-transform: uppercase; color: var(--teal);
-  display: flex; align-items: center; gap: 8px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255,255,255,.1);
+/* ── Nav dots ──────────────────────────────────────────── */
+#dots{
+  position:fixed;right:2rem;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:10px;z-index:100;
 }
-.kicker::before {
-  content: ''; display: block;
-  width: 22px; height: 3px; border-radius: 99px;
-  background: var(--teal); flex-shrink: 0;
+.dot{
+  width:8px;height:8px;border-radius:50%;background:var(--text-muted);
+  border:none;cursor:pointer;transition:all .3s;padding:0;
+}
+.dot.active{background:var(--teal-400);box-shadow:0 0 10px var(--teal-500);transform:scale(1.4)}
+
+/* ── Typography ────────────────────────────────────────── */
+.hero-title{
+  font-size:5.5rem;font-weight:900;line-height:.95;letter-spacing:-.04em;
+  background:linear-gradient(135deg,#fff 0%,var(--teal-200) 50%,var(--teal-400) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.hero-sub{font-size:1.5rem;font-weight:300;color:var(--text-secondary);line-height:1.6;max-width:680px}
+.section-label{
+  font-size:.75rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--teal-400);margin-bottom:1rem;
+}
+.section-title{font-size:3.2rem;font-weight:800;line-height:1.1;letter-spacing:-.03em;color:var(--text-primary)}
+.section-title .teal{color:var(--teal-400)}
+.section-body{font-size:1.15rem;font-weight:300;color:var(--text-secondary);line-height:1.7;max-width:700px}
+
+/* ── Cards ─────────────────────────────────────────────── */
+.glass-card{
+  background:var(--bg-card);border:1px solid var(--glass-border);
+  border-radius:16px;padding:2rem;backdrop-filter:blur(12px);
+  transition:border-color .3s,transform .3s;
+}
+.glass-card:hover{border-color:rgba(13,148,136,.3);transform:translateY(-2px)}
+
+/* ── Stat pill ─────────────────────────────────────────── */
+.stat{text-align:center}
+.stat-value{font-size:3.2rem;font-weight:800;color:var(--teal-400);line-height:1}
+.stat-label{font-size:.85rem;color:var(--text-muted);margin-top:.4rem;font-weight:400}
+
+/* ── Feature grid ──────────────────────────────────────── */
+.feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;width:100%;max-width:1100px}
+.feature-card{text-align:left}
+.feature-icon{font-size:2rem;margin-bottom:.75rem}
+.feature-card h3{font-size:1.05rem;font-weight:600;color:var(--text-primary);margin-bottom:.5rem}
+.feature-card p{font-size:.88rem;color:var(--text-muted);line-height:1.5}
+
+/* ── Workflow ──────────────────────────────────────────── */
+.workflow{display:flex;align-items:center;gap:0;width:100%;max-width:1100px;justify-content:center;margin-top:2.5rem}
+.wf-step{
+  display:flex;flex-direction:column;align-items:center;gap:.6rem;
+  padding:1.2rem 1.5rem;border-radius:14px;background:var(--bg-card);
+  border:1px solid var(--glass-border);min-width:140px;position:relative;
+  transition:border-color .3s,box-shadow .3s;
+}
+.wf-step:hover{border-color:var(--teal-600);box-shadow:0 0 30px rgba(13,148,136,.15)}
+.wf-icon{font-size:1.8rem}
+.wf-label{font-size:.82rem;font-weight:600;color:var(--text-primary);text-align:center}
+.wf-sub{font-size:.7rem;color:var(--text-muted);text-align:center}
+.wf-arrow{color:var(--teal-600);font-size:1.3rem;margin:0 .3rem;flex-shrink:0}
+
+/* ── Integration pills ─────────────────────────────────── */
+.integration-cloud{display:flex;flex-wrap:wrap;gap:.75rem;justify-content:center;max-width:800px}
+.int-pill{
+  display:flex;align-items:center;gap:.5rem;padding:.55rem 1.1rem;
+  border-radius:100px;background:var(--glass);border:1px solid var(--glass-border);
+  font-size:.82rem;font-weight:500;color:var(--text-secondary);transition:all .3s;
+}
+.int-pill:hover{border-color:var(--teal-600);color:var(--teal-300)}
+.int-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ── Terminal ──────────────────────────────────────────── */
+.terminal{
+  background:#0c1117;border:1px solid var(--glass-border);border-radius:14px;
+  padding:0;max-width:750px;width:100%;overflow:hidden;
+}
+.term-bar{display:flex;align-items:center;gap:6px;padding:.7rem 1rem;background:rgba(255,255,255,.03);border-bottom:1px solid var(--glass-border)}
+.term-dot{width:10px;height:10px;border-radius:50%}
+.term-body{padding:1.2rem 1.5rem;font-size:.82rem;line-height:1.8;color:var(--teal-300)}
+.term-body .dim{color:var(--text-muted)}
+.term-body .bright{color:var(--text-primary)}
+.term-body .amber{color:#f59e0b}
+.term-body .red{color:#ef4444}
+.term-body .green{color:#10b981}
+
+/* ── Architecture ──────────────────────────────────────── */
+.arch-diagram{
+  display:grid;grid-template-columns:1fr;gap:0;width:100%;max-width:1100px;
+  position:relative;
+}
+.arch-tier{
+  display:flex;align-items:center;justify-content:center;gap:.7rem;
+  padding:.7rem 1.5rem;position:relative;flex-wrap:wrap;
+}
+.arch-tier-label{
+  position:absolute;left:-3px;top:50%;transform:translateY(-50%) rotate(-90deg);
+  font-size:.55rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text-muted);opacity:.5;white-space:nowrap;
+}
+.arch-node{
+  padding:.55rem 1rem;border-radius:8px;font-size:.72rem;font-weight:500;
+  border:1px solid var(--glass-border);background:var(--bg-card);text-align:center;
+  min-width:100px;transition:all .2s;position:relative;
+}
+.arch-node:hover{border-color:var(--teal-600);transform:translateY(-2px);box-shadow:0 4px 15px rgba(0,0,0,.3)}
+.arch-node-lg{
+  padding:.8rem 2rem;border-radius:12px;font-size:.85rem;font-weight:700;
+  border:1px solid var(--teal-700);background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(6,182,212,.05));
+  color:var(--teal-400);text-align:center;box-shadow:0 0 25px rgba(13,148,136,.1);
+  min-width:280px;
+}
+.arch-arrow{
+  display:flex;align-items:center;justify-content:center;padding:.3rem 0;
+  color:var(--teal-600);font-size:.9rem;position:relative;
+}
+.arch-arrow-label{
+  font-size:.55rem;color:var(--text-muted);position:absolute;right:calc(50% - 110px);
+  background:var(--bg-slide);padding:0 .5rem;letter-spacing:.04em;
+}
+.arch-arrow-label-left{right:auto;left:calc(50% - 110px)}
+.arch-sidebar{
+  position:absolute;right:-10px;top:50%;transform:translateX(100%) translateY(-50%);
+  display:flex;flex-direction:column;gap:.5rem;
+}
+.arch-side-box{
+  padding:.4rem .8rem;border-radius:6px;font-size:.62rem;font-weight:500;
+  border:1px dashed var(--glass-border);background:rgba(15,23,42,.6);text-align:center;
+  color:var(--text-muted);min-width:90px;
+}
+.arch-badge{
+  display:inline-block;font-size:.5rem;font-weight:700;letter-spacing:.08em;
+  padding:.1rem .4rem;border-radius:3px;margin-left:.3rem;vertical-align:middle;
 }
 
-/* ── titles ───────────────────────────────────── */
-.slide-title {
-  font-size: clamp(1.9rem,4.5vw,3.6rem);
-  font-weight: 800; line-height: 1.09;
-  letter-spacing: -.02em; text-wrap: balance;
+/* ── Demo scenario ─────────────────────────────────────── */
+.demo-timeline{display:flex;flex-direction:column;gap:0;max-width:700px;width:100%;position:relative;padding-left:2rem}
+.demo-timeline::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:linear-gradient(to bottom,var(--teal-600),var(--teal-400))}
+.demo-step{display:flex;gap:1.2rem;padding:.8rem 0;position:relative}
+.demo-dot{
+  width:16px;height:16px;border-radius:50%;background:var(--teal-600);
+  border:2px solid var(--teal-400);flex-shrink:0;margin-top:.2rem;
+  position:absolute;left:-2rem;box-shadow:0 0 10px rgba(13,148,136,.4);
 }
-.slide-title2 {
-  font-size: clamp(1.4rem,3.2vw,2.7rem);
-  font-weight: 700; line-height: 1.12;
-  text-wrap: balance;
+.demo-content h4{font-size:.95rem;font-weight:600;color:var(--text-primary);margin-bottom:.25rem}
+.demo-content p{font-size:.82rem;color:var(--text-muted);line-height:1.5}
+
+/* ── Big quote ─────────────────────────────────────────── */
+.big-quote{
+  font-size:2.4rem;font-weight:300;font-style:italic;color:var(--text-secondary);
+  line-height:1.4;max-width:800px;text-align:center;
 }
-.slide-body {
-  font-size: clamp(1rem,1.6vw,1.35rem);
-  color: var(--muted); line-height: 1.45;
-  max-width: 860px;
+.big-quote .teal{color:var(--teal-400);font-weight:500}
+
+/* ── Layouts ───────────────────────────────────────────── */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:4rem;width:100%;max-width:1100px;align-items:center}
+.centered{text-align:center;display:flex;flex-direction:column;align-items:center}
+.gap-sm{gap:.5rem}.gap-md{gap:1rem}.gap-lg{gap:2rem}.gap-xl{gap:3rem}
+.mt-1{margin-top:.5rem}.mt-2{margin-top:1rem}.mt-3{margin-top:1.5rem}.mt-4{margin-top:2rem}
+
+/* ── Animated gradient text ────────────────────────────── */
+.gradient-text{
+  background:linear-gradient(135deg,var(--teal-300),var(--teal-500),#06b6d4,var(--teal-300));
+  background-size:300% 300%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;animation:gradientShift 6s ease infinite;
+}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* ── Pulse ring ────────────────────────────────────────── */
+.pulse-ring{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+}
+.pulse-ring::before,.pulse-ring::after{
+  content:'';position:absolute;inset:-8px;border-radius:50%;
+  border:2px solid var(--teal-500);opacity:0;
+  animation:pulseRing 3s ease-in-out infinite;
+}
+.pulse-ring::after{animation-delay:1.5s}
+@keyframes pulseRing{0%{transform:scale(.8);opacity:.6}100%{transform:scale(1.6);opacity:0}}
+
+/* ── Tag ───────────────────────────────────────────────── */
+.tag{
+  display:inline-flex;padding:.3rem .8rem;border-radius:100px;font-size:.7rem;
+  font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  background:rgba(13,148,136,.15);color:var(--teal-400);border:1px solid rgba(13,148,136,.25);
 }
 
-/* ── bullets ──────────────────────────────────── */
-.bullets { list-style: none; display: flex; flex-direction: column; gap: 10px; max-width: 860px; }
-.bullets li {
-  font-size: clamp(.95rem,1.55vw,1.25rem);
-  color: #dde4f0; line-height: 1.38;
-  padding-left: 1.6em; position: relative;
-}
-.bullets li::before {
-  content: '▸'; position: absolute; left: 0;
-  color: var(--teal); font-size: .95em;
+/* ── Fade-in children ──────────────────────────────────── */
+.slide.active .fade-up{animation:fadeUp .7s ease both}
+.slide.active .fade-up:nth-child(1){animation-delay:.1s}
+.slide.active .fade-up:nth-child(2){animation-delay:.25s}
+.slide.active .fade-up:nth-child(3){animation-delay:.4s}
+.slide.active .fade-up:nth-child(4){animation-delay:.55s}
+.slide.active .fade-up:nth-child(5){animation-delay:.7s}
+.slide.active .fade-up:nth-child(6){animation-delay:.85s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Separator line ────────────────────────────────────── */
+.sep{width:60px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--teal-600),var(--teal-400))}
+
+/* ── Blinking cursor ───────────────────────────────────── */
+.blink{animation:blink 1s step-end infinite;color:var(--teal-400)}
+@keyframes blink{50%{opacity:0}}
+
+/* ── Responsive ────────────────────────────────────────── */
+@media(max-width:900px){
+  .slide{padding:2rem}
+  .hero-title{font-size:3rem}
+  .section-title{font-size:2rem}
+  .feature-grid{grid-template-columns:1fr 1fr}
+  .split{grid-template-columns:1fr;gap:2rem}
+  .workflow{flex-wrap:wrap}
 }
 
-/* ── wow box ──────────────────────────────────── */
-.wow-box {
-  border-left: 4px solid var(--teal);
-  padding: 14px 18px;
-  background: color-mix(in srgb, var(--teal), transparent 88%);
-  border-radius: 0 14px 14px 0;
-  font-size: clamp(.95rem,1.55vw,1.22rem);
-  line-height: 1.4; max-width: 900px;
+/* ── Tool items ────────────────────────────────────────── */
+.tool-item{
+  font-size:.72rem;color:var(--text-secondary);padding:.28rem 0;
+  border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap;
+}
+.tool-row{
+  font-size:.78rem;color:var(--text-secondary);display:flex;align-items:center;gap:.5rem;
+}
+.tool-badge{
+  font-size:.65rem;font-weight:700;color:var(--teal-400);background:rgba(13,148,136,.12);
+  padding:.15rem .45rem;border-radius:4px;letter-spacing:.05em;min-width:55px;text-align:center;
 }
 
-/* ── chips ─────────────────────────────────────── */
-.chip-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
-.tech-chip {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 14px;
-  border: 1px solid;
-  border-radius: 999px;
-  backdrop-filter: blur(6px);
-  font-size: .88rem; font-weight: 600;
+/* ── Stack items ───────────────────────────────────────── */
+.stack-item{
+  font-size:.78rem;color:var(--text-secondary);display:flex;align-items:center;gap:.4rem;
+  padding:.2rem 0;
 }
+.stack-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
-/* ── stat cards ────────────────────────────────── */
-.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.stat-card {
-  background: var(--panel); border: 1px solid rgba(255,255,255,.08);
-  border-radius: 16px; padding: 24px 20px;
-  text-align: center;
-  box-shadow: var(--shadow);
+/* ── Key hint ──────────────────────────────────────────── */
+#keyhint{
+  position:fixed;bottom:2rem;left:3rem;font-size:.7rem;color:var(--text-muted);
+  z-index:100;opacity:.5;font-family:'JetBrains Mono',monospace;
 }
-.stat-num {
-  font-size: clamp(2rem,4vw,3.2rem);
-  font-weight: 800; font-family: var(--mono);
-  background: linear-gradient(135deg, var(--teal-bright), var(--teal));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-}
-.stat-label { color: var(--muted); font-size: .85rem; margin-top: 6px; font-weight: 500; }
-
-/* ── feature grid ─────────────────────────────── */
-.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; flex: 1; align-content: start; }
-.feature-card {
-  background: var(--panel); border: 1px solid rgba(13,148,136,.2);
-  border-radius: 16px; padding: 22px 20px;
-  display: flex; flex-direction: column; gap: 10px;
-  box-shadow: var(--shadow);
-  transition: transform .18s, border-color .2s;
-}
-.feature-card:hover { transform: translateY(-3px); border-color: var(--teal); }
-.f-icon { font-size: 2rem; }
-.f-title { font-size: clamp(.95rem,1.5vw,1.15rem); font-weight: 700; }
-.f-desc { font-size: clamp(.82rem,1.2vw,.98rem); color: var(--muted); line-height: 1.38; }
-
-/* ── workflow steps ───────────────────────────── */
-.workflow-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
-.wf-step {
-  background: var(--panel); border: 1px solid rgba(13,148,136,.3);
-  border-radius: 12px; padding: 14px 18px;
-  font-weight: 700; font-size: clamp(.82rem,1.2vw,1rem);
-  white-space: nowrap;
-}
-.wf-step.active-step {
-  background: linear-gradient(135deg, var(--teal-dim), var(--teal));
-  border-color: var(--teal-bright); color: white;
-}
-.wf-arrow { color: var(--teal); font-size: 1.4rem; font-weight: 700; }
-
-/* ── architecture diagram ─────────────────────── */
-.arch-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; flex: 1; }
-.arch-col { display: flex; flex-direction: column; gap: 12px; }
-.arch-col-head {
-  font-size: .72rem; text-transform: uppercase; letter-spacing: .14em;
-  color: var(--teal); font-weight: 700; padding-bottom: 8px;
-  border-bottom: 2px solid var(--teal);
-}
-.arch-box {
-  background: var(--panel); border: 1px solid rgba(255,255,255,.08);
-  border-radius: 12px; padding: 14px 16px;
-  font-size: .92rem; display: flex; align-items: center; gap: 10px;
-}
-.arch-box .ab-icon { font-size: 1.3rem; flex-shrink: 0; }
-.arch-box .ab-text { font-weight: 600; }
-.arch-box .ab-sub { font-size: .78rem; color: var(--muted); font-weight: 400; }
-
-/* ── timeline ─────────────────────────────────── */
-.timeline { display: flex; flex-direction: column; gap: 0; flex: 1; }
-.tl-item {
-  display: flex; gap: 18px; padding: 14px 0;
-  border-left: 2px solid rgba(13,148,136,.3);
-  margin-left: 12px; padding-left: 24px;
-  position: relative;
-}
-.tl-item::before {
-  content: ''; position: absolute;
-  left: -7px; top: 18px;
-  width: 12px; height: 12px; border-radius: 50%;
-  background: var(--teal); border: 2px solid var(--bg);
-}
-.tl-item.complete::before { background: var(--green); }
-.tl-item.current::before { background: var(--amber); box-shadow: 0 0 12px var(--amber); }
-.tl-ver { font-weight: 800; font-family: var(--mono); font-size: .9rem; min-width: 50px; color: var(--teal-bright); }
-.tl-title { font-weight: 700; font-size: 1rem; }
-.tl-desc { font-size: .85rem; color: var(--muted); }
-
-/* ── code block ───────────────────────────────── */
-.code-block {
-  background: #0a0f1a; border: 1px solid rgba(13,148,136,.25);
-  border-radius: 14px; padding: 20px 24px;
-  font-family: var(--mono); font-size: clamp(.78rem,1.1vw,.95rem);
-  color: var(--muted); line-height: 1.7;
-  overflow-x: auto; max-width: 860px;
-}
-.code-block .kw { color: var(--teal-bright); }
-.code-block .str { color: #fbbf24; }
-.code-block .cmt { color: #475569; font-style: italic; }
-
-/* ── two-col ──────────────────────────────────── */
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex: 1; align-content: start; }
-.col-card {
-  background: var(--panel); border: 1px solid rgba(255,255,255,.08);
-  border-radius: 16px; padding: 24px 22px;
-  display: flex; flex-direction: column; gap: 12px;
-  box-shadow: var(--shadow);
-}
-.col-head { font-size: clamp(.95rem,1.5vw,1.15rem); font-weight: 700; }
-
-/* ── layout: split ────────────────────────────── */
-.layout-split {
-  flex-direction: row !important; align-items: stretch; gap: 28px;
-}
-.split-left {
-  flex: 1; display: flex; flex-direction: column; gap: 16px; justify-content: center;
-}
-.split-right {
-  flex: 0 0 min(46%, 560px);
-  display: flex; flex-direction: column;
-}
-
-/* ── layout: title ────────────────────────────── */
-.layout-title {
-  justify-content: flex-end;
-  padding-bottom: clamp(28px,5vh,70px);
-}
-.layout-title .slide-title { font-size: clamp(2.4rem,7vw,5.5rem); }
-
-/* ── animations ───────────────────────────────── */
-section.slide.active .slide-inner > * {
-  animation: revealUp .52s cubic-bezier(.4,0,.2,1) both;
-}
-section.slide.active .slide-inner > *:nth-child(2) { animation-delay: .06s; }
-section.slide.active .slide-inner > *:nth-child(3) { animation-delay: .12s; }
-section.slide.active .slide-inner > *:nth-child(4) { animation-delay: .18s; }
-section.slide.active .slide-inner > *:nth-child(5) { animation-delay: .24s; }
-section.slide.active .slide-inner > *:nth-child(6) { animation-delay: .30s; }
-
-@keyframes revealUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0);    }
-}
-
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
-.pulse { animation: pulse 2s infinite; }
-
-/* ── nav ──────────────────────────────────────── */
-#nav-prev, #nav-next {
-  position: fixed; top: 0; height: 100%;
-  width: 48px; z-index: 50; cursor: pointer;
-  opacity: 0; transition: opacity .2s;
-  display: flex; align-items: center;
-  font-size: 2rem; color: #fff;
-}
-#nav-prev { left: 0; justify-content: flex-start; padding-left: 14px; }
-#nav-next { right: 0; justify-content: flex-end; padding-right: 14px; }
-#nav-prev:hover, #nav-next:hover { opacity: 1; }
-
-#progress {
-  position: fixed; top: 0; left: 0;
-  height: 3px; width: 0%;
-  background: linear-gradient(90deg, var(--teal-dim), var(--teal-bright));
-  transition: width .3s ease;
-  z-index: 100;
-  box-shadow: 0 0 12px var(--teal);
-}
-
-#help {
-  position: fixed; bottom: 16px; left: 50%;
-  transform: translateX(-50%);
-  font-size: .78rem; color: var(--dimmed);
-  background: rgba(10,15,30,.7);
-  border: 1px solid rgba(255,255,255,.15);
-  border-radius: 999px; padding: 7px 14px;
-  backdrop-filter: blur(6px); z-index: 100;
-  pointer-events: none;
-}
-
-/* ── logo ─────────────────────────────────────── */
-.corvin-logo {
-  display: inline-flex; align-items: center; gap: 12px;
-}
-.corvin-logo svg { flex-shrink: 0; }
-.corvin-logo-text {
-  font-size: 1.6rem; font-weight: 800;
-  letter-spacing: -.02em;
-  background: linear-gradient(135deg, var(--teal-bright), var(--teal));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-}
-
-/* ── responsive ───────────────────────────────── */
-@media (max-width: 860px) {
-  .layout-split { flex-direction: column !important; }
-  .split-right { display: none; }
-  .feature-grid { grid-template-columns: 1fr 1fr; }
-  .stat-row { grid-template-columns: 1fr 1fr; }
-  .arch-grid { grid-template-columns: 1fr; }
-  .two-col { grid-template-columns: 1fr; }
-}
-
-@media print {
-  html, body { overflow: visible; }
-  #deck { height: auto; }
-  section.slide {
-    position: relative; opacity: 1; pointer-events: auto;
-    transform: none; break-after: page; min-height: 100vh;
-  }
-  #nav-prev, #nav-next, #progress, #help { display: none; }
-}
-  </style>
+</style>
 </head>
 <body>
-  <div id="progress"></div>
-  <div id="nav-prev" role="button" aria-label="Previous slide">‹</div>
-  <div id="nav-next" role="button" aria-label="Next slide">›</div>
-  <main id="deck" role="main" aria-live="polite">
 
-<!-- ═══════════════════════════════════════════════════════════════
+<div id="progress" style="width:0%"></div>
+<div id="counter"></div>
+<div id="dots"></div>
+<div id="keyhint">← → &nbsp;navigate &nbsp;│&nbsp; F &nbsp;fullscreen</div>
+
+<div class="deck">
+
+<!-- ═══════════════════════════════════════════════════════
      SLIDE 1 — TITLE
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide active" data-idx="0">
-  <div class="slide-bg">
-    <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1400&q=80" alt="" loading="lazy" onerror="this.style.display='none'"/>
-    <div class="bg-overlay" style="background:linear-gradient(160deg,rgba(5,10,18,.92) 0%,rgba(5,10,18,.70) 100%)"></div>
-  </div>
-  <div class="slide-inner layout-title">
-    <div class="corvin-logo">
-      <svg width="48" height="48" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="lg0" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#lg0)"/><path d="M21.5 9A9 9 0 1 0 21.5 23" stroke="white" stroke-width="2.8" fill="none" stroke-linecap="round"/><path d="M16 12L20 16L16 20L12 16Z" fill="white"/></svg>
-      <span class="corvin-logo-text">Corvin</span>
-    </div>
-    <h1 class="slide-title">Your AI SRE<br/>Co-Pilot.</h1>
-    <h2 class="slide-title2" style="color:var(--teal-bright)">Autonomous investigation. Instant root cause. Zero fatigue.</h2>
-    <p class="slide-body">An Azure-native platform that detects, investigates, and resolves production incidents — before your pager wakes you up.</p>
-    <div class="chip-row">
-      <div class="tech-chip" style="background:#0d948822;border-color:var(--teal)"><span style="color:var(--teal)">Azure</span></div>
-      <div class="tech-chip" style="background:#3b82f622;border-color:#3b82f6"><span style="color:#3b82f6">AKS</span></div>
-      <div class="tech-chip" style="background:#f59e0b22;border-color:var(--amber)"><span style="color:var(--amber)">GPT-5.1</span></div>
-      <div class="tech-chip" style="background:#a855f722;border-color:#a855f7"><span style="color:#a855f7">React</span></div>
-      <div class="tech-chip" style="background:#22c55e22;border-color:var(--green)"><span style="color:var(--green)">FastAPI</span></div>
-    </div>
-  </div>
-  <div class="slide-num">1 / 20</div>
-</section>
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide active" data-id="title">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="top:-20%;left:-10%"></div>
+  <div class="orb orb-cyan" style="bottom:-15%;right:-5%;animation-delay:-4s"></div>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 2 — THE PROBLEM
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="1">
-  <div class="slide-bg">
-    <img src="https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=1400&q=80" alt="" loading="lazy" onerror="this.style.display='none'"/>
-    <div class="bg-overlay"></div>
-  </div>
-  <div class="slide-inner">
-    <div class="kicker">The Problem</div>
-    <h1 class="slide-title">3 AM. Alert fires.<br/><span style="color:var(--red)">The clock is ticking.</span></h1>
-    <p class="slide-body">Today's SRE response is manual, fragmented, and exhausting.</p>
-    <div class="stat-row">
-      <div class="stat-card">
-        <div class="stat-num">37 min</div>
-        <div class="stat-label">Avg MTTR across industry</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">5+</div>
-        <div class="stat-label">Tools opened per incident</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">80%</div>
-        <div class="stat-label">Repeat root causes</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">$</div>
-        <div class="stat-label">Revenue lost every minute</div>
-      </div>
+  <div class="centered gap-lg" style="z-index:1">
+    <div class="fade-up">
+      <div class="tag">Hackathon 2026</div>
     </div>
-    <div class="wow-box">
-      Engineers spend more time <em>finding</em> the problem than <em>fixing</em> it. What if an AI could gather evidence, reason about root cause, and suggest fixes — in seconds?
-    </div>
-  </div>
-  <div class="slide-num">2 / 20</div>
-</section>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 3 — WHAT IS CORVIN?
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="2">
-  <div class="slide-inner">
-    <div class="kicker">Introduction</div>
-    <h1 class="slide-title">Meet Corvin.</h1>
-    <h2 class="slide-title2" style="color:var(--teal-bright)">An AI-powered SRE Co-Pilot built on Azure.</h2>
-    <ul class="bullets">
-      <li><strong>Trigger</strong> — Ingests Azure Monitor alerts, manual requests, or Teams commands</li>
-      <li><strong>Enrich</strong> — Gathers evidence from AKS, Log Analytics, Container Logs, and Azure Activity</li>
-      <li><strong>Investigate</strong> — GPT-5.1 reasons over evidence with chain-of-thought transparency</li>
-      <li><strong>RCA + Fix Strategy</strong> — Structured root cause analysis with confidence scores + actionable remediation steps</li>
-      <li><strong>Approve + Execute</strong> — Human-in-the-loop approval gate before any production change</li>
-      <li><strong>Learn</strong> — Incident memory, pattern detection, and morning briefings for continuous improvement</li>
-    </ul>
-    <div class="wow-box">
-      Named after the corvid family (ravens & crows) — known for intelligence, observation, and problem-solving. Corvin watches your systems so you don't have to.
+    <div class="fade-up" style="display:flex;align-items:center;gap:1.5rem">
+      <div class="pulse-ring">
+        <svg width="72" height="72" viewBox="0 0 48 48" fill="none">
+          <defs><linearGradient id="logo-g" x1="0" y1="0" x2="48" y2="48"><stop offset="0%" stop-color="#0f766e"/><stop offset="100%" stop-color="#2dd4bf"/></linearGradient></defs>
+          <rect width="48" height="48" rx="12" fill="url(#logo-g)"/>
+          <path d="M16 14 L24 10 L32 14 L32 22 L24 26 L16 22Z" fill="none" stroke="white" stroke-width="1.8" stroke-linejoin="round" opacity=".9"/>
+          <path d="M16 26 L24 30 L32 26" fill="none" stroke="white" stroke-width="1.8" stroke-linejoin="round" opacity=".7"/>
+          <path d="M16 30 L24 34 L32 30" fill="none" stroke="white" stroke-width="1.8" stroke-linejoin="round" opacity=".5"/>
+          <circle cx="24" cy="18" r="3" fill="white" opacity=".85"/>
+        </svg>
+      </div>
+      <h1 class="hero-title">Corvin</h1>
     </div>
-  </div>
-  <div class="slide-num">3 / 20</div>
-</section>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 4 — WORKFLOW
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="3">
-  <div class="slide-inner">
-    <div class="kicker">Core Workflow</div>
-    <h1 class="slide-title">The Investigation Pipeline</h1>
-    <p class="slide-body">Every incident flows through a structured, auditable pipeline — from trigger to resolution.</p>
-    <div class="workflow-row">
-      <div class="wf-step active-step">🔔 Trigger</div>
-      <span class="wf-arrow">→</span>
-      <div class="wf-step active-step">🔍 Enrich</div>
-      <span class="wf-arrow">→</span>
-      <div class="wf-step active-step">🧠 Investigate</div>
-      <span class="wf-arrow">→</span>
-      <div class="wf-step active-step">📋 RCA</div>
-      <span class="wf-arrow">→</span>
-      <div class="wf-step active-step">🛠️ Fix Strategy</div>
-      <span class="wf-arrow">→</span>
-      <div class="wf-step active-step">✅ Approve</div>
-      <span class="wf-arrow">→</span>
-      <div class="wf-step active-step">⚡ Execute</div>
-      <span class="wf-arrow">→</span>
-      <div class="wf-step active-step">📊 Learn</div>
-    </div>
-    <div class="two-col" style="margin-top: 16px;">
-      <div class="col-card" style="border-color: rgba(13,148,136,.3)">
-        <div class="col-head" style="color:var(--teal-bright)">⚡ Fully Automated Path</div>
-        <ul class="bullets" style="gap:6px">
-          <li>Azure alert webhook fires</li>
-          <li>Evidence gathered in ~30 seconds</li>
-          <li>RCA streamed via SSE with chain-of-thought</li>
-          <li>Fix strategy generated with risk assessment</li>
-          <li>Teams Adaptive Card sent for approval</li>
-        </ul>
-      </div>
-      <div class="col-card" style="border-color: rgba(13,148,136,.3)">
-        <div class="col-head" style="color:var(--teal-bright)">🎯 Human-in-the-Loop</div>
-        <ul class="bullets" style="gap:6px">
-          <li>SRE reviews RCA in web UI or Teams</li>
-          <li>Approves, rejects, or requests re-investigation</li>
-          <li>Execution only after explicit approval</li>
-          <li>Full audit trail: who approved, when, why</li>
-          <li>Post-mortem auto-generated after resolution</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">4 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 5 — ARCHITECTURE
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="4">
-  <div class="slide-inner">
-    <div class="kicker">Architecture</div>
-    <h1 class="slide-title">Modular. Adapter-Based. Azure-Native.</h1>
-    <div class="arch-grid">
-      <div class="arch-col">
-        <div class="arch-col-head">Trigger Sources</div>
-        <div class="arch-box"><span class="ab-icon">🔔</span><div><div class="ab-text">Azure Monitor Alerts</div><div class="ab-sub">Action Group → Webhook</div></div></div>
-        <div class="arch-box"><span class="ab-icon">💬</span><div><div class="ab-text">Teams ChatOps</div><div class="ab-sub">@Corvin investigate fundsso</div></div></div>
-        <div class="arch-box"><span class="ab-icon">🌐</span><div><div class="ab-text">REST API</div><div class="ab-sub">POST /triggers/manual</div></div></div>
-        <div class="arch-box"><span class="ab-icon">⌨️</span><div><div class="ab-text">Interactive CLI</div><div class="ab-sub">Rich REPL with autocomplete</div></div></div>
-        <div class="arch-box"><span class="ab-icon">🎲</span><div><div class="ab-text">Alert Simulator</div><div class="ab-sub">4 presets for demo/testing</div></div></div>
-      </div>
-      <div class="arch-col">
-        <div class="arch-col-head">Evidence Adapters</div>
-        <div class="arch-box"><span class="ab-icon">📊</span><div><div class="ab-text">Log Analytics</div><div class="ab-sub">APIM Gateway Logs (KQL)</div></div></div>
-        <div class="arch-box"><span class="ab-icon">🐳</span><div><div class="ab-text">Container Logs</div><div class="ab-sub">ContainerLog + KubePodInventory</div></div></div>
-        <div class="arch-box"><span class="ab-icon">☸️</span><div><div class="ab-text">AKS Adapter</div><div class="ab-sub">Pods, Events, Deployments (live K8s API)</div></div></div>
-        <div class="arch-box"><span class="ab-icon">📝</span><div><div class="ab-text">Azure Activity</div><div class="ab-sub">Resource changes & deployments</div></div></div>
-        <div class="arch-box"><span class="ab-icon">📚</span><div><div class="ab-text">Knowledge Base</div><div class="ab-sub">Runbooks + site facts injection</div></div></div>
-      </div>
-      <div class="arch-col">
-        <div class="arch-col-head">Delivery Surfaces</div>
-        <div class="arch-box"><span class="ab-icon">🖥️</span><div><div class="ab-text">React Web App</div><div class="ab-sub">Dashboard + Detail + Command Center</div></div></div>
-        <div class="arch-box"><span class="ab-icon">💬</span><div><div class="ab-text">Microsoft Teams</div><div class="ab-sub">Adaptive Cards + ChatOps bot</div></div></div>
-        <div class="arch-box"><span class="ab-icon">📧</span><div><div class="ab-text">Email (ACS)</div><div class="ab-sub">Azure Communication Services</div></div></div>
-        <div class="arch-box"><span class="ab-icon">🔗</span><div><div class="ab-text">Azure DevOps</div><div class="ab-sub">Auto-create work items</div></div></div>
-        <div class="arch-box"><span class="ab-icon">📄</span><div><div class="ab-text">PDF Export</div><div class="ab-sub">Post-mortems + RCA reports</div></div></div>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">5 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 6 — AI ENGINE
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="5">
-  <div class="slide-bg">
-    <img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1400&q=80" alt="" loading="lazy" onerror="this.style.display='none'"/>
-    <div class="bg-overlay"></div>
-  </div>
-  <div class="slide-inner">
-    <div class="kicker">AI Engine</div>
-    <h1 class="slide-title">GPT-5.1 with Chain-of-Thought</h1>
-    <h2 class="slide-title2" style="color:var(--teal-bright)">Transparent reasoning you can audit.</h2>
-    <ul class="bullets">
-      <li><strong>Azure AI Foundry</strong> — GPT-5.1 via Responses API with reasoning summaries</li>
-      <li><strong>Streaming RCA</strong> — Token-by-token SSE stream with live chain-of-thought panel</li>
-      <li><strong>Structured output</strong> — JSON mode with Pydantic schema validation</li>
-      <li><strong>Context injection</strong> — Site knowledge, runbooks, similar incidents, and blast radius all injected into the system prompt</li>
-      <li><strong>Confidence scoring</strong> — HIGH / MEDIUM / LOW with threshold gating for fix suggestions</li>
-      <li><strong>Graceful degradation</strong> — Non-streaming fallback → unparseable fallback → degraded mode with status banners</li>
-    </ul>
-    <div class="code-block">
-      <span class="cmt">// Investigation streamer — real-time SSE events</span><br/>
-      <span class="kw">evidence.fetching</span>  → <span class="str">"Container Logs · 200 records · 8.7s"</span><br/>
-      <span class="kw">evidence.complete</span>  → <span class="str">"4 sources · 201 records · 27.6s"</span><br/>
-      <span class="kw">rca.thinking</span>      → <span class="str">"__thinking__: Analyzing pod restart pattern..."</span><br/>
-      <span class="kw">rca.token</span>         → <span class="str">"The root cause is a connection pool exhaustion..."</span><br/>
-      <span class="kw">rca.complete</span>      → <span class="str">"{ confidence: HIGH, root_cause: '...' }"</span><br/>
-      <span class="kw">fix_strategy.complete</span> → <span class="str">"{ actions: [...], risk_assessment: '...' }"</span>
-    </div>
-  </div>
-  <div class="slide-num">6 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 7 — COMMAND CENTER (CORVIN AI CHAT)
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="6">
-  <div class="slide-inner">
-    <div class="kicker">Command Center</div>
-    <h1 class="slide-title">Talk to Your Platform.</h1>
-    <h2 class="slide-title2" style="color:var(--teal-bright)">Natural language queries. Live tool execution. Real data.</h2>
-    <div class="two-col">
-      <div class="col-card" style="border-color: rgba(13,148,136,.3)">
-        <div class="col-head" style="color:var(--teal-bright)">🎯 What You Can Ask</div>
-        <ul class="bullets" style="gap:6px">
-          <li>"What's the MTTR this week?"</li>
-          <li>"Is fundsso healthy?"</li>
-          <li>"Show me APIM error rate last 24h"</li>
-          <li>"Any predictive alerts?"</li>
-          <li>"What's the ROI this month?"</li>
-          <li>"Show fund activity heatmap this week"</li>
-          <li>"Which partnerapis operations are slowest?"</li>
-        </ul>
-      </div>
-      <div class="col-card" style="border-color: rgba(13,148,136,.3)">
-        <div class="col-head" style="color:var(--teal-bright)">⚡ How It Works</div>
-        <ul class="bullets" style="gap:6px">
-          <li><strong>9 registered toolsets</strong> — KQL queries, incident memory, stats, metrics, blast radius</li>
-          <li><strong>Function-calling agent</strong> — GPT decides which tools to invoke in real-time</li>
-          <li><strong>Rich tool result cards</strong> — SVG gauges, heatmaps, sparklines rendered inline</li>
-          <li><strong>Chat history persistence</strong> — PostgreSQL-backed conversation threads</li>
-          <li><strong>Speculative analysis</strong> — "What-if" blast radius without an existing incident</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">7 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 8 — FEATURES GRID (PART 1)
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="7">
-  <div class="slide-inner">
-    <div class="kicker">Key Features — Part 1</div>
-    <h1 class="slide-title">Enterprise-Grade SRE Intelligence</h1>
-    <div class="feature-grid">
-      <div class="feature-card">
-        <div class="f-icon">🎯</div>
-        <div class="f-title">Blast Radius Estimator</div>
-        <div class="f-desc">Calculates affected services, estimated users, and revenue risk per minute from evidence — no LLM needed.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">📊</div>
-        <div class="f-title">Corvin Health Score</div>
-        <div class="f-desc">Weighted 0–100 score per service from incident frequency, RCA confidence, MTTR, and recency. SVG gauge visualization.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">🔮</div>
-        <div class="f-title">Predictive Detection</div>
-        <div class="f-desc">Anomaly detection on APIM error rates with configurable thresholds. Catches incidents before they escalate.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">🧠</div>
-        <div class="f-title">Incident Memory</div>
-        <div class="f-desc">Past incidents for the same service injected into the LLM prompt. Enables pattern recognition across investigations.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">☀️</div>
-        <div class="f-title">Morning Briefing</div>
-        <div class="f-desc">Jarvis-mode dashboard widget — hour-aware greeting, overnight incident narrative, typewriter animation, and confidence mini-chart.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">⏱️</div>
-        <div class="f-title">SLA Countdown</div>
-        <div class="f-desc">Real-time countdown to SLA breach with P1/P2/P3 priority thresholds. Amber → Red visual urgency.</div>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">8 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 9 — FEATURES GRID (PART 2)
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="8">
-  <div class="slide-inner">
-    <div class="kicker">Key Features — Part 2</div>
-    <h1 class="slide-title">Beyond Investigation</h1>
-    <div class="feature-grid">
-      <div class="feature-card">
-        <div class="f-icon">📄</div>
-        <div class="f-title">Post-Mortem Generator</div>
-        <div class="f-desc">Automatic blameless post-mortem from RCA data + execution timeline. In-page markdown + PDF export.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">🗺️</div>
-        <div class="f-title">Service Topology</div>
-        <div class="f-desc">Cross-service dependency visualizer with Mermaid diagrams. Shows traffic flow and blast radius propagation.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">💰</div>
-        <div class="f-title">ROI Dashboard</div>
-        <div class="f-desc">Time saved, incidents auto-resolved, and cost avoidance. Executive-ready metrics with glassmorphic gauges.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">🔊</div>
-        <div class="f-title">Voice Briefing (TTS)</div>
-        <div class="f-desc">Azure Speech Services text-to-speech for morning briefings. Hands-free incident summary while making coffee.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">🌙</div>
-        <div class="f-title">3AM Mode</div>
-        <div class="f-desc">Ultra-dark, high-contrast mode activated by toggle. Reduces eye strain for middle-of-the-night incidents.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">📋</div>
-        <div class="f-title">Runbook Auto-Update</div>
-        <div class="f-desc">After each resolved incident, Corvin suggests runbook additions based on what was learned. Knowledge compounds.</div>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">9 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 10 — WEB UI HIGHLIGHTS
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="9">
-  <div class="slide-inner">
-    <div class="kicker">User Interface</div>
-    <h1 class="slide-title">Premium Dark Glassmorphism UI</h1>
-    <h2 class="slide-title2" style="color:var(--teal-bright)">React + Vite + Tailwind v4. Built for SREs who live in the terminal.</h2>
-    <div class="feature-grid">
-      <div class="feature-card">
-        <div class="f-icon">📊</div>
-        <div class="f-title">SRE Dashboard</div>
-        <div class="f-desc">Active investigation queue, KPI cards, Corvin Score gauges, morning briefing widget, alert simulator, and platform pulse ticker.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">🔄</div>
-        <div class="f-title">Streaming Visualizer</div>
-        <div class="f-desc">Live SSE stage tracker — evidence accordion with per-adapter progress, RCA typewriter with thinking panel, fix strategy cards.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">🔍</div>
-        <div class="f-title">Investigation Detail</div>
-        <div class="f-desc">9 extracted components. Workflow stepper, sticky approval bar, Mermaid transparency trace, evidence timeline, audit trail.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">💬</div>
-        <div class="f-title">Command Center</div>
-        <div class="f-desc">Full chat interface with sidebar history, tool result cards, SVG metric gauges, and function-calling agent.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">🎨</div>
-        <div class="f-title">Dual Theme</div>
-        <div class="f-desc">Dark + light mode with CSS variables, system preference detection, anti-FOUC script, and animated sun/moon toggle.</div>
-      </div>
-      <div class="feature-card">
-        <div class="f-icon">🔴</div>
-        <div class="f-title">Red Team Console</div>
-        <div class="f-desc">Chaos engineering console for injecting failures and testing Corvin's response. Styled with danger-zone aesthetic.</div>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">10 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 11 — TECH STACK
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="10">
-  <div class="slide-inner">
-    <div class="kicker">Technology</div>
-    <h1 class="slide-title">The Stack</h1>
-    <div class="two-col">
-      <div class="col-card" style="border-color:rgba(13,148,136,.3)">
-        <div class="col-head" style="color:var(--teal-bright)">🐍 Backend (Python)</div>
-        <ul class="bullets" style="gap:6px">
-          <li><strong>FastAPI</strong> — async REST API + SSE streaming</li>
-          <li><strong>SQLAlchemy 2.0</strong> — ORM with async sessions</li>
-          <li><strong>Alembic</strong> — 11 versioned DB migrations</li>
-          <li><strong>LiteLLM</strong> — Azure OpenAI abstraction layer</li>
-          <li><strong>Pydantic v2</strong> — Contract-first schema design</li>
-          <li><strong>Bot Framework</strong> — Teams ChatOps bot</li>
-          <li><strong>Azure SDK</strong> — Identity, Monitor, KQL, ACS</li>
-        </ul>
-      </div>
-      <div class="col-card" style="border-color:rgba(13,148,136,.3)">
-        <div class="col-head" style="color:var(--teal-bright)">⚛️ Frontend (React)</div>
-        <ul class="bullets" style="gap:6px">
-          <li><strong>React 18</strong> + TypeScript — strict mode</li>
-          <li><strong>Vite 5</strong> — HMR dev server + optimized builds</li>
-          <li><strong>Tailwind CSS v4</strong> — @tailwindcss/vite plugin</li>
-          <li><strong>TanStack Query</strong> — data fetching + 30s auto-refresh</li>
-          <li><strong>Framer Motion</strong> — page transitions + micro-interactions</li>
-          <li><strong>Mermaid v11</strong> — live streaming diagram rendering</li>
-          <li><strong>React Router v6</strong> — nested routes + 404 handling</li>
-        </ul>
-      </div>
-    </div>
-    <div class="wow-box">
-      <strong>Azure Services:</strong> Azure OpenAI (AI Foundry) · Azure Kubernetes Service · Azure Monitor · Log Analytics · Azure Communication Services · Azure Speech Services · Azure DevOps · Azure Postgres · Azure Static Web Apps · Azure App Service
-    </div>
-  </div>
-  <div class="slide-num">11 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 12 — DELIVERY SURFACES
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="11">
-  <div class="slide-inner">
-    <div class="kicker">Delivery Surfaces</div>
-    <h1 class="slide-title">Meet SREs Where They Work</h1>
-    <p class="slide-body">Corvin delivers insights through 5 surfaces — so you never have to context-switch to get answers.</p>
-    <div class="feature-grid" style="grid-template-columns: repeat(5, 1fr);">
-      <div class="feature-card" style="text-align:center">
-        <div class="f-icon">🖥️</div>
-        <div class="f-title">Web App</div>
-        <div class="f-desc">Full dashboard, investigation detail, command center, streaming visualizer</div>
-      </div>
-      <div class="feature-card" style="text-align:center">
-        <div class="f-icon">💬</div>
-        <div class="f-title">Teams</div>
-        <div class="f-desc">Adaptive Cards, ChatOps bot, inline approve/reject, war room channel</div>
-      </div>
-      <div class="feature-card" style="text-align:center">
-        <div class="f-icon">⌨️</div>
-        <div class="f-title">CLI</div>
-        <div class="f-desc">Rich interactive REPL — investigate, list, show, approve, execute, health</div>
-      </div>
-      <div class="feature-card" style="text-align:center">
-        <div class="f-icon">🔗</div>
-        <div class="f-title">REST API</div>
-        <div class="f-desc">OpenAPI docs, SSE streaming, background triggers, full CRUD</div>
-      </div>
-      <div class="feature-card" style="text-align:center">
-        <div class="f-icon">📧</div>
-        <div class="f-title">Email</div>
-        <div class="f-desc">Azure Communication Services — RCA summaries and alerts</div>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">12 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 13 — MONITORED ENVIRONMENT (CHAD)
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="12">
-  <div class="slide-inner">
-    <div class="kicker">Target Environment</div>
-    <h1 class="slide-title">CHAD Platform — Live AKS Workload</h1>
-    <p class="slide-body">Corvin monitors a real production-like environment: the Channel Application Digital APIs & Function Hub.</p>
-    <div class="feature-grid" style="grid-template-columns: repeat(3, 1fr);">
-      <div class="feature-card" style="border-left: 3px solid var(--green)">
-        <div class="f-title" style="color:var(--green)">fundapis</div>
-        <div class="f-desc">Fund APIs backend — 2 replicas in AKS, routed through Azure APIM. Spring Boot + Cosmos DB.</div>
-      </div>
-      <div class="feature-card" style="border-left: 3px solid var(--amber)">
-        <div class="f-title" style="color:var(--amber)">fundsso</div>
-        <div class="f-desc">Authentication/SSO service — direct AKS (no APIM). Depends on PingFederate for token federation.</div>
-      </div>
-      <div class="feature-card" style="border-left: 3px solid #3b82f6">
-        <div class="f-title" style="color:#3b82f6">partnerapis</div>
-        <div class="f-desc">Partner integration APIs — 2 replicas, APIM-routed. HPA-scaled. Part of the channel partner ecosystem.</div>
-      </div>
-    </div>
-    <div class="code-block" style="margin-top: 12px;">
-      <span class="cmt"># Evidence sources — real Azure data</span><br/>
-      <span class="kw">Log Analytics</span>  → ApiManagementGatewayLogs (APIM workspace)<br/>
-      <span class="kw">Container Logs</span> → ContainerLog + KubePodInventory (CHAD workspace)<br/>
-      <span class="kw">AKS API</span>       → Live pod status, events, deployments (Kubernetes API)<br/>
-      <span class="kw">Azure Activity</span> → Resource changes, deployments (subscription-level)
-    </div>
-  </div>
-  <div class="slide-num">13 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 14 — TESTING & QUALITY
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="13">
-  <div class="slide-inner">
-    <div class="kicker">Quality</div>
-    <h1 class="slide-title">437 Tests. Zero Shortcuts.</h1>
-    <h2 class="slide-title2" style="color:var(--green)">Every version gate enforced. Every adapter faked.</h2>
-    <div class="stat-row">
-      <div class="stat-card">
-        <div class="stat-num">437</div>
-        <div class="stat-label">Tests passing</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">11</div>
-        <div class="stat-label">Alembic migrations</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">9</div>
-        <div class="stat-label">Versions shipped</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">0</div>
-        <div class="stat-label">Tests skipped</div>
-      </div>
-    </div>
-    <div class="two-col" style="margin-top: 12px;">
-      <div class="col-card" style="border-color: rgba(34,197,94,.3)">
-        <div class="col-head" style="color:var(--green)">Testing Philosophy</div>
-        <ul class="bullets" style="gap:6px">
-          <li>Fake adapter subclasses — no unittest.mock.patch</li>
-          <li>One test file per slice (testable vertical slices)</li>
-          <li>Contract validation tests for every Pydantic model</li>
-          <li>Integration tests hit real Azure endpoints</li>
-          <li>Every PR must keep all tests green</li>
-        </ul>
-      </div>
-      <div class="col-card" style="border-color: rgba(34,197,94,.3)">
-        <div class="col-head" style="color:var(--green)">Version Gates</div>
-        <ul class="bullets" style="gap:6px">
-          <li>V1: 155 tests → V1.5: real Azure adapters</li>
-          <li>V2: 320 tests → V2.5: 318 tests + audit</li>
-          <li>V3: 363 tests → V3.5: demo core features</li>
-          <li>V3.7-V3.9: intelligence + enterprise polish</li>
-          <li>V4.1: 437 tests → enterprise maturity</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">14 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 15 — VERSION JOURNEY
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="14">
-  <div class="slide-inner">
-    <div class="kicker">Evolution</div>
-    <h1 class="slide-title">The Version Journey</h1>
-    <div class="timeline">
-      <div class="tl-item complete">
-        <div><span class="tl-ver">V1</span></div>
-        <div><div class="tl-title">Foundation — Trigger → Enrich → RCA → Fix Strategy</div><div class="tl-desc">Core contracts, adapters, LLM generators, CLI, API, web scaffold. 155 tests.</div></div>
-      </div>
-      <div class="tl-item complete">
-        <div><span class="tl-ver">V1.5</span></div>
-        <div><div class="tl-title">Real Azure — No More Mocks</div><div class="tl-desc">All adapters connected to live Azure Log Analytics, AKS, Container Logs.</div></div>
-      </div>
-      <div class="tl-item complete">
-        <div><span class="tl-ver">V2</span></div>
-        <div><div class="tl-title">ChatOps + Approval + Execution + SSE Streaming</div><div class="tl-desc">Teams bot, approval state machine, AKS execution, streaming RCA. 320 tests.</div></div>
-      </div>
-      <div class="tl-item complete">
-        <div><span class="tl-ver">V3</span></div>
-        <div><div class="tl-title">Premium UI + Post-Mortem + Health Dashboard</div><div class="tl-desc">Glassmorphism overhaul, streaming visualizer, auto post-mortem generator. 363 tests.</div></div>
-      </div>
-      <div class="tl-item complete">
-        <div><span class="tl-ver">V3.5–3.9</span></div>
-        <div><div class="tl-title">Intelligence Layer + Enterprise Polish</div><div class="tl-desc">Predictive detection, blast radius, Corvin Score, ROI, voice TTS, 3AM mode, topology, Command Center.</div></div>
-      </div>
-      <div class="tl-item complete">
-        <div><span class="tl-ver">V4.1</span></div>
-        <div><div class="tl-title">Enterprise Maturity — Priority + Progressive Disclosure</div><div class="tl-desc">P1/P2/P3 auto-classification, progressive disclosure UI, triage dashboard. 437 tests.</div></div>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">15 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 16 — REAL INVESTIGATION FLOW
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="15">
-  <div class="slide-bg">
-    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1400&q=80" alt="" loading="lazy" onerror="this.style.display='none'"/>
-    <div class="bg-overlay"></div>
-  </div>
-  <div class="slide-inner">
-    <div class="kicker">Live Demo Scenario</div>
-    <h1 class="slide-title">A Real Investigation</h1>
-    <h2 class="slide-title2" style="color:var(--amber)">fundsso · 503 spike · production</h2>
-    <div class="code-block" style="max-width:100%">
-      <span class="cmt"># 1. Alert fires at 3:12 AM — Azure Monitor webhook hits Corvin</span><br/>
-      <span class="kw">POST</span> /triggers/azure-alert → <span class="str">202 Accepted</span> (background task queued)<br/><br/>
-      <span class="cmt"># 2. Evidence collected in 27 seconds</span><br/>
-      Container Logs → <span class="str">200 records</span> (HikariPool connection timeout, Cosmos 429s)<br/>
-      APIM Gateway  → <span class="str">48 records</span> (5xx spike on /auth/token endpoint)<br/>
-      AKS Context   → <span class="str">3 pods Running</span>, 0 restarts, HPA at 2/4 replicas<br/><br/>
-      <span class="cmt"># 3. GPT-5.1 reasons with chain-of-thought (1,065 thinking tokens)</span><br/>
-      Root Cause: <span class="str">"HikariCP connection pool exhaustion due to Cosmos DB RU throttling (429)"</span><br/>
-      Confidence: <span class="kw">HIGH</span><br/><br/>
-      <span class="cmt"># 4. Fix strategy generated</span><br/>
-      Action 1: <span class="str">"Scale Cosmos DB RUs from 400 → 800 (immediate)"</span><br/>
-      Action 2: <span class="str">"Increase HikariCP max-pool-size from 10 → 25 (config change)"</span><br/>
-      Action 3: <span class="str">"Add circuit breaker on Cosmos calls (code change)"</span><br/><br/>
-      <span class="cmt"># 5. Teams Adaptive Card sent → SRE approves → Corvin executes pod restart</span><br/>
-      <span class="kw">MTTR: 4 minutes 12 seconds</span> (down from 37-minute average)
-    </div>
-  </div>
-  <div class="slide-num">16 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 17 — SAFETY & GOVERNANCE
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="16">
-  <div class="slide-inner">
-    <div class="kicker">Safety & Governance</div>
-    <h1 class="slide-title">AI with Guardrails</h1>
-    <p class="slide-body">Corvin is designed for trust. Every action is gated, audited, and transparent.</p>
-    <div class="feature-grid" style="grid-template-columns: repeat(3, 1fr);">
-      <div class="feature-card" style="border-left: 3px solid var(--green)">
-        <div class="f-icon">🛡️</div>
-        <div class="f-title">Human-in-the-Loop</div>
-        <div class="f-desc">No production change executes without explicit approval. Enforced at API route level, not optional.</div>
-      </div>
-      <div class="feature-card" style="border-left: 3px solid var(--teal-bright)">
-        <div class="f-icon">📋</div>
-        <div class="f-title">Full Audit Trail</div>
-        <div class="f-desc">Who triggered, what evidence was gathered, what the AI recommended, who approved, when — all persisted in Postgres.</div>
-      </div>
-      <div class="feature-card" style="border-left: 3px solid var(--amber)">
-        <div class="f-icon">⚠️</div>
-        <div class="f-title">Confidence Gating</div>
-        <div class="f-desc">LOW confidence RCAs trigger a warning. Fix strategies only suggested when confidence exceeds the policy threshold.</div>
-      </div>
-      <div class="feature-card" style="border-left: 3px solid #a855f7">
-        <div class="f-icon">🧠</div>
-        <div class="f-title">Transparent Reasoning</div>
-        <div class="f-desc">Chain-of-thought panel shows the AI's thinking process. Mermaid transparency trace shows the investigation path.</div>
-      </div>
-      <div class="feature-card" style="border-left: 3px solid #3b82f6">
-        <div class="f-icon">🔒</div>
-        <div class="f-title">State Machine</div>
-        <div class="f-desc">Approval status follows strict transitions: pending → approved → executed. No shortcuts, no backdoors.</div>
-      </div>
-      <div class="feature-card" style="border-left: 3px solid var(--red)">
-        <div class="f-icon">🔄</div>
-        <div class="f-title">Graceful Degradation</div>
-        <div class="f-desc">If any adapter fails, evidence is partial — never crashes. UI shows degradation banners. LLM has 3-level fallback.</div>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">17 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 18 — IMPACT / ROI
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="17">
-  <div class="slide-bg">
-    <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1400&q=80" alt="" loading="lazy" onerror="this.style.display='none'"/>
-    <div class="bg-overlay"></div>
-  </div>
-  <div class="slide-inner">
-    <div class="kicker">Impact</div>
-    <h1 class="slide-title">Why This Matters</h1>
-    <div class="stat-row">
-      <div class="stat-card" style="border-top: 3px solid var(--teal)">
-        <div class="stat-num">~90%</div>
-        <div class="stat-label">Reduction in investigation time</div>
-      </div>
-      <div class="stat-card" style="border-top: 3px solid var(--green)">
-        <div class="stat-num">4 min</div>
-        <div class="stat-label">MTTR with Corvin (vs 37 min)</div>
-      </div>
-      <div class="stat-card" style="border-top: 3px solid var(--amber)">
-        <div class="stat-num">24/7</div>
-        <div class="stat-label">Always-on monitoring</div>
-      </div>
-      <div class="stat-card" style="border-top: 3px solid #a855f7">
-        <div class="stat-num">0</div>
-        <div class="stat-label">Alert fatigue for humans</div>
-      </div>
-    </div>
-    <div class="two-col" style="margin-top: 12px;">
-      <div class="col-card" style="border-color:rgba(13,148,136,.3)">
-        <div class="col-head" style="color:var(--teal-bright)">🎯 Direct Value</div>
-        <ul class="bullets" style="gap:6px">
-          <li>Eliminates manual evidence gathering across 5+ tools</li>
-          <li>Structured RCA replaces ad-hoc Slack threads</li>
-          <li>Post-mortems auto-generated — no more "we'll write it later"</li>
-          <li>Runbook knowledge compounds over time</li>
-        </ul>
-      </div>
-      <div class="col-card" style="border-color:rgba(13,148,136,.3)">
-        <div class="col-head" style="color:var(--teal-bright)">🌟 Strategic Value</div>
-        <ul class="bullets" style="gap:6px">
-          <li>SRE team scales without scaling headcount</li>
-          <li>Institutional knowledge captured, not lost to attrition</li>
-          <li>Every incident improves the next investigation</li>
-          <li>Proactive detection catches issues before customer impact</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="slide-num">18 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 19 — WHAT'S NEXT
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="18">
-  <div class="slide-inner">
-    <div class="kicker">Roadmap</div>
-    <h1 class="slide-title">What's Next</h1>
-    <div class="feature-grid" style="grid-template-columns: repeat(3, 1fr);">
-      <div class="feature-card" style="border: 1px solid rgba(245,158,11,.3)">
-        <div class="f-icon">🔍</div>
-        <div class="f-title">V4 — Semantic Search</div>
-        <div class="f-desc">Vector RAG using pgvector on Azure Postgres. Find similar failure patterns across services using embeddings, not just string matching.</div>
-      </div>
-      <div class="feature-card" style="border: 1px solid rgba(168,85,247,.3)">
-        <div class="f-icon">🤖</div>
-        <div class="f-title">Multi-Agent</div>
-        <div class="f-desc">Specialized agents for different investigation domains — network, database, application, infrastructure — coordinated by an orchestrator.</div>
-      </div>
-      <div class="feature-card" style="border: 1px solid rgba(59,130,246,.3)">
-        <div class="f-icon">🔗</div>
-        <div class="f-title">Cross-Cluster</div>
-        <div class="f-desc">Extend monitoring beyond a single AKS cluster. Federated evidence gathering across environments and regions.</div>
-      </div>
-    </div>
-    <div class="wow-box" style="margin-top: 16px;">
-      The vision: An AI that doesn't just find root causes — it <strong>prevents</strong> them. Corvin learns from every incident, predicts the next one, and hardens your systems before they break.
-    </div>
-  </div>
-  <div class="slide-num">19 / 20</div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     SLIDE 20 — CLOSING
-     ═══════════════════════════════════════════════════════════════ -->
-<section class="slide" data-idx="19">
-  <div class="slide-bg">
-    <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1400&q=80" alt="" loading="lazy" onerror="this.style.display='none'"/>
-    <div class="bg-overlay" style="background:linear-gradient(160deg,rgba(5,10,18,.88) 0%,rgba(5,10,18,.65) 100%)"></div>
-  </div>
-  <div class="slide-inner layout-title">
-    <div class="corvin-logo">
-      <svg width="56" height="56" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="lg1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#lg1)"/><path d="M21.5 9A9 9 0 1 0 21.5 23" stroke="white" stroke-width="2.8" fill="none" stroke-linecap="round"/><path d="M16 12L20 16L16 20L12 16Z" fill="white"/></svg>
-    </div>
-    <h1 class="slide-title">Corvin.</h1>
-    <h2 class="slide-title2" style="color:var(--teal-bright)">Investigate smarter. Resolve faster. Sleep better.</h2>
-    <p class="slide-body" style="max-width:600px">
-      437 tests · 9 versions · 5 delivery surfaces · 1 mission:<br/>
-      <strong style="color:var(--teal-bright)">Never let an incident go uninvestigated.</strong>
+    <p class="hero-sub fade-up">
+      Your AI SRE Co‑Pilot. From alert to root cause<br/>in seconds — not hours.
     </p>
-    <div class="chip-row" style="margin-top: 8px;">
-      <div class="tech-chip" style="background:#0d948822;border-color:var(--teal)"><span style="color:var(--teal-bright)">github.com/corvin</span></div>
-      <div class="tech-chip" style="background:#0d948822;border-color:var(--teal)"><span style="color:var(--teal-bright)">Built with ❤️ and Azure</span></div>
+
+    <div class="fade-up" style="display:flex;gap:1rem;margin-top:1rem">
+      <span class="int-pill"><span class="int-dot" style="background:var(--teal-500)"></span>Azure‑Native</span>
+      <span class="int-pill"><span class="int-dot" style="background:#06b6d4"></span>GPT‑5.1 Powered</span>
+      <span class="int-pill"><span class="int-dot" style="background:#059669"></span>Human‑in‑the‑Loop</span>
     </div>
   </div>
-  <div class="slide-num">20 / 20</div>
-</section>
+</div>
 
-  </main>
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 2 — THE PROBLEM
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="problem">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="top:10%;right:-15%;opacity:.15"></div>
 
-  <div id="help">← → or click edges to navigate · Press <kbd>F</kbd> for fullscreen</div>
+  <div class="centered gap-xl" style="z-index:1">
+    <div class="fade-up">
+      <p class="section-label">The Problem</p>
+      <h2 class="section-title" style="font-size:3.5rem">
+        It's <span style="color:#ef4444">3 AM</span>. An alert fires.<br/>
+        <span style="color:var(--text-muted)">Now what?</span>
+      </h2>
+    </div>
 
-  <script>
-  const deck  = document.getElementById('deck');
-  const bar   = document.getElementById('progress');
-  const slides = [...deck.querySelectorAll('.slide')];
-  let cur = 0;
+    <div class="fade-up" style="display:grid;grid-template-columns:repeat(4,1fr);gap:2rem;max-width:900px">
+      <div class="glass-card stat">
+        <div class="stat-value" style="color:#ef4444">37m</div>
+        <div class="stat-label">Avg time to<br/>find root cause</div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value" style="color:#f59e0b">12+</div>
+        <div class="stat-label">Dashboards &<br/>tools to check</div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value" style="color:#ef4444">80%</div>
+        <div class="stat-label">Incidents are<br/>repeat patterns</div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value" style="color:#f59e0b">$$$</div>
+        <div class="stat-label">Every minute of<br/>downtime costs</div>
+      </div>
+    </div>
 
-  function go(n) {
-    if (n < 0 || n >= slides.length) return;
-    slides[cur].classList.remove('active');
-    slides[cur].classList.add('exit');
-    setTimeout(() => slides[cur === n ? cur : (cur)].classList.remove('exit'), 400);
-    cur = n;
-    slides[cur].classList.add('active');
-    bar.style.width = ((cur / (slides.length - 1)) * 100) + '%';
+    <p class="section-body fade-up" style="text-align:center">
+      Engineers scramble across Splunk, Grafana, Azure Portal, K8s logs, Slack —<br/>
+      <strong style="color:var(--text-primary)">piecing together context manually, under pressure</strong>.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 3 — THE SOLUTION
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="solution">
+  <div class="grid-bg"></div>
+  <div class="orb orb-emerald" style="top:30%;left:20%;opacity:.2"></div>
+  <div class="orb orb-cyan" style="bottom:10%;right:20%;opacity:.12;animation-delay:-6s"></div>
+
+  <div class="centered gap-xl" style="z-index:1">
+    <div class="fade-up">
+      <p class="section-label">The Solution</p>
+    </div>
+
+    <p class="big-quote fade-up">
+      "You don't need more dashboards.<br/>
+      You need an <span class="teal">AI co-pilot</span> that<br/>
+      <span class="teal">already knows</span> your systems."
+    </p>
+
+    <div class="sep fade-up"></div>
+
+    <p class="section-body fade-up" style="text-align:center">
+      Corvin connects to your existing Azure infrastructure, gathers evidence<br/>
+      from every source, and delivers a structured Root Cause Analysis<br/>
+      with fix strategies — <strong style="color:var(--teal-400)">before your engineer finishes their coffee</strong>.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 4 — HOW IT WORKS
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="workflow">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="bottom:-20%;left:30%;opacity:.15"></div>
+
+  <div class="centered gap-lg" style="z-index:1;width:100%">
+    <div class="fade-up">
+      <p class="section-label">How It Works</p>
+      <h2 class="section-title">From Alert to Answer<span class="teal">.</span></h2>
+    </div>
+
+    <div class="workflow fade-up">
+      <div class="wf-step">
+        <div class="wf-icon">⚡</div>
+        <div class="wf-label">Trigger</div>
+        <div class="wf-sub">Azure Alert<br/>or Manual</div>
+      </div>
+      <div class="wf-arrow">→</div>
+      <div class="wf-step">
+        <div class="wf-icon">🔍</div>
+        <div class="wf-label">Enrich</div>
+        <div class="wf-sub">Gather logs,<br/>metrics, context</div>
+      </div>
+      <div class="wf-arrow">→</div>
+      <div class="wf-step" style="border-color:var(--teal-700);box-shadow:0 0 30px rgba(13,148,136,.15)">
+        <div class="wf-icon">🧠</div>
+        <div class="wf-label">AI Investigate</div>
+        <div class="wf-sub">GPT-5.1 with<br/>chain-of-thought</div>
+      </div>
+      <div class="wf-arrow">→</div>
+      <div class="wf-step">
+        <div class="wf-icon">🎯</div>
+        <div class="wf-label">RCA</div>
+        <div class="wf-sub">Root cause +<br/>fix strategy</div>
+      </div>
+      <div class="wf-arrow">→</div>
+      <div class="wf-step">
+        <div class="wf-icon">✅</div>
+        <div class="wf-label">Approve & Fix</div>
+        <div class="wf-sub">Human approves,<br/>Corvin executes</div>
+      </div>
+    </div>
+
+    <p class="section-body fade-up mt-4" style="text-align:center">
+      Every step is <strong style="color:var(--text-primary)">streamed in real-time</strong> — watch the AI think, see evidence arrive, get results as they form.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 5 — AI ENGINE + TERMINAL
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="ai-engine">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="top:-10%;right:10%;opacity:.12"></div>
+
+  <div class="split" style="z-index:1">
+    <div>
+      <p class="section-label fade-up">Under the Hood</p>
+      <h2 class="section-title fade-up">Not just an<br/>LLM wrapper<span class="teal">.</span></h2>
+      <div class="sep fade-up mt-3"></div>
+
+      <div style="display:flex;flex-direction:column;gap:1.2rem;margin-top:2rem">
+        <div class="fade-up" style="display:flex;gap:.8rem;align-items:flex-start">
+          <span style="color:var(--teal-400);font-size:1.2rem;margin-top:2px">◆</span>
+          <div>
+            <strong style="color:var(--text-primary)">Site Knowledge Injection</strong>
+            <p style="color:var(--text-muted);font-size:.88rem;margin-top:.2rem">Real infrastructure topology — APIM routing, AKS clusters, service dependencies — baked into every prompt</p>
+          </div>
+        </div>
+        <div class="fade-up" style="display:flex;gap:.8rem;align-items:flex-start">
+          <span style="color:var(--teal-400);font-size:1.2rem;margin-top:2px">◆</span>
+          <div>
+            <strong style="color:var(--text-primary)">Runbook Matching</strong>
+            <p style="color:var(--text-muted);font-size:.88rem;margin-top:.2rem">Automatically surfaces relevant runbooks based on error patterns — tribal knowledge at scale</p>
+          </div>
+        </div>
+        <div class="fade-up" style="display:flex;gap:.8rem;align-items:flex-start">
+          <span style="color:var(--teal-400);font-size:1.2rem;margin-top:2px">◆</span>
+          <div>
+            <strong style="color:var(--text-primary)">Chain-of-Thought Reasoning</strong>
+            <p style="color:var(--text-muted);font-size:.88rem;margin-top:.2rem">GPT-5.1's thinking process is streamed live — full transparency, never a black box</p>
+          </div>
+        </div>
+        <div class="fade-up" style="display:flex;gap:.8rem;align-items:flex-start">
+          <span style="color:var(--teal-400);font-size:1.2rem;margin-top:2px">◆</span>
+          <div>
+            <strong style="color:var(--text-primary)">Incident Memory</strong>
+            <p style="color:var(--text-muted);font-size:.88rem;margin-top:.2rem">Every investigation teaches the system — past incidents inform future analysis</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fade-up">
+      <div class="terminal">
+        <div class="term-bar">
+          <div class="term-dot" style="background:#ef4444"></div>
+          <div class="term-dot" style="background:#f59e0b"></div>
+          <div class="term-dot" style="background:#22c55e"></div>
+          <span style="color:var(--text-muted);font-size:.75rem;margin-left:.5rem">corvin — investigation</span>
+        </div>
+        <div class="term-body">
+          <div class="dim">$ corvin investigate fundapis --env dev</div>
+          <div class="mt-1"></div>
+          <div><span class="green">●</span> Collecting evidence from 4 sources...</div>
+          <div>&nbsp;&nbsp;<span class="dim">Container Logs</span> <span class="bright">200 records</span> <span class="dim">8.7s</span></div>
+          <div>&nbsp;&nbsp;<span class="dim">APIM Gateway</span>&nbsp;&nbsp;<span class="bright">47 records</span>&nbsp;&nbsp;<span class="dim">12.1s</span></div>
+          <div>&nbsp;&nbsp;<span class="dim">AKS Context</span>&nbsp;&nbsp;&nbsp;<span class="bright">12 records</span>&nbsp;&nbsp;<span class="dim">4.0s</span></div>
+          <div>&nbsp;&nbsp;<span class="dim">Azure Activity</span> <span class="bright">3 records</span>&nbsp;&nbsp;&nbsp;<span class="dim">2.3s</span></div>
+          <div class="mt-1"></div>
+          <div><span class="amber">◆</span> AI analyzing with chain-of-thought...</div>
+          <div class="dim" style="font-style:italic">&nbsp;&nbsp;"Examining 503 spike → HikariCP pool exhaustion..."</div>
+          <div class="mt-1"></div>
+          <div><span class="green">✓</span> <span class="bright">Root Cause:</span> <span class="green">HikariCP connection pool exhaustion</span></div>
+          <div><span class="dim">&nbsp;&nbsp;Confidence:</span> <span class="amber">87%</span></div>
+          <div><span class="dim">&nbsp;&nbsp;Fix:</span> <span class="bright">kubectl scale deploy chad-fundapis --replicas=4</span></div>
+          <div class="mt-1"></div>
+          <div><span class="dim">⏱️ Total: 27.1s</span> &nbsp;<span class="green">Awaiting approval →</span><span class="blink">█</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 6 — COMMAND CENTER
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="command-center">
+  <div class="grid-bg"></div>
+  <div class="orb orb-cyan" style="top:20%;left:-10%;opacity:.12"></div>
+
+  <div class="centered gap-lg" style="z-index:1">
+    <div class="fade-up">
+      <p class="section-label">Command Center</p>
+      <h2 class="section-title">Chat with your <span class="teal">infrastructure</span><span class="teal">.</span></h2>
+    </div>
+
+    <p class="section-body fade-up" style="text-align:center">
+      An <strong style="color:var(--teal-400)">agentic chatbot</strong> that doesn't just answer — it acts. Runs real investigations,<br/>
+      queries live Azure data, simulates blast radius, calls 16 tools autonomously.</p>
+
+    <div class="fade-up" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;max-width:900px;margin-top:1rem">
+      <div class="glass-card" style="padding:1.2rem">
+        <div style="color:var(--teal-400);font-size:.8rem;font-weight:600;margin-bottom:.5rem">💬 Natural Language</div>
+        <p style="color:var(--text-muted);font-size:.82rem;line-height:1.5">"Why is fundapis throwing 503s in dev?"</p>
+      </div>
+      <div class="glass-card" style="padding:1.2rem">
+        <div style="color:var(--teal-400);font-size:.8rem;font-weight:600;margin-bottom:.5rem">🔮 What-If Analysis</div>
+        <p style="color:var(--text-muted);font-size:.82rem;line-height:1.5">"What's the blast radius if fundsso goes down?"</p>
+      </div>
+      <div class="glass-card" style="padding:1.2rem">
+        <div style="color:var(--teal-400);font-size:.8rem;font-weight:600;margin-bottom:.5rem">📊 Live Intelligence</div>
+        <p style="color:var(--text-muted);font-size:.82rem;line-height:1.5">"Give me a morning briefing on last 24 hours"</p>
+      </div>
+    </div>
+
+    <div class="fade-up" style="display:flex;gap:1rem;margin-top:1.5rem;flex-wrap:wrap;justify-content:center">
+      <span class="int-pill"><span class="int-dot" style="background:var(--teal-500)"></span>Agentic Tool Use</span>
+      <span class="int-pill"><span class="int-dot" style="background:#06b6d4"></span>Streaming Responses</span>
+      <span class="int-pill"><span class="int-dot" style="background:#059669"></span>Multi-Turn Context</span>
+      <span class="int-pill"><span class="int-dot" style="background:#8b5cf6"></span>Speculative Analysis</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 7 — AGENTIC AI (24 TOOLS)
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="agentic">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="top:-5%;left:20%;opacity:.18"></div>
+  <div class="orb orb-emerald" style="bottom:10%;right:10%;opacity:.1;animation-delay:-4s"></div>
+
+  <div class="centered gap-lg" style="z-index:1;width:100%">
+    <div class="fade-up">
+      <p class="section-label">Agentic AI</p>
+      <h2 class="section-title"><span class="teal">24</span> Tools<span class="teal">.</span> <span class="teal">6</span> Reasoning Rounds<span class="teal">.</span></h2>
+    </div>
+
+    <p class="section-body fade-up" style="text-align:center">
+      The LLM doesn't just generate text — it <strong style="color:var(--text-primary)">autonomously decides which tools to call</strong>,<br/>
+      interprets results, chains actions, and iterates up to 6 rounds per message.
+    </p>
+
+    <div class="fade-up" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:1050px;width:100%;margin-top:.5rem">
+      <!-- Left: Agent Tools -->
+      <div class="glass-card" style="padding:1.5rem">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+          <span style="font-size:1.2rem">🤖</span>
+          <span style="font-size:.85rem;font-weight:700;color:var(--teal-400)">Command Center — 16 Agent Tools</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem .8rem">
+          <div class="tool-item">📊 Platform Stats</div>
+          <div class="tool-item">📋 Recent Incidents</div>
+          <div class="tool-item">🔎 Investigation Detail</div>
+          <div class="tool-item">📡 Predictive Alerts</div>
+          <div class="tool-item">🎯 Service Score</div>
+          <div class="tool-item">💰 ROI Metrics</div>
+          <div class="tool-item">🏗️ Service Topology</div>
+          <div class="tool-item">💥 Blast Radius</div>
+          <div class="tool-item">📋 Post-Mortem</div>
+          <div class="tool-item">🔄 Similar Incidents</div>
+          <div class="tool-item">📖 Site Knowledge</div>
+          <div class="tool-item">📓 Runbook Lookup</div>
+          <div class="tool-item">⚡ Run KQL Live</div>
+          <div class="tool-item">☸️ AKS Health Live</div>
+          <div class="tool-item">📈 APIM Analytics</div>
+          <div class="tool-item">🔍 Elastic Query</div>
+        </div>
+      </div>
+
+      <!-- Right: Pipeline Toolsets -->
+      <div class="glass-card" style="padding:1.5rem">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+          <span style="font-size:1.2rem">⚙️</span>
+          <span style="font-size:.85rem;font-weight:700;color:var(--teal-400)">Investigation Pipeline — 8 Toolset Tools</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.5rem">
+          <div class="tool-row"><span class="tool-badge">AKS</span> Pod context, CrashLoop, OOMKill</div>
+          <div class="tool-row"><span class="tool-badge">APIM</span> Gateway errors, 5xx, latency spikes</div>
+          <div class="tool-row"><span class="tool-badge">Elastic</span> App logs + APM metrics</div>
+          <div class="tool-row"><span class="tool-badge">Activity</span> "What changed?" correlation</div>
+          <div class="tool-row"><span class="tool-badge">Knowledge</span> Infra facts + incident learnings</div>
+          <div class="tool-row"><span class="tool-badge">Runbooks</span> Keyword-matched procedures</div>
+        </div>
+
+        <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--glass-border)">
+          <div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.5rem">Tool-Call Loop</div>
+          <div style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--text-secondary);flex-wrap:wrap">
+            <span style="color:var(--teal-400);font-weight:600">User →</span>
+            <span style="color:var(--text-muted)">LLM decides →</span>
+            <span style="color:#f59e0b;font-weight:600">Tool call →</span>
+            <span style="color:var(--text-muted)">Result →</span>
+            <span style="color:var(--teal-400);font-weight:600">LLM reasons →</span>
+            <span style="color:var(--text-muted)">...repeat ×6</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fade-up" style="display:flex;gap:1rem;margin-top:1rem">
+      <span class="int-pill"><span class="int-dot" style="background:var(--teal-500)"></span>tool_choice="auto"</span>
+      <span class="int-pill"><span class="int-dot" style="background:#f59e0b"></span>6 rounds max per message</span>
+      <span class="int-pill"><span class="int-dot" style="background:#06b6d4"></span>20+ APIM query templates</span>
+      <span class="int-pill"><span class="int-dot" style="background:#8b5cf6"></span>Streaming SSE</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 8 — KEY FEATURES
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="features">
+  <div class="grid-bg"></div>
+  <div class="orb orb-emerald" style="top:-10%;left:40%;opacity:.1"></div>
+
+  <div class="centered gap-lg" style="z-index:1;width:100%">
+    <div class="fade-up">
+      <p class="section-label">Capabilities</p>
+      <h2 class="section-title">Enterprise Intelligence<span class="teal">,</span> Built In<span class="teal">.</span></h2>
+    </div>
+
+    <div class="feature-grid fade-up">
+      <div class="glass-card feature-card">
+        <div class="feature-icon">💥</div>
+        <h3>Blast Radius Estimator</h3>
+        <p>Calculates affected services, users, and revenue impact before any action is taken.</p>
+      </div>
+      <div class="glass-card feature-card">
+        <div class="feature-icon">📡</div>
+        <h3>Predictive Detection</h3>
+        <p>Spots anomaly trends before they become incidents — proactive, not reactive.</p>
+      </div>
+      <div class="glass-card feature-card">
+        <div class="feature-icon">🎯</div>
+        <h3>Corvin Score</h3>
+        <p>Real-time service health gauge: incident frequency, MTTR, confidence, recency.</p>
+      </div>
+      <div class="glass-card feature-card">
+        <div class="feature-icon">📋</div>
+        <h3>Auto Post-Mortem</h3>
+        <p>One-click blameless post-mortems with timeline, impact analysis, and lessons learned.</p>
+      </div>
+      <div class="glass-card feature-card">
+        <div class="feature-icon">🏗️</div>
+        <h3>Service Topology</h3>
+        <p>Interactive dependency graph with live health overlays — see how services connect.</p>
+      </div>
+      <div class="glass-card feature-card">
+        <div class="feature-icon">⏱️</div>
+        <h3>SLA Countdown</h3>
+        <p>Priority-aware timers with breach predictions — P1 incidents get red-zone treatment.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 8 — INTEGRATIONS
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="integrations">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="bottom:0;left:50%;opacity:.12"></div>
+
+  <div class="centered gap-xl" style="z-index:1">
+    <div class="fade-up">
+      <p class="section-label">Integrations</p>
+      <h2 class="section-title">Plugs Into What You <span class="teal">Already Use</span><span class="teal">.</span></h2>
+    </div>
+
+    <p class="section-body fade-up" style="text-align:center">
+      No new agents to deploy. No data migration. Corvin reads from your<br/>
+      existing tools and starts delivering value from day one.
+    </p>
+
+    <div class="integration-cloud fade-up">
+      <div class="int-pill"><span class="int-dot" style="background:#0078d4"></span>Azure Monitor Alerts</div>
+      <div class="int-pill"><span class="int-dot" style="background:#0078d4"></span>Azure Log Analytics</div>
+      <div class="int-pill"><span class="int-dot" style="background:#326ce5"></span>Azure Kubernetes Service</div>
+      <div class="int-pill"><span class="int-dot" style="background:#0078d4"></span>Azure APIM</div>
+      <div class="int-pill"><span class="int-dot" style="background:#f59e0b"></span>Elastic / Kibana</div>
+      <div class="int-pill"><span class="int-dot" style="background:#7b83eb"></span>Microsoft Teams</div>
+      <div class="int-pill"><span class="int-dot" style="background:#0078d4"></span>Azure DevOps</div>
+      <div class="int-pill"><span class="int-dot" style="background:#0078d4"></span>Azure Activity Log</div>
+      <div class="int-pill"><span class="int-dot" style="background:#336791"></span>PostgreSQL</div>
+      <div class="int-pill"><span class="int-dot" style="background:#10b981"></span>REST API</div>
+    </div>
+
+    <div class="fade-up mt-2" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;max-width:800px">
+      <div class="glass-card centered gap-sm" style="padding:1.2rem">
+        <div style="font-size:1.6rem">🌐</div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--text-primary)">Web App</div>
+      </div>
+      <div class="glass-card centered gap-sm" style="padding:1.2rem">
+        <div style="font-size:1.6rem">💬</div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--text-primary)">Teams Bot</div>
+      </div>
+      <div class="glass-card centered gap-sm" style="padding:1.2rem">
+        <div style="font-size:1.6rem">⌨️</div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--text-primary)">CLI</div>
+      </div>
+      <div class="glass-card centered gap-sm" style="padding:1.2rem">
+        <div style="font-size:1.6rem">🔌</div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--text-primary)">REST API</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 10 — ARCHITECTURE (detailed flow diagram)
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="architecture">
+  <div class="grid-bg"></div>
+  <div class="orb orb-cyan" style="top:20%;right:-10%;opacity:.08"></div>
+  <div class="orb orb-teal" style="bottom:10%;left:-5%;opacity:.06"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <div class="fade-up" style="text-align:center">
+      <p class="section-label">Architecture</p>
+      <h2 class="section-title" style="font-size:2.2rem">End‑to‑End <span class="gradient-text">Data Flow</span><span class="teal">.</span></h2>
+    </div>
+
+    <div class="arch-diagram fade-up">
+
+      <!-- ── TIER 1: TRIGGER SOURCES ────────────────── -->
+      <div class="arch-tier">
+        <div class="arch-node" style="border-color:#f59e0b;color:#f59e0b">
+          ⚡ Azure Alerts<br/><span style="font-size:.55rem;color:var(--text-muted)">Action Group webhook</span>
+        </div>
+        <div class="arch-node" style="border-color:#8b5cf6;color:#8b5cf6">
+          🎮 Alert Simulator<br/><span style="font-size:.55rem;color:var(--text-muted)">10+ failure scenarios</span>
+        </div>
+        <div class="arch-node" style="border-color:#06b6d4;color:#06b6d4">
+          ⌨️ CLI / API / Teams<br/><span style="font-size:.55rem;color:var(--text-muted)">Manual triggers</span>
+        </div>
+      </div>
+
+      <div class="arch-arrow">
+        <span>▼</span>
+        <span class="arch-arrow-label">POST /investigate</span>
+        <span class="arch-arrow-label-left arch-arrow-label">InvestigationRequest</span>
+      </div>
+
+      <!-- ── TIER 2: ENRICHMENT — PARALLEL EVIDENCE ── -->
+      <div class="arch-tier" style="background:rgba(13,148,136,.03);border-radius:12px;border:1px solid rgba(13,148,136,.08);padding:.8rem 1rem">
+        <span style="position:absolute;left:12px;top:8px;font-size:.55rem;font-weight:700;color:var(--teal-600);letter-spacing:.08em;text-transform:uppercase">Enrichment Layer — Parallel Gather</span>
+        <div class="arch-node">📊 APIM Gateway<br/><span style="font-size:.55rem;color:var(--text-muted)">20+ KQL templates</span></div>
+        <div class="arch-node">☸️ AKS Context<br/><span style="font-size:.55rem;color:var(--text-muted)">Pod status, events</span></div>
+        <div class="arch-node">📦 Container Logs<br/><span style="font-size:.55rem;color:var(--text-muted)">Tail + grep errors</span></div>
+        <div class="arch-node">📝 Activity Log<br/><span style="font-size:.55rem;color:var(--text-muted)">"What changed?"</span></div>
+        <div class="arch-node">🔍 Elastic<br/><span style="font-size:.55rem;color:var(--text-muted)">App logs + APM</span></div>
+      </div>
+
+      <div class="arch-arrow">
+        <span>▼</span>
+        <span class="arch-arrow-label">EvidenceBundle (JSON)</span>
+        <span class="arch-arrow-label-left arch-arrow-label">+ Runbooks + site.md</span>
+      </div>
+
+      <!-- ── TIER 3: AI ENGINE (center brain) ────────── -->
+      <div class="arch-tier">
+        <div class="arch-node-lg">
+          🧠 &nbsp;AI Investigation Engine
+          <div style="font-size:.65rem;color:var(--text-secondary);margin-top:.4rem;font-weight:400;display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap">
+            <span><span class="arch-badge" style="background:rgba(99,102,241,.2);color:#a5b4fc">MODEL</span> GPT‑5.1</span>
+            <span><span class="arch-badge" style="background:rgba(245,158,11,.2);color:#fcd34d">API</span> Responses</span>
+            <span><span class="arch-badge" style="background:rgba(6,182,212,.2);color:#67e8f9">MODE</span> Streaming SSE</span>
+            <span><span class="arch-badge" style="background:rgba(16,185,129,.2);color:#6ee7b7">TOOLS</span> 24 functions</span>
+          </div>
+          <div style="font-size:.58rem;color:var(--text-muted);margin-top:.3rem">
+            Chain-of-thought reasoning → tool calls (up to 6 rounds) → structured JSON output
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">
+        <span>▼</span>
+        <span class="arch-arrow-label">InvestigationResult</span>
+        <span class="arch-arrow-label-left arch-arrow-label">Streamed via SSE</span>
+      </div>
+
+      <!-- ── TIER 4: OUTPUT ARTIFACTS ────────────────── -->
+      <div class="arch-tier" style="gap:.5rem">
+        <div class="arch-node" style="border-color:var(--teal-700)">🎯 RCA<br/><span style="font-size:.55rem;color:var(--text-muted)">Root cause + timeline</span></div>
+        <div class="arch-node" style="border-color:var(--teal-700)">🛠️ Fix Strategy<br/><span style="font-size:.55rem;color:var(--text-muted)">Actionable steps</span></div>
+        <div class="arch-node" style="border-color:var(--teal-700)">💥 Blast Radius<br/><span style="font-size:.55rem;color:var(--text-muted)">Impact estimation</span></div>
+        <div class="arch-node" style="border-color:var(--teal-700)">📋 Post‑Mortem<br/><span style="font-size:.55rem;color:var(--text-muted)">Blameless report</span></div>
+        <div class="arch-node" style="border-color:var(--teal-700)">📈 Score<br/><span style="font-size:.55rem;color:var(--text-muted)">Health gauge</span></div>
+      </div>
+
+      <div class="arch-arrow">
+        <span>▼</span>
+        <span class="arch-arrow-label">REST + SSE + PDF + Email</span>
+      </div>
+
+      <!-- ── TIER 5: DELIVERY SURFACES ───────────────── -->
+      <div class="arch-tier" style="gap:.6rem">
+        <div class="arch-node" style="border-color:var(--teal-500);color:var(--teal-400);font-weight:600">🌐 React Web<br/><span style="font-size:.55rem;font-weight:400;color:var(--text-muted)">Dashboard + Chatbot</span></div>
+        <div class="arch-node" style="border-color:var(--teal-500);color:var(--teal-400);font-weight:600">💬 Teams Bot<br/><span style="font-size:.55rem;font-weight:400;color:var(--text-muted)">Adaptive Cards</span></div>
+        <div class="arch-node" style="border-color:var(--teal-500);color:var(--teal-400);font-weight:600">⌨️ CLI REPL<br/><span style="font-size:.55rem;font-weight:400;color:var(--text-muted)">Interactive shell</span></div>
+        <div class="arch-node" style="border-color:var(--teal-500);color:var(--teal-400);font-weight:600">🔌 REST API<br/><span style="font-size:.55rem;font-weight:400;color:var(--text-muted)">42 endpoints</span></div>
+      </div>
+
+    </div>
+
+    <!-- Side annotations -->
+    <div class="fade-up" style="display:flex;gap:1rem;margin-top:.5rem;flex-wrap:wrap;justify-content:center">
+      <span class="int-pill"><span class="int-dot" style="background:#336791"></span>PostgreSQL + 14 Migrations</span>
+      <span class="int-pill"><span class="int-dot" style="background:#f59e0b"></span>10+ YAML Config Files</span>
+      <span class="int-pill"><span class="int-dot" style="background:#8b5cf6"></span>Alembic Schema Versioning</span>
+      <span class="int-pill"><span class="int-dot" style="background:#06b6d4"></span>Adapter Pattern (resilient)</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 11 — TECH STACK
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="tech-stack">
+  <div class="grid-bg"></div>
+  <div class="orb orb-emerald" style="top:10%;right:20%;opacity:.12"></div>
+
+  <div class="centered gap-lg" style="z-index:1;width:100%">
+    <div class="fade-up">
+      <p class="section-label">Tech Stack</p>
+      <h2 class="section-title">Built With <span class="teal">Production-Grade</span> Tools<span class="teal">.</span></h2>
+    </div>
+
+    <div class="fade-up" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:1050px;width:100%">
+      <!-- Backend -->
+      <div class="glass-card" style="padding:1.5rem">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+          <span style="font-size:1.2rem">🐍</span>
+          <span style="font-size:.9rem;font-weight:700;color:var(--teal-400)">Backend — Python</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+          <div class="stack-item"><span class="stack-dot" style="background:#009688"></span>FastAPI + Uvicorn</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#764abc"></span>SQLAlchemy 2.0</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#336791"></span>PostgreSQL + Alembic</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#10a37f"></span>LiteLLM + OpenAI SDK</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#0078d4"></span>Azure SDK Suite</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#326ce5"></span>Kubernetes Client</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#f59e0b"></span>Elasticsearch 9.x</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#7b83eb"></span>Bot Framework SDK</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#e34c26"></span>Pydantic + Settings</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#ef4444"></span>ReportLab (PDF)</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#06b6d4"></span>httpx + aiohttp</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#22c55e"></span>pytest + ruff</div>
+        </div>
+      </div>
+
+      <!-- Frontend -->
+      <div class="glass-card" style="padding:1.5rem">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+          <span style="font-size:1.2rem">⚛️</span>
+          <span style="font-size:.9rem;font-weight:700;color:var(--teal-400)">Frontend — React + TypeScript</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+          <div class="stack-item"><span class="stack-dot" style="background:#61dafb"></span>React 18 + Vite 5</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#3178c6"></span>TypeScript 5.4</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#06b6d4"></span>Tailwind CSS 4</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#ef4444"></span>React Router 6</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#ff4154"></span>TanStack Query 5</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#8884d8"></span>Recharts + Nivo</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#ff0072"></span>React Flow (Topology)</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#6366f1"></span>Framer Motion</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#22c55e"></span>Mermaid.js</div>
+          <div class="stack-item"><span class="stack-dot" style="background:#f59e0b"></span>jsPDF + html2canvas</div>
+        </div>
+
+        <div style="margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--glass-border)">
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">
+            <span style="font-size:1rem">🧠</span>
+            <span style="font-size:.8rem;font-weight:700;color:var(--teal-400)">AI Model</span>
+          </div>
+          <div class="stack-item" style="font-weight:600;color:var(--text-primary)"><span class="stack-dot" style="background:var(--teal-400)"></span>Azure AI Foundry GPT‑5.1 (Responses API)</div>
+          <div style="font-size:.72rem;color:var(--text-muted);margin-top:.3rem;margin-left:1rem">Chain-of-thought reasoning &nbsp;│&nbsp; Streaming &nbsp;│&nbsp; Function calling</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 12 — BY THE NUMBERS
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="numbers">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="top:15%;left:10%;opacity:.2"></div>
+  <div class="orb orb-cyan" style="bottom:15%;right:15%;opacity:.12;animation-delay:-5s"></div>
+
+  <div class="centered gap-xl" style="z-index:1">
+    <div class="fade-up">
+      <p class="section-label">By The Numbers</p>
+      <h2 class="section-title">What We <span class="gradient-text">Built</span><span class="teal">.</span></h2>
+    </div>
+
+    <div class="fade-up" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;max-width:1000px">
+      <div class="glass-card stat">
+        <div class="stat-value" style="font-size:2.8rem">32K+</div>
+        <div class="stat-label">Lines of code<br/><span style="font-size:.7rem">(Python + TypeScript)</span></div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value" style="font-size:2.8rem">42</div>
+        <div class="stat-label">API endpoints<br/><span style="font-size:.7rem">(REST + SSE streaming)</span></div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value" style="font-size:2.8rem">24</div>
+        <div class="stat-label">AI tool functions<br/><span style="font-size:.7rem">(agentic + pipeline)</span></div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value" style="font-size:2.8rem">13</div>
+        <div class="stat-label">Adapters &<br/>integrations</div>
+      </div>
+    </div>
+
+    <div class="fade-up" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;max-width:1000px">
+      <div class="glass-card stat">
+        <div class="stat-value" style="font-size:2.8rem">437</div>
+        <div class="stat-label">Automated tests<br/><span style="font-size:.7rem">(all passing ✅)</span></div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value" style="font-size:2.8rem">14</div>
+        <div class="stat-label">Database<br/>migrations</div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value" style="font-size:2.8rem">20+</div>
+        <div class="stat-label">APIM analytics<br/>query templates</div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value" style="font-size:2.8rem">5</div>
+        <div class="stat-label">SSE event types<br/><span style="font-size:.7rem">(real-time streaming)</span></div>
+      </div>
+    </div>
+
+    <div class="fade-up" style="display:flex;gap:1.2rem;margin-top:.5rem;flex-wrap:wrap;justify-content:center">
+      <span class="int-pill"><span class="int-dot" style="background:var(--teal-500)"></span>4 Delivery Surfaces</span>
+      <span class="int-pill"><span class="int-dot" style="background:#06b6d4"></span>10+ YAML Config Files</span>
+      <span class="int-pill"><span class="int-dot" style="background:#059669"></span>Dark + Light Theme</span>
+      <span class="int-pill"><span class="int-dot" style="background:#8b5cf6"></span>PDF Export + Email</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 13 — LIVE DEMO
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="demo">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="top:10%;left:10%;opacity:.15"></div>
+
+  <div class="split" style="z-index:1">
+    <div>
+      <p class="section-label fade-up">Live Demo</p>
+      <h2 class="section-title fade-up">Let's see it <span class="gradient-text">in action</span><span class="teal">.</span></h2>
+      <div class="sep fade-up mt-3"></div>
+
+      <div class="demo-timeline fade-up mt-4">
+        <div class="demo-step">
+          <div class="demo-dot"></div>
+          <div class="demo-content">
+            <h4>Alert: 503 Spike on fundapis</h4>
+            <p>Azure Monitor fires — API error rate jumps to 40%</p>
+          </div>
+        </div>
+        <div class="demo-step">
+          <div class="demo-dot"></div>
+          <div class="demo-content">
+            <h4>Evidence gathered automatically</h4>
+            <p>Container logs, APIM gateway, AKS context — all in parallel</p>
+          </div>
+        </div>
+        <div class="demo-step">
+          <div class="demo-dot"></div>
+          <div class="demo-content">
+            <h4>AI thinking streamed live</h4>
+            <p>Watch chain-of-thought reasoning unfold in real time</p>
+          </div>
+        </div>
+        <div class="demo-step">
+          <div class="demo-dot"></div>
+          <div class="demo-content">
+            <h4>RCA + Fix in ~30 seconds</h4>
+            <p>Root cause, confidence score, kubectl commands ready</p>
+          </div>
+        </div>
+        <div class="demo-step">
+          <div class="demo-dot"></div>
+          <div class="demo-content">
+            <h4>One-click approve & execute</h4>
+            <p>Human reviews → approves → Corvin runs the fix</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fade-up centered gap-md">
+      <div class="glass-card" style="padding:2.5rem;text-align:center;max-width:350px">
+        <div style="font-size:3.5rem;margin-bottom:.5rem">⚡</div>
+        <h3 style="color:var(--teal-400);font-size:1.6rem;font-weight:800">~30 seconds</h3>
+        <p style="color:var(--text-muted);font-size:.9rem;margin-top:.5rem">From alert to actionable fix</p>
+        <div class="sep mt-3" style="margin:1.2rem auto 0"></div>
+        <p style="color:var(--text-muted);font-size:.78rem;margin-top:1rem">vs. 37 minutes manual investigation</p>
+      </div>
+
+      <div class="glass-card" style="padding:1.5rem;text-align:center;max-width:350px">
+        <div style="display:flex;justify-content:center;gap:2.5rem">
+          <div>
+            <div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em">Before</div>
+            <div style="font-size:2.2rem;font-weight:800;color:#ef4444;margin-top:.3rem">37m</div>
+          </div>
+          <div style="font-size:2rem;color:var(--text-muted);align-self:flex-end">→</div>
+          <div>
+            <div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em">After</div>
+            <div style="font-size:2.2rem;font-weight:800;color:var(--teal-400);margin-top:.3rem">30s</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-card" style="padding:1.2rem;text-align:center;max-width:350px">
+        <div style="font-size:.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.8rem">Live on Azure</div>
+        <div style="display:flex;flex-direction:column;gap:.5rem">
+          <a href="https://mango-hill-0639bd600.7.azurestaticapps.net/" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:.5rem;padding:.6rem 1rem;border-radius:8px;background:linear-gradient(135deg,rgba(13,148,136,.15),rgba(6,182,212,.08));border:1px solid var(--teal-700);color:var(--teal-400);font-size:.78rem;font-weight:600;text-decoration:none;transition:all .2s">
+            🌐 React UI — Azure Static Web Apps
+          </a>
+          <a href="https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net/docs" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:.5rem;padding:.6rem 1rem;border-radius:8px;background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.3);color:#a5b4fc;font-size:.78rem;font-weight:600;text-decoration:none;transition:all .2s">
+            🔌 FastAPI Backend — Azure App Service
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 11 — SAFETY
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="safety">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="top:30%;right:30%;opacity:.1"></div>
+
+  <div class="centered gap-lg" style="z-index:1">
+    <div class="fade-up">
+      <p class="section-label">Governance</p>
+      <h2 class="section-title">AI That You Can <span class="teal">Trust</span><span class="teal">.</span></h2>
+    </div>
+
+    <div class="fade-up" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:950px">
+      <div class="glass-card centered gap-sm" style="padding:2rem">
+        <div style="font-size:2.2rem">🔒</div>
+        <h3 style="font-weight:700;font-size:1rem;color:var(--text-primary)">Human‑in‑the‑Loop</h3>
+        <p style="font-size:.82rem;color:var(--text-muted);line-height:1.5">No fix executes without explicit human approval. Full audit trail on every action.</p>
+      </div>
+      <div class="glass-card centered gap-sm" style="padding:2rem">
+        <div style="font-size:2.2rem">🧠</div>
+        <h3 style="font-weight:700;font-size:1rem;color:var(--text-primary)">Transparent Reasoning</h3>
+        <p style="font-size:.82rem;color:var(--text-muted);line-height:1.5">Chain-of-thought is streamed and stored. See exactly how the AI reaches conclusions.</p>
+      </div>
+      <div class="glass-card centered gap-sm" style="padding:2rem">
+        <div style="font-size:2.2rem">📊</div>
+        <h3 style="font-weight:700;font-size:1rem;color:var(--text-primary)">Confidence Scoring</h3>
+        <p style="font-size:.82rem;color:var(--text-muted);line-height:1.5">Every RCA includes a confidence percentage with reasoning — you know when to trust it.</p>
+      </div>
+    </div>
+
+    <div class="fade-up" style="display:flex;gap:1rem;margin-top:1rem">
+      <span class="int-pill"><span class="int-dot" style="background:var(--teal-500)"></span>Read‑Only Evidence</span>
+      <span class="int-pill"><span class="int-dot" style="background:#f59e0b"></span>Approval Gate</span>
+      <span class="int-pill"><span class="int-dot" style="background:#06b6d4"></span>Full Audit Trail</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 12 — IMPACT
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="impact">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="top:-10%;left:30%;opacity:.2"></div>
+  <div class="orb orb-cyan" style="bottom:10%;right:20%;opacity:.1;animation-delay:-5s"></div>
+
+  <div class="centered gap-xl" style="z-index:1">
+    <div class="fade-up">
+      <p class="section-label">Impact</p>
+      <h2 class="section-title">What Changes <span class="teal">With Corvin</span><span class="teal">.</span></h2>
+    </div>
+
+    <div class="fade-up" style="display:grid;grid-template-columns:repeat(4,1fr);gap:2rem;max-width:1000px">
+      <div class="glass-card stat">
+        <div class="stat-value">74×</div>
+        <div class="stat-label">Faster investigation<br/>(37 min → 30 sec)</div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value">90%</div>
+        <div class="stat-label">Reduction in<br/>MTTR</div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value">24/7</div>
+        <div class="stat-label">Always‑on AI<br/>SRE coverage</div>
+      </div>
+      <div class="glass-card stat">
+        <div class="stat-value">0</div>
+        <div class="stat-label">New agents<br/>to deploy</div>
+      </div>
+    </div>
+
+    <p class="section-body fade-up" style="text-align:center">
+      Plugs into your <strong style="color:var(--text-primary)">existing Azure stack</strong>.<br/>
+      No new infra. No data migration. Value from day one.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 13 — CLOSING
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-id="closing">
+  <div class="grid-bg"></div>
+  <div class="orb orb-teal" style="top:20%;left:30%;opacity:.25"></div>
+  <div class="orb orb-cyan" style="bottom:20%;right:30%;opacity:.15;animation-delay:-3s"></div>
+  <div class="orb orb-emerald" style="top:50%;left:60%;opacity:.1;animation-delay:-7s"></div>
+
+  <div class="centered gap-xl" style="z-index:1">
+    <div class="fade-up">
+      <svg width="80" height="80" viewBox="0 0 48 48" fill="none">
+        <defs><linearGradient id="close-g" x1="0" y1="0" x2="48" y2="48"><stop offset="0%" stop-color="#0f766e"/><stop offset="100%" stop-color="#2dd4bf"/></linearGradient></defs>
+        <rect width="48" height="48" rx="12" fill="url(#close-g)"/>
+        <path d="M16 14 L24 10 L32 14 L32 22 L24 26 L16 22Z" fill="none" stroke="white" stroke-width="1.8" stroke-linejoin="round" opacity=".9"/>
+        <path d="M16 26 L24 30 L32 26" fill="none" stroke="white" stroke-width="1.8" stroke-linejoin="round" opacity=".7"/>
+        <path d="M16 30 L24 34 L32 30" fill="none" stroke="white" stroke-width="1.8" stroke-linejoin="round" opacity=".5"/>
+        <circle cx="24" cy="18" r="3" fill="white" opacity=".85"/>
+      </svg>
+    </div>
+
+    <h2 class="fade-up" style="font-size:3.8rem;font-weight:900;line-height:1.1;text-align:center">
+      Investigate smarter<span class="teal">.</span><br/>
+      Resolve faster<span class="teal">.</span><br/>
+      <span class="gradient-text">Sleep better.</span>
+    </h2>
+
+    <div class="sep fade-up"></div>
+
+    <p class="section-body fade-up" style="text-align:center;font-size:1.3rem">
+      <strong style="color:var(--text-primary)">Corvin</strong> — Your AI SRE Co‑Pilot
+    </p>
+
+    <div class="fade-up" style="display:flex;gap:1.2rem;margin-top:.5rem;flex-wrap:wrap;justify-content:center">
+      <span class="int-pill"><span class="int-dot" style="background:var(--teal-500)"></span>Azure‑Native</span>
+      <span class="int-pill"><span class="int-dot" style="background:#06b6d4"></span>Python + React + FastAPI</span>
+      <span class="int-pill"><span class="int-dot" style="background:#059669"></span>GPT‑5.1 Powered</span>
+    </div>
+
+    <div class="fade-up" style="display:flex;gap:1rem;margin-top:1rem">
+      <a href="https://mango-hill-0639bd600.7.azurestaticapps.net/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.4rem;border-radius:10px;background:linear-gradient(135deg,var(--teal-600),var(--teal-700));color:white;font-size:.85rem;font-weight:700;text-decoration:none;transition:all .2s;box-shadow:0 4px 15px rgba(13,148,136,.3)">
+        🌐 Try Live UI
+      </a>
+      <a href="https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net/docs" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.4rem;border-radius:10px;background:transparent;border:1px solid var(--teal-600);color:var(--teal-400);font-size:.85rem;font-weight:700;text-decoration:none;transition:all .2s">
+        🔌 API Docs
+      </a>
+    </div>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<script>
+/* ── Slide engine ──────────────────────────────────────── */
+const slides = [...document.querySelectorAll('.slide')];
+let cur = 0;
+const total = slides.length;
+
+function go(n) {
+  if (n < 0 || n >= total || n === cur) return;
+  const prev = cur;
+  slides[prev].classList.remove('active');
+  slides[prev].classList.add('exit-up');
+  cur = n;
+  slides[cur].classList.add('active');
+  setTimeout(() => slides[prev].classList.remove('exit-up'), 700);
+  updateUI();
+}
+function next() { go(cur + 1) }
+function prev() { go(cur - 1) }
+
+function updateUI() {
+  document.getElementById('progress').style.width = ((cur + 1) / total * 100) + '%';
+  document.getElementById('counter').textContent = `${cur + 1} / ${total}`;
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === cur));
+}
+
+/* Build dots */
+const dotsEl = document.getElementById('dots');
+slides.forEach((_, i) => {
+  const b = document.createElement('button');
+  b.className = 'dot' + (i === 0 ? ' active' : '');
+  b.addEventListener('click', () => go(i));
+  dotsEl.appendChild(b);
+});
+updateUI();
+
+/* Keyboard */
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  else if (e.key === 'f' || e.key === 'F') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
   }
+});
 
-  function next() { go(cur + 1); }
-  function prev() { go(cur - 1); }
+/* Click zones */
+document.addEventListener('click', e => {
+  const x = e.clientX / window.innerWidth;
+  if (e.target.closest('button, a, .int-pill')) return;
+  if (x > 0.7) next();
+  else if (x < 0.3) prev();
+});
 
-  document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); prev(); }
-    if (e.key === 'f' || e.key === 'F') {
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-      else document.exitFullscreen();
-    }
-  });
-
-  document.getElementById('nav-prev').addEventListener('click', prev);
-  document.getElementById('nav-next').addEventListener('click', next);
-
-  // Touch support
-  let tx = 0;
-  deck.addEventListener('touchstart', e => { tx = e.changedTouches[0].clientX; }, { passive: true });
-  deck.addEventListener('touchend', e => {
-    const dx = e.changedTouches[0].clientX - tx;
-    if (Math.abs(dx) > 50) dx > 0 ? prev() : next();
-  }, { passive: true });
-  </script>
+/* Touch */
+let tx = 0;
+document.addEventListener('touchstart', e => { tx = e.changedTouches[0].clientX }, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx;
+  if (Math.abs(dx) > 50) dx < 0 ? next() : prev();
+}, { passive: true });
+</script>
 </body>
 </html>
