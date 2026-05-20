@@ -108,6 +108,10 @@ _SessionLocal: sessionmaker | None = None
 # We try to ADD each column and silently ignore "duplicate column" errors.
 _SQLITE_COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
     ("corvin_messages", "tool_results", "JSON"),
+    ("evidence_bundles", "container_resource_metrics", "JSON DEFAULT '[]'"),
+    ("evidence_bundles", "container_inventory", "JSON DEFAULT '[]'"),
+    ("evidence_bundles", "node_inventory", "JSON DEFAULT '[]'"),
+    ("evidence_bundles", "network_metrics", "JSON DEFAULT '[]'"),
 ]
 
 

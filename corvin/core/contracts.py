@@ -102,6 +102,10 @@ class EvidenceBundle(BaseModel):
     log_analytics_apim: list[dict[str, Any]] = Field(default_factory=list)
     aks_context: dict[str, Any] = Field(default_factory=dict)
     azure_activity_changes: list[dict[str, Any]] = Field(default_factory=list)
+    container_resource_metrics: list[dict[str, Any]] = Field(default_factory=list)
+    container_inventory: list[dict[str, Any]] = Field(default_factory=list)
+    node_inventory: list[dict[str, Any]] = Field(default_factory=list)
+    network_metrics: list[dict[str, Any]] = Field(default_factory=list)
     collected_at: datetime = Field(default_factory=_utcnow)
 
 

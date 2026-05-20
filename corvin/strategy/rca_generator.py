@@ -75,6 +75,10 @@ class RCAGenerator:
                 evidence.log_analytics_apim,
                 evidence.aks_context,
                 evidence.azure_activity_changes,
+                evidence.container_resource_metrics,
+                evidence.container_inventory,
+                evidence.node_inventory,
+                evidence.network_metrics,
             )
         )
 

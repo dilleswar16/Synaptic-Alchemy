@@ -7,6 +7,13 @@ Start the dev server with:
 
 from __future__ import annotations
 
+# Inject OS trust store BEFORE any Azure SDK imports to handle corporate proxies.
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
+
 import asyncio
 import os
 import warnings

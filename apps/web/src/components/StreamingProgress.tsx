@@ -66,12 +66,16 @@ interface FetchingRow {
 }
 
 const SOURCE_LABEL: Record<string, string> = {
-  container_logs:   'Container Logs',
-  apim_logs:        'APIM Logs',
-  aks_context:      'AKS Context',
-  activity_changes: 'Activity Changes',
-  elastic_logs:     'Elastic Logs',
-  elastic_metrics:  'Elastic Metrics',
+  container_logs:       'Container Logs',
+  apim_logs:            'APIM Logs',
+  aks_context:          'AKS Context',
+  activity_changes:     'Activity Changes',
+  elastic_logs:         'Elastic Logs',
+  elastic_metrics:      'Elastic Metrics',
+  resource_metrics:     'CPU / Memory',
+  container_inventory:  'Container Images',
+  node_inventory:       'Node Health',
+  network_metrics:      'Network I/O',
 }
 
 function fmtMs(ms: number): string {

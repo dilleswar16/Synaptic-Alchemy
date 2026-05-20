@@ -37,6 +37,10 @@ export interface EvidenceBundle {
   log_analytics_apim: Record<string, unknown>[]
   aks_context: Record<string, unknown>
   azure_activity_changes: Record<string, unknown>[]
+  container_resource_metrics: Record<string, unknown>[]
+  container_inventory: Record<string, unknown>[]
+  node_inventory: Record<string, unknown>[]
+  network_metrics: Record<string, unknown>[]
 }
 
 export interface InvestigationResult {

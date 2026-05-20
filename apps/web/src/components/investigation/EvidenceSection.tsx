@@ -6,11 +6,15 @@ import { useState } from 'react'
 import type { EvidenceBundle } from '../../api/client'
 
 const ADAPTER_LABEL: Record<string, string> = {
-  elastic_logs:           'Elastic Logs',
-  elastic_metrics:        'Elastic Metrics',
-  log_analytics_apim:     'Log Analytics APIM',
-  aks_context:            'AKS Context',
-  azure_activity_changes: 'Azure Activity',
+  elastic_logs:                'Elastic Logs',
+  elastic_metrics:             'Elastic Metrics',
+  log_analytics_apim:          'Log Analytics APIM',
+  aks_context:                 'AKS Context',
+  azure_activity_changes:      'Azure Activity',
+  container_resource_metrics:  'CPU / Memory',
+  container_inventory:         'Container Images',
+  node_inventory:              'Node Health',
+  network_metrics:             'Network I/O',
 }
 
 function buildSummary(name: string, items: unknown[], count: number): string {
@@ -132,18 +136,22 @@ export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
   const [isOpen, setIsOpen] = useState(false)
   
   const sources = [
-    { name: 'elastic_logs',           data: evidence.elastic_logs },
-    { name: 'elastic_metrics',        data: evidence.elastic_metrics },
-    { name: 'log_analytics_apim',     data: evidence.log_analytics_apim },
-    { name: 'aks_context',            data: evidence.aks_context },
-    { name: 'azure_activity_changes', data: evidence.azure_activity_changes },
+    { name: 'elastic_logs',                data: evidence.elastic_logs },
+    { name: 'elastic_metrics',             data: evidence.elastic_metrics },
+    { name: 'log_analytics_apim',          data: evidence.log_analytics_apim },
+    { name: 'aks_context',                 data: evidence.aks_context },
+    { name: 'azure_activity_changes',      data: evidence.azure_activity_changes },
+    { name: 'container_resource_metrics',  data: evidence.container_resource_metrics ?? [] },
+    { name: 'container_inventory',         data: evidence.container_inventory ?? [] },
+    { name: 'node_inventory',              data: evidence.node_inventory ?? [] },
+    { name: 'network_metrics',             data: evidence.network_metrics ?? [] },
   ]
 
   const totalRecords = sources.reduce((sum, s) => {
     if (Array.isArray(s.data)) return sum + s.data.length
     return sum + (Object.keys(s.data).length > 0 ? 1 : 0)
   }, 0)
-  const segHeights = [14, 11, 8, 12, 9]
+  const segHeights = [14, 11, 8, 12, 9, 13, 10, 11, 7]
 
   return (
     <section style={{ marginTop: 20 }}>

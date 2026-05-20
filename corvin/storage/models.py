@@ -125,6 +125,10 @@ class EvidenceBundleRow(Base):
     log_analytics_apim: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
     aks_context: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
     azure_activity_changes: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
+    container_resource_metrics: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
+    container_inventory: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
+    node_inventory: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
+    network_metrics: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
     collected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

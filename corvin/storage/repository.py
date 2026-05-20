@@ -157,6 +157,10 @@ class InvestigationRepository:
                     log_analytics_apim=result.evidence.log_analytics_apim,
                     aks_context=result.evidence.aks_context,
                     azure_activity_changes=result.evidence.azure_activity_changes,
+                    container_resource_metrics=result.evidence.container_resource_metrics,
+                    container_inventory=result.evidence.container_inventory,
+                    node_inventory=result.evidence.node_inventory,
+                    network_metrics=result.evidence.network_metrics,
                     collected_at=result.evidence.collected_at,
                 )
             )
@@ -246,6 +250,10 @@ class InvestigationRepository:
                     "log_analytics_apim": ev_row.log_analytics_apim,
                     "aks_context": ev_row.aks_context,
                     "azure_activity_changes": ev_row.azure_activity_changes,
+                    "container_resource_metrics": getattr(ev_row, "container_resource_metrics", []) or [],
+                    "container_inventory": getattr(ev_row, "container_inventory", []) or [],
+                    "node_inventory": getattr(ev_row, "node_inventory", []) or [],
+                    "network_metrics": getattr(ev_row, "network_metrics", []) or [],
                     "collected_at": _as_utc(ev_row.collected_at),
                 }
             )

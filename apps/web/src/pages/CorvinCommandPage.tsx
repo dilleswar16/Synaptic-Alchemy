@@ -3,6 +3,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import NavBar from '../components/NavBar'
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
+import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis'
 
 import { ToolResultCard, ToolCallingSkeleton } from '../components/corvin/ToolResultCard'
 import {
@@ -150,6 +152,25 @@ export default function CorvinCommandPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const prevMessagesLengthRef = useRef(0)
   const prevLastMessageContentRef = useRef('')
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null)
+
+  // ── Speech hooks ──
+  const onSpeechResult = useCallback((transcript: string) => {
+    setInput(prev => (prev ? prev + ' ' : '') + transcript)
+    inputRef.current?.focus()
+  }, [])
+  const { listening, interim, supported: sttSupported, start: startMic, stop: stopMic } = useSpeechRecognition(onSpeechResult)
+  const { speaking: ttsSpeaking, supported: ttsSupported, speak: ttsSpeak, stop: ttsStop } = useSpeechSynthesis()
+
+  // Sync speakingMsgId when TTS finishes
+  useEffect(() => { if (!ttsSpeaking) setSpeakingMsgId(null) }, [ttsSpeaking])
+
+  const handleSpeak = useCallback((msgId: string, content: string) => {
+    if (speakingMsgId === msgId) { ttsStop(); setSpeakingMsgId(null); return }
+    ttsStop()
+    setSpeakingMsgId(msgId)
+    ttsSpeak(content)
+  }, [speakingMsgId, ttsStop, ttsSpeak])
 
   // Auto-scroll chat
   useEffect(() => {
@@ -310,6 +331,7 @@ export default function CorvinCommandPage() {
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
         @keyframes thinkPulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
         @keyframes shimmerSlide { 0%{transform:translateX(-200%)} 100%{transform:translateX(400%)} }
+        @keyframes micPulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.4)} 50%{box-shadow:0 0 0 8px rgba(239,68,68,0)} }
         @keyframes thinkScan {
           0%   { transform: translateX(-100%); opacity: 0; }
           20%  { opacity: 0.7; }
@@ -508,7 +530,7 @@ export default function CorvinCommandPage() {
                     <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, maxWidth: m.role === 'user' ? '75%' : '88%' }}>
                         {m.role === 'assistant' && (
-                          <div style={{ marginTop: 2, flexShrink: 0, width: 26, height: 26, borderRadius: 8, background: 'var(--c-signal-glow)', border: '1px solid var(--c-border-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ marginTop: 2, flexShrink: 0, width: 26, height: 26, borderRadius: 8, background: 'var(--c-signal-glow)', border: '1px solid var(--c-border-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                             <CorvinIcon size={15} />
                           </div>
                         )}
@@ -646,6 +668,26 @@ export default function CorvinCommandPage() {
                           )}
                         </div>
                       </div>
+                      {/* ── TTS speaker button on assistant messages ── */}
+                      {m.role === 'assistant' && m.content && !isStreaming && ttsSupported && (
+                        <button
+                          onClick={() => handleSpeak(m.id, m.content)}
+                          title={speakingMsgId === m.id ? 'Stop speaking' : 'Read aloud'}
+                          style={{
+                            alignSelf: 'flex-start', marginTop: 4, marginLeft: 34,
+                            background: speakingMsgId === m.id ? 'var(--c-signal-light)' : 'transparent',
+                            border: `1px solid ${speakingMsgId === m.id ? 'var(--c-signal-dim)' : 'transparent'}`,
+                            borderRadius: 6, padding: '3px 8px', cursor: 'pointer',
+                            color: speakingMsgId === m.id ? 'var(--c-signal)' : 'var(--c-text-faint)',
+                            fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
+                            transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 5,
+                          }}
+                          onMouseEnter={e => { if (speakingMsgId !== m.id) { e.currentTarget.style.color = 'var(--c-text-dim)'; e.currentTarget.style.background = 'var(--c-surface-3)' } }}
+                          onMouseLeave={e => { if (speakingMsgId !== m.id) { e.currentTarget.style.color = 'var(--c-text-faint)'; e.currentTarget.style.background = 'transparent' } }}
+                        >
+                          {speakingMsgId === m.id ? '◼ Stop' : '🔊 Listen'}
+                        </button>
+                      )}
                     </div>
                   )
                 })}
@@ -678,6 +720,27 @@ export default function CorvinCommandPage() {
                       lineHeight: 1.5, maxHeight: 120, overflowY: 'hidden', height: 'auto',
                     }}
                   />
+                  {/* Mic button */}
+                  {sttSupported && (
+                    <button
+                      onClick={listening ? stopMic : startMic}
+                      disabled={loading}
+                      title={listening ? 'Stop recording' : 'Voice input'}
+                      style={{
+                        width: 34, height: 34, borderRadius: 8, flexShrink: 0,
+                        background: listening ? 'rgba(239,68,68,0.15)' : 'var(--c-surface-3)',
+                        border: listening ? '1px solid rgba(239,68,68,0.4)' : '1px solid transparent',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        color: listening ? '#ef4444' : 'var(--c-text-faint)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.95rem', transition: 'all 0.15s',
+                        animation: listening ? 'micPulse 1.5s ease infinite' : 'none',
+                      }}
+                    >
+                      🎤
+                    </button>
+                  )}
+                  {/* Send button */}
                   <button
                     onClick={() => handleSend()}
                     disabled={loading || !input.trim()}
@@ -692,9 +755,23 @@ export default function CorvinCommandPage() {
                     {loading ? '⟳' : '↑'}
                   </button>
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', marginTop: 5, textAlign: 'center' }}>
-                  Shift+Enter for new line · Enter to send
-                </div>
+                {/* Interim transcript preview */}
+                {listening && interim && (
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-muted)', padding: '4px 12px', fontStyle: 'italic' }}>
+                    {interim}…
+                  </div>
+                )}
+                {listening && (
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: '#ef4444', marginTop: 4, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'blink 0.8s steps(1) infinite' }} />
+                    Listening… speak now
+                  </div>
+                )}
+                {!listening && (
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', marginTop: 5, textAlign: 'center' }}>
+                    Shift+Enter for new line · Enter to send{sttSupported ? ' · 🎤 Voice input' : ''}
+                  </div>
+                )}
               </div>
             </div>
 

@@ -185,6 +185,151 @@ class ContainerLogsAdapter:
 
         return self._run_query(query, minutes, f"get_kube_events(service={service_name})")
 
+    def get_resource_metrics(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+        time_range_minutes: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch CPU and memory metrics from InsightsMetrics for nodes hosting a service.
+
+        Uses node-level Prometheus metrics (process_cpu_seconds_total,
+        process_resident_memory_bytes) joined via KubePodInventory to identify
+        which nodes run the target service's pods.
+        """
+        if self._client is None:
+            return []
+
+        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
+        ns = namespace or self._config.get("default_namespace", "chad")
+
+        query = (
+            f"let nodes = KubePodInventory\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f'| where Namespace == "{ns}"\n'
+            f'| where Name contains "{service_name}"\n'
+            f"| distinct Computer;\n"
+            f"InsightsMetrics\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f"| where Name in ('process_cpu_seconds_total', 'process_resident_memory_bytes')\n"
+            f"| extend HostName = tostring(parse_json(Tags).hostName)\n"
+            f"| where HostName in (nodes)\n"
+            f"| summarize AvgValue=avg(Val), MaxValue=max(Val) by bin(TimeGenerated, 5m), HostName, Name\n"
+            f"| order by TimeGenerated desc, HostName asc\n"
+            f"| take 200"
+        )
+
+        return self._run_query(query, minutes, f"get_resource_metrics(service={service_name})")
+
+    def get_container_inventory(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+        time_range_minutes: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch container image details from ContainerInventory.
+
+        Returns image name, tag, creation time, and state for each container
+        matching the service. Useful for detecting bad deployments or
+        recent image changes.
+        """
+        if self._client is None:
+            return []
+
+        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
+        ns = namespace or self._config.get("default_namespace", "chad")
+
+        query = (
+            f"let pods = KubePodInventory\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f'| where Namespace == "{ns}"\n'
+            f'| where Name contains "{service_name}"\n'
+            f"| distinct ContainerID;\n"
+            f"ContainerInventory\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f"| where ContainerID in (pods)\n"
+            f"| project TimeGenerated, Name, Image, ImageTag, ContainerState,"
+            f" CreatedTime, StartedTime, FinishedTime, ExitCode\n"
+            f"| summarize arg_max(TimeGenerated, *) by Name\n"
+            f"| order by TimeGenerated desc"
+        )
+
+        return self._run_query(query, minutes, f"get_container_inventory(service={service_name})")
+
+    def get_node_inventory(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+        time_range_minutes: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch node status and conditions from KubeNodeInventory.
+
+        Returns node name, status, allocatable CPU/memory, and conditions
+        (MemoryPressure, DiskPressure, PIDPressure) for nodes hosting the
+        service's pods. Detects node-level resource pressure causing evictions.
+        """
+        if self._client is None:
+            return []
+
+        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
+        ns = namespace or self._config.get("default_namespace", "chad")
+
+        query = (
+            f"let nodes = KubePodInventory\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f'| where Namespace == "{ns}"\n'
+            f'| where Name contains "{service_name}"\n'
+            f"| distinct Computer;\n"
+            f"KubeNodeInventory\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f"| where Computer in (nodes)\n"
+            f"| summarize arg_max(TimeGenerated, *) by Computer\n"
+            f"| project TimeGenerated, Computer, Status, KubeletVersion,"
+            f" KubeProxyVersion, OperatingSystem, DockerVersion\n"
+            f"| order by Computer asc"
+        )
+
+        return self._run_query(query, minutes, f"get_node_inventory(service={service_name})")
+
+    def get_network_metrics(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+        time_range_minutes: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch network TX/RX bytes from InsightsMetrics for a service.
+
+        Returns bytes sent and received per pod, binned in 5-minute intervals.
+        Detects network saturation or connection storms.
+        """
+        if self._client is None:
+            return []
+
+        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
+        ns = namespace or self._config.get("default_namespace", "chad")
+
+        query = (
+            f"let nodes = KubePodInventory\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f'| where Namespace == "{ns}"\n'
+            f'| where Name contains "{service_name}"\n'
+            f"| distinct Computer;\n"
+            f"InsightsMetrics\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f"| where Name in ('bytes_sent', 'bytes_recv')\n"
+            f"| extend HostName = tostring(parse_json(Tags).hostName)\n"
+            f"| where HostName in (nodes)\n"
+            f"| summarize AvgValue=avg(Val), MaxValue=max(Val) by bin(TimeGenerated, 5m), HostName, Name\n"
+            f"| order by TimeGenerated desc, HostName asc\n"
+            f"| take 200"
+        )
+
+        return self._run_query(query, minutes, f"get_network_metrics(service={service_name})")
+
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _run_query(

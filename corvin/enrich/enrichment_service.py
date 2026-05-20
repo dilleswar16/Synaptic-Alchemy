@@ -140,6 +140,42 @@ class EnrichmentService:
         except Exception as exc:
             _log.warning("AzureActivityAdapter.get_recent_changes failed: %s", exc)
 
+        try:
+            bundle.container_resource_metrics = self._container_logs.get_resource_metrics(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            )
+        except NotImplementedError:
+            pass
+        except Exception as exc:
+            _log.warning("ContainerLogsAdapter.get_resource_metrics failed: %s", exc)
+
+        try:
+            bundle.container_inventory = self._container_logs.get_container_inventory(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            )
+        except NotImplementedError:
+            pass
+        except Exception as exc:
+            _log.warning("ContainerLogsAdapter.get_container_inventory failed: %s", exc)
+
+        try:
+            bundle.node_inventory = self._container_logs.get_node_inventory(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            )
+        except NotImplementedError:
+            pass
+        except Exception as exc:
+            _log.warning("ContainerLogsAdapter.get_node_inventory failed: %s", exc)
+
+        try:
+            bundle.network_metrics = self._container_logs.get_network_metrics(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            )
+        except NotImplementedError:
+            pass
+        except Exception as exc:
+            _log.warning("ContainerLogsAdapter.get_network_metrics failed: %s", exc)
+
         return bundle
 
     def enrich_streaming(
@@ -205,6 +241,34 @@ class EnrichmentService:
         b.azure_activity_changes = (yield from _timed_step(
             "activity_changes", "AzureActivity",
             lambda: self._azure_activity.get_recent_changes(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            ),
+        )) or []
+
+        b.container_resource_metrics = (yield from _timed_step(
+            "resource_metrics", "InsightsMetrics · cpu, mem",
+            lambda: self._container_logs.get_resource_metrics(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            ),
+        )) or []
+
+        b.container_inventory = (yield from _timed_step(
+            "container_inventory", "ContainerInventory",
+            lambda: self._container_logs.get_container_inventory(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            ),
+        )) or []
+
+        b.node_inventory = (yield from _timed_step(
+            "node_inventory", "KubeNodeInventory",
+            lambda: self._container_logs.get_node_inventory(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            ),
+        )) or []
+
+        b.network_metrics = (yield from _timed_step(
+            "network_metrics", "InsightsMetrics · tx, rx",
+            lambda: self._container_logs.get_network_metrics(
                 request.service_name, time_range_minutes=request.lookback_minutes
             ),
         )) or []
