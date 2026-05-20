@@ -123,15 +123,15 @@ function CorvinIcon({ size = 18 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
       <defs>
         <linearGradient id="ci" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#7c3aed"/><stop offset="1" stopColor="#6d28d9"/>
+          <stop stopColor="#0f766e"/><stop offset="1" stopColor="#14b8a6"/>
         </linearGradient>
       </defs>
       <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill="url(#ci)" opacity="0.15" stroke="url(#ci)" strokeWidth="1.5"/>
-      <rect x="9" y="13" width="5" height="2.5" rx="1.25" fill="#7c3aed"/>
-      <rect x="18" y="13" width="5" height="2.5" rx="1.25" fill="#7c3aed"/>
-      <rect x="11" y="18.5" width="10" height="1.5" rx="0.75" fill="#7c3aed" opacity="0.7"/>
-      <line x1="16" y1="2" x2="16" y2="6" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round"/>
-      <circle cx="16" cy="5" r="1.5" fill="#7c3aed"/>
+      <rect x="9" y="13" width="5" height="2.5" rx="1.25" fill="#0d9488"/>
+      <rect x="18" y="13" width="5" height="2.5" rx="1.25" fill="#0d9488"/>
+      <rect x="11" y="18.5" width="10" height="1.5" rx="0.75" fill="#0d9488" opacity="0.7"/>
+      <line x1="16" y1="2" x2="16" y2="6" stroke="#0d9488" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="16" cy="5" r="1.5" fill="#0d9488"/>
     </svg>
   )
 }

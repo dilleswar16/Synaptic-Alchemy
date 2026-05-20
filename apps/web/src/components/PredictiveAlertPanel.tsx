@@ -67,7 +67,7 @@ export function PredictiveAlertPanel() {
                 </span>
               </div>
               <div style={{ height: 10, borderRadius: 4, background: 'var(--c-border-hi)', width: `${60 + i * 15}%`, overflow: 'hidden', position: 'relative' }}>
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.4), transparent)', animation: 'shimmerSlide 1.5s ease-in-out infinite', animationDelay: `${i * 200}ms` }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(13,148,136,0.4), transparent)', animation: 'shimmerSlide 1.5s ease-in-out infinite', animationDelay: `${i * 200}ms` }} />
               </div>
               <div style={{ height: 8, borderRadius: 4, background: 'var(--c-border-hi)', width: '40%' }} />
             </div>

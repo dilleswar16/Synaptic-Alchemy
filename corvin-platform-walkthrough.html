@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Corvin Platform — Technical Walkthrough</title>
+<style>
+  :root {
+    --bg: #0a0e14;
+    --surface: #111820;
+    --surface-2: #1a2230;
+    --surface-3: #222d3d;
+    --border: #2a3545;
+    --text: #e4e8ef;
+    --text-dim: #9aa5b4;
+    --text-faint: #5a6a7e;
+    --signal: #f97316;
+    --signal-dim: rgba(249,115,22,0.25);
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ── Slide container ── */
+  .deck { position: relative; width: 100%; height: 100vh; }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    padding: 48px 64px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    transform: translateX(40px);
+    overflow-y: auto;
+  }
+  .slide.active {
+    opacity: 1; pointer-events: all; transform: translateX(0);
+  }
+
+  /* ── Typography ── */
+  h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; }
+  h2 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 16px; }
+  h3 { font-size: 1.1rem; font-weight: 600; color: var(--signal); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; font-family: var(--font-mono); }
+  p, li { font-size: 0.95rem; line-height: 1.7; color: var(--text-dim); }
+  .subtitle { font-size: 1.1rem; color: var(--text-dim); margin-top: 8px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* ── Flow diagram ── */
+  .flow {
+    display: flex; align-items: center; gap: 8px;
+    margin: 20px 0; flex-wrap: wrap;
+  }
+  .flow-node {
+    background: var(--signal-dim);
+    border: 1px solid var(--signal);
+    color: var(--signal);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .flow-arrow { color: var(--text-faint); font-size: 1.2rem; }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 6px;
+    font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .badge-amber { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-blue { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .badge-purple { background: rgba(168,85,247,0.15); color: var(--purple); border: 1px solid rgba(168,85,247,0.3); }
+  .badge-signal { background: var(--signal-dim); color: var(--signal); border: 1px solid rgba(249,115,22,0.3); }
+
+  /* ── Table ── */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.82rem; }
+  th { text-align: left; padding: 8px 12px; background: var(--surface-2); color: var(--signal); font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+  tr:hover td { background: var(--surface-2); }
+
+  /* ── Code ── */
+  code {
+    background: var(--surface-2); color: var(--signal);
+    padding: 2px 6px; border-radius: 4px;
+    font-family: var(--font-mono); font-size: 0.8rem;
+  }
+  pre {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; overflow-x: auto;
+    font-family: var(--font-mono); font-size: 0.75rem;
+    color: var(--text-dim); line-height: 1.6; margin: 12px 0;
+  }
+
+  /* ── Navigation ── */
+  .nav-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 32px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 100;
+  }
+  .nav-bar button {
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text-dim); padding: 8px 20px; border-radius: 8px;
+    cursor: pointer; font-family: var(--font-body); font-size: 0.82rem;
+    transition: all 0.15s;
+  }
+  .nav-bar button:hover { border-color: var(--signal); color: var(--signal); }
+  .nav-bar button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .slide-counter { font-family: var(--font-mono); color: var(--text-faint); font-size: 0.75rem; }
+  .progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: var(--signal); transition: width 0.4s ease; z-index: 100;
+  }
+
+  /* ── Section header ── */
+  .section-label {
+    font-family: var(--font-mono); font-size: 0.72rem;
+    color: var(--signal); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  /* ── Metric highlight ── */
+  .metric {
+    font-size: 2rem; font-weight: 800;
+    background: linear-gradient(135deg, var(--signal), #ea580c);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .metric-small { font-size: 1.3rem; }
+
+  /* ── Data source pill ── */
+  .source-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 20px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 0.68rem;
+    color: var(--text-faint); margin: 2px 4px 2px 0;
+  }
+  .source-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* ── List styles ── */
+  ul { padding-left: 20px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  li::marker { color: var(--signal); }
+
+  /* ── Spacer ── */
+  .spacer { height: 32px; }
+  .spacer-sm { height: 16px; }
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progress"></div>
+<div class="deck" id="deck">
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 1: Title -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide active" data-slide="0">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center">
+    <div style="width:80px;height:80px;border-radius:20px;background:var(--signal-dim);border:2px solid var(--signal);display:flex;align-items:center;justify-content:center;margin-bottom:24px">
+      <svg width="44" height="44" viewBox="0 0 32 32" fill="none"><path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill="rgba(249,115,22,0.15)" stroke="#f97316" stroke-width="1.5"/><rect x="9" y="13" width="5" height="2.5" rx="1.25" fill="#f97316"/><rect x="18" y="13" width="5" height="2.5" rx="1.25" fill="#f97316"/><rect x="11" y="18.5" width="10" height="1.5" rx="0.75" fill="#f97316" opacity="0.7"/></svg>
+    </div>
+    <h1>Corvin Platform</h1>
+    <p class="subtitle" style="max-width:600px;margin:16px auto 0">Azure-Native AI SRE Co-Pilot — Technical Walkthrough</p>
+    <div class="spacer"></div>
+    <div class="flow">
+      <span class="flow-node">Trigger</span><span class="flow-arrow">→</span>
+      <span class="flow-node">Enrich</span><span class="flow-arrow">→</span>
+      <span class="flow-node">Investigate</span><span class="flow-arrow">→</span>
+      <span class="flow-node">RCA</span><span class="flow-arrow">→</span>
+      <span class="flow-node">Fix Strategy</span><span class="flow-arrow">→</span>
+      <span class="flow-node">Approve</span><span class="flow-arrow">→</span>
+      <span class="flow-node">Execute</span>
+    </div>
+    <div class="spacer"></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+      <span class="badge badge-signal">GPT-5.1 / Responses API</span>
+      <span class="badge badge-blue">Azure AKS</span>
+      <span class="badge badge-purple">Log Analytics KQL</span>
+      <span class="badge badge-green">Postgres</span>
+      <span class="badge badge-amber">React + Vite + Tailwind</span>
+      <span class="badge badge-red">FastAPI + LiteLLM</span>
+    </div>
+    <p style="margin-top:32px;font-family:var(--font-mono);font-size:0.75rem;color:var(--text-faint)">437 tests passing · V4.1 Enterprise Maturity · May 2026</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 2: Architecture Overview -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="1">
+  <div class="section-label">Architecture</div>
+  <h2>End-to-End Investigation Pipeline</h2>
+  <p>Every investigation follows the same 7-stage pipeline. Data flows from Azure → Python backend → LLM → Postgres → React UI.</p>
+  <div class="spacer-sm"></div>
+  <div class="card-grid">
+    <div class="card">
+      <h3>① Trigger</h3>
+      <p><strong>Sources:</strong> Azure Monitor Alerts, Predictive Monitor, Manual (Web/CLI/Teams)</p>
+      <p style="margin-top:8px"><strong>Backend:</strong> <code>corvin/triggers/azure_alert.py</code> parses Common Alert Schema → <code>InvestigationRequest</code></p>
+      <p style="margin-top:8px"><strong>Key:</strong> Auto-classifies priority: <span class="badge badge-red">P1</span> fundsso prod · <span class="badge badge-amber">P2</span> other prod · <span class="badge badge-green">P3</span> dev/predictive</p>
+    </div>
+    <div class="card">
+      <h3>② Enrich</h3>
+      <p><strong>Adapters:</strong> Log Analytics (KQL), AKS (K8s API), Container Logs, Azure Activity, Elastic</p>
+      <p style="margin-top:8px"><strong>Backend:</strong> <code>corvin/enrich/enrichment_service.py</code> runs all adapters in parallel, wraps with <code>try/except</code> (graceful degradation)</p>
+      <p style="margin-top:8px"><strong>Output:</strong> <code>EvidenceBundle</code> (APIM logs, pod status, container logs, activity changes, metrics)</p>
+    </div>
+    <div class="card">
+      <h3>③ RCA Generation</h3>
+      <p><strong>Model:</strong> <code>azure/responses/gpt-5.1</code> via LiteLLM (Responses API with reasoning visibility)</p>
+      <p style="margin-top:8px"><strong>Backend:</strong> <code>corvin/strategy/rca_generator.py</code> → streams tokens via SSE → parses JSON → <code>RCAOutput</code></p>
+      <p style="margin-top:8px"><strong>Output:</strong> Root cause, contributing factors, confidence (HIGH/MEDIUM/LOW), reasoning</p>
+    </div>
+    <div class="card">
+      <h3>④ Fix Strategy</h3>
+      <p><strong>Model:</strong> Same GPT-5.1 call with RCA context</p>
+      <p style="margin-top:8px"><strong>Backend:</strong> <code>corvin/strategy/fix_strategy_generator.py</code> → <code>FixStrategyOutput</code> with actions list</p>
+      <p style="margin-top:8px"><strong>Output:</strong> Actions (restart pod, rollback, scale), risk levels, estimated impact, justification</p>
+    </div>
+    <div class="card">
+      <h3>⑤ Human Approval</h3>
+      <p><strong>Gate:</strong> <code>ApprovalStatus</code> state machine: <code>pending → approved | rejected</code></p>
+      <p style="margin-top:8px"><strong>Surfaces:</strong> Web UI (sticky bar), CLI (<code>approve &lt;id&gt;</code>), Teams Adaptive Card buttons</p>
+      <p style="margin-top:8px"><strong>Audit:</strong> Records <code>approved_by</code> + <code>approved_at</code> timestamp in Postgres</p>
+    </div>
+    <div class="card">
+      <h3>⑥ Execute & Verify</h3>
+      <p><strong>Backend:</strong> <code>corvin/execution/execution_service.py</code> dispatches to AKS adapter</p>
+      <p style="margin-top:8px"><strong>Actions:</strong> <code>RESTART_POD</code>, <code>ROLLBACK_DEPLOYMENT</code>, <code>SCALE_DEPLOYMENT</code>, <code>MANUAL</code></p>
+      <p style="margin-top:8px"><strong>Output:</strong> <code>ExecutionResult</code> with per-action success/failure outcomes</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: Data Sources -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="2">
+  <div class="section-label">Data Sources</div>
+  <h2>Where Every Metric Comes From</h2>
+  <div class="spacer-sm"></div>
+  <table>
+    <thead><tr><th>Source</th><th>Type</th><th>What We Pull</th><th>Used By</th></tr></thead>
+    <tbody>
+      <tr><td><span class="source-pill"><span class="source-dot" style="background:var(--blue)"></span>Azure Log Analytics</span></td><td>Cloud Logs (KQL)</td><td>APIM gateway logs, latency, error rates, API call paths</td><td>Evidence Bundle, SLA Countdown, Topology</td></tr>
+      <tr><td><span class="source-pill"><span class="source-dot" style="background:var(--green)"></span>AKS Kubernetes API</span></td><td>K8s REST API</td><td>Pod status, replica count, events, deployments, node resources</td><td>Evidence, Blast Radius, Topology, Execution</td></tr>
+      <tr><td><span class="source-pill"><span class="source-dot" style="background:var(--purple)"></span>Container Logs (KQL)</span></td><td>Log Analytics Tables</td><td>ContainerLog, KubePodInventory, KubeEvents</td><td>Evidence Bundle (primary log source)</td></tr>
+      <tr><td><span class="source-pill"><span class="source-dot" style="background:var(--amber)"></span>Azure Activity Log</span></td><td>Event Log (KQL)</td><td>Resource changes, deployments, scaling events</td><td>Evidence Bundle</td></tr>
+      <tr><td><span class="source-pill"><span class="source-dot" style="background:var(--red)"></span>Elastic (optional)</span></td><td>Search Engine</td><td>Application logs, CPU/memory metrics, network I/O</td><td>Evidence Bundle (fallback)</td></tr>
+      <tr><td><span class="source-pill"><span class="source-dot" style="background:var(--signal)"></span>Azure OpenAI (GPT-5.1)</span></td><td>LLM API</td><td>RCA text, fix strategy, post-mortem, briefing narrative, predictive summaries</td><td>All AI-generated content</td></tr>
+      <tr><td><span class="source-pill"><span class="source-dot" style="background:#22d3ee"></span>Azure Speech Services</span></td><td>TTS API</td><td>Voice audio from briefing narrative</td><td>Dashboard Hear button</td></tr>
+      <tr><td><span class="source-pill"><span class="source-dot" style="background:var(--green)"></span>PostgreSQL</span></td><td>Relational DB</td><td>All investigation history, RCA results, approval audit trail, sessions</td><td>Every widget (stats, scores, ROI, DORA, memory)</td></tr>
+      <tr><td><span class="source-pill"><span class="source-dot" style="background:var(--text-faint)"></span>Config YAML</span></td><td>Static Config</td><td>Policy thresholds, model settings, integration credentials</td><td>Blast radius formulas, ROI baselines, SLA target</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 4: Dashboard — Daily Briefing -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="3">
+  <div class="section-label">Dashboard Page ( / )</div>
+  <h2>Daily Briefing Widget</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>What It Shows</h3>
+      <ul>
+        <li><strong>Hour-aware greeting:</strong> "Good Morning/Afternoon/Evening, Operator"</li>
+        <li><strong>AI-generated narrative:</strong> Summarizes last 24 hours — incident count, confidence distribution, top services (typewriter animation)</li>
+        <li><strong>Confidence breakdown:</strong> Horizontal bars for HIGH / MEDIUM / LOW counts</li>
+        <li><strong>Alert chips:</strong> "18 high-conf needs approval", top service names</li>
+        <li><strong>▶ Hear button:</strong> Reads briefing aloud via Azure TTS</li>
+        <li><strong>Window badge:</strong> "24h window" · "GPT-4.1"</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Data Flow</h3>
+      <pre>Frontend: DashboardPage.tsx
+  ↓ fetchBriefing(hours=24)
+  ↓ GET /investigations/briefing?hours=24
+
+Backend: repository.get_briefing(hours)
+  ↓ SQL query on investigation_requests
+  ↓ JOIN rca_outputs for confidence
+  ↓ COUNT investigations in time window
+  ↓ GROUP BY confidence level
+  ↓ Identify most-active service
+  ↓ Build deterministic narrative
+
+Voice: GET /investigations/briefing/audio
+  ↓ Same narrative text
+  ↓ Azure Speech SDK (SpeechSynthesizer)
+  ↓ voice: en-GB-RyanNeural
+  ↓ Returns MP3 audio bytes</pre>
+      <div class="spacer-sm"></div>
+      <p><strong>Source:</strong> <span class="badge badge-green">Postgres</span> investigation_requests + rca_outputs</p>
+      <p><strong>Refresh:</strong> React Query auto-refetch every 30s</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 5: Dashboard — Operations Center & Metrics -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="4">
+  <div class="section-label">Dashboard Page ( / )</div>
+  <h2>Operations Center & KPI Metrics</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Operations Center Hero</h3>
+      <ul>
+        <li><strong>System status beacon:</strong> "System Operational" (green pulse)</li>
+        <li><strong>Pipeline diagram:</strong> TRIGGER → ENRICH → INVESTIGATE → APPROVE → EXECUTE</li>
+        <li><strong>Live Today counter:</strong> Investigations started today</li>
+        <li><strong>"All time" total + last investigation timestamp</strong></li>
+        <li><strong>Avg MTTR badge:</strong> e.g., "1.5m"</li>
+      </ul>
+      <div class="spacer-sm"></div>
+      <p><strong>API:</strong> <code>GET /investigations/stats</code></p>
+    </div>
+    <div class="card">
+      <h3>KPI Metric Cards (4 cards)</h3>
+      <table>
+        <tr><td><strong>AVG MTTR</strong></td><td><code>AVG(completed_at - created_at)</code> in minutes</td></tr>
+        <tr><td><strong>HIGH CONFIDENCE</strong></td><td>% of RCAs with confidence = 'high'</td></tr>
+        <tr><td><strong>EXECUTED</strong></td><td>Count where approval_status = 'executed'</td></tr>
+        <tr><td><strong>REJECTED</strong></td><td>Count where approval_status = 'rejected'</td></tr>
+      </table>
+      <div class="spacer-sm"></div>
+      <p><strong>API:</strong> <code>GET /investigations/stats</code></p>
+      <p><strong>Backend:</strong> Single SQL aggregation on <code>investigation_requests</code> + <code>rca_outputs</code></p>
+      <p><strong>Source:</strong> <span class="badge badge-green">Postgres</span></p>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Investigation Queue (Table)</h3>
+    <p>Shows all investigations sorted newest-first. Columns: <strong>TIME</strong> · <strong>SERVICE</strong> (with P1/P2/P3 badge) · <strong>SOURCE</strong> (trigger type) · <strong>STATUS</strong> (pending/approved/rejected/executed) · <strong>AGO</strong> (relative time)</p>
+    <p style="margin-top:8px"><strong>API:</strong> <code>GET /investigations/</code> → returns up to 100 rows from <code>investigation_requests</code> table</p>
+    <p><strong>Click row →</strong> navigates to <code>/investigations/{id}</code></p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 6: Dashboard — Service Health Gauges -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="5">
+  <div class="section-label">Dashboard Page ( / )</div>
+  <h2>Service Health Gauges</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>What It Shows</h3>
+      <ul>
+        <li><strong>3 SVG arc gauges:</strong> fundapis, fundsso, partnerapis</li>
+        <li><strong>Score 0–100</strong> with animated counter</li>
+        <li><strong>Color:</strong> <span class="badge badge-green">Green ≥ 80</span> <span class="badge badge-amber">Amber 50–79</span> <span class="badge badge-red">Red &lt; 50</span></li>
+        <li><strong>Label:</strong> "Healthy" / "Degraded" / "Critical"</li>
+        <li><strong>Footer:</strong> incident count + avg MTTR for that service</li>
+        <li><strong>Click →</strong> filters investigation list for that service</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Score Calculation</h3>
+      <pre>GET /investigations/score?service_name=fundapis
+
+Backend: repository.get_service_score()
+
+Formula:
+  investigations = query(service_name, environment)
+  high_conf = count(confidence = 'high')
+  avg_mttr = mean(completed_at - created_at)
+  
+  score = (high_conf / total * 40)
+        + (100 - normalized_mttr) * 0.6
+  
+  // Normalized MTTR: 
+  // 0 min → 100 points
+  // 45+ min → 0 points
+
+Source: Postgres investigation_requests
+        + rca_outputs</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 7: Dashboard — Predictive + Chaos -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="section-label">Dashboard Page ( / )</div>
+  <h2>Predictive Detections & Chaos Console</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Pre-Mortem Mode (Predictive Alerts)</h3>
+      <ul>
+        <li><strong>Background monitor:</strong> <code>PredictiveMonitor</code> runs every 300s in FastAPI lifespan</li>
+        <li><strong>Heuristics:</strong> Memory trend (current - baseline / time), error acceleration, restart instability</li>
+        <li><strong>Per-alert card:</strong> Alert type (MEMORY_PRESSURE), ETA to breach, signal vs threshold, confidence</li>
+        <li><strong>"Investigate Now"</strong> button fires full investigation pipeline</li>
+      </ul>
+      <p style="margin-top:8px"><strong>API:</strong> <code>GET /investigations/predictive-alerts</code></p>
+      <p><strong>Source:</strong> <span class="badge badge-green">Postgres</span> + <span class="badge badge-purple">Elastic metrics</span></p>
+    </div>
+    <div class="card">
+      <h3>Chaos Engineering Console</h3>
+      <ul>
+        <li><strong>4 preset scenarios:</strong></li>
+        <li>⚡ <strong>Inject Scale Lag</strong> — freeze HPA, 1 replica (partnerapis/dev)</li>
+        <li>🔥 <strong>Flood 503 Errors</strong> — 18% error rate on /v1/funds (fundapis/dev)</li>
+        <li>🔒 <strong>Poison JWT Tokens</strong> — 35% 401 responses (fundsso/dev)</li>
+        <li>💀 <strong>Leak Heap Memory</strong> — simulate OOM trajectory (fundapis/dev)</li>
+      </ul>
+      <p style="margin-top:8px"><strong>API:</strong> <code>POST /triggers/simulate</code> → creates fake alert → runs full investigation pipeline</p>
+      <p><strong>Source:</strong> Hardcoded presets (no real Azure call needed)</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 8: Dashboard — Topology + ROI + DORA -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="section-label">Dashboard Page ( / )</div>
+  <h2>Topology, ROI & DORA Metrics</h2>
+  <div class="card-grid-3">
+    <div class="card">
+      <h3>Dependency Visualizer</h3>
+      <p>Interactive graph showing CHAD app topology: APIM Gateway → API Routes → Services → AKS Pods</p>
+      <p style="margin-top:8px"><strong>Two views:</strong> "App Architecture" (Mermaid) and "Corvin Flow" (React Flow)</p>
+      <p style="margin-top:8px"><strong>API:</strong> <code>GET /investigations/topology/live</code></p>
+      <p><strong>Source:</strong> <span class="badge badge-blue">AKS API</span> (live pods) + <span class="badge badge-purple">Log Analytics</span> (APIM call paths)</p>
+    </div>
+    <div class="card">
+      <h3>ROI Dashboard</h3>
+      <table>
+        <tr><td><strong>Incidents Handled</strong></td><td>Count this month</td></tr>
+        <tr><td><strong>MTTR Reduction</strong></td><td><code>(baseline - actual) / baseline × 100</code></td></tr>
+        <tr><td><strong>Hours Saved</strong></td><td><code>(baseline - actual) / 60 × count</code></td></tr>
+        <tr><td><strong>Cost Saved</strong></td><td><code>hours × £120/hr</code></td></tr>
+      </table>
+      <p style="margin-top:8px"><strong>API:</strong> <code>GET /investigations/roi?months=1</code></p>
+      <p><strong>Config:</strong> baseline_mttr: 45min, rate: £120/hr</p>
+    </div>
+    <div class="card">
+      <h3>DORA Metrics</h3>
+      <table>
+        <tr><td><strong>Frequency</strong></td><td>investigations / day</td></tr>
+        <tr><td><strong>Lead Time</strong></td><td>avg MTTR in minutes</td></tr>
+        <tr><td><strong>Change Failure</strong></td><td>% high confidence</td></tr>
+        <tr><td><strong>Recovery Trend</strong></td><td>vs prior 30-day period</td></tr>
+      </table>
+      <p style="margin-top:8px"><strong>API:</strong> <code>GET /investigations/dora?days=30</code></p>
+      <p><strong>Source:</strong> <span class="badge badge-green">Postgres</span></p>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Platform Pulse</h3>
+    <p>Top-bar rotating status ticker. Cycles through 8 hardcoded messages every 5 seconds (e.g., "Corvin: Monitoring APIM 4xx rates for fundapis"). <strong>No backend call</strong> — purely cosmetic liveness indicator.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 9: Investigations Page -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="section-label">Investigations Page ( /investigations )</div>
+  <h2>Investigation Console</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>New Investigation Form</h3>
+      <ul>
+        <li><strong>Service dropdown:</strong> fundapis, fundsso, partnerapis, or "__all__" (run all 3)</li>
+        <li><strong>Environment dropdown:</strong> dev (qa/prod disabled for hackathon)</li>
+        <li><strong>Description textarea:</strong> Optional operator context — feeds directly into LLM prompt</li>
+        <li><strong>3 Demo Presets:</strong> Pre-fill service + description for common scenarios</li>
+        <li><strong>Submit:</strong> Starts SSE stream → shows live <code>StreamingProgress</code> component inline</li>
+      </ul>
+      <p style="margin-top:8px"><strong>API:</strong> <code>GET /investigations/stream?service_name=...&environment=...&description=...</code></p>
+      <p><strong>Returns:</strong> Server-Sent Events with stage-by-stage progress</p>
+    </div>
+    <div class="card">
+      <h3>Investigation Log (Table)</h3>
+      <ul>
+        <li><strong>Columns:</strong> TIME · SERVICE · ENV · STATUS · AGO</li>
+        <li><strong>Priority badges:</strong> <span class="badge badge-red">P1</span> <span class="badge badge-amber">P2</span> <span class="badge badge-green">P3</span></li>
+        <li><strong>Filter bar:</strong> Text search by service name + status dropdown</li>
+        <li><strong>Client-side filtering:</strong> No server-side filter endpoint — full list returned, filtered in React</li>
+        <li><strong>Awaiting badge:</strong> "25 awaiting approval" (count of pending)</li>
+      </ul>
+      <p style="margin-top:8px"><strong>API:</strong> <code>GET /investigations/</code></p>
+      <p><strong>Source:</strong> <span class="badge badge-green">Postgres</span> <code>investigation_requests ORDER BY completed_at DESC LIMIT 100</code></p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 10: SSE Streaming -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="section-label">Streaming Engine</div>
+  <h2>Real-Time SSE Investigation Stream</h2>
+  <div class="card">
+    <h3>How Streaming Works</h3>
+    <div class="flow">
+      <span class="flow-node">Browser SSE</span><span class="flow-arrow">←</span>
+      <span class="flow-node">FastAPI StreamingResponse</span><span class="flow-arrow">←</span>
+      <span class="flow-node">InvestigationStreamer</span><span class="flow-arrow">←</span>
+      <span class="flow-node">EnrichmentService</span><span class="flow-arrow">+</span>
+      <span class="flow-node">RCAGenerator</span><span class="flow-arrow">+</span>
+      <span class="flow-node">FixStrategyGenerator</span>
+    </div>
+    <div class="spacer-sm"></div>
+    <div class="card-grid">
+      <div>
+        <h3>SSE Event Types</h3>
+        <table>
+          <tr><td><code>evidence.fetching</code></td><td>Per-adapter progress (source, table, count, elapsed_ms)</td></tr>
+          <tr><td><code>evidence.complete</code></td><td>All adapters done (sources list, total_elapsed)</td></tr>
+          <tr><td><code>rca.token</code></td><td>Individual LLM token (streamed ~13ms apart)</td></tr>
+          <tr><td><code>__thinking__:</code></td><td>Model's internal reasoning tokens (GPT-5.1 Responses API)</td></tr>
+          <tr><td><code>rca.complete</code></td><td>Parsed RCA JSON + generation_status</td></tr>
+          <tr><td><code>fix_strategy.token</code></td><td>Fix strategy LLM tokens</td></tr>
+          <tr><td><code>fix_strategy.complete</code></td><td>Parsed fix strategy JSON</td></tr>
+          <tr><td><code>complete</code></td><td>Full investigation saved to DB</td></tr>
+          <tr><td><code>error</code></td><td>Pipeline failure with message</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>UI Components During Stream</h3>
+        <ul>
+          <li><strong>Stage Tracker:</strong> 3 nodes (Evidence → RCA → Fix) with animated progress</li>
+          <li><strong>Evidence Accordion:</strong> Per-adapter rows with ⟳/● status, table name, row count, elapsed time</li>
+          <li><strong>Thinking Panel:</strong> Purple collapsible showing GPT-5.1's chain-of-thought reasoning</li>
+          <li><strong>Typewriter Panel:</strong> Live token-by-token RCA rendering with blinking cursor</li>
+          <li><strong>Summary Cards:</strong> Structured RCA + Fix Strategy after each stage completes</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 11: Investigation Detail — Hero + SLA -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="section-label">Investigation Detail ( /investigations/:id )</div>
+  <h2>Incident Hero Card & SLA Countdown</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>3-Column Hero Card</h3>
+      <table>
+        <tr><th>Column</th><th>Label</th><th>Content</th></tr>
+        <tr><td style="color:var(--red)">Red</td><td>① What Broke</td><td>Service name, env, approval status, RCA confidence bar</td></tr>
+        <tr><td style="color:var(--signal)">Orange</td><td>② Why It Broke</td><td>Root cause (one-liner), first 2 contributing factors</td></tr>
+        <tr><td style="color:var(--green)">Green</td><td>③ What To Do</td><td>Top fix action title + risk badge + "approval required"</td></tr>
+      </table>
+      <p style="margin-top:12px"><strong>Source:</strong> From <code>GET /investigations/{id}</code> — fields from <code>rca_outputs</code> + <code>fix_strategy_outputs</code></p>
+    </div>
+    <div class="card">
+      <h3>SLA Countdown</h3>
+      <ul>
+        <li><strong>Shows:</strong> "99.9% breach in Stable" or countdown timer</li>
+        <li><strong>% consumed</strong> progress bar (green → amber → red)</li>
+        <li><strong>Remaining budget</strong>, error rate, burned this month</li>
+      </ul>
+      <pre>API: GET /investigations/{id}/sla
+
+Formula:
+  target = 99.9% (from policy config)
+  budget = monthly_minutes × 60 × (1 - 99.9/100)
+         = 43,200 seconds (30 days)
+  remaining = budget - downtime_this_month
+  error_rate = count(status ≥ 500) / total
+  ETA = remaining / error_rate
+
+Source: Postgres + APIM evidence cache</pre>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Workflow Stepper</h3>
+    <p>Visual 5-stage progress bar: <strong>TRIGGERED</strong> → <strong>EVIDENCE</strong> → <strong>RCA</strong> → <strong>APPROVAL</strong> → <strong>EXECUTED</strong>. Each node lights up green when complete. Derived from the presence of fields in the investigation result (no separate API call).</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 12: Investigation Detail — RCA Section -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="11">
+  <div class="section-label">Investigation Detail</div>
+  <h2>Root Cause Analysis Section</h2>
+  <div class="card">
+    <div class="card-grid">
+      <div>
+        <h3>What It Shows</h3>
+        <ul>
+          <li><strong>Confidence badge + meter:</strong> <span class="badge badge-green">HIGH</span> <span class="badge badge-amber">MEDIUM</span> <span class="badge badge-red">LOW</span></li>
+          <li><strong>Collapsible reasoning:</strong> "What Would a Senior SRE Do?" — LLM's <code>confidence_reasoning</code> field</li>
+          <li><strong>Primary Root Cause:</strong> Red-bordered card with full root cause text</li>
+          <li><strong>Service Context:</strong> Orange-bordered card with service + env + trigger</li>
+          <li><strong>Detailed Analysis:</strong> Full markdown prose from <code>rca.summary</code></li>
+          <li><strong>Contributing Factors:</strong> 2-column grid, numbered items with icons</li>
+          <li><strong>Decision Flowchart:</strong> Mermaid.js diagram from fix strategy logic</li>
+          <li><strong>Sync buttons:</strong> Azure Boards · ServiceNow · Export PDF · Email</li>
+        </ul>
+      </div>
+      <div>
+        <h3>How RCA Is Generated</h3>
+        <pre>1. System prompt built from:
+   - knowledge/site.md (infra facts)
+   - Matched runbooks (catalog.json)
+   - Similar past incidents (Postgres)
+   - Operator context (description field)
+
+2. Evidence bundle injected as JSON
+
+3. LLM call:
+   model: azure/responses/gpt-5.1
+   reasoning_effort: medium
+   max_tokens: 8192
+   response_format: json_object
+
+4. Parsed into RCAOutput:
+   - root_cause: string
+   - summary: string (detailed)
+   - contributing_factors: string[]
+   - confidence: HIGH|MEDIUM|LOW
+   - confidence_reasoning: string
+   - evidence_references: string[]
+
+5. Stored in: rca_outputs table</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 13: Investigation Detail — Blast Radius + Approval -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="section-label">Investigation Detail</div>
+  <h2>Blast Radius & Approval Flow</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Blast Radius Estimator</h3>
+      <ul>
+        <li><strong>Affected users:</strong> replica_count × 400 users/replica</li>
+        <li><strong>Revenue risk:</strong> users × £0.003/user/min</li>
+        <li><strong>Affected services:</strong> primary + downstream from APIM logs</li>
+        <li><strong>Severity badge:</strong> <span class="badge badge-red">HIGH</span> or <span class="badge badge-amber">MEDIUM</span></li>
+      </ul>
+      <pre>API: GET /investigations/{id}/blast-radius
+
+Formula (pure calculation, no LLM):
+  pods = evidence.aks_context.pods
+  replica_count = len(pods)
+  
+  users = replica_count × 400
+  revenue = users × 0.003 (GBP/user/min)
+  
+  downstream = unique(ApiId from APIM logs)
+  
+  severity = HIGH if users > 1000
+             MEDIUM otherwise
+
+Config: policies/investigation.yaml
+  blast_radius_users_per_replica: 400
+  blast_radius_revenue_per_user_per_min: 0.003</pre>
+    </div>
+    <div class="card">
+      <h3>Approval State Machine</h3>
+      <p>Human-in-the-loop gate before any AKS execution.</p>
+      <div class="flow" style="justify-content:center">
+        <span class="flow-node" style="background:rgba(245,158,11,0.15);border-color:var(--amber);color:var(--amber)">PENDING</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-node" style="background:rgba(34,197,94,0.15);border-color:var(--green);color:var(--green)">APPROVED</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-node" style="background:rgba(59,130,246,0.15);border-color:var(--blue);color:var(--blue)">EXECUTED</span>
+      </div>
+      <div class="flow" style="justify-content:center">
+        <span class="flow-node" style="background:rgba(245,158,11,0.15);border-color:var(--amber);color:var(--amber)">PENDING</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-node" style="background:rgba(239,68,68,0.15);border-color:var(--red);color:var(--red)">REJECTED</span>
+      </div>
+      <div class="spacer-sm"></div>
+      <ul>
+        <li><strong>Approve:</strong> <code>POST /investigations/{id}/approve</code></li>
+        <li><strong>Reject:</strong> <code>POST /investigations/{id}/reject</code></li>
+        <li><strong>Execute:</strong> <code>POST /investigations/{id}/execute</code></li>
+        <li><strong>Predicted Outcome Gauge:</strong> Visual "before vs after" health % if fix is applied</li>
+        <li><strong>Surfaces:</strong> Web (sticky bar), CLI, Teams Adaptive Card buttons</li>
+        <li><strong>Audit:</strong> Records <code>approved_by</code> + <code>approved_at</code> in Postgres</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 14: Evidence + Similar Incidents + Post-Mortem -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="section-label">Investigation Detail</div>
+  <h2>Evidence, Memory & Post-Mortem</h2>
+  <div class="card-grid-3">
+    <div class="card">
+      <h3>Evidence Section (Tab 2)</h3>
+      <ul>
+        <li>Collapsed by default (progressive disclosure)</li>
+        <li><strong>Container Logs:</strong> from ContainerLog KQL table</li>
+        <li><strong>APIM Logs:</strong> from ApiManagementGatewayLogs</li>
+        <li><strong>AKS Context:</strong> pod status, events, resources</li>
+        <li><strong>Azure Activity:</strong> recent resource changes</li>
+      </ul>
+      <p style="margin-top:8px"><strong>Source:</strong> Evidence bundle (cached in Postgres <code>evidence_bundles</code>)</p>
+    </div>
+    <div class="card">
+      <h3>Incident Memory</h3>
+      <ul>
+        <li>Shows past 3 investigations for same service + environment</li>
+        <li>Each card: RCA summary, root cause, confidence, link</li>
+      </ul>
+      <p style="margin-top:8px"><strong>API:</strong> <code>GET /investigations/memory?service_name=X&environment=Y&n=3</code></p>
+      <pre>SQL: SELECT * FROM
+  investigation_requests
+  JOIN rca_outputs
+WHERE service_name = X
+  AND environment = Y
+ORDER BY completed_at DESC
+LIMIT 3</pre>
+    </div>
+    <div class="card">
+      <h3>Post-Mortem (Tab 3)</h3>
+      <ul>
+        <li>"Generate Post-Mortem" button (one-click)</li>
+        <li><strong>5 sections:</strong> Summary, Timeline, Findings, Actions, Prevention</li>
+        <li>Prevention section is LLM-generated; rest are deterministic from data</li>
+        <li>Download as .md file</li>
+      </ul>
+      <p style="margin-top:8px"><strong>API:</strong> <code>POST /investigations/{id}/postmortem</code> (generate + cache)</p>
+      <p><strong>Source:</strong> <span class="badge badge-green">Postgres</span> + <span class="badge badge-signal">GPT-5.1</span></p>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Audit Trail (Tab 3)</h3>
+    <p>Timeline of 6 stages: <strong>Triggered → Evidence → RCA → Fix Strategy → Approval → Complete</strong>. Each shows timestamp, elapsed time delta, and color-coded by status. Lazy-loaded, collapsed by default.</p>
+    <p style="margin-top:8px"><strong>API:</strong> <code>GET /investigations/{id}/replay</code></p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 15: Fix Strategy Page -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="14">
+  <div class="section-label">Fix Strategy Page ( /investigations/:id/fix-strategy )</div>
+  <h2>Fix Strategy & Remediation Preview</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Action Cards</h3>
+      <ul>
+        <li><strong>Per action:</strong> Step number, title, description, risk level, estimated impact, approval required badge</li>
+        <li><strong>Risk colors:</strong> <span class="badge badge-red">HIGH</span> red border · <span class="badge badge-amber">MEDIUM</span> amber · <span class="badge badge-green">LOW</span> green</li>
+        <li><strong>Action types:</strong> <code>RESTART_POD</code>, <code>ROLLBACK_DEPLOYMENT</code>, <code>SCALE_DEPLOYMENT</code>, <code>MANUAL</code></li>
+        <li><strong>Summary + Justification:</strong> Two-column layout at top (both from LLM)</li>
+      </ul>
+      <p style="margin-top:8px"><strong>Source:</strong> <code>fix_strategy_outputs.actions</code> (JSON array in Postgres)</p>
+    </div>
+    <div class="card">
+      <h3>Remediation Preview</h3>
+      <ul>
+        <li><strong>Current state:</strong> Replica count, CPU throttle %, restart count</li>
+        <li><strong>Per-action "before/after":</strong> Shows predicted cluster state after each action</li>
+        <li><strong>Proposed command:</strong> e.g., <code>kubectl scale --replicas=5</code></li>
+        <li><strong>Operator notes:</strong> Cost implications, downtime expectations</li>
+      </ul>
+      <p style="margin-top:8px"><strong>API:</strong> <code>GET /investigations/{id}/fix-preview</code></p>
+      <p><strong>Backend:</strong> <code>corvin/execution/preview.py</code> — extracts current state from evidence, simulates changes</p>
+      <p><strong>Source:</strong> <span class="badge badge-green">Postgres</span> evidence cache (aks_context, container_resource_metrics)</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 16: Corvin Command Center -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="15">
+  <div class="section-label">Corvin AI ( /corvin )</div>
+  <h2>Command Center — AI Chat with Live Data Access</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Chat Interface</h3>
+      <ul>
+        <li><strong>Session-based:</strong> Create, list, delete chat sessions (persisted in Postgres)</li>
+        <li><strong>Streaming SSE:</strong> Tokens arrive ~13ms apart via <code>POST /corvin/sessions/{id}/chat</code></li>
+        <li><strong>Thinking panel:</strong> Collapsible purple reasoning block (GPT-5.1 chain-of-thought)</li>
+        <li><strong>Inline tool calls:</strong> Shows calling/done status for each tool with preview</li>
+        <li><strong>Markdown rendering:</strong> Tables, code blocks, Mermaid diagrams, charts</li>
+        <li><strong>🎤 Voice input:</strong> Browser Web Speech API (STT) — speak to type</li>
+        <li><strong>🔊 Listen button:</strong> Browser SpeechSynthesis (TTS) — read response aloud</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>16 Live Agent Tools</h3>
+      <table>
+        <tr><td>📊 <code>get_platform_stats</code></td><td>Dashboard KPIs from Postgres</td></tr>
+        <tr><td>📋 <code>list_recent_incidents</code></td><td>Last N investigations</td></tr>
+        <tr><td>🔍 <code>get_investigation_detail</code></td><td>Full result by ID</td></tr>
+        <tr><td>⚠️ <code>get_predictive_alerts</code></td><td>Active predictive signals</td></tr>
+        <tr><td>🎯 <code>get_service_score</code></td><td>Health score 0–100</td></tr>
+        <tr><td>💰 <code>get_roi</code></td><td>ROI metrics</td></tr>
+        <tr><td>🗺️ <code>get_service_topology</code></td><td>Dependency graph</td></tr>
+        <tr><td>💥 <code>get_blast_radius</code></td><td>Impact estimation</td></tr>
+        <tr><td>📄 <code>get_postmortem</code></td><td>Post-mortem markdown</td></tr>
+        <tr><td>🔁 <code>get_similar_incidents</code></td><td>Past incidents for service</td></tr>
+        <tr><td>🏗️ <code>get_site_knowledge</code></td><td>CHAD architecture docs</td></tr>
+        <tr><td>📖 <code>get_runbook</code></td><td>Matched runbook content</td></tr>
+        <tr><td>🔬 <code>run_kql</code></td><td>Live Log Analytics query</td></tr>
+        <tr><td>☸️ <code>get_aks_health</code></td><td>Live AKS pod status</td></tr>
+        <tr><td>📡 <code>run_elastic_query</code></td><td>Elastic logs search</td></tr>
+        <tr><td>📈 <code>query_apim_analytics</code></td><td>APIM metrics + charts</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 17: Navigation & Global Features -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="16">
+  <div class="section-label">Global Components</div>
+  <h2>Navigation, Theme & SRE Mode Features</h2>
+  <div class="card-grid-3">
+    <div class="card">
+      <h3>NavBar</h3>
+      <ul>
+        <li><strong>Logo + brand:</strong> Corvin hexagon icon</li>
+        <li><strong>Navigation pills:</strong> Dashboard · Investigations · Corvin AI</li>
+        <li><strong>Live clock:</strong> UTC, updates every 1000ms (JS setInterval)</li>
+        <li><strong>Live badge:</strong> Green pulse + "Live" text</li>
+        <li><strong>"Open Queue"</strong> CTA → /investigations</li>
+        <li><strong>Mobile hamburger</strong> on small screens</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Theme System</h3>
+      <ul>
+        <li><strong>Dark + Light modes</strong> via CSS custom properties</li>
+        <li><strong>Toggle button:</strong> ☀️ ↔ 🌙 with animated transition</li>
+        <li><strong>Persisted:</strong> localStorage + system preference detection</li>
+        <li><strong>Anti-FOUC:</strong> Inline script in index.html sets class before paint</li>
+        <li><strong>Design tokens:</strong> --c-bg, --c-surface, --c-text, --c-signal, etc.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>3AM Mode</h3>
+      <ul>
+        <li><strong>"☾ 3AM" button</strong> in NavBar</li>
+        <li>Hides non-essential UI sections</li>
+        <li>Reduces visual noise for overnight SRE shifts</li>
+        <li>Keeps only: Investigation queue, approval buttons, alerts</li>
+        <li><strong>Hook:</strong> <code>useThreeAmMode.ts</code></li>
+        <li><strong>No backend call</strong> — CSS class toggle only</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Delivery Surfaces</h3>
+      <ul>
+        <li><strong>Web UI</strong> — React SPA (this presentation)</li>
+        <li><strong>CLI REPL</strong> — Interactive shell: <code>investigate</code>, <code>list</code>, <code>show</code>, <code>approve</code>, <code>execute</code></li>
+        <li><strong>Teams Bot</strong> — <code>@Corvin investigate fundapis dev</code> → Adaptive Card with buttons</li>
+        <li><strong>Email</strong> — RCA PDF sent via Azure Communication Services</li>
+        <li><strong>Azure DevOps</strong> — Auto-create work items for tracked incidents</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>API Endpoint Summary</h3>
+      <p style="text-align:center;margin:8px 0">
+        <span class="metric-small" style="color:var(--signal)">30+</span> <span style="color:var(--text-dim)">REST endpoints</span> ·
+        <span class="metric-small" style="color:var(--green)">437</span> <span style="color:var(--text-dim)">tests passing</span> ·
+        <span class="metric-small" style="color:var(--blue)">6</span> <span style="color:var(--text-dim)">pages</span> ·
+        <span class="metric-small" style="color:var(--purple)">30+</span> <span style="color:var(--text-dim)">components</span>
+      </p>
+      <p style="text-align:center;margin-top:12px">
+        <span class="badge badge-signal">FastAPI</span>
+        <span class="badge badge-blue">React 18</span>
+        <span class="badge badge-green">PostgreSQL</span>
+        <span class="badge badge-purple">LiteLLM</span>
+        <span class="badge badge-amber">Tailwind v4</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 18: API Reference -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="17">
+  <div class="section-label">Reference</div>
+  <h2>Complete API Endpoint Map</h2>
+  <div style="overflow-y:auto;max-height:calc(100vh - 180px)">
+  <table>
+    <thead><tr><th>Method</th><th>Endpoint</th><th>Purpose</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/</code></td><td>List all investigations</td><td>Postgres</td></tr>
+      <tr><td><span class="badge badge-signal">POST</span></td><td><code>/investigations/</code></td><td>Start new investigation</td><td>All adapters + LLM</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/{id}</code></td><td>Full investigation result</td><td>Postgres (4 tables)</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/stream</code></td><td>SSE streaming investigation</td><td>All adapters + LLM (live)</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/stats</code></td><td>Dashboard KPIs</td><td>Postgres aggregation</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/briefing</code></td><td>Morning briefing narrative</td><td>Postgres aggregation</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/briefing/audio</code></td><td>TTS voice briefing (MP3)</td><td>Azure Speech Services</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/score</code></td><td>Service health score</td><td>Postgres calculation</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/roi</code></td><td>ROI metrics</td><td>Postgres + config</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/dora</code></td><td>DORA four-key metrics</td><td>Postgres aggregation</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/memory</code></td><td>Similar past incidents</td><td>Postgres</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/predictive-alerts</code></td><td>Active predictive signals</td><td>Postgres + heuristics</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/topology/live</code></td><td>Service dependency graph</td><td>AKS API + Log Analytics</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/{id}/blast-radius</code></td><td>Impact estimation</td><td>Evidence cache + config</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/{id}/sla</code></td><td>SLA countdown</td><td>Evidence cache + config</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/{id}/replay</code></td><td>Audit transparency payload</td><td>Postgres</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/{id}/fix-preview</code></td><td>Remediation dry-run</td><td>Evidence cache</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/investigations/{id}/postmortem</code></td><td>Cached post-mortem</td><td>Postgres</td></tr>
+      <tr><td><span class="badge badge-signal">POST</span></td><td><code>/investigations/{id}/approve</code></td><td>Set approved</td><td>Postgres update</td></tr>
+      <tr><td><span class="badge badge-signal">POST</span></td><td><code>/investigations/{id}/reject</code></td><td>Set rejected</td><td>Postgres update</td></tr>
+      <tr><td><span class="badge badge-signal">POST</span></td><td><code>/investigations/{id}/execute</code></td><td>Run fix actions</td><td>AKS API</td></tr>
+      <tr><td><span class="badge badge-signal">POST</span></td><td><code>/investigations/{id}/postmortem</code></td><td>Generate post-mortem</td><td>Postgres + LLM</td></tr>
+      <tr><td><span class="badge badge-signal">POST</span></td><td><code>/triggers/simulate</code></td><td>Fire synthetic alert</td><td>Hardcoded presets</td></tr>
+      <tr><td><span class="badge badge-signal">POST</span></td><td><code>/corvin/sessions</code></td><td>Create chat session</td><td>Postgres</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/corvin/sessions</code></td><td>List sessions</td><td>Postgres</td></tr>
+      <tr><td><span class="badge badge-signal">POST</span></td><td><code>/corvin/sessions/{id}/chat</code></td><td>Send message + stream</td><td>LLM + all tools</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/health</code></td><td>Liveness check</td><td>Static</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 19: Key Formulas -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="18">
+  <div class="section-label">Reference</div>
+  <h2>Key Calculation Formulas</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>MTTR (Mean Time to Resolve)</h3>
+      <pre>AVG(completed_at - created_at) in minutes
+from investigation_requests
+where completed_at IS NOT NULL</pre>
+    </div>
+    <div class="card">
+      <h3>Service Health Score (0–100)</h3>
+      <pre>score = (high_conf / total × 40)
+      + (100 - mttr_norm) × 0.6
+
+Green ≥ 80 | Amber 50–79 | Red &lt; 50</pre>
+    </div>
+    <div class="card">
+      <h3>ROI Metrics</h3>
+      <pre>baseline_mttr = 45 min (config)
+saved_per = (baseline - actual) / 60 hrs
+total_saved = saved_per × incident_count
+cost = total_saved × £120/hr</pre>
+    </div>
+    <div class="card">
+      <h3>Blast Radius</h3>
+      <pre>users = replica_count × 400
+revenue = users × £0.003/user/min
+severity = HIGH if users > 1000</pre>
+    </div>
+    <div class="card">
+      <h3>SLA Countdown</h3>
+      <pre>budget = month_sec × (1 - 99.9/100)
+remaining = budget - downtime_sec
+ETA = remaining / error_rate</pre>
+    </div>
+    <div class="card">
+      <h3>Priority Classification</h3>
+      <pre>if env ≠ "prod" → P3
+if trigger = PREDICTIVE → P3
+if service = "fundsso" → P1
+else → P2</pre>
+    </div>
+    <div class="card">
+      <h3>DORA Change Failure Rate</h3>
+      <pre>high_conf = count(confidence='high')
+rate = high_conf / total × 100
+
+Trend = "improving" if current_mttr
+        &lt; prior_mttr × 0.95</pre>
+    </div>
+    <div class="card">
+      <h3>Confidence Threshold Gate</h3>
+      <pre>min_confidence = MEDIUM (config)
+
+if rca.confidence &lt; threshold:
+  result.confidence_warning = True
+  UI shows: "Low confidence RCA —
+  manual review recommended"</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 20: Thank you -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="19">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center">
+    <div style="width:80px;height:80px;border-radius:20px;background:var(--signal-dim);border:2px solid var(--signal);display:flex;align-items:center;justify-content:center;margin-bottom:24px">
+      <svg width="44" height="44" viewBox="0 0 32 32" fill="none"><path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill="rgba(249,115,22,0.15)" stroke="#f97316" stroke-width="1.5"/><rect x="9" y="13" width="5" height="2.5" rx="1.25" fill="#f97316"/><rect x="18" y="13" width="5" height="2.5" rx="1.25" fill="#f97316"/><rect x="11" y="18.5" width="10" height="1.5" rx="0.75" fill="#f97316" opacity="0.7"/></svg>
+    </div>
+    <h1 style="font-size:2.8rem">Questions?</h1>
+    <p class="subtitle" style="max-width:600px;margin:16px auto 0">Every metric you see is traceable from UI component → API endpoint → backend service → data source.</p>
+    <div class="spacer"></div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center">
+      <div style="text-align:center">
+        <div class="metric">437</div>
+        <p>Tests Passing</p>
+      </div>
+      <div style="text-align:center">
+        <div class="metric">30+</div>
+        <p>API Endpoints</p>
+      </div>
+      <div style="text-align:center">
+        <div class="metric">16</div>
+        <p>Agent Tools</p>
+      </div>
+      <div style="text-align:center">
+        <div class="metric">6</div>
+        <p>Pages</p>
+      </div>
+      <div style="text-align:center">
+        <div class="metric">9</div>
+        <p>Data Sources</p>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <p style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-faint)">
+      API docs: <code>http://localhost:8000/docs</code> · Frontend: <code>http://localhost:5174</code>
+    </p>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- ── Navigation bar ── -->
+<div class="nav-bar">
+  <button id="prevBtn" onclick="navigate(-1)" disabled>← Previous</button>
+  <div>
+    <span class="slide-counter" id="counter">1 / 20</span>
+  </div>
+  <button id="nextBtn" onclick="navigate(1)">Next →</button>
+</div>
+
+<script>
+  let current = 0;
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  function show(index) {
+    slides.forEach((s, i) => {
+      s.classList.toggle('active', i === index);
+    });
+    current = index;
+    progress.style.width = ((current + 1) / total * 100) + '%';
+    counter.textContent = (current + 1) + ' / ' + total;
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === total - 1;
+  }
+
+  function navigate(dir) {
+    const next = current + dir;
+    if (next >= 0 && next < total) show(next);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); navigate(1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); }
+    if (e.key === 'Home') { e.preventDefault(); show(0); }
+    if (e.key === 'End') { e.preventDefault(); show(total - 1); }
+  });
+
+  show(0);
+</script>
+</body>
+</html>

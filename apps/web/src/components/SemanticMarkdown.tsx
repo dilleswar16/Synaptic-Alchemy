@@ -80,8 +80,8 @@ const components: Components = {
     <div style={{
       margin: '10px 0',
       padding: '10px 14px 10px 16px',
-      borderLeft: '3px solid rgba(124,58,237,0.5)',
-      background: 'rgba(124,58,237,0.05)',
+      borderLeft: '3px solid rgba(13,148,136,0.5)',
+      background: 'rgba(13,148,136,0.05)',
       borderRadius: '0 6px 6px 0',
       color: 'var(--c-text-dim)',
       fontStyle: 'italic',

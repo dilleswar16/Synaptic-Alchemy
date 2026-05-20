@@ -106,7 +106,7 @@ function AuditTimeline({ replay }: { replay: ReplayPayload }) {
         className="animate-vertical-flow"
         style={{
           position: 'absolute', left: 6, top: 8, bottom: 8, width: 2,
-          background: 'linear-gradient(180deg, var(--c-signal) 0%, rgba(124,58,237,0.1) 50%, var(--c-green) 100%)',
+          background: 'linear-gradient(180deg, var(--c-signal) 0%, rgba(13,148,136,0.1) 50%, var(--c-green) 100%)',
           opacity: 0.8, borderRadius: 1,
         }} 
       />

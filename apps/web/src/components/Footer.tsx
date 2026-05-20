@@ -21,17 +21,16 @@ export default function Footer() {
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <div style={{
-              width: 20,
-              height: 20,
-              borderRadius: 5,
-              background: 'var(--c-signal)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.6rem', color: '#fff' }}>C</span>
-            </div>
+            <svg width={20} height={20} viewBox="0 0 32 32" fill="none" style={{ flexShrink: 0 }}>
+              <defs>
+                <linearGradient id="ft-bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#0f766e"/><stop offset="1" stopColor="#14b8a6"/>
+                </linearGradient>
+              </defs>
+              <rect width="32" height="32" rx="7.5" fill="url(#ft-bg)"/>
+              <path d="M21.5 9A9 9 0 1 0 21.5 23" stroke="white" strokeWidth="2.8" fill="none" strokeLinecap="round"/>
+              <path d="M16 12L20 16L16 20L12 16Z" fill="white"/>
+            </svg>
             <span style={{
               fontFamily: 'var(--font-display)',
               fontSize: '0.875rem',

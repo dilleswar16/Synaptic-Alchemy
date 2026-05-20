@@ -55,12 +55,9 @@ function mdList(text: string): string {
 
 const CORVIN_SVG = (size: number, color = 'white') => `
   <svg width="${size}" height="${size}" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill="rgba(255,255,255,0.18)" stroke="${color}" stroke-width="1.5"/>
-    <rect x="9" y="13" width="5" height="2.5" rx="1.25" fill="${color}"/>
-    <rect x="18" y="13" width="5" height="2.5" rx="1.25" fill="${color}"/>
-    <rect x="11" y="18.5" width="10" height="1.5" rx="0.75" fill="${color}" opacity="0.7"/>
-    <line x1="16" y1="2" x2="16" y2="6" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
-    <circle cx="16" cy="5" r="1.5" fill="${color}"/>
+    <rect width="32" height="32" rx="7.5" fill="rgba(255,255,255,0.15)" stroke="${color}" stroke-width="1"/>
+    <path d="M21.5 9A9 9 0 1 0 21.5 23" stroke="${color}" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+    <path d="M16 12L20 16L16 20L12 16Z" fill="${color}"/>
   </svg>`
 
 const confBadgeColor = (c: string) =>
@@ -86,8 +83,8 @@ function buildHtml(data: InvestigationResult): string {
       : (fl.includes('pod') || fl.includes('aks') || fl.includes('cluster') || fl.includes('memory') || fl.includes('cpu'))
       ? { label: 'Infra', color: '#d97706' }
       : (fl.includes('deploy') || fl.includes('config') || fl.includes('change'))
-      ? { label: 'Change', color: '#7c3aed' }
-      : { label: 'App', color: '#6366f1' }
+      ? { label: 'Change', color: '#0d9488' }
+      : { label: 'App', color: '#14b8a6' }
     return `
       <tr>
         <td style="width:80px">
@@ -134,23 +131,23 @@ function buildHtml(data: InvestigationResult): string {
     page-break-after:always;
   }
   .orb1{position:absolute;top:-80px;right:-80px;width:260px;height:260px;border-radius:50%;
-    background:radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 70%)}
+    background:radial-gradient(circle,rgba(13,148,136,0.15) 0%,transparent 70%)}
   .orb2{position:absolute;bottom:-60px;left:22%;width:200px;height:200px;border-radius:50%;
-    background:radial-gradient(circle,rgba(124,58,237,0.08) 0%,transparent 70%)}
+    background:radial-gradient(circle,rgba(13,148,136,0.08) 0%,transparent 70%)}
   .brand-row{display:flex;align-items:center;gap:14px;margin-bottom:32px;position:relative;z-index:1}
   .brand-icon{width:44px;height:44px;border-radius:11px;flex-shrink:0;
-    background:linear-gradient(135deg,#6366f1 0%,#818cf8 100%);
+    background:linear-gradient(135deg,#0f766e 0%,#14b8a6 100%);
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 4px 20px rgba(99,102,241,0.45)}
+    box-shadow:0 4px 20px rgba(13,148,136,0.45)}
   .brand-label-top{font-size:8.5px;letter-spacing:0.22em;text-transform:uppercase;
     color:rgba(255,255,255,0.35);font-weight:700}
   .brand-label-btm{font-size:10.5px;letter-spacing:0.07em;text-transform:uppercase;
     color:rgba(255,255,255,0.55);font-weight:500;margin-top:2px}
   .report-badge{display:inline-block;position:relative;z-index:1;
-    background:rgba(99,102,241,0.14);border:1px solid rgba(99,102,241,0.45);
+    background:rgba(13,148,136,0.14);border:1px solid rgba(13,148,136,0.45);
     border-radius:5px;padding:5px 14px;
     font-size:9.5px;letter-spacing:0.18em;text-transform:uppercase;
-    color:#a5b4fc;font-weight:800;margin-bottom:18px}
+    color:#5eead4;font-weight:800;margin-bottom:18px}
   .cover-service{font-size:38px;font-weight:800;color:#fff;
     letter-spacing:-0.03em;line-height:1.05;position:relative;z-index:1;margin-bottom:6px}
   .cover-env{font-size:13px;color:rgba(255,255,255,0.35);font-weight:500;
@@ -189,8 +186,8 @@ function buildHtml(data: InvestigationResult): string {
   /* ── Reasoning blockquote ── */
   .rationale-box{
     padding:14px 16px 14px 20px;
-    border-left:3px solid #7c3aed;
-    background:#f5f3ff;border-radius:0 8px 8px 0;
+    border-left:3px solid #0d9488;
+    background:#f0fdfa;border-radius:0 8px 8px 0;
     margin-bottom:24px;font-style:italic;
   }
   .rationale-box p{font-size:11px;color:#92400e;line-height:1.65}
@@ -207,23 +204,23 @@ function buildHtml(data: InvestigationResult): string {
     font-size:10px;text-transform:uppercase;letter-spacing:0.05em;word-break:break-word;overflow-wrap:break-word}
   .sc td{padding:7px 11px;border:1px solid #e5e7eb;color:#4b5563;vertical-align:top;word-break:break-word;overflow-wrap:break-word}
   .sc tr:nth-child(even) td{background:#fafafa}
-  .sc blockquote{padding:10px 14px 10px 18px;border-left:3px solid rgba(124,58,237,0.5);
-    background:rgba(124,58,237,0.05);border-radius:0 8px 8px 0;margin-bottom:10px;
+  .sc blockquote{padding:10px 14px 10px 18px;border-left:3px solid rgba(13,148,136,0.5);
+    background:rgba(13,148,136,0.05);border-radius:0 8px 8px 0;margin-bottom:10px;
     font-style:italic;color:#92400e;font-size:11px;line-height:1.65}
 
   /* ── Fix strategy ── */
-  .fix-box{background:linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%);
-    border:1px solid #c4b5fd;border-radius:12px;padding:26px 30px;margin-bottom:36px}
+  .fix-box{background:linear-gradient(135deg,#f0fdfa 0%,#ccfbf1 100%);
+    border:1px solid #99f6e4;border-radius:12px;padding:26px 30px;margin-bottom:36px}
   .fix-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-  .fix-title{font-size:14px;font-weight:800;color:#5b21b6}
-  .fix-summary{font-size:11.5px;color:#6d28d9;line-height:1.65;margin-bottom:16px}
+  .fix-title{font-size:14px;font-weight:800;color:#115e59}
+  .fix-summary{font-size:11.5px;color:#0f766e;line-height:1.65;margin-bottom:16px}
 
   /* ── Footer ── */
   .footer{border-top:1px solid #e5e7eb;padding-top:18px;margin-top:4px;
     display:flex;justify-content:space-between;align-items:center}
   .footer-brand{display:flex;align-items:center;gap:8px}
   .footer-icon{width:28px;height:28px;border-radius:8px;
-    background:linear-gradient(135deg,#6366f1,#818cf8);
+    background:linear-gradient(135deg,#0f766e,#14b8a6);
     display:flex;align-items:center;justify-content:center;flex-shrink:0}
   .footer-name{font-size:10px;color:#6b7280;font-weight:600}
   .footer-conf{font-size:9.5px;color:#9ca3af}
@@ -289,8 +286,8 @@ function buildHtml(data: InvestigationResult): string {
         <div class="card-label" style="color:#dc2626">Primary Root Cause</div>
         <div class="card-value">${esc(rca.root_cause)}</div>
       </div>
-      <div class="rc-card" style="background:rgba(124,58,237,0.05);border-color:rgba(124,58,237,0.25)">
-        <div class="card-label" style="color:#7c3aed">Service Context</div>
+      <div class="rc-card" style="background:rgba(13,148,136,0.05);border-color:rgba(13,148,136,0.25)">
+        <div class="card-label" style="color:#0d9488">Service Context</div>
         <div class="card-value">${esc(request.service_name)} in ${esc(request.environment || '—')}</div>
         <div style="font-size:9.5px;color:#9ca3af;margin-top:4px">Trigger: ${fmtEnum(request.trigger_source)}</div>
       </div>
@@ -301,7 +298,7 @@ function buildHtml(data: InvestigationResult): string {
   ${rca.confidence_reasoning ? `
   <div class="section">
     <div class="section-header">
-      <div class="section-bar" style="background:#7c3aed"></div>
+      <div class="section-bar" style="background:#0d9488"></div>
       <div class="section-title">2. Corvin's Rationale</div>
     </div>
     <div class="rationale-box">
@@ -312,7 +309,7 @@ function buildHtml(data: InvestigationResult): string {
   <!-- 3. Detailed Analysis -->
   <div class="section">
     <div class="section-header">
-      <div class="section-bar" style="background:#6366f1"></div>
+      <div class="section-bar" style="background:#14b8a6"></div>
       <div class="section-title">${rca.confidence_reasoning ? '3' : '2'}. Detailed Analysis</div>
     </div>
     <div class="sc">${mdList(rca.summary)}</div>

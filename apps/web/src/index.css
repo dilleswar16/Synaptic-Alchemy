@@ -18,17 +18,17 @@
     --c-surface-3:   #1e1e28;
     --c-border:      rgba(255, 255, 255, 0.06);
     --c-border-hi:   rgba(255, 255, 255, 0.10);
-    --c-border-glow: rgba(124, 58, 237, 0.25);
+    --c-border-glow: rgba(13, 148, 136, 0.25);
 
-    /* Signal — Electric Violet (the color of AI intelligence) */
-    --c-signal:      #7c3aed;
-    --c-signal-dim:  #6d28d9;
-    --c-signal-glow: rgba(124, 58, 237, 0.10);
-    --c-signal-light: rgba(124, 58, 237, 0.12);
+    /* Signal — Teal (operational calm, observability DNA) */
+    --c-signal:      #0d9488;
+    --c-signal-dim:  #0f766e;
+    --c-signal-glow: rgba(13, 148, 136, 0.10);
+    --c-signal-light: rgba(13, 148, 136, 0.12);
 
     /* Extended brand */
-    --c-accent:      #818cf8;     /* Indigo-400: data & secondary highlights */
-    --c-accent-dim:  #6366f1;
+    --c-accent:      #2dd4bf;     /* Teal-300: data & secondary highlights */
+    --c-accent-dim:  #14b8a6;
 
     /* Status */
     --c-success:        #34d399;
@@ -50,9 +50,9 @@
     --c-info-bg:     rgba(96, 165, 250, 0.08);
     --c-info-border: rgba(96, 165, 250, 0.18);
 
-    --c-purple:        #a78bfa;
-    --c-purple-bg:     rgba(167, 139, 250, 0.08);
-    --c-purple-border: rgba(167, 139, 250, 0.20);
+    --c-purple:        #5eead4;
+    --c-purple-bg:     rgba(94, 234, 212, 0.08);
+    --c-purple-border: rgba(94, 234, 212, 0.20);
 
     --c-shadow:        rgba(0, 0, 0, 0.40);
 
@@ -118,15 +118,15 @@
     --c-surface-3:   #e5e5ef;
     --c-border:      rgba(0, 0, 0, 0.06);
     --c-border-hi:   rgba(0, 0, 0, 0.10);
-    --c-border-glow: rgba(109, 40, 217, 0.18);
+    --c-border-glow: rgba(15, 118, 110, 0.18);
 
-    --c-signal:      #6d28d9;
-    --c-signal-dim:  #5b21b6;
-    --c-signal-glow: rgba(109, 40, 217, 0.06);
-    --c-signal-light: rgba(109, 40, 217, 0.08);
+    --c-signal:      #0f766e;
+    --c-signal-dim:  #115e59;
+    --c-signal-glow: rgba(15, 118, 110, 0.06);
+    --c-signal-light: rgba(15, 118, 110, 0.08);
 
-    --c-accent:      #6366f1;
-    --c-accent-dim:  #4f46e5;
+    --c-accent:      #14b8a6;
+    --c-accent-dim:  #0d9488;
 
     --c-success:        #059669;
     --c-success-bg:     #ecfdf5;
@@ -147,9 +147,9 @@
     --c-info-bg:     #eff6ff;
     --c-info-border: #bfdbfe;
 
-    --c-purple:        #7c3aed;
-    --c-purple-bg:     rgba(124, 58, 237, 0.06);
-    --c-purple-border: rgba(124, 58, 237, 0.18);
+    --c-purple:        #0d9488;
+    --c-purple-bg:     rgba(13, 148, 136, 0.06);
+    --c-purple-border: rgba(13, 148, 136, 0.18);
 
     --c-shadow:        rgba(0, 0, 0, 0.06);
 
@@ -719,8 +719,8 @@
   }
 
   @keyframes glow-pulse {
-    0%, 100% { box-shadow: 0 0 8px rgba(124, 58, 237, 0.15); }
-    50%      { box-shadow: 0 0 14px rgba(124, 58, 237, 0.25); }
+    0%, 100% { box-shadow: 0 0 8px rgba(13, 148, 136, 0.15); }
+    50%      { box-shadow: 0 0 14px rgba(13, 148, 136, 0.25); }
   }
 
   @keyframes float-up {
@@ -739,8 +739,8 @@
   }
 
   @keyframes signal-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); opacity: 1; }
-    50%      { box-shadow: 0 0 10px 3px rgba(124, 58, 237, 0.12); opacity: 0.7; }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); opacity: 1; }
+    50%      { box-shadow: 0 0 10px 3px rgba(13, 148, 136, 0.12); opacity: 0.7; }
   }
 
   @keyframes scan-sweep {
@@ -872,9 +872,9 @@
 }
 
 @keyframes pulse-glow {
-  0%   { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.2); }
-  70%  { box-shadow: 0 0 0 6px rgba(124, 58, 237, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.2); }
+  70%  { box-shadow: 0 0 0 6px rgba(13, 148, 136, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
 }
 
 .animate-pulse-glow {

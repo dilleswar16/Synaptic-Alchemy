@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Corvin Logo Options</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #0c1117; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 40px; }
+  h1 { text-align: center; font-size: 1.6rem; margin-bottom: 8px; font-weight: 300; letter-spacing: 0.05em; }
+  .sub { text-align: center; color: #64748b; margin-bottom: 48px; font-size: 0.9rem; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; max-width: 1100px; margin: 0 auto; }
+  .card { background: #141b24; border: 1px solid #1e293b; border-radius: 16px; padding: 32px; text-align: center; }
+  .card:hover { border-color: #0d9488; }
+  .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; color: #0d9488; margin-bottom: 16px; font-weight: 600; }
+  .logo-row { display: flex; justify-content: center; align-items: center; gap: 24px; margin-bottom: 24px; }
+  .logo-bg-dark { background: #0c1117; border-radius: 12px; padding: 20px; border: 1px solid #1e293b; }
+  .logo-bg-light { background: #f8fafc; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; }
+  .desc { color: #94a3b8; font-size: 0.82rem; line-height: 1.6; }
+  .sizes { display: flex; justify-content: center; align-items: end; gap: 16px; margin: 20px 0; }
+  .size-label { color: #475569; font-size: 0.65rem; text-align: center; margin-top: 4px; }
+  .nav-mock { display: flex; align-items: center; gap: 10px; background: #1a2332; border-radius: 10px; padding: 10px 16px; margin: 16px auto; max-width: 200px; }
+  .nav-text { font-weight: 700; font-size: 0.95rem; color: #e2e8f0; letter-spacing: -0.02em; }
+  .current { opacity: 0.35; }
+  .current .label::after { content: ' (current)'; color: #475569; }
+</style>
+</head>
+<body>
+
+<h1>Corvin Logo Alternatives</h1>
+<p class="sub">Pick the one that feels right. Each shown on dark + light at multiple sizes.</p>
+
+<div class="grid">
+
+  <!-- CURRENT -->
+  <div class="card current">
+    <div class="label">Current — Convergence Sigil</div>
+    <div class="logo-row">
+      <div class="logo-bg-dark">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="c0" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#c0)"/>
+          <path d="M21.5 9A9 9 0 1 0 21.5 23" stroke="white" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+          <path d="M16 12L20 16L16 20L12 16Z" fill="white"/>
+        </svg>
+      </div>
+      <div class="logo-bg-light">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="c0b" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#c0b)"/>
+          <path d="M21.5 9A9 9 0 1 0 21.5 23" stroke="white" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+          <path d="M16 12L20 16L16 20L12 16Z" fill="white"/>
+        </svg>
+      </div>
+    </div>
+    <p class="desc">C-arc + diamond. Generic, lacks character.</p>
+  </div>
+
+  <!-- OPTION A: "The Raven Eye" -->
+  <div class="card">
+    <div class="label">Option A — Raven Eye</div>
+    <div class="logo-row">
+      <div class="logo-bg-dark">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="a1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#a1)"/>
+          <!-- Outer eye shape -->
+          <path d="M6 16C6 16 10 8.5 16 8.5C22 8.5 26 16 26 16C26 16 22 23.5 16 23.5C10 23.5 6 16 6 16Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <!-- Inner iris circle -->
+          <circle cx="16" cy="16" r="4.5" stroke="white" stroke-width="1.8" fill="none"/>
+          <!-- Pupil diamond -->
+          <path d="M16 13.2L18.2 16L16 18.8L13.8 16Z" fill="white"/>
+        </svg>
+      </div>
+      <div class="logo-bg-light">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="a1b" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#a1b)"/>
+          <path d="M6 16C6 16 10 8.5 16 8.5C22 8.5 26 16 26 16C26 16 22 23.5 16 23.5C10 23.5 6 16 6 16Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <circle cx="16" cy="16" r="4.5" stroke="white" stroke-width="1.8" fill="none"/>
+          <path d="M16 13.2L18.2 16L16 18.8L13.8 16Z" fill="white"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sizes">
+      <div>
+        <svg width="16" height="16" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="a1s" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#a1s)"/><path d="M6 16C6 16 10 8.5 16 8.5C22 8.5 26 16 26 16C26 16 22 23.5 16 23.5C10 23.5 6 16 6 16Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><circle cx="16" cy="16" r="4.5" stroke="white" stroke-width="1.8" fill="none"/><path d="M16 13.2L18.2 16L16 18.8L13.8 16Z" fill="white"/></svg>
+        <div class="size-label">16px</div>
+      </div>
+      <div>
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="a1m" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#a1m)"/><path d="M6 16C6 16 10 8.5 16 8.5C22 8.5 26 16 26 16C26 16 22 23.5 16 23.5C10 23.5 6 16 6 16Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><circle cx="16" cy="16" r="4.5" stroke="white" stroke-width="1.8" fill="none"/><path d="M16 13.2L18.2 16L16 18.8L13.8 16Z" fill="white"/></svg>
+        <div class="size-label">28px</div>
+      </div>
+      <div>
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="a1l" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#a1l)"/><path d="M6 16C6 16 10 8.5 16 8.5C22 8.5 26 16 26 16C26 16 22 23.5 16 23.5C10 23.5 6 16 6 16Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><circle cx="16" cy="16" r="4.5" stroke="white" stroke-width="1.8" fill="none"/><path d="M16 13.2L18.2 16L16 18.8L13.8 16Z" fill="white"/></svg>
+        <div class="size-label">48px</div>
+      </div>
+    </div>
+    <div class="nav-mock">
+      <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="a1n" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#a1n)"/><path d="M6 16C6 16 10 8.5 16 8.5C22 8.5 26 16 26 16C26 16 22 23.5 16 23.5C10 23.5 6 16 6 16Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><circle cx="16" cy="16" r="4.5" stroke="white" stroke-width="1.8" fill="none"/><path d="M16 13.2L18.2 16L16 18.8L13.8 16Z" fill="white"/></svg>
+      <span class="nav-text">Corvin</span>
+    </div>
+    <p class="desc">Watchful eye with diamond pupil. Corvid etymology (raven = observation). Suggests monitoring, investigation, seeing the root cause.</p>
+  </div>
+
+  <!-- OPTION B: "Signal Spike" -->
+  <div class="card">
+    <div class="label">Option B — Signal Spike</div>
+    <div class="logo-row">
+      <div class="logo-bg-dark">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="b1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#b1)"/>
+          <!-- Signal line with spike -->
+          <polyline points="5,18 9,18 11,18 13,10 15,22 17,14 19,18 21,18 23,18 27,18" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Small dot at peak -->
+          <circle cx="13" cy="10" r="1.5" fill="white" opacity="0.6"/>
+        </svg>
+      </div>
+      <div class="logo-bg-light">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="b1b" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#b1b)"/>
+          <polyline points="5,18 9,18 11,18 13,10 15,22 17,14 19,18 21,18 23,18 27,18" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="13" cy="10" r="1.5" fill="white" opacity="0.6"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sizes">
+      <div>
+        <svg width="16" height="16" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="b1s" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#b1s)"/><polyline points="5,18 9,18 11,18 13,10 15,22 17,14 19,18 21,18 23,18 27,18" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="13" cy="10" r="1.5" fill="white" opacity="0.6"/></svg>
+        <div class="size-label">16px</div>
+      </div>
+      <div>
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="b1m" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#b1m)"/><polyline points="5,18 9,18 11,18 13,10 15,22 17,14 19,18 21,18 23,18 27,18" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="13" cy="10" r="1.5" fill="white" opacity="0.6"/></svg>
+        <div class="size-label">28px</div>
+      </div>
+      <div>
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="b1l" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#b1l)"/><polyline points="5,18 9,18 11,18 13,10 15,22 17,14 19,18 21,18 23,18 27,18" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="13" cy="10" r="1.5" fill="white" opacity="0.6"/></svg>
+        <div class="size-label">48px</div>
+      </div>
+    </div>
+    <div class="nav-mock">
+      <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="b1n" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#b1n)"/><polyline points="5,18 9,18 11,18 13,10 15,22 17,14 19,18 21,18 23,18 27,18" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="13" cy="10" r="1.5" fill="white" opacity="0.6"/></svg>
+      <span class="nav-text">Corvin</span>
+    </div>
+    <p class="desc">Heartbeat / anomaly pulse. Instantly reads as "monitoring". The spike = alert detected. Very SRE-native, like a live signal feed.</p>
+  </div>
+
+</div>
+
+<!-- ROW 2 -->
+<div class="grid" style="margin-top: 32px;">
+
+  <!-- OPTION C: "The Prism" -->
+  <div class="card">
+    <div class="label">Option C — Prism</div>
+    <div class="logo-row">
+      <div class="logo-bg-dark">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="c1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#c1)"/>
+          <!-- Triangle prism -->
+          <path d="M16 7L25 24H7Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <!-- Refraction lines -->
+          <line x1="16" y1="7" x2="16" y2="24" stroke="white" stroke-width="1.2" opacity="0.4"/>
+          <line x1="11.5" y1="15.5" x2="20.5" y2="15.5" stroke="white" stroke-width="1.2" opacity="0.4"/>
+          <!-- Center dot -->
+          <circle cx="16" cy="16" r="2" fill="white"/>
+        </svg>
+      </div>
+      <div class="logo-bg-light">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="c1b" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#c1b)"/>
+          <path d="M16 7L25 24H7Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <line x1="16" y1="7" x2="16" y2="24" stroke="white" stroke-width="1.2" opacity="0.4"/>
+          <line x1="11.5" y1="15.5" x2="20.5" y2="15.5" stroke="white" stroke-width="1.2" opacity="0.4"/>
+          <circle cx="16" cy="16" r="2" fill="white"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sizes">
+      <div>
+        <svg width="16" height="16" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="c1s" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#c1s)"/><path d="M16 7L25 24H7Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><line x1="16" y1="7" x2="16" y2="24" stroke="white" stroke-width="1.2" opacity="0.4"/><line x1="11.5" y1="15.5" x2="20.5" y2="15.5" stroke="white" stroke-width="1.2" opacity="0.4"/><circle cx="16" cy="16" r="2" fill="white"/></svg>
+        <div class="size-label">16px</div>
+      </div>
+      <div>
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="c1m" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#c1m)"/><path d="M16 7L25 24H7Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><line x1="16" y1="7" x2="16" y2="24" stroke="white" stroke-width="1.2" opacity="0.4"/><line x1="11.5" y1="15.5" x2="20.5" y2="15.5" stroke="white" stroke-width="1.2" opacity="0.4"/><circle cx="16" cy="16" r="2" fill="white"/></svg>
+        <div class="size-label">28px</div>
+      </div>
+      <div>
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="c1l" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#c1l)"/><path d="M16 7L25 24H7Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><line x1="16" y1="7" x2="16" y2="24" stroke="white" stroke-width="1.2" opacity="0.4"/><line x1="11.5" y1="15.5" x2="20.5" y2="15.5" stroke="white" stroke-width="1.2" opacity="0.4"/><circle cx="16" cy="16" r="2" fill="white"/></svg>
+        <div class="size-label">48px</div>
+      </div>
+    </div>
+    <div class="nav-mock">
+      <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="c1n" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#c1n)"/><path d="M16 7L25 24H7Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><line x1="16" y1="7" x2="16" y2="24" stroke="white" stroke-width="1.2" opacity="0.4"/><line x1="11.5" y1="15.5" x2="20.5" y2="15.5" stroke="white" stroke-width="1.2" opacity="0.4"/><circle cx="16" cy="16" r="2" fill="white"/></svg>
+      <span class="nav-text">Corvin</span>
+    </div>
+    <p class="desc">Analysis prism — breaking complex incidents into components. Triangle + crosshairs + center point. Clean geometric, suggests precision.</p>
+  </div>
+
+  <!-- OPTION D: "Shield Scanner" -->
+  <div class="card">
+    <div class="label">Option D — Shield Scanner</div>
+    <div class="logo-row">
+      <div class="logo-bg-dark">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="d1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#d1)"/>
+          <!-- Shield shape -->
+          <path d="M16 6L24 10V17C24 21.5 20.5 25 16 27C11.5 25 8 21.5 8 17V10L16 6Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <!-- Scan line -->
+          <line x1="11" y1="16" x2="21" y2="16" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+          <!-- Checkmark / detection -->
+          <polyline points="12.5,16.5 15,19 19.5,13" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="logo-bg-light">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="d1b" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#d1b)"/>
+          <path d="M16 6L24 10V17C24 21.5 20.5 25 16 27C11.5 25 8 21.5 8 17V10L16 6Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <line x1="11" y1="16" x2="21" y2="16" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+          <polyline points="12.5,16.5 15,19 19.5,13" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sizes">
+      <div>
+        <svg width="16" height="16" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="d1s" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#d1s)"/><path d="M16 6L24 10V17C24 21.5 20.5 25 16 27C11.5 25 8 21.5 8 17V10L16 6Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><line x1="11" y1="16" x2="21" y2="16" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><polyline points="12.5,16.5 15,19 19.5,13" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="size-label">16px</div>
+      </div>
+      <div>
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="d1m" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#d1m)"/><path d="M16 6L24 10V17C24 21.5 20.5 25 16 27C11.5 25 8 21.5 8 17V10L16 6Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><line x1="11" y1="16" x2="21" y2="16" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><polyline points="12.5,16.5 15,19 19.5,13" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="size-label">28px</div>
+      </div>
+      <div>
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="d1l" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#d1l)"/><path d="M16 6L24 10V17C24 21.5 20.5 25 16 27C11.5 25 8 21.5 8 17V10L16 6Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><line x1="11" y1="16" x2="21" y2="16" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><polyline points="12.5,16.5 15,19 19.5,13" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="size-label">48px</div>
+      </div>
+    </div>
+    <div class="nav-mock">
+      <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="d1n" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#d1n)"/><path d="M16 6L24 10V17C24 21.5 20.5 25 16 27C11.5 25 8 21.5 8 17V10L16 6Z" stroke="white" stroke-width="1.8" fill="none" stroke-linejoin="round"/><line x1="11" y1="16" x2="21" y2="16" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><polyline points="12.5,16.5 15,19 19.5,13" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="nav-text">Corvin</span>
+    </div>
+    <p class="desc">Shield + checkmark. Protection + verification. SRE guardian feel — "we've got your back". Reads clearly at every size.</p>
+  </div>
+
+  <!-- OPTION E: "Radar Sweep" -->
+  <div class="card">
+    <div class="label">Option E — Radar Sweep</div>
+    <div class="logo-row">
+      <div class="logo-bg-dark">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs>
+            <linearGradient id="e1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient>
+          </defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#e1)"/>
+          <!-- Outer ring -->
+          <circle cx="16" cy="16" r="9" stroke="white" stroke-width="1.5" fill="none" opacity="0.35"/>
+          <!-- Middle ring -->
+          <circle cx="16" cy="16" r="5.5" stroke="white" stroke-width="1.5" fill="none" opacity="0.55"/>
+          <!-- Sweep line -->
+          <line x1="16" y1="16" x2="16" y2="7" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <!-- Detection blip -->
+          <circle cx="19.5" cy="11" r="2" fill="white"/>
+          <!-- Center dot -->
+          <circle cx="16" cy="16" r="1.5" fill="white" opacity="0.7"/>
+        </svg>
+      </div>
+      <div class="logo-bg-light">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <defs><linearGradient id="e1b" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <rect width="32" height="32" rx="7.5" fill="url(#e1b)"/>
+          <circle cx="16" cy="16" r="9" stroke="white" stroke-width="1.5" fill="none" opacity="0.35"/>
+          <circle cx="16" cy="16" r="5.5" stroke="white" stroke-width="1.5" fill="none" opacity="0.55"/>
+          <line x1="16" y1="16" x2="16" y2="7" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="19.5" cy="11" r="2" fill="white"/>
+          <circle cx="16" cy="16" r="1.5" fill="white" opacity="0.7"/>
+        </svg>
+      </div>
+    </div>
+    <div class="sizes">
+      <div>
+        <svg width="16" height="16" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="e1s" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#e1s)"/><circle cx="16" cy="16" r="9" stroke="white" stroke-width="1.5" fill="none" opacity="0.35"/><circle cx="16" cy="16" r="5.5" stroke="white" stroke-width="1.5" fill="none" opacity="0.55"/><line x1="16" y1="16" x2="16" y2="7" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="19.5" cy="11" r="2" fill="white"/><circle cx="16" cy="16" r="1.5" fill="white" opacity="0.7"/></svg>
+        <div class="size-label">16px</div>
+      </div>
+      <div>
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="e1m" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#e1m)"/><circle cx="16" cy="16" r="9" stroke="white" stroke-width="1.5" fill="none" opacity="0.35"/><circle cx="16" cy="16" r="5.5" stroke="white" stroke-width="1.5" fill="none" opacity="0.55"/><line x1="16" y1="16" x2="16" y2="7" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="19.5" cy="11" r="2" fill="white"/><circle cx="16" cy="16" r="1.5" fill="white" opacity="0.7"/></svg>
+        <div class="size-label">28px</div>
+      </div>
+      <div>
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="e1l" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#e1l)"/><circle cx="16" cy="16" r="9" stroke="white" stroke-width="1.5" fill="none" opacity="0.35"/><circle cx="16" cy="16" r="5.5" stroke="white" stroke-width="1.5" fill="none" opacity="0.55"/><line x1="16" y1="16" x2="16" y2="7" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="19.5" cy="11" r="2" fill="white"/><circle cx="16" cy="16" r="1.5" fill="white" opacity="0.7"/></svg>
+        <div class="size-label">48px</div>
+      </div>
+    </div>
+    <div class="nav-mock">
+      <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><defs><linearGradient id="e1n" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#0f766e"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><rect width="32" height="32" rx="7.5" fill="url(#e1n)"/><circle cx="16" cy="16" r="9" stroke="white" stroke-width="1.5" fill="none" opacity="0.35"/><circle cx="16" cy="16" r="5.5" stroke="white" stroke-width="1.5" fill="none" opacity="0.55"/><line x1="16" y1="16" x2="16" y2="7" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="19.5" cy="11" r="2" fill="white"/><circle cx="16" cy="16" r="1.5" fill="white" opacity="0.7"/></svg>
+      <span class="nav-text">Corvin</span>
+    </div>
+    <p class="desc">Radar with detection blip. Concentric rings + sweep arm + bright anomaly dot. Instantly communicates "monitoring & detection". Most SRE-native option.</p>
+  </div>
+
+</div>
+
+</body>
+</html>

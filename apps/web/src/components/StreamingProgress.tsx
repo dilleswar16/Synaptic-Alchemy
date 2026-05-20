@@ -248,7 +248,7 @@ function StageTracker({ stages }: { stages: StageEvent[] }) {
                   background: done
                     ? 'var(--c-green)'
                     : active
-                    ? 'rgba(124,58,237,0.12)'
+                    ? 'rgba(13,148,136,0.12)'
                     : 'var(--c-surface-2)',
                   border: done
                     ? '2px solid var(--c-green)'
@@ -256,7 +256,7 @@ function StageTracker({ stages }: { stages: StageEvent[] }) {
                     ? '2px solid var(--c-signal)'
                     : '2px solid var(--c-border)',
                   color: done ? 'var(--c-bg)' : active ? 'var(--c-signal)' : 'var(--c-text-faint)',
-                  boxShadow: active ? '0 0 0 3px rgba(124,58,237,0.15)' : 'none',
+                  boxShadow: active ? '0 0 0 3px rgba(13,148,136,0.15)' : 'none',
                 }}
                 className={active ? 'animate-pulse-glow' : ''}
               >

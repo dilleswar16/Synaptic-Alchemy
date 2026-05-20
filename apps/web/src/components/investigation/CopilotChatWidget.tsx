@@ -18,20 +18,10 @@ interface Props {
 function CorvinBotIcon({ size = 22, color = 'var(--c-signal)' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="cg1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor={color}/>
-          <stop offset="1" stopColor={color}/>
-        </linearGradient>
-      </defs>
-      {/* Hexagonal head */}
       <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill={color} opacity="0.15" stroke={color} strokeWidth="1.5"/>
-      {/* Eyes */}
       <rect x="9" y="13" width="5" height="2.5" rx="1.25" fill={color}/>
       <rect x="18" y="13" width="5" height="2.5" rx="1.25" fill={color}/>
-      {/* Mouth / signal bar */}
       <rect x="11" y="18.5" width="10" height="1.5" rx="0.75" fill={color} opacity="0.7"/>
-      {/* Antenna */}
       <line x1="16" y1="2" x2="16" y2="6" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
       <circle cx="16" cy="5" r="1.5" fill={color}/>
     </svg>

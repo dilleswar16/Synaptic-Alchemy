@@ -103,7 +103,7 @@ function buildHtml(pm: PostMortem): string {
     dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC',
   }) + ' UTC'
 
-  const section = (num: number, title: string, content: string, accent = '#7c3aed') => `
+  const section = (num: number, title: string, content: string, accent = '#0d9488') => `
     <div class="section">
       <div class="section-header">
         <div class="section-bar" style="background:${accent}"></div>
@@ -136,12 +136,12 @@ function buildHtml(pm: PostMortem): string {
   .cover-orb1 {
     position: absolute; top: -80px; right: -80px;
     width: 280px; height: 280px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(13,148,136,0.12) 0%, transparent 70%);
   }
   .cover-orb2 {
     position: absolute; bottom: -60px; left: 20%;
     width: 180px; height: 180px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(13,148,136,0.08) 0%, transparent 70%);
   }
   .brand-row {
     display: flex; align-items: center; gap: 14px; margin-bottom: 32px;
@@ -149,9 +149,9 @@ function buildHtml(pm: PostMortem): string {
   }
   .brand-icon {
     width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0;
-    background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
+    background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 20px rgba(124,58,237,0.4);
+    box-shadow: 0 4px 20px rgba(13,148,136,0.4);
     color: #fff; font-weight: 900; font-family: Arial, sans-serif;
   }
   .brand-label-top {
@@ -164,10 +164,10 @@ function buildHtml(pm: PostMortem): string {
   }
   .report-badge {
     display: inline-block; position: relative; z-index: 1;
-    background: rgba(124,58,237,0.14); border: 1px solid rgba(124,58,237,0.45);
+    background: rgba(13,148,136,0.14); border: 1px solid rgba(13,148,136,0.45);
     border-radius: 5px; padding: 5px 14px;
     font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase;
-    color: #a78bfa; font-weight: 800; margin-bottom: 18px;
+    color: #5eead4; font-weight: 800; margin-bottom: 18px;
   }
   .cover-service {
     font-size: 38px; font-weight: 800; color: #ffffff;
@@ -234,8 +234,8 @@ function buildHtml(pm: PostMortem): string {
   .sc tr:nth-child(even) td { background: #fafafa; }
   .sc blockquote {
     padding: 10px 14px 10px 18px;
-    border-left: 3px solid rgba(124,58,237,0.5);
-    background: rgba(124,58,237,0.05);
+    border-left: 3px solid rgba(13,148,136,0.5);
+    background: rgba(13,148,136,0.05);
     border-radius: 0 8px 8px 0;
     margin-bottom: 10px;
     font-style: italic;
@@ -246,16 +246,16 @@ function buildHtml(pm: PostMortem): string {
 
   /* ── Prevention callout ── */
   .prevention-box {
-    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
-    border: 1px solid #c4b5fd; border-radius: 12px; padding: 26px 30px;
+    background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+    border: 1px solid #99f6e4; border-radius: 12px; padding: 26px 30px;
     margin-bottom: 36px;
   }
   .prevention-header {
     display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
   }
   .prevention-icon { font-size: 20px; }
-  .prevention-title { font-size: 14px; font-weight: 800; color: #5b21b6; }
-  .prevention-box .sc li { color: #6d28d9; }
+  .prevention-title { font-size: 14px; font-weight: 800; color: #115e59; }
+  .prevention-box .sc li { color: #0f766e; }
   .prevention-box .sc ol { counter-reset: item; }
   .prevention-box .sc ol li {
     position: relative; padding-left: 4px;
@@ -271,7 +271,7 @@ function buildHtml(pm: PostMortem): string {
   }
   .footer-icon {
     width: 28px; height: 28px; border-radius: 8px;
-    background: linear-gradient(135deg, #6d28d9, #7c3aed);
+    background: linear-gradient(135deg, #0f766e, #0d9488);
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
@@ -289,12 +289,9 @@ function buildHtml(pm: PostMortem): string {
   <div class="brand-row">
     <div class="brand-icon">
       <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.8)" stroke-width="1.5"/>
-        <rect x="9" y="13" width="5" height="2.5" rx="1.25" fill="white"/>
-        <rect x="18" y="13" width="5" height="2.5" rx="1.25" fill="white"/>
-        <rect x="11" y="18.5" width="10" height="1.5" rx="0.75" fill="rgba(255,255,255,0.7)"/>
-        <line x1="16" y1="2" x2="16" y2="6" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-        <circle cx="16" cy="5" r="1.5" fill="white"/>
+        <rect width="32" height="32" rx="7.5" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.8)" stroke-width="1"/>
+        <path d="M21.5 9A9 9 0 1 0 21.5 23" stroke="white" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+        <path d="M16 12L20 16L16 20L12 16Z" fill="white"/>
       </svg>
     </div>
     <div>
@@ -346,12 +343,9 @@ function buildHtml(pm: PostMortem): string {
     <div class="footer-brand">
       <div class="footer-icon">
         <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="1.5"/>
-          <rect x="9" y="13" width="5" height="2.5" rx="1.25" fill="white"/>
-          <rect x="18" y="13" width="5" height="2.5" rx="1.25" fill="white"/>
-          <rect x="11" y="18.5" width="10" height="1.5" rx="0.75" fill="rgba(255,255,255,0.7)"/>
-          <line x1="16" y1="2" x2="16" y2="6" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-          <circle cx="16" cy="5" r="1.5" fill="white"/>
+          <rect width="32" height="32" rx="7.5" fill="rgba(255,255,255,0.15)" stroke="white" stroke-width="1"/>
+          <path d="M21.5 9A9 9 0 1 0 21.5 23" stroke="white" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+          <path d="M16 12L20 16L16 20L12 16Z" fill="white"/>
         </svg>
       </div>
       <span class="footer-name">Corvin SRE Co-Pilot</span>
