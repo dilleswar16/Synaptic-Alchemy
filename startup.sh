@@ -13,7 +13,10 @@ if [ -n "$AKS_CLUSTER_NAME" ] && [ -n "$AKS_RESOURCE_GROUP" ]; then
 fi
 
 # Run Alembic migrations on every startup so schema is always current
-python -m alembic upgrade head
+# (skip for SQLite — the app uses create_all() instead)
+if [ "${DB_BACKEND:-postgres}" != "sqlite" ]; then
+    python -m alembic upgrade head
+fi
 
 # Start the API
 exec uvicorn apps.api.main:app --host 0.0.0.0 --port "${PORT:-8000}" --workers 2
