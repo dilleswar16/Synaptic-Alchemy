@@ -74,7 +74,7 @@ export function AlertBanner({
       padding: '10px 14px',
       background: ok ? 'var(--c-green-bg)' : 'var(--c-red-bg)',
       border: `1px solid ${ok ? 'var(--c-green-border)' : 'var(--c-red-border)'}`,
-      borderRadius: 3, marginBottom: 14,
+      borderRadius: 8, marginBottom: 14,
     }}>
       <div style={{
         fontFamily: 'var(--font-mono)', fontSize: '0.78rem',

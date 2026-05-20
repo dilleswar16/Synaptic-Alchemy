@@ -86,7 +86,7 @@ function buildHtml(data: InvestigationResult): string {
       : (fl.includes('pod') || fl.includes('aks') || fl.includes('cluster') || fl.includes('memory') || fl.includes('cpu'))
       ? { label: 'Infra', color: '#d97706' }
       : (fl.includes('deploy') || fl.includes('config') || fl.includes('change'))
-      ? { label: 'Change', color: '#f97316' }
+      ? { label: 'Change', color: '#7c3aed' }
       : { label: 'App', color: '#6366f1' }
     return `
       <tr>
@@ -136,7 +136,7 @@ function buildHtml(data: InvestigationResult): string {
   .orb1{position:absolute;top:-80px;right:-80px;width:260px;height:260px;border-radius:50%;
     background:radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 70%)}
   .orb2{position:absolute;bottom:-60px;left:22%;width:200px;height:200px;border-radius:50%;
-    background:radial-gradient(circle,rgba(249,115,22,0.08) 0%,transparent 70%)}
+    background:radial-gradient(circle,rgba(124,58,237,0.08) 0%,transparent 70%)}
   .brand-row{display:flex;align-items:center;gap:14px;margin-bottom:32px;position:relative;z-index:1}
   .brand-icon{width:44px;height:44px;border-radius:11px;flex-shrink:0;
     background:linear-gradient(135deg,#6366f1 0%,#818cf8 100%);
@@ -189,8 +189,8 @@ function buildHtml(data: InvestigationResult): string {
   /* ── Reasoning blockquote ── */
   .rationale-box{
     padding:14px 16px 14px 20px;
-    border-left:3px solid #f97316;
-    background:#fff7ed;border-radius:0 8px 8px 0;
+    border-left:3px solid #7c3aed;
+    background:#f5f3ff;border-radius:0 8px 8px 0;
     margin-bottom:24px;font-style:italic;
   }
   .rationale-box p{font-size:11px;color:#92400e;line-height:1.65}
@@ -207,16 +207,16 @@ function buildHtml(data: InvestigationResult): string {
     font-size:10px;text-transform:uppercase;letter-spacing:0.05em;word-break:break-word;overflow-wrap:break-word}
   .sc td{padding:7px 11px;border:1px solid #e5e7eb;color:#4b5563;vertical-align:top;word-break:break-word;overflow-wrap:break-word}
   .sc tr:nth-child(even) td{background:#fafafa}
-  .sc blockquote{padding:10px 14px 10px 18px;border-left:3px solid rgba(249,115,22,0.5);
-    background:rgba(249,115,22,0.05);border-radius:0 8px 8px 0;margin-bottom:10px;
+  .sc blockquote{padding:10px 14px 10px 18px;border-left:3px solid rgba(124,58,237,0.5);
+    background:rgba(124,58,237,0.05);border-radius:0 8px 8px 0;margin-bottom:10px;
     font-style:italic;color:#92400e;font-size:11px;line-height:1.65}
 
   /* ── Fix strategy ── */
-  .fix-box{background:linear-gradient(135deg,#fff7ed 0%,#fffbf5 100%);
-    border:1px solid #fed7aa;border-radius:12px;padding:26px 30px;margin-bottom:36px}
+  .fix-box{background:linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%);
+    border:1px solid #c4b5fd;border-radius:12px;padding:26px 30px;margin-bottom:36px}
   .fix-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-  .fix-title{font-size:14px;font-weight:800;color:#9a3412}
-  .fix-summary{font-size:11.5px;color:#7c2d12;line-height:1.65;margin-bottom:16px}
+  .fix-title{font-size:14px;font-weight:800;color:#5b21b6}
+  .fix-summary{font-size:11.5px;color:#6d28d9;line-height:1.65;margin-bottom:16px}
 
   /* ── Footer ── */
   .footer{border-top:1px solid #e5e7eb;padding-top:18px;margin-top:4px;
@@ -289,8 +289,8 @@ function buildHtml(data: InvestigationResult): string {
         <div class="card-label" style="color:#dc2626">Primary Root Cause</div>
         <div class="card-value">${esc(rca.root_cause)}</div>
       </div>
-      <div class="rc-card" style="background:rgba(249,115,22,0.05);border-color:rgba(249,115,22,0.25)">
-        <div class="card-label" style="color:#f97316">Service Context</div>
+      <div class="rc-card" style="background:rgba(124,58,237,0.05);border-color:rgba(124,58,237,0.25)">
+        <div class="card-label" style="color:#7c3aed">Service Context</div>
         <div class="card-value">${esc(request.service_name)} in ${esc(request.environment || '—')}</div>
         <div style="font-size:9.5px;color:#9ca3af;margin-top:4px">Trigger: ${fmtEnum(request.trigger_source)}</div>
       </div>
@@ -301,7 +301,7 @@ function buildHtml(data: InvestigationResult): string {
   ${rca.confidence_reasoning ? `
   <div class="section">
     <div class="section-header">
-      <div class="section-bar" style="background:#f97316"></div>
+      <div class="section-bar" style="background:#7c3aed"></div>
       <div class="section-title">2. Corvin's Rationale</div>
     </div>
     <div class="rationale-box">

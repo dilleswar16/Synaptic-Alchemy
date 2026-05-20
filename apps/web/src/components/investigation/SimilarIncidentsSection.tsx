@@ -28,7 +28,7 @@ export function SimilarIncidentsSection({ incidents }: { incidents: SimilarIncid
               style={{
                 background: 'var(--c-surface-2)',
                 border: `1px solid ${isOpen ? 'var(--c-border-hi)' : 'var(--c-border)'}`,
-                borderRadius: 3,
+                borderRadius: 6,
                 overflow: 'hidden',
                 transition: 'border-color 0.15s',
               }}

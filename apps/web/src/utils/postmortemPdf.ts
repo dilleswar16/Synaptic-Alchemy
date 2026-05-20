@@ -103,7 +103,7 @@ function buildHtml(pm: PostMortem): string {
     dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC',
   }) + ' UTC'
 
-  const section = (num: number, title: string, content: string, accent = '#f97316') => `
+  const section = (num: number, title: string, content: string, accent = '#7c3aed') => `
     <div class="section">
       <div class="section-header">
         <div class="section-bar" style="background:${accent}"></div>
@@ -136,7 +136,7 @@ function buildHtml(pm: PostMortem): string {
   .cover-orb1 {
     position: absolute; top: -80px; right: -80px;
     width: 280px; height: 280px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
   }
   .cover-orb2 {
     position: absolute; bottom: -60px; left: 20%;
@@ -149,9 +149,9 @@ function buildHtml(pm: PostMortem): string {
   }
   .brand-icon {
     width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0;
-    background: linear-gradient(135deg, #e2511a 0%, #f97316 100%);
+    background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 20px rgba(249,115,22,0.4);
+    box-shadow: 0 4px 20px rgba(124,58,237,0.4);
     color: #fff; font-weight: 900; font-family: Arial, sans-serif;
   }
   .brand-label-top {
@@ -164,10 +164,10 @@ function buildHtml(pm: PostMortem): string {
   }
   .report-badge {
     display: inline-block; position: relative; z-index: 1;
-    background: rgba(249,115,22,0.14); border: 1px solid rgba(249,115,22,0.45);
+    background: rgba(124,58,237,0.14); border: 1px solid rgba(124,58,237,0.45);
     border-radius: 5px; padding: 5px 14px;
     font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase;
-    color: #fb923c; font-weight: 800; margin-bottom: 18px;
+    color: #a78bfa; font-weight: 800; margin-bottom: 18px;
   }
   .cover-service {
     font-size: 38px; font-weight: 800; color: #ffffff;
@@ -234,8 +234,8 @@ function buildHtml(pm: PostMortem): string {
   .sc tr:nth-child(even) td { background: #fafafa; }
   .sc blockquote {
     padding: 10px 14px 10px 18px;
-    border-left: 3px solid rgba(249,115,22,0.5);
-    background: rgba(249,115,22,0.05);
+    border-left: 3px solid rgba(124,58,237,0.5);
+    background: rgba(124,58,237,0.05);
     border-radius: 0 8px 8px 0;
     margin-bottom: 10px;
     font-style: italic;
@@ -246,16 +246,16 @@ function buildHtml(pm: PostMortem): string {
 
   /* ── Prevention callout ── */
   .prevention-box {
-    background: linear-gradient(135deg, #fffbf5 0%, #fff7ed 100%);
-    border: 1px solid #fed7aa; border-radius: 12px; padding: 26px 30px;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border: 1px solid #c4b5fd; border-radius: 12px; padding: 26px 30px;
     margin-bottom: 36px;
   }
   .prevention-header {
     display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
   }
   .prevention-icon { font-size: 20px; }
-  .prevention-title { font-size: 14px; font-weight: 800; color: #9a3412; }
-  .prevention-box .sc li { color: #7c2d12; }
+  .prevention-title { font-size: 14px; font-weight: 800; color: #5b21b6; }
+  .prevention-box .sc li { color: #6d28d9; }
   .prevention-box .sc ol { counter-reset: item; }
   .prevention-box .sc ol li {
     position: relative; padding-left: 4px;
@@ -271,7 +271,7 @@ function buildHtml(pm: PostMortem): string {
   }
   .footer-icon {
     width: 28px; height: 28px; border-radius: 8px;
-    background: linear-gradient(135deg, #e2511a, #f97316);
+    background: linear-gradient(135deg, #6d28d9, #7c3aed);
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }

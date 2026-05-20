@@ -140,7 +140,7 @@ export function ApprovalSection({
               marginTop: 12, padding: '14px 16px',
               background: 'var(--c-success-bg)',
               border: '1px solid var(--c-success-border)',
-              borderRadius: 3,
+              borderRadius: 8,
             }}>
               <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--c-text-dim)', marginBottom: 12 }}>
                 Confirm — close this investigation as informational. No changes will be made to the cluster.
@@ -175,7 +175,7 @@ export function ApprovalSection({
           marginTop: 12, padding: '14px 16px',
           background: confirmingAction === 'approve' ? 'var(--c-green-bg)' : 'var(--c-red-bg)',
           border: `1px solid ${confirmingAction === 'approve' ? 'var(--c-green-border)' : 'var(--c-red-border)'}`,
-          borderRadius: 3,
+          borderRadius: 8,
         }}>
           <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--c-text-dim)', marginBottom: 12 }}>
             {confirmingAction === 'approve'

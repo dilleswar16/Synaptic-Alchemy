@@ -157,9 +157,10 @@ export default function InvestigationDetailPage() {
             </div>
             <h1 style={{
               margin: '0 0 14px',
-              fontFamily: 'var(--font-display)', fontWeight: 700,
-              fontSize: '1.75rem', letterSpacing: '-0.02em',
-              color: 'var(--c-text)', lineHeight: 1.2,
+              fontFamily: 'var(--font-display)', fontWeight: 800,
+              fontSize: '1.75rem', letterSpacing: '-0.03em',
+              color: 'var(--c-text)',
+              lineHeight: 1.2,
             }}>
               {data?.request?.service_name ?? (isLoading ? '…' : 'Investigation')}
             </h1>
@@ -189,7 +190,7 @@ export default function InvestigationDetailPage() {
               {data?.request?.trigger_source && (
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-                  padding: '3px 10px', borderRadius: 2,
+                  padding: '3px 10px', borderRadius: 6,
                   background: 'var(--c-surface-2)',
                   border: '1px solid var(--c-border-hi)',
                   color: 'var(--c-text-dim)', letterSpacing: '0.04em',
@@ -207,7 +208,7 @@ export default function InvestigationDetailPage() {
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
                     fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
-                    padding: '3px 10px', borderRadius: 2, textDecoration: 'none',
+                    padding: '3px 10px', borderRadius: 6, textDecoration: 'none',
                     background: 'var(--c-info-bg)',
                     border: '1px solid var(--c-info-border)',
                     color: 'var(--c-info)',
@@ -222,7 +223,7 @@ export default function InvestigationDetailPage() {
               {rcaDuration && (
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-                  padding: '2px 8px', borderRadius: 2,
+                  padding: '2px 8px', borderRadius: 6,
                   background: 'var(--c-success-bg)',
                   border: '1px solid var(--c-success-border)',
                   color: 'var(--c-green)', letterSpacing: '0.03em',

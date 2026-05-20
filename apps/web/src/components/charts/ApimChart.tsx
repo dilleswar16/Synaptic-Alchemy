@@ -42,12 +42,12 @@ interface ApimChartProps {
 // ── Theme palette ─────────────────────────────────────────────────────────────
 
 const PALETTE = [
-  '#f97316', // orange (primary)
+  '#7c3aed', // violet (primary)
   '#38bdf8', // sky blue
   '#34d399', // emerald
-  '#a78bfa', // violet
+  '#818cf8', // indigo
   '#fb7185', // rose
-  '#facc15', // yellow
+  '#fbbf24', // amber
   '#22d3ee', // cyan
   '#f472b6', // pink
 ]
@@ -285,11 +285,11 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
   function cellColor(v: number): { bg: string; border: string } {
     if (v === 0) return { bg: 'var(--c-surface-3)', border: 'var(--c-border)' }
     const t = Math.pow(v / maxVal, 0.5)
-    if (t < 0.2) return { bg: 'rgba(251,146,60,0.12)', border: 'rgba(251,146,60,0.2)' }
-    if (t < 0.45) return { bg: 'rgba(249,115,22,0.3)', border: 'rgba(249,115,22,0.4)' }
-    if (t < 0.7) return { bg: 'rgba(234,88,12,0.55)', border: 'rgba(234,88,12,0.65)' }
-    if (t < 0.9) return { bg: 'rgba(194,65,12,0.75)', border: 'rgba(194,65,12,0.85)' }
-    return { bg: '#ea580c', border: '#c2410c' }
+    if (t < 0.2) return { bg: 'rgba(124,58,237,0.12)', border: 'rgba(124,58,237,0.2)' }
+    if (t < 0.45) return { bg: 'rgba(124,58,237,0.3)', border: 'rgba(124,58,237,0.4)' }
+    if (t < 0.7) return { bg: 'rgba(109,40,217,0.55)', border: 'rgba(109,40,217,0.65)' }
+    if (t < 0.9) return { bg: 'rgba(91,33,182,0.75)', border: 'rgba(91,33,182,0.85)' }
+    return { bg: '#6d28d9', border: '#5b21b6' }
   }
 
   const cellH = compact ? 36 : 48
@@ -341,7 +341,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
                     border: `1px solid ${border}`,
                     cursor: v > 0 ? 'crosshair' : 'default',
                     transition: 'transform 0.12s, box-shadow 0.12s',
-                    boxShadow: isPeak ? '0 0 12px rgba(234,88,12,0.5), inset 0 0 8px rgba(234,88,12,0.15)' : 'none',
+                    boxShadow: isPeak ? '0 0 6px rgba(124,58,237,0.2)' : 'none',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                   onMouseEnter={e => {
@@ -374,7 +374,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, paddingLeft: labelW }}>
         <span style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)' }}>0</span>
         <div style={{ display: 'flex', gap: 2, flex: 1, maxWidth: 180 }}>
-          {['rgba(251,146,60,0.12)', 'rgba(249,115,22,0.3)', 'rgba(234,88,12,0.55)', 'rgba(194,65,12,0.75)', '#ea580c'].map((c, i) => (
+          {['rgba(124,58,237,0.12)', 'rgba(124,58,237,0.3)', 'rgba(109,40,217,0.55)', 'rgba(91,33,182,0.75)', '#6d28d9'].map((c, i) => (
             <div key={i} style={{ flex: 1, height: 8, borderRadius: 4, background: c }} />
           ))}
         </div>

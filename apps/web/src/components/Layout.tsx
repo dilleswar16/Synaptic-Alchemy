@@ -4,7 +4,7 @@ import Footer from './Footer'
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <NavBar />
       <main
         style={{
@@ -12,7 +12,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           maxWidth: 1280,
           width: '100%',
           margin: '0 auto',
-          padding: '28px 24px 40px',
+          padding: '32px 24px 48px',
         }}
       >
         {children}

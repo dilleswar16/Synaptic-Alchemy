@@ -85,7 +85,7 @@ export function ExecutionSection({ requestId, status }: ExecutionSectionProps) {
           marginTop: 12, padding: '14px 16px',
           background: 'var(--c-signal-glow)',
           border: '1px solid var(--c-border-glow)',
-          borderRadius: 3,
+          borderRadius: 8,
         }}>
           <div style={{
             fontFamily: 'var(--font-body)', fontSize: '0.82rem',

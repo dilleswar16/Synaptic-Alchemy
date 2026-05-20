@@ -22,8 +22,8 @@ if (typeof document !== 'undefined') {
     }
 
     .corvin-mermaid svg .edgeLabel rect {
-      fill: #2a2318 !important;
-      stroke: rgba(249,115,22,0.4) !important;
+      fill: #2a1838 !important;
+      stroke: rgba(124,58,237,0.4) !important;
     }
 
     .corvin-mermaid svg text, .corvin-mermaid svg tspan {
@@ -36,7 +36,7 @@ if (typeof document !== 'undefined') {
     }
 
     .corvin-mermaid svg .edgeLabel text, .corvin-mermaid svg .edgeLabel tspan {
-      fill: #f97316 !important;
+      fill: #7c3aed !important;
     }
 
     /* ── Light mode: white nodes on subtle gray canvas ── */
@@ -49,8 +49,8 @@ if (typeof document !== 'undefined') {
       stroke: #64748b !important;
     }
     [data-theme="light"] .corvin-mermaid svg .edgeLabel rect {
-      fill: #fff7ed !important;
-      stroke: rgba(234,88,12,0.4) !important;
+      fill: #f5f3ff !important;
+      stroke: rgba(109,40,217,0.4) !important;
     }
     [data-theme="light"] .corvin-mermaid svg text, [data-theme="light"] .corvin-mermaid svg tspan {
       fill: #0f172a !important;
@@ -68,17 +68,17 @@ if (typeof document !== 'undefined') {
       color: #334155 !important;
     }
     [data-theme="light"] .corvin-mermaid svg .edgeLabel text, [data-theme="light"] .corvin-mermaid svg .edgeLabel tspan {
-      fill: #c2410c !important;
+      fill: #5b21b6 !important;
     }
     [data-theme="light"] .corvin-mermaid svg .edgeLabel foreignObject span,
     [data-theme="light"] .corvin-mermaid svg .edgeLabel foreignObject div {
-      color: #c2410c !important;
+      color: #5b21b6 !important;
     }
     [data-theme="light"] .corvin-mermaid svg .edgePaths path {
-      stroke: #ea580c !important;
+      stroke: #6d28d9 !important;
     }
     [data-theme="light"] .corvin-mermaid svg path.flowchart-link {
-      stroke: #ea580c !important;
+      stroke: #6d28d9 !important;
     }
 
     /* Light-mode container: slate-tinted canvas so white nodes pop */
@@ -124,10 +124,10 @@ function sanitizeSvg(raw: string, isLight: boolean): string {
   const nodeStroke  = isLight ? '#64748b' : '#3a4558'
   const clusterFill = isLight ? '#f8fafc' : '#111827'
   const clusterStroke = isLight ? '#64748b' : '#2d3748'
-  const edgeLabelBg   = isLight ? '#fff7ed' : '#2a2318'
-  const edgeLabelText = isLight ? '#c2410c' : '#f97316'
+  const edgeLabelBg   = isLight ? '#f5f3ff' : '#1e1838'
+  const edgeLabelText = isLight ? '#5b21b6' : '#7c3aed'
   const clusterText   = isLight ? '#334155' : '#94a3b8'
-  const edgeColor     = isLight ? '#ea580c' : '#f97316'
+  const edgeColor     = isLight ? '#6d28d9' : '#7c3aed'
 
   const wrapper = document.createElement('div')
   wrapper.innerHTML = raw
@@ -138,7 +138,7 @@ function sanitizeSvg(raw: string, isLight: boolean): string {
   svg.querySelectorAll('linearGradient, pattern').forEach(el => el.remove())
 
   // --- Edge labels (specific — must come before general) ---
-  svg.querySelectorAll('.edgeLabel rect').forEach(r => setFillStroke(r, edgeLabelBg, 'rgba(249,115,22,0.4)'))
+  svg.querySelectorAll('.edgeLabel rect').forEach(r => setFillStroke(r, edgeLabelBg, 'rgba(124,58,237,0.4)'))
   svg.querySelectorAll('.edgeLabel text, .edgeLabel tspan').forEach(t => setFillStroke(t, edgeLabelText))
 
   // --- Clusters ---
@@ -159,7 +159,6 @@ function sanitizeSvg(raw: string, isLight: boolean): string {
 
   // --- foreignObject HTML labels (span, div, p) ---
   svg.querySelectorAll('foreignObject span, foreignObject div, foreignObject p').forEach(el => {
-    const parent = el.closest('.edgeLabel') || el.closest('.cluster')
     let color = textColor
     if (el.closest('.edgeLabel')) color = edgeLabelText
     else if (el.closest('.cluster')) color = clusterText
@@ -220,8 +219,8 @@ mermaid.initialize({
     secondaryTextColor:   '#e2e8f0',
     tertiaryTextColor:    '#e2e8f0',
     nodeTextColor:        '#e2e8f0',
-    lineColor:            '#f97316',
-    edgeLabelBackground:  '#2a2318',
+    lineColor:            '#7c3aed',
+    edgeLabelBackground:  '#1e1838',
     labelTextColor:       '#e2e8f0',
     clusterBkg:           '#111827',
     clusterBorder:        '#2d3748',

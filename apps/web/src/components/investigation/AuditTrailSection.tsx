@@ -106,7 +106,7 @@ function AuditTimeline({ replay }: { replay: ReplayPayload }) {
         className="animate-vertical-flow"
         style={{
           position: 'absolute', left: 6, top: 8, bottom: 8, width: 2,
-          background: 'linear-gradient(180deg, var(--c-signal) 0%, rgba(249,115,22,0.1) 50%, var(--c-green) 100%)',
+          background: 'linear-gradient(180deg, var(--c-signal) 0%, rgba(124,58,237,0.1) 50%, var(--c-green) 100%)',
           opacity: 0.8, borderRadius: 1,
         }} 
       />
@@ -142,7 +142,7 @@ function AuditTimeline({ replay }: { replay: ReplayPayload }) {
                   <span style={{
                     fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 700,
                     letterSpacing: '0.07em', textTransform: 'uppercase',
-                    padding: '2px 7px', borderRadius: 3,
+                    padding: '2px 7px', borderRadius: 6,
                     background: `color-mix(in srgb, ${stage.chipColor} 10%, transparent)`,
                     border: `1px solid color-mix(in srgb, ${stage.chipColor} 27%, transparent)`,
                     color: stage.chipColor,

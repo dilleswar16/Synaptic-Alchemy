@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ThemeToggle } from './ThemeToggle'
 import { useThreeAmMode } from '../hooks/useThreeAmMode'
+import { useTheme } from '../context/ThemeContext'
 
 const NAV_LINKS = [
-  { to: '/',               label: 'Dashboard' },
-  { to: '/investigations', label: 'Investigations' },
-  { to: '/corvin',         label: 'Corvin AI' },
+  { to: '/',               label: 'Dashboard',      icon: '◎' },
+  { to: '/investigations', label: 'Investigations', icon: '◈' },
+  { to: '/corvin',         label: 'Corvin AI',      icon: '◆' },
 ]
 
 function LiveClock() {
@@ -18,9 +19,9 @@ function LiveClock() {
   return (
     <span style={{
       fontFamily: 'var(--font-mono)',
-      fontSize: '0.7rem',
-      color: 'var(--c-text-muted)',
-      letterSpacing: '0.02em',
+      fontSize: '0.6875rem',
+      color: 'var(--c-text-faint)',
+      letterSpacing: '0.04em',
       fontWeight: 500,
     }}>
       {time}
@@ -33,6 +34,8 @@ export default function NavBar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 900)
   const { active: threeAm, toggle: toggleThreeAm } = useThreeAmMode()
+  const { theme } = useTheme()
+  const isLight = theme === 'light'
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 900)
@@ -49,69 +52,84 @@ export default function NavBar() {
       position: 'sticky',
       top: 0,
       zIndex: 60,
-      background: 'var(--c-surface)',
+      background: isLight ? 'rgba(248, 248, 252, 0.85)' : 'rgba(14, 14, 20, 0.8)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
       borderBottom: '1px solid var(--c-border)',
-      transition: 'background 0.2s ease',
+      transition: 'background 0.3s ease',
     }}>
       <div style={{
         maxWidth: 1280,
         margin: '0 auto',
         padding: isMobile ? '0 12px' : '0 24px',
-        height: 52,
+        height: 56,
         display: 'flex',
         alignItems: 'center',
         gap: isMobile ? 8 : 16,
       }}>
-        {/* Wordmark */}
-        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          {/* Corvin logo mark */}
+        {/* Logo */}
+        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          {/* Gradient logo mark */}
           <div style={{
-            width: 26,
-            height: 26,
-            borderRadius: 7,
+            width: 28,
+            height: 28,
+            borderRadius: 8,
             background: 'var(--c-signal)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
           }}>
             <span style={{
               fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              fontSize: '0.8rem',
+              fontWeight: 800,
+              fontSize: '0.85rem',
               color: 'white',
               lineHeight: 1,
             }}>C</span>
           </div>
           <span style={{
             fontFamily: 'var(--font-display)',
-            fontWeight: 700,
-            fontSize: '0.95rem',
+            fontWeight: 800,
+            fontSize: '1rem',
             color: 'var(--c-text)',
-            letterSpacing: '-0.01em',
+            letterSpacing: '-0.02em',
           }}>
             Corvin
           </span>
         </Link>
 
         {/* Separator */}
-        {!isMobile && <div style={{ width: 1, height: 20, background: 'var(--c-border-hi)', flexShrink: 0 }} />}
+        {!isMobile && <div style={{ width: 1, height: 22, background: 'var(--c-border-hi)', flexShrink: 0, opacity: 0.6 }} />}
 
-        {/* Navigation */}
-        {!isMobile && <nav style={{ display: 'flex', gap: 1 }}>
-          {NAV_LINKS.map(({ to, label }) => {
+        {/* Navigation pills */}
+        {!isMobile && <nav style={{
+          display: 'flex',
+          gap: 2,
+          padding: '3px',
+          borderRadius: 10,
+          background: 'var(--c-surface)',
+          border: '1px solid var(--c-border)',
+        }}>
+          {NAV_LINKS.map(({ to, label, icon }) => {
             const active = to === '/' ? pathname === '/' : pathname.startsWith(to)
             return (
               <Link key={to} to={to} style={{
                 textDecoration: 'none',
-                padding: '6px 12px',
-                borderRadius: 6,
+                padding: '5px 14px',
+                borderRadius: 7,
                 fontSize: '0.8125rem',
-                fontWeight: 500,
+                fontWeight: active ? 600 : 500,
                 color: active ? 'var(--c-text)' : 'var(--c-text-muted)',
                 background: active ? 'var(--c-surface-2)' : 'transparent',
-                transition: 'color 0.15s, background 0.15s',
+                transition: 'all 0.18s cubic-bezier(0.22, 1, 0.36, 1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                boxShadow: active ? 'var(--shadow-sm)' : 'none',
               }}>
+                <span style={{ fontSize: '0.65rem', opacity: active ? 0.9 : 0.4 }}>{icon}</span>
                 {label}
               </Link>
             )
@@ -127,8 +145,8 @@ export default function NavBar() {
             display: 'flex',
             alignItems: 'center',
             gap: 5,
-            padding: '3px 8px',
-            borderRadius: 6,
+            padding: '4px 10px',
+            borderRadius: 8,
             background: 'var(--c-success-bg)',
             border: '1px solid var(--c-success-border)',
           }}>
@@ -138,12 +156,14 @@ export default function NavBar() {
               borderRadius: '50%',
               background: 'var(--c-success)',
               display: 'block',
-              animation: 'signal-pulse 2s ease-in-out infinite',
+              boxShadow: '0 0 6px rgba(52, 211, 153, 0.4)',
+              animation: 'signal-pulse 2.5s ease-in-out infinite',
             }} />
             <span style={{
               fontSize: '0.6875rem',
-              fontWeight: 500,
+              fontWeight: 600,
               color: 'var(--c-success)',
+              letterSpacing: '0.03em',
             }}>
               Live
             </span>
@@ -159,14 +179,14 @@ export default function NavBar() {
               onClick={toggleThreeAm}
               style={{
                 fontSize: '0.75rem',
-                fontWeight: 500,
+                fontWeight: 600,
                 padding: '5px 10px',
-                borderRadius: 6,
+                borderRadius: 8,
                 cursor: 'pointer',
                 background: threeAm ? 'var(--c-info-bg)' : 'var(--c-surface-2)',
                 color: threeAm ? 'var(--c-info)' : 'var(--c-text-muted)',
                 border: threeAm ? '1px solid var(--c-info-border)' : '1px solid var(--c-border)',
-                transition: 'all 0.15s',
+                transition: 'all 0.18s cubic-bezier(0.22, 1, 0.36, 1)',
               } as React.CSSProperties}
             >
               {threeAm ? '☽ 3AM' : '☾ 3AM'}
@@ -177,7 +197,7 @@ export default function NavBar() {
             <Link
               to="/investigations"
               className="btn btn-primary"
-              style={{ padding: '6px 12px', fontSize: '0.8125rem' }}
+              style={{ padding: '7px 16px', fontSize: '0.8125rem', borderRadius: 9 }}
             >
               Open Queue
             </Link>
@@ -188,20 +208,21 @@ export default function NavBar() {
               aria-label="Toggle navigation menu"
               onClick={() => setMenuOpen(v => !v)}
               style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
+                width: 36,
+                height: 36,
+                borderRadius: 9,
                 border: '1px solid var(--c-border)',
                 background: 'var(--c-surface-2)',
                 color: 'var(--c-text)',
                 display: 'grid',
                 placeItems: 'center',
+                transition: 'background 0.15s',
               }}
             >
               <div style={{ display: 'grid', gap: 4 }}>
-                <span style={{ display: 'block', width: 14, height: 1.5, background: 'currentColor', borderRadius: 1 }} />
-                <span style={{ display: 'block', width: 14, height: 1.5, background: 'currentColor', borderRadius: 1 }} />
-                <span style={{ display: 'block', width: 14, height: 1.5, background: 'currentColor', borderRadius: 1 }} />
+                <span style={{ display: 'block', width: 14, height: 1.5, background: 'currentColor', borderRadius: 2 }} />
+                <span style={{ display: 'block', width: 14, height: 1.5, background: 'currentColor', borderRadius: 2 }} />
+                <span style={{ display: 'block', width: 14, height: 1.5, background: 'currentColor', borderRadius: 2 }} />
               </div>
             </button>
           )}
@@ -216,49 +237,54 @@ export default function NavBar() {
               position: 'fixed',
               inset: 0,
               zIndex: menuOpen ? 58 : -1,
-              background: menuOpen ? 'rgba(0, 0, 0, 0.4)' : 'transparent',
+              background: menuOpen ? 'rgba(6, 6, 10, 0.6)' : 'transparent',
+              backdropFilter: menuOpen ? 'blur(4px)' : 'none',
               opacity: menuOpen ? 1 : 0,
               pointerEvents: menuOpen ? 'auto' : 'none',
-              transition: 'opacity 0.15s ease',
+              transition: 'opacity 0.2s ease',
             }}
           />
           <nav
             aria-label="Mobile navigation"
             style={{
               position: 'fixed',
-              top: 56,
+              top: 60,
               right: 12,
               zIndex: 59,
-              minWidth: 200,
-              borderRadius: 10,
-              border: '1px solid var(--c-border)',
+              minWidth: 220,
+              borderRadius: 12,
+              border: '1px solid var(--c-border-hi)',
               background: 'var(--c-surface)',
               boxShadow: 'var(--shadow-lg)',
-              transform: menuOpen ? 'translateY(0)' : 'translateY(-6px)',
+              transform: menuOpen ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.97)',
               opacity: menuOpen ? 1 : 0,
               pointerEvents: menuOpen ? 'auto' : 'none',
-              transition: 'all 0.15s ease',
+              transition: 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
               padding: 6,
             }}
           >
-            {NAV_LINKS.map(({ to, label }) => {
+            {NAV_LINKS.map(({ to, label, icon }) => {
               const active = to === '/' ? pathname === '/' : pathname.startsWith(to)
               return (
                 <Link
                   key={to}
                   to={to}
                   style={{
-                    display: 'block',
-                    borderRadius: 6,
-                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    borderRadius: 8,
+                    padding: '10px 14px',
                     marginBottom: 2,
                     color: active ? 'var(--c-text)' : 'var(--c-text-dim)',
                     background: active ? 'var(--c-surface-2)' : 'transparent',
                     fontSize: '0.8125rem',
-                    fontWeight: 500,
+                    fontWeight: active ? 600 : 500,
                     textDecoration: 'none',
+                    transition: 'background 0.15s',
                   }}
                 >
+                  <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{icon}</span>
                   {label}
                 </Link>
               )

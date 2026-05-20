@@ -529,7 +529,7 @@ export function ToolCallingSkeleton({ toolName }: { toolName: string }) {
         <div style={{
           height: '100%',
           width: '40%',
-          background: 'linear-gradient(90deg, transparent, #f97316, transparent)',
+          background: 'linear-gradient(90deg, transparent, var(--c-signal), transparent)',
           animation: 'shimmerSlide 1.2s ease-in-out infinite',
         }} />
       </div>

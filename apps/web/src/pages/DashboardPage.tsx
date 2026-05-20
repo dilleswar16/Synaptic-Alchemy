@@ -145,9 +145,12 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
         <div>
           {/* Greeting */}
           <div style={{
-            fontFamily: 'var(--font-display)', fontWeight: 700,
-            fontSize: '1.25rem', letterSpacing: '-0.01em',
-            color: 'var(--c-text)', marginBottom: 12,
+            fontFamily: 'var(--font-display)', fontWeight: 800,
+            fontSize: '1.3rem', letterSpacing: '-0.02em',
+            background: 'linear-gradient(135deg, var(--c-text) 0%, var(--c-text-dim) 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginBottom: 12,
           }}>
             {greeting.charAt(0) + greeting.slice(1).toLowerCase()}, Operator
           </div>
@@ -187,7 +190,7 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
             {data.top_services.map((svc, i) => (
               <span key={i} style={{
                 fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
-                padding: '4px 10px', borderRadius: 2,
+                padding: '4px 10px', borderRadius: 6,
                 background: 'var(--c-surface-2)',
                 border: '1px solid var(--c-border-hi)',
                 color: 'var(--c-text-dim)',
@@ -300,16 +303,19 @@ function HeroBand({
 
           <h1 style={{
             margin: '0 0 10px',
-            fontFamily: 'var(--font-display)', fontWeight: 700,
-            fontSize: '1.75rem', letterSpacing: '-0.02em',
-            color: 'var(--c-text)', lineHeight: 1.2,
+            fontFamily: 'var(--font-display)', fontWeight: 800,
+            fontSize: '1.85rem', letterSpacing: '-0.03em',
+            background: 'linear-gradient(135deg, var(--c-text) 0%, var(--c-text-dim) 60%, var(--c-accent) 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            lineHeight: 1.2,
           }}>
             Operations Center
           </h1>
           <p style={{
             margin: '0 0 28px',
             fontFamily: 'var(--font-body)', fontSize: '0.85rem',
-            color: 'var(--c-text-dim)', lineHeight: 1.6, maxWidth: 480,
+            color: 'var(--c-text-dim)', lineHeight: 1.7, maxWidth: 480,
           }}>
             Azure-native SRE intelligence — enriches live alerts with AKS cluster evidence,
             generates GPT-4.1 root cause analysis, and gates every fix through human approval
@@ -317,38 +323,41 @@ function HeroBand({
           </p>
 
           {/* Pipeline flow */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, overflowX: 'auto', paddingBottom: 4 }}>
             {PIPELINE_STAGES.map((s, i) => (
               <div key={s.stage} style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '5px 12px',
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '6px 14px',
                     border: '1px solid var(--c-border-hi)',
-                    borderRadius: 6,
+                    borderRadius: 8,
                     background: 'var(--c-surface-2)',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
                   }}>
                     <span style={{
                       width: 6, height: 6, borderRadius: '50%',
-                      background: 'var(--c-signal)', display: 'inline-block', flexShrink: 0,
+                      background: 'var(--c-signal)',
+                      display: 'inline-block', flexShrink: 0,
                     }} />
                     <span style={{
-                      fontSize: '0.75rem', fontWeight: 500,
+                      fontSize: '0.75rem', fontWeight: 600,
                       color: 'var(--c-text)',
+                      letterSpacing: '0.02em',
                     }}>
                       {s.stage}
                     </span>
                   </div>
                   <div style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
+                    fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
                     color: 'var(--c-text-muted)', marginTop: 6, textAlign: 'center',
                   }}>
                     {s.sub}
                   </div>
                 </div>
                 {i < PIPELINE_STAGES.length - 1 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 3px 0', flexShrink: 0 }}>
-                    <div style={{ width: 32, height: 1, background: 'linear-gradient(90deg, var(--c-signal), var(--c-signal-dim))', opacity: 0.5 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 3px 0', flexShrink: 0 }}>
+                    <div style={{ width: 32, height: 1, background: 'linear-gradient(90deg, var(--c-signal), var(--c-accent))', opacity: 0.4 }} />
                   </div>
                 )}
               </div>
@@ -379,7 +388,9 @@ function HeroBand({
               fontFamily: 'var(--font-mono)',
               fontSize: '3.5rem',
               fontWeight: 700,
-              color: 'var(--c-signal)',
+              background: 'linear-gradient(135deg, var(--c-signal) 0%, var(--c-accent) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
               lineHeight: 1,
               letterSpacing: '-0.02em',
             }}
@@ -403,7 +414,7 @@ function HeroBand({
           {stats.avg_mttr_minutes != null && (
             <div style={{
               marginTop: 12, padding: '4px 12px',
-              border: '1px solid var(--c-border-hi)', borderRadius: 2,
+              border: '1px solid var(--c-border-hi)', borderRadius: 6,
               background: 'var(--c-surface-2)',
               fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
               color: 'var(--c-text-dim)',
@@ -610,12 +621,12 @@ export default function DashboardPage() {
       <div className="animate-fade-up" style={{ marginBottom: 24 }}>
         <div style={{
           fontFamily: 'var(--font-display)',
-          fontSize: '0.75rem',
-          fontWeight: 500,
-          letterSpacing: '0.03em',
+          fontSize: '0.72rem',
+          fontWeight: 600,
+          letterSpacing: '0.06em',
           textTransform: 'uppercase',
-          color: 'var(--c-signal)',
-          marginBottom: 4,
+          color: 'var(--c-accent)',
+          marginBottom: 6,
         }}>
           Operations Center
         </div>
@@ -623,10 +634,10 @@ export default function DashboardPage() {
           fontFamily: 'var(--font-display)',
           fontSize: '1.5rem',
           lineHeight: 1.2,
-          letterSpacing: '-0.01em',
-          fontWeight: 700,
+          letterSpacing: '-0.02em',
+          fontWeight: 800,
           color: 'var(--c-text)',
-          marginBottom: 16
+          marginBottom: 18
         }}>
           Active Investigation Queue
         </div>
@@ -652,8 +663,21 @@ export default function DashboardPage() {
           ))}
 
           {(recent ?? []).length === 0 && (
-            <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>
-              No investigations yet — start one from the <Link to="/investigations" style={{ color: 'var(--c-signal)' }}>Investigations</Link> page.
+            <div style={{
+              padding: '48px 20px', textAlign: 'center',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+            }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: 'var(--c-surface-3)',
+                border: '1px solid var(--c-border-hi)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.1rem', color: 'var(--c-text-muted)',
+              }}>◇</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', color: 'var(--c-text-muted)', lineHeight: 1.6 }}>
+                No investigations yet — start one from the{' '}
+                <Link to="/investigations" style={{ color: 'var(--c-accent)', fontWeight: 600, textDecoration: 'none' }}>Investigations</Link> page.
+              </div>
             </div>
           )}
 
@@ -709,10 +733,14 @@ export default function DashboardPage() {
       </div>
 
       {/* ── 7. TOOLS: Chaos Engineering (Red Team) ────────────────────── */}
-      <div style={{ marginTop: 40, borderTop: '1px solid var(--c-border)', paddingTop: 40 }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-           <div style={{ fontSize: '0.75rem', color: 'var(--c-text-muted)', fontWeight: 500, letterSpacing: '0.03em', textTransform: 'uppercase' }}>System Stress Testing</div>
-           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--c-text)', marginTop: 4 }}>Chaos Control Center</h2>
+      <div style={{ marginTop: 48, borderTop: '1px solid var(--c-border)', paddingTop: 48 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+           <div style={{ fontSize: '0.75rem', color: 'var(--c-text-muted)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>System Stress Testing</div>
+           <h2 style={{
+             fontFamily: 'var(--font-display)', fontSize: '1.3rem', fontWeight: 800,
+             color: 'var(--c-text)',
+             marginTop: 6, letterSpacing: '-0.02em',
+           }}>Chaos Control Center</h2>
         </div>
         <SimulateAlertPanel />
       </div>

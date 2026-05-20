@@ -248,7 +248,7 @@ function StageTracker({ stages }: { stages: StageEvent[] }) {
                   background: done
                     ? 'var(--c-green)'
                     : active
-                    ? 'rgba(249,115,22,0.15)'
+                    ? 'rgba(124,58,237,0.12)'
                     : 'var(--c-surface-2)',
                   border: done
                     ? '2px solid var(--c-green)'
@@ -256,7 +256,7 @@ function StageTracker({ stages }: { stages: StageEvent[] }) {
                     ? '2px solid var(--c-signal)'
                     : '2px solid var(--c-border)',
                   color: done ? 'var(--c-bg)' : active ? 'var(--c-signal)' : 'var(--c-text-faint)',
-                  boxShadow: active ? '0 0 16px rgba(249,115,22,0.5)' : 'none',
+                  boxShadow: active ? '0 0 0 3px rgba(124,58,237,0.15)' : 'none',
                 }}
                 className={active ? 'animate-pulse-glow' : ''}
               >
@@ -414,7 +414,7 @@ function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
         marginTop: 16,
         borderRadius: 8,
         border: '1px solid var(--c-border-glow)',
-        background: 'rgba(249,115,22,0.03)',
+        background: 'var(--c-signal-glow)',
         overflow: 'hidden',
       }}
     >
@@ -425,7 +425,7 @@ function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
         display: 'flex',
         alignItems: 'center',
         gap: 8,
-        background: 'rgba(249,115,22,0.04)',
+        background: 'var(--c-signal-light)',
       }}>
         <span className="animate-pulse-glow" style={{
           width: 8, height: 8, borderRadius: '50%',

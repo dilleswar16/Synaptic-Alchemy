@@ -79,7 +79,7 @@ export default function FixStrategyPage() {
                 {(fixStrategy?.actions?.length ?? 0) > 0 && (
                   <span style={{
                     fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-                    padding: '3px 10px', borderRadius: 2,
+                    padding: '3px 10px', borderRadius: 6,
                     background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)',
                     color: 'var(--c-text-dim)', letterSpacing: '0.04em',
                   }}>
@@ -226,7 +226,7 @@ export default function FixStrategyPage() {
                               fontSize: '0.75rem', color: riskColor,
                               background: `color-mix(in srgb, ${riskColor} 10%, transparent)`,
                               border: `1px solid color-mix(in srgb, ${riskColor} 30%, transparent)`,
-                              borderRadius: 2,
+                              borderRadius: 8,
                             }}>
                               {String(i + 1).padStart(2, '0')}
                             </div>

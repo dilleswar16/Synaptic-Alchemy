@@ -16,7 +16,7 @@ export function CopyableId({ requestId }: { requestId: string }) {
         fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
         color: copied ? 'var(--c-green)' : 'var(--c-text-faint)',
         letterSpacing: '0.04em', background: 'none', border: 'none',
-        cursor: 'pointer', padding: '1px 4px', borderRadius: 2,
+        cursor: 'pointer', padding: '1px 4px', borderRadius: 4,
         transition: 'color 0.2s',
       }}
     >

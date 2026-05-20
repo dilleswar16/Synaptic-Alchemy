@@ -16,7 +16,7 @@ export function TechnicalHighlighter({ text }: { text: string }) {
           return <span key={i} style={{ color, fontWeight: 700, background: bg, padding: '1px 5px', borderRadius: 3, border: `1px solid ${color}40` }}>{token}</span>
         }
         if (HTTP_METHODS.has(token)) {
-          return <span key={i} style={{ color: 'var(--c-signal)', fontWeight: 700, background: 'rgba(249,115,22,0.1)', padding: '1px 5px', borderRadius: 3 }}>{token}</span>
+          return <span key={i} style={{ color: 'var(--c-signal)', fontWeight: 700, background: 'var(--c-signal-glow)', padding: '1px 5px', borderRadius: 4 }}>{token}</span>
         }
         if (KEYWORDS.has(token)) {
           const isBad = token === 'Failed' || token === 'CrashLoopBackOff' || token === 'OOMKilled'

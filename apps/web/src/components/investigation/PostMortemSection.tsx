@@ -77,7 +77,7 @@ export function PostMortemSection({ requestId, isExecuted, hasRca, serviceName, 
           {!isExecuted && (
             <span style={{
               fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
-              letterSpacing: '0.1em', padding: '2px 7px', borderRadius: 2,
+              letterSpacing: '0.1em', padding: '2px 7px', borderRadius: 6,
               background: 'var(--c-warning-bg)', border: '1px solid var(--c-warning-border)',
               color: 'var(--c-yellow)', textTransform: 'uppercase',
             }}>

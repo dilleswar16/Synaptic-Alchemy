@@ -60,7 +60,7 @@ const components: Components = {
   h2: ({ children }) => (
     <h2 style={{
       fontSize: '0.9rem', fontWeight: 700, margin: '14px 0 5px', color: 'var(--c-text)',
-      borderBottom: '1px solid rgba(249,115,22,0.12)', paddingBottom: 4,
+      borderBottom: '1px solid var(--c-border-glow)', paddingBottom: 4,
     }}>
       {children}
     </h2>
@@ -80,8 +80,8 @@ const components: Components = {
     <div style={{
       margin: '10px 0',
       padding: '10px 14px 10px 16px',
-      borderLeft: '3px solid rgba(249,115,22,0.5)',
-      background: 'rgba(249,115,22,0.05)',
+      borderLeft: '3px solid rgba(124,58,237,0.5)',
+      background: 'rgba(124,58,237,0.05)',
       borderRadius: '0 6px 6px 0',
       color: 'var(--c-text-dim)',
       fontStyle: 'italic',

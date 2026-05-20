@@ -175,7 +175,7 @@ function DescriptionField({
           resize: 'vertical', minHeight: 72, fontFamily: 'var(--font-body)',
           fontSize: '0.82rem', lineHeight: 1.65,
           background: 'var(--c-surface)', border: '1px solid var(--c-border)',
-          borderRadius: 3, color: 'var(--c-text)',
+          borderRadius: 8, color: 'var(--c-text)',
           transition: 'border-color 0.15s',
         }}
         onFocus={e => { e.currentTarget.style.borderColor = 'var(--c-signal-dim)' }}
@@ -352,7 +352,7 @@ function StartInvestigationForm() {
             <div style={{
               marginBottom: 12, padding: '8px 12px',
               background: 'var(--c-red-bg)', border: '1px solid var(--c-red-border)',
-              borderRadius: 2, fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-red)',
+              borderRadius: 8, fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-red)',
             }}>
               {formError}
             </div>
@@ -398,24 +398,25 @@ function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary
   if (items.length === 0) {
     return (
       <div style={{
-        padding: '52px 20px', textAlign: 'center',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+        padding: '64px 20px', textAlign: 'center',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
       }}>
         <div style={{
-          width: 36, height: 36, borderRadius: '50%',
+          width: 48, height: 48, borderRadius: '50%',
+          background: 'var(--c-surface-3)',
           border: '1px solid var(--c-border-hi)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--font-mono)', fontSize: '1rem', color: 'var(--c-text-faint)',
+          fontSize: '1.2rem', color: 'var(--c-text-muted)',
         }}>
-          {isFiltered ? '∅' : '○'}
+          {isFiltered ? '⌕' : '◇'}
         </div>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--c-text-faint)' }}>
-          {isFiltered ? 'No matches' : 'No investigations yet'}
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.85rem', letterSpacing: '0.04em', color: 'var(--c-text-dim)' }}>
+          {isFiltered ? 'No matches found' : 'No investigations yet'}
         </div>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)', maxWidth: 320, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.78rem', color: 'var(--c-text-muted)', maxWidth: 340, lineHeight: 1.7 }}>
           {isFiltered
             ? 'Try adjusting your search or clearing the status filter.'
-            : 'Use the form above to start your first investigation. Results will appear here.'}
+            : 'Start your first investigation above. Corvin will analyze your Azure services and deliver a structured RCA.'}
         </div>
       </div>
     )
@@ -514,14 +515,21 @@ export default function InvestigationsPage() {
   return (
     <Layout>
       {/* ── Command header ───────────────────────────────────────────────── */}
-      <div className="animate-fade-up" style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div className="animate-fade-up" style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 4 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-accent)', marginBottom: 6 }}>
             Investigation Console
           </div>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--c-text)', lineHeight: 1.2 }}>
-            INVESTIGATIONS
+          <h1 style={{
+            margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 800,
+            letterSpacing: '-0.03em', lineHeight: 1.2,
+            color: 'var(--c-text)',
+          }}>
+            Investigations
           </h1>
+          <p style={{ margin: '6px 0 0', fontSize: '0.82rem', color: 'var(--c-text-muted)', lineHeight: 1.5 }}>
+            Run AI-powered root cause analysis against your Azure services.
+          </p>
         </div>
         {pending > 0 && (
           <div style={{
@@ -529,7 +537,7 @@ export default function InvestigationsPage() {
             padding: '8px 16px',
             background: 'var(--c-warning-bg)',
             border: '1px solid var(--c-warning-border)',
-            borderRadius: 3,
+            borderRadius: 8,
           }}>
             <span className="animate-pulse-glow" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-yellow)', display: 'inline-block', flexShrink: 0 }} />
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-yellow)', fontWeight: 600 }}>
@@ -587,7 +595,7 @@ export default function InvestigationsPage() {
             padding: '7px 28px 7px 10px',
             fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
             background: 'var(--c-surface-2)', color: statusFilter === 'all' ? 'var(--c-text-dim)' : 'var(--c-text)',
-            border: '1px solid var(--c-border)', borderRadius: 2, cursor: 'pointer',
+            border: '1px solid var(--c-border)', borderRadius: 8, cursor: 'pointer',
             appearance: 'none',
             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E")`,
             backgroundRepeat: 'no-repeat', backgroundPosition: 'right 9px center',

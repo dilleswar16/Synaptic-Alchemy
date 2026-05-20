@@ -103,7 +103,7 @@ function EvidenceSourceRow({
       </button>
 
       {open && count > 0 && (
-        <div style={{ margin: '0 0 12px 22px', border: '1px solid var(--c-border)', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ margin: '0 0 12px 22px', border: '1px solid var(--c-border)', borderRadius: 8, overflow: 'hidden' }}>
           <div style={{
             padding: '4px 12px', borderBottom: '1px solid var(--c-border)',
             background: 'var(--c-surface-2)',

@@ -34,7 +34,7 @@ export function EvidenceReferencesSection({ references }: EvidenceReferencesSect
                 <span style={{
                   fontWeight: 600, fontSize: '0.75rem',
                   letterSpacing: '0.02em',
-                  padding: '2px 6px', borderRadius: 2,
+                  padding: '2px 6px', borderRadius: 4,
                   background: `color-mix(in srgb, ${badge.color} 15%, transparent)`,
                   border: `1px solid color-mix(in srgb, ${badge.color} 30%, transparent)`,
                   color: badge.color,

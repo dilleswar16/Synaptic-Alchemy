@@ -127,7 +127,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
               color: 'var(--c-signal)', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 8,
               listStyle: 'none', userSelect: 'none',
-              background: 'rgba(249,115,22,0.04)',
+              background: 'var(--c-signal-glow)',
             }}>
               <span style={{ fontSize: '0.9rem' }}>🧠</span> What Would a Senior SRE Do? · Corvin's Rationale
             </summary>
@@ -260,7 +260,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
                 color: 'white', textDecoration: 'none',
                 padding: '8px 16px', borderRadius: 6,
                 background: 'var(--c-signal)',
-                boxShadow: '0 4px 12px rgba(249,115,22,0.3)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
                 whiteSpace: 'nowrap',
               }}
             >

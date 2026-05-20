@@ -267,12 +267,12 @@ function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: st
   // Edge colouring by relationship type
   const EDGE_COLOURS: Record<string, string> = {
     routes:      'rgba(139,92,246,0.65)',  // purple — APIM routing
-    runs:        'rgba(249,115,22,0.55)',  // orange — service → pod
+    runs:        'rgba(124,58,237,0.55)',  // violet — service → pod
     'depends-on':'rgba(16,185,129,0.55)', // green  — service → backend
   }
 
   const edges: Edge[] = topology.edges.map((e, i) => {
-    const colour = EDGE_COLOURS[e.label ?? ''] ?? 'rgba(249,115,22,0.55)'
+    const colour = EDGE_COLOURS[e.label ?? ''] ?? 'rgba(124,58,237,0.55)'
     return {
       id: `e-${i}`,
       source: e.source, target: e.target,
@@ -342,17 +342,17 @@ const CORVIN_EDGES: Edge[] = [
     markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(14,165,233,0.65)', width: 15, height: 15 } },
   // evidence → engine (orange)
   { id: 'ce5', source: 'ev-apim', target: 'engine', animated: true, label: 'enrich',
-    style: { stroke: 'rgba(249,115,22,0.55)', strokeWidth: 1.8 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(249,115,22,0.55)', width: 15, height: 15 } },
+    style: { stroke: 'rgba(124,58,237,0.55)', strokeWidth: 1.8 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(124,58,237,0.55)', width: 15, height: 15 } },
   { id: 'ce6', source: 'ev-aks', target: 'engine', animated: true,
-    style: { stroke: 'rgba(249,115,22,0.55)', strokeWidth: 1.8 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(249,115,22,0.55)', width: 15, height: 15 } },
+    style: { stroke: 'rgba(124,58,237,0.55)', strokeWidth: 1.8 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(124,58,237,0.55)', width: 15, height: 15 } },
   { id: 'ce7', source: 'ev-logs', target: 'engine', animated: true,
-    style: { stroke: 'rgba(249,115,22,0.55)', strokeWidth: 1.8 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(249,115,22,0.55)', width: 15, height: 15 } },
+    style: { stroke: 'rgba(124,58,237,0.55)', strokeWidth: 1.8 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(124,58,237,0.55)', width: 15, height: 15 } },
   { id: 'ce8', source: 'ev-activity', target: 'engine', animated: true,
-    style: { stroke: 'rgba(249,115,22,0.55)', strokeWidth: 1.8 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(249,115,22,0.55)', width: 15, height: 15 } },
+    style: { stroke: 'rgba(124,58,237,0.55)', strokeWidth: 1.8 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(124,58,237,0.55)', width: 15, height: 15 } },
   // engine → output (green)
   { id: 'ce9', source: 'engine', target: 'rca', animated: true, label: 'generates',
     style: { stroke: 'rgba(34,197,94,0.6)', strokeWidth: 1.8 },
@@ -406,7 +406,7 @@ function TopologyFlow({ appNodes, appEdges, colorMode }: { appNodes: Node[]; app
         variant={BackgroundVariant.Dots}
         gap={22}
         size={1.2}
-        color={colorMode === 'light' ? 'rgba(234,88,12,0.18)' : 'rgba(249,115,22,0.14)'}
+        color={colorMode === 'light' ? 'rgba(109,40,217,0.12)' : 'rgba(124,58,237,0.10)'}
       />
       <Controls
         showInteractive={false}
@@ -613,7 +613,7 @@ export function TopologyRadar() {
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 14 }}>
           {[
             { colour: 'rgba(14,165,233,0.8)',  label: 'Alert fires evidence gathering' },
-            { colour: 'rgba(249,115,22,0.8)',  label: 'Evidence enriches engine' },
+            { colour: 'rgba(124,58,237,0.8)',  label: 'Evidence enriches engine' },
             { colour: 'rgba(34,197,94,0.8)',   label: 'Engine generates RCA + Fix' },
             { colour: 'rgba(139,92,246,0.8)',  label: 'Awaits human approval' },
             { colour: 'rgba(245,158,11,0.9)',  label: 'Approved → Execute + Notify' },
