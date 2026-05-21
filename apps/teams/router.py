@@ -34,7 +34,11 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from botbuilder.core import BotFrameworkAdapter, BotFrameworkAdapterSettings
+from botbuilder.integration.aiohttp import (
+    CloudAdapter,
+    ConfigurationBotFrameworkAuthentication,
+    ConfigurationServiceClientCredentialFactory,
+)
 from botbuilder.schema import Activity
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
@@ -106,17 +110,21 @@ async def messages(
             media_type="text/plain",
         )
 
-    # ── Build adapter from config ─────────────────────────────────────────────
+    # ── Build adapter from config (CloudAdapter with User-Assigned Managed Identity) ──────
     app_id = _resolve_env(str(cfg.get("app_id", "")))
-    # app_password is empty for User-Assigned Managed Identity — Azure handles auth via IMDS.
-    app_password = _resolve_env(str(cfg.get("app_password", "")))
     tenant_id = _resolve_env(str(cfg.get("tenant_id", "")))
-    settings = BotFrameworkAdapterSettings(
-        app_id=app_id,
-        app_password=app_password,  # empty string when using managed identity
-        channel_auth_tenant=tenant_id if tenant_id else None,
+
+    class _BotConfig:  # simple config bag read by ConfigurationServiceClientCredentialFactory
+        APP_TYPE = "UserAssignedMsi"
+        APP_ID = app_id
+        APP_TENANTID = tenant_id
+        APP_PASSWORD = ""
+
+    credentials_factory = ConfigurationServiceClientCredentialFactory(_BotConfig())
+    bot_auth = ConfigurationBotFrameworkAuthentication(
+        _BotConfig(), credentials_factory=credentials_factory
     )
-    adapter = BotFrameworkAdapter(settings)
+    adapter = CloudAdapter(bot_auth)
 
     # ── Parse body ────────────────────────────────────────────────────────────
     try:
@@ -132,7 +140,8 @@ async def messages(
     # ── Dispatch to bot ───────────────────────────────────────────────────────
     # Pass adapter + app_id so the bot can use continue_conversation for agentic replies.
     bot_instance = CorvinBot(adapter=adapter, app_id=app_id)
-    invoke_response = await adapter.process_activity(activity, auth_header, bot_instance.on_turn)
+    # CloudAdapter.process_activity has auth_header first, activity second (opposite of BotFrameworkAdapter)
+    invoke_response = await adapter.process_activity(auth_header, activity, bot_instance.on_turn)
 
     if invoke_response:
         return JSONResponse(
