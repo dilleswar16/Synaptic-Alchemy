@@ -36,7 +36,7 @@ from typing import Any
 
 from botbuilder.core import BotFrameworkAdapter, BotFrameworkAdapterSettings
 from botbuilder.schema import Activity
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
 from apps.teams.bot import CorvinBot
@@ -75,7 +75,6 @@ def get_corvin_bot() -> CorvinBot:
 @router.post("/messages", status_code=201)
 async def messages(
     request: Request,
-    bot: CorvinBot = Depends(get_corvin_bot),
 ) -> Response:
     """Bot Framework inbound message handler.
 
@@ -109,8 +108,14 @@ async def messages(
 
     # ── Build adapter from config ─────────────────────────────────────────────
     app_id = _resolve_env(str(cfg.get("app_id", "")))
+    # app_password is empty for User-Assigned Managed Identity — Azure handles auth via IMDS.
     app_password = _resolve_env(str(cfg.get("app_password", "")))
-    settings = BotFrameworkAdapterSettings(app_id=app_id, app_password=app_password)
+    tenant_id = _resolve_env(str(cfg.get("tenant_id", "")))
+    settings = BotFrameworkAdapterSettings(
+        app_id=app_id,
+        app_password=app_password,  # empty string when using managed identity
+        channel_auth_tenant=tenant_id if tenant_id else None,
+    )
     adapter = BotFrameworkAdapter(settings)
 
     # ── Parse body ────────────────────────────────────────────────────────────
@@ -125,7 +130,9 @@ async def messages(
     auth_header = request.headers.get("Authorization", "")
 
     # ── Dispatch to bot ───────────────────────────────────────────────────────
-    invoke_response = await adapter.process_activity(activity, auth_header, bot.on_turn)
+    # Pass adapter + app_id so the bot can use continue_conversation for agentic replies.
+    bot_instance = CorvinBot(adapter=adapter, app_id=app_id)
+    invoke_response = await adapter.process_activity(activity, auth_header, bot_instance.on_turn)
 
     if invoke_response:
         return JSONResponse(

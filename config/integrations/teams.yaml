@@ -20,6 +20,10 @@ enabled: true
 # ── V2 ChatOps Bot settings ───────────────────────────────────────────────────
 # Set bot_enabled to true once the Azure Bot registration is complete.
 # Env vars: TEAMS_APP_ID, TEAMS_APP_PASSWORD
-bot_enabled: false
+bot_enabled: true
 app_id: "${TEAMS_APP_ID}"
 app_password: "${TEAMS_APP_PASSWORD}"
+# Required for Single Tenant bots — set to your Azure AD Tenant ID.
+# Find it: Portal → Entra ID → Overview → Tenant ID
+# Env var: TEAMS_TENANT_ID
+tenant_id: "${TEAMS_TENANT_ID}"

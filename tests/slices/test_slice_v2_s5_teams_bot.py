@@ -314,15 +314,29 @@ async def test_bot_help_command_lists_investigate_and_help():
 
 
 @pytest.mark.asyncio
-async def test_bot_unknown_command_sends_error_with_command_name():
+async def test_bot_unknown_command_routes_to_agentic_engine():
+    """Unrecognised input (e.g. 'deploy order-service') is routed to the agentic engine.
+
+    The bot must send an immediate ack ('On it / Thinking').  The background
+    agentic task is cancelled immediately — we are only testing the dispatch
+    path here, not the LLM response.
+    """
     bot = CorvinBot(engine=_FakeEngine(), teams_adapter=_FakeTeamsAdapter())
     ctx = _FakeTurnContext("deploy order-service")
 
     await bot.on_message_activity(ctx)
 
+    # Cancel background agentic task to avoid side-effects in tests.
+    if bot._last_agentic_task:
+        bot._last_agentic_task.cancel()
+        try:
+            await bot._last_agentic_task
+        except (asyncio.CancelledError, Exception):
+            pass
+
     assert len(ctx.sent) == 1
-    assert "deploy" in ctx.sent[0]
-    assert "unknown" in ctx.sent[0].lower()
+    ack = ctx.sent[0].lower()
+    assert "thinking" in ack or "on it" in ack
 
 
 @pytest.mark.asyncio
@@ -519,22 +533,18 @@ async def test_bot_investigate_creates_last_investigation_task():
 
 
 def test_teams_messages_route_returns_501_when_bot_disabled():
-    """With bot_enabled: false (config default), the route returns 501."""
+    """With bot_enabled: false, the route returns 501."""
+    from unittest.mock import patch
+
     from apps.api.main import app
-    from apps.teams.router import get_corvin_bot
 
-    fake_bot = CorvinBot(engine=_FakeEngine(), teams_adapter=_FakeTeamsAdapter())
-    app.dependency_overrides[get_corvin_bot] = lambda: fake_bot
-
-    try:
+    with patch("apps.teams.router._load_teams_config", return_value={"bot_enabled": False}):
         client = TestClient(app)
         resp = client.post(
             "/teams/messages",
             json={"type": "message", "text": "investigate order-service production"},
         )
         assert resp.status_code == 501
-    finally:
-        app.dependency_overrides.clear()
 
 
 def test_teams_messages_route_is_registered():
@@ -547,18 +557,14 @@ def test_teams_messages_route_is_registered():
 
 def test_teams_messages_route_501_body_explains_how_to_enable():
     """The 501 body should explain that bot_enabled must be set to true."""
+    from unittest.mock import patch
+
     from apps.api.main import app
-    from apps.teams.router import get_corvin_bot
 
-    fake_bot = CorvinBot(engine=_FakeEngine(), teams_adapter=_FakeTeamsAdapter())
-    app.dependency_overrides[get_corvin_bot] = lambda: fake_bot
-
-    try:
+    with patch("apps.teams.router._load_teams_config", return_value={"bot_enabled": False}):
         client = TestClient(app)
         resp = client.post("/teams/messages", json={"type": "message", "text": "help"})
         assert "bot_enabled" in resp.text
-    finally:
-        app.dependency_overrides.clear()
 
 
 # -------------------------------------------------------------------------------

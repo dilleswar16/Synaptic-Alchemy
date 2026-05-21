@@ -1,36 +1,45 @@
 """
-CorvinBot — V2 Teams ChatOps bot.
+CorvinBot — Fully agentic Teams ChatOps bot.
 
-Handles inbound @mention messages from Microsoft Teams via the Bot Framework.
+Every @mention is routed to the Corvin Command Center agentic engine.
+Fast-path commands (investigate, approve, reject, execute, help) are still
+handled explicitly so they get an immediate structured ack.  All other text
+— questions, conversational requests, status asks — goes straight to the
+agentic engine which decides what tools to call.
 
-Supported commands
-------------------
-investigate <service_name> [environment]
-    Trigger a new investigation.  Environment defaults to ``production`` when
-    omitted.  An acknowledgement is sent immediately; the investigation runs
-    in a background task and the result card is posted via the outbound webhook.
+Per-conversation session tracking
+----------------------------------
+Each Teams conversation (conversation.id) maps to a Corvin session stored in
+the DB.  The mapping is cached in _sessions on this instance.  On restart the
+map is empty but history is preserved in DB — the bot creates a new session
+for the conversation on the next message.
 
-help
-    Show a brief command reference.
-
-Any unrecognised input returns a friendly error with a usage hint.
+Teams 15-second timeout
+-----------------------
+All slow operations (investigation, agentic engine) are fire-and-forget:
+1. An immediate ack is sent ("Thinking…" / "Investigating…")
+2. The engine runs as a background asyncio.Task
+3. The result is posted back via adapter.continue_conversation or the
+   outbound Teams webhook when no adapter is available.
 
 Testing
 -------
-``CorvinBot`` accepts injectable *engine* and *teams_adapter* constructor args
-so unit tests can drive behaviour without real Azure / Teams endpoints.
-The ``_last_investigation_task`` attribute is set whenever an investigation
-background task is created — tests can ``await`` it to wait for completion.
+CorvinBot accepts injectable *engine*, *teams_adapter*, *adapter*, and *app_id*
+constructor args.  Unit tests pass fakes; no real Azure / Teams endpoints
+are contacted.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
+import uuid
+from datetime import datetime, timezone
 from typing import Any
 
-from botbuilder.core import ActivityHandler, TurnContext
+from botbuilder.core import ActivityHandler, BotFrameworkAdapter, TurnContext
 
 from corvin.core.contracts import ApprovalStatus, InvestigationRequest, TriggerSource
 from corvin.delivery.rca_notification import send_rca_email_if_enabled
@@ -125,6 +134,8 @@ class CorvinBot(ActivityHandler):
         teams_adapter: TeamsAdapter | None = None,
         repository: InvestigationRepository | None = None,
         execution_service: ExecutionService | None = None,
+        adapter: BotFrameworkAdapter | None = None,
+        app_id: str = "",
     ) -> None:
         super().__init__()
         self._engine: InvestigationEngine = (
@@ -139,8 +150,15 @@ class CorvinBot(ActivityHandler):
         self._execution: ExecutionService = (
             execution_service if execution_service is not None else ExecutionService()
         )
+        # Bot Framework adapter + app ID — used for proactive continue_conversation replies.
+        self._adapter: BotFrameworkAdapter | None = adapter
+        self._app_id: str = app_id
+        # Maps Teams conversation.id → Corvin session_id (in-memory cache).
+        self._sessions: dict[str, str] = {}
         # Set by _handle_investigate; exposed for test introspection only.
         self._last_investigation_task: asyncio.Task[None] | None = None
+        # Set by _handle_agentic_chat; exposed for test introspection only.
+        self._last_agentic_task: asyncio.Task[None] | None = None
 
     # ── ActivityHandler override ──────────────────────────────────────────────
 
@@ -166,11 +184,8 @@ class CorvinBot(ActivityHandler):
         elif parsed.command == "help":
             await self._handle_help(turn_context)
         else:
-            await turn_context.send_activity(
-                f"Unknown command: `{parsed.command}`. "
-                "Try `investigate <service> <environment>`, `approve <id>`, "
-                "`reject <id>`, `execute <id>`, or `help`."
-            )
+            # Route everything else to the agentic engine — the LLM decides intent.
+            await self._handle_agentic_chat(turn_context, parsed.raw)
 
     # ── Command handlers ──────────────────────────────────────────────────────
 
@@ -207,14 +222,186 @@ class CorvinBot(ActivityHandler):
     async def _handle_help(self, turn_context: TurnContext) -> None:
         """Reply with the command reference."""
         await turn_context.send_activity(
-            "**Corvin — Available Commands**\n\n"
-            "• `investigate <service> <environment>` — start an investigation\n"
+            "**Corvin — Your AI SRE Co-Pilot** 🤖\n\n"
+            "Just talk to me naturally — I understand anything you type!\n\n"
+            "**Quick commands:**\n"
+            "• `investigate <service> <environment>` — start a structured investigation\n"
             "• `approve <request_id>` — approve a pending fix strategy\n"
             "• `reject <request_id>` — reject a pending fix strategy\n"
             "• `execute <request_id>` — execute an approved fix strategy\n"
             "• `help` — show this message\n\n"
+            "**Or just ask me anything:**\n"
+            "• _\"What's the blast radius of order-service going down?\"_\n"
+            "• _\"Why are APIM errors spiking?\"_\n"
+            "• _\"Show me the last 3 incidents\"_\n\n"
             "Results are posted as Adaptive Cards to this channel."
         )
+
+    # ── Agentic chat (free-form) ──────────────────────────────────────────────
+
+    async def _handle_agentic_chat(
+        self, turn_context: TurnContext, user_text: str
+    ) -> None:
+        """Route a free-form message to the Corvin agentic engine.
+
+        Sends an immediate "Thinking…" ack, then runs the agentic engine in a
+        background task.  The final response is posted back via
+        ``adapter.continue_conversation`` when an adapter is available,
+        or logged when running in test mode (no adapter).
+        """
+        from botbuilder.schema import Activity, ActivityTypes
+        await turn_context.send_activity("⚡ On it — thinking…")
+
+        # Safely extract Teams conversation ID for session tracking.
+        conversation = getattr(turn_context.activity, "conversation", None)
+        conversation_id: str = getattr(conversation, "id", None) or "default"
+
+        # Snapshot the conversation reference before the background task runs.
+        try:
+            conv_ref = TurnContext.get_conversation_reference(turn_context.activity)
+        except Exception:
+            conv_ref = None
+
+        session_id = self._get_or_create_session(conversation_id, user_text)
+
+        self._last_agentic_task = asyncio.create_task(
+            self._run_agentic_async(session_id, user_text, conv_ref)
+        )
+
+    async def _send_typing_loop(self, conv_ref: Any, interval: float = 5.0) -> None:
+        """Send typing indicators every *interval* seconds until cancelled.
+
+        Teams shows the animated '...' bubble while this runs, so the user
+        knows Corvin is actively working rather than sitting idle.
+        """
+        try:
+            while True:
+                await asyncio.sleep(interval)
+                if self._adapter and conv_ref:
+                    try:
+                        async def _type(tc: TurnContext) -> None:
+                            from botbuilder.schema import Activity, ActivityTypes
+                            typing = Activity(type=ActivityTypes.typing)
+                            await tc.send_activity(typing)
+                        await self._adapter.continue_conversation(conv_ref, _type, self._app_id)
+                    except Exception:
+                        pass  # typing indicator failure is non-critical
+        except asyncio.CancelledError:
+            pass
+
+    def _get_or_create_session(self, conversation_id: str, first_message: str = "") -> str:
+        """Return an existing Corvin session ID for *conversation_id*, or create one."""
+        if conversation_id in self._sessions:
+            return self._sessions[conversation_id]
+
+        # Lazy imports to avoid heavy load at module level.
+        from corvin.storage.db import get_session as get_db_session
+        from corvin.storage.models import CorvinSessionRow
+
+        session_id = str(uuid.uuid4())
+        title = (first_message[:60] + "…") if len(first_message) > 60 else first_message
+        title = title or f"Teams conversation"
+        now = datetime.now(timezone.utc)
+        try:
+            with get_db_session() as db:
+                db.add(CorvinSessionRow(id=session_id, title=title, created_at=now, updated_at=now))
+                db.commit()
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("CorvinBot._get_or_create_session DB error: %s", exc)
+
+        self._sessions[conversation_id] = session_id
+        return session_id
+
+    async def _run_agentic_async(
+        self,
+        session_id: str,
+        user_text: str,
+        conv_ref: Any | None,
+    ) -> None:
+        """Background task: run the agentic engine and post the result back to Teams."""
+        from corvin.storage.db import get_session as get_db_session
+        from corvin.storage.models import CorvinMessageRow, CorvinSessionRow
+        from corvin.strategy.agent_service import CorvinAgentService
+        from sqlalchemy import select
+
+        try:
+            # Load existing history for this session.
+            with get_db_session() as db:
+                msg_rows = (
+                    db.execute(
+                        select(CorvinMessageRow)
+                        .where(CorvinMessageRow.session_id == session_id)
+                        .order_by(CorvinMessageRow.created_at)
+                    )
+                    .scalars()
+                    .all()
+                )
+                history = [{"role": m.role, "content": m.content} for m in msg_rows]
+
+            # Persist the user message.
+            now = datetime.now(timezone.utc)
+            with get_db_session() as db:
+                db.add(CorvinMessageRow(session_id=session_id, role="user", content=user_text, created_at=now))
+                session_row = db.get(CorvinSessionRow, session_id)
+                if session_row:
+                    session_row.updated_at = now
+                db.commit()
+
+            history.append({"role": "user", "content": user_text})
+
+            # Start typing indicator loop — shows '...' bubble in Teams while engine runs.
+            typing_task = asyncio.create_task(self._send_typing_loop(conv_ref, interval=5.0))
+
+            # Run the agentic engine in a thread (stream_chat_simple is synchronous).
+            text_chunks: list[str] = []
+
+            def _run_sync() -> None:
+                svc = CorvinAgentService()
+                for chunk in svc.stream_chat_simple(history):
+                    if chunk.startswith("data: ") and chunk.strip() != "data: [DONE]":
+                        try:
+                            data = json.loads(chunk[6:])
+                            if data.get("type") == "text" and data.get("text"):
+                                text_chunks.append(data["text"])
+                        except Exception:
+                            pass
+
+            try:
+                await asyncio.to_thread(_run_sync)
+            finally:
+                typing_task.cancel()
+                try:
+                    await typing_task
+                except asyncio.CancelledError:
+                    pass
+
+            final_text = "".join(text_chunks).strip() or "Sorry, I couldn't generate a response."
+
+            # Persist the assistant reply.
+            now2 = datetime.now(timezone.utc)
+            with get_db_session() as db:
+                db.add(CorvinMessageRow(session_id=session_id, role="assistant", content=final_text, created_at=now2))
+                session_row = db.get(CorvinSessionRow, session_id)
+                if session_row:
+                    session_row.updated_at = now2
+                db.commit()
+
+            # Post back to the Teams conversation.
+            if self._adapter and conv_ref:
+                async def _reply(tc: TurnContext) -> None:
+                    await tc.send_activity(final_text)
+
+                await self._adapter.continue_conversation(conv_ref, _reply, self._app_id)
+            else:
+                # No adapter in test/local mode — log only.
+                _log.info(
+                    "CorvinBot._run_agentic_async: no adapter; response for session %s: %.120s",
+                    session_id,
+                    final_text,
+                )
+
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("CorvinBot._run_agentic_async failed for session %s: %s", session_id, exc)
 
     async def _handle_approval(
         self,
