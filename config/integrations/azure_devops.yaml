@@ -46,5 +46,5 @@ enabled: true
 # Set wiki_enabled: true to auto-publish RCA pages to an ADO Wiki after each investigation.
 # wiki_id: set to "auto" to use the first project wiki, or paste the wiki GUID/slug.
 #   Find it at: https://dev.azure.com/{org}/{project}/_apis/wiki/wikis?api-version=7.1
-wiki_enabled: false
+wiki_enabled: true
 wiki_id: "auto"
