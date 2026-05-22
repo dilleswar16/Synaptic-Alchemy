@@ -44,7 +44,7 @@ from corvin.enrich.enrichment_service import EnrichmentService
 from corvin.investigation.prompt_builder import PromptBuilder
 from corvin.strategy.fix_strategy_generator import FixStrategyGenerator
 from corvin.strategy.rca_generator import RCAGenerator
-from corvin.delivery.rca_notification import send_rca_email_if_enabled
+from corvin.delivery.rca_notification import send_rca_email_if_enabled, publish_wiki_page_if_enabled
 
 _log = logging.getLogger(__name__)
 
@@ -271,6 +271,7 @@ class InvestigationStreamer:
                 )
 
             email_sent = send_rca_email_if_enabled(result, ado_work_item_url=ado_url)
+            publish_wiki_page_if_enabled(result)
 
         yield _stage_event(
             "complete",
