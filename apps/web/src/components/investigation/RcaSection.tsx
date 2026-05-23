@@ -267,6 +267,25 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
               Review Actions →
             </Link>
           </div>
+        ) : fix_strategy ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '12px 14px',
+            borderRadius: 10,
+            background: 'var(--c-success-bg)',
+            border: '1px solid var(--c-success-border)',
+            color: 'var(--c-green)',
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.82rem',
+            lineHeight: 1.45,
+          }}>
+            <span style={{ fontWeight: 800 }}>✓ No action needed.</span>
+            <span style={{ color: 'var(--c-text-dim)' }}>
+              RCA indicates this was a healthy/informational check, so no remediation actions are required.
+            </span>
+          </div>
         ) : (
           <div style={{
             fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)',

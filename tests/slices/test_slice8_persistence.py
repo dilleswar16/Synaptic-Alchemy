@@ -77,7 +77,6 @@ def _make_full_result() -> InvestigationResult:
         aks_context={
             "pods": [{"name": "order-svc-abc", "status": "CrashLoopBackOff", "restarts": 5}]
         },
-        azure_activity_changes=[{"operationName": "Microsoft.Compute/virtualMachines/deployments"}],
     )
     rca = RCAOutput(
         request_id=request.id,
@@ -85,7 +84,7 @@ def _make_full_result() -> InvestigationResult:
         root_cause="Missing null-guard on discount code field after recent deploy.",
         contributing_factors=["recent deployment", "traffic spike"],
         confidence=RCAConfidence.HIGH,
-        evidence_references=["elastic_logs[0]", "azure_activity_changes[0]"],
+        evidence_references=["elastic_logs[0]", "aks_context[0]"],
     )
     fix_strategy = FixStrategyOutput(
         request_id=request.id,
@@ -172,7 +171,7 @@ def test_get_investigation_result_reconstructs_rca_fields(repo):
     assert loaded.rca.root_cause == result.rca.root_cause
     assert loaded.rca.confidence == RCAConfidence.HIGH
     assert loaded.rca.contributing_factors == ["recent deployment", "traffic spike"]
-    assert loaded.rca.evidence_references == ["elastic_logs[0]", "azure_activity_changes[0]"]
+    assert loaded.rca.evidence_references == ["elastic_logs[0]", "aks_context[0]"]
 
 
 def test_get_investigation_result_reconstructs_fix_strategy_fields(repo):
@@ -226,9 +225,7 @@ def test_evidence_bundle_list_fields_round_trip(repo):
     assert ev.elastic_logs == [{"message": "NullPointerException in OrderController", "level": "ERROR"}]
     assert ev.elastic_metrics == [{"metric": "jvm.heap.used", "value": 3072}]
     assert ev.log_analytics_apim == [{"ResponseCode": 500, "ApiId": "/orders/checkout"}]
-    assert ev.azure_activity_changes == [
-        {"operationName": "Microsoft.Compute/virtualMachines/deployments"}
-    ]
+    assert ev.azure_activity_changes == []
 
 
 def test_evidence_bundle_dict_field_round_trips(repo):

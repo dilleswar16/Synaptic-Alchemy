@@ -183,6 +183,23 @@ def test_reject_route_200():
         _cleanup()
 
 
+def test_acknowledge_route_200():
+    """POST /investigations/{id}/acknowledge returns 200 with approval_status=acknowledged."""
+    sf = _sqlite_session_factory()
+    repo = InvestigationRepository(session_factory=sf)
+    rid = _make_request_row(sf)
+
+    client = _client_with_repo(repo)
+    try:
+        resp = client.post(f"/investigations/{rid}/acknowledge")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["approval_status"] == "acknowledged"
+        assert body["request_id"] == rid
+    finally:
+        _cleanup()
+
+
 def test_approve_route_404_unknown_id():
     """POST /investigations/{id}/approve returns 404 when id does not exist."""
     sf = _sqlite_session_factory()
@@ -205,6 +222,34 @@ def test_reject_route_404_unknown_id():
     try:
         resp = client.post("/investigations/unknown-id/reject")
         assert resp.status_code == 404
+    finally:
+        _cleanup()
+
+
+def test_acknowledge_route_404_unknown_id():
+    """POST /investigations/{id}/acknowledge returns 404 when id does not exist."""
+    sf = _sqlite_session_factory()
+    repo = InvestigationRepository(session_factory=sf)
+
+    client = _client_with_repo(repo)
+    try:
+        resp = client.post("/investigations/unknown-id/acknowledge")
+        assert resp.status_code == 404
+    finally:
+        _cleanup()
+
+
+def test_acknowledge_route_409_when_not_pending():
+    """POST /investigations/{id}/acknowledge returns 409 when current state is not pending."""
+    sf = _sqlite_session_factory()
+    repo = InvestigationRepository(session_factory=sf)
+    rid = _make_request_row(sf)
+    repo.update_approval_status(rid, ApprovalStatus.APPROVED)
+
+    client = _client_with_repo(repo)
+    try:
+        resp = client.post(f"/investigations/{rid}/acknowledge")
+        assert resp.status_code == 409
     finally:
         _cleanup()
 
@@ -269,6 +314,22 @@ def test_reject_persists_to_db():
         _cleanup()
 
     assert repo.get_approval_status(rid) == "rejected"
+
+
+def test_acknowledge_persists_to_db():
+    """After acknowledge route, get_approval_status confirms 'acknowledged' in the DB."""
+    sf = _sqlite_session_factory()
+    repo = InvestigationRepository(session_factory=sf)
+    rid = _make_request_row(sf)
+
+    client = _client_with_repo(repo)
+    try:
+        resp = client.post(f"/investigations/{rid}/acknowledge")
+        assert resp.status_code == 200
+    finally:
+        _cleanup()
+
+    assert repo.get_approval_status(rid) == "acknowledged"
 
 
 def test_approve_response_contains_message():

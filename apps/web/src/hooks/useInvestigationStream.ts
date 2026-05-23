@@ -43,6 +43,8 @@ export interface UseInvestigationStreamResult {
   streamText: Record<string, string>
   /** Live evidence-collection sub-events: one per source, running then done. */
   fetchingEvents: StageEvent[]
+  /** Live delivery sub-events: one per delivery target (db, ado, email, wiki). */
+  deliveryEvents: StageEvent[]
   /** True while the EventSource connection is open. */
   isStreaming: boolean
   /** True once a 'complete' or 'error' stage event is received. */
@@ -67,6 +69,7 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
   const [stages, setStages] = useState<StageEvent[]>([])
   const [streamText, setStreamText] = useState<Record<string, string>>({})
   const [fetchingEvents, setFetchingEvents] = useState<StageEvent[]>([])
+  const [deliveryEvents, setDeliveryEvents] = useState<StageEvent[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -85,6 +88,7 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
     setStages([])
     setStreamText({})
     setFetchingEvents([])
+    setDeliveryEvents([])
     setIsStreaming(false)
     setIsComplete(false)
     setError(null)
@@ -123,10 +127,11 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
             return
           }
 
-          // Evidence sub-events: accumulate separately so the UI can show
-          // live per-source progress rows (running → done with timing)
+          // Evidence and delivery sub-events: accumulate in separate arrays
+          // so the UI can show live per-source progress rows (running → done)
           if (data.status === 'fetching') {
-            setFetchingEvents((prev) => {
+            const setter = data.stage === 'delivery' ? setDeliveryEvents : setFetchingEvents
+            setter((prev) => {
               // Replace the existing entry for this source (running → done)
               const idx = prev.findIndex((e) => e.source === data.source)
               if (idx >= 0) {
@@ -171,5 +176,5 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
     [reset],
   )
 
-  return { stages, streamText, fetchingEvents, isStreaming, isComplete, error, requestId, adoWorkItemId, adoUrl, emailSent, start, reset }
+  return { stages, streamText, fetchingEvents, deliveryEvents, isStreaming, isComplete, error, requestId, adoWorkItemId, adoUrl, emailSent, start, reset }
 }

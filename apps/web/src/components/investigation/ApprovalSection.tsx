@@ -204,9 +204,8 @@ export function ApprovalSection({
       {status !== 'pending' && !outcome && (
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-text-muted)', marginTop: 8 }}>
           {status === 'approved' && 'Decision locked — proceed to execution below.'}
-          {status === 'rejected' && (isInformational
-            ? 'Acknowledged — confirmed healthy, closed as informational.'
-            : 'This investigation was rejected. No execution will occur.')}
+          {status === 'acknowledged' && 'Acknowledged — confirmed healthy, closed as informational.'}
+          {status === 'rejected' && 'This investigation was rejected. No execution will occur.'}
           {status === 'executed' && 'Fix strategy has already been executed.'}
         </div>
       )}

@@ -11,6 +11,7 @@ interface WorkflowStepperProps {
 
 export function WorkflowStepper({ approvalStatus, hasEvidence, hasRca }: WorkflowStepperProps) {
   const isRejected = approvalStatus === 'rejected'
+  const isAcknowledged = approvalStatus === 'acknowledged'
   const stages: { key: string; label: string; done: boolean; rejected: boolean }[] = [
     { key: 'triggered', label: 'Triggered',
       done: true, rejected: false },
@@ -19,8 +20,8 @@ export function WorkflowStepper({ approvalStatus, hasEvidence, hasRca }: Workflo
     { key: 'rca',       label: 'RCA',
       done: hasRca, rejected: false },
     { key: 'approval',
-      label: isRejected ? 'Rejected' : 'Approval',
-      done: ['approved', 'rejected', 'executed'].includes(approvalStatus),
+      label: isRejected ? 'Rejected' : isAcknowledged ? 'Acknowledged' : 'Approval',
+      done: ['approved', 'rejected', 'acknowledged', 'executed'].includes(approvalStatus),
       rejected: isRejected },
     { key: 'executed',  label: 'Executed',
       done: approvalStatus === 'executed', rejected: false },

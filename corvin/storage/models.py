@@ -45,6 +45,8 @@ class InvestigationRequestRow(Base):
     incident_priority: Mapped[str] = mapped_column(String(10), nullable=False, default="P3")
     lookback_minutes: Mapped[int] = mapped_column(nullable=False, default=60)
     ado_work_item_id: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)
+    wiki_url: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
+    sharepoint_url: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
     approved_by: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     approved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
@@ -129,6 +131,10 @@ class EvidenceBundleRow(Base):
     container_inventory: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
     node_inventory: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
     network_metrics: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
+    pod_restarts: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
+    oom_kill_events: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
+    autoscaler_events: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
+    health_probe_failures: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list, server_default="[]")
     collected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

@@ -225,7 +225,7 @@ function StartInvestigationForm() {
   const [queueDone, setQueueDone] = useState(0)
   const queryClient = useQueryClient()
 
-  const { stages, streamText, fetchingEvents, isStreaming, isComplete, error, requestId, adoWorkItemId, adoUrl, emailSent, start, reset } =
+  const { stages, streamText, fetchingEvents, deliveryEvents, isStreaming, isComplete, error, requestId, start, reset } =
     useInvestigationStream()
 
   const handleComplete = () => {
@@ -377,13 +377,11 @@ function StartInvestigationForm() {
             stages={stages}
             streamText={streamText}
             fetchingEvents={fetchingEvents}
+            deliveryEvents={deliveryEvents}
             isStreaming={isStreaming}
             isComplete={isComplete}
             error={error}
             requestId={requestId}
-            adoWorkItemId={adoWorkItemId}
-            adoUrl={adoUrl}
-            emailSent={emailSent}
             onReset={() => { pendingQueue.current = []; setQueueTotal(0); setQueueDone(0); reset(); handleComplete() }}
           />
         )}
@@ -604,6 +602,7 @@ export default function InvestigationsPage() {
           <option value="all">All Statuses</option>
           <option value="pending">pending</option>
           <option value="approved">approved</option>
+          <option value="acknowledged">acknowledged</option>
           <option value="rejected">rejected</option>
           <option value="executed">executed</option>
         </select>

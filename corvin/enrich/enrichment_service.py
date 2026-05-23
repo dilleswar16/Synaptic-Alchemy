@@ -18,7 +18,6 @@ from typing import Any
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import EvidenceBundle, InvestigationRequest
 from corvin.evidence.aks_adapter import AKSAdapter
-from corvin.evidence.azure_activity_adapter import AzureActivityAdapter
 from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
 from corvin.evidence.elastic_adapter import ElasticAdapter
 from corvin.evidence.log_analytics_adapter import LogAnalyticsAdapter
@@ -64,14 +63,12 @@ class EnrichmentService:
         elastic: ElasticAdapter | None = None,
         log_analytics: LogAnalyticsAdapter | None = None,
         aks: AKSAdapter | None = None,
-        azure_activity: AzureActivityAdapter | None = None,
         container_logs: ContainerLogsAdapter | None = None,
     ) -> None:
         elastic_cfg = load_config("integrations/elastic", get_env())
         self._elastic = elastic if elastic is not None else (ElasticAdapter() if elastic_cfg.get("enabled", True) else None)
         self._log_analytics = log_analytics or LogAnalyticsAdapter()
         self._aks = aks or AKSAdapter()
-        self._azure_activity = azure_activity or AzureActivityAdapter()
         self._container_logs = container_logs or ContainerLogsAdapter()
 
     def enrich(self, request: InvestigationRequest) -> EvidenceBundle:
@@ -132,15 +129,6 @@ class EnrichmentService:
             _log.warning("AKSAdapter.get_pod_context failed: %s", exc)
 
         try:
-            bundle.azure_activity_changes = self._azure_activity.get_recent_changes(
-                request.service_name, time_range_minutes=request.lookback_minutes
-            )
-        except NotImplementedError:
-            pass
-        except Exception as exc:
-            _log.warning("AzureActivityAdapter.get_recent_changes failed: %s", exc)
-
-        try:
             bundle.container_resource_metrics = self._container_logs.get_resource_metrics(
                 request.service_name, time_range_minutes=request.lookback_minutes
             )
@@ -175,6 +163,42 @@ class EnrichmentService:
             pass
         except Exception as exc:
             _log.warning("ContainerLogsAdapter.get_network_metrics failed: %s", exc)
+
+        try:
+            bundle.pod_restarts = self._container_logs.get_pod_restarts(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            )
+        except NotImplementedError:
+            pass
+        except Exception as exc:
+            _log.warning("ContainerLogsAdapter.get_pod_restarts failed: %s", exc)
+
+        try:
+            bundle.oom_kill_events = self._container_logs.get_oom_kill_events(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            )
+        except NotImplementedError:
+            pass
+        except Exception as exc:
+            _log.warning("ContainerLogsAdapter.get_oom_kill_events failed: %s", exc)
+
+        try:
+            bundle.autoscaler_events = self._container_logs.get_autoscaler_events(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            )
+        except NotImplementedError:
+            pass
+        except Exception as exc:
+            _log.warning("ContainerLogsAdapter.get_autoscaler_events failed: %s", exc)
+
+        try:
+            bundle.health_probe_failures = self._container_logs.get_health_probe_failures(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            )
+        except NotImplementedError:
+            pass
+        except Exception as exc:
+            _log.warning("ContainerLogsAdapter.get_health_probe_failures failed: %s", exc)
 
         return bundle
 
@@ -238,15 +262,8 @@ class EnrichmentService:
             ),
         )) or {}
 
-        b.azure_activity_changes = (yield from _timed_step(
-            "activity_changes", "AzureActivity",
-            lambda: self._azure_activity.get_recent_changes(
-                request.service_name, time_range_minutes=request.lookback_minutes
-            ),
-        )) or []
-
         b.container_resource_metrics = (yield from _timed_step(
-            "resource_metrics", "InsightsMetrics · cpu, mem",
+            "resource_metrics", "Perf · K8SContainer",
             lambda: self._container_logs.get_resource_metrics(
                 request.service_name, time_range_minutes=request.lookback_minutes
             ),
@@ -269,6 +286,34 @@ class EnrichmentService:
         b.network_metrics = (yield from _timed_step(
             "network_metrics", "InsightsMetrics · tx, rx",
             lambda: self._container_logs.get_network_metrics(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            ),
+        )) or []
+
+        b.pod_restarts = (yield from _timed_step(
+            "pod_restarts", "KubePodInventory · restarts",
+            lambda: self._container_logs.get_pod_restarts(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            ),
+        )) or []
+
+        b.oom_kill_events = (yield from _timed_step(
+            "oom_kill_events", "KubeEvents · OOMKill",
+            lambda: self._container_logs.get_oom_kill_events(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            ),
+        )) or []
+
+        b.autoscaler_events = (yield from _timed_step(
+            "autoscaler_events", "KubeEvents · HPA",
+            lambda: self._container_logs.get_autoscaler_events(
+                request.service_name, time_range_minutes=request.lookback_minutes
+            ),
+        )) or []
+
+        b.health_probe_failures = (yield from _timed_step(
+            "health_probe_failures", "KubeEvents · probes",
+            lambda: self._container_logs.get_health_probe_failures(
                 request.service_name, time_range_minutes=request.lookback_minutes
             ),
         )) or []

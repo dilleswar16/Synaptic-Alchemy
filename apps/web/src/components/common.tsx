@@ -89,7 +89,7 @@ export function Card({ children, className, style, accent, onClick }: CardProps)
  * Badge component — inline status indicator
  */
 interface BadgeProps {
-  status: 'pending' | 'approved' | 'rejected' | 'executed'
+  status: 'pending' | 'approved' | 'rejected' | 'acknowledged' | 'executed'
   children?: ReactNode
 }
 

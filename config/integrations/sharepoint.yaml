@@ -1,0 +1,27 @@
+# SharePoint integration settings
+# Uploads RCA PDF + markdown summaries to a SharePoint document library.
+# Uses Microsoft Graph API with client-credentials auth (app-only).
+
+# Set to true to enable SharePoint delivery.
+enabled: false
+
+# SharePoint site ID — find it via Graph Explorer:
+#   GET https://graph.microsoft.com/v1.0/sites/my.metlife.com:/sites/AustraliaChannelAPIforDigitalPlatform
+# Copy the "id" field from the response.
+site_id: "${SHAREPOINT_SITE_ID}"
+
+# Document library drive ID.
+# Set to "auto" to use the site's default document library (Documents).
+# Or paste a specific drive ID from:
+#   GET https://graph.microsoft.com/v1.0/sites/{site_id}/drives
+drive_id: "auto"
+
+# Folder path within the document library where reports are uploaded.
+# Subfolders are created automatically per investigation (date_service_env/).
+folder_path: "Corvin/Investigations"
+
+# Auth uses the same Microsoft Graph app registration as War Room:
+#   MICROSOFT_GRAPH_CLIENT_ID     — Azure AD app client ID
+#   MICROSOFT_GRAPH_CLIENT_SECRET — Azure AD app client secret
+#   AZURE_TENANT_ID               — Azure AD tenant ID
+# Required permission: Sites.ReadWrite.All (Application, not Delegated)

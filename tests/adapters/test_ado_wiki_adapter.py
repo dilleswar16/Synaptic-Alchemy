@@ -172,6 +172,7 @@ def test_publish_returns_url_on_success() -> None:
     assert "TestOrg" in url
     assert "TestProject" in url
     assert "my-wiki" in url
+    assert result.request_id in url
 
 
 def test_publish_calls_put_with_markdown_content() -> None:

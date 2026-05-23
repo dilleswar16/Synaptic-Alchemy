@@ -563,7 +563,14 @@ def _exec_roi(args: dict) -> dict:
 
 def _exec_topology(args: dict) -> dict:
     from corvin.storage.repository import InvestigationRepository
-    from corvin.investigation.topology import build_service_topology, ServiceTopology, TopologyNode, TopologyEdge, _inject_apim_topology
+    from corvin.investigation.topology import (
+        build_service_topology,
+        ServiceTopology,
+        TopologyNode,
+        TopologyEdge,
+        _inject_apim_topology,
+        build_pod_topology_node,
+    )
     repo = InvestigationRepository()
     results = repo.list_recent_results(limit=30)
 
@@ -600,10 +607,11 @@ def _exec_topology(args: dict) -> dict:
             if svc_id in nodes:
                 nodes[svc_id] = TopologyNode(id=svc_id, label=svc_name, kind="service", status=svc.get("status", "high"))
             for pod in svc.get("pods", []):
-                pod_name = pod.get("name", "")
-                pod_id = f"pod:{pod_name}"
-                nodes[pod_id] = TopologyNode(id=pod_id, label=pod_name, kind="pod", status="high")
-                edges[(svc_id, pod_id, "runs")] = TopologyEdge(source=svc_id, target=pod_id, label="runs")
+                if not isinstance(pod, dict):
+                    continue
+                pod_node = build_pod_topology_node(pod)
+                nodes[pod_node.id] = pod_node
+                edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(source=svc_id, target=pod_node.id, label="runs")
     except Exception:
         pass
 

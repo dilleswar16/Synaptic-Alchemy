@@ -73,6 +73,12 @@ def _make_result(
                 {"reason": "CPUThrottlingHigh", "message": "CPU throttling above threshold"},
             ],
         },
+        container_resource_metrics=[
+            {"Name": f"{service}-0", "CounterName": "cpuUsageNanoCores", "AvgValue": 220_000_000},
+            {"Name": f"{service}-0", "CounterName": "memoryWorkingSetBytes", "AvgValue": 300 * 1024 * 1024},
+            {"Name": f"{service}-1", "CounterName": "cpuUsageNanoCores", "AvgValue": 180_000_000},
+            {"Name": f"{service}-1", "CounterName": "memoryWorkingSetBytes", "AvgValue": 260 * 1024 * 1024},
+        ],
     )
     rca = RCAOutput(
         request_id=req.id,
@@ -149,6 +155,17 @@ def test_topology_builder_emits_nodes_and_edges():
     assert any(edge.label == "routes" for edge in topology.edges)
 
 
+def test_topology_builder_pod_node_includes_health_metrics():
+    topology = build_service_topology([_make_result()])
+    pod_nodes = [node for node in topology.nodes if node.kind == "pod"]
+
+    assert pod_nodes
+    assert all(node.restart_count is not None for node in pod_nodes)
+    assert all(node.status in {"high", "recovering", "hot"} for node in pod_nodes)
+    assert any(node.cpu_mcores is not None for node in pod_nodes)
+    assert any(node.memory_mib is not None for node in pod_nodes)
+
+
 class _FakeEngine:
     def run(self, request: InvestigationRequest) -> InvestigationResult:
         seeded = _make_result(service=request.service_name, env=request.environment, trigger=request.trigger_source, description=request.description)
@@ -176,7 +193,7 @@ def test_predictive_alerts_endpoint_returns_200(sqlite_repo):
     sqlite_repo.save_investigation_result(_make_result())
     client = _client_with(sqlite_repo)
 
-    response = client.get("/investigations/predictive-alerts")
+    response = client.get("/investigations/predictive-alerts?refresh=true")
 
     assert response.status_code == 200
     assert len(response.json()) >= 1
@@ -217,6 +234,57 @@ def test_topology_endpoint_returns_graph(sqlite_repo):
     assert response.json()["nodes"]
     assert response.json()["edges"]
     app.dependency_overrides.clear()
+
+
+def test_topology_live_endpoint_marks_unhealthy_pod_hot(monkeypatch):
+    class _FakeAksAdapter:
+        def list_all_pods(self):
+            return {
+                "services": [
+                    {
+                        "name": "chad-fundapis",
+                        "status": "high",
+                        "pods": [
+                            {
+                                "name": "fundapis-good-12345-abcde",
+                                "phase": "Running",
+                                "containers": [{"name": "main", "ready": True, "restart_count": 0}],
+                            },
+                            {
+                                "name": "fundapis-bad-12345-zzzzz",
+                                "phase": "Pending",
+                                "containers": [{"name": "main", "ready": False, "restart_count": 4}],
+                            },
+                        ],
+                    }
+                ]
+            }
+
+    class _FakeContainerLogsAdapter:
+        def get_resource_metrics(self, service_name: str):
+            if service_name == "fundapis":
+                return [
+                    {"Name": "fundapis-good-12345-abcde", "CounterName": "cpuUsageNanoCores", "AvgValue": 250_000_000},
+                    {"Name": "fundapis-good-12345-abcde", "CounterName": "memoryWorkingSetBytes", "AvgValue": 320 * 1024 * 1024},
+                    {"Name": "fundapis-bad-12345-zzzzz", "CounterName": "cpuUsageNanoCores", "AvgValue": 90_000_000},
+                    {"Name": "fundapis-bad-12345-zzzzz", "CounterName": "memoryWorkingSetBytes", "AvgValue": 140 * 1024 * 1024},
+                ]
+            return []
+
+    monkeypatch.setattr("corvin.evidence.aks_adapter.AKSAdapter", _FakeAksAdapter)
+    monkeypatch.setattr("corvin.evidence.container_logs_adapter.ContainerLogsAdapter", _FakeContainerLogsAdapter)
+
+    client = TestClient(app)
+    response = client.get("/investigations/topology/live")
+
+    assert response.status_code == 200
+    payload = response.json()
+    pod_nodes = [n for n in payload["nodes"] if n.get("kind") == "pod"]
+    assert any(n.get("status") == "high" for n in pod_nodes)
+    assert any(n.get("status") == "hot" for n in pod_nodes)
+    assert any("restart_count" in n for n in pod_nodes)
+    assert any(n.get("cpu_mcores") is not None for n in pod_nodes)
+    assert any(n.get("memory_mib") is not None for n in pod_nodes)
 
 
 def test_investigate_predictive_alert_runs_pipeline(sqlite_repo):

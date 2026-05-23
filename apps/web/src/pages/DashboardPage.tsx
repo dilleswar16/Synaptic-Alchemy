@@ -604,11 +604,18 @@ export default function DashboardPage() {
               delay={120}
             />
             <MetricCard
+              label="Acknowledged"
+              value={appr?.acknowledged ?? '—'}
+              sub="informational closes"
+              accent="var(--c-green)"
+              delay={140}
+            />
+            <MetricCard
               label="Rejected"
               value={appr?.rejected ?? '—'}
               sub="investigations rejected"
               accent="var(--c-red)"
-              delay={140}
+              delay={160}
             />
           </div>
         </div>

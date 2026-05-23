@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 
 from corvin.core.contracts import ApprovalStatus, InvestigationRequest, InvestigationResult, TriggerSource
+from corvin.delivery.azure_devops_adapter import AzureDevOpsAdapter
 from corvin.delivery.rca_notification import send_rca_email_if_enabled
 from corvin.delivery.rca_pdf import build_rca_pdf
 from corvin.delivery.teams_adapter import TeamsAdapter
@@ -97,6 +98,36 @@ class ApprovalResponse(BaseModel):
     message: str
 
 
+def _sync_ado_acknowledged_close(
+    request_id: str,
+    repo: InvestigationRepository,
+) -> tuple[bool, str]:
+    """Best-effort: close linked ADO ticket and append an acknowledgement comment."""
+    work_item_id = repo.get_ado_work_item_id(request_id)
+    if not work_item_id:
+        return True, "No Azure Boards ticket linked for this investigation."
+
+    config = load_config("integrations/azure_devops", get_env())
+    adapter = AzureDevOpsAdapter(config)
+
+    comment = (
+        "Corvin update: No action needed. "
+        "Operator acknowledged this investigation as informational and closed the ticket. "
+        f"Investigation ID: {request_id}."
+    )
+
+    state_ok = adapter.update_work_item_state(work_item_id, "Closed")
+    comment_ok = adapter.add_comment(work_item_id, comment)
+
+    if state_ok and comment_ok:
+        return True, f"Azure Boards #{work_item_id} updated (state=Closed + acknowledgement comment)."
+    if state_ok and not comment_ok:
+        return False, f"Azure Boards #{work_item_id} state was closed, but comment update failed."
+    if not state_ok and comment_ok:
+        return False, f"Azure Boards #{work_item_id} comment posted, but state update to Closed failed."
+    return False, f"Azure Boards #{work_item_id} update failed (state and comment)."
+
+
 class ExecutionResponse(BaseModel):
     request_id: str
     approval_status: str
@@ -123,6 +154,7 @@ class BriefingResponse(BaseModel):
     total_investigations: int
     pending_approval: int
     approved: int
+    acknowledged: int
     executed: int
     rejected: int
     high_confidence_pending: int
@@ -483,10 +515,61 @@ def get_topology_live() -> dict:
     nodes so the canvas is never blank.
     """
     from corvin.evidence.aks_adapter import AKSAdapter
+    from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
     from corvin.investigation.topology import (
         ServiceTopology, TopologyNode, TopologyEdge,
-        _inject_apim_topology,
+        _inject_apim_topology, build_pod_topology_node,
     )
+
+    def _coerce_float(value: object) -> float | None:
+        try:
+            return float(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return None
+
+    def _resource_summary(rows: list[dict]) -> tuple[float | None, float | None]:
+        cpu_values: list[float] = []
+        memory_values: list[float] = []
+
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            counter = str(
+                row.get("CounterName")
+                or row.get("counter_name")
+                or row.get("countername")
+                or ""
+            )
+            value = (
+                _coerce_float(row.get("AvgValue"))
+                or _coerce_float(row.get("avg_value"))
+                or _coerce_float(row.get("CounterValue"))
+                or _coerce_float(row.get("counter_value"))
+                or _coerce_float(row.get("MaxValue"))
+                or _coerce_float(row.get("max_value"))
+            )
+            if value is None:
+                continue
+
+            if "cpuUsageNanoCores" in counter:
+                cpu_values.append(value / 1_000_000.0)
+            elif "memoryWorkingSetBytes" in counter or "memoryRssBytes" in counter:
+                memory_values.append(value / (1024.0 * 1024.0))
+
+        cpu_mcores = round(sum(cpu_values) / len(cpu_values), 1) if cpu_values else None
+        memory_mib = round(sum(memory_values) / len(memory_values), 1) if memory_values else None
+        return cpu_mcores, memory_mib
+
+    def _resource_summary_by_pod(rows: list[dict]) -> dict[str, tuple[float | None, float | None]]:
+        by_pod: dict[str, list[dict]] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            pod_name = str(row.get("Name") or row.get("PodName") or row.get("pod_name") or "").strip()
+            if not pod_name:
+                continue
+            by_pod.setdefault(pod_name, []).append(row)
+        return {pod_name: _resource_summary(pod_rows) for pod_name, pod_rows in by_pod.items()}
 
     # AKS deployment label → logical CHAD service name.
     # The `app` label in k8s is "chad-fundapis" but we call it "fundapis" everywhere.
@@ -512,6 +595,7 @@ def get_topology_live() -> dict:
     # ── Live pod data from AKS — overlay status + pod children ───────────────
     try:
         adapter = AKSAdapter()
+        logs_adapter = ContainerLogsAdapter()
         result = adapter.list_all_pods()
         for svc in result.get("services", []):
             raw_name = svc["name"]
@@ -519,17 +603,34 @@ def get_topology_live() -> dict:
             logical_name = _AKS_NAME_MAP.get(raw_name, raw_name)
             svc_id = f"svc:{logical_name}"
             live_status = svc.get("status", "high")
+            try:
+                metric_rows = logs_adapter.get_resource_metrics(logical_name)
+            except Exception:
+                metric_rows = []
+            cpu_mcores, memory_mib = _resource_summary(metric_rows)
+            pod_resource_map = _resource_summary_by_pod(metric_rows)
             # Update or create the service node with the live status
-            nodes[svc_id] = TopologyNode(id=svc_id, label=logical_name, kind="service", status=live_status)
+            nodes[svc_id] = TopologyNode(
+                id=svc_id,
+                label=logical_name,
+                kind="service",
+                status=live_status,
+                cpu_mcores=cpu_mcores,
+                memory_mib=memory_mib,
+            )
             for pod in svc.get("pods", []):
-                pod_name = pod.get("name", "")
-                pod_id = f"pod:{pod_name}"
-                phase = pod.get("phase") or "Unknown"
-                containers = pod.get("containers", [])
-                any_bad = any(not c.get("ready", True) for c in containers)
-                pod_status = "hot" if (phase not in ("Running", "Succeeded") or any_bad) else "high"
-                nodes[pod_id] = TopologyNode(id=pod_id, label=pod_name, kind="pod", status=pod_status)
-                edges[(svc_id, pod_id, "runs")] = TopologyEdge(source=svc_id, target=pod_id, label="runs")
+                if not isinstance(pod, dict):
+                    continue
+                pod_copy = dict(pod)
+                pod_name = str(pod_copy.get("name") or pod_copy.get("pod") or "").strip()
+                pod_cpu, pod_mem = pod_resource_map.get(pod_name, (None, None))
+                if pod_cpu is not None:
+                    pod_copy["cpu_mcores"] = pod_cpu
+                if pod_mem is not None:
+                    pod_copy["memory_mib"] = pod_mem
+                pod_node = build_pod_topology_node(pod_copy)
+                nodes[pod_node.id] = pod_node
+                edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(source=svc_id, target=pod_node.id, label="runs")
     except Exception as exc:
         import logging
         logging.getLogger(__name__).warning("topology/live AKS call failed (static nodes still returned): %s", exc)
@@ -783,6 +884,47 @@ def reject_investigation(
         request_id=request_id,
         approval_status=ApprovalStatus.REJECTED.value,
         message="Investigation rejected. No fix will be executed.",
+    )
+
+
+@router.post("/{request_id}/acknowledge", response_model=ApprovalResponse, status_code=200)
+def acknowledge_investigation(
+    request_id: str,
+    approved_by: Optional[str] = Query(default=None, description="SRE name/email for audit log"),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> ApprovalResponse:
+    """Acknowledge an informational investigation and close linked ADO ticket.
+
+    Transitions approval_status: pending -> acknowledged.
+    Best-effort sync: when an Azure Boards work item is linked, sets state to
+    Closed and adds an acknowledgement comment.
+    """
+    row = repo.get_approval_status(request_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+    if row != ApprovalStatus.PENDING.value:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Investigation {request_id!r} is in state {row!r}; "
+                f"only investigations in 'pending' can be acknowledged."
+            ),
+        )
+
+    repo.update_approval_status(request_id, ApprovalStatus.ACKNOWLEDGED, approved_by=approved_by)
+
+    ado_ok, ado_msg = _sync_ado_acknowledged_close(request_id, repo)
+    message = (
+        "Investigation acknowledged and closed as informational. "
+        f"{ado_msg}"
+    )
+    if not ado_ok:
+        _log.warning("Acknowledge completed but ADO sync had issues for %s: %s", request_id, ado_msg)
+
+    return ApprovalResponse(
+        request_id=request_id,
+        approval_status=ApprovalStatus.ACKNOWLEDGED.value,
+        message=message,
     )
 
 

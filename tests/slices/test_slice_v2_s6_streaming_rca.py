@@ -23,7 +23,7 @@ Backend (InvestigationStreamer):
   11. Error event is valid JSON with a ``detail`` field.
   12. Result is persisted via repository when one is provided.
   13. Result is NOT persisted when no repository is provided.
-  14. Stage order: evidence before rca before fix_strategy before complete.
+  14. Stage order: evidence before rca before fix_strategy before delivery before complete.
 
 Route (GET /investigations/stream):
   15. Returns HTTP 200.
@@ -254,6 +254,7 @@ def test_streamer_emits_fix_strategy_complete_event_with_action_count():
     ev = next(e for e in events if e["stage"] == "fix_strategy" and e["status"] == "complete")
     assert ev["summary"]
     assert ev["action_count"] == 1
+    assert ev["action_risk_levels"] == ["low"]
 
 
 def test_streamer_emits_complete_event_with_request_id():
@@ -289,7 +290,7 @@ def test_streamer_stage_order():
     for e in events:
         if e["stage"] not in seen:
             seen.append(e["stage"])
-    expected_order = ["evidence", "rca", "fix_strategy", "complete"]
+    expected_order = ["evidence", "rca", "fix_strategy", "delivery", "complete"]
     for expected, actual in zip(expected_order, seen):
         assert expected == actual, f"Expected stage {expected!r} at position, got {actual!r}"
 
@@ -416,7 +417,7 @@ def test_stream_route_stage_order():
         for e in events:
             if e["stage"] not in seen:
                 seen.append(e["stage"])
-        expected = ["evidence", "rca", "fix_strategy", "complete"]
+        expected = ["evidence", "rca", "fix_strategy", "delivery", "complete"]
         assert seen == expected
     finally:
         app.dependency_overrides.pop(get_streamer, None)

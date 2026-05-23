@@ -25,6 +25,7 @@ interface Props {
 const STATUS_COLOUR: Record<string, string> = {
   pending:  'var(--c-signal)',
   approved: 'var(--c-green)',
+  acknowledged: 'var(--c-green)',
   rejected: 'var(--c-red)',
   executed: 'var(--c-info)',
 }
@@ -36,6 +37,7 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
   const confColour   = CONF_COLOUR[rca.confidence]  ?? 'var(--c-text-muted)'
   const statusColour = STATUS_COLOUR[approvalStatus] ?? 'var(--c-text-muted)'
   const topAction    = fix_strategy?.actions?.[0]
+  const hasFixStrategy = !!fix_strategy
 
   const confPct = rca.confidence === 'high' ? 85 : rca.confidence === 'medium' ? 52 : 20
 
@@ -186,6 +188,20 @@ export function IncidentHeroCard({ data, approvalStatus }: Props) {
               )}
             </div>
           </>
+        ) : hasFixStrategy ? (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.88rem',
+            color: 'var(--c-text-muted)',
+          }}>
+            <span style={{ color: 'var(--c-green)', fontWeight: 700 }}>No action needed.</span>
+            <span>
+              Corvin found the service healthy in this window, so the fix strategy is informational only.
+            </span>
+          </div>
         ) : (
           <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.88rem', color: 'var(--c-text-muted)', fontStyle: 'italic' }}>
             No fix strategy generated yet.

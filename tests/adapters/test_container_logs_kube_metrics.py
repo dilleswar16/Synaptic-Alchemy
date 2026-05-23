@@ -61,6 +61,34 @@ class FakeContainerLogsAdapter(ContainerLogsAdapter):
             {"HostName": "aks-nodepool1-vmss000000", "Name": "bytes_recv", "AvgValue": 2_048_000, "MaxValue": 8_192_000},
         ]
 
+    def get_pod_restarts(
+        self, service_name: str, namespace: str | None = None, time_range_minutes: int | None = None
+    ) -> list[dict[str, Any]]:
+        return [
+            {"Name": f"{service_name}-abc-xyz", "PodStatus": "Running", "ContainerRestartCount": 3, "PodRestartCount": 3},
+        ]
+
+    def get_oom_kill_events(
+        self, service_name: str, namespace: str | None = None, time_range_minutes: int | None = None
+    ) -> list[dict[str, Any]]:
+        return [
+            {"Name": f"{service_name}-abc-xyz", "Reason": "OOMKilled", "Message": "Container killed due to OOM", "Count": 1},
+        ]
+
+    def get_autoscaler_events(
+        self, service_name: str, namespace: str | None = None, time_range_minutes: int | None = None
+    ) -> list[dict[str, Any]]:
+        return [
+            {"Name": "order-service-hpa", "Reason": "SuccessfulRescale", "Message": "New size: 3", "ObjectKind": "HorizontalPodAutoscaler", "Count": 1},
+        ]
+
+    def get_health_probe_failures(
+        self, service_name: str, namespace: str | None = None, time_range_minutes: int | None = None
+    ) -> list[dict[str, Any]]:
+        return [
+            {"Name": f"{service_name}-abc-xyz", "Reason": "Unhealthy", "Message": "Readiness probe failed: HTTP 503", "Count": 2},
+        ]
+
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -117,6 +145,10 @@ def test_no_client_returns_empty_list():
     assert adapter.get_container_inventory("svc") == []
     assert adapter.get_node_inventory("svc") == []
     assert adapter.get_network_metrics("svc") == []
+    assert adapter.get_pod_restarts("svc") == []
+    assert adapter.get_oom_kill_events("svc") == []
+    assert adapter.get_autoscaler_events("svc") == []
+    assert adapter.get_health_probe_failures("svc") == []
 
 
 def test_enrichment_bundle_has_new_fields():
@@ -128,6 +160,10 @@ def test_enrichment_bundle_has_new_fields():
     assert bundle.container_inventory == []
     assert bundle.node_inventory == []
     assert bundle.network_metrics == []
+    assert bundle.pod_restarts == []
+    assert bundle.oom_kill_events == []
+    assert bundle.autoscaler_events == []
+    assert bundle.health_probe_failures == []
 
 
 def test_enrichment_service_wires_new_sources():
@@ -159,3 +195,7 @@ def test_enrichment_service_wires_new_sources():
     assert len(bundle.container_inventory) == 1
     assert len(bundle.node_inventory) == 1
     assert len(bundle.network_metrics) == 2
+    assert len(bundle.pod_restarts) == 1
+    assert len(bundle.oom_kill_events) == 1
+    assert len(bundle.autoscaler_events) == 1
+    assert len(bundle.health_probe_failures) == 1

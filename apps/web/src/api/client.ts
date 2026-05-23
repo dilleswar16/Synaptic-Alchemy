@@ -78,6 +78,8 @@ export interface InvestigationResult {
   completed_at: string
   ado_work_item_id: string | null
   ado_url: string | null
+  wiki_url: string | null
+  sharepoint_url: string | null
 }
 
 export function fetchInvestigations() {
@@ -166,7 +168,7 @@ export interface InvestigationStats {
   total_investigations: number
   today_count: number
   confidence_distribution: { high: number; medium: number; low: number }
-  approval_distribution: { pending: number; approved: number; rejected: number; executed: number }
+  approval_distribution: { pending: number; approved: number; rejected: number; acknowledged: number; executed: number }
   avg_mttr_minutes: number | null
   auto_resolved_rate: number
   recent_services: string[]
@@ -277,6 +279,7 @@ export interface BriefingPayload {
   total_investigations: number
   pending_approval: number
   approved: number
+  acknowledged: number
   executed: number
   rejected: number
   high_confidence_pending: number
@@ -428,6 +431,13 @@ export interface TopologyNode {
   label: string
   kind: string
   status: string
+  cpu_mcores?: number | null
+  memory_mib?: number | null
+  phase?: string | null
+  ready_containers?: number | null
+  total_containers?: number | null
+  restart_count?: number | null
+  unhealthy_containers?: number | null
 }
 
 export interface TopologyEdge {

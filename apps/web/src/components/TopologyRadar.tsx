@@ -36,8 +36,9 @@ const STATUS_HEX: Record<string, string> = {
 
 // ── Custom node components ─────────────────────────────────────────────────────
 
-function ServiceNode({ data }: { data: { label: string; status: string; sublabel?: string; onClick: () => void } }) {
+function ServiceNode({ data }: { data: { label: string; status: string; sublabel?: string; cpu_mcores?: number | null; memory_mib?: number | null; onClick: () => void } }) {
   const accent = STATUS_HEX[data.status] ?? 'var(--c-text-faint)'
+  const showMetrics = typeof data.cpu_mcores === 'number' || typeof data.memory_mib === 'number'
   return (
     <div
       onClick={data.onClick}
@@ -64,6 +65,20 @@ function ServiceNode({ data }: { data: { label: string; status: string; sublabel
           </span>
         </div>
       )}
+      {showMetrics && (
+        <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {typeof data.cpu_mcores === 'number' && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>
+              CPU {data.cpu_mcores} mC
+            </span>
+          )}
+          {typeof data.memory_mib === 'number' && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>
+              MEM {data.memory_mib} MiB
+            </span>
+          )}
+        </div>
+      )}
       <Handle type="source" position={Position.Right} style={{ background: accent, borderColor: accent, width: 8, height: 8 }} />
     </div>
   )
@@ -84,10 +99,18 @@ function splitPodName(name: string): [string, string] {
   return [parts.slice(0, splitIdx).join('-'), parts.slice(splitIdx).join('-')]
 }
 
-function PodNode({ data }: { data: { label: string; status: string; sublabel?: string } }) {
+function PodNode({ data }: { data: { label: string; status: string; sublabel?: string; cpu_mcores?: number | null; memory_mib?: number | null; phase?: string | null; ready_containers?: number | null; total_containers?: number | null; restart_count?: number | null; unhealthy_containers?: number | null } }) {
   const accent = STATUS_HEX[data.status] ?? 'var(--c-text-faint)'
+  const healthLabel = data.status === 'hot' ? 'unhealthy' : data.status === 'recovering' ? 'degraded' : 'healthy'
   const [base, suffix] = splitPodName(data.label)
   const typeLabel = data.sublabel ?? 'pod'
+  const ready = typeof data.ready_containers === 'number' ? data.ready_containers : 0
+  const total = typeof data.total_containers === 'number' ? data.total_containers : 0
+  const restarts = typeof data.restart_count === 'number' ? data.restart_count : 0
+  const cpu = typeof data.cpu_mcores === 'number' ? data.cpu_mcores : null
+  const memory = typeof data.memory_mib === 'number' ? data.memory_mib : null
+  const phase = data.phase ?? 'Unknown'
+  const showRuntimeMetrics = String(typeLabel).toLowerCase() === 'pod'
   return (
     <div style={{
       padding: '8px 12px', minWidth: 200, borderRadius: 8,
@@ -100,14 +123,40 @@ function PodNode({ data }: { data: { label: string; status: string; sublabel?: s
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: accent, boxShadow: `0 0 8px ${accent}`, flexShrink: 0 }} />
         <div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: accent, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 1, opacity: 0.85 }}>{typeLabel}</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--c-text)', lineHeight: 1.3 }}>{base}</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: accent, lineHeight: 1.3 }}>{base}</div>
           {suffix && (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-info)', lineHeight: 1.25, marginTop: 1 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: accent, lineHeight: 1.25, marginTop: 1, opacity: 0.9 }}>
               {suffix}
             </div>
           )}
         </div>
       </div>
+      {showRuntimeMetrics && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', padding: '1px 6px', borderRadius: 999, border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`, color: accent, background: `color-mix(in srgb, ${accent} 14%, transparent)`, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            {healthLabel}
+          </span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>
+            phase: {phase}
+          </span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>
+            ready: {ready}/{total}
+          </span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: restarts > 0 ? 'var(--c-warning)' : 'var(--c-text-dim)' }}>
+            restarts: {restarts}
+          </span>
+          {cpu !== null && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>
+              cpu: {cpu} mC
+            </span>
+          )}
+          {memory !== null && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>
+              mem: {memory} MiB
+            </span>
+          )}
+        </div>
+      )}
       <Handle type="source" position={Position.Right} style={{ background: accent, borderColor: accent, width: 6, height: 6 }} />
     </div>
   )
@@ -181,9 +230,9 @@ const SVC_X = 440
 const API_X = 230
 const GW_X  = 20
 const POD_X = 710
-const SVC_GAP = 160
-const POD_GAP = 96
-const CENTER_Y = 260
+const SVC_GAP = 220
+const POD_GAP = 126
+const CENTER_Y = 320
 
 function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: string) => void) {
   const nodeMap = new Map(topology.nodes.map(n => [n.id, n]))
@@ -212,7 +261,13 @@ function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: st
     nodes.push({
       id: svc.id, type: 'service',
       position: { x: SVC_X, y },
-      data: { label: svc.label, status: svc.status, onClick: () => onServiceClick(svc.label) },
+      data: {
+        label: svc.label,
+        status: svc.status,
+        cpu_mcores: svc.cpu_mcores,
+        memory_mib: svc.memory_mib,
+        onClick: () => onServiceClick(svc.label),
+      },
     })
   })
 
@@ -227,7 +282,22 @@ function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: st
       const pod = nodeMap.get(podId)!
       const y = groupStartY + i * POD_GAP
       posMap.set(podId, { x: POD_X, y })
-      nodes.push({ id: podId, type: 'pod', position: { x: POD_X, y }, data: { label: pod.label, status: pod.status } })
+      nodes.push({
+        id: podId,
+        type: 'pod',
+        position: { x: POD_X, y },
+        data: {
+          label: pod.label,
+          status: pod.status,
+          phase: pod.phase,
+          cpu_mcores: pod.cpu_mcores,
+          memory_mib: pod.memory_mib,
+          ready_containers: pod.ready_containers,
+          total_containers: pod.total_containers,
+          restart_count: pod.restart_count,
+          unhealthy_containers: pod.unhealthy_containers,
+        },
+      })
     })
   }
 
@@ -283,7 +353,12 @@ function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: st
     }
   })
 
-  return { nodes, edges }
+  const verticalPoints = nodes.map(n => n.position.y)
+  const minY = verticalPoints.length ? Math.min(...verticalPoints) : 0
+  const maxY = verticalPoints.length ? Math.max(...verticalPoints) : 500
+  const estimatedHeight = Math.max(560, Math.min(980, Math.round((maxY - minY) + 360)))
+
+  return { nodes, edges, estimatedHeight }
 }
 
 // ── Corvin-flow static graph ──────────────────────────────────────────────────
@@ -296,33 +371,31 @@ const CORVIN_NODES: Node[] = [
     data: { label: 'Azure Alert', sublabel: 'TRIGGER' } },
 
   // col 1 — Evidence adapters
-  { id: 'ev-apim', type: 'api', position: { x: 220, y: 80 },
-    data: { label: 'APIM Logs', sublabel: 'ADAPTER' } },
-  { id: 'ev-aks', type: 'api', position: { x: 220, y: 210 },
-    data: { label: 'AKS Pods', sublabel: 'ADAPTER' } },
-  { id: 'ev-logs', type: 'api', position: { x: 220, y: 340 },
-    data: { label: 'Container Logs', sublabel: 'ADAPTER' } },
-  { id: 'ev-activity', type: 'api', position: { x: 220, y: 470 },
-    data: { label: 'Activity Log', sublabel: 'ADAPTER' } },
+  { id: 'ev-apim', type: 'api', position: { x: 220, y: 140 },
+    data: { label: 'APIM Gateway', sublabel: 'REQUESTS • ERRORS' } },
+  { id: 'ev-aks', type: 'api', position: { x: 220, y: 300 },
+    data: { label: 'Kubernetes', sublabel: 'CPU • MEMORY • PODS' } },
+  { id: 'ev-logs', type: 'api', position: { x: 220, y: 460 },
+    data: { label: 'App Logs', sublabel: 'EXCEPTIONS • LATENCY' } },
 
   // col 2 — Engine (brand orange)
   { id: 'engine', type: 'service', position: { x: 440, y: 265 },
     data: { label: 'Corvin Engine', status: 'engine', sublabel: 'ENGINE', onClick: () => {} } },
 
   // col 3 — LLM output
-  { id: 'rca', type: 'pod', position: { x: 650, y: 185 },
+  { id: 'rca', type: 'pod', position: { x: 640, y: 185 },
     data: { label: 'RCA · GPT-5.1', status: 'high', sublabel: 'OUTPUT' } },
-  { id: 'fix', type: 'pod', position: { x: 650, y: 325 },
+  { id: 'fix', type: 'pod', position: { x: 640, y: 325 },
     data: { label: 'Fix Strategy', status: 'high', sublabel: 'OUTPUT' } },
 
   // col 4 — Human approval gate
-  { id: 'approval', type: 'backend', position: { x: 860, y: 255 },
+  { id: 'approval', type: 'backend', position: { x: 960, y: 255 },
     data: { label: 'Human Approval', sublabel: 'TEAMS / UI' } },
 
   // col 5 — Execution + delivery
-  { id: 'execute', type: 'service', position: { x: 1060, y: 185 },
+  { id: 'execute', type: 'service', position: { x: 1180, y: 185 },
     data: { label: 'Execute Fix', status: 'high', sublabel: 'AKS · kubectl', onClick: () => {} } },
-  { id: 'notify', type: 'gateway', position: { x: 1060, y: 330 },
+  { id: 'notify', type: 'gateway', position: { x: 1180, y: 330 },
     data: { label: 'Teams + Email', sublabel: 'DELIVERY' } },
 ]
 
@@ -337,9 +410,6 @@ const CORVIN_EDGES: Edge[] = [
   { id: 'ce3', source: 'trigger', target: 'ev-logs', animated: true,
     style: { stroke: 'rgba(14,165,233,0.65)', strokeWidth: 1.8 },
     markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(14,165,233,0.65)', width: 15, height: 15 } },
-  { id: 'ce4', source: 'trigger', target: 'ev-activity', animated: true,
-    style: { stroke: 'rgba(14,165,233,0.65)', strokeWidth: 1.8 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(14,165,233,0.65)', width: 15, height: 15 } },
   // evidence → engine (teal)
   { id: 'ce5', source: 'ev-apim', target: 'engine', animated: true, label: 'enrich',
     style: { stroke: 'rgba(13,148,136,0.55)', strokeWidth: 1.8 },
@@ -348,9 +418,6 @@ const CORVIN_EDGES: Edge[] = [
     style: { stroke: 'rgba(13,148,136,0.55)', strokeWidth: 1.8 },
     markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(13,148,136,0.55)', width: 15, height: 15 } },
   { id: 'ce7', source: 'ev-logs', target: 'engine', animated: true,
-    style: { stroke: 'rgba(13,148,136,0.55)', strokeWidth: 1.8 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(13,148,136,0.55)', width: 15, height: 15 } },
-  { id: 'ce8', source: 'ev-activity', target: 'engine', animated: true,
     style: { stroke: 'rgba(13,148,136,0.55)', strokeWidth: 1.8 },
     markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(13,148,136,0.55)', width: 15, height: 15 } },
   // engine → output (green)
@@ -452,10 +519,12 @@ export function TopologyRadar() {
   // App view: live pods from AKS. Corvin view: DB-backed investigation graph.
   const activeSource = viewMode === 'app' ? liveData : data
 
-  const { nodes: appNodes, edges: appEdges } = useMemo(
-    () => activeSource ? buildFlowElements(activeSource, onServiceClick) : { nodes: [], edges: [] },
+  const { nodes: appNodes, edges: appEdges, estimatedHeight: appHeight } = useMemo(
+    () => activeSource ? buildFlowElements(activeSource, onServiceClick) : { nodes: [], edges: [], estimatedHeight: 560 },
     [activeSource, onServiceClick],
   )
+
+  const graphHeight = viewMode === 'app' ? appHeight : 560
 
   const serviceNodes = activeSource?.nodes.filter(n => n.kind === 'service') ?? []
   const activeNodes = viewMode === 'app' ? appNodes : CORVIN_NODES
@@ -565,7 +634,7 @@ export function TopologyRadar() {
 
       {/* React Flow canvas */}
       <div style={{
-        height: 500, borderRadius: 12, overflow: 'hidden',
+        height: graphHeight, borderRadius: 12, overflow: 'hidden',
         border: '1px solid var(--c-border)',
         background: 'linear-gradient(160deg, var(--c-surface) 0%, var(--c-surface-2) 100%)',
         position: 'relative',
@@ -603,11 +672,14 @@ export function TopologyRadar() {
           {serviceNodes.map((node: TopologyNode) => (
             <Link key={node.id} to={`/investigations?service=${encodeURIComponent(node.label)}`} style={{
               fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '5px 10px', borderRadius: 999,
-              border: '1px solid var(--c-border)', background: 'var(--c-surface-2)', color: 'var(--c-text-dim)', textDecoration: 'none',
+              border: '1px solid var(--c-border)', background: `color-mix(in srgb, ${STATUS_HEX[node.status] ?? 'var(--c-text-faint)'} 14%, var(--c-surface-2))`, color: STATUS_HEX[node.status] ?? 'var(--c-text-dim)', textDecoration: 'none',
             }}>
               {node.label}
             </Link>
           ))}
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', marginLeft: 4 }}>
+            Pod health: green=healthy, red=unhealthy, amber=degraded (restarts)
+          </span>
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 14 }}>

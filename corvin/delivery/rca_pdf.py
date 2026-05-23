@@ -276,8 +276,8 @@ def build_rca_pdf(result: InvestigationResult) -> bytes:
     story.append(_p(styles["SectionHeading"], "Evidence Snapshot"))
     evidence_snapshot = Table(
         [
-            ["Elastic Logs", str(len(result.evidence.elastic_logs)), "Elastic Metrics", str(len(result.evidence.elastic_metrics)), "APIM Logs", str(len(result.evidence.log_analytics_apim))],
-            ["Azure Activity", str(len(result.evidence.azure_activity_changes)), "AKS Keys", str(len(result.evidence.aks_context.keys())), "Evidence Collected", _fmt_ts(result.evidence.collected_at)],
+            ["Application Logs", str(len(result.evidence.elastic_logs)), "Application Metrics", str(len(result.evidence.elastic_metrics)), "API Gateway Logs", str(len(result.evidence.log_analytics_apim))],
+            ["K8s Resource Usage", str(len(result.evidence.container_resource_metrics)), "K8s Cluster Health", str(len(result.evidence.aks_context.keys())), "Evidence Collected", _fmt_ts(result.evidence.collected_at)],
             ["AKS Context Keys", ", ".join(sorted(result.evidence.aks_context.keys())) or "-", "", "", "", ""],
         ],
         colWidths=[31 * mm, 20 * mm, 35 * mm, 22 * mm, 33 * mm, 37 * mm],

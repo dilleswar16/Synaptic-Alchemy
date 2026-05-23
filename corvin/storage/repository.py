@@ -161,6 +161,10 @@ class InvestigationRepository:
                     container_inventory=result.evidence.container_inventory,
                     node_inventory=result.evidence.node_inventory,
                     network_metrics=result.evidence.network_metrics,
+                    pod_restarts=result.evidence.pod_restarts,
+                    oom_kill_events=result.evidence.oom_kill_events,
+                    autoscaler_events=result.evidence.autoscaler_events,
+                    health_probe_failures=result.evidence.health_probe_failures,
                     collected_at=result.evidence.collected_at,
                 )
             )
@@ -254,6 +258,10 @@ class InvestigationRepository:
                     "container_inventory": getattr(ev_row, "container_inventory", []) or [],
                     "node_inventory": getattr(ev_row, "node_inventory", []) or [],
                     "network_metrics": getattr(ev_row, "network_metrics", []) or [],
+                    "pod_restarts": getattr(ev_row, "pod_restarts", []) or [],
+                    "oom_kill_events": getattr(ev_row, "oom_kill_events", []) or [],
+                    "autoscaler_events": getattr(ev_row, "autoscaler_events", []) or [],
+                    "health_probe_failures": getattr(ev_row, "health_probe_failures", []) or [],
                     "collected_at": _as_utc(ev_row.collected_at),
                 }
             )
@@ -281,6 +289,20 @@ class InvestigationRepository:
                 }
             )
 
+            # Build ADO URL from work item ID + config if available
+            ado_wid = getattr(req_row, "ado_work_item_id", None)
+            ado_url: str | None = None
+            if ado_wid:
+                try:
+                    from corvin.core.config_loader import get_env, load_config
+                    ado_cfg = load_config("integrations/azure_devops", get_env())
+                    org = str(ado_cfg.get("org_name", "")).strip()
+                    proj = str(ado_cfg.get("project_name", "")).strip()
+                    if org and proj and not org.startswith("${") and not proj.startswith("${"):
+                        ado_url = f"https://dev.azure.com/{org}/{proj}/_workitems/edit/{ado_wid}"
+                except Exception:
+                    pass
+
             return InvestigationResult(
                 request_id=request_id,
                 request=request,
@@ -288,6 +310,10 @@ class InvestigationRepository:
                 rca=rca,
                 fix_strategy=fix_strategy,
                 completed_at=completed_at,
+                ado_work_item_id=ado_wid,
+                ado_url=ado_url,
+                wiki_url=getattr(req_row, "wiki_url", None),
+                sharepoint_url=getattr(req_row, "sharepoint_url", None),
             )
 
     def get_approval_status(self, request_id: str) -> str | None:
@@ -344,6 +370,22 @@ class InvestigationRepository:
             row = session.get(InvestigationRequestRow, request_id)
             if row is not None:
                 row.ado_work_item_id = work_item_id
+                session.commit()
+
+    def set_delivery_urls(
+        self,
+        request_id: str,
+        wiki_url: str | None = None,
+        sharepoint_url: str | None = None,
+    ) -> None:
+        """Persist wiki and/or SharePoint URLs for this investigation."""
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is not None:
+                if wiki_url is not None:
+                    row.wiki_url = wiki_url
+                if sharepoint_url is not None:
+                    row.sharepoint_url = sharepoint_url
                 session.commit()
 
     def get_similar_incidents(
@@ -459,7 +501,11 @@ class InvestigationRepository:
             "elastic_metric_count": len(result.evidence.elastic_metrics),
             "log_analytics_apim_count": len(result.evidence.log_analytics_apim),
             "aks_context_keys": list(result.evidence.aks_context.keys()),
-            "azure_activity_count": len(result.evidence.azure_activity_changes),
+            "resource_metrics_count": len(result.evidence.container_resource_metrics),
+            "pod_restarts_count": len(result.evidence.pod_restarts),
+            "oom_kill_events_count": len(result.evidence.oom_kill_events),
+            "autoscaler_events_count": len(result.evidence.autoscaler_events),
+            "health_probe_failures_count": len(result.evidence.health_probe_failures),
             "collected_at": result.evidence.collected_at.isoformat(),
         }
 
@@ -807,7 +853,7 @@ class InvestigationRepository:
           total_investigations: int
           today_count: int          — investigations started today (UTC)
           confidence_distribution:  dict[str, int]  (high/medium/low counts)
-          approval_distribution:    dict[str, int]  (pending/approved/rejected/executed)
+          approval_distribution:    dict[str, int]  (pending/approved/rejected/acknowledged/executed)
           avg_mttr_minutes: float | None  — mean time from created_at to completed_at
           auto_resolved_rate: float       — fraction that reached 'executed' state
           recent_services: list[str]      — last 5 unique service names investigated
@@ -827,7 +873,7 @@ class InvestigationRepository:
                     "today_count": 0,
                     "confidence_distribution": {"high": 0, "medium": 0, "low": 0},
                     "approval_distribution": {
-                        "pending": 0, "approved": 0, "rejected": 0, "executed": 0
+                        "pending": 0, "approved": 0, "rejected": 0, "acknowledged": 0, "executed": 0
                     },
                     "avg_mttr_minutes": None,
                     "auto_resolved_rate": 0.0,
@@ -841,7 +887,7 @@ class InvestigationRepository:
             )
 
             approval_dist: dict[str, int] = {
-                "pending": 0, "approved": 0, "rejected": 0, "executed": 0
+                "pending": 0, "approved": 0, "rejected": 0, "acknowledged": 0, "executed": 0
             }
             for r in rows:
                 key = r.approval_status or "pending"
@@ -905,6 +951,7 @@ class InvestigationRepository:
             total = len(recent_rows)
             pending = sum(1 for r in recent_rows if r.approval_status == "pending")
             approved = sum(1 for r in recent_rows if r.approval_status == "approved")
+            acknowledged = sum(1 for r in recent_rows if r.approval_status == "acknowledged")
             executed = sum(1 for r in recent_rows if r.approval_status == "executed")
             rejected = sum(1 for r in recent_rows if r.approval_status == "rejected")
 
@@ -953,6 +1000,7 @@ class InvestigationRepository:
                 "total_investigations": total,
                 "pending_approval": pending,
                 "approved": approved,
+                "acknowledged": acknowledged,
                 "executed": executed,
                 "rejected": rejected,
                 "high_confidence_pending": high_conf_pending,
