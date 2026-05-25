@@ -196,7 +196,8 @@ class ContainerLogsAdapter:
 
         Queries the Perf table (Container Insights standard) for container-level
         counters, joined through KubePodInventory PodUid to scope to the target
-        service's pods. The Perf InstanceName embeds PodUid so has_any works.
+        service's pods. Perf InstanceName is a full resource path where the
+        penultimate segment is PodUid and the last segment is ContainerName.
         """
         if self._client is None:
             return []
@@ -216,9 +217,10 @@ class ContainerLogsAdapter:
             f"| where CounterName in ('cpuUsageNanoCores', 'cpuLimitNanoCores', 'cpuRequestNanoCores',"
             f" 'memoryWorkingSetBytes', 'memoryRssBytes', 'memoryLimitBytes', 'memoryRequestBytes')\n"
             f"| where InstanceName has_any (podUids)\n"
-            f"| extend PodUid = tostring(split(InstanceName, '/')[0])\n"
+            f"| extend parts = split(InstanceName, '/')\n"
+            f"| extend PodUid = tostring(parts[array_length(parts) - 2])\n"
             f"| lookup kind=leftouter podUids on PodUid\n"
-            f"| extend ContainerName = tostring(split(InstanceName, '/')[-1])\n"
+            f"| extend ContainerName = tostring(parts[array_length(parts) - 1])\n"
             f"| summarize AvgValue=avg(CounterValue), MaxValue=max(CounterValue)"
             f" by bin(TimeGenerated, 5m), Name, ContainerName, CounterName\n"
             f"| order by TimeGenerated desc, Name asc, ContainerName asc\n"

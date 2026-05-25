@@ -5,7 +5,7 @@
 
 toolsets:
   elastic:
-    enabled: true
+    enabled: false
 
   log_analytics:
     enabled: true

@@ -519,57 +519,8 @@ def get_topology_live() -> dict:
     from corvin.investigation.topology import (
         ServiceTopology, TopologyNode, TopologyEdge,
         _inject_apim_topology, build_pod_topology_node,
+        _resource_summary, _resource_summary_by_pod,
     )
-
-    def _coerce_float(value: object) -> float | None:
-        try:
-            return float(value)  # type: ignore[arg-type]
-        except (TypeError, ValueError):
-            return None
-
-    def _resource_summary(rows: list[dict]) -> tuple[float | None, float | None]:
-        cpu_values: list[float] = []
-        memory_values: list[float] = []
-
-        for row in rows:
-            if not isinstance(row, dict):
-                continue
-            counter = str(
-                row.get("CounterName")
-                or row.get("counter_name")
-                or row.get("countername")
-                or ""
-            )
-            value = (
-                _coerce_float(row.get("AvgValue"))
-                or _coerce_float(row.get("avg_value"))
-                or _coerce_float(row.get("CounterValue"))
-                or _coerce_float(row.get("counter_value"))
-                or _coerce_float(row.get("MaxValue"))
-                or _coerce_float(row.get("max_value"))
-            )
-            if value is None:
-                continue
-
-            if "cpuUsageNanoCores" in counter:
-                cpu_values.append(value / 1_000_000.0)
-            elif "memoryWorkingSetBytes" in counter or "memoryRssBytes" in counter:
-                memory_values.append(value / (1024.0 * 1024.0))
-
-        cpu_mcores = round(sum(cpu_values) / len(cpu_values), 1) if cpu_values else None
-        memory_mib = round(sum(memory_values) / len(memory_values), 1) if memory_values else None
-        return cpu_mcores, memory_mib
-
-    def _resource_summary_by_pod(rows: list[dict]) -> dict[str, tuple[float | None, float | None]]:
-        by_pod: dict[str, list[dict]] = {}
-        for row in rows:
-            if not isinstance(row, dict):
-                continue
-            pod_name = str(row.get("Name") or row.get("PodName") or row.get("pod_name") or "").strip()
-            if not pod_name:
-                continue
-            by_pod.setdefault(pod_name, []).append(row)
-        return {pod_name: _resource_summary(pod_rows) for pod_name, pod_rows in by_pod.items()}
 
     # AKS deployment label → logical CHAD service name.
     # The `app` label in k8s is "chad-fundapis" but we call it "fundapis" everywhere.
@@ -607,7 +558,7 @@ def get_topology_live() -> dict:
                 metric_rows = logs_adapter.get_resource_metrics(logical_name)
             except Exception:
                 metric_rows = []
-            cpu_mcores, memory_mib = _resource_summary(metric_rows)
+            service_resource = _resource_summary(metric_rows)
             pod_resource_map = _resource_summary_by_pod(metric_rows)
             # Update or create the service node with the live status
             nodes[svc_id] = TopologyNode(
@@ -615,19 +566,24 @@ def get_topology_live() -> dict:
                 label=logical_name,
                 kind="service",
                 status=live_status,
-                cpu_mcores=cpu_mcores,
-                memory_mib=memory_mib,
+                cpu_mcores=service_resource["cpu_mcores"],
+                cpu_request_mcores=service_resource["cpu_request_mcores"],
+                cpu_limit_mcores=service_resource["cpu_limit_mcores"],
+                cpu_utilization_pct=service_resource["cpu_utilization_pct"],
+                memory_mib=service_resource["memory_mib"],
+                memory_request_mib=service_resource["memory_request_mib"],
+                memory_limit_mib=service_resource["memory_limit_mib"],
+                memory_utilization_pct=service_resource["memory_utilization_pct"],
             )
             for pod in svc.get("pods", []):
                 if not isinstance(pod, dict):
                     continue
                 pod_copy = dict(pod)
                 pod_name = str(pod_copy.get("name") or pod_copy.get("pod") or "").strip()
-                pod_cpu, pod_mem = pod_resource_map.get(pod_name, (None, None))
-                if pod_cpu is not None:
-                    pod_copy["cpu_mcores"] = pod_cpu
-                if pod_mem is not None:
-                    pod_copy["memory_mib"] = pod_mem
+                pod_resource = pod_resource_map.get(pod_name, {})
+                for key, value in pod_resource.items():
+                    if value is not None:
+                        pod_copy[key] = value
                 pod_node = build_pod_topology_node(pod_copy)
                 nodes[pod_node.id] = pod_node
                 edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(source=svc_id, target=pod_node.id, label="runs")

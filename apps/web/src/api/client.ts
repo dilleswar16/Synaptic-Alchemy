@@ -432,7 +432,13 @@ export interface TopologyNode {
   kind: string
   status: string
   cpu_mcores?: number | null
+  cpu_request_mcores?: number | null
+  cpu_limit_mcores?: number | null
+  cpu_utilization_pct?: number | null
   memory_mib?: number | null
+  memory_request_mib?: number | null
+  memory_limit_mib?: number | null
+  memory_utilization_pct?: number | null
   phase?: string | null
   ready_containers?: number | null
   total_containers?: number | null

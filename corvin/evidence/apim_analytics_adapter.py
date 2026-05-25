@@ -390,6 +390,7 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
         template_name: str,
         time_range_minutes: int = 1440,
         api_filter: str = "all",
+        chart_type_override: str | None = None,
     ) -> dict[str, Any]:
         """Execute a named KQL template and return structured chart data.
 
@@ -397,6 +398,7 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
             template_name:      One of the keys in TEMPLATE_NAMES.
             time_range_minutes: Lookback window (default 1440 = 24h / today).
             api_filter:         "all" | "partnerapis" | "fundapis".
+            chart_type_override: If set, overrides the template's default chart type.
 
         Returns:
             Unified chart payload: {rows, columns, chart_type, title, subtitle, ...}
@@ -417,7 +419,8 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
                 "api_filter": api_filter,
             }
 
-        query_tmpl, chart_type, title, subtitle = _TEMPLATES[template_name]
+        query_tmpl, default_chart_type, title, subtitle = _TEMPLATES[template_name]
+        chart_type = chart_type_override if chart_type_override else default_chart_type
 
         # Build optional API filter clause (extra pipe-where line)
         if api_filter and api_filter.lower() not in ("all", ""):

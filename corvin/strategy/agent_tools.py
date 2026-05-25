@@ -26,7 +26,7 @@ Knowledge (file-backed):
 Data (Azure-backed — requires network to org cluster):
     run_kql                     → LogAnalyticsAdapter.get_apim_logs()
     get_aks_health              → AKSAdapter.get_pod_context()
-    run_elastic_query           → ElasticAdapter.get_logs() / get_metrics()
+    get_container_resource_metrics → ContainerLogsAdapter.get_resource_metrics()
 """
 
 from __future__ import annotations
@@ -411,11 +411,13 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                         "type": "string",
                         "enum": ["area", "bar", "pie", "heatmap", "table", "tiles"],
                         "description": (
-                            "Chart type hint for the UI renderer. Required in custom kql mode. "
+                            "Chart type for the UI renderer. Required in custom kql mode. "
+                            "In template mode, each template has a sensible default but the user "
+                            "can request a different visualization — if they do, set this to override it. "
                             "'area' for time-series, 'bar' for category comparisons, "
                             "'pie' for distribution/share, 'heatmap' for fund×hour grids, "
                             "'tiles' for single-row KPI aggregates, 'table' for raw rows. "
-                            "Default: 'table'."
+                            "Omit to use the template default."
                         ),
                     },
                     "title": {
@@ -445,32 +447,27 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
-            "name": "run_elastic_query",
+            "name": "get_container_resource_metrics",
             "description": (
-                "Fetch application logs or metrics from Elasticsearch/Elastic APM for a service. "
-                "Returns recent log entries and performance metrics. "
-                "Use this when the user asks about application logs, error messages, stack traces, "
-                "or app-level performance metrics."
+                "Fetch live CPU and memory usage with requests/limits from AKS Container Insights "
+                "(Log Analytics Perf/K8SContainer) for a service. "
+                "Use this whenever the user asks for CPU usage, memory usage, resource limits, "
+                "capacity, or utilization percentages."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "Service to query logs for.",
+                        "description": "Kubernetes service/deployment name to query (e.g. 'fundapis').",
                     },
-                    "environment": {
+                    "namespace": {
                         "type": "string",
-                        "description": "Target environment (default: 'dev').",
+                        "description": "Kubernetes namespace (default: 'chad').",
                     },
                     "time_range_minutes": {
                         "type": "integer",
                         "description": "Look-back window in minutes (default: 60).",
-                    },
-                    "query_type": {
-                        "type": "string",
-                        "enum": ["logs", "metrics"],
-                        "description": "Whether to fetch logs or metrics (default: 'logs').",
                     },
                 },
                 "required": ["service_name"],
@@ -570,46 +567,76 @@ def _exec_topology(args: dict) -> dict:
         TopologyEdge,
         _inject_apim_topology,
         build_pod_topology_node,
+        _resource_summary,
+        _resource_summary_by_pod,
     )
     repo = InvestigationRepository()
     results = repo.list_recent_results(limit=30)
 
     if results:
-        # Use DB-backed topology when investigations exist
-        return build_service_topology(results).model_dump()
-
-    # No investigations yet — fall back to static CHAD architecture + live AKS pods
-    STATIC_SERVICES = [
-        ("fundapis",    "high"),
-        ("partnerapis", "high"),
-        ("fundsso",     "high"),
-    ]
-    nodes: dict[str, TopologyNode] = {}
-    edges: dict[tuple, TopologyEdge] = {}
-    for svc_name, status in STATIC_SERVICES:
-        svc_id = f"svc:{svc_name}"
-        nodes[svc_id] = TopologyNode(id=svc_id, label=svc_name, kind="service", status=status)
-    _inject_apim_topology(nodes, edges)
+        # Start from persisted investigation topology, then overlay live metrics.
+        base = build_service_topology(results)
+        nodes = {n.id: n for n in base.nodes}
+        edges = {(e.source, e.target, e.label): e for e in base.edges}
+    else:
+        # No investigations yet — fall back to static CHAD architecture + live AKS pods.
+        static_services = [
+            ("fundapis", "high"),
+            ("partnerapis", "high"),
+            ("fundsso", "high"),
+        ]
+        nodes = {}
+        edges = {}
+        for svc_name, status in static_services:
+            svc_id = f"svc:{svc_name}"
+            nodes[svc_id] = TopologyNode(id=svc_id, label=svc_name, kind="service", status=status)
+        _inject_apim_topology(nodes, edges)
 
     try:
         from corvin.evidence.aks_adapter import AKSAdapter
+        from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
         _AKS_NAME_MAP = {
             "chad-fundapis":    "fundapis",
             "chad-fundsso":     "fundsso",
             "chad-partnerapis": "partnerapis",
         }
         adapter = AKSAdapter()
+        logs_adapter = ContainerLogsAdapter()
         live = adapter.list_all_pods()
         for svc in live.get("services", []):
             raw_name = svc["name"]
             svc_name = _AKS_NAME_MAP.get(raw_name, raw_name)
             svc_id = f"svc:{svc_name}"
-            if svc_id in nodes:
-                nodes[svc_id] = TopologyNode(id=svc_id, label=svc_name, kind="service", status=svc.get("status", "high"))
+            try:
+                metric_rows = logs_adapter.get_resource_metrics(svc_name)
+            except Exception:
+                metric_rows = []
+            service_resource = _resource_summary(metric_rows)
+            pod_resource_map = _resource_summary_by_pod(metric_rows)
+            nodes[svc_id] = TopologyNode(
+                id=svc_id,
+                label=svc_name,
+                kind="service",
+                status=svc.get("status", "high"),
+                cpu_mcores=service_resource["cpu_mcores"],
+                cpu_request_mcores=service_resource["cpu_request_mcores"],
+                cpu_limit_mcores=service_resource["cpu_limit_mcores"],
+                cpu_utilization_pct=service_resource["cpu_utilization_pct"],
+                memory_mib=service_resource["memory_mib"],
+                memory_request_mib=service_resource["memory_request_mib"],
+                memory_limit_mib=service_resource["memory_limit_mib"],
+                memory_utilization_pct=service_resource["memory_utilization_pct"],
+            )
             for pod in svc.get("pods", []):
                 if not isinstance(pod, dict):
                     continue
-                pod_node = build_pod_topology_node(pod)
+                pod_copy = dict(pod)
+                pod_name = str(pod_copy.get("name") or pod_copy.get("pod") or "").strip()
+                pod_resource = pod_resource_map.get(pod_name, {})
+                for key, value in pod_resource.items():
+                    if value is not None:
+                        pod_copy[key] = value
+                pod_node = build_pod_topology_node(pod_copy)
                 nodes[pod_node.id] = pod_node
                 edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(source=svc_id, target=pod_node.id, label="runs")
     except Exception:
@@ -734,6 +761,7 @@ def _exec_apim_analytics(args: dict) -> dict:
         template_name=template,
         time_range_minutes=time_range,
         api_filter=args.get("api_filter", "all"),
+        chart_type_override=args.get("chart_type"),
     )
 
 
@@ -747,16 +775,32 @@ def _exec_aks_health(args: dict) -> Any:
     )
 
 
-def _exec_elastic_query(args: dict) -> Any:
-    from corvin.evidence.elastic_adapter import ElasticAdapter
-    adapter = ElasticAdapter()
-    service = args["service_name"]
-    env = args.get("environment", "dev")
+def _exec_container_resource_metrics(args: dict) -> dict[str, Any]:
+    from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
+    from corvin.investigation.topology import _resource_summary, _resource_summary_by_pod
+
+    service_name = args["service_name"]
+    namespace = args.get("namespace")
     minutes = int(args.get("time_range_minutes", 60))
-    query_type = args.get("query_type", "logs")
-    if query_type == "metrics":
-        return adapter.get_metrics(service_name=service, environment=env, time_range_minutes=minutes)
-    return adapter.get_logs(service_name=service, environment=env, time_range_minutes=minutes)
+
+    rows = ContainerLogsAdapter().get_resource_metrics(
+        service_name=service_name,
+        namespace=namespace,
+        time_range_minutes=minutes,
+    )
+    service_summary = _resource_summary(rows)
+    by_pod = _resource_summary_by_pod(rows)
+    pods = [{"pod_name": pod_name, **metrics} for pod_name, metrics in by_pod.items()]
+    pods.sort(key=lambda p: str(p.get("pod_name", "")))
+
+    return {
+        "service_name": service_name,
+        "namespace": namespace or "chad",
+        "time_range_minutes": minutes,
+        "sample_count": len(rows),
+        "service": service_summary,
+        "pods": pods,
+    }
 
 
 _EXECUTORS = {
@@ -774,6 +818,6 @@ _EXECUTORS = {
     "get_runbook":              _exec_runbook,
     "run_kql":                  _exec_run_kql,
     "get_aks_health":           _exec_aks_health,
-    "run_elastic_query":        _exec_elastic_query,
+    "get_container_resource_metrics": _exec_container_resource_metrics,
     "query_apim_analytics":     _exec_apim_analytics,
 }

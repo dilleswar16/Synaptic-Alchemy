@@ -265,9 +265,13 @@ def test_topology_live_endpoint_marks_unhealthy_pod_hot(monkeypatch):
             if service_name == "fundapis":
                 return [
                     {"Name": "fundapis-good-12345-abcde", "CounterName": "cpuUsageNanoCores", "AvgValue": 250_000_000},
+                    {"Name": "fundapis-good-12345-abcde", "CounterName": "cpuLimitNanoCores", "AvgValue": 500_000_000},
                     {"Name": "fundapis-good-12345-abcde", "CounterName": "memoryWorkingSetBytes", "AvgValue": 320 * 1024 * 1024},
+                    {"Name": "fundapis-good-12345-abcde", "CounterName": "memoryLimitBytes", "AvgValue": 512 * 1024 * 1024},
                     {"Name": "fundapis-bad-12345-zzzzz", "CounterName": "cpuUsageNanoCores", "AvgValue": 90_000_000},
+                    {"Name": "fundapis-bad-12345-zzzzz", "CounterName": "cpuLimitNanoCores", "AvgValue": 250_000_000},
                     {"Name": "fundapis-bad-12345-zzzzz", "CounterName": "memoryWorkingSetBytes", "AvgValue": 140 * 1024 * 1024},
+                    {"Name": "fundapis-bad-12345-zzzzz", "CounterName": "memoryLimitBytes", "AvgValue": 256 * 1024 * 1024},
                 ]
             return []
 
@@ -285,6 +289,10 @@ def test_topology_live_endpoint_marks_unhealthy_pod_hot(monkeypatch):
     assert any("restart_count" in n for n in pod_nodes)
     assert any(n.get("cpu_mcores") is not None for n in pod_nodes)
     assert any(n.get("memory_mib") is not None for n in pod_nodes)
+    assert any(n.get("cpu_limit_mcores") is not None for n in pod_nodes)
+    assert any(n.get("memory_limit_mib") is not None for n in pod_nodes)
+    assert any(n.get("cpu_utilization_pct") is not None for n in pod_nodes)
+    assert any(n.get("memory_utilization_pct") is not None for n in pod_nodes)
 
 
 def test_investigate_predictive_alert_runs_pipeline(sqlite_repo):

@@ -53,6 +53,8 @@ Your job:
 Available services in CHAD: fundsso, fundapis, partnerapis (all running in AKS namespace 'chad').
 When asked about architecture, ALWAYS call get_site_knowledge first.
 When asked about a specific service's history or runbook, call get_runbook and get_similar_incidents.
+When asked about CPU/memory usage, limits, capacity, or utilization for a service,
+ALWAYS call get_container_resource_metrics first, then optionally get_aks_health for status context.
 
 APIM Analytics (partnerapis & fundapis):
 - For ANY question about API traffic, success rates, error rates, latency, member counts,
