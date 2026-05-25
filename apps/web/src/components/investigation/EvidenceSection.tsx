@@ -6,19 +6,22 @@ import { useState } from 'react'
 import type { EvidenceBundle } from '../../api/client'
 
 const ADAPTER_LABEL: Record<string, string> = {
-  elastic_logs:                'Elastic Logs',
-  elastic_metrics:             'Elastic Metrics',
-  log_analytics_apim:          'Log Analytics APIM',
-  aks_context:                 'AKS Context',
-  azure_activity_changes:      'Azure Activity',
-  container_resource_metrics:  'CPU / Memory',
+  elastic_logs:                'Application Logs',
+  elastic_metrics:             'Application Metrics',
+  log_analytics_apim:          'API Gateway',
+  aks_context:                 'K8s Cluster Health',
+  container_resource_metrics:  'K8s Resource Usage',
   container_inventory:         'Container Images',
-  node_inventory:              'Node Health',
-  network_metrics:             'Network I/O',
+  node_inventory:              'K8s Node Health',
+  network_metrics:             'Network Traffic',
+  pod_restarts:                'K8s Pod Restarts',
+  oom_kill_events:             'K8s OOM Kill Events',
+  autoscaler_events:           'K8s Autoscaler Events',
+  health_probe_failures:       'K8s Health Probes',
 }
 
 function buildSummary(name: string, items: unknown[], count: number): string {
-  if (count === 0) return '—'
+  if (count === 0) return 'No records'
   const first = items[0] as Record<string, unknown> | undefined
   if (name === 'elastic_logs') {
     const errors = items.filter((r: any) => /error|exception|fatal/i.test(JSON.stringify(r))).length

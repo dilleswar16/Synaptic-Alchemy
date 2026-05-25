@@ -4,11 +4,11 @@
  */
 
 const STATUS_ICONS: Record<string, string> = {
-  pending: '◎', approved: '✓', rejected: '✗', executed: '▶',
+  pending: '◎', approved: '✓', rejected: '✗', acknowledged: '☑', executed: '▶',
 }
 const STATUS_CLS: Record<string, string> = {
   pending: 'badge-pending', approved: 'badge-approved',
-  rejected: 'badge-rejected', executed: 'badge-executed',
+  rejected: 'badge-rejected', acknowledged: 'badge-acknowledged', executed: 'badge-executed',
 }
 
 export function StatusBadge({ status }: { status: string }) {

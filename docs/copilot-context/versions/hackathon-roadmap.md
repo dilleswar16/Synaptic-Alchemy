@@ -15,6 +15,7 @@
 | **V3.7** | Intelligence layer: Predictive Detection, SLA Countdown, Dependency Visualizer, Remediation Preview | ✅ Complete |
 | **V3.9** | Polish + enterprise: ROI Dashboard, Voice TTS, 3AM Mode, Runbook Auto-Update, War Room, Confidence Routing | ✅ Complete — 16/16 slice tests, 433/433 full suite |
 | **V4** | Semantic Search / Vector RAG (pgvector) | 🔒 Next |
+| **V5** | Deep Intelligence: Debate Mode, Heatmap, Similarity Network, Compliance Pack | 🔒 After V4 |
 
 Do NOT start V4 until the V3.9 exit criteria column is confirmed above.
 
@@ -415,3 +416,105 @@ This is what V3.5 enables (minimum viable demo):
 - Injects the entire RCA, Evidence, Fix Strategy, and CHAD Runbook into the LLM system prompt.
 - Maintains chat history for follow-up questions.
 - Streams the response back to the UI in real-time.
+
+---
+
+## V5 — Post-Hackathon Vision
+
+**Theme:** Deep intelligence, organizational learning, and preventive operations.  
+**Status:** 🔒 Locked — build AFTER V4 (pgvector RAG) is complete.
+
+### Feature 18 — Root Cause Debate Mode (Competing Hypotheses)
+
+**Why:** Every AI SRE tool gives one answer and expects trust. Real SREs consider multiple theories and weigh evidence. This makes the AI feel collaborative, not dictatorial — the #1 enterprise concern with AI.
+
+**What it does:**
+- Instead of a single RCA answer, generates **3 competing hypotheses** ranked by evidence strength
+- Each hypothesis shows:
+  - Supporting evidence (with specific log/metric references)
+  - Contradicting evidence
+  - Confidence score
+  - Historical frequency ("This pattern appeared in 8 of 12 past incidents")
+- SRE selects the winning hypothesis — selection feeds back into Incident Memory for future weighting
+- UI: side-by-side cards with evidence bars, color-coded by strength
+
+**Implementation notes:**
+- Modify `RCAGenerator` system prompt to request structured multi-hypothesis JSON output
+- New `RCAHypothesis` Pydantic model: `{hypothesis, confidence, supporting_evidence[], contradicting_evidence[], historical_matches}`
+- `RCAOutput.hypotheses: list[RCAHypothesis]` — the top-ranked one becomes the primary `root_cause`
+- Frontend: `HypothesisDebatePanel` component — 3-column layout, evidence highlight bars, "Select as Root Cause" button
+- Backend: `POST /investigations/{id}/select-hypothesis` — updates the primary RCA and logs the SRE's reasoning
+
+**Demo power: 10/10.** *"This is how AI should work — it shows its reasoning and lets humans decide."*
+
+---
+
+### Feature 19 — Incident Heatmap Calendar
+
+**Why:** Patterns are invisible in lists but obvious in heatmaps. A GitHub-contribution-style calendar showing when incidents happen across the last 90 days immediately surfaces systemic issues: *"Every Tuesday at 2PM after the weekly deployment"* or *"Memory spikes every midnight during batch processing."*
+
+**What it does:**
+- Full-width calendar grid on Dashboard (90 days, GitHub-contribution style)
+- Cell color intensity = incident count that day (0=empty, 1=light, 2+=dark)
+- Hover tooltip: date, count, service names
+- Click a day → filtered investigation list for that date
+- Optional overlay: day-of-week aggregation bar (shows "Tuesdays are your worst day")
+- Optional overlay: hour-of-day heatmap (24-column grid showing peak incident hours)
+
+**Implementation notes:**
+- `GET /investigations/heatmap?days=90` — returns `[{date, count, services[]}]`
+- `InvestigationRepository.get_heatmap(days)` — simple `GROUP BY DATE(created_at)` query
+- Frontend: `IncidentHeatmap` component — CSS Grid, 7 rows × 13 columns, green→red gradient
+- No new adapters or LLM calls — pure DB query + CSS
+
+**Demo power: 8/10.** *"That's beautiful — and I can see Tuesday is our problem day."*
+
+---
+
+### Feature 20 — Incident Similarity Network
+
+**Why:** Individual incidents look isolated. A similarity network reveals hidden systemic patterns across different services — the kind of insight that prevents entire classes of failures rather than individual ones.
+
+**What it does:**
+- Graph visualization where incidents are nodes, edges connect incidents with similar root causes
+- Works **across services** — reveals that a connection pool issue on fundapis and a timeout on fundsso share the same underlying HikariCP misconfiguration
+- Node size = blast radius / severity. Edge thickness = similarity score
+- Cluster detection: auto-group related incidents into "failure families"
+- Click a cluster → view all related incidents + shared root cause pattern
+- Surfaces: *"You've had 7 incidents this month across 3 services, all caused by the same connection pool pattern. Fix the pattern, not the symptoms."*
+
+**Implementation notes:**
+- `GET /investigations/similarity-network` — returns `{nodes[], edges[]}` with similarity scores
+- Similarity calculated from: root cause text overlap, evidence patterns, service dependency graph, temporal proximity
+- V4 enhancement: use pgvector embeddings for true semantic similarity instead of keyword overlap
+- Frontend: React Flow force-directed graph, cluster highlighting, click-to-filter
+- LLM optional: can use embedding distance (V4) or keyword extraction (V5 standalone)
+
+**Demo power: 9/10.** *"It found a pattern across 3 services that we missed for months."*
+
+---
+
+### Feature 21 — Compliance Evidence Pack (SOX/SOC2 Audit Export)
+
+**Why:** Every enterprise runs SOX (Sarbanes-Oxley) and SOC 2 compliance audits. Auditors ask: *"Show me every incident on a financial system, who responded, what changed, and proof it was authorized."* Today this takes days of manual evidence gathering. One click should produce the entire audit package.
+
+**What it does:**
+- One-click export button on any investigation: "📦 Export Compliance Pack"
+- Generates a single PDF/ZIP containing:
+  - Incident summary (timestamp, service, environment, trigger source)
+  - Full evidence chain (what logs/metrics were analyzed)
+  - RCA report (root cause, contributing factors, confidence)
+  - Approval chain (who approved, when, from which channel — Teams/Web/API)
+  - Execution proof (what commands ran, before/after state)
+  - Post-mortem (if generated)
+  - Audit trail timeline (every stage with timestamps)
+- Tamper-evident: SHA-256 hash of the full bundle printed on every page
+- Bulk export: `GET /investigations/compliance-export?from=2026-01-01&to=2026-05-22` for audit window
+
+**Implementation notes:**
+- `GET /investigations/{id}/compliance-pack` — assembles all data, renders to PDF (use `weasyprint` or `reportlab`)
+- Template: formal document layout with MetLife header, section numbering, page numbers
+- Hash: compute SHA-256 of the JSON payload, embed in PDF footer
+- Frontend: download button on investigation detail page + bulk export on investigations list page
+
+**Demo power: 8/10.** *"One click, full audit trail. Compliance team loves us."*

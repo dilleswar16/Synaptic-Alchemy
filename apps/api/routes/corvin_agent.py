@@ -215,8 +215,8 @@ def chat(
         text_chunks: list[str] = []
         thinking_chunks: list[str] = []
         tool_calls_seen: list[dict] = []
-        # key: tool_name → last result payload (for tools called multiple times, last wins)
-        tool_results_seen: dict[str, object] = {}
+        # key: tool_name → list of result payloads (supports multiple calls per tool)
+        tool_results_seen: dict[str, list[object]] = {}
 
         for chunk in svc.stream_chat_simple(history):
             yield chunk
@@ -233,7 +233,8 @@ def chat(
                             "arguments": data.get("arguments"),
                         })
                     elif data.get("type") == "tool_result" and data.get("tool_name"):
-                        tool_results_seen[data["tool_name"]] = data.get("data")
+                        key = data["tool_name"]
+                        tool_results_seen.setdefault(key, []).append(data.get("data"))
                 except Exception:
                     pass
 

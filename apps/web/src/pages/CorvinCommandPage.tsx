@@ -31,7 +31,7 @@ interface UiMessage {
   thinking?: string
   thinkingCollapsed?: boolean
   toolSteps?: ToolStep[]
-  chartData?: ApimChartData | null
+  chartData: ApimChartData[]
 }
 
 interface ToolEvent {
@@ -52,7 +52,9 @@ const TOOL_LABELS: Record<string, string> = {
   get_postmortem: 'Post-Mortem', get_similar_incidents: 'Similar Incidents',
   get_site_knowledge: 'CHAD Architecture', get_runbook: 'Runbook',
   run_kql: 'Log Analytics Query', get_aks_health: 'AKS Health',
-  run_elastic_query: 'Elastic Logs', query_apim_analytics: 'APIM Analytics',
+  get_container_resource_metrics: 'Container Resource Metrics',
+  run_elastic_query: 'Container Resource Metrics',
+  query_apim_analytics: 'APIM Analytics',
 }
 
 const TOOL_ICONS: Record<string, string> = {
@@ -60,7 +62,9 @@ const TOOL_ICONS: Record<string, string> = {
   get_predictive_alerts: '⚠️', get_service_score: '🎯', get_roi: '💰',
   get_service_topology: '🗺️', get_blast_radius: '💥', get_postmortem: '📄',
   get_similar_incidents: '🔁', get_site_knowledge: '🏗️', get_runbook: '📖',
-  run_kql: '🔬', get_aks_health: '☸️', run_elastic_query: '📡',
+  run_kql: '🔬', get_aks_health: '☸️',
+  get_container_resource_metrics: '📈',
+  run_elastic_query: '📈',
   query_apim_analytics: '📈',
 }
 
@@ -76,6 +80,12 @@ function extractPreview(toolName: string, data: unknown): string {
     case 'get_service_score': return `Score: ${Number(d.score ?? 0).toFixed(0)}/100`
     case 'get_roi': return `${Number(d.hours_saved ?? 0).toFixed(1)}h saved · $${Number(d.cost_saved ?? 0).toFixed(0)}`
     case 'get_aks_health': return `${(d.pods as any[])?.length ?? 0} pods`
+    case 'get_container_resource_metrics': {
+      const svc = d?.service ?? {}
+      const cpu = typeof svc?.cpu_mcores === 'number' ? svc.cpu_mcores.toFixed(1) : '—'
+      const mem = typeof svc?.memory_mib === 'number' ? svc.memory_mib.toFixed(1) : '—'
+      return `CPU ${cpu} mC · Memory ${mem} MiB`
+    }
     case 'run_kql': return Array.isArray(d) ? `${d.length} rows` : 'Query complete'
     case 'query_apim_analytics': return d.row_count != null ? `${d.row_count} rows · ${d.title ?? ''}`.slice(0, 60) : 'Chart ready'
     case 'get_site_knowledge': return `${Math.round((typeof d === 'string' ? d.length : 0) / 100) / 10}k chars`
@@ -207,20 +217,24 @@ export default function CorvinCommandPage() {
       const detail = await getSession(sessionId)
       setMessages(detail.messages.map((m) => {
         // Restore chart data from DB-stored tool_results
-        const apimResult = m.tool_results?.['query_apim_analytics'] as ApimChartData | undefined
+        // Restore chart data: new format is array, old format is single object — normalize both
+        const rawApim = m.tool_results?.['query_apim_analytics']
+        const apimResults: ApimChartData[] = Array.isArray(rawApim)
+          ? rawApim as ApimChartData[]
+          : rawApim ? [rawApim as ApimChartData] : []
         return {
           id: String(m.id),
           role: m.role,
           content: m.content,
           thinking: m.thinking || undefined,
           thinkingCollapsed: true,
-          chartData: apimResult ?? null,
+          chartData: apimResults,
           toolSteps: m.tool_calls?.calls.map((c, i) => ({
             id: `hist-${m.id}-${i}`,
             toolName: c.tool_name,
             status: 'done' as const,
-            resultPreview: c.tool_name === 'query_apim_analytics' && apimResult
-              ? `${apimResult.row_count ?? '?'} rows`
+            resultPreview: c.tool_name === 'query_apim_analytics' && apimResults.length > 0
+              ? `${apimResults[apimResults.length - 1]?.row_count ?? '?'} rows`
               : 'Done',
           })) || [],
         }
@@ -267,11 +281,11 @@ export default function CorvinCommandPage() {
 
     // Clear tool panel on each new turn so it only shows current turn's results
     setToolEvents([])
-    const userMsg: UiMessage = { id: Date.now().toString(), role: 'user', content: userText }
+    const userMsg: UiMessage = { id: Date.now().toString(), role: 'user', content: userText, chartData: [] }
     setMessages(prev => [...prev, userMsg])
 
     const assistantId = (Date.now() + 1).toString()
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', toolSteps: [], thinking: '' }])
+    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', toolSteps: [], thinking: '', chartData: [] }])
 
     try {
       for await (const event of streamChat(sessionId, userText)) {
@@ -292,11 +306,11 @@ export default function CorvinCommandPage() {
                 ? { ...s, status: 'done' as const, resultPreview: preview }
                 : s
             )
-            // Capture chart data inline in the message for query_apim_analytics
+            // Accumulate chart data — append each APIM result to the array
             const chartData =
               ev.tool_name === 'query_apim_analytics' && ev.data
-                ? (ev.data as ApimChartData)
-                : last.chartData ?? null
+                ? [...(last.chartData ?? []), ev.data as ApimChartData]
+                : last.chartData ?? []
             next[next.length - 1] = { ...last, toolSteps: steps, chartData }
             return next
           })
@@ -636,9 +650,11 @@ export default function CorvinCommandPage() {
 
                               {/* ── Section 3: Final answer ── */}
                               {/* ── Inline chart — show immediately when data arrives ── */}
-                              {m.chartData && (
-                                <div style={{ marginTop: 4, marginBottom: 8 }}>
-                                  <ApimChart data={m.chartData} compact={false} />
+                              {m.chartData.length > 0 && (
+                                <div style={{ marginTop: 4, marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                  {m.chartData.map((cd, ci) => (
+                                    <ApimChart key={`chart-${m.id}-${ci}`} data={cd} compact={false} />
+                                  ))}
                                 </div>
                               )}
                               {(m.content || (isStreaming && !(m.toolSteps?.some(s => s.status === 'calling')))) && (

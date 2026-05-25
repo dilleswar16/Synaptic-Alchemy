@@ -31,7 +31,6 @@ def mock_investigation_result():
         elastic_metrics=[],
         log_analytics_apim=[],
         aks_context={},
-        azure_activity_changes=[]
     )
     fix_strategy = FixStrategyOutput(
         request_id=request.id,

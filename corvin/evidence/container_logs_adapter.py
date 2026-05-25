@@ -192,11 +192,12 @@ class ContainerLogsAdapter:
         time_range_minutes: int | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Fetch CPU and memory metrics from InsightsMetrics for nodes hosting a service.
+        Fetch CPU and memory metrics for containers running a service.
 
-        Uses node-level Prometheus metrics (process_cpu_seconds_total,
-        process_resident_memory_bytes) joined via KubePodInventory to identify
-        which nodes run the target service's pods.
+        Queries the Perf table (Container Insights standard) for container-level
+        counters, joined through KubePodInventory PodUid to scope to the target
+        service's pods. Perf InstanceName is a full resource path where the
+        penultimate segment is PodUid and the last segment is ContainerName.
         """
         if self._client is None:
             return []
@@ -205,18 +206,24 @@ class ContainerLogsAdapter:
         ns = namespace or self._config.get("default_namespace", "chad")
 
         query = (
-            f"let nodes = KubePodInventory\n"
+            f"let podUids = KubePodInventory\n"
             f"| where TimeGenerated >= ago({minutes}m)\n"
             f'| where Namespace == "{ns}"\n'
             f'| where Name contains "{service_name}"\n'
-            f"| distinct Computer;\n"
-            f"InsightsMetrics\n"
+            f"| summarize arg_max(TimeGenerated, Name) by PodUid;\n"
+            f"Perf\n"
             f"| where TimeGenerated >= ago({minutes}m)\n"
-            f"| where Name in ('process_cpu_seconds_total', 'process_resident_memory_bytes')\n"
-            f"| extend HostName = tostring(parse_json(Tags).hostName)\n"
-            f"| where HostName in (nodes)\n"
-            f"| summarize AvgValue=avg(Val), MaxValue=max(Val) by bin(TimeGenerated, 5m), HostName, Name\n"
-            f"| order by TimeGenerated desc, HostName asc\n"
+            f"| where ObjectName == 'K8SContainer'\n"
+            f"| where CounterName in ('cpuUsageNanoCores', 'cpuLimitNanoCores', 'cpuRequestNanoCores',"
+            f" 'memoryWorkingSetBytes', 'memoryRssBytes', 'memoryLimitBytes', 'memoryRequestBytes')\n"
+            f"| where InstanceName has_any (podUids)\n"
+            f"| extend parts = split(InstanceName, '/')\n"
+            f"| extend PodUid = tostring(parts[array_length(parts) - 2])\n"
+            f"| lookup kind=leftouter podUids on PodUid\n"
+            f"| extend ContainerName = tostring(parts[array_length(parts) - 1])\n"
+            f"| summarize AvgValue=avg(CounterValue), MaxValue=max(CounterValue)"
+            f" by bin(TimeGenerated, 5m), Name, ContainerName, CounterName\n"
+            f"| order by TimeGenerated desc, Name asc, ContainerName asc\n"
             f"| take 200"
         )
 
@@ -329,6 +336,134 @@ class ContainerLogsAdapter:
         )
 
         return self._run_query(query, minutes, f"get_network_metrics(service={service_name})")
+
+    def get_pod_restarts(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+        time_range_minutes: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch Kubernetes pod restart count trends from KubePodInventory.
+
+        Returns restart counts over time for each pod, enabling detection of
+        crash-looping or recurring restarts.
+        """
+        if self._client is None:
+            return []
+
+        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
+        ns = namespace or self._config.get("default_namespace", "chad")
+
+        query = (
+            f"KubePodInventory\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f'| where Namespace == "{ns}"\n'
+            f'| where Name contains "{service_name}"\n'
+            f"| project TimeGenerated, Name, PodStatus, ContainerStatus,"
+            f" ContainerStatusReason, ContainerRestartCount, PodRestartCount\n"
+            f"| summarize arg_max(TimeGenerated, *) by Name\n"
+            f"| order by PodRestartCount desc"
+        )
+
+        return self._run_query(query, minutes, f"get_pod_restarts(service={service_name})")
+
+    def get_oom_kill_events(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+        time_range_minutes: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch OOMKilled events from KubeEvents.
+
+        Returns out-of-memory container kill events with timestamps.
+        Critical for confirming memory leak or resource exhaustion incidents.
+        """
+        if self._client is None:
+            return []
+
+        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
+        ns = namespace or self._config.get("default_namespace", "chad")
+
+        query = (
+            f"KubeEvents\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f'| where Namespace == "{ns}"\n'
+            f'| where Name contains "{service_name}"\n'
+            f"| where Reason in ('OOMKilling', 'OOMKilled', 'Killing')\n"
+            f"    or Message contains 'OOM' or Message contains 'out of memory'\n"
+            f"| project TimeGenerated, Name, Reason, Message, KubeEventType, Count\n"
+            f"| order by TimeGenerated desc\n"
+            f"| take 50"
+        )
+
+        return self._run_query(query, minutes, f"get_oom_kill_events(service={service_name})")
+
+    def get_autoscaler_events(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+        time_range_minutes: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch Kubernetes HPA (Horizontal Pod Autoscaler) events from KubeEvents.
+
+        Returns autoscaler failures, scale-up/down events, and metric
+        computation errors. Detects scaling thrashing or inability to scale.
+        """
+        if self._client is None:
+            return []
+
+        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
+        ns = namespace or self._config.get("default_namespace", "chad")
+
+        query = (
+            f"KubeEvents\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f'| where Namespace == "{ns}"\n'
+            f"| where Reason in ('FailedComputeMetricsReplicas', 'FailedGetScale',"
+            f" 'FailedRescale', 'SuccessfulRescale', 'ScalingLimited',"
+            f" 'FailedGetResourceMetric', 'FailedGetExternalMetric')\n"
+            f"    or ObjectKind == 'HorizontalPodAutoscaler'\n"
+            f"| project TimeGenerated, Name, Reason, Message, KubeEventType, Count, ObjectKind\n"
+            f"| order by TimeGenerated desc\n"
+            f"| take 50"
+        )
+
+        return self._run_query(query, minutes, f"get_autoscaler_events(service={service_name})")
+
+    def get_health_probe_failures(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+        time_range_minutes: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch Kubernetes readiness/liveness probe failure events from KubeEvents.
+
+        Returns health check failures that cause traffic to be diverted away
+        from pods or pods to be restarted.
+        """
+        if self._client is None:
+            return []
+
+        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
+        ns = namespace or self._config.get("default_namespace", "chad")
+
+        query = (
+            f"KubeEvents\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f'| where Namespace == "{ns}"\n'
+            f'| where Name contains "{service_name}"\n'
+            f"| where Reason in ('Unhealthy', 'FailedLiveness', 'FailedReadiness',"
+            f" 'ProbeError', 'ContainerUnhealthy')\n"
+            f"| project TimeGenerated, Name, Reason, Message, KubeEventType, Count\n"
+            f"| order by TimeGenerated desc\n"
+            f"| take 50"
+        )
+
+        return self._run_query(query, minutes, f"get_health_probe_failures(service={service_name})")
 
     # ── Internal ──────────────────────────────────────────────────────────────
 

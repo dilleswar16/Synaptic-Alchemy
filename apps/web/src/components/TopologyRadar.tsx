@@ -34,10 +34,26 @@ const STATUS_HEX: Record<string, string> = {
   engine:     'var(--c-signal)',
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  high: 'healthy',
+  hot: 'unhealthy',
+  recovering: 'degraded',
+}
+
+function statusLabel(status: string): string {
+  return STATUS_LABEL[status] ?? status
+}
+
 // ── Custom node components ─────────────────────────────────────────────────────
 
-function ServiceNode({ data }: { data: { label: string; status: string; sublabel?: string; onClick: () => void } }) {
+function ServiceNode({ data }: { data: { label: string; status: string; sublabel?: string; cpu_mcores?: number | null; cpu_request_mcores?: number | null; cpu_limit_mcores?: number | null; cpu_utilization_pct?: number | null; memory_mib?: number | null; memory_request_mib?: number | null; memory_limit_mib?: number | null; memory_utilization_pct?: number | null; onClick: () => void } }) {
   const accent = STATUS_HEX[data.status] ?? 'var(--c-text-faint)'
+  const serviceHealthLabel = statusLabel(data.status)
+  const showMetrics =
+    typeof data.cpu_mcores === 'number'
+    || typeof data.memory_mib === 'number'
+    || typeof data.cpu_limit_mcores === 'number'
+    || typeof data.memory_limit_mib === 'number'
   return (
     <div
       onClick={data.onClick}
@@ -60,7 +76,19 @@ function ServiceNode({ data }: { data: { label: string; status: string; sublabel
       {data.status !== 'engine' && (
         <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 4 }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', padding: '2px 7px', borderRadius: 999, background: `color-mix(in srgb, ${accent} 20%, transparent)`, color: accent, border: `1px solid color-mix(in srgb, ${accent} 40%, transparent)` }}>
-            {data.status}
+            {serviceHealthLabel}
+          </span>
+        </div>
+      )}
+      {showMetrics && (
+        <div style={{ marginTop: 6, display: 'grid', justifyItems: 'center', gap: 2 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>
+            CPU {typeof data.cpu_mcores === 'number' ? data.cpu_mcores : '-'} / {typeof data.cpu_limit_mcores === 'number' ? data.cpu_limit_mcores : '-'} mC
+            {typeof data.cpu_utilization_pct === 'number' ? ` (${data.cpu_utilization_pct}%)` : ''}
+          </span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>
+            Memory {typeof data.memory_mib === 'number' ? data.memory_mib : '-'} / {typeof data.memory_limit_mib === 'number' ? data.memory_limit_mib : '-'} MiB
+            {typeof data.memory_utilization_pct === 'number' ? ` (${data.memory_utilization_pct}%)` : ''}
           </span>
         </div>
       )}
@@ -84,10 +112,42 @@ function splitPodName(name: string): [string, string] {
   return [parts.slice(0, splitIdx).join('-'), parts.slice(splitIdx).join('-')]
 }
 
-function PodNode({ data }: { data: { label: string; status: string; sublabel?: string } }) {
+function PodNode({ data }: { data: { label: string; status: string; sublabel?: string; cpu_mcores?: number | null; cpu_request_mcores?: number | null; cpu_limit_mcores?: number | null; cpu_utilization_pct?: number | null; memory_mib?: number | null; memory_request_mib?: number | null; memory_limit_mib?: number | null; memory_utilization_pct?: number | null; phase?: string | null; ready_containers?: number | null; total_containers?: number | null; restart_count?: number | null; unhealthy_containers?: number | null } }) {
   const accent = STATUS_HEX[data.status] ?? 'var(--c-text-faint)'
+  const healthLabel = statusLabel(data.status)
   const [base, suffix] = splitPodName(data.label)
   const typeLabel = data.sublabel ?? 'pod'
+  const ready = typeof data.ready_containers === 'number' ? data.ready_containers : 0
+  const total = typeof data.total_containers === 'number' ? data.total_containers : 0
+  const restarts = typeof data.restart_count === 'number' ? data.restart_count : 0
+  const cpu = typeof data.cpu_mcores === 'number' ? data.cpu_mcores : null
+  const cpuLimit = typeof data.cpu_limit_mcores === 'number' ? data.cpu_limit_mcores : null
+  const cpuPct = typeof data.cpu_utilization_pct === 'number' ? data.cpu_utilization_pct : null
+  const memory = typeof data.memory_mib === 'number' ? data.memory_mib : null
+  const memoryLimit = typeof data.memory_limit_mib === 'number' ? data.memory_limit_mib : null
+  const memoryPct = typeof data.memory_utilization_pct === 'number' ? data.memory_utilization_pct : null
+  const phase = data.phase ?? 'Unknown'
+  const showRuntimeMetrics = String(typeLabel).toLowerCase() === 'pod'
+  const healthBadgeLabel = healthLabel.charAt(0).toUpperCase() + healthLabel.slice(1)
+  const healthTooltip = `Health: ${healthLabel}. Phase: ${phase}. Ready: ${ready}/${total}. Restarts: ${restarts}.`
+
+  const metricPill = (label: string, value: string) => (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      fontFamily: 'var(--font-mono)',
+      fontSize: '0.61rem',
+      color: 'var(--c-text-dim)',
+      padding: '2px 7px',
+      borderRadius: 999,
+      border: `1px solid color-mix(in srgb, ${accent} 36%, transparent)`,
+      background: `color-mix(in srgb, ${accent} 10%, transparent)`,
+    }}>
+      <span>{label} {value}</span>
+    </span>
+  )
+
   return (
     <div style={{
       padding: '8px 12px', minWidth: 200, borderRadius: 8,
@@ -96,18 +156,62 @@ function PodNode({ data }: { data: { label: string; status: string; sublabel?: s
       boxShadow: `0 0 16px color-mix(in srgb, ${accent} 25%, transparent)`,
     }}>
       <Handle type="target" position={Position.Left} style={{ background: accent, borderColor: accent, width: 6, height: 6 }} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: accent, boxShadow: `0 0 8px ${accent}`, flexShrink: 0 }} />
-        <div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: accent, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 1, opacity: 0.85 }}>{typeLabel}</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--c-text)', lineHeight: 1.3 }}>{base}</div>
-          {suffix && (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-info)', lineHeight: 1.25, marginTop: 1 }}>
-              {suffix}
-            </div>
-          )}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: accent, boxShadow: `0 0 8px ${accent}`, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: accent, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 1, opacity: 0.85 }}>{typeLabel}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: accent, lineHeight: 1.3 }}>{base}</div>
+            {suffix && (
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: accent, lineHeight: 1.25, marginTop: 1, opacity: 0.9 }}>
+                {suffix}
+              </div>
+            )}
+          </div>
         </div>
+        <span
+          title={healthTooltip}
+          aria-label={healthTooltip}
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.62rem',
+            fontWeight: 800,
+            padding: '2px 8px',
+            borderRadius: 999,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: `1px solid color-mix(in srgb, ${accent} 48%, transparent)`,
+            color: accent,
+            background: `color-mix(in srgb, ${accent} 14%, transparent)`,
+            cursor: 'help',
+            flexShrink: 0,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+          }}
+        >
+          {healthBadgeLabel}
+        </span>
       </div>
+      {showRuntimeMetrics && (
+        <div style={{ display: 'grid', gap: 6, marginTop: 7 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>
+              phase: {phase}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)' }}>
+              ready: {ready}/{total}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: restarts > 0 ? 'var(--c-warning)' : 'var(--c-text-dim)' }}>
+              restarts: {restarts}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {cpu !== null && metricPill('CPU', `${cpu}${cpuLimit !== null ? `/${cpuLimit}` : ''} mC${cpuPct !== null ? ` (${cpuPct}%)` : ''}`)}
+            {memory !== null && metricPill('Memory', `${memory}${memoryLimit !== null ? `/${memoryLimit}` : ''} MiB${memoryPct !== null ? ` (${memoryPct}%)` : ''}`)}
+          </div>
+        </div>
+      )}
       <Handle type="source" position={Position.Right} style={{ background: accent, borderColor: accent, width: 6, height: 6 }} />
     </div>
   )
@@ -181,9 +285,11 @@ const SVC_X = 440
 const API_X = 230
 const GW_X  = 20
 const POD_X = 710
-const SVC_GAP = 160
-const POD_GAP = 96
-const CENTER_Y = 260
+const POD_GAP = 148
+const POD_CARD_HEIGHT = 92
+const SERVICE_CARD_HEIGHT = 126
+const SERVICE_GROUP_GAP = 58
+const CENTER_Y = 320
 
 function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: string) => void) {
   const nodeMap = new Map(topology.nodes.map(n => [n.id, n]))
@@ -204,21 +310,52 @@ function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: st
   const posMap = new Map<string, { x: number; y: number }>()
   const nodes: Node[] = []
 
-  // 1. Services — vertical stack centred
-  const svcStartY = CENTER_Y - ((services.length - 1) * SVC_GAP) / 2
+  const podIdsByService = new Map<string, string[]>()
+  for (const svc of services) {
+    podIdsByService.set(
+      svc.id,
+      (outEdges.get(svc.id) ?? []).filter(id => nodeMap.get(id)?.kind === 'pod'),
+    )
+  }
+
+  // 1. Services — adaptive stack centred by service/pod footprint.
+  const footprints = services.map((svc) => {
+    const podIds = podIdsByService.get(svc.id) ?? []
+    const podGroupHeight = podIds.length > 0
+      ? POD_CARD_HEIGHT + Math.max(0, (podIds.length - 1) * POD_GAP)
+      : 0
+    return Math.max(SERVICE_CARD_HEIGHT, podGroupHeight)
+  })
+  const stackHeight = footprints.reduce((sum, h) => sum + h, 0)
+    + Math.max(0, (services.length - 1) * SERVICE_GROUP_GAP)
+  let cursorY = CENTER_Y - stackHeight / 2
+
   services.forEach((svc, i) => {
-    const y = svcStartY + i * SVC_GAP
+    const y = cursorY + footprints[i] / 2
+    cursorY += footprints[i] + SERVICE_GROUP_GAP
     posMap.set(svc.id, { x: SVC_X, y })
     nodes.push({
       id: svc.id, type: 'service',
       position: { x: SVC_X, y },
-      data: { label: svc.label, status: svc.status, onClick: () => onServiceClick(svc.label) },
+      data: {
+        label: svc.label,
+        status: svc.status,
+        cpu_mcores: svc.cpu_mcores,
+        cpu_request_mcores: svc.cpu_request_mcores,
+        cpu_limit_mcores: svc.cpu_limit_mcores,
+        cpu_utilization_pct: svc.cpu_utilization_pct,
+        memory_mib: svc.memory_mib,
+        memory_request_mib: svc.memory_request_mib,
+        memory_limit_mib: svc.memory_limit_mib,
+        memory_utilization_pct: svc.memory_utilization_pct,
+        onClick: () => onServiceClick(svc.label),
+      },
     })
   })
 
   // 2. Pods — each group centred on its parent service Y, with GROUP_PAD between groups
   for (const svc of services) {
-    const podIds = (outEdges.get(svc.id) ?? []).filter(id => nodeMap.get(id)?.kind === 'pod')
+    const podIds = podIdsByService.get(svc.id) ?? []
     if (podIds.length === 0) continue
     const svcY = posMap.get(svc.id)!.y
     const groupH = (podIds.length - 1) * POD_GAP
@@ -227,16 +364,38 @@ function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: st
       const pod = nodeMap.get(podId)!
       const y = groupStartY + i * POD_GAP
       posMap.set(podId, { x: POD_X, y })
-      nodes.push({ id: podId, type: 'pod', position: { x: POD_X, y }, data: { label: pod.label, status: pod.status } })
+      nodes.push({
+        id: podId,
+        type: 'pod',
+        position: { x: POD_X, y },
+        data: {
+          label: pod.label,
+          status: pod.status,
+          phase: pod.phase,
+          cpu_mcores: pod.cpu_mcores,
+          cpu_request_mcores: pod.cpu_request_mcores,
+          cpu_limit_mcores: pod.cpu_limit_mcores,
+          cpu_utilization_pct: pod.cpu_utilization_pct,
+          memory_mib: pod.memory_mib,
+          memory_request_mib: pod.memory_request_mib,
+          memory_limit_mib: pod.memory_limit_mib,
+          memory_utilization_pct: pod.memory_utilization_pct,
+          ready_containers: pod.ready_containers,
+          total_containers: pod.total_containers,
+          restart_count: pod.restart_count,
+          unhealthy_containers: pod.unhealthy_containers,
+        },
+      })
     })
   }
 
   // 3. API nodes — y aligned to their target service
   apis.forEach((api, i) => {
     const targetSvcIds = (outEdges.get(api.id) ?? []).filter(id => nodeMap.get(id)?.kind === 'service')
+    const firstServiceY = services.length > 0 ? (posMap.get(services[0].id)?.y ?? CENTER_Y) : CENTER_Y
     const avgY = targetSvcIds.length > 0
       ? targetSvcIds.reduce((s, id) => s + (posMap.get(id)?.y ?? CENTER_Y), 0) / targetSvcIds.length
-      : svcStartY + i * SVC_GAP
+      : firstServiceY + i * (SERVICE_CARD_HEIGHT + SERVICE_GROUP_GAP)
     posMap.set(api.id, { x: API_X, y: avgY })
     nodes.push({ id: api.id, type: 'api', position: { x: API_X, y: avgY }, data: { label: api.label, status: api.status } })
   })
@@ -254,11 +413,15 @@ function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: st
     const depSvcYs = services
       .filter(s => (outEdges.get(s.id) ?? []).some(id => nodeMap.get(id)?.kind === 'backend'))
       .map(s => posMap.get(s.id)?.y ?? CENTER_Y)
+    const allServiceAndPodYs = nodes
+      .filter(n => n.type === 'service' || n.type === 'pod')
+      .map(n => n.position.y)
+    const contentBottomY = allServiceAndPodYs.length > 0 ? Math.max(...allServiceAndPodYs) : CENTER_Y
     const backendCenterY = depSvcYs.length > 0
       ? depSvcYs.reduce((a, b) => a + b, 0) / depSvcYs.length
-      : CENTER_Y
+      : contentBottomY
     backends.forEach((backend, i) => {
-      const y = backendCenterY + 180 + i * 100
+      const y = Math.max(contentBottomY + 160, backendCenterY + 180) + i * 100
       posMap.set(backend.id, { x: SVC_X, y })
       nodes.push({ id: backend.id, type: 'backend', position: { x: SVC_X, y }, data: { label: backend.label, status: backend.status } })
     })
@@ -283,7 +446,12 @@ function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: st
     }
   })
 
-  return { nodes, edges }
+  const verticalPoints = nodes.map(n => n.position.y)
+  const minY = verticalPoints.length ? Math.min(...verticalPoints) : 0
+  const maxY = verticalPoints.length ? Math.max(...verticalPoints) : 500
+  const estimatedHeight = Math.max(620, Math.min(1300, Math.round((maxY - minY) + 420)))
+
+  return { nodes, edges, estimatedHeight }
 }
 
 // ── Corvin-flow static graph ──────────────────────────────────────────────────
@@ -296,33 +464,31 @@ const CORVIN_NODES: Node[] = [
     data: { label: 'Azure Alert', sublabel: 'TRIGGER' } },
 
   // col 1 — Evidence adapters
-  { id: 'ev-apim', type: 'api', position: { x: 220, y: 80 },
-    data: { label: 'APIM Logs', sublabel: 'ADAPTER' } },
-  { id: 'ev-aks', type: 'api', position: { x: 220, y: 210 },
-    data: { label: 'AKS Pods', sublabel: 'ADAPTER' } },
-  { id: 'ev-logs', type: 'api', position: { x: 220, y: 340 },
-    data: { label: 'Container Logs', sublabel: 'ADAPTER' } },
-  { id: 'ev-activity', type: 'api', position: { x: 220, y: 470 },
-    data: { label: 'Activity Log', sublabel: 'ADAPTER' } },
+  { id: 'ev-apim', type: 'api', position: { x: 220, y: 140 },
+    data: { label: 'APIM Gateway', sublabel: 'REQUESTS • ERRORS' } },
+  { id: 'ev-aks', type: 'api', position: { x: 220, y: 300 },
+    data: { label: 'Kubernetes', sublabel: 'CPU • MEMORY • PODS' } },
+  { id: 'ev-logs', type: 'api', position: { x: 220, y: 460 },
+    data: { label: 'App Logs', sublabel: 'EXCEPTIONS • LATENCY' } },
 
   // col 2 — Engine (brand orange)
   { id: 'engine', type: 'service', position: { x: 440, y: 265 },
     data: { label: 'Corvin Engine', status: 'engine', sublabel: 'ENGINE', onClick: () => {} } },
 
   // col 3 — LLM output
-  { id: 'rca', type: 'pod', position: { x: 650, y: 185 },
+  { id: 'rca', type: 'pod', position: { x: 640, y: 185 },
     data: { label: 'RCA · GPT-5.1', status: 'high', sublabel: 'OUTPUT' } },
-  { id: 'fix', type: 'pod', position: { x: 650, y: 325 },
+  { id: 'fix', type: 'pod', position: { x: 640, y: 325 },
     data: { label: 'Fix Strategy', status: 'high', sublabel: 'OUTPUT' } },
 
   // col 4 — Human approval gate
-  { id: 'approval', type: 'backend', position: { x: 860, y: 255 },
+  { id: 'approval', type: 'backend', position: { x: 960, y: 255 },
     data: { label: 'Human Approval', sublabel: 'TEAMS / UI' } },
 
   // col 5 — Execution + delivery
-  { id: 'execute', type: 'service', position: { x: 1060, y: 185 },
+  { id: 'execute', type: 'service', position: { x: 1180, y: 185 },
     data: { label: 'Execute Fix', status: 'high', sublabel: 'AKS · kubectl', onClick: () => {} } },
-  { id: 'notify', type: 'gateway', position: { x: 1060, y: 330 },
+  { id: 'notify', type: 'gateway', position: { x: 1180, y: 330 },
     data: { label: 'Teams + Email', sublabel: 'DELIVERY' } },
 ]
 
@@ -337,9 +503,6 @@ const CORVIN_EDGES: Edge[] = [
   { id: 'ce3', source: 'trigger', target: 'ev-logs', animated: true,
     style: { stroke: 'rgba(14,165,233,0.65)', strokeWidth: 1.8 },
     markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(14,165,233,0.65)', width: 15, height: 15 } },
-  { id: 'ce4', source: 'trigger', target: 'ev-activity', animated: true,
-    style: { stroke: 'rgba(14,165,233,0.65)', strokeWidth: 1.8 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(14,165,233,0.65)', width: 15, height: 15 } },
   // evidence → engine (teal)
   { id: 'ce5', source: 'ev-apim', target: 'engine', animated: true, label: 'enrich',
     style: { stroke: 'rgba(13,148,136,0.55)', strokeWidth: 1.8 },
@@ -348,9 +511,6 @@ const CORVIN_EDGES: Edge[] = [
     style: { stroke: 'rgba(13,148,136,0.55)', strokeWidth: 1.8 },
     markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(13,148,136,0.55)', width: 15, height: 15 } },
   { id: 'ce7', source: 'ev-logs', target: 'engine', animated: true,
-    style: { stroke: 'rgba(13,148,136,0.55)', strokeWidth: 1.8 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(13,148,136,0.55)', width: 15, height: 15 } },
-  { id: 'ce8', source: 'ev-activity', target: 'engine', animated: true,
     style: { stroke: 'rgba(13,148,136,0.55)', strokeWidth: 1.8 },
     markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(13,148,136,0.55)', width: 15, height: 15 } },
   // engine → output (green)
@@ -452,10 +612,12 @@ export function TopologyRadar() {
   // App view: live pods from AKS. Corvin view: DB-backed investigation graph.
   const activeSource = viewMode === 'app' ? liveData : data
 
-  const { nodes: appNodes, edges: appEdges } = useMemo(
-    () => activeSource ? buildFlowElements(activeSource, onServiceClick) : { nodes: [], edges: [] },
+  const { nodes: appNodes, edges: appEdges, estimatedHeight: appHeight } = useMemo(
+    () => activeSource ? buildFlowElements(activeSource, onServiceClick) : { nodes: [], edges: [], estimatedHeight: 560 },
     [activeSource, onServiceClick],
   )
+
+  const graphHeight = viewMode === 'app' ? appHeight : 560
 
   const serviceNodes = activeSource?.nodes.filter(n => n.kind === 'service') ?? []
   const activeNodes = viewMode === 'app' ? appNodes : CORVIN_NODES
@@ -565,7 +727,7 @@ export function TopologyRadar() {
 
       {/* React Flow canvas */}
       <div style={{
-        height: 500, borderRadius: 12, overflow: 'hidden',
+        height: graphHeight, borderRadius: 12, overflow: 'hidden',
         border: '1px solid var(--c-border)',
         background: 'linear-gradient(160deg, var(--c-surface) 0%, var(--c-surface-2) 100%)',
         position: 'relative',
@@ -603,11 +765,14 @@ export function TopologyRadar() {
           {serviceNodes.map((node: TopologyNode) => (
             <Link key={node.id} to={`/investigations?service=${encodeURIComponent(node.label)}`} style={{
               fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '5px 10px', borderRadius: 999,
-              border: '1px solid var(--c-border)', background: 'var(--c-surface-2)', color: 'var(--c-text-dim)', textDecoration: 'none',
+              border: '1px solid var(--c-border)', background: `color-mix(in srgb, ${STATUS_HEX[node.status] ?? 'var(--c-text-faint)'} 14%, var(--c-surface-2))`, color: STATUS_HEX[node.status] ?? 'var(--c-text-dim)', textDecoration: 'none',
             }}>
               {node.label}
             </Link>
           ))}
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', marginLeft: 4 }}>
+            Pod health: green=healthy, red=unhealthy, amber=degraded (restarts)
+          </span>
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 14 }}>

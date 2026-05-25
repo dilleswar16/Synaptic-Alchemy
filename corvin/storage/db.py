@@ -112,6 +112,10 @@ _SQLITE_COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
     ("evidence_bundles", "container_inventory", "JSON DEFAULT '[]'"),
     ("evidence_bundles", "node_inventory", "JSON DEFAULT '[]'"),
     ("evidence_bundles", "network_metrics", "JSON DEFAULT '[]'"),
+    ("evidence_bundles", "pod_restarts", "JSON DEFAULT '[]'"),
+    ("evidence_bundles", "oom_kill_events", "JSON DEFAULT '[]'"),
+    ("evidence_bundles", "autoscaler_events", "JSON DEFAULT '[]'"),
+    ("evidence_bundles", "health_probe_failures", "JSON DEFAULT '[]'"),
 ]
 
 

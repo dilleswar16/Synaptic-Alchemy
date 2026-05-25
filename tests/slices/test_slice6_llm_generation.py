@@ -100,6 +100,38 @@ def test_rca_success_path(monkeypatch):
     assert captured["messages"][0] == {"role": "system", "content": "system knowledge"}
 
 
+def test_rca_normalizes_bare_evidence_reference_keys(monkeypatch):
+    request = _make_request()
+    evidence = _make_evidence(request.id)
+
+    def fake_completion(**kwargs):
+        return _completion_response(
+            {
+                "request_id": request.id,
+                "summary": "Healthy check completed.",
+                "root_cause": "No active issue detected.",
+                "contributing_factors": [],
+                "confidence": "high",
+                "evidence_references": ["elastic_logs"],
+            }
+        )
+
+    monkeypatch.setattr("corvin.strategy.rca_generator.litellm.completion", fake_completion)
+
+    generator = RCAGenerator(
+        config={
+            "model": "primary-model",
+            "fallback_model": "fallback-model",
+            "temperature": 0.1,
+            "max_tokens": 512,
+        },
+        policy_config={"require_evidence_before_rca": True},
+    )
+    result = generator.generate(request, evidence, system_prompt="system knowledge")
+
+    assert result.evidence_references == ["elastic_logs: 1 record found"]
+
+
 def test_rca_fallback_model_path_after_primary_failure(monkeypatch):
     request = _make_request()
     evidence = _make_evidence(request.id)

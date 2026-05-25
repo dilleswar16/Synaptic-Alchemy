@@ -10,6 +10,8 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { StageEvent } from '../hooks/useInvestigationStream'
 
 // ── Utility: Stream Token Parser ────────────────────────────────────────────
@@ -34,25 +36,24 @@ interface StreamingProgressProps {
   stages: StageEvent[]
   streamText: Record<string, string>
   fetchingEvents: StageEvent[]
+  deliveryEvents?: StageEvent[]
   isStreaming: boolean
   isComplete: boolean
   error: string | null
   requestId: string | null
-  adoWorkItemId?: string | null
-  adoUrl?: string | null
-  emailSent?: boolean
   onReset: () => void
 }
 
 // ── Stage config ──────────────────────────────────────────────────────────────
 
-const STAGES = ['evidence', 'rca', 'fix_strategy'] as const
+const STAGES = ['evidence', 'rca', 'fix_strategy', 'delivery'] as const
 type StageName = typeof STAGES[number]
 
 const STAGE_LABELS: Record<StageName, string> = {
   evidence:     'Evidence Collection',
   rca:          'Root Cause Analysis',
   fix_strategy: 'Fix Strategy',
+  delivery:     'Delivery',
 }
 
 // ── Evidence accordion ────────────────────────────────────────────────────────
@@ -60,26 +61,81 @@ const STAGE_LABELS: Record<StageName, string> = {
 interface FetchingRow {
   source: string
   table: string
-  source_status: 'running' | 'done'
+  source_status: 'running' | 'done' | 'retrying'
   count: number
   elapsed_ms: number
 }
 
 const SOURCE_LABEL: Record<string, string> = {
-  container_logs:       'Container Logs',
-  apim_logs:            'APIM Logs',
-  aks_context:          'AKS Context',
-  activity_changes:     'Activity Changes',
-  elastic_logs:         'Elastic Logs',
-  elastic_metrics:      'Elastic Metrics',
-  resource_metrics:     'CPU / Memory',
+  container_logs:       'Application Logs',
+  apim_logs:            'API Gateway',
+  aks_context:          'K8s Cluster Health',
+  elastic_logs:         'Application Logs',
+  elastic_metrics:      'Application Metrics',
+  resource_metrics:     'K8s Resource Usage',
   container_inventory:  'Container Images',
-  node_inventory:       'Node Health',
-  network_metrics:      'Network I/O',
+  node_inventory:       'K8s Node Health',
+  network_metrics:      'Network Traffic',
+  pod_restarts:         'K8s Pod Restarts',
+  oom_kill_events:      'K8s OOM Kill Events',
+  autoscaler_events:    'K8s Autoscaler Events',
+  health_probe_failures:'K8s Health Probes',
+  // Delivery targets
+  database:             'Database',
+  azure_boards:         'Azure Boards',
+  email:                'RCA Email',
+  wiki:                 'ADO Wiki',
+  sharepoint:           'SharePoint',
 }
 
 function fmtMs(ms: number): string {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`
+}
+
+function getFixStrategyActionPill(
+  stageKey: string,
+  latest: StageEvent,
+  active: boolean,
+  done: boolean,
+): { label: string; color: string; bg: string; border: string } | null {
+  if (stageKey !== 'fix_strategy') return null
+  if (active && !done) {
+    return {
+      label: 'Assessing Actions…',
+      color: 'var(--c-signal)',
+      bg: 'var(--c-signal-light)',
+      border: 'var(--c-signal-dim)',
+    }
+  }
+  if (!done) return null
+
+  const actionCount = Number(latest.action_count ?? 0)
+  const riskLevels = Array.isArray(latest.action_risk_levels)
+    ? (latest.action_risk_levels as unknown[])
+        .map((r) => String(r).toLowerCase())
+        .filter(Boolean)
+    : []
+
+  const allLowRisk =
+    actionCount === 0 ||
+    (riskLevels.length === actionCount && riskLevels.every((r) => r === 'low'))
+
+  const informationalOnly = latest.informational_only === true || allLowRisk
+  if (informationalOnly) {
+    return {
+      label: 'No Action Needed',
+      color: 'var(--c-green)',
+      bg: 'var(--c-success-bg)',
+      border: 'var(--c-success-border)',
+    }
+  }
+
+  return {
+    label: 'Action Required',
+    color: 'var(--c-amber)',
+    bg: 'var(--c-warning-bg)',
+    border: 'var(--c-warning-border)',
+  }
 }
 
 function EvidenceAccordion({
@@ -190,7 +246,7 @@ function EvidenceAccordion({
                   fontFamily: 'var(--font-mono)', fontSize: '0.67rem', textAlign: 'right',
                   color: running ? 'var(--c-text-faint)' : hasData ? 'var(--c-text-dim)' : 'var(--c-text-faint)',
                 }}>
-                  {running ? '…' : hasData ? `${row.count}` : '—'}
+                  {running ? '…' : hasData ? `${row.count}` : 'No records'}
                 </span>
 
                 {/* Elapsed */}
@@ -212,6 +268,142 @@ function EvidenceAccordion({
               </span>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Delivery accordion ────────────────────────────────────────────────────────
+
+function DeliveryAccordion({
+  fetchingRows,
+  isActive,
+}: {
+  fetchingRows: FetchingRow[]
+  isActive: boolean
+}) {
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (isActive) setOpen(true)
+  }, [isActive])
+
+  if (fetchingRows.length === 0) return null
+
+  const rowMap = new Map<string, FetchingRow & { detail?: string; url?: string }>()
+  for (const row of fetchingRows) rowMap.set(row.source, row as any)
+  const rows = Array.from(rowMap.values())
+
+  const doneRows = rows.filter(r => r.source_status === 'done')
+  const succeeded = doneRows.filter(r => r.count > 0).length
+  const failed = doneRows.filter(r => r.count === 0 && ((r as any).detail === 'Failed')).length
+  const skipped = doneRows.length - succeeded - failed
+  const anyRunning = rows.some(r => r.source_status === 'running')
+  const anyRetrying = rows.some(r => r.source_status === 'retrying')
+
+  return (
+    <div style={{ marginTop: 12, border: '1px solid var(--c-border)', borderRadius: 4, overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px', background: 'none', border: 'none',
+          cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <span style={{
+          fontSize: '0.68rem', color: 'var(--c-text-faint)',
+          transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none',
+          display: 'inline-block', flexShrink: 0,
+        }}>▶</span>
+        {anyRunning && (
+          <span className="animate-pulse-glow" style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: 'var(--c-signal)', flexShrink: 0, display: 'inline-block',
+          }} />
+        )}
+        <span style={{
+          fontWeight: 600, fontSize: '0.8125rem',
+          letterSpacing: '0.02em',
+          color: 'var(--c-text-muted)',
+        }}>
+          Delivery Targets
+        </span>
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: '0.67rem',
+          color: 'var(--c-text-faint)', marginLeft: 'auto',
+        }}>
+          {anyRetrying
+            ? <span className="animate-pulse-glow" style={{ color: '#f59e0b' }}>retrying…</span>
+            : anyRunning
+            ? <span className="animate-pulse-glow" style={{ color: 'var(--c-signal)' }}>delivering…</span>
+            : <>
+                {succeeded > 0 && <>{succeeded} delivered</>}
+                {failed > 0 && <>{succeeded > 0 ? ' · ' : ''}<span style={{ color: 'var(--c-red)' }}>{failed} failed</span></>}
+                {skipped > 0 && <>{(succeeded > 0 || failed > 0) ? ' · ' : ''}{skipped} skipped</>}
+              </>
+          }
+        </span>
+      </button>
+
+      {open && (
+        <div style={{ borderTop: '1px solid var(--c-border)' }}>
+          {rows.map(row => {
+            const running = row.source_status === 'running'
+            const retrying = row.source_status === 'retrying'
+            const hasData = row.count > 0
+            const detail = (row as any).detail as string | undefined
+            const url = (row as any).url as string | undefined
+            return (
+              <div key={row.source} style={{
+                display: 'grid', gridTemplateColumns: '18px 1fr auto 60px',
+                alignItems: 'center', gap: 10,
+                padding: '7px 14px', borderBottom: '1px solid var(--c-border)',
+              }}>
+                <span style={{
+                  fontSize: (running || retrying) ? '1rem' : '0.75rem', lineHeight: 1,
+                  color: retrying ? '#f59e0b' : running ? 'var(--c-signal)' : hasData ? 'var(--c-green)' : detail === 'Failed' ? 'var(--c-red)' : 'var(--c-text-faint)',
+                }} className={(running || retrying) ? 'animate-pulse-glow' : ''}>
+                  {retrying ? '⟳' : running ? '⟳' : hasData ? '✓' : detail === 'Failed' ? '✕' : '–'}
+                </span>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: hasData ? 600 : 400,
+                    color: running ? 'var(--c-signal)' : hasData ? 'var(--c-text-dim)' : 'var(--c-text-faint)',
+                  }}>
+                    {SOURCE_LABEL[row.source] ?? row.source}
+                  </span>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)',
+                  }}>
+                    {row.table}
+                  </span>
+                </div>
+
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.67rem', textAlign: 'right',
+                  color: retrying ? '#f59e0b' : running ? 'var(--c-text-faint)' : hasData ? 'var(--c-green)' : detail === 'Failed' ? 'var(--c-red)' : 'var(--c-text-faint)',
+                }}>
+                  {retrying ? (detail ?? 'Retrying…') : running ? '…' : url ? (
+                    <a href={url} target="_blank" rel="noreferrer" style={{
+                      color: 'var(--c-info)', textDecoration: 'none', fontWeight: 600,
+                    }}>
+                      {detail} →
+                    </a>
+                  ) : (detail ?? 'Skipped')}
+                </span>
+
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.67rem', textAlign: 'right',
+                  color: running ? 'transparent' : 'var(--c-text-faint)',
+                }}>
+                  {running ? '' : fmtMs(row.elapsed_ms)}
+                </span>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -292,7 +484,7 @@ function StageTracker({ stages }: { stages: StageEvent[] }) {
 
 // ── Model thinking / reasoning panel ────────────────────────────────────────
 
-function ThinkingPanel({ text, isActive, label = 'Model Reasoning' }: { text: string; isActive: boolean; label?: string }) {
+function ThinkingPanel({ text, isActive, contentStarted = false, label = 'Model Reasoning' }: { text: string; isActive: boolean; contentStarted?: boolean; label?: string }) {
   const [open, setOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -301,6 +493,12 @@ function ThinkingPanel({ text, isActive, label = 'Model Reasoning' }: { text: st
     if (text && !open) setOpen(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!text])
+
+  // Auto-collapse when content tokens start streaming (RCA/fix text arrives)
+  useEffect(() => {
+    if (contentStarted && open) setOpen(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentStarted])
 
   useEffect(() => {
     if (open && scrollRef.current) {
@@ -377,36 +575,52 @@ function ThinkingPanel({ text, isActive, label = 'Model Reasoning' }: { text: st
   )
 }
 
-// ── Live typewriter panel ─────────────────────────────────────────────────────
+// ── Markdown stream helpers ─────────────────────────────────────────────────
 
-function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
+/** Close unclosed fences / backticks so ReactMarkdown parses cleanly mid-stream */
+function safeMarkdown(content: string, streaming: boolean): string {
+  if (!content) return content
+  if (!streaming) return content
+  let s = content
+  const tripleCount = (s.match(/```/g) || []).length
+  if (tripleCount % 2 !== 0) s += '\n```'
+  const stripped = s.replace(/```[\s\S]*?```/g, '')
+  const singleCount = (stripped.match(/(?<!`)`(?!`)/g) || []).length
+  if (singleCount % 2 !== 0) s += '`'
+  if (!s.endsWith('\n')) s += '\n'
+  return s
+}
+
+const streamMdComponents: Record<string, React.ComponentType<any>> = {
+  pre: ({ children }) => (
+    <div style={{ overflowX: 'auto', margin: '8px 0', borderRadius: 8, border: '1px solid var(--c-border)' }}>
+      <pre style={{ margin: 0, background: 'var(--c-surface-2)', padding: '10px 14px', borderRadius: 8, fontSize: '0.75rem', fontFamily: 'var(--font-mono)', overflowX: 'auto' }}>{children}</pre>
+    </div>
+  ),
+  code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
+    if (className?.startsWith('language-')) {
+      return <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{children}</code>
+    }
+    return <code style={{ background: 'var(--c-surface-3)', color: 'var(--c-signal)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}>{children}</code>
+  },
+  table: ({ children }) => <div style={{ overflowX: 'auto', margin: '8px 0' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.75rem' }}>{children}</table></div>,
+  th: ({ children }) => <th style={{ border: '1px solid var(--c-border)', padding: '6px 10px', background: 'var(--c-surface)', textAlign: 'left', fontWeight: 700 }}>{children}</th>,
+  td: ({ children }) => <td style={{ border: '1px solid var(--c-border)', padding: '6px 10px' }}>{children}</td>,
+}
+
+// ── Live markdown stream panel ──────────────────────────────────────────────
+
+function MarkdownStreamPanel({ stage, text }: { stage: string; text: string }) {
   const tokenCount = text.length
   const label = STAGE_LABELS[stage as StageName] ?? stage
   const parsedText = useMemo(() => parseStreamToken(text), [text])
-  const [displayed, setDisplayed] = useState('')
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Reset when parsedText is cleared (new investigation)
-  useEffect(() => {
-    if (!parsedText) setDisplayed('')
-  }, [parsedText])
-
-  // Char-by-char typewriter: add 4 chars every 12 ms ≈ 333 chars/sec
-  useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-    if (displayed.length >= parsedText.length) return
-    timerRef.current = setTimeout(() => {
-      setDisplayed(parsedText.slice(0, displayed.length + 4))
-    }, 12)
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [displayed, parsedText])
-
-  // Auto-scroll as displayed text grows
+  // Auto-scroll as content grows
   useEffect(() => {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [displayed])
+  }, [parsedText])
 
   return (
     <div
@@ -439,23 +653,31 @@ function TypewriterPanel({ stage, text }: { stage: string; text: string }) {
           {tokenCount > 0 ? `${tokenCount} chars` : '…'}
         </span>
       </div>
-      {/* Live token text */}
+      {/* Live markdown content */}
       <div
         ref={scrollRef}
+        className="corvin-md"
         style={{
           padding: '14px 16px',
-          maxHeight: 200,
+          maxHeight: 260,
           overflowY: 'auto',
           fontSize: '0.82rem',
           lineHeight: 1.75,
           color: 'var(--c-text-muted)',
-          whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
           fontFamily: 'var(--font-body)',
         }}
       >
-        {displayed || <span style={{ color: 'var(--c-text-faint)' }}>Waiting for tokens…</span>}
-        <span className="animate-cursor" style={{ color: 'var(--c-signal)', fontWeight: 700 }}>▋</span>
+        {parsedText ? (
+          <>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={streamMdComponents as any}>
+              {safeMarkdown(parsedText, true)}
+            </ReactMarkdown>
+            <span className="animate-cursor" style={{ color: 'var(--c-signal)', fontWeight: 700, display: 'inline-block' }}>▋</span>
+          </>
+        ) : (
+          <span style={{ color: 'var(--c-text-faint)' }}>Waiting for tokens…</span>
+        )}
       </div>
     </div>
   )
@@ -631,12 +853,14 @@ function StagePanel({
   streamText,
   isActiveStage,
   fetchingEvents,
+  deliveryEvents,
 }: {
   stageKey: string
   stageEvents: StageEvent[]
   streamText: Record<string, string>
   isActiveStage: boolean
   fetchingEvents: FetchingRow[]
+  deliveryEvents: FetchingRow[]
 }) {
   const latest = stageEvents.at(-1)
   if (!latest) return null
@@ -644,6 +868,7 @@ function StagePanel({
   const done   = latest.status === 'complete'
   const active = latest.status === 'started'
   const text   = streamText[stageKey] ?? ''
+  const actionPill = getFixStrategyActionPill(stageKey, latest, active, done)
 
   return (
     <div
@@ -661,6 +886,27 @@ function StagePanel({
         <span style={{ fontWeight: 700, fontSize: '0.82rem', color: done ? 'var(--c-text)' : active ? 'var(--c-signal)' : 'var(--c-text-muted)' }}>
           {STAGE_LABELS[stageKey as StageName] ?? stageKey}
         </span>
+        {actionPill && (
+          <span
+            style={{
+              marginLeft: 6,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              borderRadius: 999,
+              border: `1px solid ${actionPill.border}`,
+              background: actionPill.bg,
+              color: actionPill.color,
+              padding: '2px 10px',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              letterSpacing: '0.03em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {actionPill.label}
+          </span>
+        )}
         <span style={{ fontSize: '0.72rem', color: 'var(--c-text-faint)', marginLeft: 'auto' }}>
           {latest.message}
         </span>
@@ -671,6 +917,7 @@ function StagePanel({
         <ThinkingPanel
           text={streamText['rca_thinking']}
           isActive={active && isActiveStage}
+          contentStarted={!!text}
           label="Model Reasoning"
         />
       )}
@@ -680,13 +927,14 @@ function StagePanel({
         <ThinkingPanel
           text={streamText['fix_thinking']}
           isActive={active && isActiveStage}
+          contentStarted={!!text}
           label="Strategy Reasoning"
         />
       )}
 
-      {/* Live token stream */}
+      {/* Live markdown stream — renders tokens as formatted markdown in real time */}
       {active && text && isActiveStage && (
-        <TypewriterPanel stage={stageKey} text={text} />
+        <MarkdownStreamPanel stage={stageKey} text={text} />
       )}
 
       {/* Structured results after complete */}
@@ -709,6 +957,9 @@ function StagePanel({
       })()}
       {done && stageKey === 'rca' && <RCASummary s={latest} />}
       {done && stageKey === 'fix_strategy' && <FixStrategySummary s={latest} />}
+      {stageKey === 'delivery' && (
+        <DeliveryAccordion fetchingRows={deliveryEvents} isActive={active} />
+      )}
     </div>
   )
 }
@@ -719,13 +970,11 @@ export default function StreamingProgress({
   stages,
   streamText,
   fetchingEvents,
+  deliveryEvents = [],
   isStreaming,
   isComplete,
   error,
   requestId,
-  adoWorkItemId = null,
-  adoUrl = null,
-  emailSent = false,
   onReset,
 }: StreamingProgressProps) {
   const navigate = useNavigate()
@@ -794,10 +1043,21 @@ export default function StreamingProgress({
           ? fetchingEvents.map(e => ({
               source:        String(e.source ?? ''),
               table:         String(e.table ?? ''),
-              source_status: (e.source_status as 'running' | 'done') ?? 'done',
+              source_status: (e.source_status as 'running' | 'done' | 'retrying') ?? 'done',
               count:         Number(e.count ?? 0),
               elapsed_ms:    Number(e.elapsed_ms ?? 0),
             }))
+          : []
+        const stageDeliveryRows: FetchingRow[] = key === 'delivery'
+          ? deliveryEvents.map(e => ({
+              source:        String(e.source ?? ''),
+              table:         String(e.table ?? ''),
+              source_status: (e.source_status as 'running' | 'done' | 'retrying') ?? 'done',
+              count:         Number(e.count ?? 0),
+              elapsed_ms:    Number(e.elapsed_ms ?? 0),
+              detail:        String((e as any).detail ?? ''),
+              url:           (e as any).url as string | undefined,
+            } as any))
           : []
         return (
           <StagePanel
@@ -807,6 +1067,7 @@ export default function StreamingProgress({
             streamText={streamText}
             isActiveStage={activeStage === key}
             fetchingEvents={stageFetchingRows}
+            deliveryEvents={stageDeliveryRows}
           />
         )
       })}
@@ -823,40 +1084,6 @@ export default function StreamingProgress({
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--c-text-faint)', marginTop: 2 }}>
               ID: <code style={{ color: 'var(--c-signal)' }}>{requestId}</code>
-            </div>
-            {/* Post-completion status badges */}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                fontSize: '0.72rem', fontWeight: 600, padding: '3px 8px',
-                borderRadius: 4,
-                background: adoWorkItemId ? 'rgba(0,120,212,0.15)' : 'var(--c-surface-3)',
-                color: adoWorkItemId ? 'var(--c-info)' : 'var(--c-text-faint)',
-                border: `1px solid ${adoWorkItemId ? 'rgba(0,120,212,0.35)' : 'var(--c-border)'}`,
-              }}>
-                {adoWorkItemId ? (
-                  <>
-                    <span style={{ fontSize: '0.8em' }}>✓</span>
-                    {adoUrl
-                      ? <a href={adoUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>Azure Boards #{adoWorkItemId}</a>
-                      : <>Azure Boards #{adoWorkItemId}</>}
-                  </>
-                ) : (
-                  <><span style={{ fontSize: '0.8em' }}>–</span> Azure Boards skipped</>
-                )}
-              </span>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                fontSize: '0.72rem', fontWeight: 600, padding: '3px 8px',
-                borderRadius: 4,
-                background: emailSent ? 'var(--c-success-bg)' : 'var(--c-surface-3)',
-                color: emailSent ? 'var(--c-green)' : 'var(--c-text-faint)',
-                border: `1px solid ${emailSent ? 'var(--c-success-border)' : 'var(--c-border)'}`,
-              }}>
-                {emailSent
-                  ? <><span style={{ fontSize: '0.8em' }}>✓</span> RCA email sent</>
-                  : <><span style={{ fontSize: '0.8em' }}>–</span> Email skipped</>}
-              </span>
             </div>
           </div>
           <button

@@ -101,7 +101,7 @@ export default function InvestigationDetailPage() {
     }, 100)
   }
 
-  const pendingAndRcaReady = approvalStatus === 'pending' && !!data?.rca && pendingAction === null
+  const pendingAndRcaReady = approvalStatus === 'pending' && !!data?.rca && pendingAction === null && !isInformational
 
   useEffect(() => {
     if (!pendingAndRcaReady) return
@@ -220,6 +220,58 @@ export default function InvestigationDetailPage() {
                   Azure Boards #{data.ado_work_item_id}
                 </a>
               )}
+              {data?.wiki_url && (
+                <a
+                  href={data.wiki_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
+                    padding: '3px 10px', borderRadius: 6, textDecoration: 'none',
+                    background: 'var(--c-warning-bg)',
+                    border: '1px solid var(--c-warning-border)',
+                    color: 'var(--c-amber)',
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                  </svg>
+                  Wiki
+                </a>
+              )}
+              {data?.sharepoint_url && (
+                <a
+                  href={data.sharepoint_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
+                    padding: '3px 10px', borderRadius: 6, textDecoration: 'none',
+                    background: '#1a3a5c20',
+                    border: '1px solid #1a3a5c40',
+                    color: '#0078d4',
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                    <path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18l7 3.5v7.64l-7 3.5-7-3.5V7.68l7-3.5z"/>
+                  </svg>
+                  SharePoint
+                </a>
+              )}
+              {data?.fix_strategy && (
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
+                  padding: '3px 10px', borderRadius: 6,
+                  letterSpacing: '0.03em',
+                  background: isInformational ? 'var(--c-success-bg)' : 'var(--c-error-bg)',
+                  border: `1px solid ${isInformational ? 'var(--c-success-border)' : 'var(--c-error-border)'}`,
+                  color: isInformational ? 'var(--c-green)' : 'var(--c-red)',
+                }}>
+                  {isInformational ? '✓ No Action Needed' : '⚠ Fix Required'}
+                </span>
+              )}
               {rcaDuration && (
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
@@ -310,7 +362,7 @@ export default function InvestigationDetailPage() {
             </div>
 
             {/* ── Tab panels ──────────────────────────────────────────── */}
-            <div style={{ maxWidth: 960, margin: '0 auto', paddingBottom: approvalStatus === 'pending' && !!data.rca ? 72 : 0 }}>
+            <div style={{ maxWidth: 960, margin: '0 auto', paddingBottom: approvalStatus === 'pending' && !!data.rca && !isInformational ? 72 : 0 }}>
 
               {/* TAB 1: RCA & Action */}
               {activeTab === 'rca' && (
@@ -408,7 +460,7 @@ export default function InvestigationDetailPage() {
             </div>
 
             {/* ── Sticky decision bar — only when approval is pending ── */}
-            {approvalStatus === 'pending' && !!data.rca && (
+            {approvalStatus === 'pending' && !!data.rca && !isInformational && (
               <div style={{
                 position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10000,
                 padding: '10px 32px',

@@ -3,7 +3,7 @@ ADO Wiki Adapter — creates a Wiki page per investigation in Azure DevOps.
 
 Page structure:
   Investigations/
-    2026-05-21_fundsso_production/
+        2026-05-21_fundsso_production_<investigation-id>/
       (full RCA + fix strategy as markdown)
 
 Uses the same PAT and org/project as the work-item adapter.
@@ -165,7 +165,9 @@ class ADOWikiAdapter:
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         svc = _safe_path_segment(result.request.service_name)
         env = _safe_path_segment(result.request.environment)
-        page_name = f"{date_str}_{svc}_{env}"
+        # Keep one immutable wiki page per investigation run to preserve history.
+        inv_id = _safe_path_segment(result.request_id)
+        page_name = f"{date_str}_{svc}_{env}_{inv_id}"
         page_path = f"/{_WIKI_ROOT}/{page_name}"
         content = _build_wiki_content(result)
 

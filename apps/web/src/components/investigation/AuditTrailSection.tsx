@@ -25,6 +25,7 @@ function _approvalMeta(approval: ReplayPayload['approval']): string {
   if (st === 'pending')  return 'Awaiting human decision'
   const by = approval.approved_by ? ` by ${approval.approved_by}` : ''
   if (st === 'approved') return `Approved${by}`
+  if (st === 'acknowledged') return `Acknowledged${by}`
   if (st === 'rejected') return `Rejected${by}`
   if (st === 'executed') return `Executed${by}`
   return st
@@ -48,7 +49,7 @@ function AuditTimeline({ replay }: { replay: ReplayPayload }) {
   const t0 = replay.trigger.created_at
   const confColor = { high: 'var(--c-green)', medium: 'var(--c-yellow)', low: 'var(--c-red)' }[replay.rca.confidence] ?? 'var(--c-signal)'
   const approvalStatus = replay.approval.status ?? 'pending'
-  const approvalColor = { pending: 'var(--c-yellow)', approved: 'var(--c-green)', rejected: 'var(--c-red)', executed: 'var(--c-green)' }[approvalStatus] ?? 'var(--c-yellow)'
+  const approvalColor = { pending: 'var(--c-yellow)', approved: 'var(--c-green)', acknowledged: 'var(--c-green)', rejected: 'var(--c-red)', executed: 'var(--c-green)' }[approvalStatus] ?? 'var(--c-yellow)'
 
   const stages: TimelineStage[] = [
     {
@@ -85,7 +86,7 @@ function AuditTimeline({ replay }: { replay: ReplayPayload }) {
     {
       label: 'Approval',
       dotColor: approvalColor,
-      isCheck: approvalStatus === 'approved' || approvalStatus === 'executed',
+      isCheck: approvalStatus === 'approved' || approvalStatus === 'acknowledged' || approvalStatus === 'executed',
       meta: _approvalMeta(replay.approval),
       chip: approvalStatus, chipColor: approvalColor,
       timestamp: replay.approval.approved_at ? _fmtTime(replay.approval.approved_at) : '—',

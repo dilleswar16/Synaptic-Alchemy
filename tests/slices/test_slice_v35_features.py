@@ -42,7 +42,6 @@ def _minimal_evidence(
         aks_context={
             "pods": [{"name": f"pod-{i}", "status": "Running"} for i in range(pods)]
         },
-        azure_activity_changes=[],
     )
 
 

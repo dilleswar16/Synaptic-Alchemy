@@ -82,7 +82,8 @@ function ToolIcon({ name }: { name: string }) {
     get_runbook: '📖',
     run_kql: '🔬',
     get_aks_health: '☸️',
-    run_elastic_query: '📡',
+    get_container_resource_metrics: '📈',
+    run_elastic_query: '📈',
   }
   return <span>{icons[name] ?? '🛠️'}</span>
 }
@@ -103,7 +104,8 @@ function ToolLabel({ name }: { name: string }) {
     get_runbook: 'Runbook',
     run_kql: 'Log Analytics Query',
     get_aks_health: 'AKS Health',
-    run_elastic_query: 'Elastic Logs',
+    get_container_resource_metrics: 'Container Resource Metrics',
+    run_elastic_query: 'Container Resource Metrics',
   }
   return <span>{labels[name] ?? name.replace(/_/g, ' ')}</span>
 }
@@ -459,7 +461,8 @@ export function ToolResultCard({ toolName, data, timestamp }: ToolResultCardProp
       case 'get_predictive_alerts': return Array.isArray(d) ? <AlertListCard data={d} /> : <JsonFallbackCard data={d} />
       case 'get_aks_health':        return <AksHealthCard data={d} />
       case 'run_kql':               return Array.isArray(d) ? <KqlResultCard data={d} /> : <JsonFallbackCard data={d} />
-      case 'run_elastic_query':     return Array.isArray(d) ? <KqlResultCard data={d} /> : <JsonFallbackCard data={d} />
+      case 'get_container_resource_metrics':
+      case 'run_elastic_query':     return <JsonFallbackCard data={d} />
       case 'query_apim_analytics':  return <ApimChart data={d} compact />
       case 'get_site_knowledge':
       case 'get_runbook':           return typeof d === 'string' ? <TextDataCard data={d} /> : <JsonFallbackCard data={d} />

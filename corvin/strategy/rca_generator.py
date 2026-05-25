@@ -74,11 +74,14 @@ class RCAGenerator:
                 evidence.elastic_metrics,
                 evidence.log_analytics_apim,
                 evidence.aks_context,
-                evidence.azure_activity_changes,
                 evidence.container_resource_metrics,
                 evidence.container_inventory,
                 evidence.node_inventory,
                 evidence.network_metrics,
+                evidence.pod_restarts,
+                evidence.oom_kill_events,
+                evidence.autoscaler_events,
+                evidence.health_probe_failures,
             )
         )
 
@@ -96,6 +99,98 @@ class RCAGenerator:
             evidence_references=[],
         )
 
+    def _build_evidence_source_summary(self, evidence: EvidenceBundle) -> str:
+        """Build a human-readable summary of which sources Corvin queried and what was found.
+
+        Dynamically iterates over all EvidenceBundle fields (except metadata)
+        so the summary stays in sync when new adapters are added.
+
+        Each line includes the human-readable label followed by the JSON field
+        name in brackets so the LLM can reference evidence consistently using
+        the field name that appears in the EvidenceBundle JSON.
+        """
+        # Fields that aren't evidence sources — skip entirely
+        skip_fields = {"request_id", "collected_at"}
+        # Deprecated fields — no longer collected, suppress from prompt
+        deprecated_fields = {"azure_activity_changes"}
+        # Human-readable names for known fields; unknown fields get auto-formatted
+        friendly_names = {
+            "elastic_logs": "Application Logs (Elastic)",
+            "elastic_metrics": "Application Metrics (Elastic)",
+            "log_analytics_apim": "API Gateway Logs (Log Analytics)",
+            "aks_context": "Kubernetes Cluster Health (K8s API)",
+            "container_resource_metrics": "Kubernetes Resource Usage (CPU/Memory with limits)",
+            "container_inventory": "Container Images (image, state, restarts)",
+            "node_inventory": "Kubernetes Node Health (status, pressure conditions)",
+            "network_metrics": "Network Traffic (TX/RX bytes, errors)",
+            "pod_restarts": "Kubernetes Pod Restarts (restart trends)",
+            "oom_kill_events": "Kubernetes OOM Kill Events (out-of-memory kills)",
+            "autoscaler_events": "Kubernetes Autoscaler Events (HPA scale decisions)",
+            "health_probe_failures": "Kubernetes Health Probes (readiness/liveness failures)",
+        }
+
+        lines = []
+        for field_name, field_info in EvidenceBundle.model_fields.items():
+            if field_name in skip_fields or field_name in deprecated_fields:
+                continue
+            data = getattr(evidence, field_name)
+            if isinstance(data, dict):
+                count = len(data) if data else 0
+            elif isinstance(data, list):
+                count = len(data)
+            else:
+                continue
+            label = friendly_names.get(field_name, field_name.replace("_", " ").title())
+            status = f"{count} records found" if count > 0 else "0 results (checked, nothing found)"
+            lines.append(f"- {label} [{field_name}]: {status}")
+        return "\n".join(lines)
+
+    def _evidence_reference_details(self, evidence: EvidenceBundle) -> dict[str, str]:
+        """Build deterministic summary text for each evidence field."""
+        details: dict[str, str] = {}
+        skip_fields = {"request_id", "collected_at", "azure_activity_changes"}
+
+        for field_name in EvidenceBundle.model_fields:
+            if field_name in skip_fields:
+                continue
+            value = getattr(evidence, field_name)
+            if isinstance(value, dict):
+                count = len(value) if value else 0
+            elif isinstance(value, list):
+                count = len(value)
+            else:
+                continue
+            noun = "record" if count == 1 else "records"
+            status = f"{count} {noun} found" if count > 0 else "0 results (checked, nothing found)"
+            details[field_name] = f"{field_name}: {status}"
+        return details
+
+    def _normalize_evidence_references(self, output: RCAOutput, evidence: EvidenceBundle) -> RCAOutput:
+        """Normalize model references so UI shows actionable context, not bare keys."""
+        if not output.evidence_references:
+            return output
+
+        detail_map = self._evidence_reference_details(evidence)
+        normalized: list[str] = []
+        seen: set[str] = set()
+
+        for ref in output.evidence_references:
+            text = str(ref).strip()
+            if not text:
+                continue
+            lower = text.lower()
+            if lower in detail_map:
+                text = detail_map[lower]
+            elif lower in {k.replace("_", " ") for k in detail_map}:
+                canonical = next(k for k in detail_map if k.replace("_", " ") == lower)
+                text = detail_map[canonical]
+
+            if text not in seen:
+                normalized.append(text)
+                seen.add(text)
+
+        return output.model_copy(update={"evidence_references": normalized})
+
     def _build_messages(
         self,
         request: InvestigationRequest,
@@ -106,15 +201,48 @@ class RCAGenerator:
         evidence_json = json.dumps(evidence.model_dump(mode="json"), indent=2, sort_keys=True)
         schema_json = json.dumps(RCAOutput.model_json_schema(), indent=2, sort_keys=True)
 
+        # Build a summary of which data sources Corvin queried and what came back.
+        # This prevents the LLM from suggesting the human manually check things
+        # that Corvin already checked and found empty.
+        source_summary = self._build_evidence_source_summary(evidence)
+
         user_message = (
             "Generate a root-cause analysis for this investigation. Return only a JSON object "
             "that matches the RCAOutput schema exactly. Do not include markdown fences or any "
             "extra commentary.\n\n"
-            "For the 'confidence' field use: 'high' if you have strong log or metric evidence "
-            "pointing to a clear root cause; 'medium' if the evidence is partial or ambiguous; "
-            "'low' if evidence is sparse or the root cause is speculative.\n"
-            "For 'confidence_reasoning': write 1-2 plain-English sentences explaining specifically "
-            "why you assigned that confidence level — cite the evidence (or lack of it) directly.\n\n"
+            "ANALYSIS PRINCIPLES:\n"
+            "1. Base your conclusion ONLY on the evidence provided. Do not assume a problem "
+            "exists just because the user reported one — verify it against the data.\n"
+            "2. If the evidence contradicts the reported issue (e.g. all metrics are normal, "
+            "pods are healthy, no errors in logs), state that clearly. A finding of 'no issue "
+            "detected' is a valid and useful RCA conclusion.\n"
+            "3. Never suggest the operator manually check a data source that Corvin already "
+            "queried. The evidence coverage summary below shows exactly what was checked. "
+            "If a source returned 0 results, Corvin already checked — state that fact instead "
+            "of asking the operator to re-check.\n\n"
+            "CONFIDENCE RULES:\n"
+            "Confidence reflects how certain you are about your conclusion, regardless of "
+            "whether the conclusion is 'problem found' or 'no problem detected.'\n"
+            "- 'high': strong evidence supports your conclusion. This applies equally to "
+            "confirming a problem (clear error logs, abnormal metrics) AND to ruling one out "
+            "(multiple sources checked, all healthy).\n"
+            "- 'medium': evidence is mixed or incomplete — some indicators suggest an issue "
+            "but others are inconclusive, making it hard to fully confirm or rule out.\n"
+            "- 'low': insufficient evidence was collected (most sources returned errors or "
+            "were unavailable), making any conclusion unreliable.\n\n"
+            "For 'confidence_reasoning': write 1-2 plain-English sentences citing specific "
+            "evidence that supports your confidence level.\n\n"
+            "EVIDENCE REFERENCE RULES:\n"
+            "Each evidence reference must include BOTH the exact field name and a concise "
+            "observation/value. Example: 'pod_restarts: 0 results (checked, nothing found)' "
+            "or 'elastic_logs: 42 records found with timeout traces'.\n"
+            "Use only field names shown in square brackets in the coverage summary below "
+            "(e.g. 'aks_context', 'container_resource_metrics', 'pod_restarts'). "
+            "Do NOT invent field names that don't appear below. "
+            "Do NOT reference 'azure_activity_changes' — that source is deprecated and no "
+            "longer collected.\n\n"
+            "EVIDENCE COVERAGE (what Corvin already queried):\n"
+            f"{source_summary}\n\n"
             f"InvestigationRequest:\n{request_json}\n\n"
             f"EvidenceBundle:\n{evidence_json}\n\n"
             f"RCAOutput schema:\n{schema_json}\n\n"
@@ -220,7 +348,8 @@ class RCAGenerator:
                 raise
             response = litellm.completion(model=fallback_model, **kwargs)
 
-        return RCAOutput.model_validate(self._parse_response(response))
+        output = RCAOutput.model_validate(self._parse_response(response))
+        return self._normalize_evidence_references(output, evidence)
 
     def generate_stream(
         self,
@@ -278,14 +407,16 @@ class RCAGenerator:
             try:
                 response = litellm.completion(model=self._config["model"], **kwargs)
                 self.last_stream_status = "degraded_non_streaming"
-                yield (None, RCAOutput.model_validate(self._parse_response(response)))
+                output = RCAOutput.model_validate(self._parse_response(response))
+                yield (None, self._normalize_evidence_references(output, evidence))
                 return
             except Exception:
                 self.last_stream_status = "degraded_failed"
                 yield (None, self._insufficient_evidence_output(request))
                 return
 
-        yield (None, self._parse_accumulated_rca(accumulated, request))
+        output = self._parse_accumulated_rca(accumulated, request)
+        yield (None, self._normalize_evidence_references(output, evidence))
 
     def _parse_accumulated_rca(self, text: str, request: InvestigationRequest) -> RCAOutput:
         """Parse a raw accumulated LLM text response into an RCAOutput."""

@@ -44,6 +44,7 @@ class ApprovalStatus(str, Enum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+    ACKNOWLEDGED = "acknowledged"
     EXECUTED = "executed"
 
 
@@ -101,11 +102,15 @@ class EvidenceBundle(BaseModel):
     elastic_metrics: list[dict[str, Any]] = Field(default_factory=list)
     log_analytics_apim: list[dict[str, Any]] = Field(default_factory=list)
     aks_context: dict[str, Any] = Field(default_factory=dict)
-    azure_activity_changes: list[dict[str, Any]] = Field(default_factory=list)
+    azure_activity_changes: list[dict[str, Any]] = Field(default_factory=list)  # deprecated, kept for DB compat
     container_resource_metrics: list[dict[str, Any]] = Field(default_factory=list)
     container_inventory: list[dict[str, Any]] = Field(default_factory=list)
     node_inventory: list[dict[str, Any]] = Field(default_factory=list)
     network_metrics: list[dict[str, Any]] = Field(default_factory=list)
+    pod_restarts: list[dict[str, Any]] = Field(default_factory=list)
+    oom_kill_events: list[dict[str, Any]] = Field(default_factory=list)
+    autoscaler_events: list[dict[str, Any]] = Field(default_factory=list)
+    health_probe_failures: list[dict[str, Any]] = Field(default_factory=list)
     collected_at: datetime = Field(default_factory=_utcnow)
 
 
@@ -198,6 +203,10 @@ class InvestigationResult(BaseModel):
     fix_strategy: FixStrategyOutput
     completed_at: datetime = Field(default_factory=_utcnow)
     confidence_warning: bool = False
+    ado_work_item_id: str | None = None
+    ado_url: str | None = None
+    wiki_url: str | None = None
+    sharepoint_url: str | None = None
 
 
 # ── Post-Mortem ───────────────────────────────────────────────────────────────

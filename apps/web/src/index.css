@@ -324,6 +324,12 @@
     border: 1px solid var(--c-success-border);
   }
 
+  .badge-acknowledged {
+    background: var(--c-success-bg);
+    color: var(--c-success);
+    border: 1px solid var(--c-success-border);
+  }
+
   .badge-rejected {
     background: var(--c-error-bg);
     color: var(--c-error);
@@ -622,6 +628,24 @@
   }
 
   .pm-prose td { color: var(--c-text-dim); }
+
+  /* ── Streaming markdown prose (used by MarkdownStreamPanel) ────────── */
+  .corvin-md { line-height: 1.75; font-size: 0.82rem; color: var(--c-text-dim); }
+  .corvin-md p { margin: 0 0 8px; }
+  .corvin-md p:last-child { margin-bottom: 0; }
+  .corvin-md ul { margin: 4px 0 10px; padding-left: 0; list-style: none; }
+  .corvin-md ol { margin: 4px 0 10px; padding-left: 20px; }
+  .corvin-md ul > li { position: relative; padding-left: 14px; margin: 5px 0; }
+  .corvin-md ul > li::before { content:''; position:absolute; left:1px; top:0.58em; width:5px; height:5px; border-radius:50%; background: var(--c-signal-dim); }
+  .corvin-md ol > li { margin: 5px 0; }
+  .corvin-md strong { color: var(--c-text); font-weight: 600; }
+  .corvin-md em { color: var(--c-text-muted); font-style: italic; }
+  .corvin-md a { color: var(--c-signal); text-decoration: underline; text-underline-offset: 2px; }
+  .corvin-md h1 { font-size: 0.95rem; font-weight: 700; margin: 14px 0 6px; color: var(--c-text); }
+  .corvin-md h2 { font-size: 0.88rem; font-weight: 700; margin: 12px 0 5px; color: var(--c-text); border-bottom: 1px solid var(--c-signal-dim); padding-bottom: 4px; }
+  .corvin-md h3 { font-size: 0.8rem; font-weight: 600; margin: 10px 0 4px; color: var(--c-text-muted); }
+  .corvin-md blockquote { border-left: 3px solid var(--c-signal); margin: 0 0 8px; padding: 4px 10px; color: var(--c-text-dim); background: var(--c-signal-light); border-radius: 0 4px 4px 0; }
+  .corvin-md hr { border: none; border-top: 1px solid var(--c-border); margin: 10px 0; }
 
   @media (max-width: 768px) {
     .corvin-modal-overlay {
