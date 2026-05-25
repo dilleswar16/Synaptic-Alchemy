@@ -42,14 +42,16 @@ interface ApimChartProps {
 // ── Theme palette ─────────────────────────────────────────────────────────────
 
 const PALETTE = [
-  '#0d9488', // teal (primary)
-  '#38bdf8', // sky blue
-  '#34d399', // emerald
-  '#2dd4bf', // teal-300
-  '#fb7185', // rose
-  '#fbbf24', // amber
-  '#22d3ee', // cyan
-  '#f472b6', // pink
+  '#06d6a0', // vivid mint
+  '#118ab2', // cerulean
+  '#ef476f', // hot pink
+  '#ffd166', // sunflower
+  '#073b4c', // midnight teal
+  '#7209b7', // electric purple
+  '#4cc9f0', // neon sky
+  '#f72585', // magenta
+  '#4361ee', // royal blue
+  '#3a0ca3', // deep indigo
 ]
 
 const CHART_STYLE: React.CSSProperties = {
@@ -106,14 +108,17 @@ function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)',
-      borderRadius: 8, padding: '8px 12px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+      background: 'var(--c-surface)', backdropFilter: 'blur(12px)',
+      border: '1px solid var(--c-border-hi)',
+      borderRadius: 10, padding: '10px 14px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
+      boxShadow: 'var(--shadow-lg)',
     }}>
-      {label && <div style={{ color: 'var(--c-text-faint)', marginBottom: 6 }}>{label}</div>}
+      {label && <div style={{ color: 'var(--c-text-muted)', marginBottom: 6, fontSize: '0.62rem', letterSpacing: '0.04em' }}>{label}</div>}
       {payload.map((p: any, i: number) => (
-        <div key={i} style={{ color: p.color ?? PALETTE[i], marginBottom: 2 }}>
-          {p.name}: <strong>{typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</strong>
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color ?? PALETTE[i], boxShadow: `0 0 6px ${p.color ?? PALETTE[i]}80`, flexShrink: 0 }} />
+          <span style={{ color: 'var(--c-text-dim)' }}>{p.name}</span>
+          <span style={{ marginLeft: 'auto', fontWeight: 700, color: 'var(--c-text)' }}>{typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</span>
         </div>
       ))}
     </div>
@@ -154,10 +159,16 @@ function AreaChartView({ data, compact }: { data: ApimChartData; compact: boolea
         <defs>
           {seriesKeys.map((k, i) => (
             <linearGradient key={k} id={`grad-${i}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={PALETTE[i % PALETTE.length]} stopOpacity={0.35} />
-              <stop offset="95%" stopColor={PALETTE[i % PALETTE.length]} stopOpacity={0.02} />
+              <stop offset="0%" stopColor={PALETTE[i % PALETTE.length]} stopOpacity={0.55} />
+              <stop offset="40%" stopColor={PALETTE[i % PALETTE.length]} stopOpacity={0.2} />
+              <stop offset="100%" stopColor={PALETTE[i % PALETTE.length]} stopOpacity={0} />
             </linearGradient>
           ))}
+          {/* Glow filter for line strokes */}
+          <filter id="areaGlow">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
         <XAxis dataKey={xKey} tick={AXIS_TICK} interval="preserveStartEnd" />
@@ -170,9 +181,11 @@ function AreaChartView({ data, compact }: { data: ApimChartData; compact: boolea
             type="monotone"
             dataKey={k}
             stroke={PALETTE[i % PALETTE.length]}
-            strokeWidth={1.5}
+            strokeWidth={2}
             fill={`url(#grad-${i})`}
             dot={false}
+            filter="url(#areaGlow)"
+            activeDot={{ r: 4, strokeWidth: 2, stroke: PALETTE[i % PALETTE.length], fill: 'var(--c-bg)' }}
           />
         ))}
       </AreaChart>
@@ -188,26 +201,50 @@ function BarChartView({ data, compact }: { data: ApimChartData; compact: boolean
   const catCol = columns.find(c => !numCols.includes(c)) ?? columns[0]
   const seriesKeys = numCols
 
-  const height = compact ? 180 : 260
+  // Truncate long category labels for readability
+  const maxLabelLen = compact ? 10 : 14
+  const truncate = (s: string) => s.length > maxLabelLen ? s.slice(0, maxLabelLen) + '…' : s
+
+  const height = compact ? 180 : 300
 
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart
         data={rows as any[]}
         style={CHART_STYLE}
-        margin={{ top: 6, right: 12, left: 0, bottom: rows.length > 6 ? 40 : 0 }}
+        margin={{ top: 6, right: 12, left: 0, bottom: 4 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
         <XAxis
           dataKey={catCol}
-          tick={{ ...AXIS_TICK, angle: rows.length > 6 ? -30 : 0, textAnchor: rows.length > 6 ? 'end' : 'middle' }}
           interval={0}
+          height={90}
+          tick={({ x, y, payload }: any) => (
+            <g transform={`translate(${x},${y})`}>
+              <text
+                x={0} y={0} dy={8}
+                textAnchor="end"
+                transform="rotate(-45)"
+                style={{ fontSize: '0.6rem', fill: 'var(--c-text-muted)', fontFamily: 'var(--font-mono)' }}
+              >
+                {truncate(String(payload.value))}
+              </text>
+            </g>
+          )}
         />
         <YAxis tick={AXIS_TICK} width={48} />
         <Tooltip content={<ChartTooltip />} />
         {seriesKeys.length > 1 && <Legend wrapperStyle={{ fontSize: '0.65rem', color: 'var(--c-text-faint)' }} />}
+        <defs>
+          {seriesKeys.map((k, i) => (
+            <linearGradient key={`bar-${k}`} id={`barGrad-${i}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={PALETTE[i % PALETTE.length]} stopOpacity={1} />
+              <stop offset="100%" stopColor={PALETTE[i % PALETTE.length]} stopOpacity={0.55} />
+            </linearGradient>
+          ))}
+        </defs>
         {seriesKeys.map((k, i) => (
-          <Bar key={k} dataKey={k} fill={PALETTE[i % PALETTE.length]} radius={[3, 3, 0, 0]} maxBarSize={40} />
+          <Bar key={k} dataKey={k} fill={`url(#barGrad-${i})`} radius={[5, 5, 0, 0]} maxBarSize={44} />
         ))}
       </BarChart>
     </ResponsiveContainer>
@@ -281,15 +318,14 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
   let maxVal = 1
   funds.forEach(f => hours.forEach(h => { maxVal = Math.max(maxVal, grouped[f][h] ?? 0) }))
 
-  // 5-stop color ramp: empty → faint → warm → hot → peak
   function cellColor(v: number): { bg: string; border: string } {
-    if (v === 0) return { bg: 'var(--c-surface-3)', border: 'var(--c-border)' }
+    if (v === 0) return { bg: 'var(--c-surface-2)', border: 'var(--c-border)' }
     const t = Math.pow(v / maxVal, 0.5)
-    if (t < 0.2) return { bg: 'rgba(13,148,136,0.12)', border: 'rgba(13,148,136,0.2)' }
-    if (t < 0.45) return { bg: 'rgba(13,148,136,0.3)', border: 'rgba(13,148,136,0.4)' }
-    if (t < 0.7) return { bg: 'rgba(15,118,110,0.55)', border: 'rgba(15,118,110,0.65)' }
-    if (t < 0.9) return { bg: 'rgba(17,94,89,0.75)', border: 'rgba(17,94,89,0.85)' }
-    return { bg: '#0f766e', border: '#115e59' }
+    if (t < 0.2) return { bg: 'rgba(6,214,160,0.12)', border: 'rgba(6,214,160,0.2)' }
+    if (t < 0.45) return { bg: 'rgba(6,214,160,0.35)', border: 'rgba(6,214,160,0.45)' }
+    if (t < 0.7) return { bg: 'rgba(17,138,178,0.55)', border: 'rgba(17,138,178,0.65)' }
+    if (t < 0.9) return { bg: 'rgba(114,9,183,0.65)', border: 'rgba(114,9,183,0.75)' }
+    return { bg: '#f72585', border: '#f72585' }
   }
 
   const cellH = compact ? 36 : 48
@@ -357,8 +393,9 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
                     <span style={{
                       fontSize: '0.6rem', fontWeight: 700,
                       fontFamily: 'var(--font-mono)',
-                      color: Math.pow(v / maxVal, 0.5) > 0.5 ? 'rgba(255,255,255,0.9)' : 'var(--c-text-muted)',
+                      color: Math.pow(v / maxVal, 0.5) > 0.5 ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.5)',
                       lineHeight: 1,
+                      textShadow: Math.pow(v / maxVal, 0.5) > 0.7 ? '0 0 8px rgba(247,37,133,0.5)' : 'none',
                     }}>
                       {v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
                     </span>
@@ -374,7 +411,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, paddingLeft: labelW }}>
         <span style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)' }}>0</span>
         <div style={{ display: 'flex', gap: 2, flex: 1, maxWidth: 180 }}>
-          {['rgba(13,148,136,0.12)', 'rgba(13,148,136,0.3)', 'rgba(15,118,110,0.55)', 'rgba(17,94,89,0.75)', '#0f766e'].map((c, i) => (
+          {['rgba(6,214,160,0.15)', 'rgba(6,214,160,0.4)', 'rgba(17,138,178,0.6)', 'rgba(114,9,183,0.7)', '#f72585'].map((c, i) => (
             <div key={i} style={{ flex: 1, height: 8, borderRadius: 4, background: c }} />
           ))}
         </div>
@@ -414,11 +451,11 @@ function TilesView({ data }: { data: ApimChartData }) {
   const entries = Object.entries(row).filter(([, v]) => v !== null && v !== undefined)
 
   const metricColors: Record<string, string> = {
-    SuccessRate: 'var(--c-green)',
-    ErrorCount: 'var(--c-red)',
-    AvgResponseTimeMs: 'var(--c-signal)',
-    UniqueMembers: 'var(--c-info)',
-    TotalRequests: 'var(--c-purple)',
+    SuccessRate: '#06d6a0',
+    ErrorCount: '#ef476f',
+    AvgResponseTimeMs: '#ffd166',
+    UniqueMembers: '#4cc9f0',
+    TotalRequests: '#7209b7',
   }
 
   return (
@@ -430,11 +467,16 @@ function TilesView({ data }: { data: ApimChartData }) {
         const suffix = isRate ? '%' : isMs ? 'ms' : ''
         return (
           <div key={key} style={{
-            background: `${color}10`,
+            background: `${color}12`,
             border: `1px solid ${color}30`,
-            borderRadius: 10,
-            padding: '10px 12px',
-          }}>
+            borderRadius: 12,
+            padding: '12px 14px',
+            boxShadow: `0 0 20px ${color}10`,
+            transition: 'transform 0.15s, box-shadow 0.15s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 24px ${color}25` }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = `0 0 20px ${color}10` }}
+          >
             <div style={{ fontSize: '0.6rem', color: 'var(--c-text-faint)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
               {key.replace(/([A-Z])/g, ' $1').trim()}
             </div>
@@ -532,10 +574,11 @@ export default function ApimChart({ data, compact = false }: ApimChartProps) {
   return (
     <div style={{
       marginTop: 4,
-      background: 'var(--c-surface-2)',
-      border: '1px solid var(--c-border-hi)',
-      borderRadius: 12,
+      background: 'var(--c-surface)',
+      border: '1px solid var(--c-border)',
+      borderRadius: 14,
       overflow: 'hidden',
+      boxShadow: 'var(--shadow-md)',
     }}>
       {/* Header */}
       <div style={{ padding: '10px 14px 6px', borderBottom: '1px solid var(--c-border)' }}>
