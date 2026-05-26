@@ -114,7 +114,7 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
             background: 'var(--c-surface-3)',
             color: 'var(--c-text-muted)',
           }}>
-            GPT-4.1
+            GPT-5.1
           </span>
           {/* Voice button */}
           <button
@@ -258,7 +258,7 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
 const PIPELINE_STAGES = [
   { stage: 'TRIGGER',     sub: 'Azure alerts' },
   { stage: 'ENRICH',      sub: 'AKS + logs'   },
-  { stage: 'INVESTIGATE', sub: 'GPT-4.1 RCA'  },
+  { stage: 'INVESTIGATE', sub: 'GPT-5.1 RCA'  },
   { stage: 'APPROVE',     sub: 'Human gate'    },
   { stage: 'EXECUTE',     sub: 'Fix strategy'  },
 ]
@@ -318,7 +318,7 @@ function HeroBand({
             color: 'var(--c-text-dim)', lineHeight: 1.7, maxWidth: 480,
           }}>
             Azure-native SRE intelligence — enriches live alerts with AKS cluster evidence,
-            generates GPT-4.1 root cause analysis, and gates every fix through human approval
+            generates GPT-5.1 root cause analysis, and gates every fix through human approval
             before execution.
           </p>
 
