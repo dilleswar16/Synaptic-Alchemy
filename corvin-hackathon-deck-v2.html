@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Corvin — MetLife Hackathon 2026</title>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   CORVIN HACKATHON DECK V2 — Premium visual overhaul
+   ═══════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{font-family:'Segoe UI Variable','Segoe UI','Aptos','Trebuchet MS',sans-serif;background:#030712;color:#e2e8f0;overflow:hidden;-webkit-font-smoothing:antialiased}
+code,.mono{font-family:'Consolas','Cascadia Mono','Courier New',monospace}
+
+:root{
+  --t50:#f0fdfa;--t100:#ccfbf1;--t200:#99f6e4;--t300:#5eead4;
+  --t400:#2dd4bf;--t500:#14b8a6;--t600:#0d9488;--t700:#0f766e;
+  --t800:#115e59;--t900:#134e4a;
+  --bg:#030712;--bg2:#0f172a;--bg-card:rgba(15,23,42,0.6);
+  --gb:rgba(255,255,255,0.06);
+  --tx1:#f1f5f9;--tx2:#94a3b8;--tx3:#64748b;
+  --cyan:#06b6d4;--amber:#f59e0b;--rose:#f43f5e;--emerald:#10b981;
+  --violet:#8b5cf6;--blue:#3b82f6;
+}
+
+/* ── Slide Engine ─────────────────────────────────────── */
+.deck{position:relative;width:100vw;height:100vh}
+.slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;padding:3rem 5rem;
+  opacity:0;visibility:hidden;transition:opacity .5s ease,transform .5s ease;
+  transform:translateY(20px);z-index:0;overflow:hidden;
+}
+.slide.active{opacity:1;visibility:visible;transform:translateY(0);z-index:10}
+
+/* ── Backgrounds ──────────────────────────────────────── */
+.grid-bg{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(13,148,136,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(13,148,136,.035) 1px,transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(ellipse 80% 70% at 50% 40%,black 20%,transparent 75%);
+  pointer-events:none;z-index:0;
+}
+.orb{position:absolute;border-radius:50%;filter:blur(140px);opacity:.15;pointer-events:none;z-index:0;animation:orbFloat 16s ease-in-out infinite alternate}
+.orb-t{background:var(--t600);width:550px;height:550px}
+.orb-c{background:var(--cyan);width:400px;height:400px}
+.orb-e{background:var(--emerald);width:350px;height:350px}
+@keyframes orbFloat{0%{transform:translate(0,0) scale(1)}100%{transform:translate(30px,-20px) scale(1.1)}}
+
+/* ── Fixed UI ─────────────────────────────────────────── */
+#progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--t600),var(--t400),var(--cyan));transition:width .4s ease;z-index:200;box-shadow:0 0 14px var(--t500)}
+#counter{position:fixed;bottom:1.5rem;right:2.5rem;font-size:.74rem;color:var(--tx3);font-family:'JetBrains Mono',monospace;z-index:200;letter-spacing:.06em}
+#dots{position:fixed;right:1.2rem;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:9px;z-index:200}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--tx3);border:none;cursor:pointer;transition:all .3s;padding:0;opacity:.4}
+.dot.active{background:var(--t400);box-shadow:0 0 10px var(--t500);transform:scale(1.6);opacity:1}
+#notes-panel{position:fixed;bottom:0;left:0;right:0;height:0;overflow:hidden;background:rgba(3,7,18,.96);border-top:1px solid var(--gb);z-index:300;transition:height .3s;font-size:.82rem;color:var(--tx2);padding:0 3rem;backdrop-filter:blur(20px)}
+#notes-panel.open{height:130px;padding:1rem 3rem}
+#notes-panel .nl{font-size:.6rem;font-weight:700;letter-spacing:.15em;color:var(--t400);text-transform:uppercase;margin-bottom:.4rem}
+#keys{position:fixed;bottom:1.5rem;left:2.5rem;font-size:.64rem;color:var(--tx3);font-family:'JetBrains Mono',monospace;z-index:200;opacity:.42}
+
+/* ── Typography ───────────────────────────────────────── */
+.hero-title{font-size:6.5rem;font-weight:900;line-height:.9;letter-spacing:-.05em;background:linear-gradient(135deg,#fff 0%,var(--t200) 40%,var(--t400) 80%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.label{font-size:.76rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--t400);margin-bottom:.6rem}
+.stitle{font-size:2.6rem;font-weight:800;line-height:1.08;letter-spacing:-.03em;color:var(--tx1)}
+.stitle .hi{color:var(--t400)}
+.sbody{font-size:1rem;font-weight:300;color:var(--tx2);line-height:1.7;max-width:650px}
+.grad{background:linear-gradient(135deg,var(--t300),var(--t500),var(--cyan),var(--t300));background-size:300% 300%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:gShift 6s ease infinite}
+@keyframes gShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* ── Cards ────────────────────────────────────────────── */
+.card{background:var(--bg-card);border:1px solid var(--gb);border-radius:14px;padding:1.5rem;backdrop-filter:blur(10px);transition:all .3s}
+.card:hover{border-color:rgba(13,148,136,.3);transform:translateY(-2px)}
+.glow-card{background:var(--bg-card);border-radius:16px;padding:2px;background:linear-gradient(135deg,rgba(13,148,136,.3),rgba(6,182,212,.1),rgba(13,148,136,.05));transition:all .3s}
+.glow-card:hover{background:linear-gradient(135deg,rgba(13,148,136,.5),rgba(6,182,212,.2),rgba(13,148,136,.1))}
+.glow-card-inner{background:var(--bg2);border-radius:14px;padding:1.5rem;height:100%}
+
+/* ── Tags ─────────────────────────────────────────────── */
+.tag{display:inline-flex;align-items:center;gap:.4rem;padding:.38rem .95rem;border-radius:100px;font-size:.76rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(13,148,136,.1);color:var(--t400);border:1px solid rgba(13,148,136,.2)}
+.tag-live{background:rgba(16,185,129,.1);color:var(--emerald);border-color:rgba(16,185,129,.2)}
+.tag-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--emerald);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tag-rose{background:rgba(244,63,94,.1);color:var(--rose);border-color:rgba(244,63,94,.2)}
+
+/* ── CTA ──────────────────────────────────────────────── */
+.cta{display:inline-flex;align-items:center;gap:.5rem;padding:.65rem 1.6rem;border-radius:10px;font-size:.82rem;font-weight:600;text-decoration:none;transition:all .3s;cursor:pointer;border:none}
+.cta-primary{background:linear-gradient(135deg,var(--t600),var(--t500));color:#fff;box-shadow:0 4px 20px rgba(13,148,136,.3)}
+.cta-primary:hover{box-shadow:0 6px 30px rgba(13,148,136,.45);transform:translateY(-2px)}
+.cta-ghost{background:transparent;color:var(--t400);border:1px solid rgba(13,148,136,.3)}
+.cta-ghost:hover{background:rgba(13,148,136,.08)}
+
+/* ── Stats ────────────────────────────────────────────── */
+.stat{text-align:center}.stat-val{font-size:3rem;font-weight:900;line-height:1}.stat-lbl{font-size:.8rem;color:var(--tx3);margin-top:.3rem}
+
+/* ── Pulse ring ───────────────────────────────────────── */
+.pring{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.pring::before,.pring::after{content:'';position:absolute;inset:-12px;border-radius:50%;border:2px solid var(--t500);opacity:0;animation:pRing 3s ease-in-out infinite}
+.pring::after{animation-delay:1.5s}
+@keyframes pRing{0%{transform:scale(.8);opacity:.5}100%{transform:scale(1.8);opacity:0}}
+
+/* ── Nightmare loop (Problem slide) ───────────────────── */
+.nightmare{display:flex;flex-direction:column;gap:0;width:100%;max-width:900px;margin-top:1.5rem}
+.nm-row{display:flex;align-items:center;justify-content:center;gap:.4rem}
+.nm-step{
+  display:flex;flex-direction:column;align-items:center;gap:.3rem;
+  padding:.7rem 1rem;border-radius:10px;min-width:100px;text-align:center;
+  background:var(--bg-card);border:1px solid var(--gb);transition:all .3s;
+}
+.nm-step:hover{border-color:var(--t600)}
+.nm-step .ico{font-size:1.5rem}
+.nm-step .txt{font-size:.78rem;font-weight:700;color:var(--tx1)}
+.nm-step .sub{font-size:.66rem;color:var(--tx3)}
+.nm-step.pain{border-color:rgba(244,63,94,.2);background:rgba(244,63,94,.04)}
+.nm-arr{color:var(--tx3);font-size:.9rem;flex-shrink:0}
+.nm-connector{display:flex;justify-content:space-between;padding:0 2.5rem}
+.nm-connector span{color:var(--tx3);font-size:.9rem}
+
+/* ── Transformation (Solution slide) ──────────────────── */
+.transform-grid{display:grid;grid-template-columns:1fr 80px 1fr;gap:0;width:100%;max-width:900px;align-items:start}
+.tf-col{display:flex;flex-direction:column;gap:.8rem}
+.tf-col h3{font-size:1rem;font-weight:700;padding-bottom:.5rem;border-bottom:2px solid;text-align:center}
+.tf-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .8rem;border-radius:8px;font-size:.8rem}
+.tf-item .ico{font-size:1.1rem;flex-shrink:0}
+.tf-center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding-top:3rem}
+.tf-center .arrow{font-size:2rem;color:var(--t400);animation:arrowPulse 2s ease infinite}
+@keyframes arrowPulse{0%,100%{opacity:.5;transform:translateX(0)}50%{opacity:1;transform:translateX(4px)}}
+
+/* ── Capability ring (AI slide) ───────────────────────── */
+.cap-ring{position:relative;width:560px;height:520px;margin:1.25rem auto 0}
+.cap-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:2}
+.cap-center .brain{font-size:4rem}
+.cap-center .title{font-size:1rem;font-weight:700;color:var(--t400);margin-top:.35rem;line-height:1.35}
+.cap-node{
+  position:absolute;display:flex;flex-direction:column;align-items:center;gap:.3rem;
+  padding:.95rem 1.05rem;border-radius:14px;background:rgba(15,23,42,.78);border:1px solid var(--gb);
+  min-width:148px;text-align:center;transition:all .3s;z-index:2;box-shadow:0 10px 35px rgba(3,7,18,.22);
+}
+.cap-node:hover{border-color:var(--t600);transform:scale(1.05)}
+.cap-node .ci{font-size:.95rem}
+.cap-node .cl{font-size:.88rem;font-weight:700;color:var(--tx1)}
+.cap-node .cs{font-size:.74rem;color:var(--tx2);line-height:1.5;max-width:136px}
+.cap-node:nth-child(2){top:2%;left:50%;transform:translateX(-50%)}
+.cap-node:nth-child(3){top:20%;right:2%}
+.cap-node:nth-child(4){bottom:20%;right:2%}
+.cap-node:nth-child(5){bottom:2%;left:50%;transform:translateX(-50%)}
+.cap-node:nth-child(6){bottom:20%;left:2%}
+.cap-node:nth-child(7){top:20%;left:2%}
+/* SVG connector lines */
+.cap-lines{position:absolute;inset:0;z-index:1}
+
+/* ── Presentation-safe brand marks ────────────────────── */
+.mark{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;font-size:.78rem;font-weight:800;letter-spacing:.03em;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:var(--tx1);flex-shrink:0}
+.mark-lg{width:42px;height:42px;border-radius:12px;font-size:.92rem}
+.mark-azure{background:rgba(59,130,246,.12);border-color:rgba(96,165,250,.24);color:#93c5fd}
+.mark-k8s{background:rgba(37,99,235,.12);border-color:rgba(96,165,250,.24);color:#bfdbfe}
+.mark-metrics{background:rgba(6,182,212,.12);border-color:rgba(34,211,238,.25);color:#67e8f9}
+.mark-knowledge{background:rgba(245,158,11,.12);border-color:rgba(251,191,36,.24);color:#fde68a}
+.mark-elastic{background:rgba(16,185,129,.12);border-color:rgba(74,222,128,.24);color:#86efac}
+.mark-ai{background:rgba(139,92,246,.14);border-color:rgba(167,139,250,.24);color:#ddd6fe}
+.mark-python{background:rgba(234,179,8,.12);border-color:rgba(250,204,21,.24);color:#fde047}
+.mark-fast{background:rgba(16,185,129,.12);border-color:rgba(74,222,128,.24);color:#6ee7b7}
+.mark-postgres{background:rgba(37,99,235,.12);border-color:rgba(96,165,250,.24);color:#bfdbfe}
+.mark-react{background:rgba(8,145,178,.14);border-color:rgba(34,211,238,.24);color:#67e8f9}
+.mark-ts{background:rgba(37,99,235,.14);border-color:rgba(96,165,250,.24);color:#93c5fd}
+.mark-vite{background:rgba(139,92,246,.14);border-color:rgba(192,132,252,.24);color:#d8b4fe}
+.mark-tailwind{background:rgba(14,165,233,.14);border-color:rgba(56,189,248,.24);color:#7dd3fc}
+
+/* ── Architecture board ───────────────────────────────── */
+.arch-flow{display:grid;grid-template-columns:1.15fr auto 1.2fr auto 1.2fr auto 1.15fr;gap:1rem;align-items:stretch;width:100%;max-width:1080px;margin-top:1rem}
+.arch-stage{display:flex;flex-direction:column;gap:.8rem}
+.arch-link{display:flex;align-items:center;justify-content:center;font-size:1.9rem;color:var(--t400);opacity:.8}
+.arch-card{background:rgba(15,23,42,.72);border:1px solid var(--gb);border-radius:16px;padding:1rem 1.05rem;text-align:left;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.arch-card h3{display:flex;align-items:center;gap:.65rem;font-size:.96rem;font-weight:700;color:var(--tx1);margin-bottom:.45rem}
+.arch-card p{font-size:.8rem;color:var(--tx2);line-height:1.55}
+.arch-card .mini{font-size:.72rem;color:var(--tx3);margin-top:.55rem;letter-spacing:.08em;text-transform:uppercase}
+.arch-card-ai{background:linear-gradient(180deg,rgba(17,94,89,.45),rgba(15,23,42,.88));border-color:rgba(45,212,191,.24)}
+.arch-feedback{display:flex;align-items:center;gap:.8rem;width:100%;max-width:1080px;margin-top:1rem;padding:.95rem 1.2rem;border-radius:16px;background:rgba(13,148,136,.08);border:1px solid rgba(45,212,191,.16)}
+.arch-feedback .loop{font-size:1.35rem;color:var(--t400)}
+.arch-feedback strong{font-size:.92rem;color:var(--tx1)}
+.arch-feedback span{font-size:.8rem;color:var(--tx2);line-height:1.55}
+
+/* ── Accordion (Tech Stack) ───────────────────────────── */
+.acc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;width:100%;max-width:1000px}
+.acc{border-radius:14px;overflow:hidden;border:1px solid var(--gb);background:var(--bg-card)}
+.acc-head{
+  display:flex;align-items:center;gap:.8rem;padding:1rem 1.15rem;
+  background:transparent;border:none;width:100%;text-align:left;color:var(--tx1);
+  font-family:inherit;font-size:.95rem;font-weight:700;transition:none;
+}
+.acc-head:hover{background:transparent}
+.acc-head .di{font-size:1.8rem}
+.acc-head .chevron{display:none}
+.acc-body{max-height:none;overflow:visible;padding-bottom:.35rem}
+.acc-item{
+  display:flex;align-items:center;gap:.7rem;padding:.55rem 1.15rem;
+  font-size:.82rem;color:var(--tx2);border-top:1px solid rgba(255,255,255,.03);
+}
+.acc-item .purpose{margin-left:auto;font-size:.76rem;color:var(--tx3)}
+.stack-summary{font-size:.8rem;color:var(--tx2);margin-top:.25rem;line-height:1.5}
+.acc-note{padding:.85rem 1.15rem 1rem;border-top:1px solid rgba(255,255,255,.04);font-size:.78rem;color:var(--tx3);line-height:1.55}
+
+/* ── Feature cards ────────────────────────────────────── */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;width:100%;max-width:1050px}
+.feat-card{text-align:left}
+.feat-card .ico{font-size:1.5rem;margin-bottom:.5rem}
+.feat-card h3{font-size:.88rem;font-weight:600;color:var(--tx1);margin-bottom:.25rem}
+.feat-card p{font-size:.7rem;color:var(--tx3);line-height:1.5}
+
+/* ── Chat mockup ──────────────────────────────────────── */
+.chat-mock{width:100%;max-width:700px;border-radius:14px;overflow:hidden;border:1px solid var(--gb);background:rgba(10,15,20,.8)}
+.chat-hdr{padding:.8rem 1rem;background:rgba(255,255,255,.02);border-bottom:1px solid var(--gb);display:flex;align-items:center;gap:.55rem;font-size:.9rem;font-weight:700;color:var(--tx1)}
+.chat-body{padding:1rem 1.05rem;display:flex;flex-direction:column;gap:.75rem}
+.chat-msg{padding:.6rem .9rem;border-radius:10px;font-size:.84rem;line-height:1.6;max-width:88%}
+.chat-user,.chat-ai{padding:.72rem 1rem;border-radius:12px;font-size:.82rem;line-height:1.65;max-width:92%}
+.chat-user{background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.12);color:var(--tx2);align-self:flex-end}
+.chat-ai{background:var(--bg-card);border:1px solid var(--gb);color:var(--tx2);align-self:flex-start}
+.chat-tool{padding:.56rem .85rem;background:rgba(6,182,212,.05);border:1px solid rgba(6,182,212,.1);color:var(--cyan);align-self:flex-start;font-size:.75rem;display:flex;align-items:center;gap:.5rem;border-radius:10px}
+.chat-input{padding:.6rem 1rem;border-top:1px solid var(--gb);display:flex;align-items:center;gap:.5rem}
+.chat-input input{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--gb);border-radius:8px;padding:.6rem .78rem;font-size:.8rem;color:var(--tx2);outline:none;font-family:inherit}
+
+/* ── Z-flow (Investigation) ───────────────────────────── */
+.z-flow{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem 2rem;width:100%;max-width:900px;position:relative}
+.z-step{text-align:center}
+.z-step .ico{font-size:2rem;margin-bottom:.5rem}
+.z-step h4{font-size:.82rem;font-weight:600;color:var(--tx1);margin-bottom:.2rem}
+.z-step p{font-size:.76rem;color:var(--tx3);line-height:1.5}
+.z-step.highlight{padding:1rem;border-radius:12px;background:rgba(13,148,136,.06);border:1px solid rgba(13,148,136,.12)}
+.z-arrows{position:absolute;inset:0;pointer-events:none;z-index:0}
+
+/* ── Terminal mockup ──────────────────────────────────── */
+.terminal{background:#0a0f14;border:1px solid var(--gb);border-radius:12px;overflow:hidden;width:100%;max-width:680px}
+.term-bar{display:flex;align-items:center;gap:6px;padding:.5rem .9rem;background:rgba(255,255,255,.02);border-bottom:1px solid var(--gb)}
+.term-d{width:9px;height:9px;border-radius:50%}
+.term-body{padding:1rem 1.15rem;font-size:.82rem;line-height:1.82;font-family:'Consolas','Cascadia Mono','Courier New',monospace}
+.dim{color:var(--tx3)}.bright{color:var(--tx1)}.green{color:var(--emerald)}.teal-t{color:var(--t400)}.amber-t{color:var(--amber)}.rose-t{color:var(--rose)}
+
+/* ── Proof / impact ───────────────────────────────────── */
+.proof-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;width:100%;max-width:1080px;margin-top:1rem}
+.proof-stat{padding:1.1rem 1.15rem;border-radius:16px;background:rgba(15,23,42,.72);border:1px solid var(--gb);text-align:left}
+.proof-stat .cap{font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3)}
+.proof-stat .num{font-size:2.55rem;font-weight:900;color:var(--tx1);line-height:1;margin-top:.45rem}
+.proof-stat .desc{font-size:.8rem;color:var(--tx2);line-height:1.5;margin-top:.4rem}
+.proof-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;width:100%;max-width:1080px;margin-top:1rem}
+.proof-card{padding:1.2rem 1.25rem;border-radius:16px;background:rgba(15,23,42,.72);border:1px solid var(--gb);text-align:left}
+.proof-card h3{display:flex;align-items:center;gap:.65rem;font-size:1rem;font-weight:700;color:var(--tx1);margin-bottom:.45rem}
+.proof-card p{font-size:.84rem;color:var(--tx2);line-height:1.58}
+.proof-callout{width:100%;max-width:1080px;margin-top:1rem;padding:1rem 1.2rem;border-radius:16px;background:linear-gradient(135deg,rgba(13,148,136,.14),rgba(6,182,212,.08));border:1px solid rgba(45,212,191,.2);text-align:left}
+.proof-callout strong{display:block;font-size:1rem;color:var(--tx1);margin-bottom:.3rem}
+.proof-callout span{font-size:.84rem;color:var(--tx2);line-height:1.58}
+
+/* ── Layouts ──────────────────────────────────────────── */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:3rem;width:100%;max-width:1050px;align-items:center}
+.centered{text-align:center;display:flex;flex-direction:column;align-items:center}
+.gap-sm{gap:.4rem}.gap-md{gap:.7rem}.gap-lg{gap:1.5rem}.gap-xl{gap:2rem}
+.mt-1{margin-top:.5rem}.mt-2{margin-top:1rem}.mt-3{margin-top:1.5rem}
+.sep{width:50px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--t600),var(--t400))}
+
+/* ── Workflow strip ───────────────────────────────────── */
+.wf{display:flex;align-items:center;gap:0;flex-wrap:wrap;justify-content:center}
+.wf-s{display:flex;flex-direction:column;align-items:center;gap:.3rem;padding:.6rem .9rem;border-radius:10px;background:var(--bg-card);border:1px solid var(--gb);min-width:90px;transition:all .3s}
+.wf-s:hover{border-color:var(--t600)}
+.wf-s .wi{font-size:1.2rem}
+.wf-s .wt{font-size:.72rem;font-weight:700;color:var(--tx1);text-align:center}
+.wf-a{color:var(--tx3);font-size:.9rem;margin:0 .1rem}
+
+/* ── Fade-in ──────────────────────────────────────────── */
+.slide.active .fu{animation:fadeUp .6s ease both}
+.slide.active .fu:nth-child(1){animation-delay:.05s}
+.slide.active .fu:nth-child(2){animation-delay:.15s}
+.slide.active .fu:nth-child(3){animation-delay:.28s}
+.slide.active .fu:nth-child(4){animation-delay:.4s}
+.slide.active .fu:nth-child(5){animation-delay:.52s}
+.slide.active .fu:nth-child(6){animation-delay:.64s}
+.slide.active .fu:nth-child(7){animation-delay:.76s}
+.slide.active .fu:nth-child(8){animation-delay:.88s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Dashboard mockup ─────────────────────────────────── */
+.dash-mock{
+  width:100%;max-width:900px;border-radius:14px;overflow:hidden;
+  border:1px solid var(--gb);background:rgba(10,15,20,.7);
+}
+.dash-topbar{
+  display:flex;align-items:center;gap:.8rem;padding:.7rem 1rem;
+  background:rgba(255,255,255,.02);border-bottom:1px solid var(--gb);
+  font-size:.8rem;color:var(--tx2);
+}
+.dash-topbar .logo{font-size:.98rem;font-weight:700;color:var(--t400);display:flex;align-items:center;gap:.3rem}
+.dash-nav{display:flex;gap:.8rem;margin-left:1.5rem}
+.dash-nav span{padding:.34rem .75rem;border-radius:6px;font-size:.76rem;cursor:pointer;transition:all .2s}
+.dash-nav span.act{background:rgba(13,148,136,.12);color:var(--t400)}
+.dash-body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;padding:1rem}
+.dash-widget{padding:.95rem;border-radius:10px;background:rgba(15,23,42,.6);border:1px solid var(--gb)}
+.dash-widget h4{font-size:.8rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.45rem}
+.dash-widget.wide{grid-column:span 2}
+.dash-widget.full{grid-column:span 3}
+.dash-bar{height:4px;border-radius:2px;background:var(--gb);margin:.2rem 0}
+.dash-bar-fill{height:100%;border-radius:2px}
+.mini-chart{display:flex;align-items:end;gap:2px;height:36px}
+.mini-chart span{width:8px;border-radius:2px 2px 0 0;background:var(--t600)}
+
+/* ── Responsive ───────────────────────────────────────── */
+@media(max-width:900px){
+  .slide{padding:1.5rem 1.5rem}
+  .hero-title{font-size:3.5rem}
+  .stitle{font-size:2rem}
+  .split{grid-template-columns:1fr;gap:2rem}
+  .feat-grid,.acc-grid,.proof-hero,.proof-grid,.arch-flow{grid-template-columns:1fr}
+  .arch-link{display:none}
+  .cap-ring{width:360px;height:420px}
+  .cap-node{min-width:120px}
+  .dash-body{grid-template-columns:1fr}
+  .z-flow{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="progress" style="width:0%"></div>
+<div id="dots"></div>
+<div id="counter">01 / 11</div>
+<div id="keys">← → nav · N notes</div>
+<div id="notes-panel"><div class="nl">Speaker Notes</div><div id="notes-text"></div></div>
+
+<div class="deck">
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 1 — TITLE
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide active" data-notes="Corvin — named after Corvinus, the raven king. Wisdom, pattern recognition, observation. This is an AI SRE Co-Pilot. Live on Azure right now — judges can try it. Our hackathon theme is Ways of Working — Corvin transforms HOW SRE teams work.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-t" style="top:-20%;left:-10%"></div>
+  <div class="orb orb-c" style="bottom:-25%;right:-5%"></div>
+
+  <div class="centered gap-lg" style="z-index:1">
+    <div class="fu"><span class="tag">Ways of Working · MetLife Hackathon 2026</span></div>
+    <h1 class="hero-title fu">CORVIN</h1>
+    <p class="fu" style="font-size:1.35rem;font-weight:300;color:var(--tx2);line-height:1.5;max-width:600px;text-align:center">
+      Your AI SRE Co-Pilot.<br/>
+      <span style="color:var(--t400);font-weight:500">Investigate smarter. Resolve faster. Sleep better.</span>
+    </p>
+    <div class="fu" style="display:flex;gap:1rem;align-items:center">
+      <span class="tag-live tag">LIVE ON AZURE</span>
+    </div>
+    <div class="fu" style="display:flex;gap:1rem;margin-top:.3rem">
+      <a href="https://mango-hill-0639bd600.7.azurestaticapps.net/" target="_blank" class="cta cta-primary">Launch Dashboard →</a>
+      <a href="https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net/docs" target="_blank" class="cta cta-ghost">API Docs</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 2 — THE PROBLEM (Storytelling)
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Walk them through this loop. Every SRE lives this. Alert fires, you scramble, open tabs, grep through logs, call the one person who might know, guess the root cause, apply a fix hoping it works, write a report nobody reads, and next month — exact same incident, exact same manual drill. The nightmare loop never ends. That's the current 'way of working' in incident response.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-t" style="top:10%;right:-15%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <span class="label fu">The Problem</span>
+    <h2 class="stitle fu">The SRE <span class="hi">Nightmare Loop</span></h2>
+    <p class="sbody fu" style="font-size:.9rem;max-width:550px">Every incident. Every time. The same broken cycle.</p>
+
+    <!-- Nightmare loop — U-shape flow -->
+    <div class="nightmare fu">
+      <div class="nm-row">
+        <div class="nm-step pain"><div class="ico">🔔</div><div class="txt">Alert fires</div><div class="sub">3 AM page</div></div>
+        <div class="nm-arr">→</div>
+        <div class="nm-step"><div class="ico">🖥️</div><div class="txt">Open 5 tabs</div><div class="sub">APIM, AKS, Elastic...</div></div>
+        <div class="nm-arr">→</div>
+        <div class="nm-step"><div class="ico">🔍</div><div class="txt">Grep logs</div><div class="sub">Manual search</div></div>
+        <div class="nm-arr">→</div>
+        <div class="nm-step"><div class="ico">📞</div><div class="txt">Call someone</div><div class="sub">"Do you know..?"</div></div>
+      </div>
+      <div class="nm-connector"><span>↑</span><span>↓</span></div>
+      <div class="nm-row">
+        <div class="nm-step pain"><div class="ico">🔄</div><div class="txt">Repeat</div><div class="sub">Next month</div></div>
+        <div class="nm-arr">←</div>
+        <div class="nm-step"><div class="ico">🗑️</div><div class="txt">Forget</div><div class="sub">No learning</div></div>
+        <div class="nm-arr">←</div>
+        <div class="nm-step"><div class="ico">📝</div><div class="txt">Write report</div><div class="sub">Nobody reads it</div></div>
+        <div class="nm-arr">←</div>
+        <div class="nm-step"><div class="ico">🤞</div><div class="txt">Fix & pray</div><div class="sub">Hope it works</div></div>
+      </div>
+    </div>
+
+    <p class="fu" style="font-size:1.1rem;font-weight:500;color:var(--rose);margin-top:1.2rem">
+      37 minutes per incident. Zero institutional learning.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 3 — THE SOLUTION (Transformation)
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Here's the transformation. Left side is today — slow, manual, tribal knowledge. Right side is Corvin — 30 seconds, AI-powered, every incident becomes institutional knowledge. The 7-stage pipeline below shows exactly how: trigger, enrich from 6 sources in parallel, AI investigates, produces RCA with fix strategy, human approves, execute on AKS, and learn. AI handles the investigation — you handle the decision.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-e" style="top:-15%;left:25%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <span class="label fu">The Solution</span>
+    <h2 class="stitle fu">From <span style="color:var(--rose)">37 minutes</span> to <span class="hi">30 seconds</span></h2>
+
+    <div class="transform-grid fu mt-2">
+      <!-- Before -->
+      <div class="tf-col">
+        <h3 style="color:var(--rose);border-color:var(--rose)">Today</h3>
+        <div class="tf-item card" style="border-color:rgba(244,63,94,.12)"><span class="ico">⏱️</span><div><div style="font-weight:600;color:var(--rose)">37 minutes</div><div style="font-size:.76rem;color:var(--tx3)">manual investigation</div></div></div>
+        <div class="tf-item card" style="border-color:rgba(244,63,94,.12)"><span class="ico">🖥️</span><div><div style="font-weight:600;color:var(--rose)">5 browser tabs</div><div style="font-size:.76rem;color:var(--tx3)">manual log search</div></div></div>
+        <div class="tf-item card" style="border-color:rgba(244,63,94,.12)"><span class="ico">📝</span><div><div style="font-weight:600;color:var(--rose)">Hours later</div><div style="font-size:.76rem;color:var(--tx3)">manual documentation</div></div></div>
+        <div class="tf-item card" style="border-color:rgba(244,63,94,.12)"><span class="ico">🧠</span><div><div style="font-weight:600;color:var(--rose)">Tribal knowledge</div><div style="font-size:.76rem;color:var(--tx3)">trapped in heads</div></div></div>
+      </div>
+      <!-- Arrow -->
+      <div class="tf-center">
+        <div class="arrow">→</div>
+        <div class="arrow">→</div>
+        <div class="arrow">→</div>
+        <div class="arrow">→</div>
+      </div>
+      <!-- After -->
+      <div class="tf-col">
+        <h3 style="color:var(--emerald);border-color:var(--emerald)">Corvin</h3>
+        <div class="tf-item card" style="border-color:rgba(16,185,129,.12)"><span class="ico">⚡</span><div><div style="font-weight:600;color:var(--emerald)">30 seconds</div><div style="font-size:.76rem;color:var(--tx3)">AI-powered RCA</div></div></div>
+        <div class="tf-item card" style="border-color:rgba(16,185,129,.12)"><span class="ico">🤖</span><div><div style="font-weight:600;color:var(--emerald)">6 sources in parallel</div><div style="font-size:.76rem;color:var(--tx3)">fully automated</div></div></div>
+        <div class="tf-item card" style="border-color:rgba(16,185,129,.12)"><span class="ico">📋</span><div><div style="font-weight:600;color:var(--emerald)">Instant</div><div style="font-size:.76rem;color:var(--tx3)">auto-generated post-mortem</div></div></div>
+        <div class="tf-item card" style="border-color:rgba(16,185,129,.12)"><span class="ico">💡</span><div><div style="font-weight:600;color:var(--emerald)">Institutionalized</div><div style="font-size:.76rem;color:var(--tx3)">incident memory + runbooks</div></div></div>
+      </div>
+    </div>
+
+    <!-- Pipeline strip -->
+    <div class="wf fu mt-3">
+      <div class="wf-s"><div class="wi">🔔</div><div class="wt">Trigger</div></div><div class="wf-a">→</div>
+      <div class="wf-s"><div class="wi">📦</div><div class="wt">Enrich</div></div><div class="wf-a">→</div>
+      <div class="wf-s"><div class="wi">🧠</div><div class="wt">Investigate</div></div><div class="wf-a">→</div>
+      <div class="wf-s"><div class="wi">🎯</div><div class="wt">RCA</div></div><div class="wf-a">→</div>
+      <div class="wf-s"><div class="wi">✅</div><div class="wt">Approve</div></div><div class="wf-a">→</div>
+      <div class="wf-s"><div class="wi">⚡</div><div class="wt">Execute</div></div><div class="wf-a">→</div>
+      <div class="wf-s"><div class="wi">📋</div><div class="wt">Learn</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 4 — AGENTIC AI (Capability Ring)
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="This is the intellectual differentiator. This isn't a chatbot that wraps an LLM. It's an autonomous agent. The brain in the center — GPT-5.1 — has access to 6 capability domains. It decides what to query, interprets results, and iterates up to 6 reasoning rounds. It can query your Azure infrastructure, check Kubernetes health, run analytics, pull from knowledge bases, make predictions, and execute fixes. Like a junior SRE that never sleeps and never forgets.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-t" style="bottom:-20%;left:-10%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <span class="label fu">The Differentiator</span>
+    <h2 class="stitle fu">Not a chatbot — an <span class="hi">agent</span></h2>
+    <p class="sbody fu" style="font-size:.88rem">Autonomously queries your infrastructure, reasons through evidence, and iterates up to 6 rounds per investigation.</p>
+
+    <div class="cap-ring fu">
+      <!-- Center brain -->
+      <div class="cap-center">
+        <div class="pring"><div class="brain">🧠</div></div>
+        <div class="title">GPT-5.1<br/><span style="font-size:.72rem;color:var(--tx3)">Visible reasoning and tool orchestration</span></div>
+      </div>
+      <!-- SVG connection lines -->
+      <svg class="cap-lines" viewBox="0 0 480 480">
+        <line x1="240" y1="240" x2="240" y2="60" stroke="rgba(13,148,136,.2)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="240" y1="240" x2="410" y2="150" stroke="rgba(13,148,136,.2)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="240" y1="240" x2="410" y2="330" stroke="rgba(13,148,136,.2)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="240" y1="240" x2="240" y2="420" stroke="rgba(13,148,136,.2)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="240" y1="240" x2="70" y2="330" stroke="rgba(13,148,136,.2)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="240" y1="240" x2="70" y2="150" stroke="rgba(13,148,136,.2)" stroke-width="1" stroke-dasharray="4 4"/>
+      </svg>
+      <!-- 6 capability nodes -->
+      <div class="cap-node"><span class="mark mark-lg mark-azure ci">Az</span><div class="cl">Azure Cloud</div><div class="cs">Alerts, logs, and activity evidence</div></div>
+      <div class="cap-node"><span class="mark mark-lg mark-k8s ci">K8</span><div class="cl">Kubernetes</div><div class="cs">Pods, deploys, events, and scaling</div></div>
+      <div class="cap-node"><span class="mark mark-lg mark-metrics ci">Mx</span><div class="cl">Analytics</div><div class="cs">APIM, KQL, metrics, and trends</div></div>
+      <div class="cap-node"><span class="mark mark-lg mark-knowledge ci">KB</span><div class="cl">Knowledge</div><div class="cs">Runbooks, site docs, and memory</div></div>
+      <div class="cap-node"><span class="mark mark-lg mark-elastic ci">Es</span><div class="cl">Elastic</div><div class="cs">Application logs, APM, and search</div></div>
+      <div class="cap-node"><span class="mark mark-lg mark-ai ci">AI</span><div class="cl">Predictions</div><div class="cs">Anomaly, SLA, and blast radius</div></div>
+    </div>
+
+    <div class="fu" style="display:flex;gap:1.2rem">
+      <span class="tag">6 Reasoning Rounds</span>
+      <span class="tag">Streaming SSE</span>
+      <span class="tag">Chain-of-Thought</span>
+      <span class="tag">16 Live Tools</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+  SLIDE 5 — ARCHITECTURE
+  ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Five-tier modular architecture. Triggers feed into parallel evidence collection, flow into the AI engine, produce structured outputs, and return through a human approval and learning loop. The visual shows the control boundary clearly: AI accelerates the investigation, the human still owns the decision. PostgreSQL with 16 migrations. 16 YAML config files. Production engineering.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-c" style="top:-15%;right:-10%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <span class="label fu">Architecture</span>
+    <h2 class="stitle fu" style="font-size:2.2rem">5-Tier <span class="hi">Modular</span> Pipeline</h2>
+
+    <div class="arch-flow fu">
+      <div class="arch-stage">
+        <div class="arch-card">
+          <h3><span class="mark mark-azure">TR</span> Trigger layer</h3>
+          <p>Azure Alerts, Alert Simulator, CLI, API, and Teams start investigations from the same contract.</p>
+          <div class="mini">4 delivery surfaces</div>
+        </div>
+      </div>
+      <div class="arch-link">→</div>
+      <div class="arch-stage">
+        <div class="arch-card">
+          <h3><span class="mark mark-k8s">EV</span> Evidence enrichment</h3>
+          <p>6 adapters collect APIM, AKS, container, activity, Elastic, and knowledge evidence in parallel.</p>
+          <div class="mini">parallel fan-out</div>
+        </div>
+      </div>
+      <div class="arch-link">→</div>
+      <div class="arch-stage">
+        <div class="arch-card arch-card-ai">
+          <h3><span class="mark mark-ai">AI</span> Investigation engine</h3>
+          <p>GPT-5.1 reasons across live evidence, calls tools iteratively, and streams the investigation back to the operator.</p>
+          <div class="mini">6 tool rounds · SSE streaming</div>
+        </div>
+      </div>
+      <div class="arch-link">→</div>
+      <div class="arch-stage">
+        <div class="arch-card">
+          <h3><span class="mark mark-metrics">OUT</span> Structured outputs</h3>
+          <p>RCA, fix strategy, blast radius, confidence, and post-mortem artifacts are generated from one investigation pass.</p>
+          <div class="mini">operator-ready answers</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-feedback fu">
+      <div class="loop">↺</div>
+      <div>
+        <strong>Human approval and learning loop</strong>
+        <span>Operators approve execution, Corvin documents the incident, updates memory, and makes the next investigation sharper without changing the control boundary.</span>
+      </div>
+    </div>
+
+    <div class="fu" style="display:flex;gap:1.2rem;margin-top:.5rem">
+      <span class="tag" style="font-size:.74rem">🗄️ 11 tables · 16 migrations</span>
+      <span class="tag" style="font-size:.74rem">📁 16 YAML configs</span>
+      <span class="tag" style="font-size:.74rem">📖 9 runbooks</span>
+      <span class="tag" style="font-size:.74rem">🔌 43 API endpoints</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+  SLIDE 6 — TECH STACK
+  ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Production-grade engineering, visible at a glance. Backend, frontend, and AI are all fully on-screen now, because a projected deck should not depend on presenter clicks. This tells judges we built a real system, not just a hero UI.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-e" style="bottom:-20%;right:-15%"></div>
+
+  <div class="centered gap-lg" style="z-index:1;width:100%">
+    <span class="label fu">Tech Stack</span>
+    <h2 class="stitle fu" style="font-size:2.2rem"><span class="hi">Production</span> engineering</h2>
+
+    <div class="acc-grid fu mt-2">
+      <!-- Backend -->
+      <div class="acc">
+        <div class="acc-head">
+          <span class="mark mark-lg mark-python di">Py</span>
+          <div><div style="color:var(--t400)">Backend</div><div class="stack-summary">FastAPI, Postgres, Azure SDK, AKS, Elastic, and test automation</div></div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-item"><span class="mark mark-fast">Fa</span> FastAPI + Uvicorn <span class="purpose">Async API</span></div>
+          <div class="acc-item"><span class="mark mark-metrics">Db</span> SQLAlchemy 2.0 <span class="purpose">ORM</span></div>
+          <div class="acc-item"><span class="mark mark-postgres">Pg</span> PostgreSQL <span class="purpose">11 tables</span></div>
+          <div class="acc-item"><span class="mark mark-azure">Az</span> Azure SDK suite <span class="purpose">LA · Container · Activity</span></div>
+          <div class="acc-item"><span class="mark mark-k8s">K8</span> Kubernetes client <span class="purpose">AKS ops</span></div>
+          <div class="acc-item"><span class="mark mark-elastic">Es</span> Elastic 9.x <span class="purpose">Logs + APM</span></div>
+          <div class="acc-item">🤖 Bot Framework <span class="purpose">Teams</span></div>
+          <div class="acc-item"><span class="mark mark-python">T</span> pytest <span class="purpose">446 tests</span></div>
+        </div>
+        <div class="acc-note">Built as a Python control plane with live adapters, persistent storage, and end-to-end test coverage.</div>
+      </div>
+      <!-- Frontend -->
+      <div class="acc">
+        <div class="acc-head">
+          <span class="mark mark-lg mark-react di">Rx</span>
+          <div><div style="color:var(--cyan)">Frontend</div><div class="stack-summary">React command center, topology, charts, motion, and streaming UI</div></div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-item"><span class="mark mark-react">Re</span> React 18.3 <span class="purpose">SPA</span></div>
+          <div class="acc-item"><span class="mark mark-ts">Ts</span> TypeScript 5.4 <span class="purpose">Type-safe</span></div>
+          <div class="acc-item"><span class="mark mark-vite">Vi</span> Vite 5 <span class="purpose">Build + HMR</span></div>
+          <div class="acc-item"><span class="mark mark-tailwind">Tw</span> Tailwind 4 <span class="purpose">Styling</span></div>
+          <div class="acc-item">📊 Recharts + Nivo <span class="purpose">Charts</span></div>
+          <div class="acc-item">🗺️ React Flow <span class="purpose">Topology</span></div>
+          <div class="acc-item">🎬 Framer Motion <span class="purpose">Animations</span></div>
+          <div class="acc-item">📐 SVG diagrams <span class="purpose">Presentation-safe visuals</span></div>
+        </div>
+        <div class="acc-note">Designed for a real operator workflow: briefings, investigations, command center, topology, and proof-heavy dashboards.</div>
+      </div>
+      <!-- AI -->
+      <div class="acc">
+        <div class="acc-head">
+          <span class="mark mark-lg mark-ai di">AI</span>
+          <div><div style="color:var(--violet)">AI / LLM</div><div class="stack-summary">Azure AI Foundry model orchestration with tools, streaming, and confidence</div></div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-item"><span class="mark mark-azure">Az</span> GPT-5.1 <span class="purpose">Responses API</span></div>
+          <div class="acc-item">🔗 LiteLLM <span class="purpose">LLM abstraction</span></div>
+          <div class="acc-item">🔧 16 Tools <span class="purpose">Function calling</span></div>
+          <div class="acc-item">🔄 6 Rounds <span class="purpose">Iterative reasoning</span></div>
+          <div class="acc-item">📡 SSE Streaming <span class="purpose">5 event types</span></div>
+          <div class="acc-item">💭 Chain-of-Thought <span class="purpose">Visible reasoning</span></div>
+        </div>
+        <div class="acc-note">This is the differentiator: not a chatbot wrapper, but an investigation agent with live evidence access and structured outputs.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 7 — DASHBOARD (Visual Mockup)
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="This is what an SRE sees daily. A full dashboard with Morning Briefing — Jarvis-style narrative of what happened overnight with voice TTS. DORA metrics showing deployment frequency and MTTR. Predictive alerts catching issues before they become incidents. Interactive service topology with React Flow. ROI dashboard showing hours and cost saved. And the Corvin Score — a 0-100 health gauge per service. Let me flip to the live app...">
+  <div class="grid-bg"></div>
+  <div class="orb orb-e" style="top:-20%;left:20%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <span class="label fu">Product Tour</span>
+    <h2 class="stitle fu">The SRE <span class="hi">Dashboard</span></h2>
+
+    <!-- Dashboard mockup -->
+    <div class="dash-mock fu">
+      <div class="dash-topbar">
+        <div class="logo">🧠 Corvin</div>
+        <div class="dash-nav">
+          <span class="act">Dashboard</span>
+          <span>Investigations</span>
+          <span>Command Center</span>
+          <span>Topology</span>
+          <span>Settings</span>
+        </div>
+        <span class="tag-live tag" style="font-size:.66rem;padding:.2rem .52rem;margin-left:auto">LIVE</span>
+      </div>
+      <div class="dash-body">
+        <!-- Morning Briefing -->
+        <div class="dash-widget wide">
+          <h4>🌅 Morning Briefing</h4>
+          <div style="font-size:.82rem;color:var(--tx2);line-height:1.62">
+            <em>"Good morning. 2 incidents resolved overnight — fundapis memory spike (auto-remediated) and chad-service timeout (pending review). All P1 services are healthy. Watch: order-service showing 12% latency increase trend."</em>
+          </div>
+          <div style="margin-top:.4rem;display:flex;gap:.5rem">
+            <span class="tag" style="font-size:.68rem;padding:.24rem .58rem">🗣️ Voice TTS</span>
+            <span class="tag" style="font-size:.68rem;padding:.24rem .58rem">🌙 3AM Mode</span>
+          </div>
+        </div>
+        <!-- Corvin Score -->
+        <div class="dash-widget">
+          <h4>🎯 Corvin Score</h4>
+          <div style="font-size:2rem;font-weight:800;color:var(--t400);line-height:1">87</div>
+          <div style="font-size:.78rem;color:var(--tx3)">Service health gauge</div>
+          <div class="dash-bar" style="margin-top:.4rem"><div class="dash-bar-fill" style="width:87%;background:linear-gradient(90deg,var(--t600),var(--t400))"></div></div>
+        </div>
+        <!-- DORA -->
+        <div class="dash-widget">
+          <h4>📈 DORA Metrics</h4>
+          <div class="mini-chart">
+            <span style="height:40%"></span><span style="height:65%"></span><span style="height:50%"></span><span style="height:80%"></span><span style="height:70%"></span><span style="height:90%"></span><span style="height:75%"></span><span style="height:85%"></span><span style="height:60%"></span><span style="height:95%"></span>
+          </div>
+          <div style="font-size:.76rem;color:var(--tx3);margin-top:.35rem">Deploy freq: 4.2/day · MTTR: 12min</div>
+        </div>
+        <!-- Predictions -->
+        <div class="dash-widget">
+          <h4>🔮 Predictive Alerts</h4>
+          <div style="font-size:.82rem;color:var(--amber);margin-bottom:.25rem">⚠️ order-service memory trending ↑12%</div>
+          <div style="font-size:.76rem;color:var(--tx3)">Predicted breach in ~4 hours</div>
+        </div>
+        <!-- ROI -->
+        <div class="dash-widget">
+          <h4>💰 ROI Dashboard</h4>
+          <div style="display:flex;gap:1rem">
+            <div><div style="font-size:1.2rem;font-weight:800;color:var(--emerald)">142h</div><div style="font-size:.76rem;color:var(--tx3)">saved this quarter</div></div>
+            <div><div style="font-size:1.2rem;font-weight:800;color:var(--t400)">$28K</div><div style="font-size:.76rem;color:var(--tx3)">cost avoided</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fu mt-1"><a href="https://mango-hill-0639bd600.7.azurestaticapps.net/" target="_blank" class="cta cta-ghost" style="font-size:.82rem">Open Live Dashboard →</a></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 8 — COMMAND CENTER (Chat Mockup)
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="This is our ChatGPT moment. Ask Corvin anything in natural language. Watch: I type 'What's wrong with fundapis?' — the AI starts reasoning, queries Azure APIM, checks Kubernetes pods, pulls container metrics. It streams its thinking in real time. Then renders a structured answer with confidence scoring and visual evidence cards. Voice input supported too.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-t" style="bottom:-15%;right:-10%"></div>
+
+  <div class="split" style="z-index:1">
+    <div>
+      <span class="label fu">Product Tour</span>
+      <h2 class="stitle fu" style="font-size:2.1rem">The <span class="hi">Command Center</span></h2>
+      <p class="sbody fu" style="font-size:.85rem;margin-top:.6rem">Ask anything in natural language. The AI reasons, queries your infrastructure, and streams results live.</p>
+      <div class="fu" style="display:flex;flex-direction:column;gap:.5rem;margin-top:1rem">
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.86rem;color:var(--tx2)"><span style="color:var(--t400)">✦</span> Natural language → autonomous tool selection</div>
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.86rem;color:var(--tx2)"><span style="color:var(--t400)">✦</span> Real-time chain-of-thought streaming</div>
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.86rem;color:var(--tx2)"><span style="color:var(--t400)">✦</span> Visual evidence cards and topology views</div>
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.86rem;color:var(--tx2)"><span style="color:var(--t400)">✦</span> Tool result cards with structured data</div>
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.86rem;color:var(--tx2)"><span style="color:var(--t400)">✦</span> Voice input via speech recognition</div>
+      </div>
+    </div>
+
+    <div class="fu">
+      <div class="chat-mock">
+        <div class="chat-hdr">
+          <div class="pring" style="font-size:.9rem">🧠</div>
+          Corvin Command Center
+          <span class="tag-live tag" style="font-size:.68rem;padding:.22rem .54rem;margin-left:auto">LIVE</span>
+        </div>
+        <div class="chat-body">
+          <div class="chat-user">What's wrong with fundapis in the last hour?</div>
+          <div class="chat-tool"><span class="mark mark-azure">Az</span> Querying Azure APIM analytics...</div>
+          <div class="chat-tool"><span class="mark mark-k8s">K8</span> Checking Kubernetes pod health...</div>
+          <div class="chat-tool"><span class="mark mark-metrics">Mx</span> Analyzing container resource metrics...</div>
+          <div class="chat-ai">
+            <strong style="color:var(--tx1)">Analysis complete.</strong> fundapis is experiencing elevated 5xx errors (↑340%) due to HikariCP connection pool exhaustion on the CosmosDB adapter. Pod <code style="color:var(--t400);font-size:.8rem">fundapis-7d9f4-xk2m</code> is at 94% memory with 3 OOMKill events.
+            <div style="margin-top:.45rem;font-size:.76rem;color:var(--tx3)">Confidence: <span style="color:var(--emerald)">HIGH</span> · 3 tools · 2 reasoning rounds</div>
+          </div>
+        </div>
+        <div class="chat-input"><input type="text" placeholder="Ask Corvin anything..." disabled/><span style="color:var(--t400)">↑</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 9 — INVESTIGATION FLOW (Z-pattern + Terminal)
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Full investigation lifecycle. Alert fires, evidence streams from 6 sources, AI reasons with chain-of-thought visible via SSE, produces RCA with confidence scoring and kubectl commands ready to go, human approves with one click, Corvin executes on AKS, post-mortem auto-generated, runbook auto-updated. The terminal shows exactly what this looks like in real-time — 30 seconds from alert to resolution.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-c" style="top:-10%;left:-15%"></div>
+
+  <div class="split" style="z-index:1">
+    <div>
+      <span class="label fu">Product Tour</span>
+      <h2 class="stitle fu" style="font-size:2rem">End-to-End <span class="hi">Investigation</span></h2>
+
+      <!-- Z-pattern flow -->
+      <div class="z-flow fu mt-2" style="max-width:500px">
+        <div class="z-step"><div class="ico" style="color:var(--rose)">🔔</div><h4>Alert Fires</h4><p>Azure Monitor webhook or Simulator</p></div>
+        <div class="z-step"><div class="ico">📦</div><h4>Evidence Streams</h4><p>6 adapters query in parallel</p></div>
+        <div class="z-step highlight"><div class="ico">🧠</div><h4>AI Reasons</h4><p>Chain-of-thought via SSE streaming</p></div>
+        <div class="z-step"><div class="ico">🎯</div><h4>RCA + Fix</h4><p>Confidence scored, kubectl ready</p></div>
+        <div class="z-step"><div class="ico" style="color:var(--violet)">✅</div><h4>Approve</h4><p>Human-in-the-loop gate</p></div>
+        <div class="z-step"><div class="ico" style="color:var(--emerald)">📋</div><h4>Learn</h4><p>Post-mortem + runbook updated</p></div>
+      </div>
+    </div>
+
+    <div class="fu">
+      <div class="terminal">
+        <div class="term-bar">
+          <div class="term-d" style="background:#ef4444"></div>
+          <div class="term-d" style="background:#f59e0b"></div>
+          <div class="term-d" style="background:#10b981"></div>
+          <span style="margin-left:.5rem;font-size:.6rem;color:var(--tx3)">corvin-investigation.log</span>
+        </div>
+        <div class="term-body">
+          <div><span class="dim">[14:23:01]</span> <span class="rose-t">ALERT</span> <span class="bright">fundapis 5xx spike — 340% ↑</span></div>
+          <div><span class="dim">[14:23:02]</span> <span class="teal-t">ENRICH</span> Querying 6 sources...</div>
+          <div><span class="dim">[14:23:04]</span> <span class="teal-t">APIM</span> <span class="green">✓</span> 847 events, 23 failures</div>
+          <div><span class="dim">[14:23:04]</span> <span class="teal-t">AKS</span> <span class="green">✓</span> 3 pods, 1 CrashLoop</div>
+          <div><span class="dim">[14:23:05]</span> <span class="teal-t">CONTAINER</span> <span class="green">✓</span> 3 OOMKill</div>
+          <div><span class="dim">[14:23:06]</span> <span class="amber-t">AI</span> Analyzing evidence...</div>
+          <div><span class="dim">[14:23:08]</span> <span class="amber-t">THINK</span> <span class="bright">HikariCP → CosmosDB</span></div>
+          <div><span class="dim">[14:23:12]</span> <span class="green">RCA</span> Identified <span class="teal-t">[HIGH]</span></div>
+          <div><span class="dim">[14:23:12]</span> <span class="green">FIX</span> kubectl rollout restart</div>
+          <div><span class="dim">[14:23:13]</span> <span class="amber-t">GATE</span> Awaiting approval...</div>
+          <div><span class="dim">[14:23:28]</span> <span class="green">OK</span> <span class="bright">Executing on AKS...</span></div>
+          <div><span class="dim">[14:23:31]</span> <span class="green">✓</span> <span class="teal-t">RESOLVED — 30 seconds</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 10 — PROOF
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="This slide is the proof slide, not another before-and-after. The message: this is live, governed, engineered, and useful. Judges should leave this slide believing Corvin is both technically real and operationally credible. That is the difference between a demo and a product direction.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-t" style="top:30%;right:-10%"></div>
+
+  <div class="centered gap-lg" style="z-index:1;width:100%">
+    <span class="label fu">Proof</span>
+    <h2 class="stitle fu">Why this is <span class="hi">stronger than a demo</span></h2>
+
+    <div class="proof-hero fu">
+      <div class="proof-stat"><div class="cap">Speed</div><div class="num">74×</div><div class="desc">Faster from alert to structured RCA.</div></div>
+      <div class="proof-stat"><div class="cap">Engineering</div><div class="num">446</div><div class="desc">Tests backing a real codebase, not a static mock.</div></div>
+      <div class="proof-stat"><div class="cap">Reach</div><div class="num">43</div><div class="desc">API endpoints across dashboard, CLI, Teams, and API.</div></div>
+      <div class="proof-stat"><div class="cap">Coverage</div><div class="num">16</div><div class="desc">Agent tools with live evidence access and orchestration.</div></div>
+    </div>
+
+    <div class="proof-grid fu">
+      <div class="proof-card">
+        <h3><span class="mark mark-azure">AZ</span> Live on Azure</h3>
+        <p>The dashboard and API are deployed live, so judges can verify the product beyond the presentation itself.</p>
+      </div>
+      <div class="proof-card">
+        <h3><span class="mark mark-ai">AI</span> Agentic, not cosmetic</h3>
+        <p>Corvin investigates with tool calls, streaming reasoning, confidence, and a human approval boundary.</p>
+      </div>
+      <div class="proof-card">
+        <h3><span class="mark mark-k8s">OP</span> Built for operators</h3>
+        <p>Morning briefing, topology, command center, RCA, blast radius, and post-mortem all serve the same SRE workflow.</p>
+      </div>
+      <div class="proof-card">
+        <h3><span class="mark mark-knowledge">KM</span> Institutional learning</h3>
+        <p>Every incident becomes memory, documentation, and reusable operational knowledge instead of tribal knowledge loss.</p>
+      </div>
+    </div>
+
+    <div class="proof-callout fu">
+      <strong>Corvin changes the way SRE teams work.</strong>
+      <span>It compresses investigation time, preserves knowledge, and keeps the human in control while letting AI do the repetitive evidence work.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 11 — CLOSING
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Investigate smarter. Resolve faster. Sleep better. That's Corvin. The links are live — judges can try it right now. Thank you!">
+  <div class="grid-bg"></div>
+  <div class="orb orb-t" style="top:-10%;left:20%"></div>
+  <div class="orb orb-c" style="bottom:-15%;right:10%"></div>
+  <div class="orb orb-e" style="top:40%;left:-15%"></div>
+
+  <div class="centered gap-lg" style="z-index:1">
+    <div class="fu pring" style="font-size:4rem;margin-bottom:.5rem">🧠</div>
+    <h2 class="hero-title fu" style="font-size:5rem">CORVIN</h2>
+    <div class="sep fu"></div>
+    <p class="fu" style="font-size:1.8rem;font-weight:300;color:var(--tx2);line-height:1.5;text-align:center">
+      Investigate <span class="grad" style="font-weight:700">smarter</span>.
+      Resolve <span class="grad" style="font-weight:700">faster</span>.
+      Sleep <span class="grad" style="font-weight:700">better</span>.
+    </p>
+    <div class="fu" style="display:flex;gap:1rem;margin-top:1.5rem">
+      <a href="https://mango-hill-0639bd600.7.azurestaticapps.net/" target="_blank" class="cta cta-primary" style="font-size:.9rem;padding:.8rem 2rem">Try It Live →</a>
+      <a href="https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net/docs" target="_blank" class="cta cta-ghost">API Docs</a>
+    </div>
+    <div class="fu" style="margin-top:2.5rem;font-size:.8rem;color:var(--tx3)">
+      Ways of Working · MetLife Hackathon 2026
+    </div>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- ═══════════════════════════════════════════════════════
+     SCRIPTS — Navigation
+     ═══════════════════════════════════════════════════════ -->
+<script>
+// ── Slide engine ─────────────────────────────────────────
+(function(){
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let cur = 0;
+
+  const dotsEl = document.getElementById('dots');
+  slides.forEach((_,i) => {
+    const d = document.createElement('button');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => go(i));
+    dotsEl.appendChild(d);
+  });
+
+  function go(n){
+    if(n < 0 || n >= total || n === cur) return;
+    slides[cur].classList.remove('active');
+    cur = n;
+    slides[cur].classList.add('active');
+    document.getElementById('progress').style.width = ((cur+1)/total*100)+'%';
+    document.getElementById('counter').textContent = String(cur+1).padStart(2,'0')+' / '+String(total).padStart(2,'0');
+    dotsEl.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('active', i===cur));
+    document.getElementById('notes-text').textContent = slides[cur].getAttribute('data-notes')||'';
+  }
+
+  document.addEventListener('keydown', e => {
+    if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' '){e.preventDefault();go(cur+1)}
+    else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();go(cur-1)}
+    else if(e.key==='Home'){e.preventDefault();go(0)}
+    else if(e.key==='End'){e.preventDefault();go(total-1)}
+    else if(e.key.toLowerCase()==='n'){document.getElementById('notes-panel').classList.toggle('open')}
+  });
+
+  let tx=0;
+  document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX});
+  document.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>60){dx<0?go(cur+1):go(cur-1)}});
+
+  let wl=false;
+  document.addEventListener('wheel',e=>{if(wl)return;wl=true;e.deltaY>0?go(cur+1):go(cur-1);setTimeout(()=>{wl=false},600)});
+
+  document.getElementById('notes-text').textContent = slides[0].getAttribute('data-notes')||'';
+})();
+</script>
+</body>
+</html>
