@@ -773,6 +773,11 @@ class InvestigationRepository:
                         source_request_id=alert.get("source_request_id"),
                         status=alert.get("status", "open"),
                         investigation_request_id=alert.get("investigation_request_id"),
+                        confidence_pct=alert.get("confidence_pct", 0.0),
+                        related_count=alert.get("related_count", 1),
+                        blast_radius_users=alert.get("blast_radius_users", 0),
+                        blast_radius_requests=alert.get("blast_radius_requests", 0),
+                        change_correlation=alert.get("change_correlation"),
                         created_at=(
                             datetime.fromisoformat(alert["created_at"].replace("Z", "+00:00"))
                             if alert.get("created_at")
@@ -805,6 +810,11 @@ class InvestigationRepository:
                 "source_request_id": row.source_request_id,
                 "status": row.status,
                 "investigation_request_id": row.investigation_request_id,
+                "confidence_pct": row.confidence_pct,
+                "related_count": row.related_count,
+                "blast_radius_users": row.blast_radius_users,
+                "blast_radius_requests": row.blast_radius_requests,
+                "change_correlation": row.change_correlation,
                 "created_at": _as_utc(row.created_at).isoformat(),
             }
             for row in rows
@@ -831,6 +841,11 @@ class InvestigationRepository:
                 "source_request_id": row.source_request_id,
                 "status": row.status,
                 "investigation_request_id": row.investigation_request_id,
+                "confidence_pct": row.confidence_pct,
+                "related_count": row.related_count,
+                "blast_radius_users": row.blast_radius_users,
+                "blast_radius_requests": row.blast_radius_requests,
+                "change_correlation": row.change_correlation,
                 "created_at": _as_utc(row.created_at).isoformat(),
             }
 

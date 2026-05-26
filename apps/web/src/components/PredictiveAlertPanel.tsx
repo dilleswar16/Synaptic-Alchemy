@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { fetchPredictiveAlerts, investigatePredictiveAlert } from '../api/client'
+import { fetchPredictiveAlerts, investigatePredictiveAlert, type PredictiveAlert } from '../api/client'
 
 const SEVERITY_COLOR: Record<string, string> = {
   critical: 'var(--c-red)',
@@ -9,14 +9,64 @@ const SEVERITY_COLOR: Record<string, string> = {
   low: 'var(--c-green)',
 }
 
-function etaLabel(eta: string | null) {
-  if (!eta) return 'No ETA'
-  const diffMs = new Date(eta).getTime() - Date.now()
-  if (diffMs <= 0) return 'Breach imminent'
-  const mins = Math.round(diffMs / 60000)
-  if (mins < 60) return `${mins}m to breach`
-  const hours = Math.floor(mins / 60)
-  return `${hours}h ${mins % 60}m to breach`
+type AlertState = 'breached' | 'near' | 'watch' | 'early'
+
+function toNumber(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
+function getAlertState(signal: number, target: number): AlertState {
+  const safeTarget = Math.max(target, 1)
+  if (signal >= safeTarget) return 'breached'
+  if (signal >= safeTarget * 0.9) return 'near'
+  if (signal >= safeTarget * 0.6) return 'watch'
+  return 'early'
+}
+
+function stateMeta(state: AlertState) {
+  if (state === 'breached') {
+    return {
+      label: 'Action Recommended',
+      chipBg: 'var(--c-error-bg)',
+      chipBorder: 'var(--c-error-border)',
+      chipText: 'var(--c-red)',
+      helper: 'Signal is above the configured threshold.',
+    }
+  }
+  if (state === 'near') {
+    return {
+      label: 'Near Threshold',
+      chipBg: 'var(--c-warning-bg)',
+      chipBorder: 'var(--c-warning-border)',
+      chipText: 'var(--c-warning)',
+      helper: 'Signal is approaching threshold and should be reviewed soon.',
+    }
+  }
+  if (state === 'watch') {
+    return {
+      label: 'Watch',
+      chipBg: 'var(--c-info-bg)',
+      chipBorder: 'var(--c-info-border)',
+      chipText: 'var(--c-info)',
+      helper: 'Signal is below threshold but trending in a risky direction.',
+    }
+  }
+  return {
+    label: 'Early Signal',
+    chipBg: 'var(--c-surface)',
+    chipBorder: 'var(--c-border-hi)',
+    chipText: 'var(--c-text-muted)',
+    helper: 'Low-confidence early pattern. Keep monitoring.',
+  }
+}
+
+function formatAlertTitle(alert: PredictiveAlert, state: AlertState): string {
+  if (alert.alert_type !== 'memory_pressure') return alert.title
+  if (state === 'breached') return 'Memory threshold breached'
+  if (state === 'near') return 'Memory near threshold'
+  if (state === 'watch') return 'Memory building'
+  return 'Memory trending up'
 }
 
 export function PredictiveAlertPanel() {
@@ -78,6 +128,15 @@ export function PredictiveAlertPanel() {
   }
 
   const alerts = (data ?? []).slice(0, 3)
+  const enrichedAlerts = alerts.map((alert) => {
+    const signal = toNumber(alert.signal_value)
+    const target = Math.max(toNumber(alert.threshold_value), 1)
+    const state = getAlertState(signal, target)
+    const ratioPct = Math.max(0, Math.min((signal / target) * 100, 130))
+    return { alert, signal, target, state, ratioPct }
+  })
+  const actionableCount = enrichedAlerts.filter((a) => a.state === 'breached' || a.state === 'near').length
+  const watchCount = enrichedAlerts.length - actionableCount
 
   return (
     <div className="panel animate-fade-up" style={{ padding: '18px 20px', overflow: 'hidden', position: 'relative' }}>
@@ -85,7 +144,7 @@ export function PredictiveAlertPanel() {
         position: 'absolute', inset: 0, pointerEvents: 'none',
         background: 'radial-gradient(circle at 85% 10%, var(--c-signal-glow), transparent 35%)',
       }} />
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.03em', textTransform: 'uppercase', color: 'var(--c-text-muted)', marginBottom: 5 }}>
             Pre-Mortem Mode
@@ -99,6 +158,38 @@ export function PredictiveAlertPanel() {
         </div>
       </div>
 
+      {alerts.length > 0 && (
+        <div style={{
+          marginBottom: 14,
+          display: 'flex',
+          gap: 8,
+          flexWrap: 'wrap',
+        }}>
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.68rem',
+            color: actionableCount > 0 ? 'var(--c-error)' : 'var(--c-text-muted)',
+            padding: '4px 10px',
+            borderRadius: 999,
+            border: `1px solid ${actionableCount > 0 ? 'var(--c-error-border)' : 'var(--c-border)'}`,
+            background: actionableCount > 0 ? 'var(--c-error-bg)' : 'var(--c-surface-2)',
+          }}>
+            {actionableCount} actionable
+          </span>
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.68rem',
+            color: 'var(--c-info)',
+            padding: '4px 10px',
+            borderRadius: 999,
+            border: '1px solid var(--c-info-border)',
+            background: 'var(--c-info-bg)',
+          }}>
+            {watchCount} watch
+          </span>
+        </div>
+      )}
+
       {alerts.length === 0 && (
         <div style={{
           padding: '20px 18px', borderRadius: 6,
@@ -109,57 +200,116 @@ export function PredictiveAlertPanel() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
-        {alerts.map((alert, index) => {
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        {enrichedAlerts.map(({ alert, signal, target, state, ratioPct }, index) => {
           const accent = SEVERITY_COLOR[alert.severity] ?? 'var(--c-signal)'
+          const meta = stateMeta(state)
+          const dynamicTitle = formatAlertTitle(alert, state)
+          const ctaLabel = state === 'breached' || state === 'near' ? 'Investigate' : 'Pre-Mortem'
+          const ctaBg = state === 'breached' || state === 'near' ? 'var(--c-signal)' : 'var(--c-surface)'
+          const ctaText = state === 'breached' || state === 'near' ? '#fff' : 'var(--c-text)'
+          const ctaBorder = state === 'breached' || state === 'near' ? '1px solid transparent' : '1px solid var(--c-border-hi)'
+
           return (
             <div key={alert.id} className="scan-sweep" style={{
               animationDelay: `${index * 70}ms`,
               border: `1px solid color-mix(in srgb, ${accent} 35%, var(--c-border-hi))`,
               background: `linear-gradient(180deg, color-mix(in srgb, ${accent} 10%, transparent) 0%, var(--c-surface-2) 100%)`,
-              borderRadius: 8, padding: '16px 16px 14px',
+              borderRadius: 8, padding: '12px 14px',
               boxShadow: `0 12px 30px color-mix(in srgb, ${accent} 18%, transparent)`,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
                 <span style={{
-                  fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.68rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.64rem',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: meta.chipText,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  border: `1px solid ${meta.chipBorder}`,
+                  background: meta.chipBg,
+                }}>
+                  {meta.label}
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.64rem',
                   letterSpacing: '0.16em', textTransform: 'uppercase', color: accent,
                 }}>
                   {alert.alert_type.replace(/_/g, ' ')}
                 </span>
-                <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-muted)',
-                  padding: '3px 8px', borderRadius: 999, border: '1px solid var(--c-border)',
+              </div>
+
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.95rem', color: 'var(--c-text)', marginBottom: 8, lineHeight: 1.2 }}>
+                {dynamicTitle}
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <div style={{
+                  position: 'relative',
+                  height: 6,
+                  borderRadius: 999,
+                  background: 'var(--c-surface)',
+                  border: '1px solid var(--c-border)',
+                  overflow: 'hidden',
                 }}>
-                  {etaLabel(alert.estimated_breach_at)}
-                </span>
-              </div>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.98rem', color: 'var(--c-text)', marginBottom: 8, lineHeight: 1.15 }}>
-                {alert.title}
-              </div>
-              <p style={{ margin: '0 0 12px', fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--c-text-dim)', lineHeight: 1.6 }}>
-                {alert.summary}
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-                <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--c-surface)', border: '1px solid var(--c-border)' }}>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 4 }}>Signal</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1rem', color: accent }}>{alert.signal_value}</div>
+                  <div style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: `${ratioPct}%`,
+                    background: `linear-gradient(90deg, color-mix(in srgb, ${accent} 55%, transparent), ${accent})`,
+                    transition: 'width 0.35s ease',
+                  }} />
+                  <div style={{
+                    position: 'absolute',
+                    left: '100%',
+                    top: -2,
+                    width: 2,
+                    height: 10,
+                    transform: 'translateX(-2px)',
+                    background: 'var(--c-text-faint)',
+                    opacity: 0.5,
+                  }} />
                 </div>
-                <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--c-surface)', border: '1px solid var(--c-border)' }}>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 4 }}>Target</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1rem', color: 'var(--c-text)' }}>{alert.threshold_value}</div>
+                <div style={{
+                  marginTop: 4,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.62rem',
+                  color: 'var(--c-text-faint)',
+                }}>
+                  <span>{signal.toFixed(1)}% / {target.toFixed(1)}%</span>
+                  <span>{alert.service_name}</span>
                 </div>
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 14 }}>
-                {alert.service_name} · {alert.environment} · confidence {alert.confidence}
-              </div>
+
               <button
-                className="btn-primary"
                 disabled={mutation.isPending}
                 onClick={() => mutation.mutate(alert.id)}
-                style={{ width: '100%', justifyContent: 'center' }}
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  borderRadius: 6,
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  letterSpacing: '-0.01em',
+                  padding: '8px 12px',
+                  background: ctaBg,
+                  color: ctaText,
+                  border: ctaBorder,
+                  transition: 'all 0.15s ease',
+                  cursor: mutation.isPending ? 'not-allowed' : 'pointer',
+                }}
               >
-                {mutation.isPending ? 'Launching…' : 'Investigate Now'}
+                {mutation.isPending ? 'Starting...' : ctaLabel}
               </button>
             </div>
           )

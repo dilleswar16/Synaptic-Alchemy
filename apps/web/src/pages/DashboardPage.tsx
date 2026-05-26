@@ -727,6 +727,20 @@ export default function DashboardPage() {
         <PredictiveAlertPanel />
       </div>
 
+      <div style={{ marginTop: -4, marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+        <Link to="/predictive-analytics" style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.72rem',
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--c-signal)',
+          textDecoration: 'none',
+        }}>
+          Open Predictive Analytics Center →
+        </Link>
+      </div>
+
       <div style={{ marginBottom: 16 }}>
         <TopologyRadar />
       </div>

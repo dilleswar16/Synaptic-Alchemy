@@ -364,6 +364,7 @@ export interface PredictiveAlert {
   summary: string
   severity: 'critical' | 'high' | 'medium' | 'low'
   confidence: 'high' | 'medium' | 'low'
+  confidence_pct: number
   signal_value: number
   threshold_value: number
   estimated_breach_at: string | null
@@ -372,6 +373,10 @@ export interface PredictiveAlert {
   status: string
   investigation_request_id: string | null
   created_at: string
+  change_correlation: string | null
+  related_count: number
+  blast_radius_users: number
+  blast_radius_requests: number
 }
 
 export function fetchPredictiveAlerts(refresh = true) {
