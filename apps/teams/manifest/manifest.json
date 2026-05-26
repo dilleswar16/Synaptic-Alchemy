@@ -3,7 +3,6 @@
   "manifestVersion": "1.17",
   "version": "1.0.0",
   "id": "32c35866-8d7e-4a5b-becd-4da55e95f699",
-  "packageName": "com.metlife.corvin",
   "developer": {
     "name": "MetLife Australia",
     "websiteUrl": "https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net",
