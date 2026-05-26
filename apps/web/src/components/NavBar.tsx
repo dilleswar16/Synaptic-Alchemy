@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext'
 
 const NAV_LINKS = [
   { to: '/',               label: 'Dashboard',      icon: '◎' },
+  { to: '/predictive-analytics', label: 'Predictive', icon: '◉' },
   { to: '/investigations', label: 'Investigations', icon: '◈' },
   { to: '/corvin',         label: 'Corvin AI',      icon: '◆' },
 ]

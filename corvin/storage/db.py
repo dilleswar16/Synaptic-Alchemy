@@ -116,6 +116,11 @@ _SQLITE_COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
     ("evidence_bundles", "oom_kill_events", "JSON DEFAULT '[]'"),
     ("evidence_bundles", "autoscaler_events", "JSON DEFAULT '[]'"),
     ("evidence_bundles", "health_probe_failures", "JSON DEFAULT '[]'"),
+    ("predictive_alerts", "confidence_pct", "REAL DEFAULT 0"),
+    ("predictive_alerts", "related_count", "INTEGER DEFAULT 1"),
+    ("predictive_alerts", "blast_radius_users", "INTEGER DEFAULT 0"),
+    ("predictive_alerts", "blast_radius_requests", "INTEGER DEFAULT 0"),
+    ("predictive_alerts", "change_correlation", "TEXT"),
 ]
 
 

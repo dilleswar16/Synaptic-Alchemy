@@ -14,7 +14,6 @@ sdist/
 wheels/
 *.egg-link
 pip-wheel-metadata/
-MANIFEST
 
 # Virtual environments
 .venv/

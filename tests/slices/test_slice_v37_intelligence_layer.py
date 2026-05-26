@@ -21,11 +21,19 @@ from corvin.core.contracts import (
     RiskLevel,
     TriggerSource,
 )
+from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
 from corvin.investigation.topology import build_service_topology
 from corvin.storage.models import Base
 from corvin.storage.repository import InvestigationRepository
 from corvin.strategy.sla import build_sla_countdown
 from corvin.triggers.predictive import PredictiveMonitor
+
+
+class _FakeContainerLogsAdapter(ContainerLogsAdapter):
+    """Fake adapter that returns empty metrics (forces use of stored evidence)."""
+
+    def get_resource_metrics(self, service_name: str, time_range_minutes: int = 60) -> list[dict]:
+        return []
 
 
 @pytest.fixture()
@@ -113,11 +121,27 @@ def _make_result(
 def test_predictive_monitor_generates_multiple_alert_types(sqlite_repo):
     sqlite_repo.save_investigation_result(_make_result())
 
-    alerts = PredictiveMonitor(repo=sqlite_repo).refresh_alerts()
+    alerts = PredictiveMonitor(
+        repo=sqlite_repo,
+        policy={
+            "predictive_memory_threshold_pct": 82,
+            "predictive_memory_soft_limit_mib": 400,
+            "predictive_error_rate_threshold_pct": 10,
+            "predictive_error_rate_critical_pct": 25,
+            "predictive_error_count_threshold": 4,
+            "predictive_restart_threshold": 3,
+        },
+        container_logs=_FakeContainerLogsAdapter(),  # Pass fake adapter to avoid real Azure calls
+    ).refresh_alerts()
 
     assert len(alerts) >= 2
     assert any(alert.alert_type == "memory_pressure" for alert in alerts)
     assert any(alert.alert_type == "error_rate" for alert in alerts)
+
+    memory_alert = next(alert for alert in alerts if alert.alert_type == "memory_pressure")
+    # Dynamic values come from evidence + policy, not hard-coded literals.
+    assert memory_alert.signal_value == pytest.approx(70.0, abs=0.1)
+    assert memory_alert.threshold_value == pytest.approx(82.0, abs=0.1)
 
 
 def test_repository_round_trips_predictive_trigger_and_status(sqlite_repo):

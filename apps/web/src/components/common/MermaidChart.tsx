@@ -265,7 +265,20 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
           .replace(/\\n/g, '\n')
           .replace(/<br\s*\/?>/gi, '\n')
 
-        // 2. Mermaid 11 does not support rgba() in classDef — replace with hex equivalents
+        // 2. Sanitize node labels: parentheses inside ["..."] labels break Mermaid parsing
+        //    e.g. ["chad-fundsso (SSO)"] → ["chad-fundsso - SSO"]
+        //    Also strip escaped quotes inside labels
+        processedChart = processedChart.replace(
+          /\["([^"]*?)"\]/g,
+          (_match: string, label: string) => {
+            const safe = label
+              .replace(/\\"/g, "'")              // escaped quotes → apostrophe
+              .replace(/\(([^)]*)\)/g, '- $1')   // (SSO) → - SSO
+            return `["${safe}"]`
+          }
+        )
+
+        // 3. Mermaid 11 does not support rgba() in classDef — replace with hex equivalents
         processedChart = processedChart.replace(
           /\bclassDef\b([^\n]*)/g,
           (_line: string, rest: string) => {

@@ -188,6 +188,11 @@ class PredictiveAlertRow(Base):
     source_request_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="open")
     investigation_request_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
+    confidence_pct: Mapped[float] = mapped_column(nullable=False, default=0.0)
+    related_count: Mapped[int] = mapped_column(nullable=False, default=1)
+    blast_radius_users: Mapped[int] = mapped_column(nullable=False, default=0)
+    blast_radius_requests: Mapped[int] = mapped_column(nullable=False, default=0)
+    change_correlation: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

@@ -81,6 +81,18 @@ war_room_min_severity: critical
 # ── V3.7: Intelligence Layer ─────────────────────────────────────────────────
 predictive_background_enabled: true
 predictive_interval_seconds: 300
+# Memory pressure threshold for predictive pre-mortem alerts.
+predictive_memory_threshold_pct: 85
+# Soft fallback baseline (MiB) when memoryLimitBytes telemetry is unavailable.
+predictive_memory_soft_limit_mib: 320
+# APIM 5xx ratio threshold (%) for error-rate predictive alerts.
+predictive_error_rate_threshold_pct: 15
+# Error ratio (%) at which error-rate alerts are escalated to critical.
+predictive_error_rate_critical_pct: 30
+# Absolute 5xx event count threshold in the captured evidence window.
+predictive_error_count_threshold: 5
+# Total restart count threshold for restart acceleration alerts.
+predictive_restart_threshold: 3
 sla_target_percent: 99.9
 sla_month_minutes: 43200
 sla_amber_seconds: 7200

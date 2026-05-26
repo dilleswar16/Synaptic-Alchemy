@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Corvin — MetLife Hackathon 2026</title>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   CORVIN HACKATHON DECK V4 — Story-Driven Rebuild
+   "Start with a story. End with a feeling."
+   Zero CDN dependencies · Projector-optimized · Self-contained
+   ═══════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{font-family:'Segoe UI Variable','Segoe UI',system-ui,-apple-system,sans-serif;background:#030712;color:#e2e8f0;overflow:hidden;-webkit-font-smoothing:antialiased}
+code{font-family:Consolas,'Cascadia Mono','Courier New',monospace}
+
+:root{
+  --t300:#5eead4;--t400:#2dd4bf;--t500:#14b8a6;--t600:#0d9488;--t700:#0f766e;
+  --bg:#030712;--bg2:#0f172a;--bg-card:rgba(15,23,42,.55);
+  --gb:rgba(255,255,255,.06);--gb2:rgba(255,255,255,.1);
+  --tx1:#f1f5f9;--tx2:#94a3b8;--tx3:#64748b;
+  --cyan:#06b6d4;--amber:#f59e0b;--rose:#f43f5e;--emerald:#10b981;
+  --violet:#8b5cf6;--indigo:#6366f1;
+}
+
+/* ── Canvas ───────────────────────────────────────────── */
+#constellation{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* ── Slide engine ─────────────────────────────────────── */
+.deck{position:relative;width:100vw;height:100vh}
+.slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;padding:2.5rem 5rem;
+  opacity:0;visibility:hidden;transition:opacity .6s ease,transform .6s ease;
+  transform:translateY(16px) scale(.997);z-index:0;overflow:hidden;
+}
+.slide.active{opacity:1;visibility:visible;transform:translateY(0) scale(1);z-index:10}
+
+/* ── Orbs ─────────────────────────────────────────────── */
+.orb{position:absolute;border-radius:50%;filter:blur(150px);opacity:.1;pointer-events:none;z-index:0;animation:orbFloat 20s ease-in-out infinite alternate}
+.orb-t{background:var(--t600);width:500px;height:500px}
+.orb-c{background:var(--cyan);width:380px;height:380px}
+.orb-e{background:var(--emerald);width:320px;height:320px}
+.orb-v{background:var(--violet);width:350px;height:350px}
+.orb-r{background:var(--rose);width:400px;height:400px}
+@keyframes orbFloat{0%{transform:translate(0,0) scale(1)}100%{transform:translate(25px,-18px) scale(1.08)}}
+
+/* ── Chrome ───────────────────────────────────────────── */
+#progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--t700),var(--t400),var(--cyan));transition:width .4s ease;z-index:200;box-shadow:0 0 18px var(--t500)}
+#counter{position:fixed;bottom:1.3rem;right:2rem;font-size:.74rem;color:var(--tx3);font-family:Consolas,monospace;z-index:200;letter-spacing:.08em}
+#dots{position:fixed;right:1rem;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;z-index:200}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--tx3);border:none;cursor:pointer;transition:all .3s;padding:0;opacity:.3}
+.dot.active{background:var(--t400);box-shadow:0 0 12px var(--t500);transform:scale(1.7);opacity:1}
+#notes-panel{position:fixed;bottom:0;left:0;right:0;height:0;overflow:hidden;background:rgba(3,7,18,.97);border-top:1px solid var(--gb);z-index:300;transition:height .3s;font-size:.84rem;color:var(--tx2);padding:0 3rem;backdrop-filter:blur(24px)}
+#notes-panel.open{height:140px;padding:1.1rem 3rem}
+#notes-panel .nl{font-size:.66rem;font-weight:700;letter-spacing:.18em;color:var(--t400);text-transform:uppercase;margin-bottom:.5rem}
+#keys{position:fixed;bottom:1.3rem;left:2rem;font-size:.64rem;color:var(--tx3);font-family:Consolas,monospace;z-index:200;opacity:.35}
+
+/* ── Typography ───────────────────────────────────────── */
+.hero-title{font-size:7.5rem;font-weight:900;line-height:.86;letter-spacing:-.06em;background:linear-gradient(135deg,#fff 0%,var(--t300) 50%,var(--t400) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.label{font-size:.78rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--t400);margin-bottom:.5rem}
+.stitle{font-size:2.8rem;font-weight:800;line-height:1.06;letter-spacing:-.03em;color:var(--tx1)}
+.stitle .hi{color:var(--t400)}
+.stitle .rose{color:var(--rose)}
+.sbody{font-size:1.1rem;font-weight:300;color:var(--tx2);line-height:1.72;max-width:640px}
+.grad{background:linear-gradient(135deg,var(--t300),var(--t500),var(--cyan),var(--t300));background-size:300% 300%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:gShift 6s ease infinite}
+@keyframes gShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* ── Tags ─────────────────────────────────────────────── */
+.tag{display:inline-flex;align-items:center;gap:.4rem;padding:.38rem .92rem;border-radius:100px;font-size:.76rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(13,148,136,.1);color:var(--t400);border:1px solid rgba(13,148,136,.2)}
+.tag-live{background:rgba(16,185,129,.1);color:var(--emerald);border-color:rgba(16,185,129,.2)}
+.tag-live::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--emerald);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+.tag-v{background:rgba(139,92,246,.1);color:var(--violet);border-color:rgba(139,92,246,.2)}
+
+/* ── CTA ──────────────────────────────────────────────── */
+.cta{display:inline-flex;align-items:center;gap:.55rem;padding:.72rem 1.7rem;border-radius:12px;font-size:.88rem;font-weight:600;text-decoration:none;transition:all .3s;cursor:pointer;border:none}
+.cta-primary{background:linear-gradient(135deg,var(--t600),var(--t500));color:#fff;box-shadow:0 4px 24px rgba(13,148,136,.35)}
+.cta-primary:hover{box-shadow:0 8px 36px rgba(13,148,136,.5);transform:translateY(-3px)}
+.cta-ghost{background:transparent;color:var(--t400);border:1px solid rgba(13,148,136,.3)}
+
+/* ── Pulse ring ───────────────────────────────────────── */
+.pring{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.pring::before,.pring::after{content:'';position:absolute;inset:-14px;border-radius:50%;border:2px solid var(--t500);opacity:0;animation:pRing 3s ease-in-out infinite}
+.pring::after{animation-delay:1.5s}
+@keyframes pRing{0%{transform:scale(.8);opacity:.5}100%{transform:scale(1.9);opacity:0}}
+
+/* ── Marks ─────────────────────────────────────────────── */
+.mark{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;font-size:.8rem;font-weight:800;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:var(--tx1);flex-shrink:0}
+.mark-lg{width:46px;height:46px;border-radius:13px;font-size:.98rem}
+.mark-azure{background:rgba(59,130,246,.12);border-color:rgba(96,165,250,.22);color:#93c5fd}
+.mark-k8s{background:rgba(37,99,235,.12);border-color:rgba(96,165,250,.22);color:#bfdbfe}
+.mark-mx{background:rgba(6,182,212,.12);border-color:rgba(34,211,238,.22);color:#67e8f9}
+.mark-kb{background:rgba(245,158,11,.12);border-color:rgba(251,191,36,.22);color:#fde68a}
+.mark-es{background:rgba(16,185,129,.12);border-color:rgba(74,222,128,.22);color:#86efac}
+.mark-ai{background:rgba(139,92,246,.14);border-color:rgba(167,139,250,.22);color:#ddd6fe}
+
+/* ═══════ SLIDE-SPECIFIC STYLES ═══════════════════════════ */
+
+/* ── Cold Open (Slide 1) ──────────────────────────────── */
+.cold-time{font-size:8rem;font-weight:900;line-height:.85;letter-spacing:-.06em;color:var(--tx1);font-variant-numeric:tabular-nums}
+.cold-day{font-size:1.6rem;font-weight:300;color:var(--tx3);margin-top:.4rem;letter-spacing:.06em}
+.cold-alert{margin-top:2.5rem;padding:1.5rem 2.5rem;border-radius:18px;background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.18);text-align:center}
+.cold-alert .svc{font-size:2rem;font-weight:800;color:var(--rose)}
+.cold-alert .msg{font-size:1.1rem;color:var(--tx2);margin-top:.4rem}
+.cold-clock{margin-top:2rem;font-size:1.2rem;color:var(--amber);font-weight:600;letter-spacing:.05em;animation:clockPulse 1.5s ease infinite}
+@keyframes clockPulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Nightmare Loop (Slide 2) ─────────────────────────── */
+.nightmare{display:flex;flex-direction:column;gap:.25rem;width:100%;max-width:920px;margin-top:1.2rem}
+.nm-row{display:flex;align-items:center;justify-content:center;gap:.5rem}
+.nm-step{display:flex;flex-direction:column;align-items:center;gap:.25rem;padding:.8rem 1.1rem;border-radius:12px;min-width:115px;text-align:center;background:var(--bg-card);border:1px solid var(--gb);transition:all .3s}
+.nm-step .ico{font-size:1.6rem}
+.nm-step .txt{font-size:.84rem;font-weight:700;color:var(--tx1)}
+.nm-step .sub{font-size:.72rem;color:var(--tx3)}
+.nm-step.pain{border-color:rgba(244,63,94,.2);background:rgba(244,63,94,.04)}
+.nm-arr{color:var(--tx3);font-size:1rem;flex-shrink:0}
+.nm-connector{display:flex;justify-content:space-between;padding:0 3rem}
+.nm-connector span{color:var(--tx3);font-size:1rem}
+.nm-cost{margin-top:1.2rem;display:flex;gap:2rem;justify-content:center}
+.nm-cost-item{text-align:center}
+.nm-cost-item .val{font-size:2rem;font-weight:900;color:var(--rose)}
+.nm-cost-item .lbl{font-size:.82rem;color:var(--tx3);margin-top:.2rem}
+
+/* ── What-If (Slide 3) ───────────────────────────────── */
+.whatif-list{display:flex;flex-direction:column;gap:1rem;margin-top:1.5rem;max-width:700px;width:100%}
+.whatif-item{display:flex;align-items:flex-start;gap:1rem;padding:1.1rem 1.3rem;border-radius:14px;background:rgba(13,148,136,.04);border:1px solid rgba(13,148,136,.1);font-size:1.05rem;color:var(--tx2);line-height:1.55}
+.whatif-item .check{font-size:1.3rem;color:var(--emerald);flex-shrink:0;margin-top:.1rem}
+.whatif-reveal{margin-top:2rem;font-size:1.8rem;font-weight:300;color:var(--tx2)}
+.whatif-reveal strong{font-weight:800;color:var(--t400)}
+
+/* ── Reveal (Slide 4) ────────────────────────────────── */
+.reveal-sub{font-size:1.3rem;font-weight:300;color:var(--tx2);margin-top:.2rem;text-align:center;max-width:600px;line-height:1.6}
+.reveal-meaning{font-size:.92rem;color:var(--tx3);font-style:italic;margin-top:.5rem}
+
+/* ── Terminal (Slide 5) ───────────────────────────────── */
+.terminal{background:#0a0f14;border:1px solid var(--gb);border-radius:14px;overflow:hidden;width:100%;max-width:760px}
+.term-bar{display:flex;align-items:center;gap:7px;padding:.55rem 1rem;background:rgba(255,255,255,.02);border-bottom:1px solid var(--gb)}
+.term-d{width:10px;height:10px;border-radius:50%}
+.term-body{padding:1.1rem 1.3rem;font-size:.88rem;line-height:1.9;font-family:Consolas,'Cascadia Mono',monospace}
+.term-line{opacity:0;transition:opacity .35s ease}
+.slide.active .term-line{opacity:1}
+.slide.active .term-line:nth-child(1){transition-delay:.3s}
+.slide.active .term-line:nth-child(2){transition-delay:.7s}
+.slide.active .term-line:nth-child(3){transition-delay:1.1s}
+.slide.active .term-line:nth-child(4){transition-delay:1.4s}
+.slide.active .term-line:nth-child(5){transition-delay:1.7s}
+.slide.active .term-line:nth-child(6){transition-delay:2.2s}
+.slide.active .term-line:nth-child(7){transition-delay:2.7s}
+.slide.active .term-line:nth-child(8){transition-delay:3.2s}
+.slide.active .term-line:nth-child(9){transition-delay:3.5s}
+.slide.active .term-line:nth-child(10){transition-delay:3.8s}
+.slide.active .term-line:nth-child(11){transition-delay:4.3s}
+.slide.active .term-line:nth-child(12){transition-delay:4.8s}
+.dim{color:var(--tx3)}.bright{color:var(--tx1)}.green{color:var(--emerald)}.teal-t{color:var(--t400)}.amber-t{color:var(--amber)}.rose-t{color:var(--rose)}
+.term-context{margin-top:1rem;font-size:.92rem;color:var(--tx3);font-style:italic;text-align:center}
+
+/* ── Dashboard (Slide 6) ──────────────────────────────── */
+.dash-mock{width:100%;max-width:920px;border-radius:16px;overflow:hidden;border:1px solid var(--gb);background:rgba(10,15,20,.75)}
+.dash-topbar{display:flex;align-items:center;gap:.8rem;padding:.65rem 1.1rem;background:rgba(255,255,255,.02);border-bottom:1px solid var(--gb);font-size:.82rem;color:var(--tx2)}
+.dash-topbar .logo{font-size:1rem;font-weight:800;color:var(--t400);display:flex;align-items:center;gap:.35rem}
+.dash-nav{display:flex;gap:.7rem;margin-left:1.5rem}
+.dash-nav span{padding:.3rem .7rem;border-radius:7px;font-size:.74rem}
+.dash-nav span.act{background:rgba(13,148,136,.12);color:var(--t400)}
+.dash-body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.9rem;padding:.9rem}
+.dash-widget{padding:.85rem;border-radius:12px;background:rgba(15,23,42,.55);border:1px solid var(--gb)}
+.dash-widget h4{font-size:.78rem;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem}
+.dash-widget.wide{grid-column:span 2}
+.mini-chart{display:flex;align-items:end;gap:3px;height:32px}
+.mini-chart span{width:8px;border-radius:3px 3px 0 0;background:var(--t600)}
+.dash-bar{height:5px;border-radius:3px;background:var(--gb);margin:.2rem 0}
+.dash-bar-fill{height:100%;border-radius:3px}
+
+/* ── Chat mockup (Slide 7) ────────────────────────────── */
+.chat-mock{width:100%;max-width:720px;border-radius:16px;overflow:hidden;border:1px solid var(--gb);background:rgba(10,15,20,.8)}
+.chat-hdr{padding:.75rem 1.1rem;background:rgba(255,255,255,.02);border-bottom:1px solid var(--gb);display:flex;align-items:center;gap:.6rem;font-size:.95rem;font-weight:700;color:var(--tx1)}
+.chat-body{padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.8rem}
+.chat-user{padding:.72rem 1rem;border-radius:12px;font-size:.88rem;line-height:1.6;max-width:90%;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.12);color:var(--tx2);align-self:flex-end}
+.chat-ai{padding:.72rem 1rem;border-radius:12px;font-size:.88rem;line-height:1.6;max-width:92%;background:var(--bg-card);border:1px solid var(--gb);color:var(--tx2);align-self:flex-start}
+.chat-tool{padding:.55rem .85rem;background:rgba(6,182,212,.05);border:1px solid rgba(6,182,212,.1);color:var(--cyan);align-self:flex-start;font-size:.82rem;display:flex;align-items:center;gap:.5rem;border-radius:10px}
+
+/* ── Capability ring (Slide 7) ────────────────────────── */
+.cap-ring{position:relative;width:520px;height:480px;margin:.8rem auto 0}
+.cap-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:2}
+.cap-center .brain{font-size:3.8rem}
+.cap-center .ctitle{font-size:1rem;font-weight:800;color:var(--t400);margin-top:.3rem}
+.cap-center .csub{font-size:.78rem;color:var(--tx3)}
+.cap-node{
+  position:absolute;display:flex;flex-direction:column;align-items:center;gap:.3rem;
+  padding:.9rem 1rem;border-radius:14px;background:rgba(15,23,42,.75);border:1px solid var(--gb);
+  min-width:140px;text-align:center;transition:all .3s;z-index:2;
+}
+.cap-node:hover{border-color:var(--t600);transform:scale(1.05)}
+.cap-node .cl{font-size:.9rem;font-weight:700;color:var(--tx1)}
+.cap-node .cs{font-size:.76rem;color:var(--tx2);line-height:1.4}
+.cap-node:nth-child(2){top:0%;left:50%;transform:translateX(-50%)}
+.cap-node:nth-child(3){top:17%;right:0%}
+.cap-node:nth-child(4){bottom:17%;right:0%}
+.cap-node:nth-child(5){bottom:0%;left:50%;transform:translateX(-50%)}
+.cap-node:nth-child(6){bottom:17%;left:0%}
+.cap-node:nth-child(7){top:17%;left:0%}
+.cap-lines{position:absolute;inset:0;z-index:1}
+.cap-lines line{stroke:rgba(13,148,136,.18);stroke-width:1;stroke-dasharray:5 5;animation:dashMove 12s linear infinite}
+@keyframes dashMove{to{stroke-dashoffset:-100}}
+
+/* ── Future Vision (Slide 8) ──────────────────────────── */
+.future-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:2rem;width:100%;max-width:1000px;align-items:start}
+.future-col h3{font-size:1.1rem;font-weight:700;color:var(--tx1);margin-bottom:.7rem;text-align:center}
+.current-agent{display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:1.1rem;border-radius:16px;background:rgba(15,23,42,.55);border:1px solid var(--gb)}
+.current-agent .brain{font-size:2.8rem}
+.current-agent .lbl{font-size:.96rem;font-weight:700;color:var(--tx1)}
+.current-agent .desc{font-size:.84rem;color:var(--tx2);text-align:center;line-height:1.5}
+.future-arrow{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding-top:2rem}
+.future-arrow .big{font-size:3rem;color:var(--t400);animation:arrowPulse 2s ease infinite}
+.future-arrow .evolve{font-size:.82rem;font-weight:700;color:var(--t400);text-transform:uppercase;letter-spacing:.15em}
+@keyframes arrowPulse{0%,100%{opacity:.4;transform:translateX(0)}50%{opacity:1;transform:translateX(5px)}}
+.multi-agent{display:flex;flex-direction:column;align-items:center;gap:.6rem}
+.multi-orch{display:flex;flex-direction:column;align-items:center;gap:.25rem;padding:.9rem;border-radius:14px;background:linear-gradient(180deg,rgba(99,102,241,.15),rgba(15,23,42,.7));border:1px solid rgba(99,102,241,.2);width:100%}
+.multi-orch .lbl{font-size:.96rem;font-weight:700;color:var(--indigo)}
+.multi-orch .fw{font-size:.78rem;color:var(--tx2)}
+.agent-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.55rem;width:100%}
+.agent-card{display:flex;align-items:center;gap:.5rem;padding:.65rem .75rem;border-radius:12px;background:rgba(15,23,42,.6);border:1px solid var(--gb)}
+.agent-card .ico{font-size:1.3rem;flex-shrink:0}
+.agent-card .aname{font-size:.84rem;font-weight:600;color:var(--tx1)}
+.agent-card .arole{font-size:.72rem;color:var(--tx3)}
+.future-extras{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;width:100%;max-width:1000px;margin-top:.8rem}
+.fe-card{padding:.85rem .95rem;border-radius:14px;background:rgba(15,23,42,.45);border:1px solid var(--gb);text-align:center}
+.fe-card .ico{font-size:1.4rem;margin-bottom:.2rem}
+.fe-card h4{font-size:.88rem;font-weight:600;color:var(--tx1);margin-bottom:.15rem}
+.fe-card p{font-size:.76rem;color:var(--tx3);line-height:1.45}
+
+/* ── Proof (Slide 9) ──────────────────────────────────── */
+.proof-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;width:100%;max-width:1080px;margin-top:1rem}
+.proof-stat{padding:1.1rem;border-radius:16px;background:rgba(15,23,42,.6);border:1px solid var(--gb);text-align:left}
+.proof-stat .cap{font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3)}
+.proof-stat .num{font-size:2.6rem;font-weight:900;color:var(--tx1);line-height:1;margin-top:.4rem}
+.proof-stat .num.counting{color:var(--t400)}
+.proof-stat .desc{font-size:.84rem;color:var(--tx2);line-height:1.5;margin-top:.3rem}
+.proof-row{display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem;width:100%;max-width:1080px;margin-top:.9rem}
+.proof-card{padding:1.1rem 1.2rem;border-radius:16px;background:rgba(15,23,42,.6);border:1px solid var(--gb);text-align:left}
+.proof-card h3{display:flex;align-items:center;gap:.6rem;font-size:1rem;font-weight:700;color:var(--tx1);margin-bottom:.35rem}
+.proof-card p{font-size:.86rem;color:var(--tx2);line-height:1.55}
+
+/* ── Close (Slide 10) ─────────────────────────────────── */
+.close-story{font-size:1.4rem;font-weight:300;color:var(--tx2);line-height:1.65;max-width:680px;text-align:center}
+.close-story em{color:var(--t400);font-style:normal;font-weight:600}
+.close-line{font-size:2.4rem;font-weight:800;color:var(--tx1);margin-top:1.5rem;text-align:center;line-height:1.3}
+
+/* ── Layouts ──────────────────────────────────────────── */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:3rem;width:100%;max-width:1060px;align-items:center}
+.centered{text-align:center;display:flex;flex-direction:column;align-items:center}
+.gap-sm{gap:.4rem}.gap-md{gap:.7rem}.gap-lg{gap:1.4rem}.gap-xl{gap:2rem}
+.mt-1{margin-top:.5rem}.mt-2{margin-top:1rem}.mt-3{margin-top:1.5rem}
+.sep{width:55px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--t600),var(--t400))}
+
+/* ── Fade-in ──────────────────────────────────────────── */
+.slide.active .fu{animation:fadeUp .6s ease both}
+.slide.active .fu:nth-child(1){animation-delay:.05s}
+.slide.active .fu:nth-child(2){animation-delay:.15s}
+.slide.active .fu:nth-child(3){animation-delay:.28s}
+.slide.active .fu:nth-child(4){animation-delay:.42s}
+.slide.active .fu:nth-child(5){animation-delay:.56s}
+.slide.active .fu:nth-child(6){animation-delay:.7s}
+.slide.active .fu:nth-child(7){animation-delay:.84s}
+.slide.active .fu:nth-child(8){animation-delay:.98s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Responsive ───────────────────────────────────────── */
+@media(max-width:900px){
+  .slide{padding:1.5rem}
+  .hero-title{font-size:4rem}
+  .cold-time{font-size:4.5rem}
+  .stitle{font-size:2rem}
+  .split,.future-grid{grid-template-columns:1fr}
+  .proof-hero,.proof-row,.future-extras{grid-template-columns:1fr}
+  .cap-ring{width:320px;height:380px}
+  .dash-body{grid-template-columns:1fr}
+  .nm-row{flex-wrap:wrap}
+  .nm-cost{flex-direction:column;align-items:center}
+}
+</style>
+</head>
+<body>
+
+<canvas id="constellation"></canvas>
+<div id="progress" style="width:0%"></div>
+<div id="dots"></div>
+<div id="counter">01 / 10</div>
+<div id="keys">← → nav · N notes</div>
+<div id="notes-panel"><div class="nl">Speaker Notes</div><div id="notes-text"></div></div>
+
+<div class="deck">
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 1 — COLD OPEN: "The 3 AM Call"
+     No product name. No logo. Just the story.
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide active" data-notes="Don't introduce Corvin yet. Don't say the product name. Just paint this picture. Pause after each line. Let the room feel the weight of 3 AM. Every SRE, every on-call engineer, every ops person in this room has lived this moment. That phone buzz in the dark. That spike of adrenaline. The clock starts. Now hold this feeling — because everything we built is designed to make this moment disappear.">
+  <div class="orb orb-r" style="top:-20%;right:-10%"></div>
+
+  <div class="centered gap-lg" style="z-index:1">
+    <div class="fu cold-time">3:17 AM</div>
+    <div class="fu cold-day">Tuesday.</div>
+
+    <div class="fu cold-alert">
+      <div class="svc">fundapis is down.</div>
+      <div class="msg">5xx errors spiking 340%. Three pods in CrashLoopBackOff.</div>
+    </div>
+
+    <div class="fu cold-clock">⏱ The clock starts now.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 2 — THE NIGHTMARE LOOP: "This is what happens next"
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Now walk them through it. Don't rush this slide — point at each step. 'You open five tabs. You grep logs. You call the one person who might know.' Make them nod. Then hit the punchline: 37 minutes, $4,200 per incident, and the worst part — next month, same thing. Zero learning. This is not a MetLife problem. This is an industry problem.">
+  <div class="orb orb-t" style="top:8%;right:-16%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <span class="label fu">This is what happens next</span>
+    <h2 class="stitle fu">The <span class="rose">Nightmare</span> Loop</h2>
+
+    <div class="nightmare fu">
+      <div class="nm-row">
+        <div class="nm-step pain"><div class="ico">🔔</div><div class="txt">Alert fires</div><div class="sub">3 AM page</div></div>
+        <div class="nm-arr">→</div>
+        <div class="nm-step"><div class="ico">🖥️</div><div class="txt">Open 5 tabs</div><div class="sub">APIM, AKS, Elastic…</div></div>
+        <div class="nm-arr">→</div>
+        <div class="nm-step"><div class="ico">🔍</div><div class="txt">Grep logs</div><div class="sub">Manual search</div></div>
+        <div class="nm-arr">→</div>
+        <div class="nm-step"><div class="ico">📞</div><div class="txt">Call someone</div><div class="sub">"Do you know…?"</div></div>
+      </div>
+      <div class="nm-connector"><span>↑</span><span>↓</span></div>
+      <div class="nm-row">
+        <div class="nm-step pain"><div class="ico">🔄</div><div class="txt">Repeat</div><div class="sub">Next month</div></div>
+        <div class="nm-arr">←</div>
+        <div class="nm-step"><div class="ico">🗑️</div><div class="txt">Forget</div><div class="sub">Zero learning</div></div>
+        <div class="nm-arr">←</div>
+        <div class="nm-step"><div class="ico">📝</div><div class="txt">Write report</div><div class="sub">Nobody reads it</div></div>
+        <div class="nm-arr">←</div>
+        <div class="nm-step"><div class="ico">🤞</div><div class="txt">Fix & pray</div><div class="sub">Hope it works</div></div>
+      </div>
+    </div>
+
+    <div class="nm-cost fu">
+      <div class="nm-cost-item"><div class="val">37 min</div><div class="lbl">average per incident</div></div>
+      <div class="nm-cost-item"><div class="val">$4,200</div><div class="lbl">cost per outage</div></div>
+      <div class="nm-cost-item"><div class="val">0</div><div class="lbl">institutional learning</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 3 — THE WHAT-IF: "But what if…"
+     The emotional pivot. The room should lean forward.
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="This is the pivot. Slow down. Lower your voice slightly. 'But what if...' — pause — 'by the time you picked up your phone...' — pause — 'an AI agent had already...' Read each card slowly. Let each one land. Then deliver the reveal: 'All in 30 seconds.' Pause again. Let it sink in. Then move to the next slide.">
+  <div class="orb orb-e" style="top:-18%;left:18%"></div>
+  <div class="orb orb-t" style="bottom:-22%;right:-8%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <h2 class="stitle fu" style="font-size:3rem">But <span class="hi">what if</span>…</h2>
+    <p class="sbody fu" style="font-size:1.15rem;margin-top:.2rem">By the time you picked up your phone —</p>
+
+    <div class="whatif-list fu">
+      <div class="whatif-item"><span class="check">✓</span>An AI agent had already collected evidence from 6 sources in parallel</div>
+      <div class="whatif-item"><span class="check">✓</span>Identified HikariCP connection pool exhaustion as the root cause</div>
+      <div class="whatif-item"><span class="check">✓</span>Generated a <code style="color:var(--t400)">kubectl rollout restart</code> fix strategy</div>
+      <div class="whatif-item"><span class="check">✓</span>And was waiting for your one-click approval</div>
+    </div>
+
+    <div class="fu whatif-reveal">All in <strong>30 seconds</strong>.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 4 — REVEAL: "Meet Corvin"
+     NOW the hero appears. After they want it.
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="NOW you reveal the product. They've felt the pain, they've seen the vision, they WANT this thing to exist. And now you tell them: it does. It's called Corvin. It's live on Azure. It's running right now. Judges can try it.">
+  <div class="orb orb-t" style="top:-20%;left:-12%"></div>
+  <div class="orb orb-c" style="bottom:-22%;right:-8%"></div>
+
+  <div class="centered gap-lg" style="z-index:1">
+    <div class="fu"><span class="tag">Ways of Working · MetLife Hackathon 2026</span></div>
+    <div class="fu pring" style="font-size:4rem;margin-bottom:.3rem">🧠</div>
+    <h1 class="hero-title fu">CORVIN</h1>
+    <p class="fu reveal-sub">Your AI SRE Co-Pilot.</p>
+    <p class="fu reveal-meaning">Named after Corvinus, the raven king — <br/>wisdom, pattern recognition, and a memory that never forgets.</p>
+    <div class="fu" style="display:flex;gap:1rem;align-items:center;margin-top:.5rem">
+      <span class="tag-live tag">LIVE ON AZURE</span>
+      <span class="tag">33K+ Lines</span>
+      <span class="tag">446 Tests</span>
+    </div>
+    <div class="fu" style="display:flex;gap:1rem;margin-top:.5rem">
+      <a href="https://mango-hill-0639bd600.7.azurestaticapps.net/" target="_blank" class="cta cta-primary">Try It Live →</a>
+      <a href="https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net/docs" target="_blank" class="cta cta-ghost">API Docs</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 5 — "Let's replay that 3 AM call — with Corvin"
+     Same incident, but now the AI handles it.
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="This is the payoff. 'Let's go back to that 3 AM call — but this time, Corvin is watching.' The terminal types itself. Each line appears with a delay. The audience watches the same incident from slide 1 get investigated and resolved in real time. Point out: evidence from 6 sources in 3 seconds. AI thinks in 6 seconds. RCA identified. Fix generated. Human approves. Resolved. 30 seconds. Let the terminal do the talking.">
+  <div class="orb orb-c" style="top:-12%;left:-16%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <span class="label fu">Let's replay that 3 AM call</span>
+    <h2 class="stitle fu" style="font-size:2.2rem">Same incident. <span class="hi">Different outcome.</span></h2>
+
+    <div class="fu" style="width:100%;display:flex;justify-content:center">
+      <div class="terminal">
+        <div class="term-bar"><div class="term-d" style="background:#ef4444"></div><div class="term-d" style="background:#f59e0b"></div><div class="term-d" style="background:#10b981"></div><span style="margin-left:.6rem;font-size:.74rem;color:var(--tx3)">corvin-investigation.log</span></div>
+        <div class="term-body">
+          <div class="term-line"><span class="dim">[03:17:01]</span> <span class="rose-t">ALERT</span> <span class="bright">fundapis 5xx spike — 340% ↑</span></div>
+          <div class="term-line"><span class="dim">[03:17:02]</span> <span class="teal-t">ENRICH</span> Querying 6 evidence sources…</div>
+          <div class="term-line"><span class="dim">[03:17:04]</span> <span class="teal-t">APIM</span> <span class="green">✓</span> 847 events, 23 failures</div>
+          <div class="term-line"><span class="dim">[03:17:04]</span> <span class="teal-t">AKS</span> <span class="green">✓</span> 3 pods, 1 CrashLoopBackOff</div>
+          <div class="term-line"><span class="dim">[03:17:05]</span> <span class="teal-t">LOGS</span> <span class="green">✓</span> HikariCP pool exhaustion, 3 OOMKill</div>
+          <div class="term-line"><span class="dim">[03:17:06]</span> <span class="amber-t">AI</span> Reasoning across evidence…</div>
+          <div class="term-line"><span class="dim">[03:17:08]</span> <span class="amber-t">THINK</span> <span class="bright">CosmosDB adapter → connection pool leak → OOM cascade</span></div>
+          <div class="term-line"><span class="dim">[03:17:12]</span> <span class="green">RCA</span> Root cause identified <span class="teal-t">[HIGH confidence]</span></div>
+          <div class="term-line"><span class="dim">[03:17:12]</span> <span class="green">FIX</span> kubectl rollout restart deploy/fundapis</div>
+          <div class="term-line"><span class="dim">[03:17:15]</span> <span class="amber-t">GATE</span> Awaiting your approval…</div>
+          <div class="term-line"><span class="dim">[03:17:22]</span> <span class="green">APPROVED</span> <span class="bright">Executing on AKS…</span></div>
+          <div class="term-line"><span class="dim">[03:17:31]</span> <span class="green">✓</span> <span class="teal-t">RESOLVED</span> <span class="bright">— 30 seconds. Go back to sleep.</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="fu term-context">"Go back to sleep" — that's the product.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 6 — THE PRODUCT: Dashboard + Command Center
+     Quick tour. Not feature listing — show, don't tell.
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Quick product tour. Don't list features — show the actual product. Top: the dashboard SREs see every morning. Morning Briefing is Jarvis-style — a spoken narrative of what happened overnight. Corvin Score — a 0-100 health gauge per service. Predictive alerts catching issues BEFORE they become incidents. ROI dashboard quantifying real value. Then say: 'And this is what the Command Center looks like when you ask a question.'">
+  <div class="orb orb-e" style="top:-20%;left:18%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <span class="label fu">What operators see every day</span>
+    <h2 class="stitle fu" style="font-size:2.1rem">A dashboard that <span class="hi">actually helps</span></h2>
+
+    <div class="dash-mock fu">
+      <div class="dash-topbar">
+        <div class="logo">🧠 Corvin</div>
+        <div class="dash-nav"><span class="act">Dashboard</span><span>Investigations</span><span>Command Center</span><span>Topology</span></div>
+        <span class="tag-live tag" style="font-size:.66rem;padding:.18rem .46rem;margin-left:auto">LIVE</span>
+      </div>
+      <div class="dash-body">
+        <div class="dash-widget wide">
+          <h4>🌅 Morning Briefing</h4>
+          <div style="font-size:.86rem;color:var(--tx2);line-height:1.65"><em>"Good morning. 2 incidents resolved overnight — fundapis memory spike auto-remediated, chad-service timeout pending review. All P1 services healthy. Watch: order-service latency trending up 12%."</em></div>
+          <div style="margin-top:.35rem;display:flex;gap:.5rem"><span class="tag" style="font-size:.66rem;padding:.2rem .5rem">🗣️ Voice TTS</span><span class="tag" style="font-size:.66rem;padding:.2rem .5rem">🌙 3AM Mode</span></div>
+        </div>
+        <div class="dash-widget">
+          <h4>🎯 Corvin Score</h4>
+          <div style="font-size:2rem;font-weight:800;color:var(--t400)">87</div>
+          <div style="font-size:.78rem;color:var(--tx3)">Service health gauge</div>
+          <div class="dash-bar" style="margin-top:.35rem"><div class="dash-bar-fill" style="width:87%;background:linear-gradient(90deg,var(--t600),var(--t400))"></div></div>
+        </div>
+        <div class="dash-widget"><h4>🔮 Predictive Alert</h4><div style="font-size:.84rem;color:var(--amber)">⚠️ order-service memory ↑12%</div><div style="font-size:.78rem;color:var(--tx3)">Breach predicted in ~4h</div></div>
+        <div class="dash-widget"><h4>💰 ROI</h4><div style="display:flex;gap:1rem"><div><div style="font-size:1.2rem;font-weight:800;color:var(--emerald)">142h</div><div style="font-size:.74rem;color:var(--tx3)">saved</div></div><div><div style="font-size:1.2rem;font-weight:800;color:var(--t400)">$28K</div><div style="font-size:.74rem;color:var(--tx3)">avoided</div></div></div></div>
+        <div class="dash-widget"><h4>📈 DORA</h4><div class="mini-chart"><span style="height:40%"></span><span style="height:65%"></span><span style="height:50%"></span><span style="height:80%"></span><span style="height:70%"></span><span style="height:90%"></span><span style="height:75%"></span><span style="height:85%"></span><span style="height:60%"></span><span style="height:95%"></span></div><div style="font-size:.74rem;color:var(--tx3);margin-top:.2rem">4.2 deploys/day · 12min MTTR</div></div>
+      </div>
+    </div>
+    <div class="fu mt-1"><a href="https://mango-hill-0639bd600.7.azurestaticapps.net/" target="_blank" class="cta cta-ghost" style="font-size:.8rem">Open Live Dashboard →</a></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 7 — THE BRAIN: Why this is different
+     Agentic AI + Command Center — the intellectual core
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Now explain WHY this works. 'This is not a chatbot. This is not a wrapper around ChatGPT. This is an autonomous agent.' Point to the ring: 6 domains, 16 tools, 6 reasoning rounds. It decides what to query, interprets results, and iterates until confident. The Command Center lets you ask anything in natural language and watch the AI think in real time. That's the difference between Corvin and every other AI demo at this hackathon.">
+  <div class="orb orb-t" style="bottom:-20%;left:-12%"></div>
+  <div class="orb orb-v" style="top:-18%;right:-10%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <span class="label fu">Why this is different</span>
+    <h2 class="stitle fu">Not a chatbot — an <span class="hi">autonomous agent</span></h2>
+    <p class="sbody fu" style="font-size:.92rem">It decides what to query, interprets results, and iterates until it's confident — up to 6 reasoning rounds per investigation.</p>
+
+    <div class="cap-ring fu">
+      <div class="cap-center">
+        <div class="pring"><div class="brain">🧠</div></div>
+        <div class="ctitle">GPT-5.1</div>
+        <div class="csub">Azure AI Foundry</div>
+      </div>
+      <svg class="cap-lines" viewBox="0 0 520 480">
+        <line x1="260" y1="240" x2="260" y2="40"/><line x1="260" y1="240" x2="460" y2="130"/>
+        <line x1="260" y1="240" x2="460" y2="350"/><line x1="260" y1="240" x2="260" y2="440"/>
+        <line x1="260" y1="240" x2="60" y2="350"/><line x1="260" y1="240" x2="60" y2="130"/>
+      </svg>
+      <div class="cap-node"><span class="mark mark-lg mark-azure">Az</span><div class="cl">Azure Cloud</div><div class="cs">Alerts · Logs · Activity</div></div>
+      <div class="cap-node"><span class="mark mark-lg mark-k8s">K8</span><div class="cl">Kubernetes</div><div class="cs">Pods · Deploys · Events</div></div>
+      <div class="cap-node"><span class="mark mark-lg mark-mx">Mx</span><div class="cl">Analytics</div><div class="cs">APIM · KQL · Metrics</div></div>
+      <div class="cap-node"><span class="mark mark-lg mark-kb">KB</span><div class="cl">Knowledge</div><div class="cs">Runbooks · Memory</div></div>
+      <div class="cap-node"><span class="mark mark-lg mark-es">Es</span><div class="cl">Elastic</div><div class="cs">App Logs · APM</div></div>
+      <div class="cap-node"><span class="mark mark-lg mark-ai">AI</span><div class="cl">Predictions</div><div class="cs">SLA · Blast Radius</div></div>
+    </div>
+
+    <div class="fu" style="display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
+      <span class="tag">16 Live Tools</span>
+      <span class="tag">6 Reasoning Rounds</span>
+      <span class="tag">SSE Streaming</span>
+      <span class="tag">Chain-of-Thought</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 8 — FUTURE VISION: "One more thing"
+     The crescendo. Multi-agent + Microsoft AutoGen.
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="This is your 'one more thing' moment. Lower your voice. 'Today, Corvin runs as a single agent. One brain doing all the work. And it already works — you just saw it. But we see something bigger.' Pause. 'We're evolving to a multi-agent architecture. Microsoft AutoGen framework. Specialized agents — one that masters evidence collection, one that specializes in diagnosis, one that handles execution, one that maintains institutional memory. An orchestrator coordinates them all.' Then the bottom row: 'Vector search across every incident. Self-healing before alerts fire. Runbooks you write in English and Corvin executes. This isn't a hackathon project. This is a product direction.'">
+  <div class="orb orb-v" style="top:-18%;left:-10%"></div>
+  <div class="orb orb-t" style="bottom:-22%;right:-8%"></div>
+
+  <div class="centered gap-md" style="z-index:1;width:100%">
+    <span class="label fu" style="color:var(--violet)">One more thing</span>
+    <h2 class="stitle fu">From one agent to a <span style="color:var(--violet)">specialist swarm</span></h2>
+
+    <div class="future-grid fu mt-1">
+      <div class="future-col">
+        <h3 style="color:var(--t400)">Today — V3.9</h3>
+        <div class="current-agent">
+          <div class="brain">🧠</div>
+          <div class="lbl">Single Agent</div>
+          <div class="desc">One GPT-5.1 brain handles evidence, diagnosis, remediation, and learning.</div>
+          <div style="display:flex;gap:.4rem;margin-top:.3rem"><span class="tag" style="font-size:.66rem;padding:.18rem .46rem">16 tools</span><span class="tag-live tag" style="font-size:.66rem;padding:.18rem .46rem">LIVE</span></div>
+        </div>
+      </div>
+      <div class="future-arrow"><div class="big">→</div><div class="evolve">Evolving</div></div>
+      <div class="future-col">
+        <h3 style="color:var(--violet)">Next — V5+</h3>
+        <div class="multi-agent">
+          <div class="multi-orch"><div style="font-size:1.4rem">🎯</div><div class="lbl">Orchestrator</div><div class="fw">Microsoft AutoGen Framework</div></div>
+          <div class="agent-grid">
+            <div class="agent-card"><div class="ico">🔍</div><div><div class="aname">Evidence Agent</div><div class="arole">Parallel collection</div></div></div>
+            <div class="agent-card"><div class="ico">🧬</div><div><div class="aname">Diagnosis Agent</div><div class="arole">Root cause specialist</div></div></div>
+            <div class="agent-card"><div class="ico">🔧</div><div><div class="aname">Remediation Agent</div><div class="arole">AKS execution</div></div></div>
+            <div class="agent-card"><div class="ico">📚</div><div><div class="aname">Knowledge Agent</div><div class="arole">Memory & runbooks</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="future-extras fu">
+      <div class="fe-card"><div class="ico">🔎</div><h4>Vector RAG</h4><p>Semantic search across every past incident</p></div>
+      <div class="fe-card"><div class="ico">🛡️</div><h4>Predictive Self-Healing</h4><p>Fix before the alert fires</p></div>
+      <div class="fe-card"><div class="ico">📝</div><h4>Natural Language Runbooks</h4><p>Write fixes in English — Corvin executes</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 9 — PROOF: "Why this is real"
+     Counter-animated stats + credibility cards.
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Don't just claim — prove. The numbers count up when you reach this slide. 74x faster. 446 tests. 43 endpoints. 16 agent tools. Then the four credibility pillars: it's live, it's real AI, it's built for operators, and it creates learning. End this slide with: 'This is not a prototype. This is a production system that's running right now.'">
+  <div class="orb orb-t" style="top:25%;right:-12%"></div>
+
+  <div class="centered gap-lg" style="z-index:1;width:100%">
+    <span class="label fu">The proof</span>
+    <h2 class="stitle fu">This is <span class="hi">not a prototype</span></h2>
+
+    <div class="proof-hero fu">
+      <div class="proof-stat"><div class="cap">Speed</div><div class="num counting" data-target="74" data-suffix="×">0</div><div class="desc">Faster to root cause</div></div>
+      <div class="proof-stat"><div class="cap">Engineering</div><div class="num counting" data-target="446" data-suffix="">0</div><div class="desc">Tests. Not mocks.</div></div>
+      <div class="proof-stat"><div class="cap">Reach</div><div class="num counting" data-target="43" data-suffix="">0</div><div class="desc">API endpoints live</div></div>
+      <div class="proof-stat"><div class="cap">Intelligence</div><div class="num counting" data-target="16" data-suffix="">0</div><div class="desc">Agent tools with live data</div></div>
+    </div>
+
+    <div class="proof-row fu">
+      <div class="proof-card"><h3><span class="mark mark-azure">AZ</span> Deployed on Azure</h3><p>Dashboard and API running live right now. Judges can verify it beyond this deck.</p></div>
+      <div class="proof-card"><h3><span class="mark mark-ai">AI</span> Agentic, not cosmetic</h3><p>Autonomous tool calls, streaming reasoning, confidence scoring — not a ChatGPT skin.</p></div>
+      <div class="proof-card"><h3><span class="mark mark-k8s">OP</span> Built for real operators</h3><p>Morning briefing, topology, command center, blast radius — every feature serves the SRE workflow.</p></div>
+      <div class="proof-card"><h3><span class="mark mark-kb">KM</span> Institutional learning</h3><p>Every incident becomes memory, documentation, and runbook updates. Knowledge compounds.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 10 — CLOSE: "Remember that 3 AM call?"
+     Full circle. End where you started.
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-notes="Full circle. Bring them back. 'Remember that 3 AM call? With Corvin watching your infrastructure...' — pause — 'you approve the fix from bed. The post-mortem writes itself. The runbook updates automatically. And next month, when the same pattern starts to emerge?' — pause — 'Corvin catches it before the alert even fires.' Final line: 'That is the way of working we built.' Then: 'Try it. Right now.' Thank you.">
+  <div class="orb orb-t" style="top:-12%;left:16%"></div>
+  <div class="orb orb-c" style="bottom:-16%;right:8%"></div>
+  <div class="orb orb-e" style="top:40%;left:-16%"></div>
+
+  <div class="centered gap-lg" style="z-index:1">
+    <div class="fu pring" style="font-size:4rem;margin-bottom:.3rem">🧠</div>
+    <h2 class="hero-title fu" style="font-size:5rem">CORVIN</h2>
+    <div class="sep fu"></div>
+
+    <div class="fu close-story">
+      Remember that 3 AM call?<br/><br/>
+      With Corvin, you <em>approve the fix from bed</em>.<br/>
+      The post-mortem <em>writes itself</em>.<br/>
+      The runbook <em>updates automatically</em>.<br/><br/>
+      And next month, when the same pattern starts to emerge?<br/>
+      Corvin <em>catches it before the alert even fires</em>.
+    </div>
+
+    <div class="fu close-line">That is the way of working we built.</div>
+
+    <div class="fu" style="display:flex;gap:1rem;margin-top:1.5rem">
+      <a href="https://mango-hill-0639bd600.7.azurestaticapps.net/" target="_blank" class="cta cta-primary" style="font-size:.95rem;padding:.85rem 2.2rem">Try It Live →</a>
+      <a href="https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net/docs" target="_blank" class="cta cta-ghost">API Docs</a>
+    </div>
+    <div class="fu" style="margin-top:2rem;font-size:.82rem;color:var(--tx3)">
+      Ways of Working · MetLife Hackathon 2026
+    </div>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- ═══════════════════════════════════════════════════════
+     SCRIPTS
+     ═══════════════════════════════════════════════════════ -->
+<script>
+// ── Constellation ────────────────────────────────────────
+(function(){
+  const cv=document.getElementById('constellation'),ctx=cv.getContext('2d');
+  let W,H,pts=[];const N=50,R=115;
+  function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight}
+  addEventListener('resize',resize);resize();
+  for(let i=0;i<N;i++)pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.22,r:Math.random()*1.4+.5,a:Math.random()*.25+.06});
+  (function draw(){
+    ctx.clearRect(0,0,W,H);
+    for(let i=0;i<pts.length;i++){const p=pts[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.28);ctx.fillStyle='rgba(13,148,136,'+p.a+')';ctx.fill();
+    for(let j=i+1;j<pts.length;j++){const q=pts[j],dx=p.x-q.x,dy=p.y-q.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<R){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(13,148,136,'+((.1)*(1-d/R))+')';ctx.lineWidth=.5;ctx.stroke()}}}
+    requestAnimationFrame(draw);
+  })();
+})();
+
+// ── Slide engine ─────────────────────────────────────────
+(function(){
+  const slides=document.querySelectorAll('.slide'),total=slides.length;let cur=0;
+  const dotsEl=document.getElementById('dots');
+  slides.forEach((_,i)=>{const d=document.createElement('button');d.className='dot'+(i===0?' active':'');d.addEventListener('click',()=>go(i));dotsEl.appendChild(d)});
+  function go(n){
+    if(n<0||n>=total||n===cur)return;
+    slides[cur].classList.remove('active');cur=n;slides[cur].classList.add('active');
+    document.getElementById('progress').style.width=((cur+1)/total*100)+'%';
+    document.getElementById('counter').textContent=String(cur+1).padStart(2,'0')+' / '+String(total).padStart(2,'0');
+    dotsEl.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('active',i===cur));
+    document.getElementById('notes-text').textContent=slides[cur].getAttribute('data-notes')||'';
+    animateCounters(slides[cur]);
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' '){e.preventDefault();go(cur+1)}
+    else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();go(cur-1)}
+    else if(e.key==='Home'){e.preventDefault();go(0)}
+    else if(e.key==='End'){e.preventDefault();go(total-1)}
+    else if(e.key.toLowerCase()==='n'){document.getElementById('notes-panel').classList.toggle('open')}
+  });
+  let tx=0;
+  document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX});
+  document.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>60){dx<0?go(cur+1):go(cur-1)}});
+  let wl=false;
+  document.addEventListener('wheel',e=>{if(wl)return;wl=true;e.deltaY>0?go(cur+1):go(cur-1);setTimeout(()=>{wl=false},600)},{passive:true});
+  document.getElementById('notes-text').textContent=slides[0].getAttribute('data-notes')||'';
+})();
+
+// ── Counter animation ────────────────────────────────────
+function animateCounters(slide){
+  slide.querySelectorAll('.counting').forEach(el=>{
+    const t=+el.dataset.target,s=el.dataset.suffix||'';
+    if(el.dataset.done==='1')return;el.dataset.done='1';
+    let st=null;const dur=1200;
+    (function step(ts){if(!st)st=ts;const p=Math.min((ts-st)/dur,1),e=1-Math.pow(1-p,3);
+    el.textContent=Math.floor(e*t)+s;if(p<1)requestAnimationFrame(step);else el.textContent=t+s})(performance.now());
+  });
+}
+</script>
+</body>
+</html>
