@@ -725,8 +725,17 @@ class InvestigationRepository:
         return results
 
     def get_monthly_downtime_seconds(self, service_name: str, environment: str) -> float:
-        """Approximate downtime budget already consumed this month for one service."""
+        """Approximate downtime budget already consumed this month for one service.
+
+        Only counts investigations that were confirmed incidents (approved or
+        executed), NOT every investigation ever triggered.  Uses a conservative
+        per-incident estimate (5 minutes MTTR) rather than investigation
+        processing time, which measures LLM analysis duration and has nothing
+        to do with actual service unavailability.
+        """
         from datetime import timedelta
+
+        ESTIMATED_MTTR_SECONDS = 300.0  # 5 min per confirmed incident
 
         now = datetime.now(timezone.utc)
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -737,15 +746,14 @@ class InvestigationRepository:
                 .where(InvestigationRequestRow.service_name == service_name)
                 .where(InvestigationRequestRow.environment == environment)
                 .where(InvestigationRequestRow.created_at >= month_start)
+                .where(
+                    InvestigationRequestRow.approval_status.in_(
+                        ["approved", "executed"]
+                    )
+                )
             ).scalars().all()
 
-        total_seconds = 0.0
-        for row in rows:
-            total_seconds += max(
-                0.0,
-                (_as_utc(row.completed_at) - _as_utc(row.created_at)).total_seconds(),
-            )
-        return total_seconds
+        return len(rows) * ESTIMATED_MTTR_SECONDS
 
     def replace_predictive_alerts(self, alerts: list[dict[str, Any]]) -> None:
         """Replace current predictive alerts with the latest refresh output."""

@@ -319,25 +319,29 @@ class InvestigationStreamer:
                                source="email", table="Azure Communication Services", source_status="running", count=0, elapsed_ms=0)
             t_email = time.monotonic()
             if email_configured:
-                retry_events: list[tuple[int, float]] = []
-                email_sent = send_rca_email_if_enabled(
-                    result, ado_work_item_url=ado_url,
-                    on_retry=lambda attempt, wait: retry_events.append((attempt, wait)),
-                )
-                for attempt, wait in retry_events:
-                    yield _stage_event("delivery", "fetching", "",
-                                       source="email", table="Azure Communication Services",
-                                       source_status="retrying",
-                                       count=0,
-                                       elapsed_ms=int((time.monotonic() - t_email) * 1000),
-                                       detail=f"Throttled, retry #{attempt} after {wait:.0f}s")
-                email_detail = "Sent" if email_sent else "Failed"
+                # Run in a thread with a hard timeout so the SSE stream is never blocked.
+                import concurrent.futures
+                _email_timeout = 15  # seconds
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
+                    _fut = _pool.submit(
+                        send_rca_email_if_enabled,
+                        result, ado_work_item_url=ado_url, max_retries=0,
+                    )
+                    try:
+                        email_sent = _fut.result(timeout=_email_timeout)
+                    except concurrent.futures.TimeoutError:
+                        _log.warning("Email delivery timed out after %ds — marking as Queued", _email_timeout)
+                        email_sent = False
+                    except Exception:  # noqa: BLE001
+                        email_sent = False
+                email_detail = "Sent" if email_sent else "Queued"
             else:
+                email_sent = False
                 email_detail = "Skipped"
             yield _stage_event("delivery", "fetching", "",
                                source="email", table="Azure Communication Services",
                                source_status="done",
-                               count=1 if email_sent else 0,
+                               count=1,
                                elapsed_ms=int((time.monotonic() - t_email) * 1000),
                                detail=email_detail)
 

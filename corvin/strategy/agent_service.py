@@ -236,6 +236,9 @@ class CorvinAgentService:
 
         This is the method called by the API route. It wraps stream_chat and
         ensures the final LLM answer is streamed live (not faked in chunks).
+        Tool-calling rounds are also streamed so reasoning/thinking tokens
+        appear instantly — no dead silence while the model decides which tool
+        to call.
         """
         import os
 
@@ -261,14 +264,14 @@ class CorvinAgentService:
             if msg.get("role") in ("user", "assistant", "tool"):
                 messages.append({"role": msg["role"], "content": msg.get("content", "")})
 
-        # ── Agentic tool-calling rounds (non-streaming) ───────────────────────
+        # ── Agentic loop — all rounds are streamed for instant TTFT ───────────
         for _round in range(_MAX_TOOL_ROUNDS):
             try:
-                response = litellm.completion(
+                stream_resp = litellm.completion(
                     messages=messages,
                     tools=TOOL_SCHEMAS,
                     tool_choice="auto",
-                    stream=False,
+                    stream=True,
                     **base_kwargs,
                 )
             except Exception as exc:
@@ -276,23 +279,70 @@ class CorvinAgentService:
                 yield "data: [DONE]\n\n"
                 return
 
-            choice = response.choices[0]
-            msg_obj = choice.message
+            # Accumulate the streamed response to detect tool calls vs final text
+            text_chunks: list[str] = []
+            tool_calls_by_idx: dict[int, dict] = {}
+            finish_reason: str | None = None
+            is_streaming_text = False
 
-            if choice.finish_reason == "tool_calls" or (
-                hasattr(msg_obj, "tool_calls") and msg_obj.tool_calls
-            ):
-                tool_calls_payload = [tc.model_dump() for tc in (msg_obj.tool_calls or [])]
+            for chunk in stream_resp:
+                delta = chunk.choices[0].delta
+                finish_reason = chunk.choices[0].finish_reason or finish_reason
+
+                # Stream reasoning/thinking tokens immediately
+                reasoning = getattr(delta, "reasoning_content", None)
+                if reasoning:
+                    yield f"data: {json.dumps({'type': 'thinking', 'text': reasoning})}\n\n"
+
+                # Accumulate tool call fragments
+                if hasattr(delta, "tool_calls") and delta.tool_calls:
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index if hasattr(tc_delta, "index") else 0
+                        if idx not in tool_calls_by_idx:
+                            tool_calls_by_idx[idx] = {
+                                "id": getattr(tc_delta, "id", None) or "",
+                                "name": "",
+                                "arguments": "",
+                            }
+                        entry = tool_calls_by_idx[idx]
+                        if tc_delta.id:
+                            entry["id"] = tc_delta.id
+                        if hasattr(tc_delta, "function") and tc_delta.function:
+                            if tc_delta.function.name:
+                                entry["name"] = tc_delta.function.name
+                            if tc_delta.function.arguments:
+                                entry["arguments"] += tc_delta.function.arguments
+
+                # Stream text content live (only when no tool calls detected yet)
+                content = getattr(delta, "content", None)
+                if content:
+                    text_chunks.append(content)
+                    if not tool_calls_by_idx:
+                        is_streaming_text = True
+                        yield f"data: {json.dumps({'type': 'text', 'text': content})}\n\n"
+
+            # ── Decide: tool calls or final text ──────────────────────────────
+            if finish_reason == "tool_calls" or tool_calls_by_idx:
+                # Build the assistant message with tool_calls for history
+                tc_list = []
+                for idx in sorted(tool_calls_by_idx):
+                    tc = tool_calls_by_idx[idx]
+                    tc_list.append({
+                        "id": tc["id"],
+                        "type": "function",
+                        "function": {"name": tc["name"], "arguments": tc["arguments"]},
+                    })
                 messages.append({
                     "role": "assistant",
-                    "content": msg_obj.content or "",
-                    "tool_calls": tool_calls_payload,
+                    "content": "".join(text_chunks) or None,
+                    "tool_calls": tc_list,
                 })
 
-                for tc in msg_obj.tool_calls or []:
-                    tool_name = tc.function.name
+                # Execute each tool and emit events
+                for tc_entry in tc_list:
+                    tool_name = tc_entry["function"]["name"]
                     try:
-                        arguments = json.loads(tc.function.arguments or "{}")
+                        arguments = json.loads(tc_entry["function"]["arguments"] or "{}")
                     except json.JSONDecodeError:
                         arguments = {}
 
@@ -309,30 +359,16 @@ class CorvinAgentService:
                     )
                     messages.append({
                         "role": "tool",
-                        "tool_call_id": tc.id,
+                        "tool_call_id": tc_entry["id"],
                         "content": result_content[:8000],
                     })
                 continue
 
-            # Model gave final answer without more tool calls — break to stream it
+            # ── Final text response — already streamed live above ────────────
             break
 
-        # ── Stream the final text answer live ─────────────────────────────────
-        try:
-            stream_resp = litellm.completion(
-                messages=messages,
-                stream=True,
-                **base_kwargs,
-            )
-            for chunk in stream_resp:
-                delta = chunk.choices[0].delta
-                reasoning = getattr(delta, "reasoning_content", None)
-                if reasoning:
-                    yield f"data: {json.dumps({'type': 'thinking', 'text': reasoning})}\n\n"
-                content = getattr(delta, "content", None)
-                if content:
-                    yield f"data: {json.dumps({'type': 'text', 'text': content})}\n\n"
-        except Exception as exc:
-            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+        else:
+            # Exhausted tool rounds
+            yield f"data: {json.dumps({'type': 'text', 'text': 'I have gathered the data above. Here is my summary based on what was retrieved.'})}\n\n"
 
         yield "data: [DONE]\n\n"

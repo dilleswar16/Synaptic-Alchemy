@@ -167,6 +167,8 @@ class FixAction(BaseModel):
     title: str
     description: str
     action_type: ActionType = ActionType.MANUAL
+    target_service: str | None = None
+    target_namespace: str | None = None
     risk_level: RiskLevel
     estimated_impact: str
     requires_approval: bool = True

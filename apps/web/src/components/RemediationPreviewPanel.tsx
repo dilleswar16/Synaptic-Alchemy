@@ -62,8 +62,28 @@ export function RemediationPreviewPanel({ requestId }: { requestId: string }) {
           return (
             <div key={`${item.title}-${index}`} style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid color-mix(in srgb, ${accent} 30%, var(--c-border-hi))` }}>
               <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: 'var(--c-surface-2)', borderBottom: '1px solid var(--c-border)' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.8rem', color: 'var(--c-text)' }}>{item.title}</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: accent }}>{item.action_type}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.8rem', color: 'var(--c-text)' }}>{item.title}</div>
+                  {item.target_service && (
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', padding: '1px 7px', borderRadius: 4, background: 'color-mix(in srgb, var(--c-signal) 10%, transparent)', border: '1px solid var(--c-border)', color: 'var(--c-signal)' }}>
+                      → {item.target_namespace ? `${item.target_namespace}/` : ''}{item.target_service}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: accent }}>{item.action_type}</div>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: '0.56rem',
+                    padding: '1px 7px', borderRadius: 4,
+                    background: item.action_type.toLowerCase() === 'manual'
+                      ? 'color-mix(in srgb, #f59e0b 12%, transparent)'
+                      : 'color-mix(in srgb, var(--c-green) 12%, transparent)',
+                    border: `1px solid ${item.action_type.toLowerCase() === 'manual' ? '#f59e0b33' : 'var(--c-success-border)'}`,
+                    color: item.action_type.toLowerCase() === 'manual' ? '#f59e0b' : 'var(--c-green)',
+                  }}>
+                    {item.action_type.toLowerCase() === 'manual' ? '👤 Human' : '⚡ Auto'}
+                  </span>
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'var(--c-border)' }}>
                 {[

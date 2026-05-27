@@ -70,6 +70,9 @@ export interface InvestigationResult {
     actions: Array<{
       title: string
       description: string
+      action_type?: string
+      target_service?: string
+      target_namespace?: string
       risk_level: string
       estimated_impact: string
       requires_approval: boolean
@@ -160,6 +163,90 @@ export interface ExecutionResponse {
 
 export function executeInvestigation(id: string) {
   return apiFetch<ExecutionResponse>(`/investigations/${id}/execute`, { method: 'POST' })
+}
+
+export interface SingleActionResult {
+  request_id: string
+  action_index: number
+  action_type: string
+  title: string
+  success: boolean
+  detail: string
+  logs: string[]
+}
+
+export function executeSingleAction(id: string, actionIndex: number) {
+  return apiFetch<SingleActionResult>(`/investigations/${id}/execute/${actionIndex}`, { method: 'POST' })
+}
+
+// ── Streaming execution (SSE) ─────────────────────────────────────────────
+
+export interface ExecutionStreamEvent {
+  event: 'action_start' | 'action_complete' | 'pod_logs' | 'done'
+  action_index?: number
+  title?: string
+  action_type?: string
+  total?: number
+  success?: boolean
+  detail?: string
+  logs?: string[]
+  pod_logs?: Array<{ pod: string; logs: string }>
+  all_succeeded?: boolean
+  error?: string
+}
+
+export function streamExecuteAll(
+  id: string,
+  onEvent: (event: ExecutionStreamEvent) => void,
+  onError?: (err: Error) => void,
+): AbortController {
+  const controller = new AbortController()
+  const url = `${API_BASE}/investigations/${id}/execute/stream`
+
+  fetch(url, { signal: controller.signal })
+    .then(async (res) => {
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`Execution stream error ${res.status}: ${text}`)
+      }
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error('No response body')
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const parsed = JSON.parse(line.slice(6)) as ExecutionStreamEvent
+              onEvent(parsed)
+            } catch { /* skip malformed */ }
+          }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError') onError?.(err as Error)
+    })
+
+  return controller
+}
+
+export interface PodLogsResponse {
+  request_id: string
+  service_name: string
+  pod_logs: Array<{ pod: string; logs: string }>
+}
+
+export function fetchPodLogs(id: string, tailLines = 60, sinceSeconds = 30) {
+  return apiFetch<PodLogsResponse>(
+    `/investigations/${id}/logs?tail_lines=${tailLines}&since_seconds=${sinceSeconds}`
+  )
 }
 
 // ── V3: Stats ─────────────────────────────────────────────────────────────
@@ -409,6 +496,8 @@ export function fetchSlaCountdown(requestId: string) {
 export interface RemediationPreviewItem {
   title: string
   action_type: string
+  target_service?: string
+  target_namespace?: string
   risk_level: string
   requires_approval: boolean
   current_state: string

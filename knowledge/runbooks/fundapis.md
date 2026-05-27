@@ -1,0 +1,5 @@
+## Resolution: fundapis is healthy; remediation should focus on restoring the Elastic Agent OTLP receiver endpoint so that telemetry export (metrics, traces, logs) succeeds again without impacting the running application.
+
+- Root cause: The root cause of the observed errors is a failure of the Elastic Agent OTLP receiver endpoint (elastic-agent-otlp.elastic-agent.svc.cluster.local:8200) inside the cluster, which is consistently returning HTTP 503 'Service Unavailable' and connection refused errors to OTLP exporters in the fundapis application containers and their istio-proxy sidecars. This causes all metrics, traces, and logs sent via OTLP to fail to be ingested into Elastic, but the fundapis deployment itself remains fully healthy (2/2 ready replicas, no restarts, low CPU and stable memory) and continues to serve traffic successfully, as seen by passing health checks. Therefore, the incident is confined to the observability/telemetry pipeline rather than the fundapis service runtime.
+- Fix applied: Restart elastic-agent-otlp pods in the elastic-agent namespace
+- Investigation: `d343d78c-38c2-42a1-8b6a-9c4baa98ab59`

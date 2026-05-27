@@ -296,9 +296,10 @@ function DeliveryAccordion({
   const rows = Array.from(rowMap.values())
 
   const doneRows = rows.filter(r => r.source_status === 'done')
-  const succeeded = doneRows.filter(r => r.count > 0).length
+  const queued = doneRows.filter(r => (r as any).detail === 'Queued').length
+  const succeeded = doneRows.filter(r => r.count > 0 && (r as any).detail !== 'Queued').length
   const failed = doneRows.filter(r => r.count === 0 && ((r as any).detail === 'Failed')).length
-  const skipped = doneRows.length - succeeded - failed
+  const skipped = doneRows.length - succeeded - failed - queued
   const anyRunning = rows.some(r => r.source_status === 'running')
   const anyRetrying = rows.some(r => r.source_status === 'retrying')
 
@@ -340,8 +341,9 @@ function DeliveryAccordion({
             ? <span className="animate-pulse-glow" style={{ color: 'var(--c-signal)' }}>delivering…</span>
             : <>
                 {succeeded > 0 && <>{succeeded} delivered</>}
-                {failed > 0 && <>{succeeded > 0 ? ' · ' : ''}<span style={{ color: 'var(--c-red)' }}>{failed} failed</span></>}
-                {skipped > 0 && <>{(succeeded > 0 || failed > 0) ? ' · ' : ''}{skipped} skipped</>}
+                {queued > 0 && <>{succeeded > 0 ? ' · ' : ''}<span style={{ color: '#f59e0b' }}>{queued} queued</span></>}
+                {failed > 0 && <>{(succeeded > 0 || queued > 0) ? ' · ' : ''}<span style={{ color: 'var(--c-red)' }}>{failed} failed</span></>}
+                {skipped > 0 && <>{(succeeded > 0 || queued > 0 || failed > 0) ? ' · ' : ''}{skipped} skipped</>}
               </>
           }
         </span>
@@ -363,9 +365,9 @@ function DeliveryAccordion({
               }}>
                 <span style={{
                   fontSize: (running || retrying) ? '1rem' : '0.75rem', lineHeight: 1,
-                  color: retrying ? '#f59e0b' : running ? 'var(--c-signal)' : hasData ? 'var(--c-green)' : detail === 'Failed' ? 'var(--c-red)' : 'var(--c-text-faint)',
+                  color: retrying ? '#f59e0b' : running ? 'var(--c-signal)' : detail === 'Queued' ? '#f59e0b' : hasData ? 'var(--c-green)' : detail === 'Failed' ? 'var(--c-red)' : 'var(--c-text-faint)',
                 }} className={(running || retrying) ? 'animate-pulse-glow' : ''}>
-                  {retrying ? '⟳' : running ? '⟳' : hasData ? '✓' : detail === 'Failed' ? '✕' : '–'}
+                  {retrying ? '⟳' : running ? '⟳' : detail === 'Queued' ? '⏳' : hasData ? '✓' : detail === 'Failed' ? '✕' : '–'}
                 </span>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
@@ -384,7 +386,7 @@ function DeliveryAccordion({
 
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: '0.67rem', textAlign: 'right',
-                  color: retrying ? '#f59e0b' : running ? 'var(--c-text-faint)' : hasData ? 'var(--c-green)' : detail === 'Failed' ? 'var(--c-red)' : 'var(--c-text-faint)',
+                  color: retrying ? '#f59e0b' : running ? 'var(--c-text-faint)' : detail === 'Queued' ? '#f59e0b' : hasData ? 'var(--c-green)' : detail === 'Failed' ? 'var(--c-red)' : 'var(--c-text-faint)',
                 }}>
                   {retrying ? (detail ?? 'Retrying…') : running ? '…' : url ? (
                     <a href={url} target="_blank" rel="noreferrer" style={{
