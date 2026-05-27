@@ -1,0 +1,1400 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Corvin — AI SRE Co-Pilot | AI Challenge 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<!-- Constellation canvas lives behind all slides -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:17px}
+body{font-family:'Inter',system-ui,sans-serif;background:#F5F8FA;color:#003652;overflow:hidden;-webkit-font-smoothing:antialiased}
+code,.mono{font-family:'JetBrains Mono',monospace}
+
+:root{
+  --t100:#D1FAF9;--t200:#CBF1FF;--t300:#64D1CE;--t400:#007A7C;
+  --t500:#005C5E;--t600:#003652;--t700:#002540;
+  --cyan:#0E7BB5;--emerald:#0D6E40;--violet:#6B3FA0;
+  --rose:#C4273B;--amber:#B86900;--blue:#1B6BB0;
+  --tx1:#003652;--tx2:#2D4E6A;--tx3:#5A7898;
+  --bg:#F5F8FA;--card:rgba(255,255,255,0.95);--card-b:rgba(0,54,82,0.1);
+  --gb:rgba(0,54,82,0.07);--gb2:rgba(0,54,82,0.12);
+}
+
+/* ─── Slide Engine ─── */
+.deck{position:relative;width:100vw;height:100vh}
+.slide{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;padding:3.5rem 6rem;
+  opacity:0;visibility:hidden;transition:opacity .55s cubic-bezier(.4,0,.2,1),transform .55s cubic-bezier(.4,0,.2,1);
+  transform:translateY(28px);z-index:0;overflow:hidden;
+}
+.slide.active{opacity:1;visibility:visible;transform:translateY(0);z-index:10}
+.slide.exit-up{opacity:0;transform:translateY(-28px);z-index:5}
+
+/* ─── Grid BG ─── */
+.grid-bg{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,54,82,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,54,82,.04) 1px,transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(ellipse 80% 65% at 50% 40%,black,transparent 75%);
+  -webkit-mask-image:radial-gradient(ellipse 80% 65% at 50% 40%,black,transparent 75%);
+  pointer-events:none;z-index:0;
+}
+
+/* ─── Orbs ─── */
+.orb{position:absolute;border-radius:50%;filter:blur(140px);opacity:.06;pointer-events:none;z-index:0;animation:orbF 18s ease-in-out infinite alternate}
+@keyframes orbF{0%{transform:translate(0,0) scale(1)}100%{transform:translate(22px,-16px) scale(1.09)}}
+
+/* ─── Chrome ─── */
+#progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--t700),var(--t400),var(--cyan));transition:width .4s ease;z-index:300;box-shadow:0 0 16px var(--t500)}
+#counter{position:fixed;bottom:1.3rem;right:2rem;font-size:.72rem;color:var(--tx3);font-family:'JetBrains Mono',monospace;z-index:200;letter-spacing:.1em}
+#dots{position:fixed;right:1.1rem;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;z-index:200}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--tx3);border:none;cursor:pointer;padding:0;opacity:.3;transition:all .3s}
+.dot.active{background:var(--t400);box-shadow:0 0 10px var(--t500);transform:scale(1.7);opacity:1}
+#keys{position:fixed;bottom:1.3rem;left:2rem;font-size:.62rem;color:var(--tx3);font-family:'JetBrains Mono',monospace;z-index:200;opacity:.3}
+#notes-panel{position:fixed;bottom:0;left:0;right:0;height:0;overflow:hidden;background:rgba(245,248,250,.97);border-top:1px solid var(--card-b);z-index:300;transition:height .3s;font-size:.82rem;color:var(--tx2);padding:0 3rem;backdrop-filter:blur(20px)}
+#notes-panel.open{height:130px;padding:1rem 3rem}
+#notes-panel .nl{font-size:.64rem;font-weight:700;letter-spacing:.18em;color:var(--t400);text-transform:uppercase;margin-bottom:.4rem}
+
+/* ─── Typography ─── */
+.hero{font-size:7rem;font-weight:900;line-height:.86;letter-spacing:-.06em;background:linear-gradient(135deg,var(--t600) 0%,var(--t400) 50%,var(--cyan) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.label{font-size:.92rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--t400);margin-bottom:.4rem}
+.stitle{font-size:2.5rem;font-weight:800;line-height:1.06;letter-spacing:-.03em;color:var(--tx1)}
+.stitle .hi{color:var(--t400)}
+.stitle .rose{color:var(--rose)}
+.stitle .violet{color:var(--violet)}
+.stitle .amber{color:var(--amber)}
+.sbody{font-size:.98rem;font-weight:300;color:var(--tx2);line-height:1.7;max-width:680px}
+.grad{background:linear-gradient(135deg,var(--t300),var(--cyan),var(--t400),var(--t300));background-size:300% 300%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:gS 6s ease infinite}
+@keyframes gS{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* ─── Tags ─── */
+.tag{display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .8rem;border-radius:100px;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;background:rgba(13,148,136,.1);color:var(--t400);border:1px solid rgba(13,148,136,.2)}
+.tag-live{background:rgba(16,185,129,.1);color:var(--emerald);border-color:rgba(16,185,129,.2)}
+.tag-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--emerald);animation:pulse 2s infinite}
+.tag-rose{background:rgba(244,63,94,.08);color:var(--rose);border-color:rgba(244,63,94,.2)}
+.tag-violet{background:rgba(139,92,246,.1);color:var(--violet);border-color:rgba(139,92,246,.2)}
+.tag-amber{background:rgba(245,158,11,.1);color:var(--amber);border-color:rgba(245,158,11,.2)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ─── Cards ─── */
+.card{background:var(--card);border:1px solid var(--card-b);border-radius:14px;padding:1.2rem 1.4rem;backdrop-filter:blur(12px);transition:all .3s}
+.card:hover{border-color:rgba(13,148,136,.28);transform:translateY(-2px)}
+.card h3{font-size:.92rem;font-weight:700;color:var(--tx1);margin-bottom:.3rem;display:flex;align-items:center;gap:.5rem;justify-content:center;text-align:center}
+.card p{font-size:.8rem;color:var(--tx2);line-height:1.55}
+
+/* ─── Marks / Badges ─── */
+.mark{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;font-size:.78rem;font-weight:800;flex-shrink:0;background:rgba(0,54,82,.05);border:1px solid var(--gb)}
+.mark-az{background:rgba(59,130,246,.12);border-color:rgba(96,165,250,.2);color:#1B6BB0}
+.mark-k8{background:rgba(37,99,235,.12);border-color:rgba(96,165,250,.2);color:#bfdbfe}
+.mark-la{background:rgba(6,182,212,.12);border-color:rgba(34,211,238,.2);color:#67e8f9}
+.mark-ai{background:rgba(139,92,246,.14);border-color:rgba(167,139,250,.2);color:#ddd6fe}
+.mark-pg{background:rgba(16,185,129,.12);border-color:rgba(74,222,128,.2);color:#86efac}
+.mark-py{background:rgba(245,158,11,.12);border-color:rgba(251,191,36,.2);color:#fde68a}
+.mark-re{background:rgba(244,63,94,.12);border-color:rgba(251,113,133,.2);color:#fda4af}
+.mark-tm{background:rgba(99,102,241,.12);border-color:rgba(129,140,248,.2);color:#c7d2fe}
+.mark-es{background:rgba(16,185,129,.12);border-color:rgba(74,222,128,.2);color:#6ee7b7}
+.mark-or{background:rgba(249,115,22,.12);border-color:rgba(251,146,60,.2);color:#fdba74}
+
+/* ─── Stat ─── */
+.stat{text-align:center}
+.stat .val{font-size:2.4rem;font-weight:900;line-height:1}
+.stat .lbl{font-size:.75rem;color:var(--tx3);margin-top:.25rem;line-height:1.4}
+
+/* ─── Layouts ─── */
+.centered{text-align:center;display:flex;flex-direction:column;align-items:center}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:3rem;width:100%;max-width:1080px;align-items:start}
+.split3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.2rem;width:100%;max-width:1080px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.9rem}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.8rem}
+.gap-xs{gap:.3rem}.gap-sm{gap:.5rem}.gap-md{gap:.9rem}.gap-lg{gap:1.4rem}.gap-xl{gap:2rem}
+.mt-1{margin-top:.5rem}.mt-2{margin-top:1rem}.mt-3{margin-top:1.5rem}
+.sep{width:52px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--t600),var(--t400))}
+
+/* ─── CTA ─── */
+.cta{display:inline-flex;align-items:center;gap:.5rem;padding:.65rem 1.5rem;border-radius:10px;font-size:.86rem;font-weight:600;text-decoration:none;transition:all .3s;cursor:pointer;border:none}
+.cta-primary{background:linear-gradient(135deg,var(--t600),var(--t500));color:#fff;box-shadow:0 4px 22px rgba(13,148,136,.35)}
+.cta-primary:hover{box-shadow:0 8px 34px rgba(13,148,136,.5);transform:translateY(-2px)}
+
+/* ─── Pulse ring ─── */
+.pring{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.pring::before,.pring::after{content:'';position:absolute;inset:-12px;border-radius:50%;border:2px solid var(--t500);opacity:0;animation:pR 3s ease-in-out infinite}
+.pring::after{animation-delay:1.5s}
+@keyframes pR{0%{transform:scale(.8);opacity:.5}100%{transform:scale(1.8);opacity:0}}
+
+/* ─── Fade-up children ─── */
+.slide.active .fu{animation:fU .65s ease both}
+.slide.active .fu:nth-child(1){animation-delay:.08s}
+.slide.active .fu:nth-child(2){animation-delay:.2s}
+.slide.active .fu:nth-child(3){animation-delay:.32s}
+.slide.active .fu:nth-child(4){animation-delay:.44s}
+.slide.active .fu:nth-child(5){animation-delay:.56s}
+.slide.active .fu:nth-child(6){animation-delay:.68s}
+.slide.active .fu:nth-child(7){animation-delay:.8s}
+@keyframes fU{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── Terminal ─── */
+.terminal{background:#EEF2F7;border:1px solid var(--card-b);border-radius:14px;overflow:hidden;width:100%}
+.term-bar{display:flex;align-items:center;gap:6px;padding:.5rem .9rem;background:rgba(0,0,0,.05);border-bottom:1px solid var(--card-b)}
+.term-d{width:10px;height:10px;border-radius:50%}
+.term-body{padding:.9rem 1.2rem;font-size:.8rem;line-height:1.85;font-family:'JetBrains Mono',monospace}
+.t-dim{color:var(--tx3)}.t-b{color:var(--tx1)}.t-g{color:var(--emerald)}.t-t{color:var(--t400)}.t-a{color:var(--amber)}.t-r{color:var(--rose)}.t-v{color:var(--violet)}.t-c{color:var(--cyan)}
+
+/* ─── Slide 1: Title ─── */
+.title-ring{font-size:10rem;filter:drop-shadow(0 0 40px rgba(13,148,136,.35))}
+.title-meta{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;justify-content:center}
+
+/* ─── Slide 2: Problem ─── */
+.nightmare{width:100%;max-width:1200px}
+.nm-row{display:flex;align-items:center;justify-content:center;gap:.55rem;flex-wrap:nowrap}
+.nm-step{display:flex;flex-direction:column;align-items:center;gap:.18rem;padding:.65rem .75rem;border-radius:12px;min-width:96px;text-align:center;background:var(--card);border:1px solid var(--card-b);transition:all .3s}
+.nm-step.pain{border-color:rgba(244,63,94,.25);background:rgba(244,63,94,.04)}
+.nm-step .ico{font-size:1.5rem}
+.nm-step .txt{font-size:.8rem;font-weight:700;color:var(--tx1)}
+.nm-step .sub{font-size:.66rem;color:var(--tx3)}
+.nm-arr{color:var(--tx3);font-size:.9rem;flex-shrink:0}
+.cost-row{display:flex;gap:2.5rem;justify-content:center;margin-top:1.5rem;flex-wrap:wrap}
+.cost-item .val{font-size:2.2rem;font-weight:900;color:var(--rose)}
+.cost-item .lbl{font-size:.78rem;color:var(--tx3);margin-top:.2rem}
+
+/* ─── Slide 3: Benefits ─── */
+.ben-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;width:100%;max-width:1050px}
+.ben-card{padding:1.1rem 1.3rem;border-radius:14px;background:var(--card);border:1px solid var(--card-b);transition:all .3s}
+.ben-card:hover{border-color:rgba(13,148,136,.3);transform:translateY(-3px);box-shadow:0 8px 28px rgba(13,148,136,.1)}
+.ben-card .ico{font-size:1.8rem;margin-bottom:.6rem}
+.ben-card h3{font-size:.9rem;font-weight:700;color:var(--tx1);margin-bottom:.3rem}
+.ben-card p{font-size:.76rem;color:var(--tx2);line-height:1.55}
+.ben-card .metric{font-size:1.4rem;font-weight:900;margin-top:.5rem}
+
+/* ─── Slide 4: Agentic Flow ─── */
+.flow-wrap{width:100%;max-width:1160px}
+.flow-row{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:nowrap}
+.flow-step{display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.55rem .58rem;border-radius:14px;min-width:90px;text-align:center;background:rgba(255,255,255,.95);border:1px solid rgba(0,54,82,.1);transition:all .3s;position:relative;box-shadow:0 1px 4px rgba(0,54,82,.06)}
+.flow-step:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.flow-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,54,82,.05);border:1px solid rgba(0,54,82,.1);margin-bottom:.1rem;flex-shrink:0}
+.flow-step .ft{font-size:.8rem;font-weight:700;color:var(--tx1);line-height:1.2}
+.flow-step .fs{font-size:.63rem;color:var(--tx3);line-height:1.3}
+.flow-step.human{border-color:rgba(139,92,246,.35);background:rgba(139,92,246,.07)}
+.flow-step.human .flow-icon{background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.25)}
+.flow-step.ai{border-color:rgba(13,148,136,.28);background:rgba(13,148,136,.06)}
+.flow-step.ai .flow-icon{background:rgba(13,148,136,.12);border-color:rgba(13,148,136,.22)}
+.flow-step.exec{border-color:rgba(16,185,129,.28);background:rgba(16,185,129,.06)}
+.flow-step.exec .flow-icon{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.22)}
+.flow-arr{color:rgba(71,85,105,.65);font-size:1rem;margin:0 .2rem;flex-shrink:0}
+.flow-loop{display:flex;flex-direction:column;align-items:center;gap:.45rem;padding:1.2rem 1.4rem;border-radius:16px;background:rgba(0,54,82,.04);border:1px dashed rgba(0,54,82,.18);margin-top:1.8rem;width:100%}
+.flow-loop-label{font-size:.65rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t400);display:flex;align-items:center;gap:.4rem;margin-bottom:.55rem}
+.flow-tools{display:flex;gap:.45rem;flex-wrap:wrap;justify-content:center}
+.flow-tool{padding:.26rem .65rem;border-radius:100px;font-size:.67rem;font-weight:600;background:rgba(14,123,181,.08);color:var(--cyan);border:1px solid rgba(14,123,181,.2)}
+.flow-badge{display:inline-flex;align-items:center;gap:.25rem;padding:.16rem .48rem;border-radius:6px;font-size:.62rem;font-weight:700;background:rgba(245,158,11,.1);color:var(--amber);border:1px solid rgba(245,158,11,.2);margin-top:.16rem}
+
+/* ─── Slide 5: Architecture ─── */
+.arch-wrap{width:100%;max-width:1060px}
+.arch-tier{display:flex;align-items:center;gap:.6rem;padding:.65rem 1rem;border-radius:12px;border:1px solid var(--card-b);background:var(--card);margin:.25rem 0}
+.arch-tier-label{font-size:.64rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;min-width:90px;flex-shrink:0}
+.arch-nodes{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.arch-node{padding:.3rem .8rem;border-radius:8px;font-size:.74rem;font-weight:600;background:rgba(0,54,82,.05);border:1px solid var(--gb);color:var(--tx1);white-space:nowrap}
+.arch-node.az{background:rgba(59,130,246,.08);border-color:rgba(96,165,250,.18);color:#1B6BB0}
+.arch-node.teal{background:rgba(13,148,136,.08);border-color:rgba(13,148,136,.2);color:var(--t400)}
+.arch-node.green{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.2);color:var(--emerald)}
+.arch-node.violet{background:rgba(139,92,246,.08);border-color:rgba(139,92,246,.2);color:var(--violet)}
+.arch-node.amber{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.2);color:var(--amber)}
+.arch-node.cyan{background:rgba(6,182,212,.08);border-color:rgba(6,182,212,.2);color:var(--cyan)}
+.arch-conn{display:flex;align-items:center;gap:.6rem;padding:.38rem 0;margin:.15rem 0}
+.arch-conn::before,.arch-conn::after{content:'';height:2px;flex:1;background:linear-gradient(to right,rgba(0,54,82,.05),rgba(0,54,82,.3));border-radius:2px}
+.arch-conn::after{background:linear-gradient(to left,rgba(0,54,82,.05),rgba(0,54,82,.3))}
+.arch-conn span:first-child,.arch-conn span:last-child{color:var(--t400);font-size:1rem;flex-shrink:0;line-height:1}
+.arch-conn span:nth-child(2){padding:.16rem .65rem;border-radius:20px;background:rgba(0,54,82,.07);border:1px solid rgba(0,54,82,.16);color:var(--t600);font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
+.arch-conn span:nth-child(2):empty{display:none}
+
+/* ─── Slide 6: MCP Tools ─── */
+.mcp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;width:100%;max-width:1000px}
+.mcp-card{padding:1.1rem 1.3rem;border-radius:14px;background:var(--card);border:1px solid var(--card-b);display:flex;flex-direction:column;gap:.5rem}
+.mcp-card:hover{border-color:rgba(6,182,212,.28);transform:translateY(-2px);box-shadow:0 6px 24px rgba(6,182,212,.08)}
+.mcp-header{display:flex;align-items:center;gap:.75rem}
+.mcp-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+.mcp-title{font-size:.92rem;font-weight:700;color:var(--tx1)}
+.mcp-sub{font-size:.72rem;color:var(--t400);font-weight:600}
+.mcp-body{font-size:.76rem;color:var(--tx2);line-height:1.55}
+.mcp-tags{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.2rem}
+.mcp-tag{padding:.18rem .55rem;border-radius:6px;font-size:.65rem;font-weight:600;background:rgba(0,54,82,.05);border:1px solid var(--gb);color:var(--tx3)}
+.mcp-center{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:.6rem}
+.mcp-center-box{padding:1.1rem 2rem;border-radius:16px;background:rgba(13,148,136,.06);border:1px dashed rgba(13,148,136,.25);text-align:center;max-width:640px;width:100%}
+.mcp-center-box h3{font-size:1rem;font-weight:700;color:var(--t400);margin-bottom:.4rem}
+.mcp-center-box p{font-size:.8rem;color:var(--tx2);line-height:1.5}
+.tool-pills{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;margin-top:.5rem}
+.tool-pill{padding:.3rem .8rem;border-radius:100px;font-size:.7rem;font-weight:600;background:rgba(6,182,212,.08);color:var(--cyan);border:1px solid rgba(6,182,212,.2)}
+
+/* ─── Slide 7: Outcome ─── */
+.outcome-split{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;width:100%;max-width:1040px;align-items:start}
+.out-col{display:flex;flex-direction:column;gap:.8rem}
+.out-col h3{font-size:1.05rem;font-weight:700;padding-bottom:.5rem;border-bottom:2px solid;display:flex;align-items:center;gap:.6rem}
+.out-row{display:flex;align-items:flex-start;gap:.7rem;padding:.55rem .8rem;border-radius:10px;font-size:.82rem;background:var(--card);border:1px solid var(--card-b)}
+.out-row .label2{font-size:.72rem;font-weight:700;color:var(--tx3);margin-bottom:.1rem}
+.out-row .value{font-size:.92rem;font-weight:700;color:var(--tx1)}
+.bar-wrap{width:100%;max-width:1040px;margin-top:.8rem}
+.bar-label{font-size:.78rem;font-weight:600;color:var(--tx2);margin-bottom:.3rem;display:flex;justify-content:space-between}
+.bar-track{height:28px;border-radius:100px;background:rgba(0,54,82,.08);overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:100px;display:flex;align-items:center;padding-left:.9rem;font-size:.74rem;font-weight:700;color:#fff;white-space:nowrap}
+.bar-human{background:linear-gradient(90deg,rgba(244,63,94,.6),rgba(244,63,94,.4));width:90%}
+.bar-corvin{background:linear-gradient(90deg,var(--t600),var(--t400));width:15%}
+.bar-row{margin-bottom:.75rem}
+.verdict{padding:1rem 1.5rem;border-radius:14px;background:rgba(13,148,136,.07);border:1px solid rgba(13,148,136,.22);display:flex;align-items:center;gap:1rem;width:100%;max-width:1040px;margin-top:.8rem}
+.verdict .v-icon{font-size:2rem;flex-shrink:0}
+.verdict .v-text h4{font-size:1rem;font-weight:700;color:var(--t400)}
+.verdict .v-text p{font-size:.82rem;color:var(--tx2);margin-top:.15rem;line-height:1.5}
+
+/* ─── Slide-specific BG colours ─── */
+#s1 .orb-a{background:var(--t600);width:600px;height:600px;top:-100px;left:-100px}
+#s1 .orb-b{background:var(--cyan);width:400px;height:400px;bottom:-50px;right:-50px}
+#s2 .orb-a{background:var(--rose);width:550px;height:550px;top:-80px;right:-80px;opacity:.04}
+#s2 .orb-b{background:var(--amber);width:380px;height:380px;bottom:-60px;left:-60px;opacity:.04}
+#s3 .orb-a{background:var(--emerald);width:500px;height:500px;top:-60px;right:-60px}
+#s3 .orb-b{background:var(--t600);width:400px;height:400px;bottom:-80px;left:-80px}
+#s4 .orb-a{background:var(--violet);width:480px;height:480px;top:-80px;left:-80px;opacity:.05}
+#s4 .orb-b{background:var(--t600);width:420px;height:420px;bottom:-60px;right:-60px}
+#s5 .orb-a{background:var(--cyan);width:480px;height:480px;top:-80px;right:-60px;opacity:.05}
+#s5 .orb-b{background:var(--t700);width:400px;height:400px;bottom:-80px;left:-80px}
+#s6 .orb-a{background:var(--cyan);width:500px;height:500px;top:-80px;left:-80px;opacity:.05}
+#s6 .orb-b{background:var(--violet);width:400px;height:400px;bottom:-60px;right:-60px;opacity:.04}
+#s7 .orb-a{background:var(--t600);width:500px;height:500px;top:-60px;left:-60px}
+#s7 .orb-b{background:var(--emerald);width:380px;height:380px;bottom:-60px;right:-60px}
+
+/* ─── Ticker / live tag ─── */
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--emerald);animation:pulse 1.8s infinite;flex-shrink:0}
+
+/* ─── Constellation canvas ─── */
+#constellation{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.2}
+
+/* ─── Chapter indicator (injected by JS) ─── */
+.chapter{display:none}
+.chapter::before{content:'';width:20px;height:1px;background:var(--tx3)}
+
+/* ─── Cold-open alert ticker (Slide 1) ─── */
+.alert-ticker{padding:.45rem 1.1rem;border-radius:10px;background:rgba(244,63,94,.07);border:1px solid rgba(244,63,94,.2);font-family:'JetBrains Mono',monospace;font-size:.74rem;color:var(--rose);display:inline-flex;align-items:center;gap:.6rem;animation:tickerPulse 3s ease infinite}
+@keyframes tickerPulse{0%,100%{border-color:rgba(244,63,94,.2)}50%{border-color:rgba(244,63,94,.5)}}
+.alert-ticker .blink{animation:blink 1s step-end infinite;color:var(--rose);font-weight:700}
+@keyframes blink{50%{opacity:0}}
+
+/* ─── Animated bars (override static widths) ─── */
+.bar-fill{width:0!important;transition:width 1.4s cubic-bezier(.4,0,.2,1) .4s!important}
+.bar-human{width:0!important}
+.bar-corvin{width:0!important}
+#s7.active .bar-fill.bar-human{width:90%!important}
+#s7.active .bar-fill.bar-corvin{width:13%!important}
+
+/* ─── Slide 8: Future Enhancements ─── */
+.future-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;width:100%;max-width:1060px}
+.future-card{padding:1.1rem 1.3rem;border-radius:16px;background:var(--card);border:1px solid var(--card-b);transition:all .3s;display:flex;flex-direction:column;gap:.45rem;position:relative;overflow:hidden}
+.future-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:16px 16px 0 0}
+.future-card.fc-teal::before{background:linear-gradient(90deg,var(--t600),var(--t400))}
+.future-card.fc-violet::before{background:linear-gradient(90deg,var(--violet),#a78bfa)}
+.future-card.fc-cyan::before{background:linear-gradient(90deg,var(--cyan),#67e8f9)}
+.future-card.fc-amber::before{background:linear-gradient(90deg,var(--amber),#fbbf24)}
+.future-card:hover{transform:translateY(-3px);box-shadow:0 10px 32px rgba(13,148,136,.1)}
+.fc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem}
+.fc-title{font-size:.88rem;font-weight:700;color:var(--tx1);display:flex;align-items:center;gap:.4rem;margin-bottom:.12rem}
+.fc-sub{font-size:.67rem;color:var(--tx3);margin-bottom:.25rem}
+.fc-body{font-size:.74rem;color:var(--tx2);line-height:1.55}
+.fc-tags{display:flex;gap:.32rem;flex-wrap:wrap;margin-top:.25rem}
+.fc-tag{padding:.14rem .48rem;border-radius:6px;font-size:.62rem;font-weight:600;background:rgba(0,54,82,.05);border:1px solid var(--gb);color:var(--tx3)}
+.fc-diagram{border-radius:10px;background:rgba(0,54,82,.05);padding:.55rem;margin:.25rem 0}
+.vbadge{display:inline-flex;padding:.12rem .45rem;border-radius:5px;font-size:.63rem;font-weight:700;background:rgba(13,148,136,.12);color:var(--t400);border:1px solid rgba(13,148,136,.2);margin-left:.3rem;vertical-align:middle}
+.roadmap-strip{display:flex;align-items:center;width:100%;max-width:1060px;margin-top:.8rem;padding:.5rem .9rem;background:rgba(0,54,82,.04);border:1px dashed rgba(0,54,82,.16);border-radius:12px;flex-wrap:wrap;gap:.2rem}
+.rms{font-size:.68rem;font-weight:700;color:var(--tx2);padding:.22rem .6rem;border-radius:7px;white-space:nowrap}
+.rms.done{color:var(--emerald);background:rgba(16,185,129,.08)}
+.rms.active-v{color:var(--t400);background:rgba(13,148,136,.12);border:1px solid rgba(13,148,136,.25)}
+.rms.future{color:var(--violet);background:rgba(139,92,246,.08)}
+.rms-arr{color:var(--tx3);font-size:.7rem;margin:0 .12rem;flex-shrink:0}
+#s8 .orb-a{background:var(--violet);width:520px;height:520px;top:-80px;left:-80px;opacity:.05}
+#s8 .orb-b{background:var(--t600);width:440px;height:440px;bottom:-70px;right:-70px;opacity:.05}
+/* ─── Slide 9: Judging Criteria ─── */
+.judge-wrap{width:100%;max-width:1120px;border-radius:14px;overflow:hidden;border:1px solid rgba(0,54,82,.12)}
+.judge-table{width:100%;border-collapse:collapse}
+.judge-table thead tr{background:rgba(0,54,82,.07)}
+.judge-table th{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:var(--tx3);padding:.65rem 1.1rem;border-bottom:1px solid rgba(0,54,82,.12);text-align:left}
+.judge-table td{padding:.8rem 1.1rem;font-size:.79rem;line-height:1.55;border-bottom:1px solid rgba(0,54,82,.07);vertical-align:top}
+.judge-table tbody tr:last-child td{border-bottom:none}
+.judge-table tbody tr:hover td{background:rgba(0,54,82,.03)}
+.jt-criteria{font-weight:800;font-size:.82rem;color:var(--tx1);white-space:nowrap;padding-left:1.1rem!important}
+.jt-desc{color:var(--tx3);font-size:.74rem}
+.jt-evidence{color:var(--tx2)}
+.jt-badges{display:flex;flex-direction:column;gap:.32rem;align-items:center}
+.jt-b{padding:.24rem .72rem;border-radius:7px;font-size:.72rem;font-weight:700;white-space:nowrap;text-align:center;display:inline-block}
+.qna-bar{display:flex;align-items:center;gap:1.4rem;padding:1.1rem 1.8rem;border-radius:18px;border:1px solid rgba(0,120,122,.2);background:rgba(0,120,122,.05);width:100%;max-width:1120px}
+.qna-icon{font-size:3rem;line-height:1;flex-shrink:0}
+.qna-title{font-size:1.45rem;font-weight:800;color:var(--tx1);margin:0 0 .25rem}
+.qna-sub{font-size:.84rem;color:var(--tx3);margin:0}
+.qna-tags{display:flex;gap:.55rem;flex-wrap:wrap;margin-left:auto}
+.qna-tag{padding:.38rem 1rem;border-radius:8px;font-size:.78rem;font-weight:700;border:1px solid transparent}
+#s9 .orb-a{background:var(--t600);width:500px;height:500px;top:-100px;right:-80px;opacity:.04}
+#s9 .orb-b{background:var(--violet);width:420px;height:420px;bottom:-80px;left:-60px;opacity:.04}
+/* MetLife watermark */
+#ml-wm{position:fixed;bottom:1.1rem;right:5.6rem;z-index:250;pointer-events:none;opacity:.5}
+/* ─── Slide 9: Criteria Cards ─── */
+.criteria-grid{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;width:100%;max-width:1120px}
+.crit-card{border-radius:16px;background:var(--card);border:1px solid var(--card-b);overflow:hidden;display:flex;flex-direction:column;transition:transform .3s,box-shadow .3s}
+.crit-card:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.cc-top-bar{height:3px;flex-shrink:0}
+.cc-emerald .cc-top-bar{background:linear-gradient(90deg,var(--emerald),#4ade80)}
+.cc-cyan .cc-top-bar{background:linear-gradient(90deg,var(--cyan),#1B6BB0)}
+.cc-violet .cc-top-bar{background:linear-gradient(90deg,var(--violet),#c4b5fd)}
+.cc-amber .cc-top-bar{background:linear-gradient(90deg,var(--amber),#fbbf24)}
+.cc-header{display:flex;align-items:center;gap:.8rem;padding:.85rem 1rem .7rem;border-bottom:1px solid var(--card-b)}
+.cc-icon-wrap{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.35rem;flex-shrink:0}
+.cc-emerald .cc-icon-wrap{background:rgba(143,245,177,.12);border:1px solid rgba(143,245,177,.28)}
+.cc-cyan .cc-icon-wrap{background:rgba(97,194,229,.12);border:1px solid rgba(97,194,229,.28)}
+.cc-violet .cc-icon-wrap{background:rgba(169,126,221,.12);border:1px solid rgba(169,126,221,.28)}
+.cc-amber .cc-icon-wrap{background:rgba(249,178,67,.12);border:1px solid rgba(249,178,67,.28)}
+.cc-title{font-size:.88rem;font-weight:800;color:var(--tx1);line-height:1.2}
+.cc-question{font-size:.67rem;color:var(--tx3);margin-top:.1rem;line-height:1.35}
+.cc-badges{display:flex;flex-direction:column;gap:.28rem;margin-left:auto;flex-shrink:0}
+.cc-badge{padding:.2rem .62rem;border-radius:7px;font-size:.68rem;font-weight:700;white-space:nowrap;text-align:center}
+.cc-emerald .cc-badge{background:rgba(143,245,177,.1);color:var(--emerald);border:1px solid rgba(143,245,177,.25)}
+.cc-cyan .cc-badge{background:rgba(97,194,229,.1);color:var(--cyan);border:1px solid rgba(97,194,229,.25)}
+.cc-violet .cc-badge{background:rgba(169,126,221,.1);color:var(--violet);border:1px solid rgba(169,126,221,.25)}
+.cc-amber .cc-badge{background:rgba(249,178,67,.1);color:var(--amber);border:1px solid rgba(249,178,67,.25)}
+.cc-body{padding:.75rem 1rem .85rem 1.3rem;flex:1;display:flex;flex-direction:column;gap:.28rem;list-style:disc}
+.cc-body li{font-size:.77rem;color:var(--tx2);line-height:1.5;padding-left:.2rem}
+.cc-emerald .cc-body li::marker{color:var(--emerald);font-size:.8rem}
+.cc-cyan .cc-body li::marker{color:var(--cyan);font-size:.8rem}
+.cc-violet .cc-body li::marker{color:var(--violet);font-size:.8rem}
+.cc-amber .cc-body li::marker{color:var(--amber);font-size:.8rem}
+</style>
+</head>
+<body>
+<canvas id="constellation"></canvas>
+
+<div id="progress" style="width:0%"></div>
+<div id="counter">01 / 09</div>
+<div id="dots"></div>
+<div id="keys" style="display:none">← → · Space · F fullscreen · N notes</div>
+<div id="notes-panel"><div class="nl">Speaker Notes</div><div id="notes-content"></div></div>
+
+<!-- MetLife brand watermark (all slides) -->
+<div id="ml-wm">
+  <div style="background:#ffffff;border-radius:8px;padding:5px 12px;display:inline-flex;align-items:center">
+    <img src="MetLife-NewLogo.png" height="26" style="display:block" alt="MetLife" onerror="this.parentElement.parentElement.innerHTML='<svg viewBox=&quot;0 0 172 50&quot; width=&quot;138&quot; height=&quot;40&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;><defs><linearGradient id=&quot;mlgw&quot; x1=&quot;5%&quot; y1=&quot;85%&quot; x2=&quot;95%&quot; y2=&quot;5%&quot;><stop offset=&quot;0%&quot; stop-color=&quot;#61C2E5&quot;/><stop offset=&quot;48%&quot; stop-color=&quot;#64D1CE&quot;/><stop offset=&quot;100%&quot; stop-color=&quot;#8FF5B1&quot;/></linearGradient></defs><path d=&quot;M4,47 L4,28 C4,4 11,2 21,2 C29,2 31,14 31,26 C31,14 33,2 41,2 C51,2 58,4 58,28 L58,47&quot; fill=&quot;url(#mlgw)&quot;/><text x=&quot;68&quot; y=&quot;33&quot; font-family=&quot;Inter,sans-serif&quot; font-weight=&quot;800&quot; font-size=&quot;21&quot; fill=&quot;#ffffff&quot;>MetLife</text></svg>'">
+  </div>
+</div>
+
+<div class="deck">
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 1 — TITLE / INTRODUCTION
+     ══════════════════════════════════════════════════════ -->
+<div class="slide active" id="s1" data-id="title"
+  data-notes="Welcome judges. Corvin is an Azure-native AI SRE co-pilot built for MetLife. The name Corvin — Latin for Raven — symbolises intelligence, watchfulness, and speed.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="centered" style="gap:1.1rem;position:relative;z-index:1">
+    <div class="fu" style="font-size:1.6rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--tx2);margin:.4rem 0">🤖 Team &nbsp;&nbsp; <span style="color:var(--t400);font-size:1.6rem;font-weight:800;letter-spacing:.18em">Synaptic Alchemy</span></div>
+    <h1 class="fu hero">CORVIN</h1>
+    <p class="fu" style="font-size:1.45rem;font-weight:300;color:var(--tx2);letter-spacing:.04em;text-align:center">
+      APM Agnostic <span style="color:var(--t400);font-weight:600">AI SRE Co-Pilot</span> &nbsp;·&nbsp; From Alert to Resolution in Minutes
+    </p>
+    <div class="fu sep mt-2"></div>
+    <p class="fu sbody" style="text-align:center;max-width:660px">
+      Corvin ingests Azure alerts, automatically gathers evidence from AKS, Elastic, APIM, and Log Analytics,
+      generates a structured Root Cause Analysis using GPT-5.1 with thinking chains, proposes a fix strategy,
+      and routes it through human approval before safe execution — all in under 2 minutes.
+    </p>
+    <div class="fu title-meta mt-2">
+      <span class="tag">🐍 Python · FastAPI</span>
+      <span class="tag">⚛️ React · TypeScript</span>
+      <span class="tag">☸️ Azure · AKS</span>
+      <span class="tag">🤖 GPT-5.1 / Azure AI Foundry</span>
+      <span class="tag">🗄️ PostgreSQL</span>
+      <span class="tag"><img src="https://img.icons8.com/color/16/microsoft-teams.png" width="14" height="14" style="vertical-align:middle;margin-right:3px" alt=""> Microsoft Teams</span>
+    </div>
+    <div class="fu" style="margin-top:1.2rem;display:flex;gap:1rem">
+      <span class="stat" style="text-align:center"><div class="val" style="font-size:2rem;font-weight:900;color:var(--t400)">&lt; 2 min</div><div class="lbl">Alert → RCA</div></span>
+      <span style="color:var(--tx3);align-self:center;font-size:1.2rem">·</span>
+      <span class="stat" style="text-align:center"><div class="val" style="font-size:2rem;font-weight:900;color:var(--violet)">22–45×</div><div class="lbl">Faster MTTR</div></span>
+      <span style="color:var(--tx3);align-self:center;font-size:1.2rem">·</span>
+      <span class="stat" style="text-align:center"><div class="val" style="font-size:1.6rem;font-weight:900;color:var(--cyan);display:flex;align-items:center;gap:6px;justify-content:center"><img src="https://img.icons8.com/color/28/chatgpt.png" width="26" height="26" style="flex-shrink:0;vertical-align:middle" alt="">GPT-5.1</div><div class="lbl">Azure AI Foundry</div></span>
+      <span style="color:var(--tx3);align-self:center;font-size:1.2rem">·</span>
+      <span class="stat" style="text-align:center"><div class="val" style="font-size:1.6rem;font-weight:900;color:var(--violet);display:flex;align-items:center;gap:6px;justify-content:center"><img src="https://img.icons8.com/color/28/bot.png" width="26" height="26" style="flex-shrink:0;vertical-align:middle" alt="">Agentic</div><div class="lbl">Chatbot</div></span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 2 — CURRENT TOOLS CHALLENGES
+     ══════════════════════════════════════════════════════ -->
+<div class="slide" id="s2" data-id="problem"
+  data-notes="This is the SRE nightmare loop. An alert fires at 3AM and the engineer manually pivots across 6-7 different systems with no unified context. Mean time to resolution is 45-90 minutes.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="centered" style="position:relative;z-index:1;gap:.6rem;width:100%">
+    <div class="fu label" style="font-size:1.3rem;margin-bottom:3.0rem">The Problem Today</div>
+    <h2 class="fu stitle">The <span class="rose">SRE Nightmare</span> Loop</h2>
+    <p class="fu sbody" style="text-align:center;margin-bottom:.6rem">An alert fires — engineers manually pivot across fragmented tools with no unified intelligence</p>
+
+    <div class="fu nightmare">
+      <!-- Row 1: Alert → Manual Triage Steps -->
+      <div class="nm-row">
+        <div class="nm-step pain">
+          <span class="ico">🚨</span>
+          <span class="txt">Alert Fires</span>
+          <span class="sub">3:17 AM</span>
+        </div>
+        <span class="nm-arr">→</span>
+        <div class="nm-step pain">
+          <span class="ico">😰</span>
+          <span class="txt">SRE Wakes Up</span>
+          <span class="sub">On-call paged</span>
+        </div>
+        <span class="nm-arr">→</span>
+        <div class="nm-step">
+          <span class="ico">📊</span>
+          <span class="txt">Azure Portal</span>
+          <span class="sub">Alerts UI</span>
+        </div>
+        <span class="nm-arr">→</span>
+        <div class="nm-step">
+          <span class="ico">☸️</span>
+          <span class="txt">kubectl</span>
+          <span class="sub">Pod logs</span>
+        </div>
+        <span class="nm-arr">→</span>
+        <div class="nm-step">
+          <span class="ico">🔍</span>
+          <span class="txt">Kibana</span>
+          <span class="sub">App logs</span>
+        </div>
+        <span class="nm-arr">→</span>
+        <div class="nm-step">
+          <span class="ico">📡</span>
+          <span class="txt">Log Analytics</span>
+          <span class="sub">APIM/KQL</span>
+        </div>
+        <span class="nm-arr">→</span>
+        <div class="nm-step pain">
+          <span class="ico">🤔</span>
+          <span class="txt">Manual RCA</span>
+          <span class="sub">Guesswork</span>
+        </div>
+        <span class="nm-arr">→</span>
+        <div class="nm-step pain">
+          <span class="ico">😬</span>
+          <span class="txt">Risky Fix</span>
+          <span class="sub">No approval</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pain Points Grid -->
+    <div class="fu g3 mt-2" style="max-width:960px;width:100%">
+      <div class="card" style="border-color:rgba(244,63,94,.2)">
+        <h3>⏱️ Slow Detection</h3>
+        <p>No unified view — engineers context-switch across 6+ tools. Manual correlation takes 30–60 min.</p>
+      </div>
+      <div class="card" style="border-color:rgba(244,63,94,.2)">
+        <h3>🧩 No Institutional Memory</h3>
+        <p>Similar incidents repeat. Runbooks are stale. Knowledge is scattered across Slack threads and wikis.</p>
+      </div>
+      <div class="card" style="border-color:rgba(244,63,94,.2)">
+        <h3>⚠️ Risky Remediation</h3>
+        <p>No approval gate. Engineers execute fixes under pressure without impact analysis or blast-radius estimate.</p>
+      </div>
+    </div>
+
+    <!-- Cost row -->
+    <div class="fu cost-row">
+      <div class="cost-item"><div class="val">45–90 min</div><div class="lbl">Average MTTR</div></div>
+      <div class="cost-item"><div class="val">6+ tools</div><div class="lbl">Manual context switches</div></div>
+      <div class="cost-item"><div class="val" style="color:var(--amber)">$$$</div><div class="lbl">Revenue lost per incident</div></div>
+      <div class="cost-item"><div class="val" style="color:var(--amber)">Repeated</div><div class="lbl">Incidents (no memory)</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 3 — ADVANTAGES & HOW CORVIN SOLVES IT
+     ══════════════════════════════════════════════════════ -->
+<div class="slide" id="s3" data-id="benefits"
+  data-notes="Corvin replaces the nightmare loop with a single automated pipeline. Let's walk through each benefit.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="centered" style="position:relative;z-index:1;gap:.7rem;width:100%">
+    <div class="fu label" style="font-size:1.3rem;margin-bottom:3.0rem">Why Corvin</div>
+    <h2 class="fu stitle">Advantages &amp; How It <span class="hi">Solves</span> the Problem</h2>
+    <div class="fu sep"></div>
+
+    <div class="fu ben-grid mt-2">
+
+      <div class="ben-card" style="border-color:rgba(13,148,136,.25)">
+        <div class="ico">⚡</div>
+        <h3>Instant Evidence Aggregation</h3>
+        <p>5 adapters query Elastic, AKS, APIM, Log Analytics, Azure Activity, Container Logs, and Network Metrics simultaneously — in seconds, not hours.</p>
+        <div class="metric" style="color:var(--t400)">Seconds</div>
+        <div style="font-size:.72rem;color:var(--tx3)">vs 30–60 min manual</div>
+      </div>
+
+      <div class="ben-card" style="border-color:rgba(139,92,246,.25)">
+        <div class="ico">🧠</div>
+        <h3>Agentic RCA</h3>
+        <p>GPT-5.1 / o-series generates structured Root Cause Analysis with confidence scoring, evidence references, and transparent reasoning traces.</p>
+        <div class="metric" style="color:var(--violet)">HIGH confidence</div>
+        <div style="font-size:.72rem;color:var(--tx3)">Evidence-grounded, not guesswork</div>
+      </div>
+
+      <div class="ben-card" style="border-color:rgba(16,185,129,.25)">
+        <div class="ico">🛡️</div>
+        <h3>Safe Approval Gate</h3>
+        <p>No fix executes without human sign-off. Approval workflow (pending → approved → executed) enforced at API level with full audit trail.</p>
+        <div class="metric" style="color:var(--emerald)">Zero</div>
+        <div style="font-size:.72rem;color:var(--tx3)">Unapproved production changes</div>
+      </div>
+
+      <div class="ben-card" style="border-color:rgba(245,158,11,.25)">
+        <div class="ico">🔮</div>
+        <h3>Predictive Alerting</h3>
+        <p>Trend analysis detects OOM pressure, CPU spikes, and connection pool leaks before they become incidents — preventing outages proactively.</p>
+        <div class="metric" style="color:var(--amber)">Preventive</div>
+        <div style="font-size:.72rem;color:var(--tx3)">Fix before the crash</div>
+      </div>
+
+      <div class="ben-card" style="border-color:rgba(6,182,212,.25)">
+        <div class="ico">🗄️</div>
+        <h3>Institutional Memory</h3>
+        <p>Every investigation is stored. Similar incidents surface automatically. Blameless post-mortems auto-generated and published to ADO wiki &amp; SharePoint.</p>
+        <div class="metric" style="color:var(--cyan)">Never</div>
+        <div style="font-size:.72rem;color:var(--tx3)">Repeat the same incident twice</div>
+      </div>
+
+      <div class="ben-card" style="border-color:rgba(244,63,94,.25)">
+        <div class="ico">💬</div>
+        <h3>Agentic ChatBot &amp; Omni-Channel</h3>
+        <p>SREs approve fixes from Teams adaptive cards without opening a browser. CLI, REST API, React web app, and Teams — one platform, every surface.</p>
+        <div class="metric" style="color:var(--rose)">One click</div>
+        <div style="font-size:.72rem;color:var(--tx3)">Approve from anywhere at 3AM</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 4 — AGENTIC FLOW DIAGRAM
+     ══════════════════════════════════════════════════════ -->
+<div class="slide" id="s4" data-id="flow"
+  data-notes="This is the full agentic investigation pipeline. 9 stages from trigger to learning. The agentic loop in the middle uses tool-calling to iteratively gather and reason over evidence.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="centered" style="position:relative;z-index:1;gap:.7rem;width:100%">
+    <div class="fu label" style="font-size:1.3rem;margin-bottom:1.6rem">Agentic Workflow</div>
+    <h2 class="fu stitle">The Corvin <span class="hi">Investigation</span> Pipeline</h2>
+
+    <div class="fu flow-wrap mt-1">
+
+      <!-- Single row: all 9 pipeline steps -->
+      <div class="flow-row">
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.2)"><img src="https://img.icons8.com/color/36/alarm.png" width="30" height="30" alt=""></div>
+          <span class="ft">Trigger</span>
+          <span class="fs">Alert / Manual</span>
+        </div>
+        <span class="flow-arr">→</span>
+        <div class="flow-step ai">
+          <div class="flow-icon"><img src="https://img.icons8.com/color/36/search.png" width="30" height="30" alt=""></div>
+          <span class="ft">Enrich</span>
+          <span class="fs">5 adapters</span>
+        </div>
+        <span class="flow-arr">→</span>
+        <div class="flow-step ai">
+          <div class="flow-icon"><img src="https://img.icons8.com/color/36/books.png" width="30" height="30" alt=""></div>
+          <span class="ft">Knowledge</span>
+          <span class="fs">Runbooks + Memory</span>
+        </div>
+        <span class="flow-arr">→</span>
+        <div class="flow-step ai" style="border-color:rgba(45,212,191,.45);box-shadow:0 0 14px rgba(45,212,191,.12)">
+          <div class="flow-icon" style="background:rgba(236,72,153,.12);border-color:rgba(236,72,153,.25)"><img src="https://img.icons8.com/color/36/brain.png" width="30" height="30" alt=""></div>
+          <span class="ft">RCA</span>
+          <span class="fs">GPT-5.1 + Thinking</span>
+          <span class="flow-badge">⚡ Streaming</span>
+        </div>
+        <span class="flow-arr">→</span>
+        <div class="flow-step ai">
+          <div class="flow-icon" style="background:rgba(249,115,22,.1);border-color:rgba(249,115,22,.2)"><img src="https://img.icons8.com/color/36/maintenance.png" width="30" height="30" alt=""></div>
+          <span class="ft">Fix Strategy</span>
+          <span class="fs">Risk + Impact</span>
+        </div>
+        <span class="flow-arr">→</span>
+        <div class="flow-step human">
+          <div class="flow-icon"><img src="https://img.icons8.com/color/36/approve.png" width="30" height="30" alt=""></div>
+          <span class="ft">Approval</span>
+          <span class="fs">Teams / Web / CLI</span>
+        </div>
+        <span class="flow-arr">→</span>
+        <div class="flow-step exec">
+          <div class="flow-icon" style="background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.28)"><img src="https://img.icons8.com/color/36/settings.png" width="30" height="30" alt=""></div>
+          <span class="ft">Execute</span>
+          <span class="fs">AKS restart</span>
+        </div>
+        <span class="flow-arr">→</span>
+        <div class="flow-step exec">
+          <div class="flow-icon"><img src="https://img.icons8.com/color/36/checkmark.png" width="30" height="30" alt=""></div>
+          <span class="ft">Verify</span>
+          <span class="fs">Health checks</span>
+        </div>
+        <span class="flow-arr">→</span>
+        <div class="flow-step" style="border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.05)">
+          <div class="flow-icon" style="background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.22)"><img src="https://img.icons8.com/color/36/book.png" width="30" height="30" alt=""></div>
+          <span class="ft">Learn</span>
+          <span class="fs">Post-mortem + Memory</span>
+        </div>
+      </div>
+
+      <!-- Agentic Tool-Calling Loop -->
+      <div class="flow-loop">
+        <div class="flow-loop-label">🖥️ AGENTIC TOOL-CALLING LOOP (INSIDE RCA STAGE)</div>
+        <div class="flow-row" style="width:100%;justify-content:center">
+          <div class="flow-step" style="min-width:88px;border-color:rgba(0,54,82,.12)">
+            <div class="flow-icon" style="width:36px;height:36px;font-size:1.25rem"><img src="https://img.icons8.com/color/30/chat.png" width="26" height="26" alt=""></div>
+            <span class="ft">User / Alert</span>
+            <span class="fs">Intent</span>
+          </div>
+          <span class="flow-arr">→</span>
+          <div class="flow-step ai" style="min-width:88px">
+            <div class="flow-icon" style="width:36px;height:36px;font-size:1.25rem"><img src="https://img.icons8.com/color/30/bot.png" width="26" height="26" alt=""></div>
+            <span class="ft">LLM Reasons</span>
+            <span class="fs">Selects tool</span>
+          </div>
+          <span class="flow-arr">→</span>
+          <div class="flow-step" style="min-width:88px;border-color:rgba(6,182,212,.28);background:rgba(6,182,212,.05)">
+            <div class="flow-icon" style="width:36px;height:36px;font-size:1.25rem;background:rgba(6,182,212,.1);border-color:rgba(6,182,212,.22)"><img src="https://img.icons8.com/color/30/maintenance.png" width="26" height="26" alt=""></div>
+            <span class="ft">Tool Call</span>
+            <span class="fs">Execute + Return</span>
+          </div>
+          <span class="flow-arr">→</span>
+          <div class="flow-step ai" style="min-width:88px">
+            <div class="flow-icon" style="width:36px;height:36px;font-size:1.25rem"><img src="https://img.icons8.com/color/30/puzzle.png" width="26" height="26" alt=""></div>
+            <span class="ft">Synthesise</span>
+            <span class="fs">Add to context</span>
+          </div>
+          <span class="flow-arr">→</span>
+          <div class="flow-step exec" style="min-width:88px">
+            <div class="flow-icon" style="width:36px;height:36px;font-size:1.25rem"><img src="https://img.icons8.com/color/30/document.png" width="26" height="26" alt=""></div>
+            <span class="ft">Output</span>
+            <span class="fs">RCA + Fix</span>
+          </div>
+          <span class="flow-arr" style="color:var(--t400);font-size:1.1rem">↺</span>
+          <span style="font-size:.7rem;color:var(--tx3);align-self:center;padding-bottom:.4rem">repeat until complete</span>
+        </div>
+        <div class="flow-tools">
+          <span class="flow-tool">🔍 get_site_knowledge</span>
+          <span class="flow-tool">📖 get_runbook</span>
+          <span class="flow-tool">🔁 get_similar_incidents</span>
+          <span class="flow-tool">📦 get_container_metrics</span>
+          <span class="flow-tool">📡 query_apim_analytics</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Legend -->
+    <div class="fu" style="display:flex;gap:1.4rem;margin-top:.55rem;flex-wrap:wrap;justify-content:center;font-size:.75rem;color:var(--tx2)">
+      <span style="display:flex;align-items:center;gap:.4rem"><span style="width:10px;height:10px;border-radius:50%;background:rgba(13,148,136,.7);display:inline-block"></span>AI-Automated</span>
+      <span style="display:flex;align-items:center;gap:.4rem"><span style="width:10px;height:10px;border-radius:50%;background:rgba(139,92,246,.75);display:inline-block"></span>Human Gate</span>
+      <span style="display:flex;align-items:center;gap:.4rem"><span style="width:10px;height:10px;border-radius:50%;background:rgba(16,185,129,.75);display:inline-block"></span>Execution</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 5 — ARCHITECTURE
+     ══════════════════════════════════════════════════════ -->
+<div class="slide" id="s5" data-id="arch"
+  data-notes="Clean layered architecture. Trigger layer → Investigation Engine → Persistence → Delivery surfaces. Each layer is independently replaceable.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="centered" style="position:relative;z-index:1;gap:.7rem;width:100%">
+    <div class="fu label" style="font-size:1.3rem;margin-bottom:1.6rem">Architecture</div>
+    <h2 class="fu stitle">Modular, adapter-based, <span class="hi">Azure-native</span></h2>
+    <div class="fu sep"></div>
+
+    <div class="fu arch-wrap mt-2" style="width:100%;max-width:1060px">
+
+      <!-- TRIGGER SOURCES -->
+      <div class="arch-tier">
+        <span class="arch-tier-label" style="color:var(--rose)">TRIGGER SOURCES</span>
+        <div class="arch-nodes">
+          <div class="arch-node az" style="white-space:normal;flex-direction:column;display:flex;gap:.08rem;min-width:130px">
+            <span style="font-size:.78rem;font-weight:700;color:#1B6BB0;display:flex;align-items:center;gap:4px"><img src="https://img.icons8.com/color/20/microsoft-azure.png" width="16" height="16" style="flex-shrink:0" alt=""> Azure Alerts</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Common Alert Schema webhook</span>
+          </div>
+          <div class="arch-node" style="white-space:normal;flex-direction:column;display:flex;gap:.08rem;min-width:120px">
+            <span style="font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:4px"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/fastapi/fastapi-original.svg" width="16" height="16" style="flex-shrink:0" alt=""> REST API</span>
+            <span style="font-size:.6rem;color:var(--tx3)">22 FastAPI endpoints</span>
+          </div>
+          <div class="arch-node" style="white-space:normal;flex-direction:column;display:flex;gap:.08rem;min-width:150px">
+            <span style="font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:4px"><img src="https://img.icons8.com/color/20/microsoft-teams.png" width="16" height="16" style="flex-shrink:0" alt=""> Teams Bot</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Bot Framework + Adaptive Cards</span>
+          </div>
+          <div class="arch-node" style="white-space:normal;flex-direction:column;display:flex;gap:.08rem;min-width:140px">
+            <span style="font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:4px"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/react/react-original.svg" width="16" height="16" style="flex-shrink:0" alt=""> Web Dashboard</span>
+            <span style="font-size:.6rem;color:var(--tx3)">React UI · real-time streaming</span>
+          </div>
+          <div class="arch-node amber" style="white-space:normal;flex-direction:column;display:flex;gap:.08rem;min-width:130px">
+            <span style="font-size:.78rem;font-weight:700;color:var(--amber)">🤖 Predictive</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Background anomaly detector</span>
+          </div>
+        </div>
+      </div>
+      <div class="arch-conn"><span>↓</span><span>EVIDENCE COLLECTION (5 LIVE ADAPTERS)</span><span>↓</span></div>
+
+      <!-- EVIDENCE COLLECTION -->
+      <div class="arch-tier">
+        <span class="arch-tier-label" style="color:var(--cyan)">EVIDENCE<br/>ADAPTERS</span>
+        <div class="arch-nodes">
+          <div class="arch-node cyan" style="white-space:normal;flex-direction:column;display:flex;gap:.08rem;min-width:150px">
+            <span style="font-size:.78rem;font-weight:700;color:var(--cyan);display:flex;align-items:center;gap:4px"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/docker/docker-original.svg" width="16" height="16" style="flex-shrink:0" alt=""> Container Logs</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Pod stdout/stderr, KQL via Container Insights</span>
+          </div>
+          <div class="arch-node az" style="white-space:normal;flex-direction:column;display:flex;gap:.08rem;min-width:150px">
+            <span style="font-size:.78rem;font-weight:700;color:#1B6BB0;display:flex;align-items:center;gap:4px"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/kubernetes/kubernetes-original.svg" width="16" height="16" style="flex-shrink:0" alt=""> AKS Context</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Pod state, deploys, events via K8s API</span>
+          </div>
+          <div class="arch-node az" style="white-space:normal;flex-direction:column;display:flex;gap:.08rem;min-width:150px">
+            <span style="font-size:.78rem;font-weight:700;color:#1B6BB0;display:flex;align-items:center;gap:4px"><img src="https://img.icons8.com/color/20/microsoft-azure.png" width="16" height="16" style="flex-shrink:0;border-radius:3px" alt=""> Log Analytics</span>
+            <span style="font-size:.6rem;color:var(--tx3)">APIM gateway logs, custom KQL</span>
+          </div>
+          <div class="arch-node az" style="white-space:normal;flex-direction:column;display:flex;gap:.08rem;min-width:150px">
+            <span style="font-size:.78rem;font-weight:700;color:#1B6BB0;display:flex;align-items:center;gap:4px"><img src="https://img.icons8.com/color/20/microsoft-azure.png" width="16" height="16" style="flex-shrink:0;border-radius:3px" alt=""> Azure Activity</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Resource changes, deployments</span>
+          </div>
+          <div class="arch-node cyan" style="white-space:normal;flex-direction:column;display:flex;gap:.08rem;min-width:150px">
+            <span style="font-size:.78rem;font-weight:700;color:var(--cyan);display:flex;align-items:center;gap:4px"><img src="https://img.icons8.com/color/20/microsoft-azure.png" width="16" height="16" style="flex-shrink:0;border-radius:3px" alt=""> APIM Analytics</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Template KQL + custom queries</span>
+          </div>
+        </div>
+      </div>
+      <div class="arch-conn"><span>↓</span><span>AI INTELLIGENCE LAYER</span><span>↓</span></div>
+
+      <!-- AI INTELLIGENCE LAYER -->
+      <div class="arch-tier" style="border-color:rgba(13,148,136,.25);background:rgba(13,148,136,.04)">
+        <span class="arch-tier-label" style="color:var(--t400)">AI LAYER</span>
+        <div class="arch-nodes" style="flex:1">
+          <div class="arch-node violet" style="white-space:normal;flex:1;flex-direction:column;display:flex;gap:.08rem">
+            <span style="font-size:.78rem;font-weight:700;color:var(--violet);display:flex;align-items:center;gap:4px"><img src="https://img.icons8.com/color/20/chatgpt.png" width="16" height="16" style="flex-shrink:0;border-radius:3px" alt=""> GPT-5.1 (Azure AI Foundry)</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Responses API · Chain-of-thought reasoning · 20+ live tools</span>
+          </div>
+          <div class="arch-node teal" style="white-space:normal;flex:1;flex-direction:column;display:flex;gap:.08rem">
+            <span style="font-size:.78rem;font-weight:700;color:var(--t400)">📚 Knowledge Layer</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Vector DB · runbook catalog · incident memory</span>
+          </div>
+          <div class="arch-node amber" style="white-space:normal;flex:1;flex-direction:column;display:flex;gap:.08rem">
+            <span style="font-size:.78rem;font-weight:700;color:var(--amber)">🎯 RCA + Fix Strategy</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Confidence scoring · Risk-leveled actions</span>
+          </div>
+        </div>
+      </div>
+      <div class="arch-conn"><span>↓</span><span>APPROVAL &amp; DELIVERY</span><span>↓</span></div>
+
+      <!-- HUMAN GATE + DELIVERY split -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;width:100%">
+        <div class="arch-tier" style="flex-direction:column;align-items:flex-start;gap:.4rem">
+          <span class="arch-tier-label" style="color:var(--violet)">DELIVERY ADAPTERS (5)</span>
+          <div class="arch-nodes" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.35rem;width:100%">
+            <div class="arch-node violet" style="white-space:normal;text-align:center;justify-content:center;display:flex;align-items:center;gap:4px"><img src="https://img.icons8.com/color/20/microsoft-teams.png" width="14" height="14" alt=""> Teams</div>
+            <div class="arch-node violet" style="white-space:normal;text-align:center;justify-content:center">📧 Email</div>
+            <div class="arch-node violet" style="white-space:normal;text-align:center;justify-content:center">📋 ADO Wiki</div>
+            <div class="arch-node violet" style="white-space:normal;text-align:center;justify-content:center;display:flex;align-items:center;gap:4px"><img src="https://img.icons8.com/color/20/azure.png" width="14" height="14" alt=""> Az Board Ticket</div>
+            <div class="arch-node violet" style="white-space:normal;text-align:center;justify-content:center">📁 SharePoint</div>
+          </div>
+        </div>
+        <div class="arch-tier" style="flex-direction:column;align-items:flex-start;gap:.4rem">
+          <span class="arch-tier-label" style="color:var(--emerald)">HUMAN GATE + EXECUTION</span>
+          <div class="arch-nodes" style="width:100%">
+            <div class="arch-node green" style="white-space:normal;width:100%;flex-direction:column;display:flex;gap:.2rem;padding:.55rem .9rem">
+              <span style="font-size:.8rem;font-weight:700;color:var(--emerald)">✅ Approval → AKS Execution</span>
+              <span style="font-size:.62rem;color:var(--tx3)">Approve/Reject via Teams or Web UI. ExecutionService dispatches: restart pod, rollback deploy, scale replicas.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="arch-conn"><span>↓</span><span>PERSISTENCE</span><span>↓</span></div>
+
+      <!-- PERSISTENCE -->
+      <div class="arch-tier">
+        <span class="arch-tier-label" style="color:var(--emerald)">PERSISTENCE</span>
+        <div class="arch-nodes" style="flex:1">
+          <div class="arch-node green" style="white-space:normal;flex:1;flex-direction:column;display:flex;gap:.08rem">
+            <span style="font-size:.78rem;font-weight:700;color:var(--emerald);display:flex;align-items:center;gap:4px"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" width="16" height="16" style="flex-shrink:0" alt=""> PostgreSQL</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Investigation store · incident memory · audit log</span>
+          </div>
+          <div class="arch-node green" style="white-space:normal;flex:1;flex-direction:column;display:flex;gap:.08rem">
+            <span style="font-size:.78rem;font-weight:700;color:var(--emerald)">🧠 Incident Memory</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Similar past incidents injected into every RCA prompt</span>
+          </div>
+          <div class="arch-node green" style="white-space:normal;flex:1;flex-direction:column;display:flex;gap:.08rem">
+            <span style="font-size:.78rem;font-weight:700;color:var(--emerald)">📄 Auto Post-Mortems</span>
+            <span style="font-size:.6rem;color:var(--tx3)">Blameless markdown generated from RCA + timeline</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 6 — TOOLS USED (MCP / Agentic Tools)
+     ══════════════════════════════════════════════════════ -->
+<div class="slide" id="s6" data-id="tools"
+  data-notes="Corvin exposes 5 structured tool schemas that the LLM can call during the agentic loop. Each tool is a deterministic Python function that returns structured data, grounding the LLM in real evidence.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="centered" style="position:relative;z-index:1;gap:.7rem;width:100%">
+    <div class="fu label" style="font-size:1.3rem;margin-bottom:1.6rem">Agentic Tool Registry (MCP-Compatible)</div>
+    <h2 class="fu stitle">Tools the <span class="hi">LLM</span> Can Call</h2>
+    <div class="fu sep"></div>
+
+    <div class="fu mcp-grid mt-2">
+
+      <div class="mcp-card" style="border-color:rgba(245,158,11,.25)">
+        <div class="mcp-header">
+          <div class="mcp-icon" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.2);color:var(--amber)">📋</div>
+          <div><div class="mcp-title">get_site_knowledge</div><div class="mcp-sub">Platform Intelligence</div></div>
+        </div>
+        <div class="mcp-body">Returns real infrastructure facts about the CHAD platform — service topology, known patterns, connection pool settings. Injected into every prompt as grounding context.</div>
+        <div class="mcp-tags"><span class="mcp-tag">knowledge/site.md</span><span class="mcp-tag">YAML config</span><span class="mcp-tag">Always available</span></div>
+      </div>
+
+      <div class="mcp-card" style="border-color:rgba(6,182,212,.25)">
+        <div class="mcp-header">
+          <div class="mcp-icon" style="background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.2);color:var(--cyan)">📖</div>
+          <div><div class="mcp-title">get_runbook</div><div class="mcp-sub">Runbook Matching</div></div>
+        </div>
+        <div class="mcp-body">Keyword-based retrieval from <code>knowledge/runbooks/catalog.json</code>. Returns the most relevant operational runbook for the current incident type (OOM, APIM quota, AKS crash).</div>
+        <div class="mcp-tags"><span class="mcp-tag">catalog.json</span><span class="mcp-tag">Keyword match</span><span class="mcp-tag">Markdown</span></div>
+      </div>
+
+      <div class="mcp-card" style="border-color:rgba(139,92,246,.25)">
+        <div class="mcp-header">
+          <div class="mcp-icon" style="background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.2);color:var(--violet)">🔁</div>
+          <div><div class="mcp-title">get_similar_incidents</div><div class="mcp-sub">Incident Memory</div></div>
+        </div>
+        <div class="mcp-body">Queries PostgreSQL for historically similar investigations by service name and environment. Returns past RCA summaries, fix strategies, and outcomes to inform current analysis.</div>
+        <div class="mcp-tags"><span class="mcp-tag">PostgreSQL</span><span class="mcp-tag">Similarity SQL</span><span class="mcp-tag">→ V4 pgvector</span></div>
+      </div>
+
+      <div class="mcp-card" style="border-color:rgba(16,185,129,.25)">
+        <div class="mcp-header">
+          <div class="mcp-icon" style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);color:var(--emerald)">📦</div>
+          <div><div class="mcp-title">get_container_metrics</div><div class="mcp-sub">AKS / Container Telemetry</div></div>
+        </div>
+        <div class="mcp-body">Pulls live pod resource metrics, restart counts, OOM kill events, autoscaler activity, and health probe failures from the AKS API and container inventory adapters.</div>
+        <div class="mcp-tags"><span class="mcp-tag">AKS SDK</span><span class="mcp-tag">Kubernetes API</span><span class="mcp-tag">Real-time</span></div>
+      </div>
+
+      <!-- Centered: 5th tool -->
+      <div class="mcp-card" style="grid-column:1/-1;max-width:560px;margin:0 auto;width:100%;border-color:rgba(14,123,181,.25)">
+        <div class="mcp-header">
+          <div class="mcp-icon" style="background:rgba(14,123,181,.12);border:1px solid rgba(14,123,181,.2);color:var(--cyan)">📡</div>
+          <div><div class="mcp-title">query_apim_analytics</div><div class="mcp-sub" style="color:var(--cyan)">APIM Gateway Intelligence</div></div>
+        </div>
+        <div class="mcp-body">Executes pre-built KQL templates against Azure Log Analytics to retrieve API Management gateway logs — error rates, throttling events, latency percentiles, quota usage — for the incident time window.</div>
+        <div class="mcp-tags"><span class="mcp-tag">Azure Log Analytics</span><span class="mcp-tag">KQL Templates</span><span class="mcp-tag">APIM Gateway Logs</span><span class="mcp-tag">Time-windowed</span></div>
+      </div>
+
+      <div style="grid-column:1/-1;text-align:center">
+        <p style="font-size:.76rem;color:var(--tx3);max-width:640px;margin:0 auto">
+          All 5 tools follow the <strong style="color:var(--t400)">MCP tool-schema pattern</strong> — JSON Schema definitions, deterministic Python implementations, structured returns — enabling safe, reproducible agentic reasoning.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 7 — OUTCOME: HUMAN vs AI RESOLUTION TIME
+     ══════════════════════════════════════════════════════ -->
+<div class="slide" id="s7" data-id="outcome"
+  data-notes="The numbers speak for themselves. Corvin reduces MTTR from 45-90 minutes to under 2 minutes. That's a 22-45x improvement. And unlike human-only resolution, Corvin never forgets, never panics at 3AM, and leaves a complete audit trail.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="centered" style="position:relative;z-index:1;gap:.7rem;width:100%">
+    <div class="fu label" style="font-size:1.3rem;margin-bottom:1.6rem">Measurable Impact</div>
+    <h2 class="fu stitle">Human vs <span class="hi">Corvin</span> — Resolution Time</h2>
+    <div class="fu sep"></div>
+
+    <!-- Resolution Time Bars -->
+    <div class="fu bar-wrap">
+      <div class="bar-row">
+        <div class="bar-label"><span><img src="https://img.icons8.com/color/16/cancel.png" width="13" height="13" style="vertical-align:middle;margin-right:4px" alt=""> Human (Manual SRE) — OOM Crash</span><span style="color:var(--rose);font-weight:700">45–90 min</span></div>
+        <div class="bar-track"><div class="bar-fill bar-human">Context switch → 6 tools → manual RCA → guess fix → execute</div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label"><span><img src="https://img.icons8.com/color/16/ok.png" width="13" height="13" style="vertical-align:middle;margin-right:4px" alt=""> Corvin — Same Incident</span><span style="color:var(--t400);font-weight:700">&lt; 2 min</span></div>
+        <div class="bar-track"><div class="bar-fill bar-corvin">Alert → Evidence → RCA → Fix → Approve</div></div>
+      </div>
+    </div>
+
+    <!-- Comparison columns -->
+    <div class="fu outcome-split mt-1">
+      <div class="out-col">
+        <h3 style="color:var(--rose);border-color:rgba(244,63,94,.3)"><span style="width:13px;height:13px;border-radius:50%;background:var(--rose);display:inline-block;flex-shrink:0"></span> Human-Only Resolution</h3>
+        <div class="out-row"><div><div class="label2">Alert Detection</div><div class="value" style="color:var(--rose)">Immediate (paged)</div></div></div>
+        <div class="out-row"><div><div class="label2">Evidence Collection</div><div class="value" style="color:var(--rose)">30–60 min (6+ tools)</div></div></div>
+        <div class="out-row"><div><div class="label2">Root Cause Analysis</div><div class="value" style="color:var(--rose)">10–20 min (guesswork)</div></div></div>
+        <div class="out-row"><div><div class="label2">Fix Decision</div><div class="value" style="color:var(--rose)">5–10 min (under pressure)</div></div></div>
+        <div class="out-row"><div><div class="label2">Execution Safety</div><div class="value" style="color:var(--rose)">No approval gate</div></div></div>
+        <div class="out-row"><div><div class="label2">Post-Incident Learning</div><div class="value" style="color:var(--rose)">Manual write-up (often skipped)</div></div></div>
+        <div class="out-row"><div><div class="label2">Repeat Incidents</div><div class="value" style="color:var(--rose)">High (no memory)</div></div></div>
+        <div class="out-row"><div><div class="label2">3AM Availability</div><div class="value" style="color:var(--rose)">Degraded (human fatigue)</div></div></div>
+      </div>
+
+      <div class="out-col">
+        <h3 style="color:var(--t400);border-color:rgba(13,148,136,.3)"><span style="width:13px;height:13px;border-radius:50%;background:var(--emerald);display:inline-block;flex-shrink:0"></span> Corvin AI Resolution</h3>
+        <div class="out-row"><div><div class="label2">Alert Detection</div><div class="value" style="color:var(--t400)">Immediate (webhook + predictive)</div></div></div>
+        <div class="out-row"><div><div class="label2">Evidence Collection</div><div class="value" style="color:var(--t400)">&lt; 30 sec (5 adapters)</div></div></div>
+        <div class="out-row"><div><div class="label2">Root Cause Analysis</div><div class="value" style="color:var(--t400)">&lt; 1 min (GPT-5.1 + thinking)</div></div></div>
+        <div class="out-row"><div><div class="label2">Fix Decision</div><div class="value" style="color:var(--t400)">Structured, risk-graded</div></div></div>
+        <div class="out-row"><div><div class="label2">Execution Safety</div><div class="value" style="color:var(--emerald)">Mandatory approval gate</div></div></div>
+        <div class="out-row"><div><div class="label2">Post-Incident Learning</div><div class="value" style="color:var(--t400)">Auto post-mortem → ADO wiki</div></div></div>
+        <div class="out-row"><div><div class="label2">Repeat Incidents</div><div class="value" style="color:var(--emerald)">Low (incident memory)</div></div></div>
+        <div class="out-row"><div><div class="label2">3AM Availability</div><div class="value" style="color:var(--emerald)">Full capacity (always on)</div></div></div>
+      </div>
+    </div>
+
+    <!-- Verdict banner -->
+    <div class="fu verdict">
+      <span class="v-icon"><img src="https://img.icons8.com/color/48/trophy.png" width="42" height="42" alt=""></span>
+      <div class="v-text">
+        <h4>22–45× Faster MTTR · Zero Unapproved Changes · Institutional Memory That Never Forgets</h4>
+        <p>Corvin doesn't replace SREs — it eliminates the context-switching nightmare and lets engineers focus on decision-making, not data collection. Every investigation is a learning event.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 8 · CHAPTER 8 — THE NEXT CHAPTER
+     Future Enhancements
+     ══════════════════════════════════════════════════════ -->
+<div class="slide" id="s8" data-id="future"
+  data-notes="Corvin V4.1 is the foundation. These four enhancements take it from great to enterprise-grade. Auto-approve removes human latency for obvious fixes. Multi-agent turns one brain into a specialist swarm. asyncio.gather cuts evidence from 12s to 2s. RBAC opens the platform to every MetLife team.">
+  <div class="grid-bg"></div>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+
+  <div class="centered" style="position:relative;z-index:1;gap:.6rem;width:100%">
+    <div class="fu label" style="font-size:1.3rem;margin-bottom:1.6rem">V5 Roadmap — Where Intelligence Gets Steep</div>
+    <h2 class="fu stitle">Four Enhancements That Make Corvin <span class="violet">Unstoppable</span></h2>
+    <div class="fu sep"></div>
+
+    <div class="fu future-grid mt-1">
+
+      <!-- CARD 1: Auto-Approve Engine -->
+      <div class="future-card fc-teal">
+        <div class="fc-head">
+          <div>
+            <div class="fc-title"><img src="https://img.icons8.com/color/28/goal.png" width="22" height="22" alt="" style="vertical-align:middle;flex-shrink:0"> Auto-Approve Engine</div>
+            <div class="fc-sub">Skip human approval for high-confidence, well-known issues</div>
+          </div>
+        </div>
+        <!-- Auto-Approve decision flow SVG — full width, redrawn larger -->
+        <div class="fc-diagram">
+          <svg viewBox="0 0 380 128" style="width:100%" xmlns="http://www.w3.org/2000/svg">
+            <!-- Alert fired box (top center) -->
+            <rect x="140" y="4" width="100" height="24" rx="6" fill="rgba(196,39,59,.1)" stroke="rgba(196,39,59,.4)" stroke-width="1.5"/>
+            <text x="190" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#C4273B" font-family="Inter">Alert fired</text>
+            <!-- Arrow down -->
+            <line x1="190" y1="28" x2="190" y2="38" stroke="rgba(0,54,82,.35)" stroke-width="1.5"/>
+            <polygon points="186,36 190,42 194,36" fill="rgba(0,54,82,.35)"/>
+            <!-- Confidence + Runbook check box -->
+            <rect x="20" y="42" width="340" height="30" rx="6" fill="rgba(14,123,181,.08)" stroke="rgba(14,123,181,.35)" stroke-width="1.5"/>
+            <text x="190" y="55" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0E7BB5" font-family="Inter">Confidence + Runbook match?</text>
+            <text x="190" y="67" text-anchor="middle" font-size="8.5" fill="#5A7898" font-family="Inter">score ≥ 90% &amp; P3 classification</text>
+            <!-- NO branch: left -->
+            <line x1="20" y1="57" x2="6" y2="57" stroke="rgba(196,39,59,.55)" stroke-width="1.5"/>
+            <line x1="6" y1="57" x2="6" y2="97" stroke="rgba(196,39,59,.55)" stroke-width="1.5"/>
+            <line x1="6" y1="97" x2="22" y2="97" stroke="rgba(196,39,59,.55)" stroke-width="1.5"/>
+            <polygon points="20,94 26,97 20,100" fill="rgba(196,39,59,.55)"/>
+            <text x="3" y="78" font-size="9" font-weight="700" fill="#C4273B" font-family="Inter" transform="rotate(-90,3,78)" text-anchor="middle">NO</text>
+            <!-- YES branch: right -->
+            <line x1="360" y1="57" x2="374" y2="57" stroke="rgba(13,110,64,.55)" stroke-width="1.5"/>
+            <line x1="374" y1="57" x2="374" y2="97" stroke="rgba(13,110,64,.55)" stroke-width="1.5"/>
+            <line x1="374" y1="97" x2="358" y2="97" stroke="rgba(13,110,64,.55)" stroke-width="1.5"/>
+            <polygon points="360,94 354,97 360,100" fill="rgba(13,110,64,.55)"/>
+            <text x="377" y="78" font-size="9" font-weight="700" fill="#0D6E40" font-family="Inter" transform="rotate(90,377,78)" text-anchor="middle">YES</text>
+            <!-- Human Review box (left) -->
+            <rect x="14" y="86" width="148" height="28" rx="6" fill="rgba(107,63,160,.08)" stroke="rgba(107,63,160,.35)" stroke-width="1.5"/>
+            <text x="88" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="#6B3FA0" font-family="Inter">Human Review</text>
+            <text x="88" y="111" text-anchor="middle" font-size="9" fill="#5A7898" font-family="Inter">P1/P2 · novel RCA</text>
+            <!-- Auto-Execute box (right) -->
+            <rect x="218" y="86" width="148" height="28" rx="6" fill="rgba(13,110,64,.1)" stroke="rgba(13,110,64,.4)" stroke-width="1.5"/>
+            <text x="292" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="#0D6E40" font-family="Inter">Auto-Execute</text>
+            <text x="292" y="111" text-anchor="middle" font-size="9" fill="#5A7898" font-family="Inter">audit trail always</text>
+            <!-- Merge to audit log -->
+            <line x1="88" y1="114" x2="88" y2="121" stroke="rgba(0,54,82,.2)" stroke-width="1" stroke-dasharray="2,2"/>
+            <line x1="292" y1="114" x2="292" y2="121" stroke="rgba(0,54,82,.2)" stroke-width="1" stroke-dasharray="2,2"/>
+            <line x1="88" y1="121" x2="292" y2="121" stroke="rgba(0,54,82,.2)" stroke-width="1" stroke-dasharray="2,2"/>
+            <line x1="190" y1="121" x2="190" y2="126" stroke="rgba(0,54,82,.3)" stroke-width="1.5"/>
+            <text x="190" y="128" text-anchor="middle" font-size="9" fill="#5A7898" font-family="Inter">ADO / Audit log</text>
+          </svg>
+        </div>
+        <div class="fc-body">
+          <strong style="color:var(--rose)">Current pain:</strong> Every fix waits for human approval — even P3 known issues with a matching runbook at 95% confidence, at 3AM.<br/>
+          <strong style="color:var(--emerald)">Solution:</strong> Confidence ≥ 90% + known runbook match + P3 classification → auto-execute with full audit trail. Human loop reserved for HIGH-risk or novel RCAs only.
+        </div>
+        <div class="fc-tags">
+          <span class="fc-tag">Confidence ≥ 90%</span><span class="fc-tag">Runbook matched</span><span class="fc-tag">P3 auto-execute</span><span class="fc-tag">Audit trail always</span>
+        </div>
+      </div>
+
+      <!-- CARD 2: Multi-Agent Mesh -->
+      <div class="future-card fc-violet">
+        <div class="fc-head">
+          <div>
+            <div class="fc-title"><img src="https://img.icons8.com/color/28/workflow.png" width="22" height="22" alt="" style="vertical-align:middle;flex-shrink:0"> Multi-Agent Workflow</div>
+            <div class="fc-sub">From one brain to a parallel specialist swarm</div>
+          </div>
+        </div>
+        <!-- Multi-agent DAG SVG -->
+        <div class="fc-diagram">
+          <svg viewBox="0 0 380 130" style="width:100%" xmlns="http://www.w3.org/2000/svg">
+            <rect x="140" y="4" width="100" height="28" rx="7" fill="rgba(13,148,136,.14)" stroke="rgba(13,148,136,.4)" stroke-width="1"/>
+            <text x="190" y="22" text-anchor="middle" font-size="10.5" font-weight="700" fill="#007A7C" font-family="Inter">Orchestrator</text>
+            <line x1="158" y1="32" x2="58" y2="58" stroke="rgba(13,148,136,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+            <line x1="190" y1="32" x2="190" y2="58" stroke="rgba(13,148,136,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+            <line x1="222" y1="32" x2="322" y2="58" stroke="rgba(13,148,136,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+            <rect x="5" y="58" width="105" height="36" rx="7" fill="rgba(6,182,212,.1)" stroke="rgba(6,182,212,.35)" stroke-width="1"/>
+            <text x="57" y="73" text-anchor="middle" font-size="10" font-weight="700" fill="#0369A1" font-family="Inter">EvidenceAgent</text>
+            <text x="57" y="87" text-anchor="middle" font-size="8" fill="#475569" font-family="Inter">5 adapters · async</text>
+            <rect x="138" y="58" width="105" height="36" rx="7" fill="rgba(139,92,246,.1)" stroke="rgba(139,92,246,.35)" stroke-width="1"/>
+            <text x="190" y="73" text-anchor="middle" font-size="10" font-weight="700" fill="#6B3FA0" font-family="Inter">RCAAgent</text>
+            <text x="190" y="87" text-anchor="middle" font-size="8" fill="#475569" font-family="Inter">GPT-5.1 · thinking</text>
+            <rect x="271" y="58" width="104" height="36" rx="7" fill="rgba(245,158,11,.1)" stroke="rgba(245,158,11,.35)" stroke-width="1"/>
+            <text x="323" y="73" text-anchor="middle" font-size="10" font-weight="700" fill="#B86900" font-family="Inter">FixAgent</text>
+            <text x="323" y="87" text-anchor="middle" font-size="8" fill="#475569" font-family="Inter">risk · blast radius</text>
+            <line x1="57" y1="94" x2="155" y2="110" stroke="rgba(16,185,129,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+            <line x1="190" y1="94" x2="190" y2="110" stroke="rgba(16,185,129,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+            <line x1="323" y1="94" x2="225" y2="110" stroke="rgba(16,185,129,.3)" stroke-width="1" stroke-dasharray="3,2"/>
+            <rect x="140" y="100" width="100" height="28" rx="7" fill="rgba(16,185,129,.12)" stroke="rgba(16,185,129,.4)" stroke-width="1"/>
+            <text x="190" y="118" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0D6E40" font-family="Inter">ApprovalAgent</text>
+          </svg>
+        </div>
+        <div class="fc-body">Specialist agents run in parallel. EvidenceAgent, RCAAgent, and FixAgent fire concurrently, merging results into the ApprovalAgent. <strong style="color:var(--violet)">3× faster convergence</strong> on complex multi-service incidents.</div>
+        <div class="fc-tags"><span class="fc-tag">Parallel reasoning</span><span class="fc-tag">Specialization</span><span class="fc-tag">3× faster P1 RCA</span></div>
+      </div>
+
+      <!-- CARD 3: Evidence Parallelization -->
+      <div class="future-card fc-cyan">
+        <div class="fc-head">
+          <div>
+            <div class="fc-title"><img src="https://img.icons8.com/color/28/lightning-bolt.png" width="22" height="22" alt="" style="vertical-align:middle;flex-shrink:0"> Evidence Parallelization</div>
+            <div class="fc-sub">Sequential adapter calls → asyncio.gather — 10s → &lt; 2s</div>
+          </div>
+        </div>
+        <!-- Timeline comparison SVG -->
+        <div class="fc-diagram">
+          <svg viewBox="0 0 380 90" style="width:100%" xmlns="http://www.w3.org/2000/svg">
+            <text x="4" y="13" font-size="8.5" font-weight="700" fill="rgba(244,63,94,.8)" font-family="Inter">Sequential (today)</text>
+            <rect x="4" y="17" width="44" height="12" rx="3" fill="rgba(6,182,212,.4)"/><text x="26" y="27" text-anchor="middle" font-size="7" fill="#fff" font-family="Inter">Elastic</text>
+            <rect x="50" y="17" width="40" height="12" rx="3" fill="rgba(59,130,246,.4)"/><text x="70" y="27" text-anchor="middle" font-size="7" fill="#fff" font-family="Inter">AKS</text>
+            <rect x="92" y="17" width="44" height="12" rx="3" fill="rgba(6,182,212,.4)"/><text x="114" y="27" text-anchor="middle" font-size="7" fill="#fff" font-family="Inter">APIM</text>
+            <rect x="138" y="17" width="40" height="12" rx="3" fill="rgba(59,130,246,.4)"/><text x="158" y="27" text-anchor="middle" font-size="7" fill="#fff" font-family="Inter">CtLogs</text>
+            <rect x="180" y="17" width="38" height="12" rx="3" fill="rgba(6,182,212,.4)"/><text x="199" y="27" text-anchor="middle" font-size="7" fill="#fff" font-family="Inter">AzAct</text>
+            <rect x="220" y="17" width="36" height="12" rx="3" fill="rgba(59,130,246,.4)"/><text x="238" y="27" text-anchor="middle" font-size="7" fill="#fff" font-family="Inter">Net</text>
+            <rect x="258" y="17" width="36" height="12" rx="3" fill="rgba(6,182,212,.4)"/><text x="276" y="27" text-anchor="middle" font-size="7" fill="#fff" font-family="Inter">Health</text>
+            <text x="302" y="27" font-size="10" font-weight="900" fill="rgba(244,63,94,.9)" font-family="Inter">∼ 10–12s</text>
+            <text x="190" y="46" text-anchor="middle" font-size="8.5" fill="#475569" font-family="Inter">↓ asyncio.gather( *all_adapters ) ↓</text>
+            <text x="4" y="62" font-size="8.5" font-weight="700" fill="rgba(16,185,129,.8)" font-family="Inter">Parallel</text>
+            <!-- All bars start at same x showing concurrency -->
+            <rect x="4" y="66" width="44" height="10" rx="3" fill="rgba(6,182,212,.5)"/><text x="26" y="75" text-anchor="middle" font-size="7" fill="#fff" font-family="Inter">Elastic</text>
+            <rect x="4" y="66" width="40" height="10" rx="3" fill="rgba(59,130,246,.35)"/>
+            <rect x="4" y="66" width="42" height="10" rx="3" fill="rgba(13,148,136,.35)"/>
+            <rect x="4" y="78" width="38" height="10" rx="3" fill="rgba(6,182,212,.4)"/><text x="22" y="87" text-anchor="middle" font-size="7" fill="#fff" font-family="Inter">AKS</text>
+            <rect x="4" y="78" width="36" height="10" rx="3" fill="rgba(59,130,246,.3)"/>
+            <line x1="52" y1="63" x2="52" y2="90" stroke="rgba(16,185,129,.5)" stroke-width="1.5" stroke-dasharray="2,2"/>
+            <text x="56" y="76" font-size="8" fill="rgba(16,185,129,.9)" font-family="Inter">All 7 fire simultaneously</text>
+            <text x="302" y="80" font-size="10" font-weight="900" fill="rgba(16,185,129,.9)" font-family="Inter">&lt; 2s</text>
+          </svg>
+        </div>
+        <div class="fc-body"><strong style="color:var(--rose)">Current:</strong> Adapters call sequentially — ~10–12 seconds total. <strong style="color:var(--emerald)">V5.3:</strong> <code style="color:var(--cyan)">asyncio.gather()</code> fires all 7 concurrently. Evidence arrives in under 2 seconds. 5–6× speedup — critical for P1 incidents.</div>
+        <div class="fc-tags"><span class="fc-tag">asyncio.gather</span><span class="fc-tag">5× speedup</span><span class="fc-tag">&lt; 2s evidence</span><span class="fc-tag">P1 critical path</span></div>
+      </div>
+
+      <!-- CARD 4: Auth / RBAC -->
+      <div class="future-card fc-amber">
+        <div class="fc-head">
+          <div>
+            <div class="fc-title"><img src="https://img.icons8.com/color/28/lock.png" width="22" height="22" alt="" style="vertical-align:middle;flex-shrink:0"> Enterprise Auth &amp; RBAC</div>
+            <div class="fc-sub">Azure AD SSO + role-based access across all teams</div>
+          </div>
+          <!-- Role hierarchy SVG -->
+          <svg viewBox="0 0 118 108" style="width:148px;flex-shrink:0" xmlns="http://www.w3.org/2000/svg">
+            <rect x="29" y="2" width="60" height="22" rx="5" fill="rgba(244,63,94,.12)" stroke="rgba(244,63,94,.3)" stroke-width="1"/>
+            <text x="59" y="17" text-anchor="middle" font-size="9.5" font-weight="700" fill="#C4273B" font-family="Inter">Admin</text>
+            <line x1="39" y1="24" x2="24" y2="38" stroke="rgba(71,85,105,.4)" stroke-width="1"/>
+            <line x1="79" y1="24" x2="94" y2="38" stroke="rgba(71,85,105,.4)" stroke-width="1"/>
+            <rect x="1" y="38" width="46" height="22" rx="5" fill="rgba(245,158,11,.1)" stroke="rgba(245,158,11,.3)" stroke-width="1"/>
+            <text x="24" y="53" text-anchor="middle" font-size="8.5" font-weight="700" fill="#B86900" font-family="Inter">SRE Lead</text>
+            <rect x="71" y="38" width="46" height="22" rx="5" fill="rgba(6,182,212,.1)" stroke="rgba(6,182,212,.3)" stroke-width="1"/>
+            <text x="94" y="53" text-anchor="middle" font-size="8.5" font-weight="700" fill="#0E7BB5" font-family="Inter">SRE</text>
+            <line x1="24" y1="60" x2="24" y2="74" stroke="rgba(71,85,105,.4)" stroke-width="1"/>
+            <line x1="94" y1="60" x2="94" y2="74" stroke="rgba(71,85,105,.4)" stroke-width="1"/>
+            <rect x="1" y="74" width="46" height="22" rx="5" fill="rgba(0,54,82,.05)" stroke="rgba(0,54,82,.2)" stroke-width="1"/>
+            <text x="24" y="89" text-anchor="middle" font-size="8" font-weight="600" fill="#5A7898" font-family="Inter">Read Only</text>
+            <rect x="71" y="74" width="46" height="22" rx="5" fill="rgba(16,185,129,.08)" stroke="rgba(16,185,129,.2)" stroke-width="1"/>
+            <text x="94" y="89" text-anchor="middle" font-size="8" font-weight="600" fill="#0D6E40" font-family="Inter">Approver</text>
+          </svg>
+        </div>
+        <div class="fc-body">
+          <strong style="color:var(--amber)">Current:</strong> No authentication on the API or web app — a V1 design decision that blocks multi-team enterprise adoption.<br/>
+          <strong style="color:var(--emerald)">Solution:</strong> Azure AD SSO, JWT-secured endpoints, 4 roles: Admin · SRE Lead · SRE · Read-Only. Multi-tenant support unlocks enterprise-wide rollout across MetLife business units.
+        </div>
+        <div class="fc-tags"><span class="fc-tag">Azure AD SSO</span><span class="fc-tag">JWT</span><span class="fc-tag">4 roles</span><span class="fc-tag">Multi-tenant</span><span class="fc-tag">Zero Trust</span></div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     SLIDE 9 · CHAPTER 9 — JUDGING CRITERIA + Q&A
+     ═══════════════════════════════════════════════════════ -->
+<div class="slide" id="s9" data-id="judging"
+  data-notes="Corvin meets every judging dimension. 74x MTTR gain. Live on Azure today. Human-in-the-loop ethics. Teams-native usability. Open the floor for questions.">
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="centered" style="width:100%;padding:1.8rem 3rem;display:flex;flex-direction:column;align-items:center;gap:1rem;height:100%;justify-content:center">
+
+    <!-- 2×2 Criteria cards -->
+    <div class="fu criteria-grid">
+
+      <!-- Benefits & Impact -->
+      <div class="crit-card cc-emerald">
+        <div class="cc-top-bar"></div>
+        <div class="cc-header">
+          <div class="cc-icon-wrap">💹</div>
+          <div style="flex:1;min-width:0">
+            <div class="cc-title">Benefits &amp; Impact</div>
+            <div class="cc-question">Business value, efficiency gain &amp; impact of solution</div>
+          </div>
+          <div class="cc-badges">
+            <span class="cc-badge">74× MTTR gain</span>
+            <span class="cc-badge">$4.2K / incident</span>
+          </div>
+        </div>
+        <ul class="cc-body">
+          <li>MTTR reduced to <strong style="color:var(--emerald)">30 seconds</strong> — from 45–90 min average</li>
+          <li>Repeat incident rate cut via institutional memory &amp; learned patterns</li>
+          <li>$4,200 per-incident cost avoidance — <strong>zero</strong> tribal knowledge dependency</li>
+          <li>SRE toil reduced from 60% → <strong style="color:var(--emerald)">&lt;15%</strong> of on-call capacity</li>
+        </ul>
+      </div>
+
+      <!-- Feasibility -->
+      <div class="crit-card cc-cyan">
+        <div class="cc-top-bar"></div>
+        <div class="cc-header">
+          <div class="cc-icon-wrap">⚙️</div>
+          <div style="flex:1;min-width:0">
+            <div class="cc-title">Feasibility</div>
+            <div class="cc-question">Technology, data, tools &amp; techniques — viable today?</div>
+          </div>
+          <div class="cc-badges">
+            <span class="cc-badge">Live on Azure</span>
+            <span class="cc-badge">No new infra</span>
+          </div>
+        </div>
+        <ul class="cc-body">
+          <li>100% Azure-native — no greenfield infrastructure required</li>
+          <li>Existing telemetry reused: Azure Monitor, Container Insights, APIM</li>
+          <li>Deployed <strong style="color:var(--cyan)">live today</strong> — App Service + Static Web Apps + PostgreSQL</li>
+          <li>GPT-5.1 via Azure AI Foundry — standard MetLife enterprise access</li>
+        </ul>
+      </div>
+
+      <!-- Ethical AI -->
+      <div class="crit-card cc-violet">
+        <div class="cc-top-bar"></div>
+        <div class="cc-header">
+          <div class="cc-icon-wrap">🛡️</div>
+          <div style="flex:1;min-width:0">
+            <div class="cc-title">Ethical AI</div>
+            <div class="cc-question">Fairness, bias mitigation &amp; data privacy — considered?</div>
+          </div>
+          <div class="cc-badges">
+            <span class="cc-badge">Human-in-loop</span>
+            <span class="cc-badge">RBAC enforced</span>
+          </div>
+        </div>
+        <ul class="cc-body">
+          <li>Human approval <strong style="color:var(--violet)">mandatory</strong> — zero autonomous execution without consent</li>
+          <li>Evidence-based RCA eliminates cognitive bias in diagnosis</li>
+          <li>No PII stored in investigation payloads — audit trail always kept</li>
+          <li>Blameless post-mortems by design — fairness built into the process</li>
+        </ul>
+      </div>
+
+      <!-- Usability -->
+      <div class="crit-card cc-amber">
+        <div class="cc-top-bar"></div>
+        <div class="cc-header">
+          <div class="cc-icon-wrap">💡</div>
+          <div style="flex:1;min-width:0">
+            <div class="cc-title">Usability</div>
+            <div class="cc-question">Is the solution intuitive and easy for operators to adopt?</div>
+          </div>
+          <div class="cc-badges">
+            <span class="cc-badge">Teams native</span>
+            <span class="cc-badge">Zero KQL needed</span>
+          </div>
+        </div>
+        <ul class="cc-body">
+          <li>Teams Adaptive Cards with <strong style="color:var(--amber)">inline approve/reject</strong> — no new tools</li>
+          <li>Natural language Command Center — no KQL or query expertise needed</li>
+          <li>React dashboard with real-time streaming RCA output</li>
+          <li>Voice Morning Briefing &amp; 3AM Mode for passive, low-noise ops</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Q&A bar -->
+    <div class="fu qna-bar">
+      <div class="qna-icon">🎤</div>
+      <div>
+        <p class="qna-title">Questions &amp; Answers</p>
+        <p class="qna-sub">We’d love to walk you through a live demo — ask us anything about the architecture, Azure integration, or AI model choices.</p>
+      </div>
+      <div class="qna-tags">
+        <span class="qna-tag" style="background:rgba(100,209,206,.1);color:var(--t400);border-color:rgba(100,209,206,.22)">🔗 Live Demo</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /.deck -->
+
+<script>
+// ─── Constellation background ───────────────────────────────────────────────
+(function(){
+  const cvs = document.getElementById('constellation');
+  const ctx = cvs.getContext('2d');
+  let W, H, pts = [];
+  function resize(){ W = cvs.width = window.innerWidth; H = cvs.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+  for(let i=0;i<95;i++) pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.22,r:Math.random()*1.6+.4});
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+      const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<130){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(0,54,82,${.1*(1-d/130)})`;ctx.lineWidth=.6;ctx.stroke();}
+    }
+    pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(0,54,82,.22)';ctx.fill();p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;});
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ─── Presentation logic ──────────────────────────────────────────────────────
+(function(){
+  const slides = [...document.querySelectorAll('.slide')];
+  const total = slides.length;
+  let cur = 0;
+
+  const notes = [
+    "Open with the cold-open ticker — 3:17 AM, fund-apis down. This is the real pain MetLife SREs face. Corvin is the answer.",
+    "The SRE nightmare loop. Manual pivots across 6+ tools. No unified context. Avg MTTR 45-90 minutes.",
+    "Each benefit card maps directly to a pain on slide 2. This is Corvin's value proposition.",
+    "9-stage pipeline. The agentic tool-calling loop is the key innovation — GPT-5.1 calls 5 real tools.",
+    "5-tier architecture. Each layer independently replaceable via adapter boundaries and YAML config.",
+    "5 MCP-compatible tools. Deterministic Python. Structured JSON. LLM grounded in real data — no hallucinations.",
+    "Watch the bars animate. 10-18x faster MTTR. The comparison table shows 7 dimensions where Corvin dominates.",
+    "4 enhancements for V5. Auto-approve removes latency for obvious fixes. Multi-agent adds parallelism. asyncio.gather cuts evidence from 12s to 2s. RBAC opens to every team.",
+    "Corvin meets every judging dimension. 74x MTTR, live on Azure, human-in-the-loop ethics, Teams-native usability. Open the floor for questions and a live demo."
+  ];
+
+  // Chapter labels
+  const chapters = [
+    'Chapter 1 · The Wake-Up Call',
+    'Chapter 2 · The Nightmare',
+    'Chapter 3 · Enter Corvin',
+    'Chapter 4 · The Intelligence',
+    'Chapter 5 · What We Built',
+    'Chapter 6 · The Arsenal',
+    'Chapter 7 · The Results',
+    'Chapter 8 · The Next Chapter',
+    'Chapter 9 · The Verdict'
+  ];
+  slides.forEach((s,i) => {
+    const c = document.createElement('div');
+    c.className = 'chapter';
+    c.textContent = chapters[i] || '';
+    s.appendChild(c);
+  });
+
+  // Build dots
+  const dotsEl = document.getElementById('dots');
+  slides.forEach((_,i) => {
+    const d = document.createElement('button');
+    d.className = 'dot' + (i===0?' active':'');
+    d.setAttribute('aria-label', 'Slide '+(i+1));
+    d.addEventListener('click', () => go(i));
+    dotsEl.appendChild(d);
+  });
+
+  function updateChrome(){
+    const pct = total > 1 ? (cur/(total-1))*100 : 100;
+    document.getElementById('progress').style.width = pct+'%';
+    document.getElementById('counter').textContent = String(cur+1).padStart(2,'0')+' / '+String(total).padStart(2,'0');
+    document.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('active', i===cur));
+    document.getElementById('notes-content').textContent = notes[cur] || '';
+  }
+
+  function go(n){
+    if(n < 0 || n >= total || n === cur) return;
+    const prev = slides[cur];
+    prev.classList.remove('active');
+    prev.classList.add('exit-up');
+    setTimeout(() => prev.classList.remove('exit-up'), 600);
+    cur = n;
+    slides[cur].classList.add('active');
+    updateChrome();
+  }
+
+  document.addEventListener('keydown', e => {
+    if(e.key === 'ArrowRight' || e.key === ' ') go(cur+1);
+    if(e.key === 'ArrowLeft') go(cur-1);
+    if(e.key === 'f' || e.key === 'F') document.documentElement.requestFullscreen?.();
+    if(e.key === 'n' || e.key === 'N'){
+      const p = document.getElementById('notes-panel');
+      p.classList.toggle('open');
+    }
+  });
+
+  // Touch / swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx) > 50) go(dx < 0 ? cur+1 : cur-1);
+  });
+
+  updateChrome();
+})();
+</script>
+</body>
+</html>
