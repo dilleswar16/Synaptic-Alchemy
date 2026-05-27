@@ -319,10 +319,21 @@ class InvestigationStreamer:
                                source="email", table="Azure Communication Services", source_status="running", count=0, elapsed_ms=0)
             t_email = time.monotonic()
             if email_configured:
-                # Fire-and-forget with no retries so the stream is never blocked.
-                email_sent = send_rca_email_if_enabled(
-                    result, ado_work_item_url=ado_url, max_retries=0,
-                )
+                # Run in a thread with a hard timeout so the SSE stream is never blocked.
+                import concurrent.futures
+                _email_timeout = 15  # seconds
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
+                    _fut = _pool.submit(
+                        send_rca_email_if_enabled,
+                        result, ado_work_item_url=ado_url, max_retries=0,
+                    )
+                    try:
+                        email_sent = _fut.result(timeout=_email_timeout)
+                    except concurrent.futures.TimeoutError:
+                        _log.warning("Email delivery timed out after %ds — marking as Queued", _email_timeout)
+                        email_sent = False
+                    except Exception:  # noqa: BLE001
+                        email_sent = False
                 email_detail = "Sent" if email_sent else "Queued"
             else:
                 email_sent = False

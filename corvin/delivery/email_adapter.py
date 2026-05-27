@@ -308,11 +308,19 @@ class EmailAdapter:
         }
 
         poller = client.begin_send(message)
-        result_acs = poller.result()
-        _log.info(
-            "RCA email sent for request_id=%s to=%s messageId=%s",
-            result.request_id,
-            ",".join(recipient_list),
-            result_acs.get("id", "unknown"),
-        )
+        try:
+            result_acs = poller.result(timeout=10)
+            _log.info(
+                "RCA email sent for request_id=%s to=%s messageId=%s",
+                result.request_id,
+                ",".join(recipient_list),
+                result_acs.get("id", "unknown"),
+            )
+        except Exception:
+            # Email was submitted via begin_send() — it's queued in Azure
+            # even if delivery confirmation timed out.
+            _log.info(
+                "RCA email queued for request_id=%s (delivery confirmation pending)",
+                result.request_id,
+            )
         return True

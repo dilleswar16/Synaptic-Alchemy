@@ -934,6 +934,7 @@ def execute_investigation(
             "title": o.title,
             "success": o.success,
             "detail": o.detail,
+            "logs": o.logs,
         }
         for o in exec_result.outcomes
     ]
@@ -955,6 +956,172 @@ def execute_investigation(
             else "Execution completed with one or more failures — review outcomes."
         ),
     )
+
+
+@router.post("/{request_id}/execute/{action_index}", response_model=dict, status_code=200)
+def execute_single_action(
+    request_id: str,
+    action_index: int,
+    repo: InvestigationRepository = Depends(get_repository),
+    svc: ExecutionService = Depends(get_execution_service),
+) -> dict:
+    """Execute a single fix action by its index (0-based).
+
+    Gate rules:
+      - Returns 404 if the investigation does not exist.
+      - Returns 409 if approval_status is not 'approved' or 'executed'.
+      - Returns 400 if action_index is out of range.
+
+    On first action execution, transitions approval_status → executed.
+    """
+    approval_status = repo.get_approval_status(request_id)
+    if approval_status is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    if approval_status not in (ApprovalStatus.APPROVED.value, ApprovalStatus.EXECUTED.value):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Investigation {request_id!r} cannot be executed: "
+                f"approval_status is '{approval_status}', expected 'approved' or 'executed'."
+            ),
+        )
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Investigation {request_id!r} result not found.",
+        )
+
+    try:
+        outcome = svc.execute_single(result, action_index, approval_status=approval_status)
+    except IndexError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    # Transition to EXECUTED on first action execution
+    if approval_status == ApprovalStatus.APPROVED.value:
+        repo.update_approval_status(request_id, ApprovalStatus.EXECUTED)
+
+    return {
+        "request_id": request_id,
+        "action_index": action_index,
+        "action_type": outcome.action_type.value,
+        "title": outcome.title,
+        "success": outcome.success,
+        "detail": outcome.detail,
+        "logs": outcome.logs,
+    }
+
+
+@router.get("/{request_id}/execute/stream")
+def stream_execute_all(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+    svc: ExecutionService = Depends(get_execution_service),
+) -> StreamingResponse:
+    """Execute all fix actions step-by-step and stream progress as SSE.
+
+    Each action emits events:
+      - ``action_start``: action is about to execute
+      - ``action_complete``: action finished with outcome + logs
+      - ``pod_logs``: live container logs fetched after execution
+      - ``done``: all actions completed
+
+    Gate: returns 404/409 same as single-action endpoint.
+    """
+    import json as _json
+    import time as _time
+
+    approval_status = repo.get_approval_status(request_id)
+    if approval_status is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+    if approval_status not in (ApprovalStatus.APPROVED.value, ApprovalStatus.EXECUTED.value):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot execute: approval_status is '{approval_status}'.",
+        )
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Investigation result not found.")
+
+    def _generate():
+        from corvin.evidence.aks_adapter import AKSAdapter
+
+        aks = AKSAdapter()
+        service_name = result.request.service_name
+        actions = result.fix_strategy.actions
+        current_status = approval_status
+        all_succeeded = True
+
+        for i, action in enumerate(actions):
+            # Emit start event
+            yield f"data: {_json.dumps({'event': 'action_start', 'action_index': i, 'title': action.title, 'action_type': action.action_type.value, 'total': len(actions)})}\n\n"
+
+            try:
+                outcome = svc.execute_single(result, i, approval_status=current_status)
+            except (PermissionError, IndexError) as exc:
+                yield f"data: {_json.dumps({'event': 'action_complete', 'action_index': i, 'title': action.title, 'success': False, 'detail': str(exc), 'logs': []})}\n\n"
+                all_succeeded = False
+                continue
+
+            # Transition status after first action
+            if current_status == ApprovalStatus.APPROVED.value:
+                repo.update_approval_status(request_id, ApprovalStatus.EXECUTED)
+                current_status = ApprovalStatus.EXECUTED.value
+
+            if not outcome.success:
+                all_succeeded = False
+
+            yield f"data: {_json.dumps({'event': 'action_complete', 'action_index': i, 'title': outcome.title, 'action_type': outcome.action_type.value, 'success': outcome.success, 'detail': outcome.detail, 'logs': outcome.logs})}\n\n"
+
+            # Fetch live pod logs after automatable actions
+            if outcome.action_type.value != "manual":
+                # Use action-level target if available, else fall back to investigation service
+                log_svc = action.target_service or service_name
+                log_ns = action.target_namespace or None
+                _time.sleep(2)  # Brief wait for pods to start producing logs
+                try:
+                    pod_logs = aks.get_pod_logs(log_svc, namespace=log_ns, tail_lines=30, since_seconds=10)
+                    yield f"data: {_json.dumps({'event': 'pod_logs', 'action_index': i, 'pod_logs': pod_logs})}\n\n"
+                except Exception as exc:
+                    _log.warning("Failed to fetch pod logs after action %d: %s", i, exc)
+                    yield f"data: {_json.dumps({'event': 'pod_logs', 'action_index': i, 'pod_logs': [], 'error': str(exc)})}\n\n"
+
+        yield f"data: {_json.dumps({'event': 'done', 'all_succeeded': all_succeeded, 'total': len(actions)})}\n\n"
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
+    )
+
+
+@router.get("/{request_id}/logs")
+def get_service_logs(
+    request_id: str,
+    tail_lines: int = Query(default=60, ge=1, le=500),
+    since_seconds: int = Query(default=30, ge=5, le=600),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Fetch recent pod logs for the service associated with this investigation."""
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Investigation not found.")
+
+    from corvin.evidence.aks_adapter import AKSAdapter
+    aks = AKSAdapter()
+    pod_logs = aks.get_pod_logs(
+        result.request.service_name,
+        tail_lines=tail_lines,
+        since_seconds=since_seconds,
+    )
+    return {
+        "request_id": request_id,
+        "service_name": result.request.service_name,
+        "pod_logs": pod_logs,
+    }
 
 
 @router.get("/{request_id}/replay", response_model=dict, status_code=200)

@@ -16,6 +16,8 @@ from corvin.core.contracts import ActionType, InvestigationResult
 class RemediationPreviewItem(BaseModel):
     title: str
     action_type: str
+    target_service: str | None = None
+    target_namespace: str | None = None
     risk_level: str
     requires_approval: bool
     current_state: str
@@ -71,8 +73,11 @@ def _build_item(
     throttle_events: int,
     restart_count: int,
 ) -> RemediationPreviewItem:
+    # Use action-level target if provided, else fall back to investigation service
+    effective_svc = action.target_service or service_name
+    effective_ns = action.target_namespace or "chad"
     current_state = (
-        f"{service_name}: {replica_count} replicas / CPU throttle events: {throttle_events}/min / "
+        f"{effective_svc}: {replica_count} replicas / CPU throttle events: {throttle_events}/min / "
         f"recent restarts: {restart_count}"
     )
     notes: list[str] = []
@@ -80,9 +85,9 @@ def _build_item(
     if action.action_type == ActionType.SCALE_DEPLOYMENT:
         desired = _parse_replicas(action.description)
         proposed_command = (
-            f"kubectl scale deployment/{service_name} --replicas={desired} -n chad"
+            f"kubectl scale deployment/{effective_svc} --replicas={desired} -n {effective_ns}"
             if desired is not None
-            else f"kubectl scale deployment/{service_name} --replicas=<target> -n chad"
+            else f"kubectl scale deployment/{effective_svc} --replicas=<target> -n {effective_ns}"
         )
         if desired is None:
             notes.append("Replica target was not explicit in the action description.")
@@ -90,12 +95,14 @@ def _build_item(
         else:
             reduction = _percent_reduction(replica_count, desired)
             predicted = (
-                f"{service_name}: {desired} replicas / estimated CPU throttle reduction: ~{reduction}% / "
+                f"{effective_svc}: {desired} replicas / estimated CPU throttle reduction: ~{reduction}% / "
                 f"higher headroom for burst traffic"
             )
         return RemediationPreviewItem(
             title=action.title,
             action_type=action.action_type.value,
+            target_service=action.target_service,
+            target_namespace=action.target_namespace,
             risk_level=action.risk_level.value,
             requires_approval=action.requires_approval,
             current_state=current_state,
@@ -105,15 +112,17 @@ def _build_item(
         )
 
     if action.action_type == ActionType.RESTART_POD:
-        proposed_command = f"kubectl rollout restart deployment/{service_name} -n chad"
+        proposed_command = f"kubectl rollout restart deployment/{effective_svc} -n {effective_ns}"
         predicted = (
-            f"{service_name}: pods recycled / transient errors may spike briefly / "
+            f"{effective_svc}: pods recycled / transient errors may spike briefly / "
             f"restart count should normalize within one rollout window"
         )
         notes.append("Use during active traffic only if the deployment has healthy surplus replicas.")
         return RemediationPreviewItem(
             title=action.title,
             action_type=action.action_type.value,
+            target_service=action.target_service,
+            target_namespace=action.target_namespace,
             risk_level=action.risk_level.value,
             requires_approval=action.requires_approval,
             current_state=current_state,
@@ -123,15 +132,17 @@ def _build_item(
         )
 
     if action.action_type == ActionType.ROLLBACK_DEPLOYMENT:
-        proposed_command = f"kubectl rollout undo deployment/{service_name} -n chad"
+        proposed_command = f"kubectl rollout undo deployment/{effective_svc} -n {effective_ns}"
         predicted = (
-            f"{service_name}: deployment reverted to previous ReplicaSet / "
+            f"{effective_svc}: deployment reverted to previous ReplicaSet / "
             f"error rate should fall if the latest rollout introduced the fault"
         )
         notes.append("Validate config drift and schema compatibility before rollback.")
         return RemediationPreviewItem(
             title=action.title,
             action_type=action.action_type.value,
+            target_service=action.target_service,
+            target_namespace=action.target_namespace,
             risk_level=action.risk_level.value,
             requires_approval=action.requires_approval,
             current_state=current_state,
@@ -146,6 +157,8 @@ def _build_item(
     return RemediationPreviewItem(
         title=action.title,
         action_type=action.action_type.value,
+        target_service=action.target_service,
+        target_namespace=action.target_namespace,
         risk_level=action.risk_level.value,
         requires_approval=action.requires_approval,
         current_state=current_state,

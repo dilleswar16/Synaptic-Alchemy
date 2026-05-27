@@ -416,7 +416,17 @@ export default function InvestigationDetailPage() {
                         : 75
                       }
                     />
-                    <ExecutionSection requestId={id!} status={approvalStatus} />
+                    <ExecutionSection
+                      requestId={id!}
+                      status={approvalStatus}
+                      actions={data?.fix_strategy?.actions?.map(a => ({
+                        title: a.title,
+                        action_type: a.action_type,
+                        target_service: a.target_service,
+                        target_namespace: a.target_namespace,
+                        risk_level: a.risk_level,
+                      })) ?? []}
+                    />
                   </div>
                 </div>
               )}

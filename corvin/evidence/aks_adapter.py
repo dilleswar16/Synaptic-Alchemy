@@ -140,6 +140,72 @@ class AKSAdapter:
                     pass
         return service_name
 
+    def _resolve_workload(
+        self, service_name: str, namespace: str
+    ) -> tuple[str, str]:
+        """Resolve *service_name* to its backing workload (Deployment or DaemonSet).
+
+        Strategy:
+        1. Try as a Deployment directly (bare name, then ``{ns}-{name}``).
+        2. If not a Deployment, try as a DaemonSet (bare name, then ``{ns}-{name}``).
+        3. If neither, check if *service_name* is a Service — read its selector
+           and find the owning Deployment or DaemonSet from the pods it selects.
+
+        Returns ``(workload_name, kind)`` where kind is ``"deployment"`` or
+        ``"daemonset"``.  Falls back to ``(service_name, "deployment")`` when
+        nothing is found so the caller gets a clear 404 on the patch call.
+        """
+        if self._apps_v1 is None or self._core_v1 is None:
+            return service_name, "deployment"
+
+        prefixed = f"{namespace}-{service_name}"
+
+        # 1. Check Deployment (bare → prefixed)
+        for name in (service_name, prefixed):
+            try:
+                self._apps_v1.read_namespaced_deployment(name=name, namespace=namespace)
+                return name, "deployment"
+            except ApiException:
+                pass
+
+        # 2. Check DaemonSet (bare → prefixed)
+        for name in (service_name, prefixed):
+            try:
+                self._apps_v1.read_namespaced_daemon_set(name=name, namespace=namespace)
+                return name, "daemonset"
+            except ApiException:
+                pass
+
+        # 3. Check if it's a Service — follow its selector to the owner
+        try:
+            svc = self._core_v1.read_namespaced_service(name=service_name, namespace=namespace)
+            selector = svc.spec.selector or {}
+            if selector:
+                label_str = ",".join(f"{k}={v}" for k, v in selector.items())
+                pods = self._core_v1.list_namespaced_pod(
+                    namespace=namespace, label_selector=label_str
+                )
+                for pod in (pods.items or []):
+                    for owner in (pod.metadata.owner_references or []):
+                        if owner.kind == "ReplicaSet":
+                            # ReplicaSet → owned by a Deployment
+                            try:
+                                rs = self._apps_v1.read_namespaced_replica_set(
+                                    name=owner.name, namespace=namespace
+                                )
+                                for rs_owner in (rs.metadata.owner_references or []):
+                                    if rs_owner.kind == "Deployment":
+                                        return rs_owner.name, "deployment"
+                            except ApiException:
+                                pass
+                        elif owner.kind == "DaemonSet":
+                            return owner.name, "daemonset"
+                    break  # only need the first pod's owner
+        except ApiException:
+            pass
+
+        return service_name, "deployment"
+
     def get_pod_context(
         self,
         service_name: str,
@@ -214,15 +280,19 @@ class AKSAdapter:
         service_name: str,
         namespace: str | None = None,
     ) -> list[str]:
-        """Delete all pods for *service_name* so the Deployment controller restarts them.
+        """Perform a rolling restart of the workload backing *service_name*.
 
-        Returns a list of deleted pod names on success.
+        Primary strategy: resolve the actual workload (Deployment or DaemonSet)
+        — even if *service_name* is a Service name — then patch its pod template
+        with a restart annotation (equivalent to ``kubectl rollout restart``).
+
+        Fallback: if the workload cannot be found, fall back to deleting
+        individual pods matched by label selector.
+
+        Returns a list of restarted workload/pod names on success.
         Returns an empty list if clients are not configured or on error.
-
-        This is a rolling restart — Kubernetes recreates each pod per the
-        Deployment's strategy (RollingUpdate by default).
         """
-        if self._core_v1 is None:
+        if self._core_v1 is None or self._apps_v1 is None:
             logger.warning(
                 "AKSAdapter.restart_pods skipped: clients not configured (service=%s)",
                 service_name,
@@ -230,6 +300,52 @@ class AKSAdapter:
             return []
 
         ns = namespace or self._config.get("default_namespace", "default")
+        workload_name, workload_kind = self._resolve_workload(service_name, ns)
+
+        # ── Primary: rollout restart via workload patch ───────────────────
+        try:
+            from datetime import datetime, timezone
+
+            restart_annotation = datetime.now(timezone.utc).isoformat()
+            patch_body = {
+                "spec": {
+                    "template": {
+                        "metadata": {
+                            "annotations": {
+                                "kubectl.kubernetes.io/restartedAt": restart_annotation
+                            }
+                        }
+                    }
+                }
+            }
+            if workload_kind == "daemonset":
+                self._apps_v1.patch_namespaced_daemon_set(
+                    name=workload_name, namespace=ns, body=patch_body
+                )
+            else:
+                self._apps_v1.patch_namespaced_deployment(
+                    name=workload_name, namespace=ns, body=patch_body
+                )
+            logger.info(
+                "AKSAdapter.restart_pods: rollout restart triggered for %s/%s in %s",
+                workload_kind, workload_name, ns,
+            )
+            return [f"{workload_kind}/{workload_name} (rollout restart)"]
+        except ApiException as exc:
+            if exc.status == 404:
+                logger.info(
+                    "AKSAdapter.restart_pods: %s '%s' not found in %s, "
+                    "falling back to pod deletion by label",
+                    workload_kind, workload_name, ns,
+                )
+            else:
+                logger.warning(
+                    "AKSAdapter.restart_pods: rollout restart failed for %s/%s: %s, "
+                    "falling back to pod deletion by label",
+                    workload_kind, workload_name, exc,
+                )
+
+        # ── Fallback: delete pods by label selector ───────────────────────
         prefixed_name = f"{ns}-{service_name}"
         deleted: list[str] = []
 
@@ -240,6 +356,10 @@ class AKSAdapter:
             if not pod_list.items:
                 pod_list = self._core_v1.list_namespaced_pod(
                     namespace=ns, label_selector=f"app={prefixed_name}"
+                )
+            if not pod_list.items:
+                pod_list = self._core_v1.list_namespaced_pod(
+                    namespace=ns, label_selector=f"app.kubernetes.io/name={service_name}"
                 )
             for pod in pod_list.items:
                 pod_name = pod.metadata.name
@@ -404,3 +524,59 @@ class AKSAdapter:
                 exc,
             )
             return False
+
+    # ── Log retrieval (V3.9+) ─────────────────────────────────────────────────
+
+    def get_pod_logs(
+        self,
+        service_name: str,
+        namespace: str | None = None,
+        tail_lines: int = 60,
+        since_seconds: int | None = 30,
+    ) -> list[dict[str, str]]:
+        """Fetch recent logs from all pods matching *service_name*.
+
+        Returns a list of ``{"pod": "<name>", "logs": "<text>"}`` dicts.
+        Returns an empty list if clients are not configured or on error.
+        """
+        if self._core_v1 is None:
+            logger.warning(
+                "AKSAdapter.get_pod_logs skipped: clients not configured (service=%s)",
+                service_name,
+            )
+            return []
+
+        ns = namespace or self._config.get("default_namespace", "default")
+        prefixed_name = f"{ns}-{service_name}"
+        results: list[dict[str, str]] = []
+
+        try:
+            pod_list = self._core_v1.list_namespaced_pod(
+                namespace=ns, label_selector=f"app={service_name}"
+            )
+            if not pod_list.items:
+                pod_list = self._core_v1.list_namespaced_pod(
+                    namespace=ns, label_selector=f"app={prefixed_name}"
+                )
+            for pod in pod_list.items:
+                pod_name = pod.metadata.name
+                try:
+                    log_text = self._core_v1.read_namespaced_pod_log(
+                        name=pod_name,
+                        namespace=ns,
+                        tail_lines=tail_lines,
+                        since_seconds=since_seconds,
+                    )
+                    results.append({"pod": pod_name, "logs": log_text or ""})
+                except Exception as exc:
+                    logger.warning(
+                        "AKSAdapter.get_pod_logs: failed reading logs for pod %s: %s",
+                        pod_name, exc,
+                    )
+                    results.append({"pod": pod_name, "logs": f"(log read failed: {exc})"})
+        except Exception as exc:
+            logger.warning(
+                "AKSAdapter.get_pod_logs failed for service=%s: %s", service_name, exc,
+            )
+
+        return results
