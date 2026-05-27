@@ -277,8 +277,10 @@ def _alerts_for_result(
             sev = "high"
         elif memory_signal >= memory_threshold_pct * 0.6:
             sev = "high"
+        elif memory_signal >= memory_threshold_pct * 0.35:
+            sev = "medium"
         else:
-            sev = "medium"  # keyword-only, signal far from threshold
+            sev = "low"  # keyword-only, signal far from threshold (e.g. 24% vs 85%)
 
         # Honest ETA summary
         if breach_hours is None:
