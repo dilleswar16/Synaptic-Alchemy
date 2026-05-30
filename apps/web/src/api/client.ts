@@ -746,6 +746,30 @@ export interface SloConfig {
   created_at: string
 }
 
+export interface NotificationContact {
+  id: number
+  application_id: string
+  contact_name: string
+  method: 'email' | 'phone' | 'teams'
+  value: string
+  priority_filter: 'all' | 'p1_only' | 'p1_p2'
+  is_active: boolean
+  created_at: string
+}
+
+export interface OutboundConnector {
+  id: string
+  application_id: string
+  connector_type: 'teams_webhook' | 'servicenow' | 'email' | 'pagerduty'
+  display_name: string
+  config_json: Record<string, unknown>
+  is_active: boolean
+  last_tested_at: string | null
+  test_status: string | null
+  test_message: string | null
+  created_at: string
+}
+
 export interface Application {
   id: string
   name: string
@@ -758,6 +782,8 @@ export interface Application {
   services?: ApplicationService[]
   log_sources?: LogSource[]
   slo_configs?: SloConfig[]
+  notification_contacts?: NotificationContact[]
+  outbound_connectors?: OutboundConnector[]
 }
 
 export function listApplications() {
@@ -998,6 +1024,30 @@ export function deleteSloConfig(appId: string, cfgId: number) {
 
 export function migrateFromYaml() {
   return apiFetch<Record<string, unknown>>('/applications/migrate-from-yaml', { method: 'POST' })
+}
+
+// ── Notification Contacts ─────────────────────────────────────────────────────
+
+export function addNotificationContact(appId: string, payload: Partial<NotificationContact>) {
+  return apiFetch<NotificationContact>(`/applications/${appId}/notification-contacts`, { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function updateNotificationContact(appId: string, contactId: number, payload: Partial<NotificationContact>) {
+  return apiFetch<NotificationContact>(`/applications/${appId}/notification-contacts/${contactId}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export function deleteNotificationContact(appId: string, contactId: number) {
+  return apiFetch<void>(`/applications/${appId}/notification-contacts/${contactId}`, { method: 'DELETE' })
+}
+
+// ── Outbound Connectors ───────────────────────────────────────────────────────
+
+export function addOutboundConnector(appId: string, payload: Partial<OutboundConnector>) {
+  return apiFetch<OutboundConnector>(`/applications/${appId}/outbound-connectors`, { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function deleteOutboundConnector(appId: string, connId: string) {
+  return apiFetch<void>(`/applications/${appId}/outbound-connectors/${connId}`, { method: 'DELETE' })
 }
 
 // ── SLO Monitoring ────────────────────────────────────────────────────────────

@@ -16,11 +16,17 @@ import {
   addSloConfig,
   updateSloConfig,
   deleteSloConfig,
+  addNotificationContact,
+  deleteNotificationContact,
+  addOutboundConnector,
+  deleteOutboundConnector,
   migrateFromYaml,
   type Application,
   type ApplicationService,
   type LogSource,
   type SloConfig,
+  type NotificationContact,
+  type OutboundConnector,
 } from '../api/client'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -564,17 +570,31 @@ function ServicesTab({ app }: { app: Application }) {
   )
 }
 
-// ── Connectors Tab ────────────────────────────────────────────────────────────
+// ── Connectors Tab (Inbound + Outbound) ───────────────────────────────────────
+
+const OUTBOUND_ICONS: Record<string, string> = {
+  teams_webhook: '💬',
+  servicenow: '🎫',
+  email: '✉️',
+  pagerduty: '🚨',
+}
 
 function ConnectorsTab({ app }: { app: Application }) {
   const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
+  const [showAddOutbound, setShowAddOutbound] = useState(false)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string; latency_ms: number | null }>>({})
   const connectors = app.log_sources ?? []
+  const outbound = app.outbound_connectors ?? []
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteConnector(app.id, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['application', app.id] }),
+  })
+
+  const deleteOutMut = useMutation({
+    mutationFn: (id: string) => deleteOutboundConnector(app.id, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['application', app.id] }),
   })
 
@@ -593,70 +613,262 @@ function ConnectorsTab({ app }: { app: Application }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.85rem' }}>{connectors.length} Connector{connectors.length !== 1 ? 's' : ''}</span>
-        <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '5px 12px' }} onClick={() => setShowAdd(true)}>+ Add Connector</button>
-      </div>
-      {connectors.length === 0 && (
-        <div style={{ textAlign: 'center', color: 'var(--c-text-faint)', padding: '32px 0', fontSize: '0.82rem' }}>
-          No connectors. Add one to pull logs & metrics for this application.
+      {/* ── Inbound (Data Sources) ── */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.82rem', color: 'var(--c-text-muted)' }}>⬇ Inbound — Data Sources ({connectors.length})</span>
+          <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '5px 12px' }} onClick={() => setShowAdd(true)}>+ Add Source</button>
         </div>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {connectors.map(src => {
-          const localResult = testResults[src.id]
-          const ok = localResult?.ok ?? (src.test_status === 'ok' ? true : src.test_status === 'error' ? false : null)
-          const latency = localResult?.latency_ms ?? null
-          const isTesting = testingId === src.id
-          return (
-            <div key={src.id} style={{
-              background: 'var(--c-bg)', border: '1px solid var(--c-border)', borderRadius: 10, padding: '14px 16px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <span style={{ fontSize: '1.2rem', lineHeight: 1, marginTop: 2 }}>{SOURCE_ICONS[src.source_type] ?? '◈'}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.85rem' }}>{src.display_name}</span>
-                    <StatusDot ok={ok} tested={ok !== null} />
-                    {latency !== null && (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>{latency.toFixed(0)}ms</span>
+        {connectors.length === 0 && (
+          <div style={{ textAlign: 'center', color: 'var(--c-text-faint)', padding: '24px 0', fontSize: '0.82rem' }}>
+            No inbound connectors. Add one to pull logs & metrics.
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {connectors.map(src => {
+            const localResult = testResults[src.id]
+            const ok = localResult?.ok ?? (src.test_status === 'ok' ? true : src.test_status === 'error' ? false : null)
+            const latency = localResult?.latency_ms ?? null
+            const isTesting = testingId === src.id
+            return (
+              <div key={src.id} style={{
+                background: 'var(--c-bg)', border: '1px solid var(--c-border)', borderRadius: 10, padding: '14px 16px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <span style={{ fontSize: '1.2rem', lineHeight: 1, marginTop: 2 }}>{SOURCE_ICONS[src.source_type] ?? '◈'}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.85rem' }}>{src.display_name}</span>
+                      <StatusDot ok={ok} tested={ok !== null} />
+                      {latency !== null && (
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>{latency.toFixed(0)}ms</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>
+                      {src.source_type} · {src.credential_type}
+                    </div>
+                    {(localResult?.message || src.test_message) && (
+                      <div style={{
+                        fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
+                        color: ok ? '#22c55e' : '#ef4444',
+                        marginTop: 2,
+                      }}>
+                        {localResult?.message ?? src.test_message}
+                      </div>
                     )}
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>
-                    {src.source_type} · {src.credential_type}
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button
+                      className="btn-secondary"
+                      style={{ fontSize: '0.72rem', padding: '4px 10px' }}
+                      onClick={() => runTest(src.id)}
+                      disabled={isTesting}
+                    >
+                      {isTesting ? 'Testing…' : 'Test'}
+                    </button>
+                    <button
+                      onClick={() => deleteMut.mutate(src.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}
+                      title="Remove connector"
+                    >✕</button>
                   </div>
-                  {(localResult?.message || src.test_message) && (
-                    <div style={{
-                      fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
-                      color: ok ? '#22c55e' : '#ef4444',
-                      marginTop: 2,
-                    }}>
-                      {localResult?.message ?? src.test_message}
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button
-                    className="btn-secondary"
-                    style={{ fontSize: '0.72rem', padding: '4px 10px' }}
-                    onClick={() => runTest(src.id)}
-                    disabled={isTesting}
-                  >
-                    {isTesting ? 'Testing…' : 'Test'}
-                  </button>
-                  <button
-                    onClick={() => deleteMut.mutate(src.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}
-                    title="Remove connector"
-                  >✕</button>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
+
+      {/* ── Outbound (Notifications / Integrations) ── */}
+      <div style={{ borderTop: '1px solid var(--c-border)', paddingTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.82rem', color: 'var(--c-text-muted)' }}>⬆ Outbound — Notifications & Integrations ({outbound.length})</span>
+          <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '5px 12px' }} onClick={() => setShowAddOutbound(true)}>+ Add Destination</button>
+        </div>
+        {outbound.length === 0 && (
+          <div style={{ textAlign: 'center', color: 'var(--c-text-faint)', padding: '24px 0', fontSize: '0.82rem' }}>
+            No outbound connectors. Add a Teams webhook, ServiceNow, or email destination.
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {outbound.map(conn => (
+            <div key={conn.id} style={{
+              background: 'var(--c-bg)', border: '1px solid var(--c-border)', borderRadius: 10, padding: '14px 16px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: '1.2rem' }}>{OUTBOUND_ICONS[conn.connector_type] ?? '📤'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.85rem' }}>{conn.display_name}</span>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                    {conn.connector_type}
+                  </div>
+                </div>
+                <button
+                  onClick={() => deleteOutMut.mutate(conn.id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}
+                  title="Remove outbound connector"
+                >✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {showAdd && <AddConnectorModal appId={app.id} onClose={() => setShowAdd(false)} />}
+      {showAddOutbound && <AddOutboundModal appId={app.id} onClose={() => setShowAddOutbound(false)} />}
     </div>
+  )
+}
+
+// ── Add Outbound Modal ────────────────────────────────────────────────────────
+
+function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [connectorType, setConnectorType] = useState<string>('teams_webhook')
+  const [displayName, setDisplayName] = useState('')
+  const [webhookUrl, setWebhookUrl] = useState('')
+
+  const mut = useMutation({
+    mutationFn: () => addOutboundConnector(appId, {
+      connector_type: connectorType as 'teams_webhook' | 'servicenow' | 'email' | 'pagerduty',
+      display_name: displayName,
+      config_json: { webhook_url: webhookUrl },
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['application', appId] }); onClose() },
+  })
+
+  return (
+    <Modal title="Add Outbound Connector" onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '12px 0' }}>
+        <label style={{ fontSize: '0.78rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+          Type
+          <select value={connectorType} onChange={e => setConnectorType(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem' }}>
+            <option value="teams_webhook">Teams Webhook</option>
+            <option value="servicenow">ServiceNow</option>
+            <option value="email">Email</option>
+            <option value="pagerduty">PagerDuty</option>
+          </select>
+        </label>
+        <label style={{ fontSize: '0.78rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+          Display Name
+          <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="e.g. Team Alpha Channel" style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem' }} />
+        </label>
+        <label style={{ fontSize: '0.78rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+          Webhook / Endpoint URL
+          <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://..." style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }} />
+        </label>
+        <button className="btn-primary" style={{ marginTop: 8 }} onClick={() => mut.mutate()} disabled={!displayName || !webhookUrl || mut.isPending}>
+          {mut.isPending ? 'Saving…' : 'Add Outbound Connector'}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Notifications Tab ─────────────────────────────────────────────────────────
+
+const METHOD_ICONS: Record<string, string> = { email: '✉️', phone: '📱', teams: '💬' }
+
+function NotificationsTab({ app }: { app: Application }) {
+  const qc = useQueryClient()
+  const [showAdd, setShowAdd] = useState(false)
+  const contacts = app.notification_contacts ?? []
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => deleteNotificationContact(app.id, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['application', app.id] }),
+  })
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.85rem' }}>{contacts.length} Contact{contacts.length !== 1 ? 's' : ''}</span>
+        <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '5px 12px' }} onClick={() => setShowAdd(true)}>+ Add Contact</button>
+      </div>
+      {contacts.length === 0 && (
+        <div style={{ textAlign: 'center', color: 'var(--c-text-faint)', padding: '32px 0', fontSize: '0.82rem' }}>
+          No notification contacts. Add people or channels to alert on incidents.
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {contacts.map(c => (
+          <div key={c.id} style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: 'var(--c-bg)', border: '1px solid var(--c-border)', borderRadius: 8,
+            padding: '12px 14px',
+            opacity: c.is_active ? 1 : 0.5,
+          }}>
+            <span style={{ fontSize: '1.1rem' }}>{METHOD_ICONS[c.method] ?? '📣'}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.82rem' }}>{c.contact_name}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                {c.method} · {c.value} · <span style={{ color: c.priority_filter === 'all' ? '#22c55e' : '#f59e0b' }}>{c.priority_filter.replace('_', ' ')}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => deleteMut.mutate(c.id)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}
+              title="Remove contact"
+            >✕</button>
+          </div>
+        ))}
+      </div>
+      {showAdd && <AddContactModal appId={app.id} onClose={() => setShowAdd(false)} />}
+    </div>
+  )
+}
+
+// ── Add Contact Modal ─────────────────────────────────────────────────────────
+
+function AddContactModal({ appId, onClose }: { appId: string; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [name, setName] = useState('')
+  const [method, setMethod] = useState<string>('email')
+  const [value, setValue] = useState('')
+  const [priority, setPriority] = useState<string>('all')
+
+  const mut = useMutation({
+    mutationFn: () => addNotificationContact(appId, {
+      contact_name: name,
+      method: method as 'email' | 'phone' | 'teams',
+      value,
+      priority_filter: priority as 'all' | 'p1_only' | 'p1_p2',
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['application', appId] }); onClose() },
+  })
+
+  return (
+    <Modal title="Add Notification Contact" onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '12px 0' }}>
+        <label style={{ fontSize: '0.78rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+          Name
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Jane Smith" style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem' }} />
+        </label>
+        <label style={{ fontSize: '0.78rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+          Method
+          <select value={method} onChange={e => setMethod(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem' }}>
+            <option value="email">Email</option>
+            <option value="phone">Phone / SMS</option>
+            <option value="teams">Teams Channel</option>
+          </select>
+        </label>
+        <label style={{ fontSize: '0.78rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+          {method === 'email' ? 'Email Address' : method === 'phone' ? 'Phone Number' : 'Teams Channel Webhook'}
+          <input value={value} onChange={e => setValue(e.target.value)} placeholder={method === 'email' ? 'user@company.com' : method === 'phone' ? '+1 555-0100' : 'https://...'} style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }} />
+        </label>
+        <label style={{ fontSize: '0.78rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+          Alert On
+          <select value={priority} onChange={e => setPriority(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem' }}>
+            <option value="all">All Incidents</option>
+            <option value="p1_only">P1 Only</option>
+            <option value="p1_p2">P1 & P2</option>
+          </select>
+        </label>
+        <button className="btn-primary" style={{ marginTop: 8 }} onClick={() => mut.mutate()} disabled={!name || !value || mut.isPending}>
+          {mut.isPending ? 'Saving…' : 'Add Contact'}
+        </button>
+      </div>
+    </Modal>
   )
 }
 
@@ -742,7 +954,7 @@ function SloTab({ app }: { app: Application }) {
 
 // ── Application Detail Panel ──────────────────────────────────────────────────
 
-type Tab = 'services' | 'connectors' | 'slo'
+type Tab = 'services' | 'connectors' | 'notifications' | 'slo'
 
 function AppDetail({ appId }: { appId: string }) {
   const [tab, setTab] = useState<Tab>('services')
@@ -764,7 +976,8 @@ function AppDetail({ appId }: { appId: string }) {
 
   const TABS: { key: Tab; label: string }[] = [
     { key: 'services', label: `Services (${app.services?.length ?? 0})` },
-    { key: 'connectors', label: `Connectors (${app.log_sources?.length ?? 0})` },
+    { key: 'connectors', label: `Connectors (${(app.log_sources?.length ?? 0) + (app.outbound_connectors?.length ?? 0)})` },
+    { key: 'notifications', label: `Notifications (${app.notification_contacts?.length ?? 0})` },
     { key: 'slo', label: `SLO (${app.slo_configs?.length ?? 0})` },
   ]
 
@@ -805,6 +1018,7 @@ function AppDetail({ appId }: { appId: string }) {
         <div style={{ padding: 20 }}>
           {tab === 'services' && <ServicesTab app={app} />}
           {tab === 'connectors' && <ConnectorsTab app={app} />}
+          {tab === 'notifications' && <NotificationsTab app={app} />}
           {tab === 'slo' && <SloTab app={app} />}
         </div>
       </div>

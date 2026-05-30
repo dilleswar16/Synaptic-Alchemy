@@ -285,6 +285,12 @@ class ApplicationRow(Base):
     slo_configs: Mapped[list["SloConfigRow"]] = relationship(
         "SloConfigRow", back_populates="application", cascade="all, delete-orphan"
     )
+    notification_contacts: Mapped[list["NotificationContactRow"]] = relationship(
+        "NotificationContactRow", back_populates="application", cascade="all, delete-orphan"
+    )
+    outbound_connectors: Mapped[list["OutboundConnectorRow"]] = relationship(
+        "OutboundConnectorRow", back_populates="application", cascade="all, delete-orphan"
+    )
     validations: Mapped[list["ValidationDefinitionRow"]] = relationship(
         "ValidationDefinitionRow", back_populates="application", cascade="all, delete-orphan"
     )
@@ -358,6 +364,50 @@ class SloConfigRow(Base):
         "SloSnapshotRow", back_populates="slo_config", cascade="all, delete-orphan",
         order_by="SloSnapshotRow.sampled_at",
     )
+
+
+# ── Notification Contacts ─────────────────────────────────────────────────────
+
+
+class NotificationContactRow(Base):
+    """A person/channel to alert when incidents occur for an application."""
+    __tablename__ = "notification_contacts"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=False, index=True
+    )
+    contact_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    method: Mapped[str] = mapped_column(String(30), nullable=False)  # email|phone|teams
+    value: Mapped[str] = mapped_column(String(500), nullable=False)  # email addr, phone #, channel webhook
+    priority_filter: Mapped[str] = mapped_column(String(20), nullable=False, default="all")  # all|p1_only|p1_p2
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    application: Mapped["ApplicationRow"] = relationship("ApplicationRow", back_populates="notification_contacts")
+
+
+# ── Outbound Connectors ───────────────────────────────────────────────────────
+
+
+class OutboundConnectorRow(Base):
+    """An outbound notification/integration destination for an application."""
+    __tablename__ = "outbound_connectors"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=False, index=True
+    )
+    connector_type: Mapped[str] = mapped_column(String(50), nullable=False)  # teams_webhook|servicenow|email|pagerduty
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    config_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    last_tested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    test_status: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
+    test_message: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    application: Mapped["ApplicationRow"] = relationship("ApplicationRow", back_populates="outbound_connectors")
 
 
 # ── SLO Monitoring models ─────────────────────────────────────────────────────
