@@ -647,3 +647,251 @@ export function syncServiceNow(requestId: string) {
   return apiFetch<SyncResponse>(`/investigations/${requestId}/sync/servicenow`, { method: 'POST' })
 }
 
+// ── Application Panel ─────────────────────────────────────────────────────
+
+export interface ApplicationService {
+  id: number
+  application_id: string
+  service_name: string
+  display_name: string
+  namespace: string | null
+  tier: string
+  dependencies: string[]
+  metadata_json: Record<string, unknown>
+}
+
+export interface LogSource {
+  id: string
+  application_id: string
+  source_type: 'azure_monitor' | 'elastic' | 'byoa'
+  display_name: string
+  config_json: Record<string, unknown>
+  credential_type: 'db_encrypted' | 'kv_reference' | 'env_var'
+  credential_ref: string | null
+  is_active: boolean
+  last_tested_at: string | null
+  test_status: 'ok' | 'error' | null
+  test_message: string | null
+  created_at: string
+}
+
+export interface SloConfig {
+  id: number
+  application_id: string
+  service_name: string
+  sli_type: 'availability' | 'latency'
+  target_pct: number
+  time_window_days: number
+  latency_threshold_ms: number | null
+  enabled: boolean
+  created_at: string
+}
+
+export interface Application {
+  id: string
+  name: string
+  description: string
+  team_name: string
+  environment_default: string
+  topology_json: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  services?: ApplicationService[]
+  log_sources?: LogSource[]
+  slo_configs?: SloConfig[]
+}
+
+export function listApplications() {
+  return apiFetch<Application[]>('/applications/')
+}
+
+export function getApplication(id: string) {
+  return apiFetch<Application>(`/applications/${id}`)
+}
+
+export function createApplication(payload: Partial<Application>) {
+  return apiFetch<Application>('/applications/', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function updateApplication(id: string, payload: Partial<Application>) {
+  return apiFetch<Application>(`/applications/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export function deleteApplication(id: string) {
+  return apiFetch<void>(`/applications/${id}`, { method: 'DELETE' })
+}
+
+export function addService(appId: string, payload: Partial<ApplicationService>) {
+  return apiFetch<ApplicationService>(`/applications/${appId}/services`, { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function updateService(appId: string, svcId: number, payload: Partial<ApplicationService>) {
+  return apiFetch<ApplicationService>(`/applications/${appId}/services/${svcId}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export function deleteService(appId: string, svcId: number) {
+  return apiFetch<void>(`/applications/${appId}/services/${svcId}`, { method: 'DELETE' })
+}
+
+export function listConnectors(appId: string) {
+  return apiFetch<LogSource[]>(`/applications/${appId}/connectors`)
+}
+
+export function addConnector(appId: string, payload: Partial<LogSource> & { credential_value?: string }) {
+  return apiFetch<LogSource>(`/applications/${appId}/connectors`, { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function deleteConnector(appId: string, srcId: string) {
+  return apiFetch<void>(`/applications/${appId}/connectors/${srcId}`, { method: 'DELETE' })
+}
+
+export interface ConnectorTestResult {
+  ok: boolean
+  message: string
+  latency_ms: number | null
+}
+
+export function testConnector(appId: string, srcId: string) {
+  return apiFetch<ConnectorTestResult>(`/applications/${appId}/connectors/${srcId}/test`, { method: 'POST' })
+}
+
+export function addSloConfig(appId: string, payload: Partial<SloConfig>) {
+  return apiFetch<SloConfig>(`/applications/${appId}/slo-configs`, { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function updateSloConfig(appId: string, cfgId: number, payload: Partial<SloConfig>) {
+  return apiFetch<SloConfig>(`/applications/${appId}/slo-configs/${cfgId}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export function deleteSloConfig(appId: string, cfgId: number) {
+  return apiFetch<void>(`/applications/${appId}/slo-configs/${cfgId}`, { method: 'DELETE' })
+}
+
+export function migrateFromYaml() {
+  return apiFetch<Record<string, unknown>>('/applications/migrate-from-yaml', { method: 'POST' })
+}
+
+// ── SLO Monitoring ────────────────────────────────────────────────────────────
+
+export interface SloSnapshot {
+  id: number
+  slo_config_id: number
+  application_id: string
+  service_name: string
+  sli_type: 'availability' | 'latency'
+  target_pct: number
+  measured_pct: number | null
+  error_budget_pct: number | null
+  burn_rate: number | null
+  is_compliant: boolean | null
+  data_source: 'simulated' | 'connector'
+  sampled_at: string
+}
+
+export interface SloStatusEntry {
+  id: number
+  application_id: string
+  service_name: string
+  sli_type: 'availability' | 'latency'
+  target_pct: number
+  time_window_days: number
+  latency_threshold_ms: number | null
+  enabled: boolean
+  latest_snapshot: SloSnapshot | null
+}
+
+export interface SloSummary {
+  total: number
+  compliant: number
+  at_risk: number
+  breached: number
+  no_data: number
+}
+
+export function listSloStatus(appId?: string) {
+  const qs = appId ? `?app_id=${encodeURIComponent(appId)}` : ''
+  return apiFetch<SloStatusEntry[]>(`/slo/${qs}`)
+}
+
+export function getSloSummary() {
+  return apiFetch<SloSummary>('/slo/summary')
+}
+
+export function getSloHistory(sloId: number, limit = 30) {
+  return apiFetch<{ config: SloStatusEntry; history: SloSnapshot[] }>(
+    `/slo/${sloId}/history?limit=${limit}`
+  )
+}
+
+export function refreshSloSnapshots(appId?: string) {
+  const qs = appId ? `?app_id=${encodeURIComponent(appId)}` : ''
+  return apiFetch<{ snapshots_written: number }>(`/slo/refresh${qs}`, { method: 'POST' })
+}
+
+// ── Validations ───────────────────────────────────────────────────────────────
+
+export interface ValidationRun {
+  id: string
+  definition_id: string
+  status: 'running' | 'pass' | 'fail' | 'error'
+  started_at: string
+  finished_at: string | null
+  duration_ms: number | null
+  result_json: { steps: ValidationStepResult[]; passed: boolean }
+  triggered_by: string | null
+}
+
+export interface ValidationStepResult {
+  ok: boolean
+  step_index: number
+  step_name: string
+  status_code?: number
+  expected_status?: number
+  duration_ms?: number
+  error?: string | null
+  note?: string
+}
+
+export interface ValidationDefinition {
+  id: string
+  application_id: string | null
+  name: string
+  description: string | null
+  validation_type: 'health_check' | 'endpoint' | 'synthetic' | 'user_journey' | 'slo_gate' | 'chaos'
+  config_json: Record<string, unknown>
+  enabled: boolean
+  last_run_at: string | null
+  last_run_status: 'pass' | 'fail' | 'error' | 'running' | null
+  created_at: string
+  last_run: ValidationRun | null
+}
+
+export function listValidations(appId?: string) {
+  const qs = appId ? `?app_id=${encodeURIComponent(appId)}` : ''
+  return apiFetch<ValidationDefinition[]>(`/validations/${qs}`)
+}
+
+export function getValidation(id: string) {
+  return apiFetch<ValidationDefinition>(`/validations/${id}`)
+}
+
+export function createValidation(payload: Partial<ValidationDefinition> & { name: string }) {
+  return apiFetch<ValidationDefinition>('/validations/', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function updateValidation(id: string, payload: Partial<ValidationDefinition>) {
+  return apiFetch<ValidationDefinition>(`/validations/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+}
+
+export function deleteValidation(id: string) {
+  return apiFetch<void>(`/validations/${id}`, { method: 'DELETE' })
+}
+
+export function triggerValidationRun(id: string) {
+  return apiFetch<ValidationRun>(`/validations/${id}/run`, { method: 'POST' })
+}
+
+export function getValidationHistory(id: string, limit = 20) {
+  return apiFetch<ValidationRun[]>(`/validations/${id}/history?limit=${limit}`)
+}
+

@@ -33,11 +33,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.routes import investigations, triggers
+from apps.api.routes.applications import router as applications_router
 from apps.api.routes.corvin_agent import router as corvin_router
+from apps.api.routes.slo import router as slo_router
+from apps.api.routes.validations import router as validations_router
 from apps.teams.router import router as teams_router
 from corvin.core.config_loader import get_env, load_config
 from corvin.storage.db import get_engine, is_sqlite
 from corvin.storage.models import Base
+from corvin.slo.snapshot import run_forever as slo_run_forever
 from corvin.triggers.predictive import PredictiveMonitor
 
 
@@ -47,6 +51,7 @@ async def _lifespan(app: FastAPI):
     predictive_task: asyncio.Task | None = None
     if is_sqlite():
         Base.metadata.create_all(get_engine())
+    slo_task: asyncio.Task | None = None
     try:
         policy = load_config("policies/investigation", get_env())
         if policy.get("predictive_background_enabled", True):
@@ -54,15 +59,23 @@ async def _lifespan(app: FastAPI):
             predictive_task = asyncio.create_task(
                 PredictiveMonitor().run_forever(interval_seconds=interval_seconds)
             )
+        slo_interval = int(policy.get("slo_snapshot_interval_seconds", 3600))
+        slo_task = asyncio.create_task(slo_run_forever(interval_seconds=slo_interval))
     except Exception:
         predictive_task = None
+        if slo_task is None:
+            try:
+                slo_task = asyncio.create_task(slo_run_forever())
+            except Exception:
+                pass
     yield
-    if predictive_task is not None:
-        predictive_task.cancel()
-        try:
-            await predictive_task
-        except asyncio.CancelledError:
-            pass
+    for task in (predictive_task, slo_task):
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(
@@ -83,14 +96,17 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
     allow_credentials=False,
-    allow_methods=["*"] if _allow_all_origins else ["GET", "POST", "PATCH"],
-    allow_headers=["*"] if _allow_all_origins else ["Content-Type"],
+    allow_methods=["*"] if _allow_all_origins else ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"] if _allow_all_origins else ["Content-Type", "Authorization"],
 )
 
 app.include_router(investigations.router, prefix="/investigations", tags=["investigations"])
 app.include_router(triggers.router, prefix="/triggers", tags=["triggers"])
 app.include_router(teams_router, prefix="/teams", tags=["teams"])
 app.include_router(corvin_router, prefix="/corvin", tags=["corvin"])
+app.include_router(applications_router, prefix="/applications", tags=["applications"])
+app.include_router(slo_router, prefix="/slo", tags=["slo"])
+app.include_router(validations_router, prefix="/validations", tags=["validations"])
 
 
 @app.get("/health", tags=["health"])

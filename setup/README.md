@@ -12,12 +12,26 @@ what values to copy, and where to put them.
 | 5 | [05_aks.md](05_aks.md) | Connect Corvin to your AKS cluster, verify kubeconfig, update site.md |
 | 6 | [06_database_migrations.md](06_database_migrations.md) | How to use Alembic to update Postgres schemas |
 | 7 | [07_teams_bot.md](07_teams_bot.md) | Register the Corvin Teams bot, enable ChatOps (@Corvin mention) |
+| 8 | [08_azure_deploy.md](08_azure_deploy.md) | Deploy Corvin to Azure (App Service / Container Apps) |
+| 9 | [09_devops_service_principal.md](09_devops_service_principal.md) | Create the DevOps service principal for work-item integration |
 
 ## Prerequisites
 
 - Azure CLI installed: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
-- Docker Desktop running (for local Postgres)
-- Python venv activated: `.venv\Scripts\Activate.ps1`
+- Docker Desktop running (for local Postgres, if not using Azure Postgres)
+- Python 3.10+ with a virtual environment:
+
+```powershell
+# Option A — shared venv (recommended for team dev machines)
+C:\venv\corvin\Scripts\Activate.ps1
+
+# Option B — local project venv
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# Install all dependencies (both options)
+pip install -e ".[dev]"
+```
 
 ## Quick check — are you logged in to Azure?
 

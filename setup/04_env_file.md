@@ -49,6 +49,54 @@ AZURE_TENANT_ID=<your tenant ID>
 # ── Azure subscription ───────────────────────────────────────────────────────
 # Used by the Azure Activity Log adapter (infrastructure change detection).
 AZURE_SUBSCRIPTION_ID=<your subscription ID>
+
+# ── Azure AI Foundry / LiteLLM gateway ───────────────────────────────────────
+AZURE_AI_FOUNDRY_ENDPOINT=https://<your-project>.api.azureml.ms/
+LITELLM_ENDPOINT=https://<your-litellm-proxy-or-foundry-gateway>
+LITELLM_API_KEY=<your LiteLLM / Foundry API key>
+
+# ── Azure Speech (TTS / voice alerts) ────────────────────────────────────────
+AZURE_SPEECH_KEY=<your Cognitive Services speech key>
+AZURE_SPEECH_REGION=<e.g. eastus>
+
+# ── Azure Communication Services (email notifications) ───────────────────────
+AZURE_COMMUNICATION_CONNECTION_STRING=<connection string from ACS resource>
+CORVIN_EMAIL_FROM=corvin-alerts@<your-domain>
+CORVIN_EMAIL_TO=sre-team@<your-domain>
+
+# ── Azure DevOps (work item integration) ─────────────────────────────────────
+AZURE_DEVOPS_ORG=<your Azure DevOps organisation>
+AZURE_DEVOPS_PROJECT=<your project name>
+AZURE_DEVOPS_PAT=<Personal Access Token with Work Items read/write>
+
+# ── SharePoint / Microsoft Graph (wiki enrichment) ───────────────────────────
+MICROSOFT_GRAPH_CLIENT_ID=<app registration client ID>
+MICROSOFT_GRAPH_CLIENT_SECRET=<app registration secret>
+SHAREPOINT_SITE_ID=<SharePoint site GUID>
+
+# ── Teams Bot ────────────────────────────────────────────────────────────────
+TEAMS_APP_ID=<Azure Bot Framework App ID>
+TEAMS_APP_PASSWORD=<Azure Bot Framework App Password>
+TEAMS_TENANT_ID=<your tenant ID>
+TEAMS_WEBHOOK_URL=<outbound Teams webhook URL>
+
+# ── Connector security ───────────────────────────────────────────────────────
+# 32-byte base64-encoded key used by corvin/connectors/crypto.py to encrypt BYOA secrets
+CORVIN_ENCRYPTION_KEY=<base64-encoded 32-byte AES key>
+
+# ── Webhook auth ─────────────────────────────────────────────────────────────
+AZURE_ALERTS_WEBHOOK_SECRET=<HMAC secret for incoming Azure Monitor webhook>
+
+# ── CORS (frontend dev) ──────────────────────────────────────────────────────
+CORVIN_ALLOWED_ORIGINS=http://localhost:5173
+
+# ── Database backend override ────────────────────────────────────────────────
+# Set DB_BACKEND=sqlite and CORVIN_SQLITE_PATH=./corvin.db for a local SQLite DB
+DB_BACKEND=postgres
+CORVIN_SQLITE_PATH=./corvin.db
+
+# ── CHAD Log Analytics (secondary workspace, optional) ───────────────────────
+CHAD_LOG_ANALYTICS_WORKSPACE_ID=<secondary workspace customerId>
 ```
 
 Get your subscription ID:

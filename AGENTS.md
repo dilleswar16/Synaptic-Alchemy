@@ -50,7 +50,12 @@ Never build a feature from a future version while the current version is incompl
 
 ```powershell
 # Activate venv first — always
-.\.venv\Scripts\Activate.ps1
+C:\venv\corvin\Scripts\Activate.ps1          # shared venv
+# or, if using a local project venv:
+# .\.venv\Scripts\Activate.ps1
+
+# Install / sync dependencies
+pip install -e ".[dev]"
 
 # Start FastAPI (port 8000)
 uvicorn apps.api.main:app --reload --port 8000
@@ -67,7 +72,7 @@ API docs available at: `http://localhost:8000/docs`
 
 ```powershell
 # Activate venv first
-.\.venv\Scripts\Activate.ps1
+C:\venv\corvin\Scripts\Activate.ps1
 
 pytest tests/ -v                         # Run all 155+ tests
 pytest tests/slices/ -v                  # Run slice tests only
@@ -83,7 +88,7 @@ If a change breaks an existing test, fix the test OR fix the code — never skip
 ## How to Run Alembic Migrations
 
 ```powershell
-# Apply all pending migrations to the database
+# Apply all pending migrations to the database (currently 0001 → 0016)
 alembic upgrade head
 
 # Create a new migration (after modifying SQLAlchemy models)
@@ -100,9 +105,6 @@ requires a matching Alembic migration. Do not skip this step.
 
 ## Project Structure (Agent Mental Map)
 
-Only directories that CURRENTLY EXIST are listed here.
-Do not assume V2 directories exist until they are explicitly created.
-
 ```
 corvin/
   core/           # Contracts (Pydantic models), config loader — touch carefully
@@ -110,27 +112,31 @@ corvin/
   enrich/         # EnrichmentService — orchestrates all adapters
   strategy/       # RCAGenerator, FixStrategyGenerator, SystemPromptBuilder
   storage/        # DB session (db.py), SQLAlchemy models (models.py)
+  execution/      # ExecutionService, remediation preview — requires ApprovalStatus.approved
+  connectors/     # Pluggable data-source connectors: azure_monitor, elastic, byoa, crypto, registry
+  slo/            # SLO snapshot computation (snapshot.py)
+  validations/    # Validation runner (runner.py)
+  cli/            # Config migration helpers (migrate_config.py)
 
 apps/
-  api/            # FastAPI routes (main.py, routers/)
+  api/            # FastAPI entry (main.py) + routes/: applications, slo, validations, corvin_agent, …
   cli/            # Interactive REPL CLI (main.py)
-  web/            # React frontend (Vite + TypeScript)
+  teams/          # Teams bot (bot.py, router.py, manifest/)
+  web/            # React 18 + Vite + TypeScript frontend
+                  #   pages: ApplicationsPage, SloMonitoringPage, ValidationsPage, …
+                  #   public/metlife-logo.svg — MetLife wordmark (served at /metlife-logo.svg)
 
-alembic/          # Alembic migration scripts
+alembic/          # Alembic migration scripts (0001 → 0016)
 config/           # YAML config per integration and environment
 knowledge/
   site.md         # Real infra facts injected into every LLM prompt — keep accurate
   runbooks/       # Markdown files with keywords: frontmatter, matched to alerts
 tests/
-  slices/         # One test file per V1 slice (test_slice1 through test_slice10)
+  slices/         # One test file per slice
   adapters/       # Adapter-specific unit tests
   contracts/      # Contract/schema validation tests
   orchestration/  # End-to-end orchestration tests
 ```
-
-**V2 directories not yet created:**
-- `corvin/execution/` — will be created in V2 Slice 4
-- `apps/teams/` — will be created in V2 Slice 5
 
 ---
 
@@ -205,7 +211,7 @@ Once added, the rule is:
 - ❌ Do not start V2.5 features (memory, briefings, confidence meter) until V2 exit criteria are met.
 - ❌ Do not mock adapters using `unittest.mock.patch` — use Fake subclasses instead.
 - ❌ Do not invent new environment variable names — always check `.env.example` first.
-- ❌ Do not assume `corvin/execution/` or `apps/teams/` exist — they are V2 directories to be created.
+- ❌ Do not add new env variable names without updating `.env.example` and `setup/04_env_file.md`.
 
 ---
 

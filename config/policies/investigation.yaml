@@ -79,7 +79,7 @@ war_room_enabled: false
 war_room_min_severity: critical
 
 # ── V3.7: Intelligence Layer ─────────────────────────────────────────────────
-predictive_background_enabled: true
+predictive_background_enabled: false
 predictive_interval_seconds: 300
 # Memory pressure threshold for predictive pre-mortem alerts.
 predictive_memory_threshold_pct: 85

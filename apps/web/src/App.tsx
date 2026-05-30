@@ -7,6 +7,9 @@ import InvestigationDetailPage from './pages/InvestigationDetailPage'
 import FixStrategyPage from './pages/FixStrategyPage'
 import CorvinCommandPage from './pages/CorvinCommandPage'
 import PredictiveAnalyticsPage from './pages/PredictiveAnalyticsPage'
+import ApplicationsPage from './pages/ApplicationsPage'
+import SloMonitoringPage from './pages/SloMonitoringPage'
+import ValidationsPage from './pages/ValidationsPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 // ── Global error boundary ─────────────────────────────────────────────────────
@@ -58,6 +61,10 @@ export default function App() {
             <Route path="/investigations/:id" element={<InvestigationDetailPage />} />
             <Route path="/investigations/:id/fix-strategy" element={<FixStrategyPage />} />
             <Route path="/corvin" element={<CorvinCommandPage />} />
+            <Route path="/applications" element={<ApplicationsPage />} />
+            <Route path="/applications/:id" element={<ApplicationsPage />} />
+            <Route path="/slo" element={<SloMonitoringPage />} />
+            <Route path="/validations" element={<ValidationsPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>

@@ -8,6 +8,9 @@ const NAV_LINKS = [
   { to: '/',               label: 'Dashboard',      icon: '◎' },
   { to: '/predictive-analytics', label: 'Predictive', icon: '◉' },
   { to: '/investigations', label: 'Investigations', icon: '◈' },
+  { to: '/applications',   label: 'Applications',   icon: '⊞' },
+  { to: '/slo',            label: 'SLO',            icon: '◐' },
+  { to: '/validations',    label: 'Validations',    icon: '✓' },
   { to: '/corvin',         label: 'Corvin AI',      icon: '◆' },
 ]
 
@@ -36,7 +39,6 @@ export default function NavBar() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 900)
   const { active: threeAm, toggle: toggleThreeAm } = useThreeAmMode()
   const { theme } = useTheme()
-  const isLight = theme === 'light'
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 900)
@@ -53,10 +55,8 @@ export default function NavBar() {
       position: 'sticky',
       top: 0,
       zIndex: 60,
-      background: isLight ? 'rgba(248, 248, 252, 0.85)' : 'rgba(14, 14, 20, 0.8)',
-      backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
-      borderBottom: '1px solid var(--c-border)',
+      background: 'var(--c-surface)',
+      borderBottom: '2px solid #007ABC',
       transition: 'background 0.3s ease',
     }}>
       <div style={{
@@ -66,21 +66,21 @@ export default function NavBar() {
         height: 56,
         display: 'flex',
         alignItems: 'center',
-        gap: isMobile ? 8 : 16,
+        gap: isMobile ? 8 : 0,
       }}>
         {/* Logo */}
-        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          {/* Corvin sigil mark */}
-          <svg width={28} height={28} viewBox="0 0 32 32" fill="none" style={{ flexShrink: 0 }}>
-            <defs>
-              <linearGradient id="nav-bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#0f766e"/><stop offset="1" stopColor="#14b8a6"/>
-              </linearGradient>
-            </defs>
-            <rect width="32" height="32" rx="7.5" fill="url(#nav-bg)"/>
-            <path d="M21.5 9A9 9 0 1 0 21.5 23" stroke="white" strokeWidth="2.8" fill="none" strokeLinecap="round"/>
-            <path d="M16 12L20 16L16 20L12 16Z" fill="white"/>
-          </svg>
+        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, marginRight: isMobile ? 0 : 24 }}>
+          <img
+            src="/metlife-logo.svg"
+            alt="MetLife"
+            style={{
+              height: 22,
+              width: 'auto',
+              flexShrink: 0,
+              display: 'block',
+              filter: theme === 'dark' ? 'brightness(0) invert(1)' : 'none',
+            }}
+          />
           <span style={{
             fontFamily: 'var(--font-display)',
             fontWeight: 800,
@@ -92,36 +92,33 @@ export default function NavBar() {
           </span>
         </Link>
 
-        {/* Separator */}
-        {!isMobile && <div style={{ width: 1, height: 22, background: 'var(--c-border-hi)', flexShrink: 0, opacity: 0.6 }} />}
-
-        {/* Navigation pills */}
+        {/* Navigation — flat corporate style with underline active state */}
         {!isMobile && <nav style={{
           display: 'flex',
-          gap: 2,
-          padding: '3px',
-          borderRadius: 10,
-          background: 'var(--c-surface)',
-          border: '1px solid var(--c-border)',
+          alignItems: 'stretch',
+          gap: 0,
+          height: 56,
+          flex: 1,
         }}>
-          {NAV_LINKS.map(({ to, label, icon }) => {
+          {NAV_LINKS.map(({ to, label }) => {
             const active = to === '/' ? pathname === '/' : pathname.startsWith(to)
             return (
               <Link key={to} to={to} style={{
                 textDecoration: 'none',
-                padding: '5px 14px',
-                borderRadius: 7,
-                fontSize: '0.8125rem',
-                fontWeight: active ? 600 : 500,
-                color: active ? 'var(--c-text)' : 'var(--c-text-muted)',
-                background: active ? 'var(--c-surface-2)' : 'transparent',
-                transition: 'all 0.18s cubic-bezier(0.22, 1, 0.36, 1)',
-                display: 'flex',
+                padding: '0 16px',
+                height: '100%',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: 5,
-                boxShadow: active ? 'var(--shadow-sm)' : 'none',
+                fontSize: '0.6875rem',
+                fontWeight: 600,
+                letterSpacing: '0.07em',
+                textTransform: 'uppercase',
+                color: active ? '#007ABC' : 'var(--c-text-muted)',
+                borderBottom: active ? '2px solid #007ABC' : '2px solid transparent',
+                marginBottom: '-2px',
+                transition: 'color 0.15s ease, border-color 0.15s ease',
+                whiteSpace: 'nowrap',
               }}>
-                <span style={{ fontSize: '0.65rem', opacity: active ? 0.9 : 0.4 }}>{icon}</span>
                 {label}
               </Link>
             )
@@ -229,7 +226,7 @@ export default function NavBar() {
               position: 'fixed',
               inset: 0,
               zIndex: menuOpen ? 58 : -1,
-              background: menuOpen ? 'rgba(6, 6, 10, 0.6)' : 'transparent',
+              background: menuOpen ? 'rgba(0, 26, 58, 0.6)' : 'transparent',
               backdropFilter: menuOpen ? 'blur(4px)' : 'none',
               opacity: menuOpen ? 1 : 0,
               pointerEvents: menuOpen ? 'auto' : 'none',

@@ -17,12 +17,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (stored) return stored
 
     // 2. Check OS preference
-    if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-      return 'light'
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark'
     }
 
-    // 3. Default to dark
-    return 'dark'
+    // 3. Default to light (MetLife brand is light-first)
+    return 'light'
   })
 
   // Update DOM whenever theme changes

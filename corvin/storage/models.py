@@ -258,3 +258,179 @@ class CorvinMessageRow(Base):
     session: Mapped[CorvinSessionRow] = relationship(
         "CorvinSessionRow", back_populates="messages"
     )
+
+
+# ── Application Panel models ──────────────────────────────────────────────────
+
+
+class ApplicationRow(Base):
+    """A registered application — top-level container for services, connectors, and SLO configs."""
+    __tablename__ = "applications"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    team_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+    environment_default: Mapped[str] = mapped_column(String(50), nullable=False, default="dev")
+    topology_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    services: Mapped[list["ApplicationServiceRow"]] = relationship(
+        "ApplicationServiceRow", back_populates="application", cascade="all, delete-orphan"
+    )
+    log_sources: Mapped[list["LogSourceRow"]] = relationship(
+        "LogSourceRow", back_populates="application", cascade="all, delete-orphan"
+    )
+    slo_configs: Mapped[list["SloConfigRow"]] = relationship(
+        "SloConfigRow", back_populates="application", cascade="all, delete-orphan"
+    )
+    validations: Mapped[list["ValidationDefinitionRow"]] = relationship(
+        "ValidationDefinitionRow", back_populates="application", cascade="all, delete-orphan"
+    )
+
+
+class ApplicationServiceRow(Base):
+    """A named service/component within an application."""
+    __tablename__ = "application_services"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=False, index=True
+    )
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+    namespace: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+    tier: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)  # frontend|api|db|queue|worker
+    dependencies: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
+    metadata_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+
+    application: Mapped["ApplicationRow"] = relationship("ApplicationRow", back_populates="services")
+
+
+class LogSourceRow(Base):
+    """A configured log/metrics data source (connector) for an application."""
+    __tablename__ = "log_sources"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=False, index=True
+    )
+    source_type: Mapped[str] = mapped_column(String(50), nullable=False)  # azure_monitor|elastic|byoa
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    config_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    credential_type: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="env_var"
+    )  # db_encrypted|kv_reference|env_var
+    credential_ref: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )  # encrypted blob | KV vault_url|secret_name | env var name
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    last_tested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    test_status: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)  # ok|error|unknown
+    test_message: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    application: Mapped["ApplicationRow"] = relationship("ApplicationRow", back_populates="log_sources")
+
+
+class SloConfigRow(Base):
+    """SLO / SLI configuration for a specific service within an application."""
+    __tablename__ = "slo_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=False, index=True
+    )
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    sli_type: Mapped[str] = mapped_column(String(30), nullable=False, default="availability")  # availability|latency
+    target_pct: Mapped[float] = mapped_column(nullable=False, default=99.9)
+    time_window_days: Mapped[int] = mapped_column(nullable=False, default=30)
+    latency_threshold_ms: Mapped[int | None] = mapped_column(nullable=True, default=None)
+    enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    application: Mapped["ApplicationRow"] = relationship("ApplicationRow", back_populates="slo_configs")
+    snapshots: Mapped[list["SloSnapshotRow"]] = relationship(
+        "SloSnapshotRow", back_populates="slo_config", cascade="all, delete-orphan",
+        order_by="SloSnapshotRow.sampled_at",
+    )
+
+
+# ── SLO Monitoring models ─────────────────────────────────────────────────────
+
+
+class SloSnapshotRow(Base):
+    """One health measurement for an SLO config at a point in time."""
+    __tablename__ = "slo_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    slo_config_id: Mapped[int] = mapped_column(
+        ForeignKey("slo_configs.id"), nullable=False, index=True
+    )
+    application_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    sli_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    target_pct: Mapped[float] = mapped_column(nullable=False)
+    measured_pct: Mapped[float | None] = mapped_column(nullable=True)
+    error_budget_pct: Mapped[float | None] = mapped_column(nullable=True)
+    burn_rate: Mapped[float | None] = mapped_column(nullable=True)
+    is_compliant: Mapped[bool | None] = mapped_column(nullable=True)
+    data_source: Mapped[str] = mapped_column(String(30), nullable=False, default="simulated")
+    sampled_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, index=True
+    )
+    raw_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+
+    slo_config: Mapped["SloConfigRow"] = relationship("SloConfigRow", back_populates="snapshots")
+
+
+# ── Validations models ────────────────────────────────────────────────────────
+
+
+class ValidationDefinitionRow(Base):
+    """A named, runnable validation check."""
+    __tablename__ = "validation_definitions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    application_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    validation_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="health_check"
+    )  # health_check|endpoint|synthetic|slo_gate|chaos
+    config_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    last_run_status: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    application: Mapped["ApplicationRow | None"] = relationship(
+        "ApplicationRow", back_populates="validations"
+    )
+    runs: Mapped[list["ValidationRunRow"]] = relationship(
+        "ValidationRunRow", back_populates="definition", cascade="all, delete-orphan",
+        order_by="ValidationRunRow.started_at",
+    )
+
+
+class ValidationRunRow(Base):
+    """One execution of a ValidationDefinitionRow."""
+    __tablename__ = "validation_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    definition_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("validation_definitions.id"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="running")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    duration_ms: Mapped[int | None] = mapped_column(nullable=True, default=None)
+    result_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    triggered_by: Mapped[str | None] = mapped_column(String(100), nullable=True, default=None)
+
+    definition: Mapped["ValidationDefinitionRow"] = relationship(
+        "ValidationDefinitionRow", back_populates="runs"
+    )

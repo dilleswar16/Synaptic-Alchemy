@@ -63,13 +63,20 @@ class ContainerLogsAdapter:
             else load_config("integrations/container_logs", get_env())
         )
         self._client: LogsQueryClient | None = None
-        try:
-            credential = DefaultAzureCredential()
-            self._client = LogsQueryClient(credential)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "ContainerLogsAdapter: could not build client (will return empty results): %s", exc
-            )
+        # Skip Azure Monitor entirely in local dev — avoids SSL errors from
+        # the corporate proxy and unnecessary network calls.  All public
+        # methods already guard with `if self._client is None: return []`.
+        if get_env() == "local":
+            logger.debug("ContainerLogsAdapter: local env — Azure Monitor queries disabled")
+        else:
+            try:
+                credential = DefaultAzureCredential()
+                self._client = LogsQueryClient(credential)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "ContainerLogsAdapter: could not build client (will return empty results): %s",
+                    exc,
+                )
         self._workspace_id = _expand(self._config.get("workspace_id", ""))
 
     # ── Public methods ────────────────────────────────────────────────────────
@@ -480,5 +487,9 @@ class ContainerLogsAdapter:
                 return []
             return _to_dicts(result.tables[0])
         except Exception as exc:
-            logger.warning("ContainerLogsAdapter.%s failed: %s", label, exc)
+            # SSL errors are expected in corporate proxy environments without
+            # the corporate CA trusted by aiohttp — log at DEBUG to avoid noise.
+            import ssl
+            log_fn = logger.debug if isinstance(exc.__cause__, ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in str(exc) else logger.warning
+            log_fn("ContainerLogsAdapter.%s failed: %s", label, exc)
             return []
