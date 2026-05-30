@@ -1,0 +1,95 @@
+/* ServiceFleetGrid.css */
+
+.fleet-grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Controls bar */
+.fleet-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fleet-filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.fleet-filter-btn {
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  border: 1.5px solid var(--c-border, #e5e7eb);
+  background: transparent;
+  color: var(--c-muted, #6b7280);
+  cursor: pointer;
+  transition: all 0.14s;
+}
+.fleet-filter-btn:hover,
+.fleet-filter-btn.active {
+  background: var(--c-surface, #f9fafb);
+  color: var(--c-text, #111827);
+  border-color: var(--c-text, #374151);
+}
+.fleet-filter-breaching.active { border-color: var(--c-signal, #dc2626); color: var(--c-signal, #dc2626); background: rgba(220,38,38,.06); }
+.fleet-filter-at_risk.active   { border-color: #f59e0b; color: #92400e; background: rgba(245,158,11,.06); }
+.fleet-filter-healthy.active   { border-color: var(--c-green, #16a34a); color: #15803d; background: rgba(22,163,74,.06); }
+
+.fleet-sort-search {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.fleet-search {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  border: 1.5px solid var(--c-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--c-surface, #fff);
+  color: var(--c-text, #111827);
+  outline: none;
+  width: 180px;
+  transition: border-color 0.14s;
+}
+.fleet-search:focus { border-color: var(--c-primary, #007ABC); }
+
+.fleet-sort {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  border: 1.5px solid var(--c-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--c-surface, #fff);
+  color: var(--c-text, #111827);
+  cursor: pointer;
+}
+
+/* Grid */
+.fleet-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 1400px) { .fleet-grid { grid-template-columns: repeat(5, 1fr); } }
+@media (max-width: 1100px) { .fleet-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 860px)  { .fleet-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px)  { .fleet-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.fleet-empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--c-muted, #6b7280);
+  font-size: 0.875rem;
+  border: 1.5px dashed var(--c-border, #e5e7eb);
+  border-radius: 10px;
+}

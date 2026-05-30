@@ -3,24 +3,23 @@ import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import Layout from '../components/Layout'
 import {
-  fetchInvestigationStats,
   fetchInvestigations,
   fetchBriefing,
   fetchBriefingAudio,
-  type InvestigationStats,
   type InvestigationSummary,
   type BriefingPayload,
 } from '../api/client'
 import { timeAgo, fmtTs } from '../utils/time'
 import { useTypewriter } from '../hooks/useTypewriter'
 import { STATUS_CLS } from '../components/StatusBadge'
-import { ServiceHealthGauge } from '../components/ServiceHealthGauge'
 import { SimulateAlertPanel } from '../components/SimulateAlertPanel'
 import { PredictiveAlertPanel } from '../components/PredictiveAlertPanel'
 import { TopologyRadar } from '../components/TopologyRadar'
 import { RoiWidget } from '../components/RoiWidget'
-import { DoraWidget } from '../components/DoraWidget'
-import { PlatformPulse } from '../components/PlatformPulse'
+import { KpiStrip } from '../components/KpiStrip'
+import { ServiceFleetGrid } from '../components/ServiceFleetGrid'
+import { ErrorBudgetBurnChart } from '../components/ErrorBudgetBurnChart'
+import { DoraSidebar } from '../components/DoraSidebar'
 import { useTheme } from '../context/ThemeContext'
 
 // ── Morning Briefing widget ───────────────────────────────────────────────
@@ -253,304 +252,13 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
   )
 }
 
-// ── Pipeline hero ─────────────────────────────────────────────────────────────
 
-const PIPELINE_STAGES = [
-  { stage: 'TRIGGER',     sub: 'Azure alerts' },
-  { stage: 'ENRICH',      sub: 'AKS + logs'   },
-  { stage: 'INVESTIGATE', sub: 'GPT-5.1 RCA'  },
-  { stage: 'APPROVE',     sub: 'Human gate'    },
-  { stage: 'EXECUTE',     sub: 'Fix strategy'  },
-]
-
-function HeroBand({
-  stats,
-  recent,
-}: {
-  stats: InvestigationStats
-  recent: (InvestigationSummary & { approval_status?: string })[]
-}) {
-  const lastTs = recent.length > 0
-    ? timeAgo(recent[0].completed_at ?? recent[0].created_at)
-    : null
-
-  return (
-    <div
-      className="animate-fade-up"
-      style={{
-        position: 'relative',
-        overflow: 'hidden',
-        marginBottom: 20,
-        background: 'var(--c-surface)',
-        border: '1px solid var(--c-border)',
-        borderRadius: 'var(--radius-lg)',
-      }}
-    >
-      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr auto', gap: 0, padding: '28px 32px' }}>
-
-        {/* ── Left: identity + pipeline ── */}
-        <div style={{ paddingRight: 32 }}>
-          {/* Status beacon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--c-success)', flexShrink: 0 }} />
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 500,
-              color: 'var(--c-success)',
-            }}>
-              System Operational
-            </span>
-          </div>
-
-          <h1 style={{
-            margin: '0 0 10px',
-            fontFamily: 'var(--font-display)', fontWeight: 800,
-            fontSize: '1.85rem', letterSpacing: '-0.03em',
-            background: 'linear-gradient(135deg, var(--c-text) 0%, var(--c-text-dim) 60%, var(--c-accent) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            lineHeight: 1.2,
-          }}>
-            Operations Center
-          </h1>
-          <p style={{
-            margin: '0 0 28px',
-            fontFamily: 'var(--font-body)', fontSize: '0.85rem',
-            color: 'var(--c-text-dim)', lineHeight: 1.7, maxWidth: 480,
-          }}>
-            Azure-native SRE intelligence — enriches live alerts with AKS cluster evidence,
-            generates GPT-5.1 root cause analysis, and gates every fix through human approval
-            before execution.
-          </p>
-
-          {/* Pipeline flow */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, overflowX: 'auto', paddingBottom: 4 }}>
-            {PIPELINE_STAGES.map((s, i) => (
-              <div key={s.stage} style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '6px 14px',
-                    border: '1px solid var(--c-border-hi)',
-                    borderRadius: 8,
-                    background: 'var(--c-surface-2)',
-                    transition: 'border-color 0.2s, box-shadow 0.2s',
-                  }}>
-                    <span style={{
-                      width: 6, height: 6, borderRadius: '50%',
-                      background: 'var(--c-signal)',
-                      display: 'inline-block', flexShrink: 0,
-                    }} />
-                    <span style={{
-                      fontSize: '0.75rem', fontWeight: 600,
-                      color: 'var(--c-text)',
-                      letterSpacing: '0.02em',
-                    }}>
-                      {s.stage}
-                    </span>
-                  </div>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
-                    color: 'var(--c-text-muted)', marginTop: 6, textAlign: 'center',
-                  }}>
-                    {s.sub}
-                  </div>
-                </div>
-                {i < PIPELINE_STAGES.length - 1 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 3px 0', flexShrink: 0 }}>
-                    <div style={{ width: 32, height: 1, background: 'linear-gradient(90deg, var(--c-signal), var(--c-accent))', opacity: 0.4 }} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Right: hero number ── */}
-        <div style={{
-          display: 'flex', flexDirection: 'column', justifyContent: 'center',
-          alignItems: 'flex-end',
-          borderLeft: '1px solid var(--c-border)',
-          paddingLeft: 40,
-          minWidth: 180,
-        }}>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontSize: '0.6875rem', fontWeight: 600,
-            letterSpacing: '0.03em', textTransform: 'uppercase',
-            color: 'var(--c-text-muted)', marginBottom: 4,
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-red)' }} />
-            Live Today
-          </div>
-          <div
-            className="animate-count-up"
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '3.5rem',
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, var(--c-signal) 0%, var(--c-accent) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              lineHeight: 1,
-              letterSpacing: '-0.02em',
-            }}
-          >
-            {stats.today_count}
-          </div>
-          <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
-            color: 'var(--c-text-faint)', marginTop: 6, textAlign: 'right',
-          }}>
-            {stats.total_investigations} all time
-          </div>
-          {lastTs && (
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-              color: 'var(--c-text-muted)', marginTop: 3, textAlign: 'right',
-            }}>
-              last: {lastTs}
-            </div>
-          )}
-          {stats.avg_mttr_minutes != null && (
-            <div style={{
-              marginTop: 12, padding: '4px 12px',
-              border: '1px solid var(--c-border-hi)', borderRadius: 6,
-              background: 'var(--c-surface-2)',
-              fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-              color: 'var(--c-text-dim)',
-            }}>
-              <span style={{ color: 'var(--c-text-muted)', marginRight: 4 }}>avg MTTR</span>
-              <span style={{ fontWeight: 700, color: 'var(--c-text)' }}>{stats.avg_mttr_minutes}m</span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Metric card ───────────────────────────────────────────────────────────────
-
-function MetricCard({
-  label,
-  value,
-  sub,
-  accent,
-  delay = 0,
-}: {
-  label: string
-  value: string | number
-  sub?: string
-  accent?: string
-  delay?: number
-}) {
-  const empty = value === '—' || value === 0
-  return (
-    <div
-      className="metric-card animate-fade-up scan-sweep"
-      style={{
-        animationDelay: `${delay}ms`,
-        overflow: 'hidden',
-        borderTop: !empty && accent ? `2px solid ${accent}` : undefined,
-      }}
-    >
-      <div style={{
-        fontFamily: 'var(--font-display)',
-        fontSize: '0.7rem',
-        fontWeight: 700,
-        letterSpacing: '0.14em',
-        textTransform: 'uppercase',
-        color: 'var(--c-text-muted)',
-      }}>
-        {label}
-      </div>
-      <div style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: '1.75rem',
-        fontWeight: 700,
-        color: empty ? 'var(--c-text-faint)' : (accent ?? 'var(--c-text)'),
-        lineHeight: 1.1,
-        letterSpacing: '-0.01em',
-        marginTop: 6,
-      }}>
-        {value}
-      </div>
-      {sub && (
-        <div style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.65rem',
-          color: empty ? 'var(--c-text-faint)' : 'var(--c-text-muted)',
-          marginTop: 4,
-        }}>
-          {sub}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Log row ───────────────────────────────────────────────────────────────────
-
-function LogRow({ inv, index }: { inv: InvestigationSummary & { approval_status?: string, incident_priority?: string }; index: number }) {
-  const status = inv.approval_status ?? 'pending'
-  const tsStr = inv.completed_at ?? inv.created_at
-  const priority = inv.incident_priority ?? 'P3'
-  
-  const priColor = priority === 'P1' ? 'var(--c-red)' : priority === 'P2' ? 'var(--c-signal)' : 'var(--c-text-muted)'
-  const priBg = priority === 'P1' ? 'var(--c-error-bg)' : priority === 'P2' ? 'var(--c-signal-light)' : 'var(--c-surface-2)'
-  const priBorder = priority === 'P1' ? '1px solid var(--c-error-border)' : priority === 'P2' ? '1px solid var(--c-signal-dim)' : '1px solid var(--c-border)'
-
-  return (
-    <Link
-      to={`/investigations/${inv.request_id}`}
-      className="log-row animate-fade-up"
-      style={{
-        gridTemplateColumns: '100px 1fr 120px 120px 100px 20px',
-        animationDelay: `${index * 35}ms`,
-      }}
-    >
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', letterSpacing: '0.02em' }}>
-        {fmtTs(tsStr)}
-      </span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ 
-          fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 800, 
-          color: priColor, background: priBg, border: priBorder,
-          padding: '2px 6px', borderRadius: 4, flexShrink: 0
-        }}>
-          {priority}
-        </span>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--c-text)' }}>
-          {inv.service_name}
-        </span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>
-          {inv.environment}
-        </span>
-      </div>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-muted)' }}>
-        {inv.trigger_source.replace('_', ' ')}
-      </span>
-      <span className={`badge ${STATUS_CLS[status] ?? 'badge-pending'}`}>{status}</span>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', textAlign: 'right' }}>
-        {timeAgo(tsStr)}
-      </span>
-      <span className="log-arrow" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--c-text-faint)', textAlign: 'right', transition: 'color 0.15s' }}>
-        →
-      </span>
-    </Link>
-  )
-}
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const { theme: _theme } = useTheme()
-
-  const { data: stats } = useQuery<InvestigationStats>({
-    queryKey: ['stats'],
-    queryFn: fetchInvestigationStats,
-    refetchInterval: 30_000,
-  })
+  const [briefingOpen, setBriefingOpen] = useState(false)
 
   const { data: recent } = useQuery<(InvestigationSummary & { approval_status?: string })[]>({
     queryKey: ['investigations'],
@@ -566,202 +274,134 @@ export default function DashboardPage() {
     retry: false,
   })
 
-  const conf = stats?.confidence_distribution
-  const appr = stats?.approval_distribution
+  const top5 = (recent ?? []).slice(0, 5)
 
   return (
     <Layout>
-      {/* ── 1. CONTEXT: Morning Briefing ────────────────────────────────── */}
-      {briefing && <BriefingWidget data={briefing} />}
+      {/* ── 1. KPI STRIP (sticky) ──────────────────────────────────────── */}
+      <KpiStrip />
 
-      {/* ── 2. IDENTITY: Hero band + metric cards ─────────────────────── */}
-      {stats && (
-        <div style={{ marginBottom: 24 }}>
-          <HeroBand stats={stats} recent={recent ?? []} />
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 8 }}>
-            <MetricCard
-              label="Avg MTTR"
-              value={stats.avg_mttr_minutes != null ? `${stats.avg_mttr_minutes}m` : '—'}
-              sub="pipeline time"
-              accent="var(--c-signal)"
-              delay={80}
-            />
-            <MetricCard
-              label="High Confidence"
-              value={conf && (conf.high + conf.medium + conf.low) > 0
-                ? `${Math.round((conf.high / (conf.high + conf.medium + conf.low)) * 100)}%`
-                : '—'}
-              sub="of all RCAs"
-              accent="var(--c-green)"
-              delay={100}
-            />
-            <MetricCard
-              label="Executed"
-              value={appr?.executed ?? '—'}
-              sub="fix strategies run"
-              accent="var(--c-signal)"
-              delay={120}
-            />
-            <MetricCard
-              label="Acknowledged"
-              value={appr?.acknowledged ?? '—'}
-              sub="informational closes"
-              accent="var(--c-green)"
-              delay={140}
-            />
-            <MetricCard
-              label="Rejected"
-              value={appr?.rejected ?? '—'}
-              sub="investigations rejected"
-              accent="var(--c-red)"
-              delay={160}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ── 3. PULSE: Real-time background activity ───────────────────── */}
-      <PlatformPulse />
-
-      {/* ── 4. ACTIVE QUEUE: Recent investigations ────────────────────── */}
-      <div className="animate-fade-up" style={{ marginBottom: 24 }}>
-        <div style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '0.72rem',
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          color: 'var(--c-accent)',
-          marginBottom: 6,
-        }}>
-          Operations Center
-        </div>
-        <div style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '1.5rem',
-          lineHeight: 1.2,
-          letterSpacing: '-0.02em',
-          fontWeight: 800,
-          color: 'var(--c-text)',
-          marginBottom: 18
-        }}>
-          Active Investigation Queue
-        </div>
-
-        <div className="panel" style={{ overflow: 'hidden' }}>
-          {/* Table header */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '100px 1fr 120px 120px 100px 20px',
-            gap: 16,
-            padding: '10px 14px',
-            borderBottom: '1px solid var(--c-border-hi)',
-            background: 'var(--c-surface-2)',
-          }}>
-            {['TIME', 'SERVICE', 'SOURCE', 'STATUS', 'AGO', ''].map((h, i) => (
-              <span key={i} className="section-label">{h}</span>
-            ))}
-          </div>
-
-          {/* Rows */}
-          {(recent ?? []).slice(0, 8).map((inv, i) => (
-            <LogRow key={inv.request_id} inv={inv} index={i} />
-          ))}
-
-          {(recent ?? []).length === 0 && (
-            <div style={{
-              padding: '48px 20px', textAlign: 'center',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
-            }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                background: 'var(--c-surface-3)',
-                border: '1px solid var(--c-border-hi)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1.1rem', color: 'var(--c-text-muted)',
-              }}>◇</div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', color: 'var(--c-text-muted)', lineHeight: 1.6 }}>
-                No investigations yet — start one from the{' '}
-                <Link to="/investigations" style={{ color: 'var(--c-accent)', fontWeight: 600, textDecoration: 'none' }}>Investigations</Link> page.
-              </div>
-            </div>
-          )}
-
-          {/* Footer */}
-          {(recent ?? []).length > 8 && (
-            <div style={{ padding: '10px 14px', borderTop: '1px solid var(--c-border)', textAlign: 'center' }}>
-              <Link to="/investigations" style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                color: 'var(--c-signal)',
-                textDecoration: 'none',
-              }}>
-                View All {(recent ?? []).length} Investigations →
-              </Link>
-            </div>
-          )}
-        </div>
+      {/* ── 2. FLEET VIEW: Service Grid + DORA sidebar ────────────────── */}
+      <div className="dash-fleet-view">
+        <ServiceFleetGrid />
+        <DoraSidebar />
       </div>
 
-      {/* ── 5. HEALTH & RISK: Service State + Topology ────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12, marginBottom: 16, alignItems: 'start' }}>
-        <div className="panel animate-fade-up" style={{ padding: '18px 20px' }}>
+      {/* ── 3. ERROR BUDGET BURN CHART (full width) ───────────────────── */}
+      <ErrorBudgetBurnChart />
+
+      {/* ── 4. OPS ROW: Investigation Queue + Predictive Alerts ───────── */}
+      <div className="dash-ops-row">
+        {/* Left: top-5 investigation queue */}
+        <div className="panel dash-inv-queue animate-fade-up">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{
+              fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--c-text-muted)',
+            }}>
+              Recent Investigations
+            </span>
+            <Link to="/investigations" style={{
+              fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
+              color: 'var(--c-signal)', textDecoration: 'none', letterSpacing: '0.04em',
+            }}>
+              View all →
+            </Link>
+          </div>
+          {/* Table header */}
           <div style={{
-            fontSize: '0.75rem', fontWeight: 600,
-            letterSpacing: '0.03em', textTransform: 'uppercase',
-            color: 'var(--c-text-muted)', marginBottom: 16,
+            display: 'grid', gridTemplateColumns: '90px 1fr 100px 80px 16px',
+            gap: 12, padding: '7px 10px',
+            borderBottom: '1px solid var(--c-border-hi)',
+            background: 'var(--c-surface-2)',
+            borderRadius: '6px 6px 0 0',
           }}>
-            Service Health
+            {['TIME', 'SERVICE', 'STATUS', 'AGO', ''].map((h, i) => (
+              <span key={i} style={{
+                fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
+              }}>{h}</span>
+            ))}
           </div>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-start', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 4 }}>
-            <ServiceHealthGauge serviceName="fundapis" environment="dev" />
-            <ServiceHealthGauge serviceName="fundsso" environment="dev" />
-            <ServiceHealthGauge serviceName="partnerapis" environment="dev" />
-          </div>
+          {top5.length === 0 ? (
+            <div style={{ padding: '32px 12px', textAlign: 'center', color: 'var(--c-text-muted)', fontSize: '0.8rem' }}>
+              No investigations yet.{' '}
+              <Link to="/investigations" style={{ color: 'var(--c-accent)', fontWeight: 600, textDecoration: 'none' }}>
+                Start one
+              </Link>
+            </div>
+          ) : (
+            top5.map((inv, i) => (
+              <Link
+                key={inv.request_id}
+                to={`/investigations/${inv.request_id}`}
+                className="log-row animate-fade-up"
+                style={{ gridTemplateColumns: '90px 1fr 100px 80px 16px', animationDelay: `${i * 30}ms` }}
+              >
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>
+                  {fmtTs(inv.completed_at ?? inv.created_at)}
+                </span>
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--c-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {inv.service_name}
+                </span>
+                <span className={`badge ${STATUS_CLS[inv.approval_status ?? 'pending'] ?? 'badge-pending'}`}>
+                  {inv.approval_status ?? 'pending'}
+                </span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>
+                  {timeAgo(inv.completed_at ?? inv.created_at)}
+                </span>
+                <span style={{ color: 'var(--c-text-faint)', fontSize: '0.75rem' }}>→</span>
+              </Link>
+            ))
+          )}
         </div>
 
+        {/* Right: predictive alerts */}
         <PredictiveAlertPanel />
       </div>
 
-      <div style={{ marginTop: -4, marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
-        <Link to="/predictive-analytics" style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.72rem',
-          fontWeight: 700,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          color: 'var(--c-signal)',
-          textDecoration: 'none',
-        }}>
-          Open Predictive Analytics Center →
-        </Link>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
+      {/* ── 5. PLATFORM ROW: Topology + ROI + AI Briefing ────────────── */}
+      <div className="dash-platform-row">
         <TopologyRadar />
-      </div>
-
-      {/* ── 6. VALUE: ROI + DORA ─────────────────────────────────────── */}
-      <div style={{ marginBottom: 16 }}>
         <RoiWidget />
-      </div>
-      <div style={{ marginBottom: 24 }}>
-        <DoraWidget />
+
+        {/* AI Briefing — collapsed by default */}
+        <div className="panel dash-briefing-collapsible animate-fade-up">
+          <button
+            className="dash-briefing-toggle"
+            onClick={() => setBriefingOpen(v => !v)}
+            aria-expanded={briefingOpen}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {(briefing?.high_confidence_pending ?? 0) > 0 && (
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-signal)', display: 'inline-block', flexShrink: 0 }} />
+              )}
+              <span>AI Briefing</span>
+            </span>
+            <span style={{ fontSize: '0.9rem', transform: briefingOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
+          </button>
+          {briefingOpen && briefing && (
+            <div style={{ borderTop: '1px solid var(--c-border)', padding: '0' }}>
+              <BriefingWidget data={briefing} />
+            </div>
+          )}
+          {briefingOpen && !briefing && (
+            <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--c-text-muted)', fontSize: '0.8rem' }}>
+              Loading AI briefing…
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── 7. TOOLS: Chaos Engineering (Red Team) ────────────────────── */}
-      <div style={{ marginTop: 48, borderTop: '1px solid var(--c-border)', paddingTop: 48 }}>
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-           <div style={{ fontSize: '0.75rem', color: 'var(--c-text-muted)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>System Stress Testing</div>
-           <h2 style={{
-             fontFamily: 'var(--font-display)', fontSize: '1.3rem', fontWeight: 800,
-             color: 'var(--c-text)',
-             marginTop: 6, letterSpacing: '-0.02em',
-           }}>Chaos Control Center</h2>
+      {/* ── 6. CHAOS (collapsed) ──────────────────────────────────────── */}
+      <div style={{ marginTop: 40, borderTop: '1px solid var(--c-border)', paddingTop: 40 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: '0.7rem', color: 'var(--c-text-muted)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            System Stress Testing
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--c-text)', marginTop: 6, letterSpacing: '-0.02em' }}>
+            Chaos Control Center
+          </h2>
         </div>
         <SimulateAlertPanel />
       </div>

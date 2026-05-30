@@ -39,10 +39,12 @@ from apps.api.routes.slo import router as slo_router
 from apps.api.routes.validations import router as validations_router
 from apps.teams.router import router as teams_router
 from corvin.core.config_loader import get_env, load_config
-from corvin.storage.db import get_engine, is_sqlite
+from corvin.storage.db import get_engine, get_session, is_sqlite
 from corvin.storage.models import Base
 from corvin.slo.snapshot import run_forever as slo_run_forever
 from corvin.triggers.predictive import PredictiveMonitor
+
+_log = logging.getLogger("corvin.main")
 
 
 @asynccontextmanager
@@ -51,6 +53,20 @@ async def _lifespan(app: FastAPI):
     predictive_task: asyncio.Task | None = None
     if is_sqlite():
         Base.metadata.create_all(get_engine())
+
+    # ── Demo data seeding ─────────────────────────────────────────────────
+    if os.getenv("CORVIN_DEMO_MODE", "true").strip().lower() == "true":
+        try:
+            from apps.api.seed_demo import ensure_demo_data
+            db = next(get_session())
+            try:
+                seeded = ensure_demo_data(db)
+                if seeded:
+                    _log.info("Demo mode: database seeded with sample fleet data.")
+            finally:
+                db.close()
+        except Exception as _seed_err:  # noqa: BLE001
+            _log.warning("Demo seed failed (non-fatal): %s", _seed_err)
     slo_task: asyncio.Task | None = None
     try:
         policy = load_config("policies/investigation", get_env())
