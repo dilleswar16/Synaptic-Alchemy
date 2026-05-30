@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { API_BASE } from '../../api/baseUrl'
@@ -8,21 +9,122 @@ interface WarRoomProps {
   onClose: () => void
 }
 
+// ── Shared Markdown component config ────────────────────────────────────────
+const mdComponents = {
+  strong: ({ children }: any) => (
+    <strong style={{ color: 'var(--c-text)', fontWeight: 700 }}>{children}</strong>
+  ),
+  em: ({ children }: any) => (
+    <em style={{ color: 'var(--c-text-dim)' }}>{children}</em>
+  ),
+  code: ({ children }: any) => (
+    <code style={{
+      fontFamily: 'var(--font-mono)', fontSize: '0.85em',
+      background: 'rgba(168,85,247,0.1)', padding: '1px 5px',
+      borderRadius: 4, color: 'var(--c-purple)'
+    }}>{children}</code>
+  ),
+  p: ({ children }: any) => (
+    <p style={{ margin: '0 0 10px', lineHeight: 1.65 }}>{children}</p>
+  ),
+  ul: ({ children }: any) => (
+    <ul style={{ margin: '0 0 10px', paddingLeft: 18 }}>{children}</ul>
+  ),
+  li: ({ children }: any) => (
+    <li style={{ marginBottom: 4, lineHeight: 1.6 }}>{children}</li>
+  ),
+}
+
+// ── Modal Portal ─────────────────────────────────────────────────────────────
+function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 10000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: 'rgba(5, 8, 18, 0.75)',
+        backdropFilter: 'blur(6px)',
+        padding: 24,
+      }}
+    >
+      <div style={{
+        position: 'relative',
+        width: '100%', maxWidth: 1100,
+        maxHeight: 'calc(100vh - 48px)',
+        background: 'var(--c-surface)',
+        border: '1px solid var(--c-purple)',
+        borderRadius: 16,
+        boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(168,85,247,0.2)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}>
+        {children}
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+// ── Agent Panel ──────────────────────────────────────────────────────────────
+function AgentPanel({ label, color, text, isRunning, scrollRef }: {
+  label: string
+  color: string
+  text: string
+  isRunning: boolean
+  scrollRef: React.RefObject<HTMLDivElement>
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+      <div style={{
+        padding: '8px 16px',
+        fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em',
+        textTransform: 'uppercase', color,
+        borderBottom: `1px solid color-mix(in srgb, ${color} 20%, transparent)`,
+        flexShrink: 0
+      }}>
+        {label}
+      </div>
+      <div ref={scrollRef} style={{
+        flex: 1, overflowY: 'auto', padding: 16,
+        fontSize: '0.78rem', lineHeight: 1.65,
+        color: 'var(--c-text-dim)',
+        fontFamily: 'var(--font-body)',
+      }}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+          {text || (isRunning ? '▌' : '—')}
+        </ReactMarkdown>
+        {isRunning && text && <span style={{ opacity: 0.7 }}>▌</span>}
+      </div>
+    </div>
+  )
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export function WarRoomTerminal({ requestId, onClose }: WarRoomProps) {
   const [alphaText, setAlphaText] = useState('')
   const [betaText, setBetaText] = useState('')
   const [status, setStatus] = useState<'idle' | 'running' | 'complete' | 'error'>('idle')
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState('Summoning agents Alpha and Beta...')
   const [judgeRca, setJudgeRca] = useState<any>(null)
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [typedRootCause, setTypedRootCause] = useState('')
-  const [typedSummary, setTypedSummary] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const alphaRef = useRef<HTMLDivElement>(null)
   const betaRef = useRef<HTMLDivElement>(null)
+  const alphaModalRef = useRef<HTMLDivElement>(null)
+  const betaModalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setStatus('running')
-    setMessage('Summoning Agents...')
     setAlphaText('')
     setBetaText('')
 
@@ -36,19 +138,12 @@ export function WarRoomTerminal({ requestId, onClose }: WarRoomProps) {
           if (data.status === 'started') {
             setMessage(data.message)
           } else if (data.status === 'token') {
-            if (data.agent === 'alpha') {
-              setAlphaText((prev) => prev + data.message)
-            } else if (data.agent === 'beta') {
-              setBetaText((prev) => prev + data.message)
-            }
+            if (data.agent === 'alpha') setAlphaText(prev => prev + data.message)
+            else if (data.agent === 'beta') setBetaText(prev => prev + data.message)
           } else if (data.status === 'complete') {
             setStatus('complete')
             setMessage(data.message)
-            setJudgeRca({
-              summary: data.summary,
-              root_cause: data.root_cause,
-              confidence: data.confidence
-            })
+            setJudgeRca({ summary: data.summary, root_cause: data.root_cause, confidence: data.confidence })
             source.close()
           }
         } else if (data.stage === 'error') {
@@ -61,8 +156,7 @@ export function WarRoomTerminal({ requestId, onClose }: WarRoomProps) {
       }
     }
 
-    source.onerror = (err) => {
-      console.error('SSE Connection Error:', err)
+    source.onerror = () => {
       setStatus('error')
       setMessage('Lost connection to Debate Orchestrator.')
       source.close()
@@ -71,149 +165,98 @@ export function WarRoomTerminal({ requestId, onClose }: WarRoomProps) {
     return () => source.close()
   }, [requestId])
 
+  // Auto-scroll panels
   useEffect(() => {
-    if (alphaRef.current) alphaRef.current.scrollTop = alphaRef.current.scrollHeight
-    if (betaRef.current) betaRef.current.scrollTop = betaRef.current.scrollHeight
-  }, [alphaText, betaText])
+    alphaRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' })
+    alphaModalRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' })
+  }, [alphaText])
 
-  const handleApply = () => {
-    window.location.reload()
-  }
-
-  // Simulated typing effect for Judge output
   useEffect(() => {
-    if (judgeRca) {
-      let r = 0;
-      let s = 0;
-      const rText = judgeRca.root_cause || '';
-      const sText = judgeRca.summary || '';
-      
-      const timer = setInterval(() => {
-        let changed = false;
-        if (r < rText.length) {
-          r += Math.min(10, rText.length - r);
-          setTypedRootCause(rText.substring(0, r));
-          changed = true;
-        } else if (s < sText.length) {
-          s += Math.min(10, sText.length - s);
-          setTypedSummary(sText.substring(0, s));
-          changed = true;
-        }
-        
-        if (!changed) clearInterval(timer);
-      }, 30);
-      
-      return () => clearInterval(timer);
-    }
-  }, [judgeRca])
+    betaRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' })
+    betaModalRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' })
+  }, [betaText])
 
-  const content = (
+  const confidenceColor = judgeRca?.confidence === 'high'
+    ? 'var(--c-green)' : judgeRca?.confidence === 'medium'
+    ? 'var(--c-yellow)' : 'var(--c-red)'
+
+  // ── Inline summary panel (shown on the page) ──────────────────────────────
+  const inlineSummary = (
     <div style={{
-      background: 'var(--c-bg)',
+      marginBottom: 24,
+      background: 'var(--c-surface)',
       border: '1px solid var(--c-purple)',
       borderRadius: 12,
       overflow: 'hidden',
-      boxShadow: isExpanded ? '0 0 40px rgba(168, 85, 247, 0.3)' : '0 0 15px rgba(168, 85, 247, 0.1)',
-      display: 'flex',
-      flexDirection: 'column',
-      width: '100%',
-      height: isExpanded ? '100%' : 'auto',
-      maxHeight: isExpanded ? '100%' : 'auto'
+      boxShadow: '0 0 20px rgba(168, 85, 247, 0.1)'
     }}>
+      {/* Header */}
       <div style={{
-        padding: '10px 14px',
+        padding: '10px 16px',
         background: 'var(--c-surface-2)',
         borderBottom: '1px solid var(--c-purple)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
       }}>
         <div style={{
-          fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 800,
+          fontFamily: 'var(--font-display)', fontSize: '0.72rem', fontWeight: 800,
           letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-purple)',
           display: 'flex', alignItems: 'center', gap: 8
         }}>
           ⚔️ Agent Consensus Engine
-          {status === 'running' && <span className="animate-pulse-glow" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--c-purple)' }} />}
+          {status === 'running' && <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--c-purple)', display: 'inline-block', animation: 'corvin-blink 1s steps(1) infinite' }} />}
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button onClick={() => setIsExpanded(!isExpanded)} style={{ background: 'none', border: 'none', color: 'var(--c-text-dim)', cursor: 'pointer', fontSize: '1.1rem' }} title={isExpanded ? "Collapse" : "Expand"}>
-            {isExpanded ? '🗗' : '⛶'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            title="Open in full-screen modal"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '4px 10px', borderRadius: 6,
+              background: 'rgba(168,85,247,0.1)',
+              border: '1px solid rgba(168,85,247,0.3)',
+              color: 'var(--c-purple)', cursor: 'pointer',
+              fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.05em'
+            }}
+          >
+            <span style={{ fontSize: '0.85rem' }}>⤢</span> Expand
           </button>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--c-text-faint)', cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--c-text-faint)', cursor: 'pointer', fontSize: '1.2rem', lineHeight: 1 }}>×</button>
         </div>
       </div>
 
-      <div style={{ padding: '8px 14px', fontSize: '0.75rem', color: 'var(--c-text-dim)', fontFamily: 'var(--font-mono)', borderBottom: '1px solid var(--c-border)' }}>
-        {status === 'complete' ? '✅ ' : '⏳ '} {message}
+      {/* Status bar */}
+      <div style={{ padding: '6px 16px', fontSize: '0.72rem', color: 'var(--c-text-dim)', fontFamily: 'var(--font-mono)', borderBottom: '1px solid var(--c-border)' }}>
+        {status === 'complete' ? '✅ ' : status === 'error' ? '❌ ' : '⏳ '}{message}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--c-border)', flex: isExpanded ? 1 : 'none', minHeight: 0 }}>
-        <div style={{ background: 'var(--c-surface)', padding: 16, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--c-yellow)', marginBottom: 8, textTransform: 'uppercase', flexShrink: 0 }}>
-            Agent Alpha (Infra)
-          </div>
-          <div ref={alphaRef} className="pm-prose corvin-md" style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-text)', 
-            whiteSpace: 'pre-wrap', maxHeight: isExpanded ? 'none' : 300, overflowY: 'auto', flex: 1
-          }}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{alphaText + (status === 'running' ? ' ▌' : '')}</ReactMarkdown>
-          </div>
+      {/* Agents side-by-side (compact view, 220px height) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--c-border)' }}>
+        <div style={{ borderRight: '1px solid var(--c-border)' }}>
+          <AgentPanel label="Agent Alpha (Infra)" color="var(--c-yellow)" text={alphaText} isRunning={status === 'running'} scrollRef={alphaRef} />
         </div>
-        
-        <div style={{ background: 'var(--c-surface)', padding: 16, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--c-green)', marginBottom: 8, textTransform: 'uppercase', flexShrink: 0 }}>
-            Agent Beta (Network)
-          </div>
-          <div ref={betaRef} className="pm-prose corvin-md" style={{
-            fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--c-text)', 
-            whiteSpace: 'pre-wrap', maxHeight: isExpanded ? 'none' : 300, overflowY: 'auto', flex: 1
-          }}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{betaText + (status === 'running' ? ' ▌' : '')}</ReactMarkdown>
-          </div>
-        </div>
+        <AgentPanel label="Agent Beta (Network)" color="var(--c-green)" text={betaText} isRunning={status === 'running'} scrollRef={betaRef} />
       </div>
 
+      {/* Judge verdict – appears after debate */}
       {status === 'complete' && judgeRca && (
-        <div style={{ background: 'var(--c-surface-2)', padding: 16, borderTop: '1px solid var(--c-purple)', animation: 'fade-in 0.5s ease-out' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--c-purple)', marginBottom: 12, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
-            ⚖️ Judge Verdict
-            <span style={{ 
-              fontSize: '0.65rem', padding: '2px 6px', borderRadius: 4, 
-              background: judgeRca.confidence === 'high' ? 'var(--c-green-bg)' : 'var(--c-yellow-bg)',
-              color: judgeRca.confidence === 'high' ? 'var(--c-green)' : 'var(--c-yellow)'
-            }}>
-              {judgeRca.confidence.toUpperCase()} CONFIDENCE
-            </span>
+        <div style={{ padding: '14px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--c-purple)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>⚖️ Judge Verdict</span>
+            <span style={{
+              fontSize: '0.62rem', fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+              border: `1px solid ${confidenceColor}`,
+              color: confidenceColor,
+              textTransform: 'uppercase'
+            }}>{judgeRca.confidence} confidence</span>
           </div>
-          
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--c-text-dim)', marginBottom: 4, fontWeight: 700 }}>ROOT CAUSE:</div>
-            <div className="corvin-md" style={{ fontSize: '0.8rem', color: 'var(--c-text)', fontFamily: 'var(--font-body)', lineHeight: 1.5 }}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{typedRootCause}</ReactMarkdown>
-            </div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--c-text-dim)', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{judgeRca.root_cause}</ReactMarkdown>
           </div>
-          
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--c-text-dim)', marginBottom: 4, fontWeight: 700 }}>SUMMARY:</div>
-            <div className="corvin-md" style={{ fontSize: '0.8rem', color: 'var(--c-text)', fontFamily: 'var(--font-body)', lineHeight: 1.5 }}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{typedSummary}</ReactMarkdown>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-            <button onClick={onClose} style={{
-              padding: '6px 12px', borderRadius: 6, border: '1px solid var(--c-border-hi)',
-              background: 'transparent', color: 'var(--c-text-dim)', cursor: 'pointer',
-              fontSize: '0.75rem', fontWeight: 600
-            }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+            <button onClick={onClose} style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid var(--c-border-hi)', background: 'transparent', color: 'var(--c-text-dim)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}>
               Dismiss
             </button>
-            <button onClick={handleApply} style={{
-              padding: '6px 16px', borderRadius: 6, border: 'none',
-              background: 'var(--c-purple)', color: 'white', cursor: 'pointer',
-              fontSize: '0.75rem', fontWeight: 700, boxShadow: '0 2px 8px rgba(168, 85, 247, 0.3)'
-            }}>
+            <button onClick={() => window.location.reload()} style={{ padding: '6px 16px', borderRadius: 7, border: 'none', background: 'var(--c-purple)', color: '#fff', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
               Apply RCA to Investigation
             </button>
           </div>
@@ -222,22 +265,96 @@ export function WarRoomTerminal({ requestId, onClose }: WarRoomProps) {
     </div>
   )
 
-  if (isExpanded) {
-    return (
+  // ── Full-screen modal content ─────────────────────────────────────────────
+  const modalContent = isModalOpen && (
+    <Modal onClose={() => setIsModalOpen(false)}>
+      {/* Modal Header */}
       <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(5px)',
-        zIndex: 9999, padding: '40px', display: 'flex',
-        alignItems: 'center', justifyContent: 'center'
+        padding: '14px 20px', background: 'var(--c-surface-2)',
+        borderBottom: '1px solid var(--c-purple)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexShrink: 0
       }}>
-        {content}
+        <div style={{
+          fontFamily: 'var(--font-display)', fontSize: '0.8rem', fontWeight: 800,
+          letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--c-purple)',
+          display: 'flex', alignItems: 'center', gap: 10
+        }}>
+          ⚔️ Agent Consensus Engine — Full Debate View
+          {status === 'running' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--c-purple)', display: 'inline-block', animation: 'corvin-blink 1s steps(1) infinite' }} />}
+        </div>
+        <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--c-text-faint)', cursor: 'pointer', fontSize: '1.4rem', lineHeight: 1, padding: '2px 6px' }} title="Close modal">×</button>
       </div>
-    )
-  }
+
+      {/* Modal Status Bar */}
+      <div style={{ padding: '6px 20px', fontSize: '0.72rem', color: 'var(--c-text-dim)', fontFamily: 'var(--font-mono)', borderBottom: '1px solid var(--c-border)', flexShrink: 0 }}>
+        {status === 'complete' ? '✅ ' : status === 'error' ? '❌ ' : '⏳ '}{message}
+      </div>
+
+      {/* Modal Body — scrollable agents, fixed height */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1, minHeight: 0, borderBottom: '1px solid var(--c-border)' }}>
+        <div style={{ borderRight: '1px solid var(--c-border)', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '8px 20px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--c-yellow)', borderBottom: '1px solid rgba(234,179,8,0.15)', flexShrink: 0 }}>
+            🟡 Agent Alpha — Infrastructure Specialist
+          </div>
+          <div ref={alphaModalRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', fontSize: '0.82rem', color: 'var(--c-text-dim)', lineHeight: 1.7, fontFamily: 'var(--font-body)' }}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+              {alphaText || (status === 'running' ? '▌' : '—')}
+            </ReactMarkdown>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '8px 20px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--c-green)', borderBottom: '1px solid rgba(16,185,129,0.15)', flexShrink: 0 }}>
+            🟢 Agent Beta — Network & App Specialist
+          </div>
+          <div ref={betaModalRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', fontSize: '0.82rem', color: 'var(--c-text-dim)', lineHeight: 1.7, fontFamily: 'var(--font-body)' }}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+              {betaText || (status === 'running' ? '▌' : '—')}
+            </ReactMarkdown>
+          </div>
+        </div>
+      </div>
+
+      {/* Judge Verdict Footer */}
+      {status === 'complete' && judgeRca && (
+        <div style={{ padding: '16px 20px', background: 'var(--c-surface-2)', flexShrink: 0, borderTop: '1px solid var(--c-purple)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 800, color: 'var(--c-purple)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>⚖️ Judge Verdict</span>
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 10px', borderRadius: 20, border: `1px solid ${confidenceColor}`, color: confidenceColor, textTransform: 'uppercase' }}>
+              {judgeRca.confidence} confidence
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--c-text-faint)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Root Cause</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--c-text)', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{judgeRca.root_cause}</ReactMarkdown>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--c-text-faint)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Summary</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--c-text)', lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{judgeRca.summary}</ReactMarkdown>
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <button onClick={() => { setIsModalOpen(false); onClose() }} style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--c-border-hi)', background: 'transparent', color: 'var(--c-text-dim)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>
+              Dismiss
+            </button>
+            <button onClick={() => window.location.reload()} style={{ padding: '7px 20px', borderRadius: 8, border: 'none', background: 'var(--c-purple)', color: '#fff', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, boxShadow: '0 3px 12px rgba(168,85,247,0.35)' }}>
+              Apply RCA to Investigation
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      {content}
-    </div>
+    <>
+      {inlineSummary}
+      {modalContent}
+    </>
   )
 }

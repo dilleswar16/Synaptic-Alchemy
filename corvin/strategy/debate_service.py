@@ -53,7 +53,13 @@ class DebateOrchestrator:
         else:
             specialty = "Network & App Specialist (focuses on 5xx errors, APIM timeouts, Deployments, and Latency)"
 
-        system = f"You are Agent {agent_role.title()}, a {specialty}."
+        system = (
+            f"You are Agent {agent_role.title()}, a {specialty}. "
+            "You are debating root cause with another specialist agent. "
+            "Respond in well-structured Markdown. Use **bold** for key findings, "
+            "`code` for technical terms, and bullet points (- ) for listing evidence. "
+            "Do NOT produce JSON."
+        )
         user = (
             "Review the evidence and the Original RCA below.\n"
             "Formulate a strong, 2-3 paragraph hypothesis for the root cause based on your specialty.\n"
@@ -63,7 +69,8 @@ class DebateOrchestrator:
             f"Original RCA:\n{rca_json}\n\n"
             f"EvidenceBundle:\n{evidence_json}\n\n"
             f"InvestigationRequest:\n{request_json}\n\n"
-            "Output rich markdown text. Use bolding, italics, or bullet points where appropriate to make your hypothesis visually clear and easy to read. Do not output JSON."
+            "Write 2-3 paragraphs using Markdown formatting. Bold key conclusions. "
+            "Use bullet points for specific evidence. Do not output JSON."
         )
 
         return [
@@ -77,15 +84,24 @@ class DebateOrchestrator:
         alpha_text: str,
         beta_text: str,
     ) -> list[dict[str, str]]:
-        system = "You are the Judge Agent. Produce only valid JSON matching the RCAOutput schema."
+        system = (
+            "You are the Judge Agent for a multi-agent SRE debate. "
+            "Produce only valid JSON matching the RCAOutput schema. "
+            "IMPORTANT: The 'root_cause' and 'summary' fields MUST be written in rich Markdown. "
+            "Use **bold** for key technical terms, `backticks` for service names and ports, "
+            "and bullet lists (- ) where appropriate. "
+            "Do NOT wrap text fields in code fences — they go directly inside the JSON string value."
+        )
         schema_json = json.dumps(RCAOutput.model_json_schema(), indent=2, sort_keys=True)
         user = (
             "Review the debate between Agent Alpha and Agent Beta regarding this investigation.\n"
-            "Synthesize their arguments and produce the Final, definitive RCA.\n\n"
+            "Synthesize their arguments and produce the final, definitive RCA as a JSON object.\n\n"
             f"Agent Alpha (Infra) Hypothesis:\n{alpha_text}\n\n"
             f"Agent Beta (Network) Hypothesis:\n{beta_text}\n\n"
             f"RCAOutput schema:\n{schema_json}\n\n"
-            f"Set request_id to {request.id}. Return only the JSON object."
+            f"Set request_id to {request.id}. "
+            "Write 'root_cause' and 'summary' as Markdown strings (bold key terms, use bullet points). "
+            "Return only the JSON object."
         )
         return [
             {"role": "system", "content": system},
