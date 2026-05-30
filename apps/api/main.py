@@ -15,6 +15,7 @@ except ImportError:
     pass
 
 import asyncio
+import logging
 import os
 import warnings
 
@@ -101,7 +102,7 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 
-_cors_origins_raw = os.environ.get("CORVIN_ALLOWED_ORIGINS", "http://localhost:5173").strip()
+_cors_origins_raw = os.environ.get("CORVIN_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177").strip()
 _allow_all_origins = _cors_origins_raw == "*"
 _allowed_origins = (
     ["*"]

@@ -181,9 +181,9 @@ def ensure_demo_data(db: Session) -> bool:
     Returns True if data was seeded, False if the table was already populated.
     The function is idempotent — safe to call on every startup.
     """
-    existing = db.query(ApplicationRow).first()
-    if existing is not None:
-        log.info("Demo seed: applications table non-empty, skipping.")
+    already_seeded = db.query(ApplicationRow).filter_by(name="Claims Platform").first()
+    if already_seeded is not None:
+        log.info("Demo seed: demo data already present, skipping.")
         return False
 
     log.info("Demo seed: seeding 25 MetLife-style services …")
