@@ -19,11 +19,11 @@ and fix strategies. An SRE team then approves and executes fixes via Microsoft T
 
 ## Current Version
 
-**V3.9 complete. All enterprise-polish features verified (2026-05-13).**  
-**Now building: V4** — Semantic Search / Vector RAG using pgvector on Azure Postgres.
+**V5.1 complete (2026-05-31).** All agentic AI features shipped.  
+**Now building:** Application onboarding UX improvements (Notification Contacts, Inbound/Outbound Connectors).
 
 Read the active version scope BEFORE writing any code:
-- `docs/copilot-context/versions/hackathon-roadmap.md` ← **primary reference for V3.9 → V4**
+- `docs/copilot-context/versions/hackathon-roadmap.md` ← historical reference
 
 ---
 
@@ -42,7 +42,10 @@ Never build a feature from a future version while the current version is incompl
 | V3.5 | ✅ Complete | Alert Simulator, Teams Adaptive Cards, Blast Radius Estimator, Corvin Score Gauge |
 | V3.7 | ✅ Complete | Predictive Detections, SLA Countdown, Cross-Service Topology, Remediation Preview — all verified live in browser |
 | V3.9 | ✅ Complete | ROI Dashboard, Voice TTS, 3AM Mode, Runbook Auto-Update, War Room — 16/16 tests passing |
-| V4 | 🔒 Locked | Semantic Search / Vector RAG (requires pgvector on Azure Postgres) |
+| V4 | ⏭️ Skipped | Semantic Search / Vector RAG (deferred — requires pgvector on Azure Postgres) |
+| V4.5 | ✅ Complete | DB-driven AKS onboarding — remove hardcoded topology, k8s_app_label, guided AKS connector form |
+| V5.0 | ✅ Complete | Agentic AI P0: F1 AutonomousAgent, F4 CausalChain, F6 NL-to-KQL, F7 CommsDrafts |
+| V5.1 | ✅ Complete | Agentic AI P1: F9 Multi-Agent, F10 Chaos Engine, F11 IDE Integration, F12 Voice Incident |
 
 ---
 
@@ -111,6 +114,14 @@ corvin/
   evidence/       # Adapters: log_analytics, aks, container_logs, elastic, azure_activity
   enrich/         # EnrichmentService — orchestrates all adapters
   strategy/       # RCAGenerator, FixStrategyGenerator, SystemPromptBuilder
+                  #   + causal_chain.py — CausalChainGenerator (DAG from RCA)
+                  #   + comms_draft.py — CommsDraftGenerator (audience-targeted comms)
+                  #   + nl_to_kql.py — NLToKQLService (natural language → KQL w/ guardrails)
+                  #   + autonomous_agent.py — AutonomousAgent (16-tool function-calling loop)
+                  #   + multi_agent.py — MultiAgentOrchestrator (SelectorGroupChat pattern)
+                  #   + chaos_engine.py — ChaosExperimentGenerator (post-RCA resilience tests)
+                  #   + ide_integration.py — IDEIntegrationService (VS Code context + deploy safety)
+                  #   + voice_incident.py — VoiceIncidentService (Azure Speech STT → structured report)
   storage/        # DB session (db.py), SQLAlchemy models (models.py)
   execution/      # ExecutionService, remediation preview — requires ApprovalStatus.approved
   connectors/     # Pluggable data-source connectors: azure_monitor, elastic, byoa, crypto, registry
