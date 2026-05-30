@@ -399,16 +399,18 @@ This is what V3.5 enables (minimum viable demo):
 
 **Theme:** Maximum visual and narrative impact for demo day.  
 **Exit criteria:** GitOps PR UI renders after fix execution. Copilot chat streams answers based on incident context.
+**Status:** ✅ Complete — Both features are fully implemented in the frontend.
 
-### Feature 16 — GitOps "Self-Healing" Pull Request UI
+### Feature 16 — GitOps "Self-Healing" Pull Request UI (✅ Completed)
 **Why:** Bridges SRE operations with Infrastructure-as-Code. Replaces the generic runbook prompt with an authentic GitHub PR simulation.
 
 **What it does:**
 - Renders the LLM-generated runbook update as a syntax-highlighted Git Diff.
 - Replaces the generic "Update Runbook" button with a GitHub-styled "Merge pull request" button.
 - Appears on the Investigation Detail page only after a fix is executed.
+- *Implementation:* Fully available in `RunbookUpdatePrompt.tsx`.
 
-### Feature 17 — "Ask Corvin" Copilot Chat
+### Feature 17 — "Ask Corvin" Copilot Chat (✅ Completed)
 **Why:** Proves explainability and turns a static dashboard into an interactive pair-programmer. 
 
 **What it does:**
@@ -416,6 +418,7 @@ This is what V3.5 enables (minimum viable demo):
 - Injects the entire RCA, Evidence, Fix Strategy, and CHAD Runbook into the LLM system prompt.
 - Maintains chat history for follow-up questions.
 - Streams the response back to the UI in real-time.
+- *Implementation:* Fully available in `CopilotChatWidget.tsx` and integrated into the investigation flow.
 
 ---
 

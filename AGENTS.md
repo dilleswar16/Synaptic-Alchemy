@@ -42,7 +42,13 @@ Never build a feature from a future version while the current version is incompl
 | V3.5 | ✅ Complete | Alert Simulator, Teams Adaptive Cards, Blast Radius Estimator, Corvin Score Gauge |
 | V3.7 | ✅ Complete | Predictive Detections, SLA Countdown, Cross-Service Topology, Remediation Preview — all verified live in browser |
 | V3.9 | ✅ Complete | ROI Dashboard, Voice TTS, 3AM Mode, Runbook Auto-Update, War Room — 16/16 tests passing |
-| V4 | 🔒 Locked | Semantic Search / Vector RAG (requires pgvector on Azure Postgres) |
+| V3.95 | ✅ Complete | Ask Corvin Copilot Chat, GitOps PR UI — Frontend fully implemented |
+| V4 | ✅ Complete | P1/P2/P3 Classification, Progressive Disclosure UI |
+| V4.5 (Hackathon) | 🔒 Locked | **Killer Features:** AI Chaos Monkey (Auto-inject & heal), Root Cause Debate Mode (Multi-hypothesis) |
+| V4.6 (Hackathon) | 🔒 Locked | **Killer Features:** Time-Travel Incident Replay (Visual slider to rewind system state) |
+| V4.7 (Hackathon) | 🔒 Locked | **Killer Features:** "Git Blame" Code-Level Root Cause (Correlate infra alerts to exact GitHub commits) |
+| V4.8 (Hackathon) | 🔒 Locked | **Killer Features:** Cost-Aware Remediation (FinOps - attaching live price tags to fix strategies) |
+| V5 | 🔒 Locked | Semantic Search / Vector RAG (requires pgvector on Azure Postgres) |
 
 ---
 
