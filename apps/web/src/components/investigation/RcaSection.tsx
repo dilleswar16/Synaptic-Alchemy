@@ -11,6 +11,7 @@ import { emailRcaPdf, syncAzureBoards, syncServiceNow } from '../../api/client'
 import { FixStrategyFlowchart } from './FixStrategyFlowchart'
 import { exportRcaPdf } from '../../utils/rcaPdf'
 import type { InvestigationResult } from '../../api/client'
+import { WarRoomTerminal } from './WarRoomTerminal'
 
 interface RcaSectionProps {
   data: InvestigationResult
@@ -20,6 +21,7 @@ interface RcaSectionProps {
 export function RcaSection({ data, requestId }: RcaSectionProps) {
   const { rca, fix_strategy, request } = data
   const [syncOutcome, setSyncOutcome] = useState<{ provider: string; id: string | null; ok: boolean; message: string } | null>(null)
+  const [showWarRoom, setShowWarRoom] = useState(false)
 
   if (!rca) return null
 
@@ -81,6 +83,9 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
           <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '3px 8px' }} onClick={() => emailMutation.mutate()} disabled={emailMutation.isPending}>
             {emailMutation.isPending ? '...' : '✉ Mail'}
           </button>
+          <button className="btn-primary" style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'var(--c-purple)', color: 'white', border: 'none' }} onClick={() => setShowWarRoom(true)} disabled={showWarRoom}>
+            ⚔️ Challenge RCA
+          </button>
         </div>
       }
     >
@@ -100,6 +105,8 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
           <button onClick={() => setSyncOutcome(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', padding: '0 5px' }}>×</button>
         </div>
       )}
+
+      {showWarRoom && <WarRoomTerminal requestId={requestId} onClose={() => setShowWarRoom(false)} />}
 
       {/* Confidence bar */}
       <div style={{ marginBottom: 22 }}>

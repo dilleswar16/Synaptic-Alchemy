@@ -44,6 +44,7 @@ from corvin.strategy.roi import build_roi_stats
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.knowledge_loader import KnowledgeLoader
 from corvin.triggers.predictive import PredictiveMonitor
+from corvin.strategy.debate_service import DebateOrchestrator
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
@@ -264,6 +265,56 @@ def stream_investigation(
             "Cache-Control": "no-cache",
         },
     )
+
+@router.get("/{request_id}/debate/stream")
+async def stream_debate(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> StreamingResponse:
+    """Stream a multi-agent debate and overwrite the RCA on completion."""
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    async def _debate_stream_generator():
+        try:
+            from corvin.investigation.stream import _stage_event
+            orchestrator = DebateOrchestrator()
+            yield _stage_event("debate", "started", "Summoning agents Alpha and Beta...")
+
+            async for agent_id, token, final_rca in orchestrator.generate_debate_stream_async(result.request, result.evidence, result.rca):
+                if token is not None:
+                    yield _stage_event("debate", "token", token, agent=agent_id)
+                elif final_rca is not None:
+                    # Update DB with the new RCA
+                    result.rca = final_rca
+                    repo.save_investigation_result(result)
+                    yield _stage_event(
+                        "debate",
+                        "complete",
+                        "Debate concluded. Root Cause updated.",
+                        summary=final_rca.summary,
+                        root_cause=final_rca.root_cause,
+                        contributing_factors=final_rca.contributing_factors,
+                        confidence=final_rca.confidence.value,
+                        confidence_reasoning=final_rca.confidence_reasoning,
+                        evidence_references=final_rca.evidence_references,
+                    )
+        except Exception as exc:
+            import traceback
+            from corvin.investigation.stream import _stage_event
+            _log.warning("Debate stream failed: %s\n%s", exc, traceback.format_exc())
+            yield _stage_event("error", "error", f"Debate failed: {exc}")
+
+    return StreamingResponse(
+        _debate_stream_generator(),
+        media_type="text/event-stream",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+        },
+    )
+
 
 
 @router.get("/memory", response_model=list[dict])

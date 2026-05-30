@@ -36,6 +36,7 @@ class TriggerSource(str, Enum):
     MANUAL_CLI = "manual_cli"
     TEAMS = "teams"
     MANUAL_WEB = "manual_web"
+    CHAOS_MONKEY = "chaos_monkey"
 
 
 class ApprovalStatus(str, Enum):

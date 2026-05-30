@@ -80,6 +80,21 @@ def _run_investigation_in_background(
     except Exception as exc:  # noqa: BLE001
         _log.warning("Teams delivery failed (non-fatal) for %s: %s", request.id, exc)
 
+    # Chaos Monkey Auto-Execution Bypass
+    if request.trigger_source == TriggerSource.CHAOS_MONKEY:
+        try:
+            from corvin.execution.execution_service import ExecutionService
+            from corvin.core.contracts import ApprovalStatus
+            _log.info("Auto-executing fix strategy for Chaos Monkey fault injection on %s", request.id)
+            exec_svc = ExecutionService()
+            # Mark it approved so the ExecutionService gate allows it
+            repo.update_approval_status(request.id, ApprovalStatus.APPROVED.value, "auto-approved-chaos")
+            result.request.approval_status = ApprovalStatus.APPROVED
+            exec_result = exec_svc.execute(result, ApprovalStatus.APPROVED.value)
+            repo.update_approval_status(request.id, exec_result.approval_status, "system")
+        except Exception as exc:
+            _log.warning("Chaos Monkey auto-execution failed for %s: %s", request.id, exc)
+
     # Optional and non-fatal: email RCA PDF when configured.
     send_rca_email_if_enabled(result)
 
@@ -199,5 +214,45 @@ def simulate_alert(
         "scenario": body.scenario,
         "service_name": body.service_name,
         "environment": body.environment,
+    }
+
+
+class ChaosMonkeyRequest(BaseModel):
+    service_name: str
+    environment: str = "dev"
+    fault_type: str = "kill_pod"
+
+@router.post("/chaos-monkey", status_code=202)
+def trigger_chaos_monkey(
+    body: ChaosMonkeyRequest,
+    background_tasks: BackgroundTasks,
+    engine: InvestigationEngine = Depends(get_engine),
+    repo: InvestigationRepository = Depends(get_repository),
+    teams: TeamsAdapter = Depends(get_teams_adapter),
+) -> dict[str, str]:
+    from corvin.execution.chaos_monkey import ChaosMonkey
+    cm = ChaosMonkey()
+    cm_result = cm.inject_fault(body.service_name, body.environment, body.fault_type)
+
+    request = InvestigationRequest(
+        trigger_source=TriggerSource.CHAOS_MONKEY,
+        service_name=body.service_name,
+        environment=body.environment,
+        description=f"[CHAOS MONKEY] Fault injected: {body.fault_type}. Status: {cm_result['status']} - {cm_result['message']}",
+    )
+
+    background_tasks.add_task(
+        _run_investigation_in_background,
+        request,
+        engine,
+        repo,
+        teams,
+    )
+
+    return {
+        "request_id": request.id,
+        "status": "accepted",
+        "chaos_status": cm_result["status"],
+        "message": cm_result["message"]
     }
 

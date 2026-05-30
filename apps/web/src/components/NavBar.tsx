@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { ThemeToggle } from './ThemeToggle'
 import { useThreeAmMode } from '../hooks/useThreeAmMode'
 import { useTheme } from '../context/ThemeContext'
+import { ChaosMonkeyModal } from './ChaosMonkeyModal'
 
 const NAV_LINKS = [
   { to: '/',               label: 'Dashboard',      icon: '◎' },
@@ -33,6 +34,7 @@ function LiveClock() {
 export default function NavBar() {
   const { pathname } = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [showChaos, setShowChaos] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 900)
   const { active: threeAm, toggle: toggleThreeAm } = useThreeAmMode()
   const { theme } = useTheme()
@@ -195,6 +197,19 @@ export default function NavBar() {
             </Link>
           )}
 
+          {!isMobile && (
+            <button
+              onClick={() => setShowChaos(true)}
+              style={{ 
+                padding: '7px 16px', fontSize: '0.8125rem', borderRadius: 9, 
+                background: 'var(--c-red)', color: 'white', border: 'none', 
+                fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+              }}
+            >
+              <span>🐵</span> Chaos Monkey
+            </button>
+          )}
+
           {isMobile && (
             <button
               aria-label="Toggle navigation menu"
@@ -284,6 +299,8 @@ export default function NavBar() {
           </nav>
         </>
       )}
+
+      {showChaos && <ChaosMonkeyModal onClose={() => setShowChaos(false)} />}
     </header>
   )
 }

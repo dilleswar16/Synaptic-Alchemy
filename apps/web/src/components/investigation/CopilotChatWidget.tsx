@@ -156,10 +156,17 @@ export function CopilotChatWidget({ requestId }: Props) {
   const [loading, setLoading] = useState(false)
   const [historyLoaded, setHistoryLoaded] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (open && !loading) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [open, loading])
 
   // Load persisted chat history the first time the widget is opened
   const loadHistory = useCallback(async () => {
@@ -364,6 +371,7 @@ export function CopilotChatWidget({ requestId }: Props) {
         {/* Input */}
         <form onSubmit={handleSubmit} style={{ padding: '12px 14px', borderTop: '1px solid var(--c-border)', background: 'var(--c-surface)', display: 'flex', gap: 8, flexShrink: 0 }}>
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
