@@ -304,6 +304,9 @@ class ApplicationServiceRow(Base):
     tier: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)  # frontend|api|db|queue|worker
     dependencies: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
     metadata_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    # Kubernetes deployment label (e.g. "chad-fundapis") — may differ from service_name.
+    # Used by the topology/live endpoint to map AKS pod labels to logical service names.
+    k8s_app_label: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
 
     application: Mapped["ApplicationRow"] = relationship("ApplicationRow", back_populates="services")
 

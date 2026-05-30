@@ -22,7 +22,7 @@ from corvin.connectors.registry import ConnectorRegistry
 router = APIRouter()
 _registry = ConnectorRegistry()
 
-_VALID_SOURCE_TYPES = {"azure_monitor", "elastic", "byoa"}
+_VALID_SOURCE_TYPES = {"azure_monitor", "elastic", "byoa", "aks"}
 _VALID_CREDENTIAL_TYPES = {"db_encrypted", "kv_reference", "env_var"}
 _VALID_SLI_TYPES = {"availability", "latency"}
 
@@ -59,6 +59,7 @@ class ServiceCreate(BaseModel):
     tier: str | None = None  # frontend|api|db|queue|worker
     dependencies: list[str] = []
     metadata_json: dict[str, Any] = {}
+    k8s_app_label: str | None = None
 
 
 class ServiceUpdate(BaseModel):
@@ -67,6 +68,7 @@ class ServiceUpdate(BaseModel):
     tier: str | None = None
     dependencies: list[str] | None = None
     metadata_json: dict[str, Any] | None = None
+    k8s_app_label: str | None = None
 
 
 class ConnectorCreate(BaseModel):
@@ -365,6 +367,7 @@ def _svc_dict(row: ApplicationServiceRow) -> dict[str, Any]:
         "tier": row.tier,
         "dependencies": row.dependencies,
         "metadata_json": row.metadata_json,
+        "k8s_app_label": row.k8s_app_label,
     }
 
 

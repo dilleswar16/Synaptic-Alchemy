@@ -510,38 +510,70 @@ def get_topology_live() -> dict:
     Unlike /topology (which is built from past DB investigations), this endpoint
     calls the AKS API directly so it always reflects the current running state.
 
-    Even when AKS is unreachable, the known CHAD service architecture (APIM gateway,
-    fundapis, partnerapis, fundsso with correct routing) is always included as static
-    nodes so the canvas is never blank.
+    Service nodes, the k8s label→name mapping, and APIM routing edges are all
+    driven by ApplicationServiceRow records registered through the Applications UI.
+    No service details are hardcoded — add/remove services via Applications → Services.
     """
     from corvin.evidence.aks_adapter import AKSAdapter
     from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
     from corvin.investigation.topology import (
         ServiceTopology, TopologyNode, TopologyEdge,
-        _inject_apim_topology, build_pod_topology_node,
+        build_pod_topology_node,
         _resource_summary, _resource_summary_by_pod,
     )
+    from corvin.storage.db import get_session as _get_db_session
+    from corvin.storage.models import ApplicationServiceRow as _SvcRow
 
-    # AKS deployment label → logical CHAD service name.
-    # The `app` label in k8s is "chad-fundapis" but we call it "fundapis" everywhere.
-    _AKS_NAME_MAP: dict[str, str] = {
-        "chad-fundapis":    "fundapis",
-        "chad-fundsso":     "fundsso",
-        "chad-partnerapis": "partnerapis",
-    }
-
-    # ── Static CHAD architecture — always shown regardless of AKS reachability ──
-    # Start with the three logical service nodes. Live pod data will update their
-    # status and attach pod children to these same nodes (not duplicate them).
-    nodes: dict[str, TopologyNode] = {
-        "svc:fundapis":    TopologyNode(id="svc:fundapis",    label="fundapis",    kind="service", status="high"),
-        "svc:partnerapis": TopologyNode(id="svc:partnerapis", label="partnerapis", kind="service", status="high"),
-        "svc:fundsso":     TopologyNode(id="svc:fundsso",     label="fundsso",     kind="service", status="high"),
-    }
+    nodes: dict[str, TopologyNode] = {}
     edges: dict[tuple[str, str, str | None], TopologyEdge] = {}
+    # k8s deployment label (e.g. "chad-fundapis") → logical service name ("fundapis")
+    aks_name_map: dict[str, str] = {}
 
-    # Inject APIM gateway + API route nodes (fundapis/partnerapis) + PingFederate (fundsso)
-    _inject_apim_topology(nodes, edges)
+    # ── Build initial service nodes + routing edges from DB ──────────────────
+    with _get_db_session() as _db:
+        svc_rows = _db.query(_SvcRow).all()
+
+    for svc in svc_rows:
+        svc_id = f"svc:{svc.service_name}"
+        if svc.k8s_app_label:
+            aks_name_map[svc.k8s_app_label] = svc.service_name
+        nodes[svc_id] = TopologyNode(
+            id=svc_id, label=svc.service_name, kind="service", status="unknown",
+        )
+        meta: dict = svc.metadata_json or {}
+        # APIM routing: inject gateway → api node → service edges
+        if meta.get("apim_routes_through_gateway"):
+            api_id = meta.get("apim_api_id") or svc.service_name
+            gateway_id = "gateway:apim"
+            api_node_id = f"api:{api_id}"
+            if gateway_id not in nodes:
+                nodes[gateway_id] = TopologyNode(
+                    id=gateway_id, label="APIM Gateway", kind="gateway", status="supporting",
+                )
+            nodes.setdefault(
+                api_node_id,
+                TopologyNode(id=api_node_id, label=api_id, kind="api", status="observed"),
+            )
+            edges[(gateway_id, api_node_id, "routes")] = TopologyEdge(
+                source=gateway_id, target=api_node_id, label="routes",
+            )
+            edges[(api_node_id, svc_id, "routes")] = TopologyEdge(
+                source=api_node_id, target=svc_id, label="routes",
+            )
+        # SSO / direct-to-IdP dependency
+        if meta.get("is_sso_direct"):
+            pf_id = "backend:pingfederate"
+            nodes.setdefault(
+                pf_id,
+                TopologyNode(id=pf_id, label="PingFederate SSO", kind="backend", status="supporting"),
+            )
+            edges[(svc_id, pf_id, "depends-on")] = TopologyEdge(
+                source=svc_id, target=pf_id, label="depends-on",
+            )
+
+    # If no services have been registered yet, return an empty topology
+    if not nodes:
+        return ServiceTopology(nodes=[], edges=[]).model_dump()
 
     # ── Live pod data from AKS — overlay status + pod children ───────────────
     try:
@@ -550,8 +582,8 @@ def get_topology_live() -> dict:
         result = adapter.list_all_pods()
         for svc in result.get("services", []):
             raw_name = svc["name"]
-            # Normalise "chad-fundapis" → "fundapis" so pods attach to the right node
-            logical_name = _AKS_NAME_MAP.get(raw_name, raw_name)
+            # Normalise k8s label → logical name using the DB-driven map
+            logical_name = aks_name_map.get(raw_name, raw_name)
             svc_id = f"svc:{logical_name}"
             live_status = svc.get("status", "high")
             try:
@@ -560,7 +592,7 @@ def get_topology_live() -> dict:
                 metric_rows = []
             service_resource = _resource_summary(metric_rows)
             pod_resource_map = _resource_summary_by_pod(metric_rows)
-            # Update or create the service node with the live status
+            # Update or create the service node with live status + resource metrics
             nodes[svc_id] = TopologyNode(
                 id=svc_id,
                 label=logical_name,
@@ -586,10 +618,11 @@ def get_topology_live() -> dict:
                         pod_copy[key] = value
                 pod_node = build_pod_topology_node(pod_copy)
                 nodes[pod_node.id] = pod_node
-                edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(source=svc_id, target=pod_node.id, label="runs")
+                edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(
+                    source=svc_id, target=pod_node.id, label="runs",
+                )
     except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning("topology/live AKS call failed (static nodes still returned): %s", exc)
+        _log.warning("topology/live AKS call failed (DB-seeded nodes still returned): %s", exc)
 
     return ServiceTopology(nodes=list(nodes.values()), edges=list(edges.values())).model_dump()
 

@@ -658,12 +658,13 @@ export interface ApplicationService {
   tier: string
   dependencies: string[]
   metadata_json: Record<string, unknown>
+  k8s_app_label: string | null
 }
 
 export interface LogSource {
   id: string
   application_id: string
-  source_type: 'azure_monitor' | 'elastic' | 'byoa'
+  source_type: 'azure_monitor' | 'elastic' | 'byoa' | 'aks'
   display_name: string
   config_json: Record<string, unknown>
   credential_type: 'db_encrypted' | 'kv_reference' | 'env_var'

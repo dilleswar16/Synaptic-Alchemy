@@ -38,6 +38,7 @@ const SOURCE_ICONS: Record<string, string> = {
   azure_monitor: '☁',
   elastic: '⚡',
   byoa: '⊕',
+  aks: '⎈',
 }
 
 const SLI_LABELS: Record<string, string> = {
@@ -180,16 +181,35 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
   const [displayName, setDisplayName] = useState('')
   const [tier, setTier] = useState('api')
   const [ns, setNs] = useState('')
+  const [k8sLabel, setK8sLabel] = useState('')
+  const [apimGateway, setApimGateway] = useState(false)
+  const [apimApiId, setApimApiId] = useState('')
+  const [isSsoDirect, setIsSsoDirect] = useState(false)
 
   const mut = useMutation({
-    mutationFn: () => addService(appId, { service_name: svcName, display_name: displayName || svcName, tier, namespace: ns || null }),
+    mutationFn: () => {
+      const metadata: Record<string, unknown> = {}
+      if (apimGateway) {
+        metadata.apim_routes_through_gateway = true
+        if (apimApiId.trim()) metadata.apim_api_id = apimApiId.trim()
+      }
+      if (isSsoDirect) metadata.is_sso_direct = true
+      return addService(appId, {
+        service_name: svcName,
+        display_name: displayName || svcName,
+        tier,
+        namespace: ns || null,
+        k8s_app_label: k8sLabel.trim() || null,
+        metadata_json: metadata,
+      })
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['application', appId] }); onClose() },
   })
 
   return (
     <Modal title="Add Service" onClose={onClose}>
       <Field label="Service Name *">
-        <input style={INPUT_STYLE} value={svcName} onChange={e => setSvcName(e.target.value)} placeholder="e.g. chad-api" />
+        <input style={INPUT_STYLE} value={svcName} onChange={e => setSvcName(e.target.value)} placeholder="e.g. fundapis" />
       </Field>
       <Field label="Display Name">
         <input style={INPUT_STYLE} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Defaults to service name" />
@@ -201,7 +221,27 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
         </select>
       </Field>
       <Field label="Kubernetes Namespace">
-        <input style={INPUT_STYLE} value={ns} onChange={e => setNs(e.target.value)} placeholder="e.g. chad-prod" />
+        <input style={INPUT_STYLE} value={ns} onChange={e => setNs(e.target.value)} placeholder="e.g. chad" />
+      </Field>
+      <Field label="K8s App Label">
+        <input style={INPUT_STYLE} value={k8sLabel} onChange={e => setK8sLabel(e.target.value)} placeholder="e.g. chad-fundapis (deployment app label in cluster)" />
+      </Field>
+      <Field label="">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.82rem' }}>
+          <input type="checkbox" checked={apimGateway} onChange={e => setApimGateway(e.target.checked)} />
+          Routes via APIM Gateway
+        </label>
+      </Field>
+      {apimGateway && (
+        <Field label="APIM API ID">
+          <input style={INPUT_STYLE} value={apimApiId} onChange={e => setApimApiId(e.target.value)} placeholder="e.g. fundapis (defaults to service name)" />
+        </Field>
+      )}
+      <Field label="">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.82rem' }}>
+          <input type="checkbox" checked={isSsoDirect} onChange={e => setIsSsoDirect(e.target.checked)} />
+          Direct SSO dependency (e.g. PingFederate)
+        </label>
       </Field>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
         <button className="btn-secondary" onClick={onClose}>Cancel</button>
@@ -209,6 +249,7 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
           {mut.isPending ? 'Adding…' : 'Add Service'}
         </button>
       </div>
+      {mut.isError && <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: 8 }}>{String(mut.error)}</p>}
     </Modal>
   )
 }
@@ -217,13 +258,24 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
 
 function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => void }) {
   const qc = useQueryClient()
-  const [sourceType, setSourceType] = useState<'azure_monitor' | 'elastic' | 'byoa'>('azure_monitor')
+  const [sourceType, setSourceType] = useState<'azure_monitor' | 'elastic' | 'byoa' | 'aks'>('azure_monitor')
   const [displayName, setDisplayName] = useState('')
   const [credType, setCredType] = useState<'env_var' | 'db_encrypted' | 'kv_reference'>('env_var')
   const [credRef, setCredRef] = useState('')
   const [credValue, setCredValue] = useState('')
   const [configJson, setConfigJson] = useState('{}')
   const [configError, setConfigError] = useState('')
+
+  // AKS guided fields
+  const [aksCluster, setAksCluster] = useState('')
+  const [aksRg, setAksRg] = useState('')
+  const [aksSub, setAksSub] = useState('')
+  const [aksNs, setAksNs] = useState('default')
+  const [aksKubeconfigPath, setAksKubeconfigPath] = useState('')
+  const [aksInCluster, setAksInCluster] = useState(false)
+  const [aksClientId, setAksClientId] = useState('')
+  const [aksClientSecret, setAksClientSecret] = useState('')
+  const [aksTenantId, setAksTenantId] = useState('')
 
   function validateJson(v: string) {
     try { JSON.parse(v); setConfigError(''); return true }
@@ -232,13 +284,34 @@ function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => v
 
   const mut = useMutation({
     mutationFn: () => {
+      if (sourceType === 'aks') {
+        const config = {
+          cluster_name: aksCluster.trim(),
+          resource_group: aksRg.trim(),
+          subscription_id: aksSub.trim(),
+          default_namespace: aksNs.trim() || 'default',
+          ...(aksInCluster ? { in_cluster: true } : { kube_config_path: aksKubeconfigPath.trim() || undefined }),
+        }
+        const cred = JSON.stringify({
+          client_id: aksClientId.trim(),
+          client_secret: aksClientSecret,
+          tenant_id: aksTenantId.trim(),
+        })
+        return addConnector(appId, {
+          source_type: 'aks',
+          display_name: displayName,
+          config_json: config,
+          credential_type: 'db_encrypted',
+          credential_value: cred,
+        })
+      }
       if (!validateJson(configJson)) return Promise.reject(new Error('Bad JSON'))
       return addConnector(appId, {
         source_type: sourceType,
         display_name: displayName,
         config_json: JSON.parse(configJson),
         credential_type: credType,
-        credential_ref: credType === 'env_var' ? credRef || null : credRef || null,
+        credential_ref: credType !== 'db_encrypted' ? credRef || null : null,
         credential_value: credType === 'db_encrypted' ? credValue : undefined,
       })
     },
@@ -258,43 +331,93 @@ function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => v
           <option value="azure_monitor">Azure Monitor / Log Analytics</option>
           <option value="elastic">Elasticsearch</option>
           <option value="byoa">Bring Your Own API (BYOA)</option>
+          <option value="aks">AKS / Kubernetes</option>
         </select>
       </Field>
       <Field label="Display Name *">
-        <input style={INPUT_STYLE} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder={`e.g. ${sourceType === 'azure_monitor' ? 'Azure Log Analytics (APIM)' : sourceType === 'elastic' ? 'Production Elasticsearch' : 'Custom Observability API'}`} />
+        <input style={INPUT_STYLE} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder={
+          sourceType === 'azure_monitor' ? 'e.g. Azure Log Analytics (APIM)'
+          : sourceType === 'elastic' ? 'e.g. Production Elasticsearch'
+          : sourceType === 'aks' ? 'e.g. CHAD AKS Cluster'
+          : 'e.g. Custom Observability API'
+        } />
       </Field>
-      <Field label={`Config JSON (${sourceType})`}>
-        <textarea
-          style={{ ...INPUT_STYLE, resize: 'vertical', minHeight: 90, borderColor: configError ? '#ef4444' : undefined }}
-          value={configJson}
-          onChange={e => { setConfigJson(e.target.value); setConfigError('') }}
-          placeholder={placeholders[sourceType]}
-          spellCheck={false}
-        />
-        {configError && <p style={{ color: '#ef4444', fontSize: '0.72rem', margin: '4px 0 0' }}>{configError}</p>}
-      </Field>
-      <Field label="Credential Type">
-        <select style={INPUT_STYLE} value={credType} onChange={e => setCredType(e.target.value as typeof credType)}>
-          <option value="env_var">Env Var (DefaultAzureCredential / no secret)</option>
-          <option value="db_encrypted">DB Encrypted (AES-256-GCM)</option>
-          <option value="kv_reference">Azure Key Vault Reference</option>
-        </select>
-      </Field>
-      {credType === 'env_var' && (
-        <Field label="Env Var Name (optional)">
-          <input style={INPUT_STYLE} value={credRef} onChange={e => setCredRef(e.target.value)} placeholder="e.g. ELASTIC_API_KEY (leave blank for managed identity)" />
-        </Field>
+
+      {sourceType === 'aks' ? (
+        <>
+          <Field label="Cluster Name *">
+            <input style={INPUT_STYLE} value={aksCluster} onChange={e => setAksCluster(e.target.value)} placeholder="e.g. azaustaekub14470dv0101" />
+          </Field>
+          <Field label="Resource Group *">
+            <input style={INPUT_STYLE} value={aksRg} onChange={e => setAksRg(e.target.value)} placeholder="e.g. RG_14470_AUCHAD_DV01" />
+          </Field>
+          <Field label="Subscription ID *">
+            <input style={INPUT_STYLE} value={aksSub} onChange={e => setAksSub(e.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+          </Field>
+          <Field label="Default Namespace">
+            <input style={INPUT_STYLE} value={aksNs} onChange={e => setAksNs(e.target.value)} placeholder="e.g. chad" />
+          </Field>
+          <Field label="">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.82rem' }}>
+              <input type="checkbox" checked={aksInCluster} onChange={e => setAksInCluster(e.target.checked)} />
+              Running in-cluster (use pod service account, no kubeconfig needed)
+            </label>
+          </Field>
+          {!aksInCluster && (
+            <Field label="Kubeconfig Path">
+              <input style={INPUT_STYLE} value={aksKubeconfigPath} onChange={e => setAksKubeconfigPath(e.target.value)} placeholder="e.g. ~/.kube/config (leave blank for default)" />
+            </Field>
+          )}
+          <div style={{ borderTop: '1px solid var(--c-border)', margin: '14px 0 10px', paddingTop: 10, fontSize: '0.75rem', color: 'var(--c-text-muted)', fontFamily: 'var(--font-display)' }}>
+            Azure Service Principal (encrypted at rest)
+          </div>
+          <Field label="Azure Client ID *">
+            <input style={INPUT_STYLE} value={aksClientId} onChange={e => setAksClientId(e.target.value)} placeholder="Service principal client ID" />
+          </Field>
+          <Field label="Azure Client Secret *">
+            <input type="password" style={INPUT_STYLE} value={aksClientSecret} onChange={e => setAksClientSecret(e.target.value)} placeholder="Service principal client secret" />
+          </Field>
+          <Field label="Azure Tenant ID *">
+            <input style={INPUT_STYLE} value={aksTenantId} onChange={e => setAksTenantId(e.target.value)} placeholder="e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+          </Field>
+        </>
+      ) : (
+        <>
+          <Field label={`Config JSON (${sourceType})`}>
+            <textarea
+              style={{ ...INPUT_STYLE, resize: 'vertical', minHeight: 90, borderColor: configError ? '#ef4444' : undefined }}
+              value={configJson}
+              onChange={e => { setConfigJson(e.target.value); setConfigError('') }}
+              placeholder={placeholders[sourceType]}
+              spellCheck={false}
+            />
+            {configError && <p style={{ color: '#ef4444', fontSize: '0.72rem', margin: '4px 0 0' }}>{configError}</p>}
+          </Field>
+          <Field label="Credential Type">
+            <select style={INPUT_STYLE} value={credType} onChange={e => setCredType(e.target.value as typeof credType)}>
+              <option value="env_var">Env Var (DefaultAzureCredential / no secret)</option>
+              <option value="db_encrypted">DB Encrypted (AES-256-GCM)</option>
+              <option value="kv_reference">Azure Key Vault Reference</option>
+            </select>
+          </Field>
+          {credType === 'env_var' && (
+            <Field label="Env Var Name (optional)">
+              <input style={INPUT_STYLE} value={credRef} onChange={e => setCredRef(e.target.value)} placeholder="e.g. ELASTIC_API_KEY (leave blank for managed identity)" />
+            </Field>
+          )}
+          {credType === 'db_encrypted' && (
+            <Field label="Secret Value (will be AES-256 encrypted at rest)">
+              <input type="password" style={INPUT_STYLE} value={credValue} onChange={e => setCredValue(e.target.value)} placeholder="Enter API key / password…" />
+            </Field>
+          )}
+          {credType === 'kv_reference' && (
+            <Field label="Key Vault Reference (vault_url|secret_name)">
+              <input style={INPUT_STYLE} value={credRef} onChange={e => setCredRef(e.target.value)} placeholder="https://my-vault.vault.azure.net|my-secret" />
+            </Field>
+          )}
+        </>
       )}
-      {credType === 'db_encrypted' && (
-        <Field label="Secret Value (will be AES-256 encrypted at rest)">
-          <input type="password" style={INPUT_STYLE} value={credValue} onChange={e => setCredValue(e.target.value)} placeholder="Enter API key / password…" />
-        </Field>
-      )}
-      {credType === 'kv_reference' && (
-        <Field label="Key Vault Reference (vault_url|secret_name)">
-          <input style={INPUT_STYLE} value={credRef} onChange={e => setCredRef(e.target.value)} placeholder="https://my-vault.vault.azure.net|my-secret" />
-        </Field>
-      )}
+
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
         <button className="btn-secondary" onClick={onClose}>Cancel</button>
         <button className="btn-primary" onClick={() => mut.mutate()} disabled={!displayName || mut.isPending}>
