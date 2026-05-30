@@ -283,7 +283,10 @@ async def stream_debate(
             yield _stage_event("debate", "started", "Summoning agents Alpha and Beta...")
 
             async for agent_id, token, final_rca in orchestrator.generate_debate_stream_async(result.request, result.evidence, result.rca):
-                if token is not None:
+                if agent_id == "judge_token" and token is not None:
+                    # Real streaming token from the judge LLM
+                    yield _stage_event("debate", "judge_token", token)
+                elif token is not None:
                     yield _stage_event("debate", "token", token, agent=agent_id)
                 elif final_rca is not None:
                     # Update DB with the new RCA

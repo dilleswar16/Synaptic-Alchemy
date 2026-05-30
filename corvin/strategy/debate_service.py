@@ -86,11 +86,11 @@ class DebateOrchestrator:
     ) -> list[dict[str, str]]:
         system = (
             "You are the Judge Agent for a multi-agent SRE debate. "
-            "Produce only valid JSON matching the RCAOutput schema. "
-            "IMPORTANT: The 'root_cause' and 'summary' fields MUST be written in rich Markdown. "
-            "Use **bold** for key technical terms, `backticks` for service names and ports, "
-            "and bullet lists (- ) where appropriate. "
-            "Do NOT wrap text fields in code fences — they go directly inside the JSON string value."
+            "Produce only valid JSON matching the RCAOutput schema exactly. "
+            "The 'root_cause' field must be a single concise sentence (max 2 sentences) — no bullet points, no markdown. "
+            "The 'summary' field must be 1-2 plain sentences summarizing the conclusion. "
+            "These fields are displayed in a compact UI card and must remain brief and plain text. "
+            "The 'contributing_factors' list is where detailed bullet points belong."
         )
         schema_json = json.dumps(RCAOutput.model_json_schema(), indent=2, sort_keys=True)
         user = (
@@ -100,7 +100,8 @@ class DebateOrchestrator:
             f"Agent Beta (Network) Hypothesis:\n{beta_text}\n\n"
             f"RCAOutput schema:\n{schema_json}\n\n"
             f"Set request_id to {request.id}. "
-            "Write 'root_cause' and 'summary' as Markdown strings (bold key terms, use bullet points). "
+            "Keep 'root_cause' to 1-2 plain sentences. Keep 'summary' to 1-2 plain sentences. "
+            "Put all detailed analysis and bullet points in 'contributing_factors'. "
             "Return only the JSON object."
         )
         return [
@@ -188,18 +189,49 @@ class DebateOrchestrator:
 
         await asyncio.gather(task_alpha, task_beta)
 
-        # Run Judge (async for the final schema)
+        # Run Judge with real streaming — same AsyncAzureOpenAI pattern as agents
         judge_messages = self._build_judge_messages(request, alpha_full, beta_full)
-        kwargs = self._rca_gen._build_completion_kwargs()
-        kwargs["messages"] = judge_messages
-        
+
+        import os
+        from openai import AsyncAzureOpenAI
+
+        endpoint = os.environ.get("LITELLM_ENDPOINT", "").strip()
+        api_key = os.environ.get("LITELLM_API_KEY", "").strip()
+        api_version = os.environ.get("AZURE_API_VERSION", "").strip()
+        client = AsyncAzureOpenAI(
+            azure_endpoint=endpoint,
+            api_key=api_key,
+            api_version=api_version,
+        )
+        model_name = self._config["model"].replace("azure/", "").replace("responses/", "")
+
+        judge_kwargs: dict = {
+            "model": model_name,
+            "messages": judge_messages,
+            "stream": True,
+            "max_completion_tokens": self._config.get("max_tokens", 4096),
+            "response_format": {"type": "json_object"},
+        }
+        if "o1" not in model_name.lower() and "o3" not in model_name.lower():
+            judge_kwargs["temperature"] = self._config.get("temperature", 0.1)
+
+        judge_accumulated = ""
+        final_rca = original_rca  # safe fallback
         try:
-            response = await litellm.acompletion(model=self._config["model"], **kwargs)
-            final_rca = RCAOutput.model_validate(self._rca_gen._parse_response(response))
+            response = await client.chat.completions.create(**judge_kwargs)
+            async for chunk in response:
+                if chunk.choices:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        judge_accumulated += delta.content
+                        yield ("judge_token", delta.content, None)
+
+            # Parse accumulated JSON into structured RCAOutput
+            final_rca = RCAOutput.model_validate(self._rca_gen._parse_response(
+                type('_R', (), {'choices': [type('_C', (), {'message': type('_M', (), {'content': judge_accumulated, 'parsed': None})()})()]})() 
+            ))
             final_rca = self._rca_gen._normalize_evidence_references(final_rca, evidence)
         except Exception as exc:
-            _log.warning("Debate Judge failed: %s", exc)
-            # Fallback to original RCA if judge fails
-            final_rca = original_rca
+            _log.warning("Debate Judge streaming failed: %s", exc)
 
         yield ("judge", None, final_rca)
