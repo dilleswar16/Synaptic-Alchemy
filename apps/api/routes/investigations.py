@@ -1506,3 +1506,186 @@ def translate_nl_to_kql(body: NLToKQLRequest) -> dict:
 
     service = NLToKQLService()
     return service.translate(body.question, body.time_range)
+
+
+# ── F9: Multi-Agent Investigation ─────────────────────────────────────────────
+
+class MultiAgentRequest(BaseModel):
+    service_name: str
+    environment: str = "prod"
+    description: str
+    priority: str = "P2"
+
+
+@router.post("/multi-agent", status_code=202)
+def start_multi_agent_investigation(
+    body: MultiAgentRequest,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Launch a multi-agent investigation using the SelectorGroupChat pattern.
+
+    Specialist agents (EvidenceCollector, RCAAnalyst, FixStrategist) are
+    dynamically coordinated by an LLM-based orchestrator.
+    Returns the investigation result + agent trace for observability.
+    """
+    from corvin.strategy.multi_agent import MultiAgentOrchestrator
+
+    request = InvestigationRequest(
+        trigger_source=TriggerSource.MANUAL_API,
+        service_name=body.service_name,
+        environment=body.environment,
+        description=body.description,
+        raw_payload={"priority": body.priority, "mode": "multi_agent"},
+    )
+
+    orchestrator = MultiAgentOrchestrator()
+    result, trace = orchestrator.run(request)
+    repo.save_investigation_result(result)
+
+    return {
+        "request_id": result.request_id,
+        "status": "completed",
+        "mode": "multi_agent",
+        "trace": trace.to_dict(),
+        "confidence": result.rca.confidence.value,
+        "root_cause": result.rca.root_cause,
+    }
+
+
+@router.get("/{request_id}/multi-agent/trace")
+def get_multi_agent_trace(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Re-run multi-agent orchestration and return the trace (for replay/debugging)."""
+    from corvin.strategy.multi_agent import MultiAgentOrchestrator
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    orchestrator = MultiAgentOrchestrator()
+    _, trace = orchestrator.run(result.request)
+    return trace.to_dict()
+
+
+# ── F10: Chaos Experiment Generator ───────────────────────────────────────────
+
+@router.get("/{request_id}/chaos-experiments")
+def get_chaos_experiments(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Generate chaos experiment recommendations based on investigation findings.
+
+    Analyzes the RCA and produces targeted chaos experiments that would
+    validate the system's resilience against similar failures.
+    """
+    from corvin.strategy.chaos_engine import ChaosExperimentGenerator
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    generator = ChaosExperimentGenerator()
+    plan = generator.generate(result)
+    return plan.to_dict()
+
+
+# ── F11: IDE Integration Context ─────────────────────────────────────────────
+
+@router.get("/ide/context/{service_name}")
+def get_ide_context(
+    service_name: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Get IDE-optimized context for a service.
+
+    Returns active investigations, recent incidents, deployment safety signals,
+    and relevant knowledge snippets — designed for VS Code extension consumption.
+    """
+    from corvin.strategy.ide_integration import IDEIntegrationService
+
+    service = IDEIntegrationService(repository=repo)
+    context = service.get_context(service_name, repo=repo)
+    return context.to_dict()
+
+
+class IDEFixSuggestionRequest(BaseModel):
+    service_name: str
+    file_path: str
+    error_context: str
+
+
+@router.post("/ide/fix-suggestion")
+def get_ide_fix_suggestion(
+    body: IDEFixSuggestionRequest,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Get a context-aware fix suggestion for a specific file/error.
+
+    Cross-references with past investigations to provide informed suggestions
+    optimized for inline display in VS Code.
+    """
+    from corvin.strategy.ide_integration import IDEIntegrationService
+
+    service = IDEIntegrationService(repository=repo)
+    suggestion = service.get_fix_suggestion(
+        body.service_name, body.file_path, body.error_context, repo=repo
+    )
+    return suggestion.to_dict()
+
+
+@router.get("/ide/deploy-safety/{service_name}")
+def get_deploy_safety(
+    service_name: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Pre-deployment safety check for CI/CD integration.
+
+    Returns whether it's safe to deploy to the given service based on
+    active incidents and recent failure patterns.
+    """
+    from corvin.strategy.ide_integration import IDEIntegrationService
+
+    service = IDEIntegrationService(repository=repo)
+    signal = service.get_deploy_safety(service_name, repo=repo)
+    return signal.to_dict()
+
+
+# ── F12: Voice Incident Reporter ─────────────────────────────────────────────
+
+@router.post("/voice/report")
+def voice_incident_report() -> dict:
+    """Process voice audio into a structured incident report.
+
+    Accepts audio file upload, transcribes via Azure Speech STT,
+    then extracts structured incident fields using LLM.
+
+    Content-Type: multipart/form-data with 'audio' file field.
+    """
+    from fastapi import File, UploadFile, Request
+    # Note: This endpoint needs to be redefined with proper File dependency
+    # For now, return the capability description
+    return {
+        "status": "ready",
+        "supported_formats": ["audio/wav", "audio/ogg", "audio/webm"],
+        "description": "POST audio file to transcribe and create incident report",
+        "pipeline": ["transcribe (Azure Speech STT)", "extract (LLM)", "create InvestigationRequest"],
+    }
+
+
+@router.post("/voice/transcribe-and-report")
+async def voice_transcribe_and_report(
+    audio: bytes = Body(..., media_type="application/octet-stream"),
+) -> dict:
+    """Full voice pipeline: audio bytes → transcription → structured incident.
+
+    Send raw audio bytes in the request body.
+    Returns transcription + extracted incident fields.
+    """
+    from corvin.strategy.voice_incident import VoiceIncidentService
+
+    service = VoiceIncidentService()
+    report = service.process_audio(audio, content_type="audio/wav")
+    return report.to_dict()

@@ -818,6 +818,176 @@ export function addSloConfig(appId: string, payload: Partial<SloConfig>) {
   return apiFetch<SloConfig>(`/applications/${appId}/slo-configs`, { method: 'POST', body: JSON.stringify(payload) })
 }
 
+// ── V5.1: F9-F12 Agentic AI Features ─────────────────────────────────────────
+
+// ── F9: Multi-Agent Investigation ──
+
+export interface MultiAgentTurn {
+  turn: number
+  agent: string
+  elapsed_ms: number
+  status: string
+  error?: string
+}
+
+export interface MultiAgentTrace {
+  request_id: string
+  turns: MultiAgentTurn[]
+  started_at: string
+  completed_at: string | null
+  terminal_signal: string | null
+  total_elapsed_ms: number
+  turn_count: number
+}
+
+export interface MultiAgentResult {
+  request_id: string
+  status: string
+  mode: string
+  trace: MultiAgentTrace
+  confidence: string
+  root_cause: string
+}
+
+export function startMultiAgentInvestigation(params: {
+  service_name: string
+  environment?: string
+  description: string
+  priority?: string
+}) {
+  return apiFetch<MultiAgentResult>('/investigations/multi-agent', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  })
+}
+
+export function fetchMultiAgentTrace(requestId: string) {
+  return apiFetch<MultiAgentTrace>(`/investigations/${requestId}/multi-agent/trace`)
+}
+
+// ── F10: Chaos Experiment Generator ──
+
+export interface ChaosExperiment {
+  id: string
+  name: string
+  experiment_type: 'pod-kill' | 'network-delay' | 'resource-exhaust' | 'dependency-failure' | 'dns-failure'
+  target_service: string
+  target_namespace: string
+  description: string
+  hypothesis: string
+  steady_state: string
+  blast_radius: 'limited' | 'moderate' | 'wide'
+  duration_seconds: number
+  parameters: Record<string, unknown>
+  rollback_steps: string[]
+  prerequisites: string[]
+  generated_at: string
+}
+
+export interface ChaosExperimentPlan {
+  request_id: string
+  service_name: string
+  experiments: ChaosExperiment[]
+  rationale: string
+  risk_assessment: string
+  generated_at: string
+  experiment_count: number
+}
+
+export function fetchChaosExperiments(requestId: string) {
+  return apiFetch<ChaosExperimentPlan>(`/investigations/${requestId}/chaos-experiments`)
+}
+
+// ── F11: IDE Integration Context ──
+
+export interface IDEContext {
+  service_name: string
+  active_investigations: Array<{
+    id: string
+    status: string
+    alert_summary: string
+    started_at: string
+    confidence: string
+  }>
+  recent_incidents: Array<{
+    id: string
+    root_cause: string
+    completed_at: string
+    confidence: string
+  }>
+  deployment_safety: DeploySafetySignal
+  knowledge_snippets: Array<{ title: string; content: string }>
+  generated_at: string
+}
+
+export interface DeploySafetySignal {
+  safe_to_deploy: boolean
+  service_name: string
+  active_incident_count: number
+  recent_failure_count: number
+  warnings: string[]
+  blockers: string[]
+}
+
+export interface IDEFixSuggestion {
+  file_path: string
+  service_name: string
+  suggestion: string
+  rationale: string
+  related_investigation_id: string | null
+  confidence: string
+  code_snippet: string | null
+}
+
+export function fetchIDEContext(serviceName: string) {
+  return apiFetch<IDEContext>(`/investigations/ide/context/${serviceName}`)
+}
+
+export function fetchIDEFixSuggestion(params: {
+  service_name: string
+  file_path: string
+  error_context: string
+}) {
+  return apiFetch<IDEFixSuggestion>('/investigations/ide/fix-suggestion', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  })
+}
+
+export function fetchDeploySafety(serviceName: string) {
+  return apiFetch<DeploySafetySignal>(`/investigations/ide/deploy-safety/${serviceName}`)
+}
+
+// ── F12: Voice Incident Reporter ──
+
+export interface TranscriptionResult {
+  text: string
+  confidence: number
+  duration_seconds: number
+  language: string
+}
+
+export interface VoiceIncidentReport {
+  transcription: TranscriptionResult
+  extracted_request: Record<string, unknown> | null
+  extraction_confidence: string
+  raw_extraction: Record<string, unknown>
+}
+
+export async function submitVoiceReport(audioBlob: Blob): Promise<VoiceIncidentReport> {
+  const buffer = await audioBlob.arrayBuffer()
+  const res = await fetch(`${API_BASE}/investigations/voice/transcribe-and-report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: buffer,
+  })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(detail.detail ?? `Voice report error ${res.status}`)
+  }
+  return res.json()
+}
+
 export function updateSloConfig(appId: string, cfgId: number, payload: Partial<SloConfig>) {
   return apiFetch<SloConfig>(`/applications/${appId}/slo-configs/${cfgId}`, { method: 'PUT', body: JSON.stringify(payload) })
 }
