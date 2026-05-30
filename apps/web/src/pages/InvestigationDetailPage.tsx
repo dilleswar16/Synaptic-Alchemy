@@ -17,6 +17,8 @@ import { TransparencyTrace } from '../components/investigation/TransparencyTrace
 import { IncidentHeroCard } from '../components/investigation/IncidentHeroCard'
 import { RunbookUpdatePrompt } from '../components/investigation/RunbookUpdatePrompt'
 import { CopilotChatWidget } from '../components/investigation/CopilotChatWidget'
+import { CausalChainSection } from '../components/investigation/CausalChainSection'
+import { CommsDraftSection } from '../components/investigation/CommsDraftSection'
 import { TechnicalHighlighter } from '../components/TechnicalHighlighter'
 import { Section } from '../components/Section'
 import { BlastRadiusCard } from '../components/BlastRadiusCard'
@@ -428,6 +430,8 @@ export default function InvestigationDetailPage() {
                       })) ?? []}
                     />
                   </div>
+                  <CausalChainSection requestId={id!} />
+                  <CommsDraftSection requestId={id!} />
                 </div>
               )}
 

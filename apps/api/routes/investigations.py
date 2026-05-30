@@ -1411,3 +1411,98 @@ def chat_with_investigation(
             "Cache-Control": "no-cache",
         },
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# V5.0 — Agentic AI Features
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ── F4: Causal Reasoning Graph ────────────────────────────────────────────────
+
+@router.get("/{request_id}/causal-chain")
+def get_causal_chain(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Generate a directed causal chain from the investigation's RCA.
+
+    Returns a DAG with nodes (trigger → failure → cascade → impact) and edges,
+    suitable for rendering as a Mermaid flowchart on the frontend.
+    """
+    from corvin.strategy.causal_chain import CausalChainGenerator
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    generator = CausalChainGenerator()
+    return generator.generate(result)
+
+
+# ── F7: Incident Communication Drafts ────────────────────────────────────────
+
+class CommsDraftRequest(BaseModel):
+    audience: str = Field(default="internal", description="One of: executive, internal, public")
+
+
+@router.post("/{request_id}/comms-draft")
+def generate_comms_draft(
+    request_id: str,
+    body: CommsDraftRequest = Body(default=CommsDraftRequest()),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Generate an audience-appropriate incident communication draft.
+
+    Supports three audience levels:
+    - executive: C-suite business impact summary
+    - internal: Engineering status update
+    - public: Customer-facing status page update
+    """
+    from corvin.strategy.comms_draft import CommsDraftGenerator
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    if body.audience not in ("executive", "internal", "public"):
+        raise HTTPException(status_code=400, detail=f"Invalid audience: {body.audience}. Must be executive, internal, or public.")
+
+    generator = CommsDraftGenerator()
+    return generator.generate(result, body.audience)
+
+
+@router.get("/{request_id}/comms-draft/all")
+def generate_all_comms_drafts(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> list[dict]:
+    """Generate communication drafts for all audience levels at once."""
+    from corvin.strategy.comms_draft import CommsDraftGenerator
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    generator = CommsDraftGenerator()
+    return generator.generate_all(result)
+
+
+# ── F6: Natural Language → KQL ────────────────────────────────────────────────
+
+class NLToKQLRequest(BaseModel):
+    question: str = Field(..., description="Natural language question to translate to KQL")
+    time_range: str | None = Field(default=None, description="Optional time range (e.g. 'last 2 hours')")
+
+
+@router.post("/kql/translate")
+def translate_nl_to_kql(body: NLToKQLRequest) -> dict:
+    """Translate a natural language question into a KQL query.
+
+    Includes safety guardrails that block destructive management commands.
+    Returns the KQL query, safety status, and original question.
+    """
+    from corvin.strategy.nl_to_kql import NLToKQLService
+
+    service = NLToKQLService()
+    return service.translate(body.question, body.time_range)

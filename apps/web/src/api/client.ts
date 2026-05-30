@@ -647,6 +647,64 @@ export function syncServiceNow(requestId: string) {
   return apiFetch<SyncResponse>(`/investigations/${requestId}/sync/servicenow`, { method: 'POST' })
 }
 
+// ── V5.0: Agentic AI Features ─────────────────────────────────────────────
+
+export interface CausalChainNode {
+  id: string
+  label: string
+  category: 'trigger' | 'failure' | 'cascade' | 'impact'
+}
+
+export interface CausalChainEdge {
+  from_id: string
+  to_id: string
+  label?: string
+}
+
+export interface CausalChain {
+  nodes: CausalChainNode[]
+  edges: CausalChainEdge[]
+  summary?: string
+}
+
+export function fetchCausalChain(requestId: string) {
+  return apiFetch<CausalChain>(`/investigations/${requestId}/causal-chain`)
+}
+
+export interface CommsDraft {
+  audience: 'executive' | 'internal' | 'public'
+  draft: string
+  service_name: string
+  environment: string
+  generated_from: string
+  fallback?: boolean
+}
+
+export function fetchCommsDraft(requestId: string, audience: 'executive' | 'internal' | 'public' = 'internal') {
+  return apiFetch<CommsDraft>(`/investigations/${requestId}/comms-draft`, {
+    method: 'POST',
+    body: JSON.stringify({ audience }),
+  })
+}
+
+export function fetchAllCommsDrafts(requestId: string) {
+  return apiFetch<CommsDraft[]>(`/investigations/${requestId}/comms-draft/all`)
+}
+
+export interface NLToKQLResult {
+  query: string | null
+  explanation: string
+  safe: boolean
+  original_question: string
+}
+
+export function translateNLToKQL(question: string, timeRange?: string) {
+  return apiFetch<NLToKQLResult>('/investigations/kql/translate', {
+    method: 'POST',
+    body: JSON.stringify({ question, time_range: timeRange ?? null }),
+  })
+}
+
 // ── Application Panel ─────────────────────────────────────────────────────
 
 export interface ApplicationService {

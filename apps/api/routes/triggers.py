@@ -201,3 +201,67 @@ def simulate_alert(
         "environment": body.environment,
     }
 
+
+# ── V5.0 F1: Autonomous Agent Webhook ────────────────────────────────────────
+
+
+class AutonomousAlertRequest(BaseModel):
+    """Incoming alert payload for autonomous investigation."""
+    service_name: str
+    environment: str = "prod"
+    description: str
+    priority: str = "P2"
+    source: str = "webhook"  # webhook | alertmanager | azure_monitor | datadog
+
+
+def _run_autonomous_agent_in_background(
+    request: InvestigationRequest,
+) -> None:
+    """Run the full autonomous pipeline in background. Never raises."""
+    from corvin.strategy.autonomous_agent import AutonomousAgent
+    try:
+        agent = AutonomousAgent()
+        result = agent.run(request)
+        _log.info(
+            "Autonomous agent completed for %s — status=%s, events=%d",
+            request.id, result.get("status"), len(result.get("events", [])),
+        )
+    except Exception as exc:
+        _log.exception("Autonomous agent failed for request %s: %s", request.id, exc)
+
+
+@router.post("/autonomous", status_code=202)
+def autonomous_alert(
+    body: AutonomousAlertRequest,
+    background_tasks: BackgroundTasks,
+) -> dict[str, str]:
+    """
+    V5.0 Autonomous Incident Response — Zero-touch investigation.
+
+    Accepts an alert payload and immediately launches the full autonomous pipeline:
+    1. Auto-investigate (evidence collection + RCA)
+    2. Generate causal chain
+    3. Draft incident communications
+    4. Notify Teams with proposed fix + approval buttons
+    5. Wait for human approval before executing remediation
+
+    "Corvin investigated the 3AM incident before your SRE woke up."
+    """
+    request = InvestigationRequest(
+        trigger_source=TriggerSource.AZURE_ALERT,
+        service_name=body.service_name,
+        environment=body.environment,
+        description=f"[AUTONOMOUS:{body.source}] {body.description}",
+        raw_payload={"source": body.source, "priority": body.priority},
+    )
+
+    background_tasks.add_task(_run_autonomous_agent_in_background, request)
+
+    return {
+        "request_id": request.id,
+        "status": "autonomous_investigation_started",
+        "service_name": body.service_name,
+        "environment": body.environment,
+        "priority": request.incident_priority,
+        "message": "Corvin is autonomously investigating. You will be notified via Teams when complete.",
+    }
