@@ -168,6 +168,16 @@ Priority order. Work through these in sequence before considering V4.
   - V4 upgrade: embed `root_cause` text → pgvector cosine search → return incidents with similar failure patterns across services
   - UI label to update then: "Similar Past Incidents" (currently honest label is "past investigations for same service")
   - Requires: pgvector extension on Azure Postgres, embedding model call, migration
+- [ ] **V4.5 — Hackathon Killer Features**
+  - **AI Chaos Monkey:** Auto-inject realistic failures and auto-heal them.
+  - **Root Cause Debate Mode:** Multi-agent hypothesis generation and debate.
+- [ ] **V4.6 — Advanced Visualizations**
+  - **Time-Travel Incident Replay:** Visual slider to rewind system state graph.
+- [ ] **V4.7 — Source Code Insights**
+  - **"Git Blame" Code-Level Root Cause:** Correlate infrastructure alerts to exact GitHub commits.
+- [ ] **V4.8 — FinOps**
+  - **Cost-Aware Remediation:** Attaching live price tags to fix strategies.
+
 
 ---
 

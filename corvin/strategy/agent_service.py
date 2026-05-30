@@ -20,9 +20,28 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Generator
+import copy
+from typing import Any, Generator
 
 import litellm
+
+def _prepare_tool_result_for_llm(tool_result: Any) -> Any:
+    """Make a copy of tool_result and truncate rows for LLM context limits."""
+    if isinstance(tool_result, str):
+        return tool_result
+        
+    llm_result = copy.deepcopy(tool_result)
+    max_rows = 50
+    
+    if isinstance(llm_result, dict) and "rows" in llm_result:
+        if isinstance(llm_result["rows"], list) and len(llm_result["rows"]) > max_rows:
+            llm_result["rows"] = llm_result["rows"][:max_rows]
+            llm_result["_warning"] = f"Data truncated to top {max_rows} rows due to context limits. The user is seeing the full dataset."
+    elif isinstance(llm_result, list) and len(llm_result) > max_rows:
+        llm_result = llm_result[:max_rows]
+            
+    return llm_result
+
 
 from corvin.core.config_loader import get_env, load_config
 from corvin.strategy.agent_tools import TOOL_SCHEMAS, execute_tool
@@ -46,7 +65,8 @@ Your job:
     1. Use `flowchart TD` or `flowchart LR`.
     2. ALWAYS wrap node labels in double quotes, e.g., `NodeID["Label Text"]`.
     3. Use `<br/>` for newlines inside labels, e.g., `NodeID["Line 1<br/>Line 2"]`.
-    4. Avoid using parentheses `()` or brackets `[]` inside labels unless the label is double-quoted.
+    4. Avoid using parentheses `()` or brackets `[]` anywhere unless strictly inside double quotes.
+    5. If using edge labels, ALWAYS wrap the text in double quotes inside the pipes, e.g., `NodeA -->|"Edge Label (with parens)"| NodeB`.
 - Be blameless, technical, and precise.
 - Respond in Markdown.
 
@@ -179,15 +199,16 @@ class CorvinAgentService:
                     yield f"data: {json.dumps({'type': 'tool_result', 'tool_name': tool_name, 'data': tool_result})}\n\n"
 
                     # Append tool result to message history for the next LLM call
+                    llm_safe_result = _prepare_tool_result_for_llm(tool_result)
                     result_content = (
-                        json.dumps(tool_result, default=str)
-                        if not isinstance(tool_result, str)
-                        else tool_result
+                        json.dumps(llm_safe_result, default=str)
+                        if not isinstance(llm_safe_result, str)
+                        else llm_safe_result
                     )
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tc.id,
-                        "content": result_content[:8000],  # cap to avoid context overflow
+                        "content": result_content,
                     })
 
                 # Continue loop → LLM will now interpret the tool results
@@ -352,15 +373,16 @@ class CorvinAgentService:
 
                     yield f"data: {json.dumps({'type': 'tool_result', 'tool_name': tool_name, 'data': tool_result})}\n\n"
 
+                    llm_safe_result = _prepare_tool_result_for_llm(tool_result)
                     result_content = (
-                        json.dumps(tool_result, default=str)
-                        if not isinstance(tool_result, str)
-                        else tool_result
+                        json.dumps(llm_safe_result, default=str)
+                        if not isinstance(llm_safe_result, str)
+                        else llm_safe_result
                     )
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tc_entry["id"],
-                        "content": result_content[:8000],
+                        "content": result_content,
                     })
                 continue
 

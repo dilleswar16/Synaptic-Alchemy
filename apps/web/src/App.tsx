@@ -58,6 +58,7 @@ export default function App() {
             <Route path="/investigations/:id" element={<InvestigationDetailPage />} />
             <Route path="/investigations/:id/fix-strategy" element={<FixStrategyPage />} />
             <Route path="/corvin" element={<CorvinCommandPage />} />
+            <Route path="/corvin/:sessionId" element={<CorvinCommandPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>

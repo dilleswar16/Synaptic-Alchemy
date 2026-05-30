@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import NavBar from '../components/NavBar'
@@ -149,8 +149,12 @@ function CorvinIcon({ size = 18 }: { size?: number }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CorvinCommandPage() {
+  const { sessionId: routeSessionId } = useParams<{ sessionId?: string }>()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const activeSessionId = routeSessionId || null
+
   const [sessions, setSessions] = useState<CorvinSession[]>([])
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<UiMessage[]>([])
   const [toolEvents, setToolEvents] = useState<ToolEvent[]>([])
   const [input, setInput] = useState('')
@@ -196,7 +200,15 @@ export default function CorvinCommandPage() {
     prevLastMessageContentRef.current = lastMsg?.content || ''
   }, [messages])
 
-
+  // Auto-focus input when chat loads, session changes, or after assistant finishes responding
+  useEffect(() => {
+    if (!loading) {
+      // Small timeout ensures DOM is ready and textarea is re-enabled
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, 50)
+    }
+  }, [loading, activeSessionId])
 
   // Load session list
   const refreshSessions = useCallback(async () => {
@@ -210,14 +222,27 @@ export default function CorvinCommandPage() {
   useEffect(() => { refreshSessions() }, [refreshSessions])
 
   // Switch to a session
-  const selectSession = useCallback(async (sessionId: string) => {
-    setActiveSessionId(sessionId)
+  const selectSession = useCallback((sessionId: string) => {
+    navigate(`/corvin/${sessionId}`)
+  }, [navigate])
+
+  // React to URL changes to load the session
+  useEffect(() => {
+    if (!activeSessionId) {
+      setMessages([])
+      setToolEvents([])
+      return
+    }
+
+    if (location.state?.skipFetch) {
+      return
+    }
+
+    let active = true
     setToolEvents([])
-    try {
-      const detail = await getSession(sessionId)
+    getSession(activeSessionId).then(detail => {
+      if (!active) return
       setMessages(detail.messages.map((m) => {
-        // Restore chart data from DB-stored tool_results
-        // Restore chart data: new format is array, old format is single object — normalize both
         const rawApim = m.tool_results?.['query_apim_analytics']
         const apimResults: ApimChartData[] = Array.isArray(rawApim)
           ? rawApim as ApimChartData[]
@@ -229,7 +254,7 @@ export default function CorvinCommandPage() {
           thinking: m.thinking || undefined,
           thinkingCollapsed: true,
           chartData: apimResults,
-          toolSteps: m.tool_calls?.calls.map((c, i) => ({
+          toolSteps: m.tool_calls?.calls.map((c: any, i: number) => ({
             id: `hist-${m.id}-${i}`,
             toolName: c.tool_name,
             status: 'done' as const,
@@ -239,19 +264,23 @@ export default function CorvinCommandPage() {
           })) || [],
         }
       }))
-    } catch { setMessages([]) }
-  }, [])
+    }).catch(() => {
+      if (active) setMessages([])
+    })
+
+    return () => { active = false }
+  }, [activeSessionId])
 
   // New chat
   const handleNewChat = useCallback(async () => {
     try {
       const session = await createSession()
       setSessions(prev => [session, ...prev])
-      setActiveSessionId(session.id)
       setMessages([])
       setToolEvents([])
+      navigate(`/corvin/${session.id}`, { state: { skipFetch: true } })
     } catch (e) { setSessionError('Failed to create session. Check that the API is running.') }
-  }, [])
+  }, [navigate])
 
   // Delete session
   const handleDelete = useCallback(async (e: React.MouseEvent, sessionId: string) => {
@@ -259,11 +288,9 @@ export default function CorvinCommandPage() {
     await deleteSession(sessionId)
     setSessions(prev => prev.filter(s => s.id !== sessionId))
     if (activeSessionId === sessionId) {
-      setActiveSessionId(null)
-      setMessages([])
-      setToolEvents([])
+      navigate('/corvin')
     }
-  }, [activeSessionId])
+  }, [activeSessionId, navigate])
 
   // Send message
   const handleSend = useCallback(async (textOverride?: string, sessionOverride?: string) => {
@@ -483,7 +510,14 @@ export default function CorvinCommandPage() {
               ].map(q => (
                 <button
                   key={q}
-                  onClick={async () => { const s = await createSession(); setSessions(p => [s, ...p]); setActiveSessionId(s.id); setMessages([]); setToolEvents([]); handleSend(q, s.id) }}
+                  onClick={async () => { 
+                    const s = await createSession(); 
+                    setSessions(p => [s, ...p]); 
+                    setMessages([]);
+                    setToolEvents([]);
+                    navigate(`/corvin/${s.id}`, { state: { skipFetch: true } }); 
+                    handleSend(q, s.id);
+                  }}
                   style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)', color: 'var(--c-text-dim)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.72rem', transition: 'border-color 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--c-border-glow)'; e.currentTarget.style.color = 'var(--c-signal)' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--c-border-hi)'; e.currentTarget.style.color = 'var(--c-text-dim)' }}
