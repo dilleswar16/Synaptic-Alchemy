@@ -360,9 +360,11 @@ export default function DashboardPage() {
         <PredictiveAlertPanel />
       </div>
 
-      {/* ── 5. PLATFORM ROW: Topology + ROI + AI Briefing ────────────── */}
-      <div className="dash-platform-row">
-        <TopologyRadar />
+      {/* ── 5. TOPOLOGY (full width) ────────────────────────────────── */}
+      <TopologyRadar />
+
+      {/* ── 6. ROI + AI Briefing ─────────────────────────────────────── */}
+      <div className="dash-bottom-row">
         <RoiWidget />
 
         {/* AI Briefing — collapsed by default */}
@@ -393,7 +395,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── 6. CHAOS (collapsed) ──────────────────────────────────────── */}
+      {/* ── 7. CHAOS (collapsed) ──────────────────────────────────────── */}
       <div style={{ marginTop: 40, borderTop: '1px solid var(--c-border)', paddingTop: 40 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: '0.7rem', color: 'var(--c-text-muted)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
