@@ -4,7 +4,7 @@ Chat Service — V3.95 Copilot Interaction
 
 import json
 import logging
-from typing import AsyncGenerator
+from typing import Generator
 
 import litellm
 
@@ -18,7 +18,7 @@ class ChatService:
     def __init__(self):
         self.knowledge = KnowledgeLoader()
 
-    def stream_chat(self, result: InvestigationResult, messages: list[dict]) -> AsyncGenerator[str, None]:
+    def stream_chat(self, result: InvestigationResult, messages: list[dict]) -> Generator[str, None, None]:
         """
         Takes the investigation context and a list of OpenAI-style messages,
         injects the context as a system prompt, and yields SSE tokens.

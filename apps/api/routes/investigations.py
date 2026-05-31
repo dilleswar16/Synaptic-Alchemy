@@ -21,7 +21,7 @@ import logging
 import os
 
 import litellm
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -641,7 +641,7 @@ def get_topology_live() -> dict:
             svc_id = f"svc:{logical_name}"
             live_status = svc.get("status", "high")
             try:
-                metric_rows = logs_adapter.get_resource_metrics(logical_name)
+                metric_rows = logs_adapter.get_resource_metrics(logical_name or raw_name)
             except Exception:
                 metric_rows = []
             service_resource = _resource_summary(metric_rows)
@@ -649,7 +649,7 @@ def get_topology_live() -> dict:
             # Update or create the service node with live status + resource metrics
             nodes[svc_id] = TopologyNode(
                 id=svc_id,
-                label=logical_name,
+                label=logical_name or raw_name,
                 kind="service",
                 status=live_status,
                 cpu_mcores=service_resource["cpu_mcores"],
@@ -1343,17 +1343,84 @@ def sync_servicenow(
     request_id: str,
     repo: InvestigationRepository = Depends(get_repository),
 ) -> SyncResponse:
-    """Mocked export to ServiceNow INC (for hackathon demo purposes)."""
-    import time
+    """Export investigation to ServiceNow. Requires a configured ServiceNow outbound connector."""
+    import httpx
+    from corvin.storage.database import get_session
+    from corvin.storage.models import OutboundConnectorRow, InvestigationRequestRow
+
     # Verify investigation exists
     result = repo.get_investigation_result(request_id)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
 
-    mock_inc = f"INC{int(time.time()) % 1000000:06d}"
+    # Look up ServiceNow connector config
+    with get_session() as session:
+        inv = session.query(InvestigationRequestRow).filter_by(id=request_id).first()
+        app_id = inv.application_id if inv else None
+
+        connector = session.query(OutboundConnectorRow).filter(
+            OutboundConnectorRow.connector_type == "servicenow",
+            OutboundConnectorRow.enabled == True,
+        ).first()
+
+    if connector is None:
+        raise HTTPException(
+            status_code=422,
+            detail="ServiceNow connector not configured. Add an outbound connector with type='servicenow' in Settings.",
+        )
+
+    config = connector.config_json or {}
+    instance_url = config.get("instance_url", "").rstrip("/")
+    username = config.get("username")
+    password = config.get("password")
+
+    if not instance_url or not username or not password:
+        raise HTTPException(
+            status_code=422,
+            detail="ServiceNow connector misconfigured: instance_url, username, and password are required.",
+        )
+
+    # Build incident payload from investigation
+    short_desc = f"[Corvin] {result.rca.root_cause}" if result.rca else f"[Corvin] Investigation {request_id}"
+    description_parts = []
+    if result.rca:
+        description_parts.append(f"Root Cause: {result.rca.root_cause}")
+        if result.rca.contributing_factors:
+            description_parts.append(f"Contributing Factors: {', '.join(result.rca.contributing_factors)}")
+    if result.fix_strategy:
+        description_parts.append(f"Fix Strategy: {result.fix_strategy.summary}")
+
+    payload = {
+        "short_description": short_desc[:160],
+        "description": "\n".join(description_parts)[:4000],
+        "urgency": "2",
+        "impact": "2",
+        "category": "Software",
+        "caller_id": config.get("caller_id", ""),
+        "assignment_group": config.get("assignment_group", ""),
+    }
+
+    try:
+        resp = httpx.post(
+            f"{instance_url}/api/now/table/incident",
+            json=payload,
+            auth=(username, password),
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        data = resp.json().get("result", {})
+        inc_number = data.get("number", "UNKNOWN")
+        inc_url = f"{instance_url}/nav_to.do?uri=incident.do?sys_id={data.get('sys_id', '')}"
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"ServiceNow API error: {e.response.status_code} {e.response.text[:200]}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"ServiceNow connection failed: {str(e)[:200]}")
+
     return SyncResponse(
-        ticket_id=mock_inc,
-        message=f"Created ServiceNow Incident {mock_inc} and assigned to SRE team."
+        ticket_id=inc_number,
+        url=inc_url,
+        message=f"Created ServiceNow Incident {inc_number} and assigned to SRE team."
     )
 
 class ChatMessageOut(BaseModel):
@@ -1710,7 +1777,9 @@ def get_deploy_safety(
 # ── F12: Voice Incident Reporter ─────────────────────────────────────────────
 
 @router.post("/voice/report")
-def voice_incident_report() -> dict:
+async def voice_incident_report(
+    audio: UploadFile = File(...),
+) -> dict:
     """Process voice audio into a structured incident report.
 
     Accepts audio file upload, transcribes via Azure Speech STT,
@@ -1718,15 +1787,20 @@ def voice_incident_report() -> dict:
 
     Content-Type: multipart/form-data with 'audio' file field.
     """
-    from fastapi import File, UploadFile, Request
-    # Note: This endpoint needs to be redefined with proper File dependency
-    # For now, return the capability description
-    return {
-        "status": "ready",
-        "supported_formats": ["audio/wav", "audio/ogg", "audio/webm"],
-        "description": "POST audio file to transcribe and create incident report",
-        "pipeline": ["transcribe (Azure Speech STT)", "extract (LLM)", "create InvestigationRequest"],
-    }
+    from corvin.strategy.voice_incident import VoiceIncidentService
+
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio file.")
+
+    content_type = audio.content_type or "audio/wav"
+    supported = {"audio/wav", "audio/ogg", "audio/webm", "audio/mpeg"}
+    if content_type not in supported:
+        raise HTTPException(status_code=415, detail=f"Unsupported audio format: {content_type}. Supported: {sorted(supported)}")
+
+    service = VoiceIncidentService()
+    report = service.process_audio(audio_bytes, content_type=content_type)
+    return report.to_dict()
 
 
 @router.post("/voice/transcribe-and-report")

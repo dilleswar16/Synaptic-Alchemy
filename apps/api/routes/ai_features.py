@@ -93,11 +93,42 @@ class CorrelationApprovalRequest(BaseModel):
 @router.post("/alerts/correlated/approve")
 def approve_correlation_action(body: CorrelationApprovalRequest = Body(...)) -> dict:
     """Approve or reject a correlation group's suppression recommendation."""
+    from corvin.storage.database import get_session
+    from corvin.storage.models import ApprovalDecisionRow, PredictiveAlertRow
+
+    with get_session() as session:
+        # Persist the decision
+        decision = ApprovalDecisionRow(
+            decision_type="correlation_suppression",
+            reference_id=body.group_id,
+            action=body.action,
+            approved_by=body.approved_by,
+            metadata_json={"group_id": body.group_id},
+        )
+        session.add(decision)
+
+        # If approved, suppress correlated alerts matching this group
+        if body.action == "approve":
+            # Find alerts that belong to this correlation group (stored in metadata)
+            alerts = session.query(PredictiveAlertRow).filter(
+                PredictiveAlertRow.status == "open"
+            ).all()
+            suppressed_count = 0
+            for alert in alerts:
+                # Group ID is typically service+type hash — suppress matching open alerts
+                if alert.id.startswith(body.group_id[:8]):
+                    alert.suppression_status = "suppressed"
+                    alert.status = "suppressed"
+                    suppressed_count += 1
+
+        session.commit()
+
     return {
         "group_id": body.group_id,
         "action": body.action,
         "status": "approved" if body.action == "approve" else "rejected",
         "approved_by": body.approved_by,
+        "persisted": True,
         "message": f"Correlation group {body.group_id} {body.action}d by {body.approved_by}.",
     }
 
@@ -173,12 +204,28 @@ class ScalingApprovalRequest(BaseModel):
 
 @router.post("/capacity-forecast/approve-scaling")
 def approve_scaling_action(body: ScalingApprovalRequest = Body(...)) -> dict:
-    """Approve a scaling recommendation. Does NOT auto-execute — just records approval."""
+    """Approve a scaling recommendation. Persists decision for audit trail. Does NOT auto-execute."""
+    from corvin.storage.database import get_session
+    from corvin.storage.models import ApprovalDecisionRow
+
+    with get_session() as session:
+        decision = ApprovalDecisionRow(
+            decision_type="scaling_action",
+            reference_id=body.service_name,
+            action="approve",
+            action_detail=body.action_type,
+            approved_by=body.approved_by,
+            metadata_json={"service_name": body.service_name, "action_type": body.action_type},
+        )
+        session.add(decision)
+        session.commit()
+
     return {
         "service_name": body.service_name,
         "action_type": body.action_type,
         "status": "approved",
         "approved_by": body.approved_by,
+        "persisted": True,
         "message": f"Scaling action '{body.action_type}' for {body.service_name} approved by {body.approved_by}. Execute via kubectl/HPA.",
     }
 

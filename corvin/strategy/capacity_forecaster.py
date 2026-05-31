@@ -167,7 +167,7 @@ class CapacityForecaster:
 
         # Generate scaling recommendations
         report.scaling_recommendations = self._generate_recommendations(
-            service_name, namespace, report.forecasts, current_replicas
+            service_name, namespace, report.forecasts, current_replicas, metrics
         )
 
         # Compute analyzed window
@@ -282,9 +282,22 @@ class CapacityForecaster:
         namespace: str,
         forecasts: list[ResourceForecast],
         current_replicas: int,
+        metrics: list[dict[str, Any]] | None = None,
     ) -> list[ScalingRecommendation]:
         """Generate scaling recommendations based on forecasts."""
         recommendations = []
+
+        # Extract actual resource limits from metrics if available
+        memory_limit = None
+        cpu_limit = None
+        if metrics:
+            for m in reversed(metrics):  # most recent first
+                if not memory_limit and m.get("memory_limit"):
+                    memory_limit = m["memory_limit"]
+                if not cpu_limit and m.get("cpu_limit"):
+                    cpu_limit = m["cpu_limit"]
+                if memory_limit and cpu_limit:
+                    break
 
         for f in forecasts:
             if not f.hours_until_exhaustion:
@@ -298,7 +311,7 @@ class CapacityForecaster:
                         target_namespace=namespace,
                         current_replicas=current_replicas,
                         recommended_replicas=min(current_replicas + 2, current_replicas * 2),
-                        current_resource_limit=None,
+                        current_resource_limit=cpu_limit,
                         recommended_resource_limit=None,
                         reason=f.recommendation,
                         estimated_monthly_cost_delta=45.0 * (current_replicas + 2 - current_replicas),
@@ -306,21 +319,63 @@ class CapacityForecaster:
                         requires_approval=True,
                     ))
                 elif f.resource_type == "memory":
+                    # Compute recommended limit: double the current, or default 2x step
+                    current_mem = memory_limit or "unknown"
+                    recommended_mem = self._double_memory_limit(memory_limit) if memory_limit else None
+                    # Estimate cost delta based on actual limit doubling
+                    cost_delta = self._estimate_memory_cost_delta(memory_limit)
+
                     recommendations.append(ScalingRecommendation(
                         action_type="scale_vertical",
                         target_service=service_name,
                         target_namespace=namespace,
                         current_replicas=current_replicas,
                         recommended_replicas=None,
-                        current_resource_limit="512Mi",
-                        recommended_resource_limit="1Gi",
+                        current_resource_limit=current_mem,
+                        recommended_resource_limit=recommended_mem or "double current limit",
                         reason=f.recommendation,
-                        estimated_monthly_cost_delta=30.0,
+                        estimated_monthly_cost_delta=cost_delta,
                         priority="critical" if f.hours_until_exhaustion < 2 else "high",
                         requires_approval=True,
                     ))
 
         return recommendations
+
+    @staticmethod
+    def _double_memory_limit(limit: str) -> str | None:
+        """Double a Kubernetes memory limit string (e.g. '512Mi' → '1Gi')."""
+        limit = limit.strip()
+        if limit.endswith("Gi"):
+            try:
+                val = float(limit[:-2])
+                return f"{val * 2:.0f}Gi" if val * 2 >= 1 else f"{int(val * 2048)}Mi"
+            except ValueError:
+                return None
+        elif limit.endswith("Mi"):
+            try:
+                val = int(limit[:-2])
+                doubled = val * 2
+                return f"{doubled}Mi" if doubled < 1024 else f"{doubled // 1024}Gi"
+            except ValueError:
+                return None
+        return None
+
+    @staticmethod
+    def _estimate_memory_cost_delta(limit: str | None) -> float:
+        """Rough cost estimate for doubling memory (per node, per month)."""
+        if not limit:
+            return 30.0  # default estimate when limit unknown
+        try:
+            if limit.endswith("Gi"):
+                gb = float(limit[:-2])
+            elif limit.endswith("Mi"):
+                gb = int(limit[:-2]) / 1024.0
+            else:
+                return 30.0
+            # ~$5/GB/month for AKS
+            return round(gb * 5.0, 2)
+        except (ValueError, TypeError):
+            return 30.0
 
     async def generate_narrative(self, report: CapacityForecastReport) -> str:
         """Use LLM to generate a human-readable narrative for the forecast."""

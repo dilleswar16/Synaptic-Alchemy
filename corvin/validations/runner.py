@@ -328,13 +328,14 @@ async def _run_slo_gate(config: dict[str, Any], db: Session) -> tuple[bool, list
 
 
 async def _run_chaos(config: dict[str, Any]) -> tuple[bool, list[dict[str, Any]]]:
-    """Chaos stubs — always pass (manual chaos requires human verification)."""
+    """Chaos validations require manual confirmation — do not auto-pass."""
     description = config.get("description", "Manual chaos test")
-    return True, [{
-        "ok": True,
+    return False, [{
+        "ok": False,
         "step_index": 0,
-        "step_name": "Chaos stub",
-        "note": f"{description} — chaos tests require manual execution; stub passed.",
+        "step_name": "Chaos (pending confirmation)",
+        "status": "pending_confirmation",
+        "note": f"{description} — chaos tests require manual execution and operator confirmation before passing.",
     }]
 
 

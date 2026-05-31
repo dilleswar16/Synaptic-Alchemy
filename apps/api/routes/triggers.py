@@ -119,7 +119,12 @@ def receive_azure_alert(
 
 
 @router.post("/manual", status_code=202)
-def manual_trigger(payload: dict[str, Any]) -> dict[str, str]:
+def manual_trigger(
+    payload: dict[str, Any],
+    background_tasks: BackgroundTasks,
+    engine: InvestigationEngine = Depends(get_engine),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict[str, str]:
     """
     Accept a free-form manual trigger from Teams or other surfaces.
 
@@ -132,7 +137,9 @@ def manual_trigger(payload: dict[str, Any]) -> dict[str, str]:
         description=payload.get("description", "Manual trigger"),
         raw_payload=payload,
     )
-    # TODO (Slice 5+): hand off to orchestrator
+    # Persist the request and hand off to the investigation orchestrator
+    repo.save_request(request)
+    background_tasks.add_task(engine.run_investigation, request)
     return {"request_id": request.id, "status": "accepted", "trigger_source": request.trigger_source}
 
 

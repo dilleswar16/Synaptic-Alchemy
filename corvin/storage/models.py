@@ -193,6 +193,7 @@ class PredictiveAlertRow(Base):
     blast_radius_users: Mapped[int] = mapped_column(nullable=False, default=0)
     blast_radius_requests: Mapped[int] = mapped_column(nullable=False, default=0)
     change_correlation: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    suppression_status: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)  # suppressed | None
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )
@@ -515,6 +516,36 @@ class ValidationRunRow(Base):
 
 
 # ── Validation Automation Policies ────────────────────────────────────────────
+
+
+class ApprovalDecisionRow(Base):
+    """Persists operator approval/rejection decisions (correlation suppression, scaling, etc.)."""
+    __tablename__ = "approval_decisions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    decision_type: Mapped[str] = mapped_column(String(50), nullable=False)  # correlation_suppression | scaling_action
+    reference_id: Mapped[str] = mapped_column(String(255), nullable=False)  # group_id or service_name
+    action: Mapped[str] = mapped_column(String(20), nullable=False)  # approve | reject
+    action_detail: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    approved_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    metadata_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class RunbookSessionRow(Base):
+    """Persists conversational runbook builder sessions across restarts."""
+    __tablename__ = "runbook_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    request_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    environment: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="drafting")
+    messages_json: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
+    current_draft_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    current_draft_version: Mapped[int | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
 
 class ValidationAutomationPolicyRow(Base):
