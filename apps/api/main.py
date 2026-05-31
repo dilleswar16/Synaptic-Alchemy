@@ -56,7 +56,8 @@ async def _lifespan(app: FastAPI):
         Base.metadata.create_all(get_engine())
 
     # ── Demo data seeding ─────────────────────────────────────────────────
-    if os.getenv("CORVIN_DEMO_MODE", "true").strip().lower() == "true":
+    # Default changed to "false" — onboard applications via the UI instead.
+    if os.getenv("CORVIN_DEMO_MODE", "false").strip().lower() == "true":
         try:
             from apps.api.seed_demo import ensure_demo_data
             db = next(get_session())

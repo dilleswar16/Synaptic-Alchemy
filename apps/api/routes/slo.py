@@ -81,14 +81,22 @@ def list_slo_status(
 
 @router.get("/summary")
 def get_slo_summary(db: Session = Depends(_db)) -> dict[str, Any]:
-    """Aggregate SLO status counts."""
+    """Aggregate SLO status counts — one entry per distinct service (availability preferred)."""
     configs: list[SloConfigRow] = (
         db.query(SloConfigRow).filter(SloConfigRow.enabled == True).all()  # noqa: E712
     )
-    total = len(configs)
+
+    # Deduplicate by service_name: prefer availability SLI; fall back to whatever is first.
+    best: dict[str, SloConfigRow] = {}
+    for cfg in configs:
+        key = f"{cfg.application_id}:{cfg.service_name}"
+        existing = best.get(key)
+        if existing is None or cfg.sli_type == "availability":
+            best[key] = cfg
+
     compliant = at_risk = breached = no_data = 0
 
-    for cfg in configs:
+    for cfg in best.values():
         snap = (
             db.query(SloSnapshotRow)
             .filter(SloSnapshotRow.slo_config_id == cfg.id)
@@ -105,7 +113,7 @@ def get_slo_summary(db: Session = Depends(_db)) -> dict[str, Any]:
             compliant += 1
 
     return {
-        "total": total,
+        "total": len(best),
         "compliant": compliant,
         "at_risk": at_risk,
         "breached": breached,
