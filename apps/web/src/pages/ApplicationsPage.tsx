@@ -577,7 +577,103 @@ const OUTBOUND_ICONS: Record<string, string> = {
   servicenow: '🎫',
   email: '✉️',
   pagerduty: '🚨',
+  generic_http: '🌐',
 }
+
+// ── Connector builder constants ───────────────────────────────────────────────
+
+type ConnectorAuthType = 'none' | 'bearer' | 'api_key' | 'basic' | 'oauth2'
+type ConnectorType = 'teams_webhook' | 'servicenow' | 'email' | 'pagerduty' | 'generic_http'
+interface ConnectorVariable { key: string; default_value: string }
+
+const CONNECTOR_DEFAULT_ENDPOINTS: Record<string, string> = {
+  teams_webhook: '',
+  servicenow: '',
+  email: '',
+  pagerduty: 'https://events.pagerduty.com/v2/enqueue',
+  generic_http: '',
+}
+
+const CONNECTOR_DEFAULT_AUTH: Record<string, ConnectorAuthType> = {
+  teams_webhook: 'none',
+  servicenow: 'oauth2',
+  email: 'basic',
+  pagerduty: 'none',
+  generic_http: 'none',
+}
+
+const CONNECTOR_DEFAULT_VARS: Record<string, ConnectorVariable[]> = {
+  teams_webhook: [
+    { key: 'title',          default_value: 'Corvin Alert: {{service_name}}' },
+    { key: 'summary',        default_value: '{{rca_summary}}' },
+    { key: 'severity_color', default_value: 'FF0000' },
+  ],
+  servicenow: [
+    { key: 'title',     default_value: 'Corvin: {{service_name}} degraded' },
+    { key: 'summary',   default_value: '{{rca_summary}}' },
+    { key: 'urgency',   default_value: '1' },
+    { key: 'caller_id', default_value: 'corvin-bot' },
+  ],
+  email: [
+    { key: 'to',      default_value: 'team@example.com' },
+    { key: 'title',   default_value: '[Corvin] {{service_name}} alert' },
+    { key: 'summary', default_value: '{{rca_summary}}' },
+  ],
+  pagerduty: [
+    { key: 'routing_key', default_value: '' },
+    { key: 'summary',     default_value: 'Corvin: {{service_name}} — {{rca_summary}}' },
+    { key: 'severity',    default_value: 'critical' },
+    { key: 'source',      default_value: '{{service_name}}' },
+  ],
+  generic_http: [
+    { key: 'title',    default_value: '{{service_name}} alert' },
+    { key: 'summary',  default_value: '{{rca_summary}}' },
+    { key: 'severity', default_value: '{{confidence}}' },
+  ],
+}
+
+const CONNECTOR_DEFAULT_PAYLOADS: Record<string, string> = {
+  teams_webhook: `{
+  "@type": "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "title": "{{title}}",
+  "text": "{{summary}}",
+  "themeColor": "{{severity_color}}"
+}`,
+  servicenow: `{
+  "short_description": "{{title}}",
+  "description": "{{summary}}",
+  "urgency": "{{urgency}}",
+  "caller_id": "{{caller_id}}"
+}`,
+  email: `{
+  "to": ["{{to}}"],
+  "subject": "{{title}}",
+  "body": "{{summary}}"
+}`,
+  pagerduty: `{
+  "routing_key": "{{routing_key}}",
+  "event_action": "trigger",
+  "payload": {
+    "summary": "{{summary}}",
+    "severity": "{{severity}}",
+    "source": "{{source}}"
+  }
+}`,
+  generic_http: `{
+  "title": "{{title}}",
+  "message": "{{summary}}",
+  "severity": "{{severity}}"
+}`,
+}
+
+const AUTH_TYPE_OPTS: { key: ConnectorAuthType; label: string }[] = [
+  { key: 'none',   label: 'None' },
+  { key: 'bearer', label: 'Bearer Token' },
+  { key: 'api_key', label: 'API Key' },
+  { key: 'oauth2', label: 'OAuth 2.0' },
+  { key: 'basic',  label: 'Basic Auth' },
+]
 
 function ConnectorsTab({ app }: { app: Application }) {
   const qc = useQueryClient()
@@ -691,26 +787,39 @@ function ConnectorsTab({ app }: { app: Application }) {
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {outbound.map(conn => (
-            <div key={conn.id} style={{
-              background: 'var(--c-bg)', border: '1px solid var(--c-border)', borderRadius: 10, padding: '14px 16px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: '1.2rem' }}>{OUTBOUND_ICONS[conn.connector_type] ?? '📤'}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.85rem' }}>{conn.display_name}</span>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-                    {conn.connector_type}
+          {outbound.map(conn => {
+            const cfg = conn.config_json
+            const endpoint = cfg.endpoint || cfg.webhook_url || ''
+            const authType = cfg.auth?.type ?? 'none'
+            const varCount = Array.isArray(cfg.variables) ? cfg.variables.length : 0
+            return (
+              <div key={conn.id} style={{
+                background: 'var(--c-bg)', border: '1px solid var(--c-border)', borderRadius: 10, padding: '14px 16px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <span style={{ fontSize: '1.2rem', lineHeight: 1, marginTop: 2 }}>{OUTBOUND_ICONS[conn.connector_type] ?? '📤'}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.85rem', marginBottom: 3 }}>{conn.display_name}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', marginBottom: 4, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span>{conn.connector_type.replace(/_/g, ' ')}</span>
+                      {authType !== 'none' && <span style={{ color: 'var(--c-accent)', background: 'color-mix(in srgb, var(--c-accent) 12%, transparent)', padding: '1px 6px', borderRadius: 4 }}>{authType.replace('_', ' ')}</span>}
+                      {varCount > 0 && <span style={{ color: 'var(--c-text-muted)' }}>{varCount} var{varCount !== 1 ? 's' : ''}</span>}
+                    </div>
+                    {endpoint && (
+                      <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--c-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380 }}>
+                        {endpoint}
+                      </div>
+                    )}
                   </div>
+                  <button
+                    onClick={() => deleteOutMut.mutate(conn.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4, flexShrink: 0 }}
+                    title="Remove outbound connector"
+                  >✕</button>
                 </div>
-                <button
-                  onClick={() => deleteOutMut.mutate(conn.id)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}
-                  title="Remove outbound connector"
-                >✕</button>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -724,41 +833,287 @@ function ConnectorsTab({ app }: { app: Application }) {
 
 function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => void }) {
   const qc = useQueryClient()
-  const [connectorType, setConnectorType] = useState<string>('teams_webhook')
+
+  // ── Basic ──────────────────────────────────────────────────────────────────
+  const [connType, setConnType] = useState<ConnectorType>('teams_webhook')
   const [displayName, setDisplayName] = useState('')
-  const [webhookUrl, setWebhookUrl] = useState('')
+
+  // ── Endpoint ───────────────────────────────────────────────────────────────
+  const [endpoint, setEndpoint] = useState(CONNECTOR_DEFAULT_ENDPOINTS['teams_webhook'])
+  const [httpMethod, setHttpMethod] = useState('POST')
+  const [snTable, setSnTable] = useState('incident')
+  const [emailPort, setEmailPort] = useState('587')
+  const [emailFrom, setEmailFrom] = useState('')
+
+  // ── Auth ───────────────────────────────────────────────────────────────────
+  const [authType, setAuthType] = useState<ConnectorAuthType>(CONNECTOR_DEFAULT_AUTH['teams_webhook'])
+  const [bearerToken, setBearerToken] = useState('')
+  const [apiKey, setApiKey] = useState('')
+  const [apiKeyHeader, setApiKeyHeader] = useState('X-API-Key')
+  const [authUser, setAuthUser] = useState('')
+  const [authPass, setAuthPass] = useState('')
+  const [oauthTokenUrl, setOauthTokenUrl] = useState('')
+  const [oauthClientId, setOauthClientId] = useState('')
+  const [oauthClientSecret, setOauthClientSecret] = useState('')
+  const [oauthScopes, setOauthScopes] = useState('')
+
+  // ── Variables ──────────────────────────────────────────────────────────────
+  const [variables, setVariables] = useState<ConnectorVariable[]>(() => CONNECTOR_DEFAULT_VARS['teams_webhook'].map(v => ({ ...v })))
+
+  // ── Payload template ───────────────────────────────────────────────────────
+  const [payloadTemplate, setPayloadTemplate] = useState(CONNECTOR_DEFAULT_PAYLOADS['teams_webhook'])
+
+  const handleTypeChange = (t: ConnectorType) => {
+    setConnType(t)
+    setEndpoint(CONNECTOR_DEFAULT_ENDPOINTS[t] || '')
+    setAuthType(CONNECTOR_DEFAULT_AUTH[t] || 'none')
+    setVariables((CONNECTOR_DEFAULT_VARS[t] || []).map(v => ({ ...v })))
+    setPayloadTemplate(CONNECTOR_DEFAULT_PAYLOADS[t] || '')
+    setHttpMethod('POST'); setSnTable('incident'); setEmailPort('587'); setEmailFrom('')
+    setBearerToken(''); setApiKey(''); setApiKeyHeader('X-API-Key')
+    setAuthUser(''); setAuthPass(''); setOauthTokenUrl('')
+    setOauthClientId(''); setOauthClientSecret(''); setOauthScopes('')
+  }
+
+  const buildConfig = () => {
+    const auth: Record<string, string> = { type: authType }
+    if (authType === 'bearer') auth.bearer_token = bearerToken
+    if (authType === 'api_key') { auth.api_key = apiKey; auth.api_key_header = apiKeyHeader }
+    if (authType === 'basic') { auth.username = authUser; auth.password = authPass }
+    if (authType === 'oauth2') {
+      auth.token_url = oauthTokenUrl
+      auth.client_id = oauthClientId
+      auth.client_secret = oauthClientSecret
+      auth.scopes = oauthScopes
+    }
+    const endpoint_fields: Record<string, string> = {}
+    if (connType === 'servicenow') endpoint_fields.table = snTable
+    if (connType === 'email') { endpoint_fields.port = emailPort; endpoint_fields.from = emailFrom }
+    if (connType === 'generic_http') endpoint_fields.http_method = httpMethod
+    return { endpoint, endpoint_fields, auth, variables, payload_template: payloadTemplate }
+  }
 
   const mut = useMutation({
     mutationFn: () => addOutboundConnector(appId, {
-      connector_type: connectorType as 'teams_webhook' | 'servicenow' | 'email' | 'pagerduty',
+      connector_type: connType,
       display_name: displayName,
-      config_json: { webhook_url: webhookUrl },
+      config_json: buildConfig() as never,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['application', appId] }); onClose() },
   })
 
+  // ── Shared style helpers ───────────────────────────────────────────────────
+  const inp = { display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem', boxSizing: 'border-box' as const }
+  const monoInp = { ...inp, fontFamily: 'var(--font-mono)' as string }
+  const lbl = { fontSize: '0.75rem', fontFamily: 'var(--font-display)', fontWeight: 600, display: 'block' as const }
+  const sectionHdr = { fontSize: '0.68rem', fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--c-text-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', paddingBottom: 8, borderBottom: '1px solid var(--c-border)', marginBottom: 12 }
+
+  const endpointLabel = connType === 'servicenow' ? 'Instance URL' : connType === 'teams_webhook' ? 'Webhook URL' : connType === 'pagerduty' ? 'Events API URL' : connType === 'email' ? 'SMTP Host / API Endpoint' : 'Endpoint URL'
+  const endpointPlaceholder = connType === 'servicenow' ? 'https://myinstance.service-now.com' : connType === 'pagerduty' ? 'https://events.pagerduty.com/v2/enqueue' : connType === 'email' ? 'smtp.example.com' : 'https://...'
+
   return (
     <Modal title="Add Outbound Connector" onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '12px 0' }}>
-        <label style={{ fontSize: '0.78rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
-          Type
-          <select value={connectorType} onChange={e => setConnectorType(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem' }}>
-            <option value="teams_webhook">Teams Webhook</option>
-            <option value="servicenow">ServiceNow</option>
-            <option value="email">Email</option>
-            <option value="pagerduty">PagerDuty</option>
-          </select>
-        </label>
-        <label style={{ fontSize: '0.78rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
-          Display Name
-          <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="e.g. Team Alpha Channel" style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem' }} />
-        </label>
-        <label style={{ fontSize: '0.78rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
-          Webhook / Endpoint URL
-          <input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://..." style={{ display: 'block', width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }} />
-        </label>
-        <button className="btn-primary" style={{ marginTop: 8 }} onClick={() => mut.mutate()} disabled={!displayName || !webhookUrl || mut.isPending}>
-          {mut.isPending ? 'Saving…' : 'Add Outbound Connector'}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '4px 0 8px', maxHeight: '72vh', overflowY: 'auto', paddingRight: 2 }}>
+
+        {/* ── Type + Name ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <label style={lbl}>
+            Type
+            <select value={connType} onChange={e => handleTypeChange(e.target.value as ConnectorType)} style={{ ...inp, marginTop: 4 }}>
+              <option value="teams_webhook">💬  Teams Webhook</option>
+              <option value="servicenow">🎫  ServiceNow</option>
+              <option value="email">✉️  Email / SMTP</option>
+              <option value="pagerduty">🚨  PagerDuty</option>
+              <option value="generic_http">🌐  Generic HTTP</option>
+            </select>
+          </label>
+          <label style={lbl}>
+            Display Name
+            <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="e.g. CHAD Platform Alerts" style={{ ...inp, marginTop: 4 }} />
+          </label>
+        </div>
+
+        {/* ── Endpoint ── */}
+        <div>
+          <div style={sectionHdr}>Endpoint</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {connType === 'generic_http' && (
+              <label style={lbl}>
+                HTTP Method
+                <select value={httpMethod} onChange={e => setHttpMethod(e.target.value)} style={{ ...inp, marginTop: 4 }}>
+                  <option>POST</option><option>PUT</option><option>PATCH</option><option>GET</option>
+                </select>
+              </label>
+            )}
+            {connType === 'email' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
+                <label style={lbl}>
+                  {endpointLabel}
+                  <input value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder={endpointPlaceholder} style={monoInp} />
+                </label>
+                <label style={lbl}>
+                  Port
+                  <input value={emailPort} onChange={e => setEmailPort(e.target.value)} placeholder="587" style={monoInp} />
+                </label>
+              </div>
+            ) : (
+              <label style={lbl}>
+                {endpointLabel}
+                <input value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder={endpointPlaceholder} style={monoInp} />
+              </label>
+            )}
+            {connType === 'servicenow' && (
+              <label style={lbl}>
+                Table
+                <input value={snTable} onChange={e => setSnTable(e.target.value)} placeholder="incident" style={monoInp} />
+              </label>
+            )}
+            {connType === 'email' && (
+              <label style={lbl}>
+                From Address
+                <input value={emailFrom} onChange={e => setEmailFrom(e.target.value)} placeholder="corvin@yourorg.com" style={inp} />
+              </label>
+            )}
+          </div>
+        </div>
+
+        {/* ── Authentication ── */}
+        <div>
+          <div style={sectionHdr}>Authentication</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+            {AUTH_TYPE_OPTS.map(opt => (
+              <button key={opt.key} onClick={() => setAuthType(opt.key)} style={{
+                padding: '4px 12px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 600,
+                cursor: 'pointer', transition: 'all 0.15s',
+                border: authType === opt.key ? '1.5px solid var(--c-accent)' : '1px solid var(--c-border)',
+                background: authType === opt.key ? 'var(--c-accent)' : 'var(--c-bg)',
+                color: authType === opt.key ? '#fff' : 'var(--c-text-muted)',
+              }}>{opt.label}</button>
+            ))}
+          </div>
+          {authType === 'bearer' && (
+            <label style={lbl}>
+              Bearer Token
+              <input type="password" value={bearerToken} onChange={e => setBearerToken(e.target.value)} placeholder="eyJ..." style={monoInp} />
+            </label>
+          )}
+          {authType === 'api_key' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 10 }}>
+              <label style={lbl}>
+                API Key
+                <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk-..." style={monoInp} />
+              </label>
+              <label style={lbl}>
+                Header Name
+                <input value={apiKeyHeader} onChange={e => setApiKeyHeader(e.target.value)} placeholder="X-API-Key" style={monoInp} />
+              </label>
+            </div>
+          )}
+          {authType === 'basic' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <label style={lbl}>
+                Username
+                <input value={authUser} onChange={e => setAuthUser(e.target.value)} placeholder="admin" style={inp} />
+              </label>
+              <label style={lbl}>
+                Password
+                <input type="password" value={authPass} onChange={e => setAuthPass(e.target.value)} placeholder="••••••" style={inp} />
+              </label>
+            </div>
+          )}
+          {authType === 'oauth2' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <label style={lbl}>
+                Token URL
+                <input value={oauthTokenUrl} onChange={e => setOauthTokenUrl(e.target.value)} placeholder="https://your-idp.com/oauth/token" style={monoInp} />
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <label style={lbl}>
+                  Client ID
+                  <input value={oauthClientId} onChange={e => setOauthClientId(e.target.value)} placeholder="client_id" style={monoInp} />
+                </label>
+                <label style={lbl}>
+                  Client Secret
+                  <input type="password" value={oauthClientSecret} onChange={e => setOauthClientSecret(e.target.value)} placeholder="••••••" style={monoInp} />
+                </label>
+              </div>
+              <label style={lbl}>
+                Scopes <span style={{ fontWeight: 400, color: 'var(--c-text-faint)' }}>(space-separated)</span>
+                <input value={oauthScopes} onChange={e => setOauthScopes(e.target.value)} placeholder="read write" style={monoInp} />
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* ── Variables ── */}
+        <div>
+          <div style={{ ...sectionHdr, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Variables</span>
+            <button onClick={() => setVariables(v => [...v, { key: '', default_value: '' }])}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-accent)', fontSize: '0.72rem', fontWeight: 700, padding: 0, letterSpacing: 0, textTransform: 'none' }}>
+              + Add Variable
+            </button>
+          </div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--c-text-faint)', marginBottom: 10, lineHeight: 1.5 }}>
+            Use <code style={{ fontFamily: 'var(--font-mono)', background: 'var(--c-bg-elevated)', padding: '1px 5px', borderRadius: 3 }}>{'{{key}}'}</code> in the payload template.
+            Built-in vars: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--c-text-muted)' }}>{'{{service_name}} {{rca_summary}} {{confidence}} {{environment}} {{request_id}}'}</code>
+          </div>
+          {variables.length === 0 ? (
+            <div style={{ fontSize: '0.75rem', color: 'var(--c-text-faint)', textAlign: 'center', padding: '10px 0' }}>
+              No variables —{' '}
+              <button onClick={() => setVariables((CONNECTOR_DEFAULT_VARS[connType] || []).map(v => ({ ...v })))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-accent)', fontSize: '0.75rem', padding: 0 }}>
+                load defaults for {connType.replace(/_/g, ' ')}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 24px', gap: 6, marginBottom: 2 }}>
+                <span style={{ fontSize: '0.63rem', fontWeight: 700, color: 'var(--c-text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Key</span>
+                <span style={{ fontSize: '0.63rem', fontWeight: 700, color: 'var(--c-text-faint)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Default Value</span>
+                <span />
+              </div>
+              {variables.map((v, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 24px', gap: 6, alignItems: 'center' }}>
+                  <input value={v.key} onChange={e => setVariables(vs => vs.map((x, j) => j === i ? { ...x, key: e.target.value } : x))}
+                    placeholder="key" style={{ ...monoInp, marginTop: 0, fontSize: '0.75rem' }} />
+                  <input value={v.default_value} onChange={e => setVariables(vs => vs.map((x, j) => j === i ? { ...x, default_value: e.target.value } : x))}
+                    placeholder="value or {{builtin}}" style={{ ...monoInp, marginTop: 0, fontSize: '0.75rem' }} />
+                  <button onClick={() => setVariables(vs => vs.filter((_, j) => j !== i))}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 0, lineHeight: 1 }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Payload Template ── */}
+        <div>
+          <div style={{ ...sectionHdr, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Payload Template</span>
+            <button onClick={() => setPayloadTemplate(CONNECTOR_DEFAULT_PAYLOADS[connType] || '')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-accent)', fontSize: '0.72rem', fontWeight: 700, padding: 0, letterSpacing: 0, textTransform: 'none' }}>
+              Reset to default
+            </button>
+          </div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--c-text-faint)', marginBottom: 8 }}>
+            JSON body sent with every outbound request. Interpolate with <code style={{ fontFamily: 'var(--font-mono)', background: 'var(--c-bg-elevated)', padding: '1px 5px', borderRadius: 3 }}>{'{{key}}'}</code>.
+          </div>
+          <textarea value={payloadTemplate} onChange={e => setPayloadTemplate(e.target.value)}
+            rows={8} spellCheck={false}
+            style={{ ...monoInp, marginTop: 0, resize: 'vertical', fontSize: '0.73rem', lineHeight: 1.5 }} />
+        </div>
+
+        {/* ── Save ── */}
+        {mut.isError && (
+          <div style={{ fontSize: '0.75rem', color: '#ef4444', padding: '6px 10px', background: '#ef444414', borderRadius: 6 }}>
+            {String((mut.error as Error)?.message ?? 'Save failed')}
+          </div>
+        )}
+        <button className="btn-primary" onClick={() => mut.mutate()}
+          disabled={!displayName.trim() || !endpoint.trim() || mut.isPending}
+          style={{ marginTop: 4 }}>
+          {mut.isPending ? 'Saving…' : 'Save Connector'}
         </button>
       </div>
     </Modal>

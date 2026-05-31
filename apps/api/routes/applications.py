@@ -122,7 +122,16 @@ class SloConfigUpdate(BaseModel):
 
 _VALID_CONTACT_METHODS = {"email", "phone", "teams"}
 _VALID_PRIORITY_FILTERS = {"all", "p1_only", "p1_p2"}
-_VALID_OUTBOUND_TYPES = {"teams_webhook", "servicenow", "email", "pagerduty"}
+_VALID_OUTBOUND_TYPES = {"teams_webhook", "servicenow", "email", "pagerduty", "generic_http"}
+
+# Per-type field schema used as hints (frontend reads this via /meta endpoint if needed)
+CONNECTOR_FIELD_SCHEMA: dict[str, dict] = {
+    "teams_webhook": {"endpoint": "Webhook URL"},
+    "servicenow": {"endpoint": "Instance URL (https://instance.service-now.com)", "table": "Table (default: incident)"},
+    "email": {"endpoint": "SMTP host or API endpoint", "port": "SMTP port", "from": "From address"},
+    "pagerduty": {"endpoint": "Events API URL (https://events.pagerduty.com/v2/enqueue)"},
+    "generic_http": {"endpoint": "Endpoint URL", "http_method": "HTTP method (POST/PUT/PATCH/GET)"},
+}
 
 
 class NotificationContactCreate(BaseModel):

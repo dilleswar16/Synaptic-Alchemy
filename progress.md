@@ -8,11 +8,28 @@
 
 ## Current Goal
 
-**V3.95 "AWESTRUCK" COMPLETE — 435/435 tests passing. Submission ready for Hackathon.**  
-**V4.1 "ENTERPRISE MATURITY" COMPLETE — 437/437 tests passing. Final Sign-Off for Hackathon Submission.**  
+**V5.2 "UX MATURITY" COMPLETE.** Font modernisation, CHAD-only seed, outbound connector builder shipped.  
+**Previously:** V4.1 "ENTERPRISE MATURITY" COMPLETE — 437/437 tests passing.  
 See `docs/copilot-context/versions/v4_enterprise_maturity.md` for the priority logic and UI hierarchy specs.
 
 ---
+
+## V5.2 — UX Maturity (COMPLETE)
+
+- [x] **Font Modernisation** — Replaced DM Sans with **Plus Jakarta Sans** (Google Fonts, 200–800 weights). Base `font-size` raised 14px → 15.5px. Added `letter-spacing: -0.01em`. Updated `--font-display` and `--font-body` CSS vars. Type scale bumped across all `--text-*` tokens.
+- [x] **DB Hygiene / CHAD-Only Seed** — Deleted 5 dummy MetLife-style apps from local DB. Rewrote `seed_demo.py` to seed a single "CHAD" app with 3 real services (fundapis, fundsso, partnerapis). Idempotent: skips if "CHAD" already exists.
+- [x] **Notification Contacts + Connector Split** *(committed 2c303d4)* — Added `/notification-contacts` and `/outbound-connectors` CRUD endpoints. `NotificationContactRow` and `OutboundConnectorRow` ORM models added. Alembic migration `0018_notification_contacts_outbound_connectors.py` applied.
+- [x] **Outbound Connector Builder** — Full UX overhaul replacing the single-URL input:
+  - 5-section `AddOutboundModal`: Type+Name → Endpoint (adaptive per type) → Auth → Variables → Payload Template
+  - Auth types: **None / Bearer Token / API Key / OAuth 2.0 / Basic Auth** (pill picker, conditional fields)
+  - Variable system: key→default_value rows with Corvin built-in var interpolation (`{{service_name}}`, `{{rca_summary}}`, `{{confidence}}`, `{{environment}}`, `{{request_id}}`)
+  - Per-type defaults: `CONNECTOR_DEFAULT_ENDPOINTS`, `CONNECTOR_DEFAULT_AUTH`, `CONNECTOR_DEFAULT_VARS`, `CONNECTOR_DEFAULT_PAYLOADS`
+  - New connector type: `generic_http` (method selector: POST/PUT/PATCH/GET)
+  - TypeScript: `ConnectorVariable`, `ConnectorAuth`, `ConnectorConfig` interfaces in `client.ts`
+  - Connector cards show: auth type badge, variable count, endpoint URL (truncated)
+
+---
+
 
 ## V4.1 — Enterprise Maturity & UI Polish (COMPLETE)
 

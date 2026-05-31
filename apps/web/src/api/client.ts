@@ -757,12 +757,40 @@ export interface NotificationContact {
   created_at: string
 }
 
+export interface ConnectorVariable {
+  key: string
+  default_value: string
+}
+
+export interface ConnectorAuth {
+  type: 'none' | 'bearer' | 'api_key' | 'basic' | 'oauth2'
+  bearer_token?: string
+  api_key?: string
+  api_key_header?: string
+  username?: string
+  password?: string
+  token_url?: string
+  client_id?: string
+  client_secret?: string
+  scopes?: string
+}
+
+export interface ConnectorConfig {
+  endpoint?: string
+  endpoint_fields?: Record<string, string>
+  auth?: ConnectorAuth
+  variables?: ConnectorVariable[]
+  payload_template?: string
+  // legacy field from before structured config
+  webhook_url?: string
+}
+
 export interface OutboundConnector {
   id: string
   application_id: string
-  connector_type: 'teams_webhook' | 'servicenow' | 'email' | 'pagerduty'
+  connector_type: 'teams_webhook' | 'servicenow' | 'email' | 'pagerduty' | 'generic_http'
   display_name: string
-  config_json: Record<string, unknown>
+  config_json: ConnectorConfig
   is_active: boolean
   last_tested_at: string | null
   test_status: string | null

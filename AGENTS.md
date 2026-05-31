@@ -19,11 +19,65 @@ and fix strategies. An SRE team then approves and executes fixes via Microsoft T
 
 ## Current Version
 
-**V5.1 complete (2026-05-31).** All agentic AI features shipped.  
-**Now building:** Application onboarding UX improvements (Notification Contacts, Inbound/Outbound Connectors).
+**V5.2 "UX MATURITY" complete (2026-05-31).** Font modernisation + DB hygiene + full outbound connector UX shipped.  
+**Now building:** Further UX polish / next feature iteration.
 
 Read the active version scope BEFORE writing any code:
 - `docs/copilot-context/versions/hackathon-roadmap.md` ← historical reference
+
+---
+
+## What Changed in V5.2 (2026-05-31)
+
+### Font Modernisation
+- **Font replaced:** DM Sans → **Plus Jakarta Sans** (Google Fonts, weights 200–800 + italic 400)
+- `apps/web/index.html`: updated Google Fonts `<link>` href
+- `apps/web/src/index.css`:
+  - `--font-display` and `--font-body` now reference `'Plus Jakarta Sans'`
+  - `html { font-size }` bumped **14px → 15.5px** (was too small for SaaS readability)
+  - Added `letter-spacing: -0.01em` on the html root for tighter modern feel
+  - Type scale bumped: `--text-xs: 0.8rem`, `--text-sm: 0.875rem`, `--text-md: 0.9375rem` through `--text-4xl: 2.125rem`
+
+### DB Hygiene — CHAD-Only Demo Seed
+- Deleted 5 fake MetLife-style apps from `corvin.db`: Claims Platform, Policy Management, Customer Portal, Data Platform, Infrastructure
+- `apps/api/seed_demo.py` completely rewritten — seeds **1 app (CHAD)** with **3 real services** only:
+  - `fundapis` (Fund APIs, `chad-fundapis`, status `ok`, routes through APIM)
+  - `fundsso` (Fund SSO, `chad-fundsso`, status `ok`, direct SSO via PingFederate)
+  - `partnerapis` (Partner APIs, `chad-partnerapis`, status `at_risk`, routes through APIM)
+- Idempotency guard: checks `filter_by(name="CHAD")` before seeding
+- "TestApp1" and "ChAD AU" (user-created entries) are **never deleted**
+
+### Outbound Connector UX — Universal Variables + Auth + Payload Templates
+This is a significant upgrade from the previous "one URL field" design.
+
+**Backend** (`apps/api/routes/applications.py`):
+- Added `generic_http` to `_VALID_OUTBOUND_TYPES`
+- Added `CONNECTOR_FIELD_SCHEMA` constant documenting per-type endpoint fields
+
+**Frontend types** (`apps/web/src/api/client.ts`):
+- New interfaces: `ConnectorVariable`, `ConnectorAuth`, `ConnectorConfig`
+- `ConnectorAuth.type` values: `none | bearer | api_key | basic | oauth2`
+- `OutboundConnector.config_json` is now typed `ConnectorConfig` (backwards-compat — also accepts legacy `webhook_url`)
+- Connector type union now includes `'generic_http'`
+
+**`AddOutboundModal`** (`apps/web/src/pages/ApplicationsPage.tsx`) completely rewritten with 5 sections:
+1. **Type + Name** — supports Teams Webhook / ServiceNow / Email / PagerDuty / Generic HTTP
+2. **Endpoint** — label/placeholder adapts per type; email shows host+port grid; ServiceNow adds `table` field; Generic HTTP adds method selector (POST/PUT/PATCH/GET)
+3. **Authentication** — pill toggles for **None / Bearer Token / API Key / OAuth 2.0 / Basic Auth**
+   - OAuth 2.0 exposes: Token URL, Client ID, Client Secret, Scopes (space-separated)
+   - API Key exposes: key value + header name (default `X-API-Key`)
+   - Basic Auth exposes: username + password
+4. **Variables** — add/remove rows of `key → default_value`; default values can reference built-in Corvin vars (`{{rca_summary}}`, `{{service_name}}`, etc.); per-type defaults loaded automatically on type change
+5. **Payload Template** — JSON textarea, full templating with `{{key}}` interpolation, "Reset to default" button per type
+
+Module-level constants in `ApplicationsPage.tsx`:
+- `CONNECTOR_DEFAULT_ENDPOINTS` — per-type default URL
+- `CONNECTOR_DEFAULT_AUTH` — per-type default auth method (e.g. ServiceNow defaults to `oauth2`)
+- `CONNECTOR_DEFAULT_VARS` — per-type pre-filled variable rows with sensible default values
+- `CONNECTOR_DEFAULT_PAYLOADS` — full JSON template per connector type
+- `AUTH_TYPE_OPTS` — auth picker options array
+
+Connector cards in ConnectorsTab now show: auth type badge, variable count, endpoint URL (truncated).
 
 ---
 
@@ -46,6 +100,7 @@ Never build a feature from a future version while the current version is incompl
 | V4.5 | ✅ Complete | DB-driven AKS onboarding — remove hardcoded topology, k8s_app_label, guided AKS connector form |
 | V5.0 | ✅ Complete | Agentic AI P0: F1 AutonomousAgent, F4 CausalChain, F6 NL-to-KQL, F7 CommsDrafts |
 | V5.1 | ✅ Complete | Agentic AI P1: F9 Multi-Agent, F10 Chaos Engine, F11 IDE Integration, F12 Voice Incident |
+| V5.2 | ✅ Complete | UX Maturity: Plus Jakarta Sans font, CHAD-only seed, outbound connector builder (variables, payload templates, OAuth 2.0) |
 
 ---
 
