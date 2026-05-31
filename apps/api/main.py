@@ -34,6 +34,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.routes import investigations, triggers
+from apps.api.routes.ai_features import router as ai_features_router
 from apps.api.routes.applications import router as applications_router
 from apps.api.routes.corvin_agent import router as corvin_router
 from apps.api.routes.slo import router as slo_router
@@ -125,6 +126,7 @@ app.include_router(corvin_router, prefix="/corvin", tags=["corvin"])
 app.include_router(applications_router, prefix="/applications", tags=["applications"])
 app.include_router(slo_router, prefix="/slo", tags=["slo"])
 app.include_router(validations_router, prefix="/validations", tags=["validations"])
+app.include_router(ai_features_router, prefix="/ai", tags=["ai-features"])
 
 
 @app.get("/health", tags=["health"])

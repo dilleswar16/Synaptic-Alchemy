@@ -273,6 +273,11 @@ class ApplicationRow(Base):
     team_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     environment_default: Mapped[str] = mapped_column(String(50), nullable=False, default="dev")
     topology_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    # ── Git repository config (for code-aware investigation) ──────────────────
+    git_provider: Mapped[str | None] = mapped_column(String(30), nullable=True, default=None)   # azure_devops | github
+    git_repo_url: Mapped[str | None] = mapped_column(String(500), nullable=True, default=None)  # e.g. https://dev.azure.com/org/project/_git/repo
+    git_branch: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)    # default branch to read from
+    git_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)  # AES-256-GCM encrypted PAT
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
@@ -438,6 +443,26 @@ class SloSnapshotRow(Base):
     slo_config: Mapped["SloConfigRow"] = relationship("SloConfigRow", back_populates="snapshots")
 
 
+# ── Predictive Penalty / Learning models ──────────────────────────────────────
+
+
+class PredictivePenaltyRow(Base):
+    """Records a miss or insufficient prediction — drives the learning feedback loop."""
+    __tablename__ = "predictive_penalties"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    environment: Mapped[str] = mapped_column(String(50), nullable=False, default="production")
+    alert_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    penalty_type: Mapped[str] = mapped_column(String(30), nullable=False)  # missed|insufficient
+    investigation_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    predictive_alert_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    pattern_description: Mapped[str] = mapped_column(Text, nullable=False)
+    root_cause_fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
+    suggested_threshold_adjustment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
 # ── Validations models ────────────────────────────────────────────────────────
 
 
@@ -486,4 +511,28 @@ class ValidationRunRow(Base):
 
     definition: Mapped["ValidationDefinitionRow"] = relationship(
         "ValidationDefinitionRow", back_populates="runs"
+    )
+
+
+# ── Validation Automation Policies ────────────────────────────────────────────
+
+
+class ValidationAutomationPolicyRow(Base):
+    """Links a predictive alert pattern to a validation definition for auto-trigger."""
+    __tablename__ = "validation_automation_policies"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    alert_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    min_confidence_pct: Mapped[float] = mapped_column(nullable=False, default=70.0)
+    validation_definition_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("validation_definitions.id"), nullable=False
+    )
+    enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    validation_definition: Mapped["ValidationDefinitionRow"] = relationship(
+        "ValidationDefinitionRow"
     )

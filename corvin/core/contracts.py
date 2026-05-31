@@ -111,6 +111,7 @@ class EvidenceBundle(BaseModel):
     oom_kill_events: list[dict[str, Any]] = Field(default_factory=list)
     autoscaler_events: list[dict[str, Any]] = Field(default_factory=list)
     health_probe_failures: list[dict[str, Any]] = Field(default_factory=list)
+    code_context: list[dict[str, Any]] = Field(default_factory=list)
     collected_at: datetime = Field(default_factory=_utcnow)
 
 

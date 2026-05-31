@@ -44,6 +44,7 @@ from corvin.strategy.roi import build_roi_stats
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.knowledge_loader import KnowledgeLoader
 from corvin.triggers.predictive import PredictiveMonitor
+from corvin.triggers.prediction_penalty import penalize_prediction
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
@@ -214,6 +215,12 @@ def start_investigation(
 
     # Optional and non-fatal: auto-send RCA PDF email when configured.
     send_rca_email_if_enabled(result)
+
+    # Penalize predictive analysis: record miss/insufficient prediction for learning.
+    try:
+        penalize_prediction(result)
+    except Exception as exc:
+        _log.warning("Prediction penalty recording failed (non-fatal): %s", exc)
 
     return InvestigationAccepted(
         request_id=result.request_id,
@@ -488,11 +495,58 @@ def investigate_predictive_alert(
 
     send_rca_email_if_enabled(result)
 
+    # Penalize predictive analysis: record miss/insufficient prediction for learning.
+    try:
+        penalize_prediction(result)
+    except Exception as exc:
+        _log.warning("Prediction penalty recording failed (non-fatal): %s", exc)
+
     return InvestigationAccepted(
         request_id=result.request_id,
         status="completed",
         message="Predictive investigation completed and persisted.",
     )
+
+
+# ─── Predictive Learnings / Penalties ─────────────────────────────────────────
+
+
+@router.get("/predictive-learnings")
+def list_predictive_learnings(
+    service: Optional[str] = Query(None, description="Filter by service name"),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """Return recorded predictive penalties (missed or insufficient predictions)."""
+    from corvin.triggers.prediction_penalty import load_penalties_for_service
+    from corvin.storage.db import get_session as _get_db_session
+    from corvin.storage.models import PredictivePenaltyRow
+
+    if service:
+        return load_penalties_for_service(service, limit=limit)
+
+    with _get_db_session() as db:
+        rows = (
+            db.query(PredictivePenaltyRow)
+            .order_by(PredictivePenaltyRow.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "id": r.id,
+                "service_name": r.service_name,
+                "environment": r.environment,
+                "alert_type": r.alert_type,
+                "penalty_type": r.penalty_type,
+                "investigation_id": r.investigation_id,
+                "predictive_alert_id": r.predictive_alert_id,
+                "pattern_description": r.pattern_description,
+                "root_cause_fingerprint": r.root_cause_fingerprint,
+                "suggested_threshold_adjustment": r.suggested_threshold_adjustment,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ]
 
 
 @router.get("/topology", response_model=dict)

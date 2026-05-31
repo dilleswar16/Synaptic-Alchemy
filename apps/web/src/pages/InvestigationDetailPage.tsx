@@ -23,6 +23,8 @@ import { TechnicalHighlighter } from '../components/TechnicalHighlighter'
 import { Section } from '../components/Section'
 import { BlastRadiusCard } from '../components/BlastRadiusCard'
 import { SlaCountdownCard } from '../components/investigation/SlaCountdownCard'
+import WarRoomBanner from '../components/WarRoomBanner'
+import RunbookBuilderChat from '../components/RunbookBuilderChat'
 import { useThreeAmMode } from '../hooks/useThreeAmMode'
 import {
   fetchInvestigation,
@@ -324,6 +326,12 @@ export default function InvestigationDetailPage() {
         {data && (
           <>
             {/* Always-visible: hero + SLA + stepper */}
+            {approvalStatus === 'pending' && (
+              <WarRoomBanner
+                serviceName={data.request.service_name}
+                environment={data.request.environment}
+              />
+            )}
             <IncidentHeroCard data={data} approvalStatus={approvalStatus} />
             <SlaCountdownCard requestId={id!} status={approvalStatus} />
             <div className="three-am-hide" style={{ marginTop: 4 }}>
@@ -465,6 +473,13 @@ export default function InvestigationDetailPage() {
                     <RunbookUpdatePrompt
                       requestId={id!}
                       serviceName={data.request?.service_name ?? 'unknown'}
+                    />
+                  )}
+                  {approvalStatus === 'executed' && (
+                    <RunbookBuilderChat
+                      requestId={id!}
+                      serviceName={data.request?.service_name ?? 'unknown'}
+                      environment={data.request?.environment ?? 'production'}
                     />
                   )}
                   <AuditTrailSection requestId={id!} defaultOpen={true} />

@@ -474,6 +474,90 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             },
         },
     },
+    # ── Code Analysis Tools ───────────────────────────────────────────────────
+    {
+        "type": "function",
+        "function": {
+            "name": "code_search_files",
+            "description": (
+                "Search the application's Git repository source code for a class, function, "
+                "variable, or error pattern. Use this when you see a stack trace, exception, "
+                "or code-related error in logs and want to find the relevant source file. "
+                "Returns matching file paths and code snippets. "
+                "Only works if the service has Git repository access configured."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "The service whose repository to search (e.g. 'fundapis').",
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "Search query — class name, function name, error message, or variable.",
+                    },
+                    "extensions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional file extensions to filter (e.g. ['.cs', '.py', '.ts']).",
+                    },
+                },
+                "required": ["service_name", "query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "code_read_file",
+            "description": (
+                "Read the content of a specific source file from the service's Git repository. "
+                "Use this after code_search_files identifies a relevant file, or when a stack "
+                "trace points to a specific file path. Returns the full file content (up to 128KB). "
+                "Only works if the service has Git repository access configured."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "The service whose repository to read from (e.g. 'fundapis').",
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "File path relative to repo root (e.g. 'src/Services/OrderService.cs').",
+                    },
+                },
+                "required": ["service_name", "path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "code_list_directory",
+            "description": (
+                "List files and folders in a directory of the service's Git repository. "
+                "Use this to explore the project structure when you need to locate relevant "
+                "source files. Only works if the service has Git repository access configured."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "The service whose repository to browse (e.g. 'fundapis').",
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Directory path relative to repo root (e.g. 'src/Services/'). Use '/' for root.",
+                    },
+                },
+                "required": ["service_name"],
+            },
+        },
+    },
 ]
 
 
@@ -820,4 +904,49 @@ _EXECUTORS = {
     "get_aks_health":           _exec_aks_health,
     "get_container_resource_metrics": _exec_container_resource_metrics,
     "query_apim_analytics":     _exec_apim_analytics,
+    "code_search_files":        _exec_code_search_files,
+    "code_read_file":           _exec_code_read_file,
+    "code_list_directory":      _exec_code_list_directory,
 }
+
+
+# ── Code Analysis Executors ───────────────────────────────────────────────────
+
+def _exec_code_search_files(args: dict) -> Any:
+    from corvin.connectors.git_repo import get_connector_for_service
+    service_name = args["service_name"]
+    connector = get_connector_for_service(service_name)
+    if connector is None:
+        return {"error": f"No Git repository configured for service '{service_name}'. Configure it in the Applications onboarding panel."}
+    results = connector.search_files(args["query"], args.get("extensions"))
+    if not results:
+        return {"message": f"No files found matching '{args['query']}'.", "results": []}
+    return {"results": results}
+
+
+def _exec_code_read_file(args: dict) -> Any:
+    from corvin.connectors.git_repo import get_connector_for_service, _MAX_CODE_CONTEXT_CHARS
+    service_name = args["service_name"]
+    connector = get_connector_for_service(service_name)
+    if connector is None:
+        return {"error": f"No Git repository configured for service '{service_name}'. Configure it in the Applications onboarding panel."}
+    content = connector.get_file(args["path"])
+    if content is None:
+        return {"error": f"File not found: {args['path']}"}
+    if len(content) > _MAX_CODE_CONTEXT_CHARS:
+        content = content[:_MAX_CODE_CONTEXT_CHARS] + "\n\n[... truncated — file too large ...]"
+    return {"path": args["path"], "content": content}
+
+
+def _exec_code_list_directory(args: dict) -> Any:
+    from corvin.connectors.git_repo import get_connector_for_service
+    service_name = args["service_name"]
+    connector = get_connector_for_service(service_name)
+    if connector is None:
+        return {"error": f"No Git repository configured for service '{service_name}'. Configure it in the Applications onboarding panel."}
+    path = args.get("path", "/")
+    items = connector.list_directory(path)
+    if not items:
+        return {"message": f"Directory empty or not found: {path}", "items": []}
+    return {"path": path, "items": items}
+

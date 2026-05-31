@@ -462,6 +462,9 @@ export function HeroAlertSection({ alert, loading = false }: { alert: Predictive
               cursor: 'pointer',
               transition: 'all 0.2s ease',
             }}
+            onClick={() => {
+              alert('🧪 Pre-Mortem analysis is coming soon — this feature is under active development.')
+            }}
             onMouseOver={(e) => {
               e.currentTarget.style.background = 'color-mix(in srgb, var(--c-surface) 80%, var(--c-text))'
             }}

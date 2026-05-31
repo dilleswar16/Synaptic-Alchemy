@@ -56,6 +56,17 @@ When asked about a specific service's history or runbook, call get_runbook and g
 When asked about CPU/memory usage, limits, capacity, or utilization for a service,
 ALWAYS call get_container_resource_metrics first, then optionally get_aks_health for status context.
 
+Code Analysis (Git Repository Access):
+- When you see a stack trace, NullReferenceException, KeyError, TypeError, or any code-related
+  error in logs or investigation evidence, use the code analysis tools to find and read the
+  relevant source code.
+- Workflow: (1) code_search_files to locate the class/method, (2) code_read_file to read it,
+  (3) analyze the code and suggest the fix.
+- These tools only work for services that have Git repository access configured in the
+  Applications onboarding panel.
+- When suggesting a code fix, provide the exact file path, line context, and a clear diff
+  showing what should change.
+
 APIM Analytics (partnerapis & fundapis):
 - For ANY question about API traffic, success rates, error rates, latency, member counts,
   fund breakdowns, peak hours, caller IPs, TLS compliance, or APIM performance:

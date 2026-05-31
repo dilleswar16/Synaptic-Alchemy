@@ -385,6 +385,10 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
     and a generic raw-KQL execution path.
     """
 
+    # Services whose traffic is routed through Azure API Management gateway.
+    # Other services (e.g. fundsso) bypass APIM so gateway logs are empty.
+    APIM_SERVICES = {"partnerapis", "fundapis"}
+
     def query_template(
         self,
         template_name: str,
@@ -403,6 +407,22 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
         Returns:
             Unified chart payload: {rows, columns, chart_type, title, subtitle, ...}
         """
+        # Guard: skip for services not routed through APIM
+        if api_filter and api_filter.lower() not in ("all", "") and api_filter.lower() not in self.APIM_SERVICES:
+            _log.info("Skipping APIM query for %r — service not behind API Management gateway.", api_filter)
+            return {
+                "rows": [],
+                "columns": [],
+                "chart_type": "table",
+                "title": f"No APIM telemetry for {api_filter}",
+                "subtitle": f"Service '{api_filter}' is not routed through Azure API Management — no gateway logs available.",
+                "template_name": template_name,
+                "time_range_minutes": time_range_minutes,
+                "api_filter": api_filter,
+                "row_count": 0,
+                "note": f"Service '{api_filter}' is not routed through APIM. Only {', '.join(sorted(self.APIM_SERVICES))} have gateway telemetry.",
+            }
+
         if template_name not in _TEMPLATES:
             available = ", ".join(TEMPLATE_NAMES)
             return {

@@ -71,6 +71,7 @@ def _try_connector_availability(
     service_name: str,
     sli_type: str,
     latency_threshold_ms: int | None,
+    window_days: int = 30,
 ) -> tuple[float | None, dict[str, Any], str]:
     """
     Attempt to get real data from a connector.
@@ -84,9 +85,9 @@ def _try_connector_availability(
             continue
         try:
             if sli_type == "availability":
-                result = connector.get_availability(service_name)
+                result = connector.get_availability(service_name, window_days=window_days)
             else:
-                result = connector.get_latency_pct(service_name, latency_threshold_ms or 500)
+                result = connector.get_latency_pct(service_name, latency_threshold_ms or 500, window_days=window_days)
             if result is not None:
                 return result["pct"], result.get("raw", {}), "connector"
         except Exception as exc:  # noqa: BLE001
@@ -102,7 +103,8 @@ def compute_snapshot(
     seed = hash((cfg.id, datetime.now(timezone.utc).date().isoformat()))
 
     measured, raw, data_source = _try_connector_availability(
-        log_sources, cfg.service_name, cfg.sli_type, cfg.latency_threshold_ms
+        log_sources, cfg.service_name, cfg.sli_type, cfg.latency_threshold_ms,
+        window_days=cfg.time_window_days,
     )
 
     if measured is None:

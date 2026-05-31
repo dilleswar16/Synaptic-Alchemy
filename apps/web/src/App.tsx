@@ -10,6 +10,7 @@ import PredictiveAnalyticsPage from './pages/PredictiveAnalyticsPage'
 import ApplicationsPage from './pages/ApplicationsPage'
 import SloMonitoringPage from './pages/SloMonitoringPage'
 import ValidationsPage from './pages/ValidationsPage'
+import WarGamesPage from './pages/WarGamesPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 // ── Global error boundary ─────────────────────────────────────────────────────
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="/applications/:id" element={<ApplicationsPage />} />
             <Route path="/slo" element={<SloMonitoringPage />} />
             <Route path="/validations" element={<ValidationsPage />} />
+            <Route path="/war-games" element={<WarGamesPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>

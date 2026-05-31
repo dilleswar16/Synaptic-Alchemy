@@ -100,6 +100,48 @@ function BudgetSparkline({ history, width = 100, height = 28 }: {
   )
 }
 
+// ── Breach insight banner ───────────────────────────────────────────────────
+
+function BreachInsight({ entry }: { entry: SloStatusEntry }) {
+  if (!entry.breach_reason) return null
+
+  const severityColors = {
+    critical: { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.25)', icon: '🚨', accent: 'var(--c-red)' },
+    warning: { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.25)', icon: '⚠️', accent: 'var(--c-warning)' },
+    minor: { bg: 'rgba(107, 114, 128, 0.06)', border: 'rgba(107, 114, 128, 0.2)', icon: 'ℹ️', accent: 'var(--c-text-muted)' },
+  }
+  const s = severityColors[entry.breach_severity || 'minor']
+
+  return (
+    <div style={{
+      background: s.bg, border: `1px solid ${s.border}`,
+      borderRadius: 6, padding: '8px 10px',
+      fontSize: '0.68rem', lineHeight: 1.45,
+    }}>
+      <div style={{
+        display: 'flex', gap: 5, alignItems: 'flex-start', marginBottom: 4,
+      }}>
+        <span style={{ fontSize: '0.72rem', flexShrink: 0 }}>{s.icon}</span>
+        <span style={{ color: 'var(--c-text)', fontWeight: 600 }}>
+          WHY: <span style={{ fontWeight: 400 }}>{entry.breach_reason}</span>
+        </span>
+      </div>
+      {entry.recommended_action && (
+        <div style={{
+          display: 'flex', gap: 5, alignItems: 'flex-start',
+          marginTop: 6, paddingTop: 6,
+          borderTop: `1px solid ${s.border}`,
+        }}>
+          <span style={{ fontSize: '0.72rem', flexShrink: 0 }}>💡</span>
+          <span style={{ color: s.accent, fontWeight: 600 }}>
+            FIX: <span style={{ fontWeight: 400, color: 'var(--c-text)' }}>{entry.recommended_action}</span>
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── SLO Card ──────────────────────────────────────────────────────────────────
 
 function SloCard({ entry, onSelect }: { entry: SloStatusEntry; onSelect: () => void }) {
@@ -165,6 +207,9 @@ function SloCard({ entry, onSelect }: { entry: SloStatusEntry; onSelect: () => v
           </div>
         </div>
       </div>
+
+      {/* Breach insight — WHY + FIX */}
+      <BreachInsight entry={entry} />
 
       {/* Burn rate */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -417,6 +462,15 @@ export default function SloMonitoringPage() {
         </div>
 
         <SummaryBar />
+
+        <p style={{
+          margin: '-12px 0 16px', fontSize: '0.72rem', color: 'var(--c-text-muted)',
+          lineHeight: 1.4,
+        }}>
+          Counts above reflect <strong>individual SLIs</strong> (each service may have
+          multiple — e.g. availability + latency). The dashboard summary deduplicates
+          per service, so numbers here may appear higher.
+        </p>
 
         {isLoading && (
           <div style={{ color: 'var(--c-text-muted)', textAlign: 'center', padding: 60 }}>

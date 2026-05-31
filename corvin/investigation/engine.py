@@ -26,6 +26,7 @@ from corvin.core.contracts import (
 )
 from corvin.enrich.enrichment_service import EnrichmentService
 from corvin.investigation.prompt_builder import PromptBuilder
+from corvin.investigation.code_enrichment import enrich_with_code_context
 from corvin.strategy.fix_strategy_generator import FixStrategyGenerator
 from corvin.strategy.rca_generator import RCAGenerator
 
@@ -83,6 +84,10 @@ class InvestigationEngine:
             NotImplementedError: Propagated from any stage that is not yet wired.
         """
         evidence = self._enrichment.enrich(request)
+
+        # ── Code enrichment: auto-fetch source for stack traces ───────────────
+        enrich_with_code_context(request.service_name, evidence)
+
         system_prompt = self._prompt_builder.build(request)
         rca = self._rca.generate(request, evidence, system_prompt=system_prompt)
         fix_strategy = self._fix_strategy.generate(request, rca)

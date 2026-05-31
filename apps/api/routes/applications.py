@@ -20,6 +20,7 @@ from corvin.storage.models import (
     OutboundConnectorRow,
 )
 from corvin.connectors.registry import ConnectorRegistry
+from corvin.connectors.crypto import encrypt as _encrypt_token
 
 router = APIRouter()
 _registry = ConnectorRegistry()
@@ -44,6 +45,17 @@ class ApplicationCreate(BaseModel):
     team_name: str | None = None
     environment_default: str = "dev"
     topology_json: dict[str, Any] = {}
+    git_provider: str | None = None  # azure_devops | github
+    git_repo_url: str | None = None
+    git_branch: str | None = None
+    git_token: str | None = None  # plaintext PAT — encrypted before storage
+
+    @field_validator("git_provider")
+    @classmethod
+    def _check_git_provider(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("azure_devops", "github"):
+            raise ValueError("git_provider must be 'azure_devops' or 'github'")
+        return v
 
 
 class ApplicationUpdate(BaseModel):
@@ -52,6 +64,17 @@ class ApplicationUpdate(BaseModel):
     team_name: str | None = None
     environment_default: str | None = None
     topology_json: dict[str, Any] | None = None
+    git_provider: str | None = None
+    git_repo_url: str | None = None
+    git_branch: str | None = None
+    git_token: str | None = None  # plaintext PAT — encrypted before storage
+
+    @field_validator("git_provider")
+    @classmethod
+    def _check_git_provider(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("azure_devops", "github"):
+            raise ValueError("git_provider must be 'azure_devops' or 'github'")
+        return v
 
 
 class ServiceCreate(BaseModel):
@@ -185,7 +208,10 @@ def list_applications(db: Session = Depends(_db)):
 
 @router.post("/", status_code=status.HTTP_201_CREATED, summary="Create application")
 def create_application(body: ApplicationCreate, db: Session = Depends(_db)):
-    row = ApplicationRow(id=str(uuid.uuid4()), **body.model_dump())
+    data = body.model_dump(exclude={"git_token"})
+    if body.git_token:
+        data["git_token_encrypted"] = _encrypt_token(body.git_token)
+    row = ApplicationRow(id=str(uuid.uuid4()), **data)
     db.add(row)
     db.flush()
     db.refresh(row)
@@ -200,7 +226,10 @@ def get_application(app_id: str, db: Session = Depends(_db)):
 @router.put("/{app_id}", summary="Update application")
 def update_application(app_id: str, body: ApplicationUpdate, db: Session = Depends(_db)):
     row = _get_or_404(db, app_id)
-    for k, v in body.model_dump(exclude_none=True).items():
+    data = body.model_dump(exclude_none=True, exclude={"git_token"})
+    if body.git_token is not None:
+        data["git_token_encrypted"] = _encrypt_token(body.git_token)
+    for k, v in data.items():
         setattr(row, k, v)
     row.updated_at = datetime.now(timezone.utc)
     db.flush()
@@ -212,6 +241,72 @@ def update_application(app_id: str, body: ApplicationUpdate, db: Session = Depen
 def delete_application(app_id: str, db: Session = Depends(_db)):
     row = _get_or_404(db, app_id)
     db.delete(row)
+
+
+# ── Git Config ────────────────────────────────────────────────────────────────
+
+class GitConfigUpdate(BaseModel):
+    git_provider: str  # azure_devops | github
+    git_repo_url: str
+    git_branch: str = "main"
+    git_token: str  # plaintext PAT — encrypted before storage
+
+    @field_validator("git_provider")
+    @classmethod
+    def _check_provider(cls, v: str) -> str:
+        if v not in ("azure_devops", "github"):
+            raise ValueError("git_provider must be 'azure_devops' or 'github'")
+        return v
+
+
+@router.put("/{app_id}/git-config", summary="Set or update Git repository config")
+def update_git_config(app_id: str, body: GitConfigUpdate, db: Session = Depends(_db)):
+    row = _get_or_404(db, app_id)
+    row.git_provider = body.git_provider
+    row.git_repo_url = body.git_repo_url
+    row.git_branch = body.git_branch
+    row.git_token_encrypted = _encrypt_token(body.git_token)
+    row.updated_at = datetime.now(timezone.utc)
+    db.flush()
+    db.refresh(row)
+    return {
+        "provider": row.git_provider,
+        "repo_url": row.git_repo_url,
+        "branch": row.git_branch,
+        "has_token": True,
+    }
+
+
+@router.get("/{app_id}/git-config/test", summary="Test Git repository connectivity")
+def test_git_config(app_id: str, db: Session = Depends(_db)):
+    row = _get_or_404(db, app_id)
+    if not row.git_provider or not row.git_repo_url or not row.git_token_encrypted:
+        raise HTTPException(status_code=400, detail="Git config not configured for this application")
+
+    from corvin.connectors.git_repo import GitRepoConnector
+
+    connector = GitRepoConnector(
+        provider=row.git_provider,
+        repo_url=row.git_repo_url,
+        branch=row.git_branch or "main",
+        token_encrypted=row.git_token_encrypted,
+    )
+    try:
+        files = connector.list_directory("")
+        return {"status": "ok", "files_found": len(files), "sample": files[:5]}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Git connectivity failed: {exc}")
+
+
+@router.delete("/{app_id}/git-config", status_code=status.HTTP_204_NO_CONTENT, summary="Remove Git config")
+def delete_git_config(app_id: str, db: Session = Depends(_db)):
+    row = _get_or_404(db, app_id)
+    row.git_provider = None
+    row.git_repo_url = None
+    row.git_branch = None
+    row.git_token_encrypted = None
+    row.updated_at = datetime.now(timezone.utc)
+    db.flush()
 
 
 # ── Services ──────────────────────────────────────────────────────────────────
@@ -480,6 +575,12 @@ def _app_detail(row: ApplicationRow) -> dict[str, Any]:
     return {
         **_app_summary(row),
         "topology_json": row.topology_json,
+        "git_config": {
+            "provider": row.git_provider,
+            "repo_url": row.git_repo_url,
+            "branch": row.git_branch,
+            "has_token": row.git_token_encrypted is not None,
+        },
         "services": [_svc_dict(s) for s in row.services],
         "log_sources": [_mask_connector(c) for c in row.log_sources],
         "slo_configs": [_slo_dict(s) for s in row.slo_configs],

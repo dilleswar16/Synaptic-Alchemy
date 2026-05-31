@@ -216,7 +216,7 @@ const DEMO_PRESETS = [
 // ── Start investigation form ──────────────────────────────────────────────────
 
 function StartInvestigationForm() {
-  const [service, setService] = useState('fundapis')
+  const [service, setService] = useState('')
   const [environment, setEnvironment] = useState('dev')
   const [description, setDescription] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
@@ -326,6 +326,7 @@ function StartInvestigationForm() {
               disabled={isStreaming}
               required
               options={[
+                { value: '',            label: '— Select a service —', disabled: true },
                 { value: 'fundapis',    label: 'fundapis',    note: 'Fund APIs backend' },
                 { value: 'fundsso',     label: 'fundsso',     note: 'Fund SSO service' },
                 { value: 'partnerapis', label: 'partnerapis', note: 'Partner APIs' },

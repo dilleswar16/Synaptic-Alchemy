@@ -22,6 +22,55 @@ def _db() -> Generator[Session, None, None]:
 # ── Response helpers ──────────────────────────────────────────────────────────
 
 
+def _breach_analysis(cfg: SloConfigRow, snap: SloSnapshotRow | None) -> dict[str, Any]:
+    """Compute human-readable breach reason and recommended action."""
+    if snap is None or snap.measured_pct is None:
+        return {"breach_reason": None, "recommended_action": None, "severity": None}
+    if snap.is_compliant:
+        return {"breach_reason": None, "recommended_action": None, "severity": None}
+
+    gap = cfg.target_pct - snap.measured_pct
+    burn = snap.burn_rate or 0
+
+    # Determine severity
+    if gap > 5 or burn > 10:
+        severity = "critical"
+    elif gap > 2 or burn > 3:
+        severity = "warning"
+    else:
+        severity = "minor"
+
+    # Build reason
+    if cfg.sli_type == "availability":
+        error_rate = 100 - snap.measured_pct
+        reason = (
+            f"{error_rate:.2f}% of requests are failing (5xx errors) "
+            f"over the last {cfg.time_window_days}d — {gap:.2f}pp above the "
+            f"{100 - cfg.target_pct:.1f}% error budget allowance."
+        )
+        if burn > 5:
+            action = f"Investigate elevated 5xx errors immediately — burning budget at {burn:.1f}× normal rate. Check recent deployments and downstream dependencies."
+        elif burn > 2:
+            action = "Review recent deployment changes and health-check failures. Consider rolling back the last release if errors correlate."
+        else:
+            action = "Monitor error trends — intermittent failures may resolve. Check for transient dependency timeouts."
+    else:
+        threshold_ms = cfg.latency_threshold_ms or 500
+        slow_pct = 100 - snap.measured_pct
+        reason = (
+            f"{slow_pct:.1f}% of requests exceed the {threshold_ms}ms latency threshold "
+            f"over the last {cfg.time_window_days}d — target is ≥{cfg.target_pct}% within threshold."
+        )
+        if burn > 5:
+            action = f"Critical latency degradation — {slow_pct:.0f}% of traffic is slow. Check for resource saturation (CPU/memory), cold starts, or downstream bottlenecks."
+        elif burn > 2:
+            action = f"Latency creep detected. Review connection pool sizing, database query performance, and consider scaling out or increasing the threshold to {threshold_ms + 500}ms."
+        else:
+            action = "Minor latency drift — consider adjusting the threshold if this reflects normal traffic patterns, or review recent load changes."
+
+    return {"breach_reason": reason, "recommended_action": action, "severity": severity}
+
+
 def _snap_dict(snap: SloSnapshotRow) -> dict[str, Any]:
     return {
         "id": snap.id,
@@ -40,6 +89,7 @@ def _snap_dict(snap: SloSnapshotRow) -> dict[str, Any]:
 
 
 def _config_dict(cfg: SloConfigRow, latest: SloSnapshotRow | None) -> dict[str, Any]:
+    analysis = _breach_analysis(cfg, latest)
     return {
         "id": cfg.id,
         "application_id": cfg.application_id,
@@ -50,6 +100,9 @@ def _config_dict(cfg: SloConfigRow, latest: SloSnapshotRow | None) -> dict[str, 
         "latency_threshold_ms": cfg.latency_threshold_ms,
         "enabled": cfg.enabled,
         "latest_snapshot": _snap_dict(latest) if latest else None,
+        "breach_reason": analysis["breach_reason"],
+        "recommended_action": analysis["recommended_action"],
+        "breach_severity": analysis["severity"],
     }
 
 

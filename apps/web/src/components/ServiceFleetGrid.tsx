@@ -1,5 +1,5 @@
 /**
- * ServiceFleetGrid — responsive 6-column grid of ServiceCards.
+ * ServiceFleetGrid — row-based list with pagination.
  *
  * Data:
  *   - listSloStatus()      → SloStatusEntry[] (all SLO configs with latest snapshot)
@@ -9,16 +9,19 @@
  *   - Sort by: health (default) | service name | burn rate
  *   - Filter: All | Breaching | At Risk | Healthy
  *   - Search: free-text service name filter
+ *   - Pagination: 3 services per page
  */
 
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { listSloStatus, fetchInvestigations, type SloStatusEntry } from '../api/client'
-import { ServiceCard } from './ServiceCard'
 import '../styles/ServiceFleetGrid.css'
 
 type SortKey = 'health' | 'name' | 'burn'
 type FilterKey = 'all' | 'breaching' | 'at_risk' | 'healthy' | 'no_data'
+
+const PAGE_SIZE = 3
 
 function healthOrder(entry: SloStatusEntry): number {
   const burn = entry.latest_snapshot?.burn_rate ?? -1
@@ -39,10 +42,100 @@ function matchesFilter(entry: SloStatusEntry, filter: FilterKey): boolean {
   return true
 }
 
+function healthLabel(snap: SloStatusEntry['latest_snapshot']) {
+  if (!snap || snap.measured_pct == null) return { label: 'No Data', cls: 'no-data' }
+  if (snap.burn_rate != null && snap.burn_rate > 1.2) return { label: 'Breaching', cls: 'crit' }
+  if (snap.burn_rate != null && snap.burn_rate > 0.7) return { label: 'At Risk', cls: 'warn' }
+  return { label: 'Healthy', cls: 'ok' }
+}
+
+function ServiceRow({ entry, hasPendingInvestigation }: { entry: SloStatusEntry; hasPendingInvestigation: boolean }) {
+  const snap = entry.latest_snapshot
+  const { label, cls } = healthLabel(snap)
+  const burnRate = snap?.burn_rate ?? null
+  const budgetPct = snap?.error_budget_pct ?? 0
+  const measuredPct = snap?.measured_pct ?? 0
+
+  const displayName = entry.service_name
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+
+  return (
+    <div className={`service-row svc-row-${cls}`} role="listitem">
+      {/* Left accent */}
+      <div className={`row-accent accent-${cls}`} />
+
+      {/* Status indicators */}
+      <div className="row-status-col">
+        {hasPendingInvestigation && (
+          <span className="row-pulse" title="Corvin investigation active">
+            <span className="pulse-dot" />
+          </span>
+        )}
+        <span className={`row-health-badge badge-${cls}`}>{label}</span>
+      </div>
+
+      {/* Service name */}
+      <div className="row-name-col">
+        <span className="row-svc-name">{displayName}</span>
+        <span className={`row-sli-tag sli-${entry.sli_type}`}>
+          {entry.sli_type === 'availability' ? 'AVAIL' : 'LATENCY'}
+        </span>
+      </div>
+
+      {/* Measured SLO % */}
+      <div className="row-metric-col">
+        <span className="row-metric-value">{snap ? `${measuredPct.toFixed(2)}%` : '—'}</span>
+        <span className="row-metric-label">measured</span>
+      </div>
+
+      {/* Target */}
+      <div className="row-metric-col">
+        <span className="row-metric-value">{entry.target_pct}%</span>
+        <span className="row-metric-label">target</span>
+      </div>
+
+      {/* Burn rate */}
+      <div className="row-metric-col">
+        <span className={`row-metric-value burn-val-${cls}`}>
+          {burnRate != null ? `${burnRate.toFixed(2)}×` : '—'}
+        </span>
+        <span className="row-metric-label">burn rate</span>
+      </div>
+
+      {/* Budget */}
+      <div className="row-metric-col">
+        <span className={`row-metric-value budget-val-${cls}`}>
+          {snap ? `${budgetPct.toFixed(1)}%` : '—'}
+        </span>
+        <span className="row-metric-label">budget left</span>
+      </div>
+
+      {/* Data source */}
+      <div className="row-meta-col">
+        {snap?.data_source === 'simulated' && (
+          <span className="row-datasource-tag">simulated</span>
+        )}
+      </div>
+
+      {/* Action link */}
+      <div className="row-action-col">
+        <Link
+          to={`/investigations?service=${encodeURIComponent(entry.service_name)}`}
+          className="row-action-link"
+        >
+          Investigate →
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 export function ServiceFleetGrid() {
   const [sort, setSort] = useState<SortKey>('health')
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(0)
 
   const { data: sloList = [], isLoading: sloLoading } = useQuery({
     queryKey: ['slo-status'],
@@ -74,7 +167,6 @@ export function ServiceFleetGrid() {
       if (!existing) {
         map.set(key, entry)
       } else if (entry.sli_type === 'availability') {
-        // Prefer availability
         map.set(key, entry)
       }
     }
@@ -115,6 +207,14 @@ export function ServiceFleetGrid() {
     return c
   }, [deduped])
 
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages - 1)
+  const paged = sorted.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+
+  // Reset page when filter/search changes
+  const resetPage = () => setPage(0)
+
   return (
     <div className="fleet-grid-container">
       {/* Controls */}
@@ -126,7 +226,7 @@ export function ServiceFleetGrid() {
               role="tab"
               aria-selected={filter === f}
               className={`fleet-filter-btn fleet-filter-${f} ${filter === f ? 'active' : ''}`}
-              onClick={() => setFilter(f)}
+              onClick={() => { setFilter(f); resetPage() }}
             >
               {f === 'all' ? `All (${counts.all})`
                : f === 'breaching' ? `Breaching (${counts.breaching})`
@@ -143,7 +243,7 @@ export function ServiceFleetGrid() {
             type="search"
             placeholder="Search services…"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); resetPage() }}
             aria-label="Search services"
           />
           <select
@@ -159,7 +259,7 @@ export function ServiceFleetGrid() {
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Row list */}
       {sloLoading ? (
         <div className="fleet-empty">Loading services…</div>
       ) : sorted.length === 0 ? (
@@ -169,16 +269,40 @@ export function ServiceFleetGrid() {
             : 'No services match your filter.'}
         </div>
       ) : (
-        <div className="fleet-grid" role="list">
-          {sorted.map(entry => (
-            <div key={`${entry.service_name}-${entry.sli_type}`} role="listitem">
-              <ServiceCard
+        <>
+          <div className="fleet-rows" role="list">
+            {paged.map(entry => (
+              <ServiceRow
+                key={`${entry.service_name}-${entry.sli_type}`}
                 entry={entry}
                 hasPendingInvestigation={activeServices.has(entry.service_name)}
               />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="fleet-pagination">
+              <button
+                className="fleet-page-btn"
+                disabled={safePage === 0}
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+              >
+                ← Prev
+              </button>
+              <span className="fleet-page-info">
+                Page {safePage + 1} of {totalPages}
+              </span>
+              <button
+                className="fleet-page-btn"
+                disabled={safePage >= totalPages - 1}
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              >
+                Next →
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   )

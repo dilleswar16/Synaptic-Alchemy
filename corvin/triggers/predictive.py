@@ -122,12 +122,28 @@ class PredictiveMonitor:
             reverse=True,
         )
         self._repo.replace_predictive_alerts([alert.model_dump(mode="json") for alert in ordered])
+
+        # ── Notify application contacts via email ──
+        if ordered:
+            try:
+                from corvin.delivery.prediction_notification import send_prediction_emails
+                send_prediction_emails([a.model_dump(mode="json") for a in ordered])
+            except Exception as exc:
+                _log.warning("Prediction email notification failed (non-fatal): %s", exc)
+
         return ordered
 
     async def run_forever(self, interval_seconds: int = 300) -> None:
         while True:
             try:
-                self.refresh_alerts()
+                alerts = self.refresh_alerts()
+                # ── Validation automation: trigger user journeys for matching policies ──
+                if alerts:
+                    try:
+                        from corvin.triggers.validation_automation import evaluate_policies
+                        await evaluate_policies(alerts)
+                    except Exception as exc:
+                        _log.warning("Validation automation evaluation failed: %s", exc)
             except Exception:
                 pass
             await asyncio.sleep(interval_seconds)

@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Layout from '../components/Layout'
 import { Modal } from '../components/Modal'
+import { JourneyBuilderModal } from '../components/JourneyBuilderModal'
 import {
   listValidations,
   createValidation,
@@ -448,6 +449,7 @@ function SummaryStrip({ entries }: { entries: ValidationDefinition[] }) {
 export default function ValidationsPage() {
   const [appFilter, setAppFilter] = useState<string>('')
   const [showCreate, setShowCreate] = useState(false)
+  const [showJourneyBuilder, setShowJourneyBuilder] = useState(false)
   const [typeFilter, setTypeFilter] = useState<string>('')
 
   const { data: allDefs = [], isLoading, isError } = useQuery({
@@ -495,6 +497,13 @@ export default function ValidationsPage() {
                 <option key={t} value={t}>{t.replace('_', ' ')}</option>
               ))}
             </select>
+            <button
+              onClick={() => setShowJourneyBuilder(true)}
+              className="btn-primary"
+              style={{ padding: '7px 14px', fontSize: '0.8rem', background: 'rgba(167,139,250,0.18)', border: '1px solid #a78bfa', color: '#a78bfa' }}
+            >
+              🛤️ Journey Builder
+            </button>
             <button
               onClick={() => setShowCreate(true)}
               className="btn-primary"
@@ -546,6 +555,7 @@ export default function ValidationsPage() {
         )}
 
         {showCreate && <CreateValidationModal onClose={() => setShowCreate(false)} />}
+        {showJourneyBuilder && <JourneyBuilderModal onClose={() => setShowJourneyBuilder(false)} />}
       </div>
     </Layout>
   )

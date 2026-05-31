@@ -109,6 +109,27 @@ class PromptBuilder:
         if learnings.strip():
             sections.append(f"## Learnings from Past Incidents\n\n{learnings.strip()}")
 
+        # ── Predictive penalties (feedback loop) ──────────────────────────────
+        try:
+            from corvin.triggers.prediction_penalty import load_penalties_for_service
+            penalties = load_penalties_for_service(request.service_name, limit=5)
+            if penalties:
+                penalty_lines: list[str] = []
+                for p in penalties:
+                    penalty_lines.append(
+                        f"- **{p['penalty_type'].upper()}** ({p['alert_type']}): "
+                        f"{p['pattern_description'][:200]}"
+                    )
+                sections.append(
+                    "## Predictive Analysis Penalties\n\n"
+                    "The following patterns were previously MISSED or INSUFFICIENTLY predicted. "
+                    "Pay special attention to these failure modes — ensure your RCA addresses "
+                    "whether this incident matches a known missed pattern.\n\n"
+                    + "\n".join(penalty_lines)
+                )
+        except Exception:
+            pass  # Non-fatal: penalties are optional context
+
         # ── Operator context (human-provided description) ─────────────────────
         _defaults = {"manual investigation", "streaming investigation", ""}
         desc = (request.description or "").strip()

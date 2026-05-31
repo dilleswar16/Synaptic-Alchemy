@@ -22,7 +22,7 @@ export function KpiStrip() {
 
   const kpis: { label: string; value: string; sub?: string; accent?: 'ok' | 'warn' | 'crit' | 'info' }[] = [
     {
-      label: 'Services Online',
+      label: 'Services Compliant',
       value: slo ? `${slo.compliant}/${slo.total}` : '—',
       sub: slo ? `${slo.no_data} no data` : undefined,
       accent: slo && slo.breached > 0 ? 'crit' : slo && slo.at_risk > 0 ? 'warn' : 'ok',

@@ -1105,6 +1105,9 @@ export interface SloStatusEntry {
   latency_threshold_ms: number | null
   enabled: boolean
   latest_snapshot: SloSnapshot | null
+  breach_reason: string | null
+  recommended_action: string | null
+  breach_severity: 'critical' | 'warning' | 'minor' | null
 }
 
 export interface SloSummary {
@@ -1157,6 +1160,9 @@ export interface ValidationStepResult {
   duration_ms?: number
   error?: string | null
   note?: string
+  skipped?: boolean
+  assertions?: { type: string; passed: boolean; detail: string }[]
+  extracted_vars?: Record<string, string>
 }
 
 export interface ValidationDefinition {
@@ -1171,6 +1177,64 @@ export interface ValidationDefinition {
   last_run_status: 'pass' | 'fail' | 'error' | 'running' | null
   created_at: string
   last_run: ValidationRun | null
+}
+
+// Journey Builder types
+export interface JourneyAuthConfig {
+  type: 'none' | 'bearer' | 'api_key' | 'oauth2_client_credentials' | 'custom_header'
+  token?: string
+  header_name?: string
+  key?: string
+  header_value?: string
+  token_url?: string
+  client_id?: string
+  client_secret?: string
+  scope?: string
+}
+
+export interface JourneyStepAssertion {
+  type: 'body_contains' | 'json_path_equals' | 'max_latency_ms' | 'json_path_exists'
+  value?: string
+  path?: string
+}
+
+export interface JourneyStepExtraction {
+  variable: string
+  source: 'json_path' | 'header'
+  path?: string
+  header?: string
+}
+
+export interface JourneyStep {
+  name: string
+  type: 'http' | 'wait'
+  method?: string
+  url?: string
+  headers?: Record<string, string>
+  body?: unknown
+  expected_status?: number
+  timeout_s?: number
+  assertions?: JourneyStepAssertion[]
+  extract?: JourneyStepExtraction[]
+  duration_ms?: number // for wait type
+}
+
+export interface JourneyConfig {
+  base_url: string
+  auth?: JourneyAuthConfig
+  abort_on_failure?: boolean
+  steps: JourneyStep[]
+}
+
+export interface DryRunResult {
+  passed: boolean
+  duration_ms: number
+  steps: ValidationStepResult[]
+}
+
+export interface PlaywrightResult {
+  script: string
+  filename: string
 }
 
 export function listValidations(appId?: string) {
@@ -1200,5 +1264,186 @@ export function triggerValidationRun(id: string) {
 
 export function getValidationHistory(id: string, limit = 20) {
   return apiFetch<ValidationRun[]>(`/validations/${id}/history?limit=${limit}`)
+}
+
+export function dryRunValidation(config: JourneyConfig, validationType = 'user_journey') {
+  return apiFetch<DryRunResult>('/validations/dry-run', {
+    method: 'POST',
+    body: JSON.stringify({ config_json: config, validation_type: validationType }),
+  })
+}
+
+export function generatePlaywrightScript(config: JourneyConfig, name: string) {
+  return apiFetch<PlaywrightResult>('/validations/generate-playwright', {
+    method: 'POST',
+    body: JSON.stringify({ config_json: config, name }),
+  })
+}
+
+// ── Alert Correlation ─────────────────────────────────────────────────────────
+
+export interface CorrelatedAlert {
+  alert_id: string
+  service_name: string
+  environment: string
+  title: string
+  severity: string
+  created_at: string
+  similarity_score: number
+}
+
+export interface CorrelationGroup {
+  group_id: string
+  primary_alert_id: string
+  service_name: string
+  environment: string
+  correlation_reason: string
+  unified_summary: string
+  severity: string
+  alerts: CorrelatedAlert[]
+  alert_count: number
+  suppression_recommended: boolean
+  approval_status: string
+  approved_by: string | null
+  created_at: string
+}
+
+export interface CorrelatedAlertsResponse {
+  total_alerts: number
+  correlation_groups: CorrelationGroup[]
+  ungrouped_count: number
+  suppression_candidates: number
+}
+
+export function fetchCorrelatedAlerts(environment?: string) {
+  const params = environment ? `?environment=${encodeURIComponent(environment)}` : ''
+  return apiFetch<CorrelatedAlertsResponse>(`/ai/alerts/correlated${params}`)
+}
+
+export function approveCorrelationAction(groupId: string, action: 'approve' | 'reject', approvedBy = 'operator') {
+  return apiFetch<{ group_id: string; status: string; message: string }>('/ai/alerts/correlated/approve', {
+    method: 'POST',
+    body: JSON.stringify({ group_id: groupId, action, approved_by: approvedBy }),
+  })
+}
+
+// ── Capacity Forecast ─────────────────────────────────────────────────────────
+
+export interface ResourceForecast {
+  resource_type: string
+  current_usage_pct: number
+  trend_direction: string
+  trend_slope_per_hour: number
+  predicted_exhaustion_at: string | null
+  hours_until_exhaustion: number | null
+  confidence: string
+  data_points_analyzed: number
+  recommendation: string
+}
+
+export interface ScalingRecommendation {
+  action_type: string
+  target_service: string
+  target_namespace: string
+  current_replicas: number
+  recommended_replicas: number | null
+  current_resource_limit: string | null
+  recommended_resource_limit: string | null
+  reason: string
+  estimated_monthly_cost_delta: number
+  priority: string
+  requires_approval: boolean
+}
+
+export interface CapacityForecastReport {
+  service_name: string
+  environment: string
+  namespace: string
+  forecasts: ResourceForecast[]
+  scaling_recommendations: ScalingRecommendation[]
+  overall_risk: string
+  ai_narrative: string
+  analyzed_window_hours: number
+  generated_at: string
+}
+
+export function fetchCapacityForecast(serviceName: string, environment = 'prod', namespace = 'default') {
+  return apiFetch<CapacityForecastReport>(
+    `/ai/capacity-forecast/${encodeURIComponent(serviceName)}?environment=${encodeURIComponent(environment)}&namespace=${encodeURIComponent(namespace)}`
+  )
+}
+
+export function approveScalingAction(serviceName: string, actionType: string, approvedBy = 'operator') {
+  return apiFetch<{ status: string; message: string }>('/ai/capacity-forecast/approve-scaling', {
+    method: 'POST',
+    body: JSON.stringify({ service_name: serviceName, action_type: actionType, approved_by: approvedBy }),
+  })
+}
+
+// ── Conversational Runbook Builder ────────────────────────────────────────────
+
+export interface RunbookDraft {
+  content: string
+  version: number
+  generated_at: string
+}
+
+export interface RunbookSessionResponse {
+  session_id: string
+  status: string
+  initial_response?: string
+  draft?: RunbookDraft | null
+}
+
+export interface RunbookChatResponse {
+  session_id: string
+  response: string
+  draft: RunbookDraft | null
+  message_count: number
+}
+
+export function startRunbookSession(requestId: string, serviceName: string, environment = 'prod') {
+  return apiFetch<RunbookSessionResponse>('/ai/runbooks/start-session', {
+    method: 'POST',
+    body: JSON.stringify({ request_id: requestId, service_name: serviceName, environment }),
+  })
+}
+
+export function sendRunbookMessage(sessionId: string, message: string) {
+  return apiFetch<RunbookChatResponse>('/ai/runbooks/chat', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId, message }),
+  })
+}
+
+export function approveRunbookDraft(sessionId: string, approvedBy = 'operator') {
+  return apiFetch<{ session_id: string; status: string; draft: RunbookDraft }>('/ai/runbooks/approve', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId, approved_by: approvedBy }),
+  })
+}
+
+export function saveRunbook(sessionId: string) {
+  return apiFetch<{ session_id: string; status: string; path: string; content: string; message: string }>('/ai/runbooks/save', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId }),
+  })
+}
+
+// ── War Games ─────────────────────────────────────────────────────────────────
+
+export interface WarGamesScenario {
+  id: string
+  name: string
+  type: 'chaos' | 'replay' | 'tabletop'
+  description: string
+  target_service: string
+  environment: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  estimated_duration_min: number
+}
+
+export function fetchWarGamesScenarios() {
+  return apiFetch<WarGamesScenario[]>('/ai/war-games/scenarios')
 }
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Generator
@@ -11,7 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from corvin.storage.db import get_session as _get_session
-from corvin.storage.models import ValidationDefinitionRow, ValidationRunRow
+from corvin.storage.models import ValidationAutomationPolicyRow, ValidationDefinitionRow, ValidationRunRow
 
 router = APIRouter()
 
@@ -41,6 +42,18 @@ class ValidationUpdate(BaseModel):
     validation_type: str | None = None
     config_json: dict[str, Any] | None = None
     enabled: bool | None = None
+
+
+class DryRunRequest(BaseModel):
+    """Run a journey config without persisting — for testing in the builder."""
+    config_json: dict[str, Any]
+    validation_type: str = "user_journey"
+
+
+class PlaywrightGenerateRequest(BaseModel):
+    """Generate a Playwright test script from a journey config."""
+    config_json: dict[str, Any]
+    name: str = "User Journey Test"
 
 
 # ── Response helpers ──────────────────────────────────────────────────────────
@@ -97,6 +110,248 @@ def list_validations(
         )
         results.append(_defn_dict(defn, last_run))
     return results
+
+
+# ── Automation Policy schemas ─────────────────────────────────────────────────
+
+
+class AutomationPolicyCreate(BaseModel):
+    service_name: str
+    alert_type: str
+    min_confidence_pct: float = 70.0
+    validation_definition_id: str
+    enabled: bool = True
+
+
+class AutomationPolicyUpdate(BaseModel):
+    service_name: str | None = None
+    alert_type: str | None = None
+    min_confidence_pct: float | None = None
+    validation_definition_id: str | None = None
+    enabled: bool | None = None
+
+
+# ── Dry Run & Playwright (BEFORE parameterized routes) ────────────────────────
+
+
+@router.post("/dry-run")
+async def dry_run_validation(payload: DryRunRequest) -> dict[str, Any]:
+    """Execute a validation config without persisting — used by the journey builder."""
+    from corvin.validations.runner import _execute_steps, _run_health_check
+
+    config = payload.config_json
+    vtype = payload.validation_type
+
+    import time
+    t0 = time.perf_counter()
+
+    if vtype == "health_check":
+        passed, step_results = await _run_health_check(config)
+    elif vtype in ("endpoint", "synthetic", "user_journey"):
+        steps = config.get("steps", [])
+        auth_config = config.get("auth")
+        base_url = config.get("base_url", "")
+        abort_on_failure = config.get("abort_on_failure", True)
+        passed, step_results = await _execute_steps(steps, auth_config, base_url, abort_on_failure)
+    else:
+        passed = False
+        step_results = [{"ok": False, "error": f"Dry-run not supported for type: {vtype}", "step_index": 0, "step_name": "?"}]
+
+    duration_ms = int((time.perf_counter() - t0) * 1000)
+    return {
+        "passed": passed,
+        "duration_ms": duration_ms,
+        "steps": step_results,
+    }
+
+
+@router.post("/generate-playwright")
+def generate_playwright_script(payload: PlaywrightGenerateRequest) -> dict[str, Any]:
+    """Generate a Playwright test script from a user journey config."""
+    config = payload.config_json
+    steps = config.get("steps", [])
+    base_url = config.get("base_url", "")
+    auth_config = config.get("auth")
+    name = payload.name
+
+    lines = [
+        "import { test, expect } from '@playwright/test';",
+        "",
+        f"test('{name}', async ({{ request }}) => {{",
+    ]
+
+    # Auth setup
+    if auth_config:
+        auth_type = auth_config.get("type", "none")
+        if auth_type == "bearer":
+            lines.append(f"  const authToken = '{auth_config.get('token', 'YOUR_TOKEN')}';")
+            lines.append("")
+        elif auth_type == "oauth2_client_credentials":
+            lines.append("  // Fetch OAuth2 token")
+            lines.append(f"  const tokenResp = await request.post('{auth_config.get('token_url', '')}', {{")
+            lines.append("    form: {")
+            lines.append("      grant_type: 'client_credentials',")
+            lines.append(f"      client_id: '{auth_config.get('client_id', '')}',")
+            lines.append(f"      client_secret: process.env.CLIENT_SECRET || '{auth_config.get('client_secret', '')}',")
+            if auth_config.get("scope"):
+                lines.append(f"      scope: '{auth_config['scope']}',")
+            lines.append("    },")
+            lines.append("  });")
+            lines.append("  expect(tokenResp.ok()).toBeTruthy();")
+            lines.append("  const { access_token: authToken } = await tokenResp.json();")
+            lines.append("")
+        elif auth_type == "api_key":
+            header_name = auth_config.get("header_name", "X-API-Key")
+            lines.append(f"  const apiKeyHeader = {{ '{header_name}': process.env.API_KEY || '{auth_config.get('key', '')}' }};")
+            lines.append("")
+
+    # Steps
+    for i, step in enumerate(steps):
+        step_name = step.get("name", f"Step {i + 1}")
+        method = step.get("method", "GET").lower()
+        url = step.get("url", "")
+        if base_url and url and not url.startswith(("http://", "https://")):
+            url = base_url.rstrip("/") + "/" + url.lstrip("/")
+        expected_status = step.get("expected_status", 200)
+        body = step.get("body")
+        headers = step.get("headers", {})
+        extractions = step.get("extract", [])
+
+        lines.append(f"  // {step_name}")
+        opts_parts = []
+        if headers or auth_config:
+            h = {**headers}
+            if auth_config and auth_config.get("type") == "bearer":
+                h["Authorization"] = f"Bearer ${{authToken}}"
+            elif auth_config and auth_config.get("type") == "api_key":
+                pass  # handled via apiKeyHeader spread
+            opts_parts.append(f"headers: {{ {', '.join(f"'{k}': '{v}'" for k, v in h.items())}{', ...apiKeyHeader' if auth_config and auth_config.get('type') == 'api_key' else ''} }}")
+        if body:
+            opts_parts.append(f"data: {json.dumps(body)}")
+
+        opts_str = ""
+        if opts_parts:
+            opts_str = ", {\n    " + ",\n    ".join(opts_parts) + ",\n  }"
+
+        var_name = f"resp{i}"
+        lines.append(f"  const {var_name} = await request.{method}('{url}'{opts_str});")
+        lines.append(f"  expect({var_name}.status()).toBe({expected_status});")
+
+        # Assertions
+        for assertion in step.get("assertions", []):
+            atype = assertion.get("type")
+            if atype == "body_contains":
+                lines.append(f"  expect(await {var_name}.text()).toContain('{assertion.get('value', '')}');")
+            elif atype == "json_path_equals":
+                path = assertion.get("path", "")
+                val = assertion.get("value", "")
+                path_chain = ".".join(f"['{p}']" if not p.isdigit() else f"[{p}]" for p in path.split("."))
+                lines.append(f"  const json{i} = await {var_name}.json();")
+                lines.append(f"  expect(json{i}{path_chain}).toBe('{val}');")
+            elif atype == "max_latency_ms":
+                # Playwright doesn't natively track per-request timing easily; add a note
+                lines.append(f"  // Assert: response within {assertion.get('value', 5000)}ms (measured by test infra)")
+
+        # Extractions
+        for ext in extractions:
+            var = ext.get("variable", "")
+            if ext.get("source") == "json_path":
+                path = ext.get("path", "")
+                path_chain = ".".join(f"['{p}']" if not p.isdigit() else f"[{p}]" for p in path.split("."))
+                if f"json{i}" not in "\n".join(lines):
+                    lines.append(f"  const json{i} = await {var_name}.json();")
+                lines.append(f"  const {var} = json{i}{path_chain};")
+
+        lines.append("")
+
+    lines.append("});")
+    lines.append("")
+
+    import json
+    return {"script": "\n".join(lines), "filename": f"{name.lower().replace(' ', '_')}.spec.ts"}
+
+
+def _policy_dict(p: ValidationAutomationPolicyRow) -> dict[str, Any]:
+    return {
+        "id": p.id,
+        "service_name": p.service_name,
+        "alert_type": p.alert_type,
+        "min_confidence_pct": p.min_confidence_pct,
+        "validation_definition_id": p.validation_definition_id,
+        "enabled": p.enabled,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+    }
+
+
+# ── Automation Policy routes (BEFORE parameterized routes) ────────────────────
+
+
+@router.get("/automation-policies")
+def list_automation_policies(db: Session = Depends(_db)) -> list[dict[str, Any]]:
+    policies = db.query(ValidationAutomationPolicyRow).order_by(
+        ValidationAutomationPolicyRow.created_at.desc()
+    ).all()
+    return [_policy_dict(p) for p in policies]
+
+
+@router.post("/automation-policies", status_code=201)
+def create_automation_policy(
+    payload: AutomationPolicyCreate, db: Session = Depends(_db)
+) -> dict[str, Any]:
+    defn = db.get(ValidationDefinitionRow, payload.validation_definition_id)
+    if defn is None:
+        raise HTTPException(status_code=422, detail="validation_definition_id not found")
+
+    policy = ValidationAutomationPolicyRow(
+        service_name=payload.service_name,
+        alert_type=payload.alert_type,
+        min_confidence_pct=payload.min_confidence_pct,
+        validation_definition_id=payload.validation_definition_id,
+        enabled=payload.enabled,
+    )
+    db.add(policy)
+    db.commit()
+    db.refresh(policy)
+    return _policy_dict(policy)
+
+
+@router.patch("/automation-policies/{policy_id}")
+def update_automation_policy(
+    policy_id: int, payload: AutomationPolicyUpdate, db: Session = Depends(_db)
+) -> dict[str, Any]:
+    policy = db.get(ValidationAutomationPolicyRow, policy_id)
+    if policy is None:
+        raise HTTPException(status_code=404, detail="Automation policy not found")
+
+    if payload.service_name is not None:
+        policy.service_name = payload.service_name
+    if payload.alert_type is not None:
+        policy.alert_type = payload.alert_type
+    if payload.min_confidence_pct is not None:
+        policy.min_confidence_pct = payload.min_confidence_pct
+    if payload.validation_definition_id is not None:
+        defn = db.get(ValidationDefinitionRow, payload.validation_definition_id)
+        if defn is None:
+            raise HTTPException(status_code=422, detail="validation_definition_id not found")
+        policy.validation_definition_id = payload.validation_definition_id
+    if payload.enabled is not None:
+        policy.enabled = payload.enabled
+
+    db.commit()
+    db.refresh(policy)
+    return _policy_dict(policy)
+
+
+@router.delete("/automation-policies/{policy_id}", status_code=204)
+def delete_automation_policy(policy_id: int, db: Session = Depends(_db)) -> None:
+    policy = db.get(ValidationAutomationPolicyRow, policy_id)
+    if policy is None:
+        raise HTTPException(status_code=404, detail="Automation policy not found")
+    db.delete(policy)
+    db.commit()
+
+
+# ── Parameterized validation routes ──────────────────────────────────────────
 
 
 @router.get("/{definition_id}")
