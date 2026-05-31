@@ -12,16 +12,18 @@ name: "Corvin Architecture"
 
 ## Core Boundaries
 
-- Trigger adapters
-- Enrichment services
+- Trigger adapters (predictive, validation automation, Azure Monitor, manual)
+- Enrichment services (evidence, code enrichment)
 - Investigation engine
 - RCA formatter
 - Fix strategy generator
-- Approval service
+- AI Intelligence modules (alert correlation, capacity forecasting, runbook builder)
+- Approval service (human-approval gate on ALL automated actions)
 - Execution service
 - Verification service
-- Learning and replay service
-- Delivery channels
+- Learning and replay service (War Games, incident replay)
+- Delivery channels (Teams, webhooks, prediction notifications)
+- Connectors (Azure Monitor, Elastic, Git repo, AKS, APIM)
 
 ## Version Rules
 
@@ -30,6 +32,12 @@ name: "Corvin Architecture"
 - V2: Approval center, Approve & Execute integration (ExecutionService & AKSAdapter), Two-Way ChatOps, and Streaming RCA.
 - V2.5: AI Intelligence — Incident Memory, SRE Morning Briefing (Jarvis Mode), and Confidence Meter.
 - V3: Premium React UI overhaul, Blameless Post-Mortem auto-generator, and Corvin Score health dashboard.
+- V3.5–V3.9: Predictive Detections, SLA Countdown, Topology, Remediation Preview, ROI Dashboard, Voice TTS, 3AM Mode, Runbook Auto-Update, War Room.
+- V4.5: DB-driven AKS onboarding.
+- V5.0: Agentic AI — AutonomousAgent, CausalChain, NL-to-KQL, CommsDrafts.
+- V5.1: Multi-Agent, Chaos Engine, IDE Integration, Voice Incident.
+- V5.2: UX Maturity — Plus Jakarta Sans font, outbound connector builder.
+- V5.3: AI Intelligence Suite — Alert Correlation, Capacity Forecaster, Conversational Runbook Builder, War Games, War Room Banner.
 
 ## Design Preference
 

@@ -76,6 +76,28 @@ Each outbound connector card must show:
 - Treat CLI, REST API, web app, and Teams as first-class surfaces in the target product.
 - If implementation sequencing defers part of Teams behavior, keep the contracts ready for it from V1.
 
+## War Games Page Conventions (V5.3+)
+
+The `WarGamesPage` renders 4 tabs: **Chaos Experiments | Alert Correlation | Capacity Forecast | Incident Replay**.
+- Each tab renders a dedicated panel component (SimulateAlertPanel, AlertCorrelationPanel, CapacityForecastPanel)
+- Tab switching uses a `Tab` type union and `TABS` array pattern
+- All actions require human approval before execution
+
+## InvestigationDetailPage Conventions (V5.3+)
+
+- **WarRoomBanner** renders at top when `approval_status === 'pending'` — pulsing animated gradient banner
+- **RunbookBuilderChat** renders post-execution (when `approval_status === 'executed'`) below RunbookUpdatePrompt
+- Props for RunbookBuilderChat: `{ requestId, serviceName, environment }` from investigation data
+
+## AI Features API Pattern (V5.3+)
+
+All AI feature routes live under `/ai` prefix in `apps/api/routes/ai_features.py`:
+- Analysis endpoints: `POST /ai/correlate-alerts`, `POST /ai/capacity-forecast`, etc.
+- Approval endpoints: `POST /ai/.../approve` — human-approval gates
+- Session endpoints: `POST /ai/runbook-session/start|message|approve|save` — multi-turn
+
+Frontend client pattern: `apiFetch<T>(path, init?)` with typed interfaces in `client.ts`.
+
 ## API Rules
 
 - Prefer explicit request and response schemas.

@@ -18,6 +18,8 @@ name: "Corvin Azure Evidence"
 - Log Analytics queries for APIM
 - AKS workload state and rollout context
 - Azure Activity Log and change events
+- Code enrichment (git blame, recent commits, code analysis via `corvin/enrich/code_enrichment.py`)
+- Predictive alerts (anomaly detection, capacity forecasting via `corvin/triggers/prediction_notification.py`)
 
 ## Trigger Priorities
 

@@ -12,15 +12,19 @@ conventions needed to contribute correctly without breaking things.
 
 **Corvin** is an Azure-native SRE Co-Pilot. It monitors Kubernetes applications
 running on AKS, queries Azure Log Analytics for evidence, and uses an LLM
-(Azure AI Foundry GPT-4.1) to produce structured Root Cause Analysis (RCA)
+(Azure AI Foundry GPT-5.1) to produce structured Root Cause Analysis (RCA)
 and fix strategies. An SRE team then approves and executes fixes via Microsoft Teams.
+
+**Corvin now includes a full AI Intelligence Suite** — alert correlation/deduplication,
+capacity forecasting, conversational runbook building, and War Games (chaos simulation,
+incident replay). All automated actions enforce human-approval gates.
 
 ---
 
 ## Current Version
 
-**V5.2 "UX MATURITY" complete (2026-05-31).** Font modernisation + DB hygiene + full outbound connector UX shipped.  
-**Now building:** Further UX polish / next feature iteration.
+**V5.3 "AI INTELLIGENCE SUITE" complete (2026-06-01).** Alert correlation, capacity forecasting, conversational runbook builder, War Games page, War Room banner shipped.  
+**Now building:** Further refinement / evaluation / next feature iteration.
 
 Read the active version scope BEFORE writing any code:
 - `docs/copilot-context/versions/hackathon-roadmap.md` ← historical reference
@@ -81,6 +85,72 @@ Connector cards in ConnectorsTab now show: auth type badge, variable count, endp
 
 ---
 
+## What Changed in V5.3 (2026-06-01)
+
+### AI Intelligence Suite — 4 New Backend Modules
+
+1. **Alert Correlation Engine** (`corvin/strategy/alert_correlation.py`)
+   - Groups alerts by temporal proximity, topology affinity, and semantic similarity
+   - Produces `CorrelationGroup` objects with root-cause candidates and suppression recommendations
+   - Human-approval gate on all suppression actions
+
+2. **Capacity Forecaster** (`corvin/strategy/capacity_forecaster.py`)
+   - Linear regression over resource metrics (CPU, memory, disk) to predict exhaustion
+   - LLM-generated narrative explaining forecast risk and scaling recommendations
+   - Outputs `CapacityForecastReport` with per-resource forecasts + scaling actions
+   - Human-approval gate on all scaling recommendations
+
+3. **Conversational Runbook Builder** (`corvin/strategy/runbook_builder.py`)
+   - Multi-turn chat sessions that iteratively draft runbooks from incident context
+   - Session management (start → messages → draft → approve → save to KB)
+   - Replaces one-shot runbook update with interactive refinement loop
+
+4. **War Games / Chaos Simulation** (uses existing `chaos_engine.py` + new UI)
+   - Dedicated War Games page aggregating chaos experiments, correlation, and forecast tools
+   - Incident Replay tab (placeholder for future replay simulations)
+
+### New API Routes (`apps/api/routes/ai_features.py`)
+
+All under `/ai` prefix:
+- `POST /ai/correlate-alerts` — run alert correlation engine
+- `POST /ai/correlate-alerts/approve` — approve/reject suppression action
+- `POST /ai/capacity-forecast` — run capacity forecast for a service
+- `POST /ai/capacity-forecast/approve` — approve scaling recommendation
+- `POST /ai/runbook-session/start` — begin runbook builder session
+- `POST /ai/runbook-session/message` — send chat message in session
+- `POST /ai/runbook-session/approve` — approve draft runbook
+- `POST /ai/runbook-session/save` — persist approved runbook to knowledge base
+- `GET /ai/war-games/scenarios` — list available war game scenarios
+
+### New Frontend Components
+
+- **`AlertCorrelationPanel.tsx`** — "Run Correlation" button, grouped alert display, approve/reject suppression
+- **`CapacityForecastPanel.tsx`** — service input, risk badges, resource forecast cards, scaling approve
+- **`RunbookBuilderChat.tsx`** — chat interface with session lifecycle (idle → drafting → approved → saved)
+- **`WarRoomBanner.tsx`** — animated pulsing gradient banner for active incidents (pending approval)
+- **`WarGamesPage.tsx`** — 4-tab page (Chaos Experiments, Alert Correlation, Capacity Forecast, Incident Replay)
+
+### Frontend Wiring
+
+- `NavBar.tsx`: Added "War Games" entry with ⚔ icon
+- `App.tsx`: Added `/war-games` route
+- `InvestigationDetailPage.tsx`:
+  - War Room Banner displayed when `approval_status === 'pending'`
+  - RunbookBuilderChat displayed post-execution (alongside existing RunbookUpdatePrompt)
+- `client.ts`: 12 new TypeScript interfaces + 8 API fetch functions
+
+### Other Backend Additions
+
+- `corvin/connectors/git_repo.py` — Git repository connector for code-level context
+- `corvin/toolsets/code_analysis.py` — Static code analysis toolset
+- `corvin/investigation/code_enrichment.py` — Code-level enrichment during investigations
+- `corvin/delivery/prediction_notification.py` — Delivery channel for predictive alert notifications
+- `corvin/triggers/prediction_penalty.py` — Penalty scoring for predictive detection accuracy
+- `corvin/triggers/validation_automation.py` — Policy-driven validation automation triggers
+- Alembic migrations 0019–0021 (validation policies, predictive penalties, git config)
+
+---
+
 ## Strict Version Gate (DO NOT SKIP)
 
 Never build a feature from a future version while the current version is incomplete.
@@ -101,6 +171,7 @@ Never build a feature from a future version while the current version is incompl
 | V5.0 | ✅ Complete | Agentic AI P0: F1 AutonomousAgent, F4 CausalChain, F6 NL-to-KQL, F7 CommsDrafts |
 | V5.1 | ✅ Complete | Agentic AI P1: F9 Multi-Agent, F10 Chaos Engine, F11 IDE Integration, F12 Voice Incident |
 | V5.2 | ✅ Complete | UX Maturity: Plus Jakarta Sans font, CHAD-only seed, outbound connector builder (variables, payload templates, OAuth 2.0) |
+| V5.3 | ✅ Complete | AI Intelligence Suite: Alert Correlation, Capacity Forecaster, Conversational Runbook Builder, War Games page, War Room Banner |
 
 ---
 
@@ -177,22 +248,33 @@ corvin/
                   #   + chaos_engine.py — ChaosExperimentGenerator (post-RCA resilience tests)
                   #   + ide_integration.py — IDEIntegrationService (VS Code context + deploy safety)
                   #   + voice_incident.py — VoiceIncidentService (Azure Speech STT → structured report)
+                  #   + alert_correlation.py — AlertCorrelationEngine (temporal/topology/similarity grouping)
+                  #   + capacity_forecaster.py — CapacityForecaster (linear regression + LLM narrative)
+                  #   + runbook_builder.py — RunbookBuilder (multi-turn conversational sessions)
   storage/        # DB session (db.py), SQLAlchemy models (models.py)
   execution/      # ExecutionService, remediation preview — requires ApprovalStatus.approved
-  connectors/     # Pluggable data-source connectors: azure_monitor, elastic, byoa, crypto, registry
+  connectors/     # Pluggable data-source connectors: azure_monitor, elastic, byoa, crypto, registry, git_repo
+  investigation/  # Investigation engine + code_enrichment.py (code-level context)
+  delivery/       # Delivery channels: Teams, webhooks, prediction_notification.py
+  triggers/       # Alert triggers: predictive.py, prediction_penalty.py, validation_automation.py
   slo/            # SLO snapshot computation (snapshot.py)
   validations/    # Validation runner (runner.py)
+  toolsets/       # Agent tool definitions: code_analysis.py (static analysis toolset)
   cli/            # Config migration helpers (migrate_config.py)
 
 apps/
-  api/            # FastAPI entry (main.py) + routes/: applications, slo, validations, corvin_agent, …
+  api/            # FastAPI entry (main.py) + routes/: applications, slo, validations, corvin_agent, ai_features, …
   cli/            # Interactive REPL CLI (main.py)
   teams/          # Teams bot (bot.py, router.py, manifest/)
   web/            # React 18 + Vite + TypeScript frontend
-                  #   pages: ApplicationsPage, SloMonitoringPage, ValidationsPage, …
+                  #   pages: DashboardPage, InvestigationsPage, InvestigationDetailPage,
+                  #          ApplicationsPage, SloMonitoringPage, ValidationsPage,
+                  #          PredictiveAnalyticsPage, CorvinCommandPage, WarGamesPage
+                  #   components: AlertCorrelationPanel, CapacityForecastPanel,
+                  #              RunbookBuilderChat, WarRoomBanner, NavBar, BlastRadiusCard, …
                   #   public/metlife-logo.svg — MetLife wordmark (served at /metlife-logo.svg)
 
-alembic/          # Alembic migration scripts (0001 → 0016)
+alembic/          # Alembic migration scripts (0001 → 0021)
 config/           # YAML config per integration and environment
 knowledge/
   site.md         # Real infra facts injected into every LLM prompt — keep accurate
