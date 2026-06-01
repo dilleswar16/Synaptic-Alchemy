@@ -11,8 +11,8 @@ const NAV_LINKS = [
   { to: '/applications',   label: 'Applications',   icon: '⊞' },
   { to: '/slo',            label: 'SLO',            icon: '◐' },
   { to: '/validations',    label: 'Validations',    icon: '✓' },
-  { to: '/war-games',      label: 'War Games',      icon: '⚔' },
   { to: '/corvin',         label: 'Corvin AI',      icon: '◆' },
+  { to: '/war-games',      label: 'War Room',       icon: '⚔' },
 ]
 
 export default function NavBar() {

@@ -6,9 +6,8 @@ import {
   listApplications,
   getApplication,
   createApplication,
-  updateApplication,
-  deleteApplication,
   addService,
+  updateService,
   deleteService,
   addConnector,
   deleteConnector,
@@ -23,10 +22,6 @@ import {
   migrateFromYaml,
   type Application,
   type ApplicationService,
-  type LogSource,
-  type SloConfig,
-  type NotificationContact,
-  type OutboundConnector,
 } from '../api/client'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -191,6 +186,12 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
   const [apimGateway, setApimGateway] = useState(false)
   const [apimApiId, setApimApiId] = useState('')
   const [isSsoDirect, setIsSsoDirect] = useState(false)
+  // Git config
+  const [showGit, setShowGit] = useState(false)
+  const [gitProvider, setGitProvider] = useState<string>('azure_devops')
+  const [gitRepoUrl, setGitRepoUrl] = useState('')
+  const [gitBranch, setGitBranch] = useState('')
+  const [gitToken, setGitToken] = useState('')
 
   const mut = useMutation({
     mutationFn: () => {
@@ -200,14 +201,21 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
         if (apimApiId.trim()) metadata.apim_api_id = apimApiId.trim()
       }
       if (isSsoDirect) metadata.is_sso_direct = true
-      return addService(appId, {
+      const payload: Record<string, unknown> = {
         service_name: svcName,
         display_name: displayName || svcName,
         tier,
         namespace: ns || null,
         k8s_app_label: k8sLabel.trim() || null,
         metadata_json: metadata,
-      })
+      }
+      if (showGit && gitRepoUrl.trim()) {
+        payload.git_provider = gitProvider
+        payload.git_repo_url = gitRepoUrl.trim()
+        payload.git_branch = gitBranch.trim() || null
+        if (gitToken.trim()) payload.git_token = gitToken.trim()
+      }
+      return addService(appId, payload as any)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['application', appId] }); onClose() },
   })
@@ -249,6 +257,32 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
           Direct SSO dependency (e.g. PingFederate)
         </label>
       </Field>
+      {/* ── Git Repository (optional) ── */}
+      <div style={{ marginTop: 12, borderTop: '1px solid var(--c-border)', paddingTop: 12 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}>
+          <input type="checkbox" checked={showGit} onChange={e => setShowGit(e.target.checked)} />
+          🔗 Configure Git Repository
+        </label>
+        {showGit && (
+          <div style={{ marginTop: 10 }}>
+            <Field label="Provider">
+              <select style={INPUT_STYLE} value={gitProvider} onChange={e => setGitProvider(e.target.value)}>
+                <option value="azure_devops">Azure DevOps</option>
+                <option value="github">GitHub</option>
+              </select>
+            </Field>
+            <Field label="Repo URL *">
+              <input style={INPUT_STYLE} value={gitRepoUrl} onChange={e => setGitRepoUrl(e.target.value)} placeholder="https://dev.azure.com/org/project/_git/repo" />
+            </Field>
+            <Field label="Branch">
+              <input style={INPUT_STYLE} value={gitBranch} onChange={e => setGitBranch(e.target.value)} placeholder="main (default)" />
+            </Field>
+            <Field label="Personal Access Token">
+              <input style={INPUT_STYLE} type="password" value={gitToken} onChange={e => setGitToken(e.target.value)} placeholder="Optional — stored encrypted" />
+            </Field>
+          </div>
+        )}
+      </div>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
         <button className="btn-secondary" onClick={onClose}>Cancel</button>
         <button className="btn-primary" onClick={() => mut.mutate()} disabled={!svcName || mut.isPending}>
@@ -524,15 +558,88 @@ function AppCard({ app, selected, onClick }: { app: Application; selected: boole
 
 // ── Services Tab ──────────────────────────────────────────────────────────────
 
-function ServicesTab({ app }: { app: Application }) {
+function ServiceCard({ svc, appId }: { svc: ApplicationService; appId: string }) {
   const qc = useQueryClient()
-  const [showAdd, setShowAdd] = useState(false)
-  const services = app.services ?? []
+  const [expanded, setExpanded] = useState(false)
+  const [gitProvider, setGitProvider] = useState(svc.git_provider ?? 'azure_devops')
+  const [gitRepoUrl, setGitRepoUrl] = useState(svc.git_repo_url ?? '')
+  const [gitBranch, setGitBranch] = useState(svc.git_branch ?? '')
+  const [gitToken, setGitToken] = useState('')
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) => deleteService(app.id, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['application', app.id] }),
+    mutationFn: () => deleteService(appId, svc.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['application', appId] }),
   })
+  const gitMut = useMutation({
+    mutationFn: () => {
+      const payload: Record<string, unknown> = {
+        git_provider: gitProvider,
+        git_repo_url: gitRepoUrl.trim() || null,
+        git_branch: gitBranch.trim() || null,
+      }
+      if (gitToken.trim()) payload.git_token = gitToken.trim()
+      return updateService(appId, svc.id, payload as any)
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['application', appId] }); setGitToken('') },
+  })
+
+  return (
+    <div style={{
+      background: 'var(--c-bg)', border: '1px solid var(--c-border)', borderRadius: 8,
+      padding: '11px 14px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', fontWeight: 600, marginBottom: 2 }}>{svc.display_name}</div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)' }}>{svc.service_name}{svc.namespace ? ` · ${svc.namespace}` : ''}</div>
+        </div>
+        {svc.git_repo_url && <span title="Git configured" style={{ fontSize: '0.8rem' }}>🔗</span>}
+        <TierBadge tier={svc.tier} />
+        <button
+          onClick={() => setExpanded(v => !v)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.75rem', padding: 4 }}
+          title="Git config"
+        >{expanded ? '▾' : '▸'} Git</button>
+        <button
+          onClick={() => deleteMut.mutate()}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}
+          title="Remove service"
+        >✕</button>
+      </div>
+      {expanded && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--c-border)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <Field label="Provider">
+              <select style={INPUT_STYLE} value={gitProvider} onChange={e => setGitProvider(e.target.value)}>
+                <option value="azure_devops">Azure DevOps</option>
+                <option value="github">GitHub</option>
+              </select>
+            </Field>
+            <Field label="Branch">
+              <input style={INPUT_STYLE} value={gitBranch} onChange={e => setGitBranch(e.target.value)} placeholder="main" />
+            </Field>
+          </div>
+          <Field label="Repo URL">
+            <input style={INPUT_STYLE} value={gitRepoUrl} onChange={e => setGitRepoUrl(e.target.value)} placeholder="https://dev.azure.com/org/project/_git/repo" />
+          </Field>
+          <Field label={svc.has_git_token ? "PAT (stored ✓ — enter to replace)" : "Personal Access Token"}>
+            <input style={INPUT_STYLE} type="password" value={gitToken} onChange={e => setGitToken(e.target.value)} placeholder="Optional — stored encrypted" />
+          </Field>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+            <button className="btn-primary" style={{ fontSize: '0.72rem', padding: '4px 10px' }} onClick={() => gitMut.mutate()} disabled={gitMut.isPending}>
+              {gitMut.isPending ? 'Saving…' : 'Save Git Config'}
+            </button>
+          </div>
+          {gitMut.isError && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4 }}>{String(gitMut.error)}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ServicesTab({ app }: { app: Application }) {
+  const [showAdd, setShowAdd] = useState(false)
+  const services = app.services ?? []
 
   return (
     <div>
@@ -547,22 +654,7 @@ function ServicesTab({ app }: { app: Application }) {
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {services.map(svc => (
-          <div key={svc.id} style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            background: 'var(--c-bg)', border: '1px solid var(--c-border)', borderRadius: 8,
-            padding: '11px 14px',
-          }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', fontWeight: 600, marginBottom: 2 }}>{svc.display_name}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)' }}>{svc.service_name}{svc.namespace ? ` · ${svc.namespace}` : ''}</div>
-            </div>
-            <TierBadge tier={svc.tier} />
-            <button
-              onClick={() => deleteMut.mutate(svc.id)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}
-              title="Remove service"
-            >✕</button>
-          </div>
+          <ServiceCard key={svc.id} svc={svc} appId={app.id} />
         ))}
       </div>
       {showAdd && <AddServiceModal appId={app.id} onClose={() => setShowAdd(false)} />}

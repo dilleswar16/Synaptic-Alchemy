@@ -121,6 +121,17 @@ _SQLITE_COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
     ("predictive_alerts", "blast_radius_users", "INTEGER DEFAULT 0"),
     ("predictive_alerts", "blast_radius_requests", "INTEGER DEFAULT 0"),
     ("predictive_alerts", "change_correlation", "TEXT"),
+    ("predictive_alerts", "suppression_status", "VARCHAR(20)"),
+    # Git config columns added to applications table
+    ("applications", "git_provider", "VARCHAR(30)"),
+    ("applications", "git_repo_url", "VARCHAR(500)"),
+    ("applications", "git_branch", "VARCHAR(255)"),
+    ("applications", "git_token_encrypted", "TEXT"),
+    # Git config columns added to application_services table (per-service git)
+    ("application_services", "git_provider", "VARCHAR(30)"),
+    ("application_services", "git_repo_url", "VARCHAR(500)"),
+    ("application_services", "git_branch", "VARCHAR(255)"),
+    ("application_services", "git_token_encrypted", "TEXT"),
 ]
 
 

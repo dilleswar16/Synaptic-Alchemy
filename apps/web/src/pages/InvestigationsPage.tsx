@@ -426,7 +426,7 @@ function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary
       {/* Table header */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '72px 1fr 80px 100px 80px 18px',
+        gridTemplateColumns: '72px 1fr 80px min-content 80px 18px',
         gap: 16,
         padding: '8px 14px',
         borderBottom: '1px solid var(--c-border-hi)',
@@ -453,8 +453,7 @@ function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary
             to={`/investigations/${inv.request_id}`}
             className="log-row animate-fade-up"
             style={{
-              gridTemplateColumns: '72px 1fr 80px 100px 80px 18px',
-              animationDelay: `${i * 25}ms`,
+              gridTemplateColumns: '72px 1fr 80px min-content 80px 18px',
             }}
           >
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--c-text-faint)' }}>

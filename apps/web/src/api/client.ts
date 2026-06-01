@@ -717,6 +717,10 @@ export interface ApplicationService {
   dependencies: string[]
   metadata_json: Record<string, unknown>
   k8s_app_label: string | null
+  git_provider: string | null
+  git_repo_url: string | null
+  git_branch: string | null
+  has_git_token: boolean
 }
 
 export interface LogSource {

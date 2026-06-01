@@ -18,6 +18,8 @@ import {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
+const toTitle = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
 const VALIDATION_TYPES = [
   'health_check', 'endpoint', 'synthetic', 'user_journey', 'slo_gate', 'chaos',
 ] as const
@@ -71,7 +73,7 @@ function TypeBadge({ type }: { type: string }) {
       color: c.fg, background: c.bg, borderRadius: 4, padding: '2px 6px',
       textTransform: 'uppercase', fontFamily: 'var(--font-mono)',
     }}>
-      {type.replace('_', ' ')}
+      {type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
     </span>
   )
 }
@@ -322,7 +324,7 @@ function CreateValidationModal({ onClose }: { onClose: () => void }) {
             style={{ width: '100%' }}
           >
             {VALIDATION_TYPES.map(t => (
-              <option key={t} value={t}>{t.replace('_', ' ')}</option>
+              <option key={t} value={t}>{toTitle(t)}</option>
             ))}
           </select>
         </div>
@@ -494,7 +496,7 @@ export default function ValidationsPage() {
             >
               <option value="">All Types</option>
               {VALIDATION_TYPES.map(t => (
-                <option key={t} value={t}>{t.replace('_', ' ')}</option>
+                <option key={t} value={t}>{toTitle(t)}</option>
               ))}
             </select>
             <button

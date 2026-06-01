@@ -85,6 +85,17 @@ class ServiceCreate(BaseModel):
     dependencies: list[str] = []
     metadata_json: dict[str, Any] = {}
     k8s_app_label: str | None = None
+    git_provider: str | None = None  # azure_devops | github
+    git_repo_url: str | None = None
+    git_branch: str | None = None
+    git_token: str | None = None  # plaintext PAT — encrypted before storage
+
+    @field_validator("git_provider")
+    @classmethod
+    def _check_git_provider(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("azure_devops", "github"):
+            raise ValueError("git_provider must be 'azure_devops' or 'github'")
+        return v
 
 
 class ServiceUpdate(BaseModel):
@@ -94,6 +105,17 @@ class ServiceUpdate(BaseModel):
     dependencies: list[str] | None = None
     metadata_json: dict[str, Any] | None = None
     k8s_app_label: str | None = None
+    git_provider: str | None = None
+    git_repo_url: str | None = None
+    git_branch: str | None = None
+    git_token: str | None = None
+
+    @field_validator("git_provider")
+    @classmethod
+    def _check_git_provider(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("azure_devops", "github"):
+            raise ValueError("git_provider must be 'azure_devops' or 'github'")
+        return v
 
 
 class ConnectorCreate(BaseModel):
@@ -320,7 +342,10 @@ def list_services(app_id: str, db: Session = Depends(_db)):
 @router.post("/{app_id}/services", status_code=status.HTTP_201_CREATED, summary="Add service")
 def add_service(app_id: str, body: ServiceCreate, db: Session = Depends(_db)):
     _get_or_404(db, app_id)
-    row = ApplicationServiceRow(application_id=app_id, **body.model_dump())
+    data = body.model_dump(exclude={"git_token"})
+    if body.git_token:
+        data["git_token_encrypted"] = _encrypt_token(body.git_token)
+    row = ApplicationServiceRow(application_id=app_id, **data)
     db.add(row)
     db.flush()
     db.refresh(row)
@@ -333,7 +358,10 @@ def update_service(app_id: str, svc_id: int, body: ServiceUpdate, db: Session = 
     row = db.get(ApplicationServiceRow, svc_id)
     if not row or row.application_id != app_id:
         raise HTTPException(status_code=404, detail="Service not found")
-    for k, v in body.model_dump(exclude_none=True).items():
+    data = body.model_dump(exclude_none=True, exclude={"git_token"})
+    if body.git_token:
+        data["git_token_encrypted"] = _encrypt_token(body.git_token)
+    for k, v in data.items():
         setattr(row, k, v)
     db.flush()
     db.refresh(row)
@@ -600,6 +628,10 @@ def _svc_dict(row: ApplicationServiceRow) -> dict[str, Any]:
         "dependencies": row.dependencies,
         "metadata_json": row.metadata_json,
         "k8s_app_label": row.k8s_app_label,
+        "git_provider": row.git_provider,
+        "git_repo_url": row.git_repo_url,
+        "git_branch": row.git_branch,
+        "has_git_token": row.git_token_encrypted is not None,
     }
 
 
