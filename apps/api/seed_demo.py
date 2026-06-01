@@ -94,6 +94,83 @@ def _snapshot_times(n: int = 5) -> list[datetime]:
     return [_NOW - timedelta(days=30) + step * i for i in range(n)]
 
 
+def _baseline_service_metadata(service_name: str, profile: str) -> dict:
+    return {
+        "health_profile": profile,
+        "apim_routes_through_gateway": service_name != "fundsso",
+        "apim_api_id": service_name,
+        "is_sso_direct": service_name == "fundsso",
+    }
+
+
+def _ensure_slo_config(
+    db: Session,
+    *,
+    app_id: str,
+    service_name: str,
+    sli_type: str,
+    target_pct: float,
+    latency_threshold_ms: int | None,
+) -> tuple[SloConfigRow, bool]:
+    existing = db.query(SloConfigRow).filter_by(
+        application_id=app_id,
+        service_name=service_name,
+        sli_type=sli_type,
+    ).first()
+    if existing is not None:
+        return existing, False
+
+    cfg = SloConfigRow(
+        application_id=app_id,
+        service_name=service_name,
+        sli_type=sli_type,
+        target_pct=target_pct,
+        time_window_days=30,
+        latency_threshold_ms=latency_threshold_ms,
+        enabled=True,
+    )
+    db.add(cfg)
+    db.flush()
+    return cfg, True
+
+
+def _ensure_slo_snapshots(
+    db: Session,
+    *,
+    app_id: str,
+    service_name: str,
+    slo_config_id: int,
+    sli_type: str,
+    target_pct: float,
+    profile: str,
+    times: list[datetime],
+    snaps: list[tuple[float, float, float, float]],
+) -> bool:
+    existing_count = db.query(SloSnapshotRow).filter_by(slo_config_id=slo_config_id).count()
+    if existing_count > 0:
+        return False
+
+    for i, (avail_pct, lat_pct, budget_pct, burn) in enumerate(snaps):
+        measured_pct = avail_pct if sli_type == "availability" else lat_pct
+        snapshot_budget = budget_pct if sli_type == "availability" else max(budget_pct - 3.0, budget_pct * 0.92)
+        snapshot_burn = burn if sli_type == "availability" else round(burn * 1.08, 3)
+        db.add(SloSnapshotRow(
+            slo_config_id=slo_config_id,
+            application_id=app_id,
+            service_name=service_name,
+            sli_type=sli_type,
+            target_pct=target_pct,
+            measured_pct=measured_pct,
+            error_budget_pct=snapshot_budget,
+            burn_rate=snapshot_burn,
+            is_compliant=measured_pct >= target_pct,
+            data_source="simulated",
+            sampled_at=times[i],
+            raw_json={"profile": profile, "snapshot_index": i},
+        ))
+    return True
+
+
 def ensure_demo_data(db: Session) -> bool:
     """
     Seed the DB with the CHAD application if it is not already present.
@@ -101,106 +178,115 @@ def ensure_demo_data(db: Session) -> bool:
     Returns True if data was seeded, False if already populated.
     Idempotent — safe to call on every startup.
     """
-    already_seeded = db.query(ApplicationRow).filter_by(name="CHAD").first()
-    if already_seeded is not None:
-        log.info("Demo seed: CHAD already present, skipping.")
-        return False
-
-    log.info("Demo seed: seeding CHAD application with 3 services …")
-
-    app_id = str(uuid.uuid4())
-    app = ApplicationRow(
-        id=app_id,
-        name=_CHAD_APP["name"],
-        description=_CHAD_APP["description"],
-        team_name=_CHAD_APP["team"],
-        environment_default=_CHAD_APP["env"],
-        topology_json={},
-    )
-    db.add(app)
-    db.flush()
+    changed = False
+    app = db.query(ApplicationRow).filter_by(name="CHAD").first()
+    if app is None:
+        log.info("Demo seed: creating CHAD application baseline …")
+        app = ApplicationRow(
+            id=str(uuid.uuid4()),
+            name=_CHAD_APP["name"],
+            description=_CHAD_APP["description"],
+            team_name=_CHAD_APP["team"],
+            environment_default=_CHAD_APP["env"],
+            topology_json={},
+        )
+        db.add(app)
+        db.flush()
+        changed = True
+    else:
+        log.info("Demo seed: reconciling CHAD baseline data …")
 
     times = _snapshot_times(5)
+    app_id = app.id
+    existing_services = {
+        row.service_name: row
+        for row in db.query(ApplicationServiceRow).filter_by(application_id=app_id).all()
+    }
 
     for svc_name, display_name, k8s_label, tier, profile in _CHAD_APP["services"]:
-        svc = ApplicationServiceRow(
-            application_id=app_id,
-            service_name=svc_name,
-            display_name=display_name,
-            namespace="chad",
-            tier=tier,
-            k8s_app_label=k8s_label,
-            dependencies=[],
-            metadata_json={
-                "health_profile": profile,
-                "apim_routes_through_gateway": svc_name != "fundsso",
-                "apim_api_id": svc_name,
-                "is_sso_direct": svc_name == "fundsso",
-            },
-        )
-        db.add(svc)
+        baseline_metadata = _baseline_service_metadata(svc_name, profile)
+        svc = existing_services.get(svc_name)
+        if svc is None:
+            svc = ApplicationServiceRow(
+                application_id=app_id,
+                service_name=svc_name,
+                display_name=display_name,
+                namespace="chad",
+                tier=tier,
+                k8s_app_label=k8s_label,
+                dependencies=[],
+                metadata_json=baseline_metadata,
+            )
+            db.add(svc)
+            changed = True
+        else:
+            merged_metadata = dict(baseline_metadata)
+            merged_metadata.update(svc.metadata_json or {})
+            if not svc.display_name:
+                svc.display_name = display_name
+                changed = True
+            if not svc.namespace:
+                svc.namespace = "chad"
+                changed = True
+            if not svc.tier:
+                svc.tier = tier
+                changed = True
+            if not svc.k8s_app_label:
+                svc.k8s_app_label = k8s_label
+                changed = True
+            if merged_metadata != (svc.metadata_json or {}):
+                svc.metadata_json = merged_metadata
+                changed = True
 
         snaps = _SNAPSHOTS[profile]
         avail_target = _AVAIL_TARGET[profile]
         latency_target = _LATENCY_TARGET[profile]
 
-        avail_cfg = SloConfigRow(
-            application_id=app_id,
+        avail_cfg, avail_created = _ensure_slo_config(
+            db,
+            app_id=app_id,
             service_name=svc_name,
             sli_type="availability",
             target_pct=avail_target,
-            time_window_days=30,
             latency_threshold_ms=None,
-            enabled=True,
         )
-        db.add(avail_cfg)
-        db.flush()
-
-        for i, (avail_pct, _lat_pct, budget_pct, burn) in enumerate(snaps):
-            db.add(SloSnapshotRow(
-                slo_config_id=avail_cfg.id,
-                application_id=app_id,
-                service_name=svc_name,
-                sli_type="availability",
-                target_pct=avail_target,
-                measured_pct=avail_pct,
-                error_budget_pct=budget_pct,
-                burn_rate=burn,
-                is_compliant=avail_pct >= avail_target,
-                data_source="simulated",
-                sampled_at=times[i],
-                raw_json={"profile": profile, "snapshot_index": i},
-            ))
-
-        latency_cfg = SloConfigRow(
-            application_id=app_id,
+        latency_cfg, latency_created = _ensure_slo_config(
+            db,
+            app_id=app_id,
             service_name=svc_name,
             sli_type="latency",
             target_pct=latency_target,
-            time_window_days=30,
             latency_threshold_ms=200,
-            enabled=True,
         )
-        db.add(latency_cfg)
-        db.flush()
+        changed = avail_created or changed
+        changed = latency_created or changed
 
-        for i, (_avail_pct, lat_pct, budget_pct, burn) in enumerate(snaps):
-            lat_budget = max(budget_pct - 3.0, budget_pct * 0.92)
-            db.add(SloSnapshotRow(
-                slo_config_id=latency_cfg.id,
-                application_id=app_id,
-                service_name=svc_name,
-                sli_type="latency",
-                target_pct=latency_target,
-                measured_pct=lat_pct,
-                error_budget_pct=lat_budget,
-                burn_rate=round(burn * 1.08, 3),
-                is_compliant=lat_pct >= latency_target,
-                data_source="simulated",
-                sampled_at=times[i],
-                raw_json={"profile": profile, "snapshot_index": i},
-            ))
+        changed = _ensure_slo_snapshots(
+            db,
+            app_id=app_id,
+            service_name=svc_name,
+            slo_config_id=avail_cfg.id,
+            sli_type="availability",
+            target_pct=avail_target,
+            profile=profile,
+            times=times,
+            snaps=snaps,
+        ) or changed
+        changed = _ensure_slo_snapshots(
+            db,
+            app_id=app_id,
+            service_name=svc_name,
+            slo_config_id=latency_cfg.id,
+            sli_type="latency",
+            target_pct=latency_target,
+            profile=profile,
+            times=times,
+            snaps=snaps,
+        ) or changed
 
     db.commit()
-    log.info("Demo seed complete: 1 app (CHAD), 3 services, 6 SLO configs, 30 snapshots.")
-    return True
+    if changed:
+        log.info("Demo seed complete: CHAD baseline is present and reconciled.")
+    else:
+        log.info("Demo seed: CHAD baseline already complete, no changes needed.")
+    return changed

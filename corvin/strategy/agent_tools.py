@@ -259,9 +259,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "function": {
             "name": "get_site_knowledge",
             "description": (
-                "Return the CHAD site knowledge base: architecture overview, service descriptions, "
+                "Return the site knowledge base: architecture overview, service descriptions, "
                 "AKS cluster details, APIM configuration, namespaces, and infrastructure conventions. "
-                "Use this whenever the user asks about CHAD architecture, how services are deployed, "
+                "Use this whenever the user asks about platform architecture, how services are deployed, "
                 "cluster names, namespaces, or any infrastructure-level question."
             ),
             "parameters": {"type": "object", "properties": {}, "required": []},
@@ -272,7 +272,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "function": {
             "name": "get_runbook",
             "description": (
-                "Return the runbook for a specific service or incident type from the CHAD knowledge base. "
+                "Return the runbook for a specific service or incident type from the knowledge base. "
                 "Runbooks contain step-by-step investigation and resolution procedures. "
                 "Use this when the user asks about how to fix or diagnose a specific service or issue."
             ),
@@ -327,7 +327,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "name": "get_aks_health",
             "description": (
                 "Fetch live AKS pod status, restart counts, resource pressure, recent events, "
-                "and deployment rollout state for a named service from the CHAD cluster. "
+                "and deployment rollout state for a named service from the configured AKS cluster. "
                 "Use this when the user asks about pod health, restarts, OOMKill, deployment status, "
                 "or anything Kubernetes-related."
             ),
@@ -336,11 +336,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "Kubernetes deployment or service name (e.g. 'fundsso', 'partnerapis').",
+                        "description": "Kubernetes deployment or service name (e.g. 'payments-api').",
                     },
                     "namespace": {
                         "type": "string",
-                        "description": "Kubernetes namespace (default: 'chad').",
+                        "description": "Kubernetes namespace (defaults to connector-configured namespace).",
                     },
                     "environment": {
                         "type": "string",
@@ -362,7 +362,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "ALWAYS use this — not run_kql — when the user asks about: API traffic volumes, "
                 "success/error rates, latency percentiles, unique member counts, fund code "
                 "breakdowns, caller IPs, TLS compliance, peak hours, or anything about "
-                "partnerapis or fundapis performance. "
+                "APIM API performance. "
                 "TWO MODES: "
                 "(1) Template mode: pass template_name to use a pre-validated query. "
                 "(2) Custom mode: if no template fits, write your own KQL and pass it as `kql`. "
@@ -388,8 +388,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                             "'which fund gets most traffic' → requests_by_fund. "
                             "'peak hours/heatmap' → fund_activity_heatmap. "
                             "'backend vs gateway overhead' → backend_vs_overhead. "
-                            "'partnerapis ops' → partnerapis_operations. "
-                            "'fundapis ops/flow' → fundapis_operations_by_fund. "
+                            "'api ops by operation' → partnerapis_operations. "
+                            "'api operations by fund' → fundapis_operations_by_fund. "
                             "'tls/security' → tls_versions. "
                             "'caller ips' → top_caller_ips. "
                             "Omit this field when using custom `kql` mode."
@@ -436,8 +436,10 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     },
                     "api_filter": {
                         "type": "string",
-                        "enum": ["all", "partnerapis", "fundapis"],
-                        "description": "Filter to a specific API. Only applies in template mode. Default: 'all'.",
+                        "description": (
+                            "Filter to a specific APIM ApiId. Use 'all' for all APIs, "
+                            "or provide one ApiId (e.g. 'payments-api') or a comma-separated list."
+                        ),
                     },
                 },
                 "required": [],
@@ -459,11 +461,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "Kubernetes service/deployment name to query (e.g. 'fundapis').",
+                        "description": "Kubernetes service/deployment name to query (e.g. 'payments-api').",
                     },
                     "namespace": {
                         "type": "string",
-                        "description": "Kubernetes namespace (default: 'chad').",
+                        "description": "Kubernetes namespace (defaults to connector-configured namespace).",
                     },
                     "time_range_minutes": {
                         "type": "integer",
@@ -644,12 +646,13 @@ def _exec_roi(args: dict) -> dict:
 
 def _exec_topology(args: dict) -> dict:
     from corvin.storage.repository import InvestigationRepository
+    from corvin.storage.db import get_session as _get_db_session
+    from corvin.storage.models import ApplicationServiceRow as _SvcRow
     from corvin.investigation.topology import (
         build_service_topology,
         ServiceTopology,
         TopologyNode,
         TopologyEdge,
-        _inject_apim_topology,
         build_pod_topology_node,
         _resource_summary,
         _resource_summary_by_pod,
@@ -663,33 +666,45 @@ def _exec_topology(args: dict) -> dict:
         nodes = {n.id: n for n in base.nodes}
         edges = {(e.source, e.target, e.label): e for e in base.edges}
     else:
-        # No investigations yet — fall back to static CHAD architecture + live AKS pods.
-        static_services = [
-            ("fundapis", "high"),
-            ("partnerapis", "high"),
-            ("fundsso", "high"),
-        ]
+        # No investigations yet — bootstrap topology from service registrations.
         nodes = {}
         edges = {}
-        for svc_name, status in static_services:
-            svc_id = f"svc:{svc_name}"
-            nodes[svc_id] = TopologyNode(id=svc_id, label=svc_name, kind="service", status=status)
-        _inject_apim_topology(nodes, edges)
+        with _get_db_session() as _db:
+            svc_rows = _db.query(_SvcRow).all()
+        for svc in svc_rows:
+            svc_id = f"svc:{svc.service_name}"
+            nodes[svc_id] = TopologyNode(id=svc_id, label=svc.service_name, kind="service", status="unknown")
+            meta: dict = svc.metadata_json or {}
+            if meta.get("apim_routes_through_gateway"):
+                api_id = meta.get("apim_api_id") or svc.service_name
+                gateway_id = "gateway:apim"
+                api_node_id = f"api:{api_id}"
+                nodes.setdefault(gateway_id, TopologyNode(id=gateway_id, label="APIM Gateway", kind="gateway", status="supporting"))
+                nodes.setdefault(api_node_id, TopologyNode(id=api_node_id, label=api_id, kind="api", status="observed"))
+                edges[(gateway_id, api_node_id, "routes")] = TopologyEdge(source=gateway_id, target=api_node_id, label="routes")
+                edges[(api_node_id, svc_id, "routes")] = TopologyEdge(source=api_node_id, target=svc_id, label="routes")
+            if meta.get("is_sso_direct"):
+                dep_id = str(meta.get("sso_provider_id") or "backend:sso-provider")
+                dep_label = str(meta.get("sso_provider_label") or "SSO Provider")
+                nodes.setdefault(dep_id, TopologyNode(id=dep_id, label=dep_label, kind="backend", status="supporting"))
+                edges[(svc_id, dep_id, "depends-on")] = TopologyEdge(source=svc_id, target=dep_id, label="depends-on")
 
     try:
         from corvin.evidence.aks_adapter import AKSAdapter
         from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
-        _AKS_NAME_MAP = {
-            "chad-fundapis":    "fundapis",
-            "chad-fundsso":     "fundsso",
-            "chad-partnerapis": "partnerapis",
-        }
+        aks_name_map: dict[str, str] = {}
+        with _get_db_session() as _db:
+            svc_rows = _db.query(_SvcRow).all()
+        for svc in svc_rows:
+            if svc.k8s_app_label:
+                aks_name_map[svc.k8s_app_label] = svc.service_name
+
         adapter = AKSAdapter()
         logs_adapter = ContainerLogsAdapter()
         live = adapter.list_all_pods()
         for svc in live.get("services", []):
             raw_name = svc["name"]
-            svc_name = _AKS_NAME_MAP.get(raw_name, raw_name)
+            svc_name = aks_name_map.get(raw_name, raw_name)
             svc_id = f"svc:{svc_name}"
             try:
                 metric_rows = logs_adapter.get_resource_metrics(svc_name)
@@ -879,7 +894,7 @@ def _exec_container_resource_metrics(args: dict) -> dict[str, Any]:
 
     return {
         "service_name": service_name,
-        "namespace": namespace or "chad",
+        "namespace": namespace or "default",
         "time_range_minutes": minutes,
         "sample_count": len(rows),
         "service": service_summary,

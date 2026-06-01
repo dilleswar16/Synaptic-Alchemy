@@ -49,6 +49,7 @@ from corvin.core.contracts import (
 )
 from corvin.storage.db import get_session
 from corvin.storage.models import (
+    ApplicationServiceRow,
     EvidenceBundleRow,
     FixStrategyOutputRow,
     InvestigationRequestRow,
@@ -708,13 +709,18 @@ class InvestigationRepository:
                 "last_incident_at": last_at.isoformat(),
             }
 
-    def list_recent_results(self, limit: int = 20) -> list[InvestigationResult]:
+    def list_recent_results(
+        self,
+        limit: int = 20,
+        service_names: list[str] | None = None,
+    ) -> list[InvestigationResult]:
         """Return the most recent complete investigations, newest first."""
         with self._session_factory() as session:
+            stmt = select(InvestigationRequestRow.id)
+            if service_names:
+                stmt = stmt.where(InvestigationRequestRow.service_name.in_(service_names))
             rows = session.execute(
-                select(InvestigationRequestRow.id).order_by(
-                    InvestigationRequestRow.completed_at.desc()
-                ).limit(limit)
+                stmt.order_by(InvestigationRequestRow.completed_at.desc()).limit(limit)
             ).scalars().all()
 
         results: list[InvestigationResult] = []
@@ -723,6 +729,14 @@ class InvestigationRepository:
             if result is not None:
                 results.append(result)
         return results
+
+    def list_application_service_names(self, application_id: str | None = None) -> list[str]:
+        with self._session_factory() as session:
+            stmt = select(ApplicationServiceRow.service_name)
+            if application_id:
+                stmt = stmt.where(ApplicationServiceRow.application_id == application_id)
+            rows = session.execute(stmt).all()
+        return [str(row[0]) for row in rows]
 
     def get_monthly_downtime_seconds(self, service_name: str, environment: str) -> float:
         """Approximate downtime budget already consumed this month for one service.

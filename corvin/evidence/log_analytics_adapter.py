@@ -1,14 +1,9 @@
-"""
-Azure Log Analytics evidence adapter.
+"""Azure Log Analytics evidence adapter.
 
 Queries Log Analytics workspaces for APIM gateway logs using the
-azure-monitor-query package.  Config is loaded from
-config/integrations/log_analytics.yaml with an optional environment overlay.
-
-All connection settings (workspace_id, tenant_id, client_id, client_secret,
-apim_table) come from config. Placeholder values like ${AZURE_TENANT_ID} are
-resolved from environment variables at runtime.  The LogsQueryClient and
-ClientSecretCredential are built once in __init__ and reused across calls.
+azure-monitor-query package. Runtime workspace resolution is DB-first via the
+application connector registry. Optional injected config is supported for tests
+or explicit overrides.
 """
 
 from __future__ import annotations
@@ -28,7 +23,7 @@ from typing import Any
 from azure.identity import DefaultAzureCredential
 from azure.monitor.query import LogsQueryClient, LogsQueryStatus
 
-from corvin.core.config_loader import get_env, load_config
+from corvin.connectors.config_resolver import ROLE_APIM_LOGS, resolve_log_source_config
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +39,7 @@ class LogAnalyticsAdapter:
     """Adapter for querying Azure Log Analytics (primarily APIM evidence)."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        self._config = (
-            config if config is not None else load_config("integrations/log_analytics", get_env())
-        )
+        self._config = dict(config or {})
         # Build the credential and client once so they are reused across calls.
         # Construction is guarded so that missing/empty credentials (e.g. local
         # dev without Azure env vars set) produce a warning and a None client
@@ -61,6 +54,17 @@ class LogAnalyticsAdapter:
         except Exception as exc:  # noqa: BLE001
             logger.warning("LogAnalyticsAdapter: could not build client (will return empty results): %s", exc)
         self._workspace_id = _expand(self._config.get("workspace_id", ""))
+
+    def _resolved_config(self, service_name: str) -> dict[str, Any]:
+        cfg = resolve_log_source_config(
+            service_name,
+            source_type="azure_monitor",
+            role=ROLE_APIM_LOGS,
+            fallback=self._config,
+        )
+        if cfg.get("workspace_id"):
+            cfg["workspace_id"] = _expand(str(cfg["workspace_id"]))
+        return cfg
 
     def get_apim_logs(
         self,
@@ -82,8 +86,17 @@ class LogAnalyticsAdapter:
         Returns:
             List of log row dicts. Empty list on error or no results.
         """
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 30)
-        table = self._config.get("apim_table", "ApiManagementGatewayLogs")
+        cfg = self._resolved_config(service_name)
+        minutes = time_range_minutes or cfg.get("default_time_range_minutes", 30)
+        table = cfg.get("apim_table", "ApiManagementGatewayLogs")
+        workspace_id = cfg.get("workspace_id", self._workspace_id)
+
+        if not workspace_id:
+            logger.warning(
+                "LogAnalyticsAdapter.get_apim_logs skipped: no workspace configured for service=%s",
+                service_name,
+            )
+            return []
 
         env_filter = (
             f'\n| where ApiId =~ "{environment}"' if environment else ""
@@ -107,7 +120,7 @@ class LogAnalyticsAdapter:
                 )
                 return []
             result = self._client.query_workspace(
-                workspace_id=self._workspace_id,
+                workspace_id=workspace_id,
                 query=query,
                 timespan=timedelta(minutes=minutes),
             )

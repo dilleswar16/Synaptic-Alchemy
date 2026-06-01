@@ -75,7 +75,7 @@ def _build_item(
 ) -> RemediationPreviewItem:
     # Use action-level target if provided, else fall back to investigation service
     effective_svc = action.target_service or service_name
-    effective_ns = action.target_namespace or "chad"
+    effective_ns = action.target_namespace or "default"
     current_state = (
         f"{effective_svc}: {replica_count} replicas / CPU throttle events: {throttle_events}/min / "
         f"recent restarts: {restart_count}"

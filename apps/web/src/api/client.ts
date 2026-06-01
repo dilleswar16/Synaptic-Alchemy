@@ -551,12 +551,14 @@ export interface ServiceTopology {
   edges: TopologyEdge[]
 }
 
-export function fetchTopology() {
-  return apiFetch<ServiceTopology>('/investigations/topology')
+export function fetchTopology(applicationId?: string) {
+  const query = applicationId ? `?application_id=${encodeURIComponent(applicationId)}` : ''
+  return apiFetch<ServiceTopology>(`/investigations/topology${query}`)
 }
 
-export function fetchTopologyLive() {
-  return apiFetch<ServiceTopology>('/investigations/topology/live')
+export function fetchTopologyLive(applicationId?: string) {
+  const query = applicationId ? `?application_id=${encodeURIComponent(applicationId)}` : ''
+  return apiFetch<ServiceTopology>(`/investigations/topology/live${query}`)
 }
 
 // ── V3.9: ROI Dashboard ───────────────────────────────────────────────────
@@ -858,6 +860,10 @@ export function addConnector(appId: string, payload: Partial<LogSource> & { cred
   return apiFetch<LogSource>(`/applications/${appId}/connectors`, { method: 'POST', body: JSON.stringify(payload) })
 }
 
+export function updateConnector(appId: string, srcId: string, payload: Partial<LogSource> & { credential_value?: string }) {
+  return apiFetch<LogSource>(`/applications/${appId}/connectors/${srcId}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+
 export function deleteConnector(appId: string, srcId: string) {
   return apiFetch<void>(`/applications/${appId}/connectors/${srcId}`, { method: 'DELETE' })
 }
@@ -1076,6 +1082,14 @@ export function deleteNotificationContact(appId: string, contactId: number) {
 
 export function addOutboundConnector(appId: string, payload: Partial<OutboundConnector>) {
   return apiFetch<OutboundConnector>(`/applications/${appId}/outbound-connectors`, { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function updateOutboundConnector(appId: string, connId: string, payload: Partial<OutboundConnector>) {
+  return apiFetch<OutboundConnector>(`/applications/${appId}/outbound-connectors/${connId}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export function testOutboundConnector(appId: string, connId: string) {
+  return apiFetch<ConnectorTestResult>(`/applications/${appId}/outbound-connectors/${connId}/test`, { method: 'POST' })
 }
 
 export function deleteOutboundConnector(appId: string, connId: string) {

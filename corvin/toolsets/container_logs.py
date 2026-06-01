@@ -9,7 +9,7 @@ investigation engine LLM:
   - container_logs_get_health_probe_failures — readiness/liveness probe failures
   - container_logs_get_resource_metrics    — CPU/memory usage with limits
 
-Config is loaded from config/integrations/container_logs.yaml.
+Runtime connector resolution is DB-first via the application connector registry.
 Enable/disable via config/tools/toolsets.yaml.
 """
 

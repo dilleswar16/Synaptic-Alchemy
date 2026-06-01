@@ -65,6 +65,25 @@ class InvestigationRequest(BaseModel):
     lookback_minutes: int = Field(default=60)
     created_at: datetime = Field(default_factory=_utcnow)
 
+    @staticmethod
+    def _priority_from_payload(payload: dict[str, Any]) -> str | None:
+        """Extract optional priority hints from heterogeneous trigger payloads."""
+        direct = str(payload.get("incident_priority") or payload.get("priority") or "").upper().strip()
+        if direct in {"P1", "P2", "P3"}:
+            return direct
+
+        severity_raw = payload.get("severity")
+        if severity_raw is None and isinstance(payload.get("essentials"), dict):
+            severity_raw = payload["essentials"].get("severity")
+        severity = str(severity_raw or "").lower().strip()
+        if severity in {"sev0", "sev1", "critical", "high"}:
+            return "P1"
+        if severity in {"sev2", "medium", "warning"}:
+            return "P2"
+        if severity in {"sev3", "sev4", "low", "info", "informational"}:
+            return "P3"
+        return None
+
     @model_validator(mode="after")
     def _set_dynamic_lookback(self) -> InvestigationRequest:
         if self.trigger_source == TriggerSource.AZURE_ALERT:
@@ -78,15 +97,17 @@ class InvestigationRequest(BaseModel):
         ):
             self.lookback_minutes = 60
             
-        # V4.0: Automatic Priority Classification
-        if self.environment.lower() != "prod":
+        payload_priority = self._priority_from_payload(self.raw_payload)
+
+        # Automatic generic priority classification.
+        if payload_priority is not None:
+            self.incident_priority = payload_priority
+        elif self.environment.lower() != "prod":
             self.incident_priority = "P3"
         elif self.trigger_source == TriggerSource.PREDICTIVE:
             self.incident_priority = "P3"
-        elif self.service_name.lower() == "fundsso":
-            self.incident_priority = "P1" # Core authentication is critical
         else:
-            self.incident_priority = "P2" # Standard degradation
+            self.incident_priority = "P2"
             
         return self
 

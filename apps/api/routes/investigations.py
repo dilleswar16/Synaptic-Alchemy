@@ -551,14 +551,23 @@ def list_predictive_learnings(
 
 @router.get("/topology", response_model=dict)
 def get_topology(
+    application_id: str | None = Query(default=None, description="Optional application id to scope topology"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> dict:
-    topology = build_service_topology(repo.list_recent_results(limit=30))
+    service_names: list[str] | None = None
+    if hasattr(repo, "list_application_service_names"):
+        try:
+            service_names = repo.list_application_service_names(application_id)
+        except TypeError:
+            service_names = repo.list_application_service_names(application_id) if application_id else None
+    topology = build_service_topology(repo.list_recent_results(limit=30, service_names=service_names))
     return topology.model_dump()
 
 
 @router.get("/topology/live", response_model=dict)
-def get_topology_live() -> dict:
+def get_topology_live(
+    application_id: str | None = Query(default=None, description="Optional application id to scope topology"),
+) -> dict:
     """Return live pod state from AKS, grouped by service, in ServiceTopology format.
 
     Unlike /topology (which is built from past DB investigations), this endpoint
@@ -576,19 +585,27 @@ def get_topology_live() -> dict:
         _resource_summary, _resource_summary_by_pod,
     )
     from corvin.storage.db import get_session as _get_db_session
-    from corvin.storage.models import ApplicationServiceRow as _SvcRow
+    from corvin.storage.models import ApplicationRow as _AppRow, ApplicationServiceRow as _SvcRow
 
     nodes: dict[str, TopologyNode] = {}
     edges: dict[tuple[str, str, str | None], TopologyEdge] = {}
     # k8s deployment label (e.g. "chad-fundapis") → logical service name ("fundapis")
     aks_name_map: dict[str, str] = {}
+    allowed_service_ids: set[str] = set()
 
     # ── Build initial service nodes + routing edges from DB ──────────────────
     with _get_db_session() as _db:
-        svc_rows = _db.query(_SvcRow).all()
+        if application_id:
+            app_row = _db.get(_AppRow, application_id)
+            if app_row is None:
+                raise HTTPException(status_code=404, detail=f"Application {application_id!r} not found")
+            svc_rows = _db.query(_SvcRow).filter(_SvcRow.application_id == application_id).all()
+        else:
+            svc_rows = _db.query(_SvcRow).all()
 
     for svc in svc_rows:
         svc_id = f"svc:{svc.service_name}"
+        allowed_service_ids.add(svc_id)
         if svc.k8s_app_label:
             aks_name_map[svc.k8s_app_label] = svc.service_name
         nodes[svc_id] = TopologyNode(
@@ -616,10 +633,11 @@ def get_topology_live() -> dict:
             )
         # SSO / direct-to-IdP dependency
         if meta.get("is_sso_direct"):
-            pf_id = "backend:pingfederate"
+            pf_id = str(meta.get("sso_provider_id") or "backend:sso-provider")
+            pf_label = str(meta.get("sso_provider_label") or "SSO Provider")
             nodes.setdefault(
                 pf_id,
-                TopologyNode(id=pf_id, label="PingFederate SSO", kind="backend", status="supporting"),
+                TopologyNode(id=pf_id, label=pf_label, kind="backend", status="supporting"),
             )
             edges[(svc_id, pf_id, "depends-on")] = TopologyEdge(
                 source=svc_id, target=pf_id, label="depends-on",
@@ -629,6 +647,34 @@ def get_topology_live() -> dict:
     if not nodes:
         return ServiceTopology(nodes=[], edges=[]).model_dump()
 
+    def _resolve_logical_service(raw_name: str) -> str:
+        """Resolve AKS service/deployment names to catalog service names.
+
+        Supports exact k8s label matches plus common prefixed naming patterns
+        like "namespace-service" while keeping catalog ownership authoritative.
+        """
+        direct = aks_name_map.get(raw_name)
+        if direct:
+            return direct
+
+        raw_lower = raw_name.lower()
+        candidates: list[str] = []
+        for svc in svc_rows:
+            service_name = str(svc.service_name or "")
+            service_lower = service_name.lower()
+            k8s_label = str(svc.k8s_app_label or "")
+            k8s_lower = k8s_label.lower()
+
+            if service_lower and (raw_lower == service_lower or raw_lower.endswith(f"-{service_lower}")):
+                candidates.append(service_name)
+                continue
+            if k8s_lower and (raw_lower == k8s_lower or raw_lower.endswith(f"-{k8s_lower}")):
+                candidates.append(service_name)
+
+        if len(candidates) == 1:
+            return candidates[0]
+        return raw_name
+
     # ── Live pod data from AKS — overlay status + pod children ───────────────
     try:
         adapter = AKSAdapter()
@@ -637,8 +683,10 @@ def get_topology_live() -> dict:
         for svc in result.get("services", []):
             raw_name = svc["name"]
             # Normalise k8s label → logical name using the DB-driven map
-            logical_name = aks_name_map.get(raw_name, raw_name)
+            logical_name = _resolve_logical_service(raw_name)
             svc_id = f"svc:{logical_name}"
+            if svc_id not in allowed_service_ids:
+                continue
             live_status = svc.get("status", "high")
             try:
                 metric_rows = logs_adapter.get_resource_metrics(logical_name or raw_name)

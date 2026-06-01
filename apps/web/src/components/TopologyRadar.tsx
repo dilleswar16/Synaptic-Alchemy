@@ -586,44 +586,52 @@ function TopologyFlow({ appNodes, appEdges, colorMode }: { appNodes: Node[]; app
 
 type ViewMode = 'app' | 'corvin'
 
-export function TopologyRadar() {
+export function TopologyRadar({
+  applicationId,
+  appTitle,
+  appOnly = false,
+}: {
+  applicationId?: string
+  appTitle?: string
+  appOnly?: boolean
+}) {
   const navigate = useNavigate()
   const [viewMode, setViewMode] = useState<ViewMode>('app')
   const { theme } = useTheme()
+  const currentViewMode: ViewMode = appOnly ? 'app' : viewMode
+  const appHeading = appTitle ? `${appTitle} Topology` : 'Application Topology'
 
-  // Live AKS pods — used for CHAD App Topology view
   const { data: liveData, isLoading: liveLoading } = useQuery({
-    queryKey: ['topology-live'],
-    queryFn: fetchTopologyLive,
+    queryKey: ['topology-live', applicationId ?? 'global'],
+    queryFn: () => fetchTopologyLive(applicationId),
     refetchInterval: 30_000,  // refresh every 30s so pods reflect current state
   })
 
-  // DB-backed topology — used for Corvin Investigation Flow view
   const { data, isLoading } = useQuery({
-    queryKey: ['topology'],
-    queryFn: fetchTopology,
+    queryKey: ['topology', applicationId ?? 'global'],
+    queryFn: () => fetchTopology(applicationId),
     refetchInterval: 60_000,
+    enabled: !appOnly,
   })
 
   const onServiceClick = useCallback((label: string) => {
     navigate(`/investigations?service=${encodeURIComponent(label)}`)
   }, [navigate])
 
-  // App view: live pods from AKS. Corvin view: DB-backed investigation graph.
-  const activeSource = viewMode === 'app' ? liveData : data
+  const activeSource = currentViewMode === 'app' ? liveData : data
 
   const { nodes: appNodes, edges: appEdges, estimatedHeight: appHeight } = useMemo(
     () => activeSource ? buildFlowElements(activeSource, onServiceClick) : { nodes: [], edges: [], estimatedHeight: 560 },
     [activeSource, onServiceClick],
   )
 
-  const graphHeight = viewMode === 'app' ? appHeight : 560
+  const graphHeight = currentViewMode === 'app' ? appHeight : 560
 
   const serviceNodes = activeSource?.nodes.filter(n => n.kind === 'service') ?? []
-  const activeNodes = viewMode === 'app' ? appNodes : CORVIN_NODES
-  const activeEdges = viewMode === 'app' ? appEdges : CORVIN_EDGES
+  const activeNodes = currentViewMode === 'app' ? appNodes : CORVIN_NODES
+  const activeEdges = currentViewMode === 'app' ? appEdges : CORVIN_EDGES
 
-  const currentlyLoading = viewMode === 'app' ? liveLoading : isLoading
+  const currentlyLoading = currentViewMode === 'app' ? liveLoading : isLoading
   if (currentlyLoading && !activeSource) {
     return (
       <div className="panel animate-fade-up" style={{ padding: '18px 20px', overflow: 'hidden' }}>
@@ -634,10 +642,10 @@ export function TopologyRadar() {
               Dependency Visualizer
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.2rem', color: 'var(--c-text)' }}>
-              {viewMode === 'app' ? 'CHAD App Topology' : 'Corvin Investigation Flow'}
+              {currentViewMode === 'app' ? appHeading : 'Corvin Investigation Flow'}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: 3 }}>
+          {!appOnly && <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: 3 }}>
             {(['app', 'corvin'] as ViewMode[]).map(mode => (
               <button key={mode} onClick={() => setViewMode(mode)} style={{
                 fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 700,
@@ -649,7 +657,7 @@ export function TopologyRadar() {
                 {mode === 'app' ? 'App Architecture' : 'Corvin Flow'}
               </button>
             ))}
-          </div>
+          </div>}
         </div>
         {/* Canvas loading state */}
         <div style={{
@@ -665,22 +673,22 @@ export function TopologyRadar() {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 6 }}>
-              {viewMode === 'app' ? 'Connecting to AKS Cluster' : 'Loading Graph'}
+              {currentViewMode === 'app' ? 'Connecting to AKS Cluster' : 'Loading Graph'}
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', lineHeight: 1.8 }}>
-              {viewMode === 'app'
-                ? <>Querying live pod state · namespace <span style={{ color: 'var(--c-text-dim)' }}>chad</span></>
+              {currentViewMode === 'app'
+                ? <>Querying live pod state for the selected application</>
                 : 'Loading investigation topology…'}
             </div>
-            {viewMode === 'app' && (
+            {currentViewMode === 'app' && serviceNodes.length > 0 && (
               <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center' }}>
-                {['fundapis', 'fundsso', 'partnerapis'].map((s, i) => (
+                {serviceNodes.slice(0, 4).map((s, i) => (
                   <span key={s} style={{
                     fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '3px 9px',
                     borderRadius: 999, border: '1px solid var(--c-signal-dim)',
                     background: 'var(--c-signal-light)', color: 'var(--c-text-faint)',
                     animation: `signal-pulse 1.8s ease-in-out ${i * 0.25}s infinite`,
-                  }}>{s}</span>
+                  }}>{s.label}</span>
                 ))}
               </div>
             )}
@@ -699,12 +707,11 @@ export function TopologyRadar() {
             Dependency Visualizer
           </div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.2rem', color: 'var(--c-text)' }}>
-            {viewMode === 'app' ? 'CHAD App Topology' : 'Corvin Investigation Flow'}
+            {currentViewMode === 'app' ? appHeading : 'Corvin Investigation Flow'}
           </div>
         </div>
 
-        {/* Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: 3 }}>
+        {!appOnly && <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: 3 }}>
           {(['app', 'corvin'] as ViewMode[]).map(mode => (
             <button
               key={mode}
@@ -722,7 +729,7 @@ export function TopologyRadar() {
               {mode === 'app' ? 'App Architecture' : 'Corvin Flow'}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {/* React Flow canvas */}
@@ -737,10 +744,10 @@ export function TopologyRadar() {
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, background: 'color-mix(in srgb, var(--c-bg) 85%, transparent)', backdropFilter: 'blur(4px)' }}>
             <span style={{ width: 32, height: 32, borderRadius: '50%', border: '2.5px solid var(--c-border-glow)', borderTopColor: 'var(--c-signal)', display: 'inline-block', animation: 'spin 0.9s linear infinite', marginBottom: 12 }} />
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-signal)', letterSpacing: '0.1em' }}>
-              {viewMode === 'app' ? 'QUERYING AKS CLUSTER…' : 'LOADING GRAPH…'}
+              {currentViewMode === 'app' ? 'QUERYING AKS CLUSTER…' : 'LOADING GRAPH…'}
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', marginTop: 4 }}>
-              {viewMode === 'app' ? 'Fetching live pod state from chad namespace' : ''}
+              {currentViewMode === 'app' ? 'Fetching live pod state for the selected application' : ''}
             </div>
           </div>
         )}
@@ -748,14 +755,14 @@ export function TopologyRadar() {
         {!currentlyLoading && activeNodes.length === 0 && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', textAlign: 'center', lineHeight: 2 }}>
-              {viewMode === 'app'
+              {currentViewMode === 'app'
                 ? <>No live pod data available.<br /><span style={{ fontSize: '0.65rem' }}>AKS cluster unreachable — check kubeconfig or cluster access.</span></>
                 : <>No investigation data yet.<br /><span style={{ fontSize: '0.65rem' }}>Run an investigation to populate this graph.</span></>}
             </div>
           </div>
         )}
         <ReactFlowProvider>
-          <TopologyFlow key={`${viewMode}-${theme}`} appNodes={activeNodes} appEdges={activeEdges} colorMode={theme} />
+          <TopologyFlow key={`${currentViewMode}-${applicationId ?? 'global'}-${theme}`} appNodes={activeNodes} appEdges={activeEdges} colorMode={theme} />
         </ReactFlowProvider>
       </div>
 

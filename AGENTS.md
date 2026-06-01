@@ -29,6 +29,23 @@ incident replay). All automated actions enforce human-approval gates.
 Read the active version scope BEFORE writing any code:
 - `docs/copilot-context/versions/hackathon-roadmap.md` ← historical reference
 
+## Enterprise Refinement Track
+
+The active productization work now lives under:
+- `docs/copilot-context/versions/enterprise-refinement/README.md`
+- `docs/copilot-context/versions/enterprise-refinement/plan.md`
+- `docs/copilot-context/versions/enterprise-refinement/ev1_connector_identity/`
+
+Current slice:
+- EV1 — Connector Onboarding And Identity Model
+
+What EV1 decides:
+- where connector config lives
+- how credentials are resolved at runtime
+- which identity model is default in Azure
+- how RBAC should be shaped around the connector model
+- how onboarding is exposed through the admin surface
+
 ---
 
 ## What Changed in V5.2 (2026-05-31)

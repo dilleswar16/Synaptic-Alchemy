@@ -100,7 +100,7 @@ function ToolLabel({ name }: { name: string }) {
     get_blast_radius: 'Blast Radius',
     get_postmortem: 'Post-Mortem',
     get_similar_incidents: 'Similar Incidents',
-    get_site_knowledge: 'CHAD Architecture',
+    get_site_knowledge: 'Site Knowledge',
     get_runbook: 'Runbook',
     run_kql: 'Log Analytics Query',
     get_aks_health: 'AKS Health',

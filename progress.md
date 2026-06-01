@@ -12,6 +12,18 @@
 **Previously:** V4.1 "ENTERPRISE MATURITY" COMPLETE — 437/437 tests passing.  
 See `docs/copilot-context/versions/v4_enterprise_maturity.md` for the priority logic and UI hierarchy specs.
 
+**Current planning track:** Enterprise Refinement EV1 — Connector Onboarding And Identity Model.  
+See `docs/copilot-context/versions/enterprise-refinement/README.md` and `docs/copilot-context/versions/enterprise-refinement/ev1_connector_identity/plan.md` for the active productization sequence.
+
+### EV1 Focus
+
+- connector config should become DB-backed and UI-driven
+- runtime connector resolution should go through the registry
+- same-tenant Azure should prefer managed identity / workload identity
+- local dev should remain env-friendly
+- cross-tenant access should stay explicit and exceptional
+- RBAC should be designed around the connector model, not patched on afterward
+
 ---
 
 ## V5.2 — UX Maturity (COMPLETE)

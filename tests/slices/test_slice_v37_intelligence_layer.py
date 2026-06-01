@@ -260,6 +260,58 @@ def test_topology_endpoint_returns_graph(sqlite_repo):
     app.dependency_overrides.clear()
 
 
+def test_topology_endpoint_scopes_by_application_id():
+    class _FakeRepo:
+        def __init__(self):
+            self.seen_service_names = None
+
+        def list_application_service_names(self, application_id: str):
+            assert application_id == "app-123"
+            return ["payments-api"]
+
+        def list_recent_results(self, limit: int = 30, service_names=None):
+            self.seen_service_names = service_names
+            return [_make_result(service="payments-api")]
+
+    fake_repo = _FakeRepo()
+    client = _client_with(fake_repo)
+
+    response = client.get("/investigations/topology?application_id=app-123")
+
+    assert response.status_code == 200
+    assert fake_repo.seen_service_names == ["payments-api"]
+    payload = response.json()
+    assert any(node.get("id") == "svc:payments-api" for node in payload["nodes"])
+    assert not any(node.get("id") == "svc:fundapis" for node in payload["nodes"])
+    app.dependency_overrides.clear()
+
+
+def test_topology_endpoint_global_scope_filters_to_catalog_services():
+    class _FakeRepo:
+        def __init__(self):
+            self.seen_service_names = None
+
+        def list_application_service_names(self, application_id=None):
+            assert application_id is None
+            return ["catalog-api"]
+
+        def list_recent_results(self, limit: int = 30, service_names=None):
+            self.seen_service_names = service_names
+            return [_make_result(service="catalog-api")]
+
+    fake_repo = _FakeRepo()
+    client = _client_with(fake_repo)
+
+    response = client.get("/investigations/topology")
+
+    assert response.status_code == 200
+    assert fake_repo.seen_service_names == ["catalog-api"]
+    payload = response.json()
+    assert any(node.get("id") == "svc:catalog-api" for node in payload["nodes"])
+    assert not any(node.get("id") == "svc:fundsso" for node in payload["nodes"])
+    app.dependency_overrides.clear()
+
+
 def test_topology_live_endpoint_marks_unhealthy_pod_hot(monkeypatch):
     class _FakeAksAdapter:
         def list_all_pods(self):

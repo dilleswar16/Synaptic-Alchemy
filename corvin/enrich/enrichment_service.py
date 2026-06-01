@@ -242,7 +242,7 @@ class EnrichmentService:
 
         if not b.elastic_logs:
             b.elastic_logs = (yield from _timed_step(
-                "container_logs", "ContainerLog · chad",
+                "container_logs", "ContainerLog",
                 lambda: self._container_logs.get_container_logs(
                     request.service_name, time_range_minutes=request.lookback_minutes
                 ),

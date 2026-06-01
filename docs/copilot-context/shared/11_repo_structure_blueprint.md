@@ -27,7 +27,6 @@ corvin/
 |  |- models/
 |  |- integrations/
 |  |  |- elastic.yaml
-|  |  |- log_analytics.yaml
 |  |  |- aks.yaml
 |  |  |- azure_alerts.yaml
 |  |  |- azure_activity.yaml    ← change correlation source
