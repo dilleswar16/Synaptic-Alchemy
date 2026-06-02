@@ -73,12 +73,16 @@ class ContainerLogsAdapter:
         namespace: str | None,
         time_range_minutes: int | None,
     ) -> tuple[dict[str, Any], str, int]:
-        cfg = resolve_log_source_config(
-            service_name,
-            source_type="azure_monitor",
-            role=ROLE_CONTAINER_INSIGHTS,
-            fallback=self._config,
-        )
+        normalized_service = str(service_name or "").strip().lower()
+        if normalized_service in ("", "*", "all"):
+            cfg = dict(self._config)
+        else:
+            cfg = resolve_log_source_config(
+                service_name,
+                source_type="azure_monitor",
+                role=ROLE_CONTAINER_INSIGHTS,
+                fallback=self._config,
+            )
         workspace_id = _expand(str(cfg.get("workspace_id", self._workspace_id)))
         minutes = time_range_minutes or cfg.get("default_time_range_minutes", 60)
         ns = namespace or cfg.get("default_namespace", "default")
@@ -149,11 +153,16 @@ class ContainerLogsAdapter:
 
         cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
 
+        service_filter = ""
+        if str(service_name or "").strip() and str(service_name).strip() not in ("*", "all"):
+            safe_service_name = str(service_name).replace('"', '')
+            service_filter = f'| where Name contains "{safe_service_name}"\n'
+
         query = (
             f"KubePodInventory\n"
             f"| where TimeGenerated >= ago({minutes}m)\n"
             f'| where Namespace == "{ns}"\n'
-            f'| where Name contains "{service_name}"\n'
+            f"{service_filter}"
             f"| project TimeGenerated, Name, Namespace, PodStatus, ContainerStatus,"
             f" ContainerStatusReason, ContainerRestartCount, PodRestartCount, ControllerName, ControllerKind\n"
             f"| summarize arg_max(TimeGenerated, *) by Name"
@@ -467,6 +476,46 @@ class ContainerLogsAdapter:
         )
 
         return self._run_query(query, minutes, f"get_health_probe_failures(service={service_name})", workspace_id=cfg["workspace_id"])
+
+    def list_namespaces(
+        self,
+        service_name: str = "*",
+        cluster_name: str | None = None,
+        time_range_minutes: int | None = None,
+    ) -> list[str]:
+        """Discover namespaces from KubePodInventory (runtime fallback path)."""
+        if self._client is None:
+            return []
+
+        cfg, _ns, minutes = self._resolved_runtime(service_name, None, time_range_minutes)
+        cluster_filter = ""
+        if cluster_name and str(cluster_name).strip():
+            safe_cluster = str(cluster_name).replace('"', '')
+            cluster_filter = f"| where tostring(column_ifexists('ClusterName', '')) =~ \"{safe_cluster}\"\n"
+
+        query = (
+            f"KubePodInventory\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f"{cluster_filter}"
+            f"| where isnotempty(Namespace)\n"
+            f"| summarize by Namespace\n"
+            f"| order by Namespace asc"
+        )
+
+        rows = self._run_query(
+            query,
+            minutes,
+            f"list_namespaces(cluster={cluster_name or 'any'})",
+            workspace_id=cfg["workspace_id"],
+        )
+        namespaces = sorted(
+            {
+                str(r.get("Namespace") or r.get("namespace") or "").strip()
+                for r in rows
+                if isinstance(r, dict)
+            }
+        )
+        return [ns for ns in namespaces if ns]
 
     # ── Internal ──────────────────────────────────────────────────────────────
 

@@ -538,6 +538,8 @@ export interface TopologyNode {
   total_containers?: number | null
   restart_count?: number | null
   unhealthy_containers?: number | null
+  namespace?: string | null
+  cluster_name?: string | null
 }
 
 export interface TopologyEdge {
@@ -549,6 +551,26 @@ export interface TopologyEdge {
 export interface ServiceTopology {
   nodes: TopologyNode[]
   edges: TopologyEdge[]
+  metadata?: {
+    available_clusters?: string[]
+    available_namespaces?: string[]
+    cluster_namespaces?: Record<string, string[]>
+    namespace_source?: string
+    selected_clusters?: string[]
+    selected_namespaces?: string[]
+    namespace_status?: Record<string, {
+      high: number
+      recovering: number
+      hot: number
+      services: number
+      status: string
+    }>
+    metrics_source_ok?: boolean
+    pod_source_ok?: boolean
+    filtered_service_count?: number
+    catalog_service_count?: number
+    runtime_unmapped_pods_only?: boolean
+  }
 }
 
 export function fetchTopology(applicationId?: string) {
@@ -556,8 +578,16 @@ export function fetchTopology(applicationId?: string) {
   return apiFetch<ServiceTopology>(`/investigations/topology${query}`)
 }
 
-export function fetchTopologyLive(applicationId?: string) {
-  const query = applicationId ? `?application_id=${encodeURIComponent(applicationId)}` : ''
+export function fetchTopologyLive(params?: {
+  applicationId?: string
+  clusters?: string[]
+  namespaces?: string[]
+}) {
+  const qp = new URLSearchParams()
+  if (params?.applicationId) qp.set('application_id', params.applicationId)
+  if (params?.clusters?.length) qp.set('clusters', params.clusters.join(','))
+  if (params?.namespaces?.length) qp.set('namespaces', params.namespaces.join(','))
+  const query = qp.toString() ? `?${qp.toString()}` : ''
   return apiFetch<ServiceTopology>(`/investigations/topology/live${query}`)
 }
 
@@ -771,13 +801,17 @@ export interface ConnectorVariable {
 export interface ConnectorAuth {
   type: 'none' | 'bearer' | 'api_key' | 'basic' | 'oauth2'
   bearer_token?: string
+  bearer_token_ref?: string
   api_key?: string
+  api_key_ref?: string
   api_key_header?: string
   username?: string
   password?: string
+  password_ref?: string
   token_url?: string
   client_id?: string
   client_secret?: string
+  client_secret_ref?: string
   scopes?: string
 }
 
@@ -794,7 +828,15 @@ export interface ConnectorConfig {
 export interface OutboundConnector {
   id: string
   application_id: string
-  connector_type: 'teams_webhook' | 'servicenow' | 'email' | 'pagerduty' | 'generic_http'
+  connector_type:
+    | 'teams_webhook'
+    | 'servicenow'
+    | 'email'
+    | 'pagerduty'
+    | 'generic_http'
+    | 'azure_devops_boards'
+    | 'azure_devops_wiki'
+    | 'sharepoint'
   display_name: string
   config_json: ConnectorConfig
   is_active: boolean
@@ -1094,6 +1136,13 @@ export function testOutboundConnector(appId: string, connId: string) {
 
 export function deleteOutboundConnector(appId: string, connId: string) {
   return apiFetch<void>(`/applications/${appId}/outbound-connectors/${connId}`, { method: 'DELETE' })
+}
+
+export function bootstrapOutboundConnectors(appId: string) {
+  return apiFetch<{ status: string; application_id: string; inserted: number; updated: number }>(
+    `/applications/${appId}/outbound-connectors/bootstrap`,
+    { method: 'POST' },
+  )
 }
 
 // ── SLO Monitoring ────────────────────────────────────────────────────────────

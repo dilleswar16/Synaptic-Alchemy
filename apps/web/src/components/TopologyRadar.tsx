@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -127,7 +127,7 @@ function PodNode({ data }: { data: { label: string; status: string; sublabel?: s
   const memoryLimit = typeof data.memory_limit_mib === 'number' ? data.memory_limit_mib : null
   const memoryPct = typeof data.memory_utilization_pct === 'number' ? data.memory_utilization_pct : null
   const phase = data.phase ?? 'Unknown'
-  const showRuntimeMetrics = String(typeLabel).toLowerCase() === 'pod'
+  const showRuntimeMetrics = true
   const healthBadgeLabel = healthLabel.charAt(0).toUpperCase() + healthLabel.slice(1)
   const healthTooltip = `Health: ${healthLabel}. Phase: ${phase}. Ready: ${ready}/${total}. Restarts: ${restarts}.`
 
@@ -291,7 +291,43 @@ const SERVICE_CARD_HEIGHT = 126
 const SERVICE_GROUP_GAP = 58
 const CENTER_Y = 320
 
-function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: string) => void) {
+function buildFlowElements(
+  topology: ServiceTopology,
+  onServiceClick: (label: string) => void,
+  opts?: { runtimePodsOnly?: boolean },
+) {
+  if (opts?.runtimePodsOnly) {
+    const pods = topology.nodes.filter((n) => n.kind === 'pod')
+    const baseY = 140
+    const stepY = 118
+    const podNodes: Node[] = pods.map((pod, i) => ({
+      id: pod.id,
+      type: 'pod',
+      position: { x: 420, y: baseY + i * stepY },
+      data: {
+        label: pod.label,
+        status: pod.status,
+        sublabel: [pod.cluster_name, pod.namespace].filter(Boolean).join(' • ') || undefined,
+        phase: pod.phase,
+        cpu_mcores: pod.cpu_mcores,
+        cpu_request_mcores: pod.cpu_request_mcores,
+        cpu_limit_mcores: pod.cpu_limit_mcores,
+        cpu_utilization_pct: pod.cpu_utilization_pct,
+        memory_mib: pod.memory_mib,
+        memory_request_mib: pod.memory_request_mib,
+        memory_limit_mib: pod.memory_limit_mib,
+        memory_utilization_pct: pod.memory_utilization_pct,
+        ready_containers: pod.ready_containers,
+        total_containers: pod.total_containers,
+        restart_count: pod.restart_count,
+        unhealthy_containers: pod.unhealthy_containers,
+      },
+    }))
+
+    const estimatedHeight = Math.max(560, 220 + Math.max(0, pods.length - 1) * stepY)
+    return { nodes: podNodes, edges: [], estimatedHeight }
+  }
+
   const nodeMap = new Map(topology.nodes.map(n => [n.id, n]))
 
   // Outbound adjacency: source → [target ids]
@@ -371,6 +407,7 @@ function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: st
         data: {
           label: pod.label,
           status: pod.status,
+          sublabel: [pod.cluster_name, pod.namespace].filter(Boolean).join(' • ') || undefined,
           phase: pod.phase,
           cpu_mcores: pod.cpu_mcores,
           cpu_request_mcores: pod.cpu_request_mcores,
@@ -597,13 +634,26 @@ export function TopologyRadar({
 }) {
   const navigate = useNavigate()
   const [viewMode, setViewMode] = useState<ViewMode>('app')
+  const [selectedCluster, setSelectedCluster] = useState<string>('')
+  const [selectedNamespace, setSelectedNamespace] = useState<string>('')
+  const [reloadToken, setReloadToken] = useState(0)
   const { theme } = useTheme()
   const currentViewMode: ViewMode = appOnly ? 'app' : viewMode
   const appHeading = appTitle ? `${appTitle} Topology` : 'Application Topology'
 
   const { data: liveData, isLoading: liveLoading } = useQuery({
-    queryKey: ['topology-live', applicationId ?? 'global'],
-    queryFn: () => fetchTopologyLive(applicationId),
+    queryKey: [
+      'topology-live',
+      applicationId ?? 'global',
+      selectedCluster,
+      selectedNamespace,
+      reloadToken,
+    ],
+    queryFn: () => fetchTopologyLive({
+      applicationId,
+      clusters: selectedCluster ? [selectedCluster] : [],
+      namespaces: selectedNamespace ? [selectedNamespace] : [],
+    }),
     refetchInterval: 30_000,  // refresh every 30s so pods reflect current state
   })
 
@@ -619,17 +669,74 @@ export function TopologyRadar({
   }, [navigate])
 
   const activeSource = currentViewMode === 'app' ? liveData : data
+  const metadata = liveData?.metadata
+  const runtimePodsOnly = Boolean(metadata?.runtime_unmapped_pods_only && currentViewMode === 'app')
 
   const { nodes: appNodes, edges: appEdges, estimatedHeight: appHeight } = useMemo(
-    () => activeSource ? buildFlowElements(activeSource, onServiceClick) : { nodes: [], edges: [], estimatedHeight: 560 },
-    [activeSource, onServiceClick],
+    () => activeSource ? buildFlowElements(activeSource, onServiceClick, { runtimePodsOnly }) : { nodes: [], edges: [], estimatedHeight: 560 },
+    [activeSource, onServiceClick, runtimePodsOnly],
   )
 
   const graphHeight = currentViewMode === 'app' ? appHeight : 560
 
   const serviceNodes = activeSource?.nodes.filter(n => n.kind === 'service') ?? []
+  const allNodes = activeSource?.nodes ?? []
+  const metricsAvailableFromNodes = serviceNodes.some((n: TopologyNode) =>
+    typeof n.cpu_mcores === 'number'
+    || typeof n.memory_mib === 'number'
+    || typeof n.cpu_limit_mcores === 'number'
+    || typeof n.memory_limit_mib === 'number',
+  )
+  const podDataAvailableFromNodes = allNodes.some((n: TopologyNode) => n.kind === 'pod')
+  const metricsAvailable = metadata?.metrics_source_ok ?? metricsAvailableFromNodes
+  const podDataAvailable = metadata?.pod_source_ok ?? podDataAvailableFromNodes
+  const availableClusters = metadata?.available_clusters ?? []
+  const clusterNamespaces = metadata?.cluster_namespaces ?? {}
+  const availableNamespaces = useMemo(() => {
+    if (selectedCluster) {
+      const forCluster = clusterNamespaces[selectedCluster]
+      if (Array.isArray(forCluster) && forCluster.length > 0) {
+        return forCluster
+      }
+    }
+    return metadata?.available_namespaces ?? []
+  }, [clusterNamespaces, metadata?.available_namespaces, selectedCluster])
+  const namespaceStatus = metadata?.namespace_status ?? {}
   const activeNodes = currentViewMode === 'app' ? appNodes : CORVIN_NODES
   const activeEdges = currentViewMode === 'app' ? appEdges : CORVIN_EDGES
+
+  useEffect(() => {
+    if (selectedCluster) return
+    const serverSelected = metadata?.selected_clusters?.[0]
+    if (serverSelected) {
+      setSelectedCluster(serverSelected)
+      return
+    }
+  }, [metadata?.selected_clusters, selectedCluster])
+
+  useEffect(() => {
+    if (selectedNamespace) return
+    const serverSelected = metadata?.selected_namespaces?.[0]
+    if (serverSelected) {
+      setSelectedNamespace(serverSelected)
+      return
+    }
+  }, [metadata?.selected_namespaces, selectedNamespace])
+
+  useEffect(() => {
+    if (selectedCluster) return
+    if (availableClusters.length === 1) {
+      setSelectedCluster(availableClusters[0])
+    }
+  }, [availableClusters, selectedCluster])
+
+  useEffect(() => {
+    if (selectedNamespace) return
+    if (!selectedCluster) return
+    if (availableNamespaces.length === 1) {
+      setSelectedNamespace(availableNamespaces[0])
+    }
+  }, [availableNamespaces, selectedCluster, selectedNamespace])
 
   const currentlyLoading = currentViewMode === 'app' ? liveLoading : isLoading
   if (currentlyLoading && !activeSource) {
@@ -683,7 +790,7 @@ export function TopologyRadar({
             {currentViewMode === 'app' && serviceNodes.length > 0 && (
               <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center' }}>
                 {serviceNodes.slice(0, 4).map((s, i) => (
-                  <span key={s} style={{
+                  <span key={s.id ?? `${s.label}-${i}`} style={{
                     fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '3px 9px',
                     borderRadius: 999, border: '1px solid var(--c-signal-dim)',
                     background: 'var(--c-signal-light)', color: 'var(--c-text-faint)',
@@ -732,6 +839,131 @@ export function TopologyRadar({
         </div>}
       </div>
 
+      {currentViewMode === 'app' && (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 10 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+            <label style={{ display: 'grid', gap: 4, minWidth: 210 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Clusters</span>
+              <select
+                value={selectedCluster}
+                onChange={(e) => {
+                  setSelectedCluster(e.currentTarget.value)
+                }}
+                style={{ height: 34, background: 'var(--c-surface-2)', color: 'var(--c-text)', border: '1px solid var(--c-border)', borderRadius: 8, padding: 6, fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}
+              >
+                <option value="">All Clusters</option>
+                {availableClusters.map((cluster) => (
+                  <option key={cluster} value={cluster}>{cluster}</option>
+                ))}
+              </select>
+            </label>
+
+            <label style={{ display: 'grid', gap: 4, minWidth: 220 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Namespaces</span>
+              <select
+                value={selectedNamespace}
+                onChange={(e) => {
+                  setSelectedNamespace(e.currentTarget.value)
+                }}
+                style={{ height: 34, background: 'var(--c-surface-2)', color: 'var(--c-text)', border: '1px solid var(--c-border)', borderRadius: 8, padding: 6, fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}
+              >
+                <option value="">All Namespaces</option>
+                {selectedNamespace && !availableNamespaces.includes(selectedNamespace) && (
+                  <option value={selectedNamespace}>{selectedNamespace}</option>
+                )}
+                {availableNamespaces.map((ns) => (
+                  <option key={ns} value={ns}>{ns}</option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setReloadToken((v) => v + 1)}
+              style={{
+                alignSelf: 'end',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.66rem',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                border: '1px solid var(--c-border-hi)',
+                background: 'var(--c-surface-2)',
+                color: 'var(--c-text)',
+                borderRadius: 8,
+                padding: '8px 12px',
+                cursor: 'pointer',
+              }}
+            >
+              Reload Topology
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.64rem',
+              padding: '4px 9px',
+              borderRadius: 999,
+              border: '1px solid var(--c-border)',
+              background: 'var(--c-surface)',
+              color: 'var(--c-text-dim)',
+              letterSpacing: '0.04em',
+            }}>
+              Active filter: {selectedCluster || 'all clusters'} / {selectedNamespace || 'all namespaces'}
+            </span>
+            <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.64rem',
+            padding: '4px 9px',
+            borderRadius: 999,
+            border: `1px solid ${metricsAvailable ? 'color-mix(in srgb, var(--c-green) 55%, transparent)' : 'color-mix(in srgb, var(--c-warning) 55%, transparent)'}`,
+            background: metricsAvailable ? 'color-mix(in srgb, var(--c-green) 14%, var(--c-surface))' : 'color-mix(in srgb, var(--c-warning) 14%, var(--c-surface))',
+            color: metricsAvailable ? 'var(--c-green)' : 'var(--c-warning)',
+            letterSpacing: '0.04em',
+          }}>
+            Metrics source: {metricsAvailable ? 'Container Insights data available' : 'Container Insights data unavailable'}
+          </span>
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.64rem',
+            padding: '4px 9px',
+            borderRadius: 999,
+            border: `1px solid ${podDataAvailable ? 'color-mix(in srgb, var(--c-green) 55%, transparent)' : 'color-mix(in srgb, var(--c-warning) 55%, transparent)'}`,
+            background: podDataAvailable ? 'color-mix(in srgb, var(--c-green) 14%, var(--c-surface))' : 'color-mix(in srgb, var(--c-warning) 14%, var(--c-surface))',
+            color: podDataAvailable ? 'var(--c-green)' : 'var(--c-warning)',
+            letterSpacing: '0.04em',
+          }}>
+            Pod source: {podDataAvailable ? 'AKS pod data available' : 'AKS pod data unavailable'}
+          </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {Object.entries(namespaceStatus).map(([ns, state]) => {
+              const status = String(state.status || 'high')
+              const accent = STATUS_HEX[status] ?? 'var(--c-text-faint)'
+              return (
+                <span
+                  key={ns}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.62rem',
+                    padding: '4px 9px',
+                    borderRadius: 999,
+                    border: `1px solid color-mix(in srgb, ${accent} 55%, transparent)`,
+                    background: `color-mix(in srgb, ${accent} 15%, var(--c-surface))`,
+                    color: accent,
+                    letterSpacing: '0.03em',
+                  }}
+                >
+                  ns:{ns} {status} ({state.services})
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* React Flow canvas */}
       <div style={{
         height: graphHeight, borderRadius: 12, overflow: 'hidden',
@@ -762,7 +994,7 @@ export function TopologyRadar({
           </div>
         )}
         <ReactFlowProvider>
-          <TopologyFlow key={`${currentViewMode}-${applicationId ?? 'global'}-${theme}`} appNodes={activeNodes} appEdges={activeEdges} colorMode={theme} />
+          <TopologyFlow key={`${currentViewMode}-${applicationId ?? 'global'}-${selectedCluster}-${selectedNamespace}-${reloadToken}-${theme}`} appNodes={activeNodes} appEdges={activeEdges} colorMode={theme} />
         </ReactFlowProvider>
       </div>
 

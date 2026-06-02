@@ -23,7 +23,8 @@ from corvin.cli.migrate_config import run_migration
 from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
 from corvin.evidence.log_analytics_adapter import LogAnalyticsAdapter
 from corvin.connectors.config_resolver import ROLE_APIM_LOGS, ROLE_CONTAINER_INSIGHTS, resolve_log_source_config
-from corvin.storage.models import Base, ApplicationRow, ApplicationServiceRow, LogSourceRow, SloConfigRow
+from corvin.connectors.base import TestResult
+from corvin.storage.models import Base, ApplicationRow, ApplicationServiceRow, LogSourceRow, OutboundConnectorRow, SloConfigRow
 
 
 def _session_factory():
@@ -254,6 +255,264 @@ def test_connector_update_preserves_existing_env_ref_when_not_replaced():
             row = session.get(LogSourceRow, src_id)
             assert row is not None
             assert row.credential_ref == "BYOA_TOKEN"
+    finally:
+        _cleanup_override()
+
+
+def test_aks_connector_can_be_tested_via_registry(monkeypatch):
+    sf = _session_factory()
+    _override_session(sf)
+    app_id = _create_app_row(sf)
+
+    def fake_aks_test(self):
+        return TestResult(ok=True, message="Connected successfully", latency_ms=10.0)
+
+    monkeypatch.setattr("corvin.connectors.aks.AKSConnector.test_connection", fake_aks_test)
+
+    client = TestClient(app)
+    try:
+        create_resp = client.post(f"/applications/{app_id}/connectors", json={
+            "source_type": "aks",
+            "display_name": "AKS Cluster",
+            "config_json": {
+                "cluster_name": "aks-01",
+                "resource_group": "rg-01",
+                "subscription_id": "sub-01",
+                "default_namespace": "chad",
+            },
+            "credential_type": "env_var",
+        })
+        assert create_resp.status_code == 201
+        src_id = create_resp.json()["id"]
+
+        test_resp = client.post(f"/applications/{app_id}/connectors/{src_id}/test")
+        assert test_resp.status_code == 200
+        payload = test_resp.json()
+        assert payload["ok"] is True
+        assert "Connected successfully" in payload["message"]
+    finally:
+        _cleanup_override()
+
+
+def test_aks_connector_normalizes_namespaces_on_create():
+    sf = _session_factory()
+    _override_session(sf)
+    app_id = _create_app_row(sf)
+
+    client = TestClient(app)
+    try:
+        create_resp = client.post(f"/applications/{app_id}/connectors", json={
+            "source_type": "aks",
+            "display_name": "AKS Multi Namespace",
+            "config_json": {
+                "cluster_name": "aks-01",
+                "resource_group": "rg-01",
+                "subscription_id": "sub-01",
+                "namespaces": ["chad", "funds", "CHAD", "partner"],
+            },
+            "credential_type": "env_var",
+        })
+        assert create_resp.status_code == 201
+        cfg = create_resp.json()["config_json"]
+        assert cfg["default_namespace"] == "chad"
+        assert cfg["namespaces"] == ["chad", "funds", "partner"]
+    finally:
+        _cleanup_override()
+
+
+def test_aks_connector_normalizes_explicit_clusters_on_create():
+    sf = _session_factory()
+    _override_session(sf)
+    app_id = _create_app_row(sf)
+
+    client = TestClient(app)
+    try:
+        create_resp = client.post(f"/applications/{app_id}/connectors", json={
+            "source_type": "aks",
+            "display_name": "AKS Multi Cluster",
+            "config_json": {
+                "cluster_name": "legacy-primary",
+                "resource_group": "rg-primary",
+                "subscription_id": "sub-primary",
+                "clusters": [
+                    {
+                        "cluster_name": "aks-east",
+                        "resource_group": "rg-east",
+                        "subscription_id": "sub-east",
+                        "namespaces": ["chad", "CHAD", "partner"],
+                    },
+                    {
+                        "cluster_name": "aks-west",
+                        "resource_group": "rg-west",
+                        "subscription_id": "sub-west",
+                        "default_namespace": "funds",
+                    },
+                ],
+            },
+            "credential_type": "env_var",
+        })
+        assert create_resp.status_code == 201
+        cfg = create_resp.json()["config_json"]
+        assert isinstance(cfg.get("clusters"), list)
+        assert len(cfg["clusters"]) == 2
+        assert cfg["clusters"][0]["namespaces"] == ["chad", "partner"]
+        assert cfg["clusters"][0]["default_namespace"] == "chad"
+        assert cfg["clusters"][1]["namespaces"] == ["funds"]
+        assert cfg["clusters"][1]["default_namespace"] == "funds"
+    finally:
+        _cleanup_override()
+
+
+def test_aks_connector_rejects_invalid_cluster_entries():
+    sf = _session_factory()
+    _override_session(sf)
+    app_id = _create_app_row(sf)
+
+    client = TestClient(app)
+    try:
+        create_resp = client.post(f"/applications/{app_id}/connectors", json={
+            "source_type": "aks",
+            "display_name": "AKS Invalid Cluster",
+            "config_json": {
+                "clusters": [
+                    {
+                        "cluster_name": "aks-east",
+                        "resource_group": "rg-east",
+                        # missing subscription_id
+                        "namespaces": ["chad"],
+                    }
+                ],
+            },
+            "credential_type": "env_var",
+        })
+        assert create_resp.status_code == 422
+        assert "subscription_id" in str(create_resp.json())
+    finally:
+        _cleanup_override()
+
+
+def test_bootstrap_outbound_connectors_is_idempotent_and_app_scoped(monkeypatch):
+    sf = _session_factory()
+    _override_session(sf)
+    app_id = _create_app_row(sf)
+
+    monkeypatch.setenv("AZURE_DEVOPS_ORG", "MetLife-Global")
+    monkeypatch.setenv("AZURE_DEVOPS_PROJECT", "Australia IT_AMS")
+    monkeypatch.setenv("AZURE_DEVOPS_PAT", "pat-token")
+    monkeypatch.setenv("TEAMS_WEBHOOK_URL", "https://outlook.office.com")
+    monkeypatch.setenv("CORVIN_SMTP_HOST", "smtp.office365.com")
+    monkeypatch.setenv("CORVIN_EMAIL_FROM", "corvin@example.com")
+    monkeypatch.setenv("CORVIN_EMAIL_TO", "ops@example.com")
+    monkeypatch.setenv("SHAREPOINT_SITE_ID", "my.metlife.com,site-guid,web-guid")
+
+    client = TestClient(app)
+    try:
+        first = client.post(f"/applications/{app_id}/outbound-connectors/bootstrap")
+        assert first.status_code == 200
+        first_payload = first.json()
+        assert first_payload["inserted"] == 5
+        assert first_payload["updated"] == 0
+
+        second = client.post(f"/applications/{app_id}/outbound-connectors/bootstrap")
+        assert second.status_code == 200
+        second_payload = second.json()
+        assert second_payload["inserted"] == 0
+        assert second_payload["updated"] == 5
+
+        with sf() as session:
+            rows = session.query(OutboundConnectorRow).filter_by(application_id=app_id).all()
+            assert len(rows) == 5
+            assert {r.connector_type for r in rows} == {
+                "teams_webhook",
+                "email",
+                "azure_devops_boards",
+                "azure_devops_wiki",
+                "sharepoint",
+            }
+    finally:
+        _cleanup_override()
+
+
+def test_bootstrap_outbound_connectors_supports_include_types_and_overwrite_policy(monkeypatch):
+    sf = _session_factory()
+    _override_session(sf)
+    app_id = _create_app_row(sf)
+
+    monkeypatch.setenv("TEAMS_WEBHOOK_URL", "https://outlook.office.com")
+
+    client = TestClient(app)
+    try:
+        create_resp = client.post(f"/applications/{app_id}/outbound-connectors", json={
+            "connector_type": "teams_webhook",
+            "display_name": "Custom Teams",
+            "config_json": {
+                "endpoint": "https://custom.invalid/teams",
+                "auth": {"type": "none"},
+                "variables": [],
+                "payload_template": "{}",
+            },
+        })
+        assert create_resp.status_code == 201
+
+        bootstrap = client.post(
+            f"/applications/{app_id}/outbound-connectors/bootstrap",
+            json={"include_types": ["teams_webhook"], "overwrite_existing": False},
+        )
+        assert bootstrap.status_code == 200
+        payload = bootstrap.json()
+        assert payload["inserted"] == 0
+        assert payload["updated"] == 0
+
+        with sf() as session:
+            row = session.query(OutboundConnectorRow).filter_by(application_id=app_id, connector_type="teams_webhook").one()
+            assert row.display_name == "Custom Teams"
+            assert row.config_json["endpoint"] == "https://custom.invalid/teams"
+    finally:
+        _cleanup_override()
+
+
+def test_outbound_connector_test_resolves_secret_ref(monkeypatch):
+    sf = _session_factory()
+    _override_session(sf)
+    app_id = _create_app_row(sf)
+
+    monkeypatch.setenv("TEAMS_BEARER_TOKEN", "resolved-token")
+    captured: dict[str, object] = {}
+
+    def fake_request(method, url, **kwargs):
+        captured["method"] = method
+        captured["url"] = url
+        captured["headers"] = kwargs.get("headers", {})
+
+        class Resp:
+            status_code = 200
+            text = "ok"
+
+        return Resp()
+
+    monkeypatch.setattr("corvin.delivery.outbound_connectors.httpx.request", fake_request)
+
+    client = TestClient(app)
+    try:
+        create_resp = client.post(f"/applications/{app_id}/outbound-connectors", json={
+            "connector_type": "generic_http",
+            "display_name": "Secret Ref Bridge",
+            "config_json": {
+                "endpoint": "https://example.invalid/hook",
+                "endpoint_fields": {"http_method": "POST"},
+                "auth": {"type": "bearer", "bearer_token_ref": "env:TEAMS_BEARER_TOKEN"},
+                "variables": [],
+                "payload_template": "{}",
+            },
+        })
+        assert create_resp.status_code == 201
+        conn_id = create_resp.json()["id"]
+
+        test_resp = client.post(f"/applications/{app_id}/outbound-connectors/{conn_id}/test")
+        assert test_resp.status_code == 200
+        assert test_resp.json()["ok"] is True
+        headers = captured.get("headers", {})
+        assert headers.get("Authorization") == "Bearer resolved-token"
     finally:
         _cleanup_override()
 

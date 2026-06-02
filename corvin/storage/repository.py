@@ -295,8 +295,10 @@ class InvestigationRepository:
             ado_url: str | None = None
             if ado_wid:
                 try:
-                    from corvin.core.config_loader import get_env, load_config
-                    ado_cfg = load_config("integrations/azure_devops", get_env())
+                    from corvin.delivery.rca_notification import resolve_ado_boards_config_for_service
+                    ado_cfg = resolve_ado_boards_config_for_service(req_row.service_name)
+                    if not ado_cfg:
+                        ado_cfg = {}
                     org = str(ado_cfg.get("org_name", "")).strip()
                     proj = str(ado_cfg.get("project_name", "")).strip()
                     if org and proj and not org.startswith("${") and not proj.startswith("${"):

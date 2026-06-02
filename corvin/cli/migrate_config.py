@@ -13,7 +13,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from corvin.core.config_loader import load_config, get_env
+from corvin.core.config_loader import get_env
 from corvin.connectors.config_resolver import ROLE_APIM_LOGS, ROLE_CONTAINER_INSIGHTS
 from corvin.storage.models import (
     ApplicationRow,
@@ -188,29 +188,25 @@ def _seed_outbound_connectors(db: Session, app_id: str) -> int:
     """Seed outbound delivery connectors from existing integration config."""
     count = 0
 
-    try:
-        teams_cfg = load_config("integrations/teams", get_env())
-        webhook_url = str(teams_cfg.get("webhook_url", "")).strip()
-        if webhook_url and not webhook_url.startswith("${"):
-            db.add(OutboundConnectorRow(
-                id=str(uuid.uuid4()),
-                application_id=app_id,
-                connector_type="teams_webhook",
-                display_name="Microsoft Teams",
-                config_json={
-                    "endpoint": webhook_url,
-                    "auth": {"type": "none"},
-                    "variables": [
-                        {"key": "title", "default_value": "Corvin Alert: {{service_name}}"},
-                        {"key": "summary", "default_value": "{{rca_summary}}"},
-                        {"key": "severity_color", "default_value": "FF0000"},
-                    ],
-                    "payload_template": '{"title":"{{title}}","text":"{{summary}}","themeColor":"{{severity_color}}"}',
-                },
-            ))
-            count += 1
-    except Exception as exc:
-        _log.debug("migrate_config: teams config not found: %s", exc)
+    webhook_url = str(os.environ.get("TEAMS_WEBHOOK_URL", "")).strip()
+    if webhook_url and not webhook_url.startswith("${"):
+        db.add(OutboundConnectorRow(
+            id=str(uuid.uuid4()),
+            application_id=app_id,
+            connector_type="teams_webhook",
+            display_name="Microsoft Teams",
+            config_json={
+                "endpoint": webhook_url,
+                "auth": {"type": "none"},
+                "variables": [
+                    {"key": "title", "default_value": "Corvin Alert: {{service_name}}"},
+                    {"key": "summary", "default_value": "{{rca_summary}}"},
+                    {"key": "severity_color", "default_value": "FF0000"},
+                ],
+                "payload_template": '{"title":"{{title}}","text":"{{summary}}","themeColor":"{{severity_color}}"}',
+            },
+        ))
+        count += 1
 
     return count
 

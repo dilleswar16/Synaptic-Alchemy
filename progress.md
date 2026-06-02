@@ -24,6 +24,15 @@ See `docs/copilot-context/versions/enterprise-refinement/README.md` and `docs/co
 - cross-tenant access should stay explicit and exceptional
 - RBAC should be designed around the connector model, not patched on afterward
 
+### EV1 Latest Hardening Slice (2026-06-02)
+
+- [x] Added explicit multi-cluster AKS config support (`clusters[]`) with per-cluster namespace normalization and validation in connector onboarding API.
+- [x] Added outbound bootstrap policy controls (`include_types`, `overwrite_existing`) to support idempotent and selective connector provisioning.
+- [x] Added secret reference support for outbound auth fields (`*_ref` patterns via env/kv resolvers), plus UI fields to configure secret refs.
+- [x] Added filterable live topology contract (cluster/namespace query params + metadata payload: available options, selected filters, namespace health summary, source availability).
+- [x] Added TopologyRadar cluster/namespace multi-select controls, manual reload action, and namespace-level health badges.
+- [~] End-to-end runtime verification pending in fully provisioned dev environment (local shell missing Azure SDK test dependencies).
+
 ---
 
 ## V5.2 — UX Maturity (COMPLETE)

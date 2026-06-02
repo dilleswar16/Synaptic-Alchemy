@@ -25,6 +25,8 @@ class TopologyNode(BaseModel):
     total_containers: int | None = None
     restart_count: int | None = None
     unhealthy_containers: int | None = None
+    namespace: str | None = None
+    cluster_name: str | None = None
 
 
 class TopologyEdge(BaseModel):
@@ -154,11 +156,20 @@ def _resource_summary(rows: list[dict]) -> dict[str, float | None]:
 
 def _resource_summary_by_pod(rows: list[dict]) -> dict[str, dict[str, float | None]]:
     """Return per-pod resource summaries keyed by pod name."""
+    def _normalize_pod_name(value: str) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+        # Handle path-like values and namespace/pod formats.
+        if "/" in text:
+            text = text.split("/")[-1]
+        return text
+
     by_pod: dict[str, list[dict]] = {}
     for row in rows:
         if not isinstance(row, dict):
             continue
-        pod_name = str(row.get("Name") or row.get("pod_name") or row.get("PodName") or "").strip()
+        pod_name = _normalize_pod_name(str(row.get("Name") or row.get("pod_name") or row.get("PodName") or ""))
         if not pod_name:
             continue
         by_pod.setdefault(pod_name, []).append(row)
@@ -169,9 +180,14 @@ def _resource_summary_by_pod(rows: list[dict]) -> dict[str, dict[str, float | No
 def build_pod_topology_node(pod: dict) -> TopologyNode:
     """Build a pod topology node with status and judge-friendly metrics."""
     name = str(pod.get("name") or pod.get("pod") or "pod")
+    cluster_name = str(pod.get("cluster_name") or "").strip() or None
+    namespace = str(pod.get("namespace") or "").strip() or None
     metrics = _pod_health_metrics(pod)
+    node_id = f"pod:{name}"
+    if cluster_name:
+        node_id = f"pod:{cluster_name}:{name}"
     return TopologyNode(
-        id=f"pod:{name}",
+        id=node_id,
         label=name,
         kind="pod",
         status=str(metrics["status"]),
@@ -188,6 +204,8 @@ def build_pod_topology_node(pod: dict) -> TopologyNode:
         total_containers=int(metrics["total_containers"]),
         restart_count=int(metrics["restart_count"]),
         unhealthy_containers=int(metrics["unhealthy_containers"]),
+        namespace=namespace,
+        cluster_name=cluster_name,
     )
 
 

@@ -12,7 +12,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from corvin.core.config_loader import get_env, load_config
+from corvin.delivery.email_adapter import default_email_config
 from corvin.storage.db import get_session
 from corvin.storage.models import (
     ApplicationRow,
@@ -101,7 +101,7 @@ def send_prediction_emails(alerts: list[dict[str, Any]]) -> int:
     Returns the number of emails successfully sent.
     """
     try:
-        cfg = load_config("integrations/email", get_env())
+        cfg = default_email_config()
     except Exception:
         cfg = {}
 

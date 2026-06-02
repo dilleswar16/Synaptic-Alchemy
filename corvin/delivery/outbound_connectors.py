@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 
 from corvin.connectors.base import TestResult
+from corvin.connectors.secret_ref import resolve_secret_reference
 
 _log = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def test_outbound_connector(connector_type: str, display_name: str, config_json:
     if not endpoint:
         return TestResult(ok=False, message="endpoint is empty")
 
-    auth = _as_dict(config_json.get("auth"))
+    auth = _resolve_auth(_as_dict(config_json.get("auth")))
     endpoint_fields = _as_dict(config_json.get("endpoint_fields"))
 
     validation_error = _validate_config(connector_type, auth, endpoint_fields)
@@ -129,8 +130,36 @@ def _validate_config(connector_type: str, auth: dict[str, Any], endpoint_fields:
             return "email connectors require endpoint_fields.from"
         if not str(endpoint_fields.get("port", "")).strip():
             return "email connectors require endpoint_fields.port"
+    if connector_type in {"azure_devops_boards", "azure_devops_wiki"}:
+        if not str(endpoint_fields.get("project_name", "")).strip():
+            return f"{connector_type} connectors require endpoint_fields.project_name"
+    if connector_type == "azure_devops_wiki" and not str(endpoint_fields.get("wiki_id", "")).strip():
+        return "azure_devops_wiki connectors require endpoint_fields.wiki_id (or 'auto')"
+    if connector_type == "sharepoint" and not str(endpoint_fields.get("site_id", "")).strip():
+        return "sharepoint connectors require endpoint_fields.site_id"
 
     return None
+
+
+def _resolve_auth(auth: dict[str, Any]) -> dict[str, Any]:
+    """Resolve *_ref auth keys to concrete secret values."""
+    resolved = dict(auth)
+    ref_pairs = {
+        "bearer_token_ref": "bearer_token",
+        "api_key_ref": "api_key",
+        "password_ref": "password",
+        "client_secret_ref": "client_secret",
+        "client_id_ref": "client_id",
+        "username_ref": "username",
+        "token_url_ref": "token_url",
+    }
+    for ref_key, value_key in ref_pairs.items():
+        if resolved.get(value_key):
+            continue
+        ref_value = resolve_secret_reference(str(resolved.get(ref_key, "")).strip())
+        if ref_value:
+            resolved[value_key] = ref_value
+    return resolved
 
 
 def _build_auth_headers(auth: dict[str, Any]) -> dict[str, str]:

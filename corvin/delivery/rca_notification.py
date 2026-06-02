@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Iterable, Optional
 
-from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import InvestigationResult
-from corvin.delivery.email_adapter import EmailAdapter
+from corvin.connectors.secret_ref import resolve_secret_reference
+from corvin.connectors.config_resolver import resolve_outbound_connector_config
+from corvin.delivery.email_adapter import EmailAdapter, default_email_config
 from corvin.delivery.rca_pdf import build_rca_pdf
 
 _log = logging.getLogger(__name__)
+
+
+_ORG_FROM_URL = re.compile(r"https?://dev\.azure\.com/([^/]+)/?", re.IGNORECASE)
 
 
 def send_rca_email_if_enabled(
@@ -31,7 +36,7 @@ def send_rca_email_if_enabled(
     Never raises.
     """
     try:
-        cfg = load_config("integrations/email", get_env())
+        cfg = default_email_config()
         if not force and not cfg.get("auto_send_on_rca", True):
             return False
 
@@ -76,8 +81,8 @@ def publish_wiki_page_if_enabled(result: InvestigationResult) -> Optional[str]:
     """
     try:
         from corvin.delivery.ado_wiki_adapter import ADOWikiAdapter
-        cfg = load_config("integrations/azure_devops", get_env())
-        if not cfg.get("wiki_enabled", False):
+        cfg = resolve_ado_wiki_config_for_service(result.request.service_name)
+        if not cfg:
             return None
         adapter = ADOWikiAdapter(config=cfg)
         url = adapter.publish_investigation(result)
@@ -100,8 +105,8 @@ def publish_sharepoint_if_enabled(
     """
     try:
         from corvin.delivery.sharepoint_adapter import SharePointAdapter
-        cfg = load_config("integrations/sharepoint", get_env())
-        if not cfg.get("enabled", False):
+        cfg = resolve_sharepoint_config_for_service(result.request.service_name)
+        if not cfg:
             return None
         adapter = SharePointAdapter(config=cfg)
         url = adapter.upload_investigation(result, pdf_bytes=pdf_bytes)
@@ -111,3 +116,92 @@ def publish_sharepoint_if_enabled(
     except Exception as exc:  # noqa: BLE001
         _log.warning("SharePoint upload failed (non-fatal) for %s: %s", result.request_id, exc)
         return None
+
+
+def resolve_ado_boards_config_for_service(service_name: str) -> dict | None:
+    cfg = resolve_outbound_connector_config(service_name, connector_type="azure_devops_boards")
+    if not cfg:
+        return None
+    endpoint = str(cfg.get("endpoint", "")).strip()
+    endpoint_fields = cfg.get("endpoint_fields") if isinstance(cfg.get("endpoint_fields"), dict) else {}
+    auth = cfg.get("auth") if isinstance(cfg.get("auth"), dict) else {}
+    org_name = _extract_ado_org_name(endpoint)
+    project_name = str(endpoint_fields.get("project_name", "")).strip()
+    pat = _extract_secret(auth)
+    if not (org_name and project_name and pat):
+        return None
+    return {
+        "enabled": True,
+        "org_name": org_name,
+        "project_name": project_name,
+        "pat": pat,
+        "work_item_type": str(endpoint_fields.get("work_item_type", "Issue") or "Issue"),
+        "fixed_tags": str(cfg.get("fixed_tags", "corvin") or "corvin"),
+        "assignment_routing": cfg.get("assignment_routing", {}),
+    }
+
+
+def resolve_ado_wiki_config_for_service(service_name: str) -> dict | None:
+    cfg = resolve_outbound_connector_config(service_name, connector_type="azure_devops_wiki")
+    if not cfg:
+        return None
+    endpoint = str(cfg.get("endpoint", "")).strip()
+    endpoint_fields = cfg.get("endpoint_fields") if isinstance(cfg.get("endpoint_fields"), dict) else {}
+    auth = cfg.get("auth") if isinstance(cfg.get("auth"), dict) else {}
+    org_name = _extract_ado_org_name(endpoint)
+    project_name = str(endpoint_fields.get("project_name", "")).strip()
+    wiki_id = str(endpoint_fields.get("wiki_id", "")).strip()
+    pat = _extract_secret(auth)
+    if not (org_name and project_name and wiki_id and pat):
+        return None
+    return {
+        "wiki_enabled": True,
+        "org_name": org_name,
+        "project_name": project_name,
+        "wiki_id": wiki_id,
+        "pat": pat,
+    }
+
+
+def resolve_sharepoint_config_for_service(service_name: str) -> dict | None:
+    cfg = resolve_outbound_connector_config(service_name, connector_type="sharepoint")
+    if not cfg:
+        return None
+    endpoint_fields = cfg.get("endpoint_fields") if isinstance(cfg.get("endpoint_fields"), dict) else {}
+    auth = cfg.get("auth") if isinstance(cfg.get("auth"), dict) else {}
+    site_id = str(endpoint_fields.get("site_id", "")).strip()
+    if not site_id:
+        return None
+    out = {
+        "enabled": True,
+        "site_id": site_id,
+        "drive_id": str(endpoint_fields.get("drive_id", "auto") or "auto"),
+        "folder_path": str(endpoint_fields.get("folder_path", "Corvin/Investigations") or "Corvin/Investigations"),
+    }
+    if auth:
+        out["auth"] = auth
+    return out
+
+
+def _extract_ado_org_name(endpoint: str) -> str:
+    m = _ORG_FROM_URL.match(endpoint)
+    return m.group(1).strip() if m else ""
+
+
+def _extract_secret(auth: dict) -> str:
+    value = str(
+        auth.get("bearer_token")
+        or auth.get("api_key")
+        or auth.get("password")
+        or ""
+    ).strip()
+    if value:
+        return value
+
+    ref = str(
+        auth.get("bearer_token_ref")
+        or auth.get("api_key_ref")
+        or auth.get("password_ref")
+        or ""
+    ).strip()
+    return str(resolve_secret_reference(ref) or "").strip()

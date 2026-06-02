@@ -48,7 +48,11 @@ from corvin.delivery.rca_notification import (
     send_rca_email_if_enabled,
     publish_wiki_page_if_enabled,
     publish_sharepoint_if_enabled,
+    resolve_ado_boards_config_for_service,
+    resolve_ado_wiki_config_for_service,
+    resolve_sharepoint_config_for_service,
 )
+from corvin.delivery.email_adapter import default_email_config
 
 _log = logging.getLogger(__name__)
 
@@ -280,11 +284,10 @@ class InvestigationStreamer:
                                source="azure_boards", table="Azure Boards", source_status="running", count=0, elapsed_ms=0)
             t_ado = time.monotonic()
             try:
-                from corvin.core.config_loader import get_env, load_config
                 from corvin.delivery.azure_devops_adapter import AzureDevOpsAdapter
 
-                ado_cfg = load_config("integrations/azure_devops", get_env())
-                if ado_cfg.get("enabled", False):
+                ado_cfg = resolve_ado_boards_config_for_service(result.request.service_name)
+                if ado_cfg:
                     ado_adapter = AzureDevOpsAdapter(ado_cfg)
                     ado_work_item_id = ado_adapter.create_incident(result)
                     if ado_work_item_id:
@@ -310,7 +313,7 @@ class InvestigationStreamer:
             # Send RCA email (non-fatal).
             # Pre-check config so we can distinguish "Skipped" (disabled) from "Failed" (error).
             try:
-                email_cfg = load_config("integrations/email", get_env())
+                email_cfg = default_email_config()
                 email_configured = email_cfg.get("enabled", False) and email_cfg.get("auto_send_on_rca", True)
             except Exception:
                 email_configured = False
@@ -346,12 +349,7 @@ class InvestigationStreamer:
                                detail=email_detail)
 
             # Publish wiki page (non-fatal).
-            # Pre-check config so we can distinguish "Skipped" from "Failed".
-            try:
-                _wiki_cfg = load_config("integrations/azure_devops", get_env())
-                wiki_configured = _wiki_cfg.get("wiki_enabled", False)
-            except Exception:
-                wiki_configured = False
+            wiki_configured = bool(resolve_ado_wiki_config_for_service(result.request.service_name))
 
             yield _stage_event("delivery", "fetching", "",
                                source="wiki", table="ADO Wiki", source_status="running", count=0, elapsed_ms=0)
@@ -369,11 +367,7 @@ class InvestigationStreamer:
                                detail=wiki_detail, url=wiki_url)
 
             # Upload to SharePoint (non-fatal).
-            try:
-                _sp_cfg = load_config("integrations/sharepoint", get_env())
-                sp_configured = _sp_cfg.get("enabled", False)
-            except Exception:
-                sp_configured = False
+            sp_configured = bool(resolve_sharepoint_config_for_service(result.request.service_name))
 
             if sp_configured:
                 yield _stage_event("delivery", "fetching", "",
