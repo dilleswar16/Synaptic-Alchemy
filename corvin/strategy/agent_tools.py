@@ -887,29 +887,6 @@ def _exec_container_resource_metrics(args: dict) -> dict[str, Any]:
     }
 
 
-_EXECUTORS = {
-    "get_platform_stats":       _exec_platform_stats,
-    "list_recent_incidents":    _exec_list_recent_incidents,
-    "get_investigation_detail": _exec_investigation_detail,
-    "get_predictive_alerts":    _exec_predictive_alerts,
-    "get_service_score":        _exec_service_score,
-    "get_roi":                  _exec_roi,
-    "get_service_topology":     _exec_topology,
-    "get_blast_radius":         _exec_blast_radius,
-    "get_postmortem":           _exec_postmortem,
-    "get_similar_incidents":    _exec_similar_incidents,
-    "get_site_knowledge":       _exec_site_knowledge,
-    "get_runbook":              _exec_runbook,
-    "run_kql":                  _exec_run_kql,
-    "get_aks_health":           _exec_aks_health,
-    "get_container_resource_metrics": _exec_container_resource_metrics,
-    "query_apim_analytics":     _exec_apim_analytics,
-    "code_search_files":        _exec_code_search_files,
-    "code_read_file":           _exec_code_read_file,
-    "code_list_directory":      _exec_code_list_directory,
-}
-
-
 # ── Code Analysis Executors ───────────────────────────────────────────────────
 
 def _exec_code_search_files(args: dict) -> Any:
@@ -949,4 +926,27 @@ def _exec_code_list_directory(args: dict) -> Any:
     if not items:
         return {"message": f"Directory empty or not found: {path}", "items": []}
     return {"path": path, "items": items}
+
+
+_EXECUTORS = {
+    "get_platform_stats":       _exec_platform_stats,
+    "list_recent_incidents":    _exec_list_recent_incidents,
+    "get_investigation_detail": _exec_investigation_detail,
+    "get_predictive_alerts":    _exec_predictive_alerts,
+    "get_service_score":        _exec_service_score,
+    "get_roi":                  _exec_roi,
+    "get_service_topology":     _exec_topology,
+    "get_blast_radius":         _exec_blast_radius,
+    "get_postmortem":           _exec_postmortem,
+    "get_similar_incidents":    _exec_similar_incidents,
+    "get_site_knowledge":       _exec_site_knowledge,
+    "get_runbook":              _exec_runbook,
+    "run_kql":                  _exec_run_kql,
+    "get_aks_health":           _exec_aks_health,
+    "get_container_resource_metrics": _exec_container_resource_metrics,
+    "query_apim_analytics":     _exec_apim_analytics,
+    "code_search_files":        _exec_code_search_files,
+    "code_read_file":           _exec_code_read_file,
+    "code_list_directory":      _exec_code_list_directory,
+}
 

@@ -30,6 +30,7 @@ export function HeroAlertSection({ alert, loading = false }: { alert: Predictive
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [countdown, setCountdown] = useState(formatCountdown(alert?.estimated_breach_at ?? null))
+  const [premortemLoading, setPremortemLoading] = useState(false)
 
   const mutation = useMutation({
     mutationFn: (id: string) => investigatePredictiveAlert(id),
@@ -456,23 +457,34 @@ export function HeroAlertSection({ alert, loading = false }: { alert: Predictive
               fontSize: '0.9rem',
               letterSpacing: '-0.01em',
               textTransform: 'uppercase',
-              background: 'var(--c-surface)',
-              color: 'var(--c-text)',
+              background: premortemLoading ? 'var(--c-surface-2)' : 'var(--c-surface)',
+              color: premortemLoading ? 'var(--c-text-muted)' : 'var(--c-text)',
               border: '1px solid var(--c-border-hi)',
-              cursor: 'pointer',
+              cursor: premortemLoading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
+              opacity: premortemLoading ? 0.6 : 1,
             }}
             onClick={() => {
-              alert('🧪 Pre-Mortem analysis is coming soon — this feature is under active development.')
+              setPremortemLoading(true)
+              navigate('/predictive-analytics')
             }}
+            disabled={premortemLoading}
             onMouseOver={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-surface) 80%, var(--c-text))'
+              if (!premortemLoading) {
+                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-surface) 80%, var(--c-text))'
+              }
             }}
             onMouseOut={(e) => {
-              e.currentTarget.style.background = 'var(--c-surface)'
+              if (!premortemLoading) {
+                e.currentTarget.style.background = 'var(--c-surface)'
+              }
             }}
           >
-            ⚗️ Pre-Mortem
+            {premortemLoading ? (
+              <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>⏳</span>
+            ) : (
+              '⚗️ Pre-Mortem'
+            )}
           </button>
         </div>
       </div>
@@ -495,6 +507,10 @@ export function HeroAlertSection({ alert, loading = false }: { alert: Predictive
             opacity: 1;
             transform: translateY(0);
           }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>

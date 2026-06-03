@@ -48,7 +48,7 @@ def get_correlated_alerts(
     and return grouped alerts with suppression recommendations.
     """
     from corvin.storage.models import PredictiveAlertRow
-    from corvin.storage.database import get_session
+    from corvin.storage.db import get_session
 
     with get_session() as session:
         query = session.query(PredictiveAlertRow).filter(
@@ -93,7 +93,7 @@ class CorrelationApprovalRequest(BaseModel):
 @router.post("/alerts/correlated/approve")
 def approve_correlation_action(body: CorrelationApprovalRequest = Body(...)) -> dict:
     """Approve or reject a correlation group's suppression recommendation."""
-    from corvin.storage.database import get_session
+    from corvin.storage.db import get_session
     from corvin.storage.models import ApprovalDecisionRow, PredictiveAlertRow
 
     with get_session() as session:
@@ -149,7 +149,7 @@ async def get_capacity_forecast(
     Analyzes container_resource_metrics from the most recent evidence bundle.
     """
     from corvin.storage.models import EvidenceBundleRow, InvestigationRequestRow
-    from corvin.storage.database import get_session
+    from corvin.storage.db import get_session
     import json
 
     # Pull recent evidence metrics for this service
@@ -205,7 +205,7 @@ class ScalingApprovalRequest(BaseModel):
 @router.post("/capacity-forecast/approve-scaling")
 def approve_scaling_action(body: ScalingApprovalRequest = Body(...)) -> dict:
     """Approve a scaling recommendation. Persists decision for audit trail. Does NOT auto-execute."""
-    from corvin.storage.database import get_session
+    from corvin.storage.db import get_session
     from corvin.storage.models import ApprovalDecisionRow
 
     with get_session() as session:
