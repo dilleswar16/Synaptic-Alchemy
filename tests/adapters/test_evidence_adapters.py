@@ -177,3 +177,5 @@ def test_azure_activity_get_recent_changes_returns_list():
     assert isinstance(result, list)
     assert len(result) == 1
     assert result[0]["OperationNameValue"] == "Microsoft.Web/sites/restart/action"
+
+

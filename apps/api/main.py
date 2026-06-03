@@ -27,6 +27,11 @@ warnings.filterwarnings(
     message=".*ResponseAPIUsage.*",
     category=UserWarning,
 )
+warnings.filterwarnings(
+    "ignore",
+    message=".*Pydantic serializer warnings.*",
+    category=UserWarning,
+)
 
 from contextlib import asynccontextmanager
 

@@ -25,7 +25,10 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+from corvin.connectors.config_resolver import ROLE_APIM_LOGS, infer_connector_role, resolve_log_source_config
 from corvin.evidence.log_analytics_adapter import LogAnalyticsAdapter
+from corvin.storage.db import get_session
+from corvin.storage.models import LogSourceRow
 
 _log = logging.getLogger(__name__)
 
@@ -403,6 +406,25 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
 
         query_tmpl, default_chart_type, title, subtitle = _TEMPLATES[template_name]
         chart_type = chart_type_override if chart_type_override else default_chart_type
+        workspace_id, apim_table = self._resolve_workspace_and_table(api_filter)
+
+        if not workspace_id:
+            return {
+                "rows": [],
+                "columns": [],
+                "chart_type": chart_type,
+                "title": title,
+                "subtitle": subtitle,
+                "template_name": template_name,
+                "time_range_minutes": time_range_minutes,
+                "api_filter": api_filter,
+                "row_count": 0,
+                "error": "APIM analytics connector is not configured with a workspace_id.",
+                "diagnostics": {
+                    "code": "config_missing",
+                    "hint": "Configure an active azure_monitor connector with connector_role=apim_logs and workspace_id.",
+                },
+            }
 
         # Build optional API scope clause; supports:
         # - "all" (no ApiId restriction)
@@ -417,15 +439,15 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
                 quoted = ", ".join(f'"{item}"' for item in requested)
                 api_scope_clause = f"| where ApiId in ({quoted})\\n"
 
-        query = query_tmpl.format(
+        query = query_tmpl.replace("ApiManagementGatewayLogs", apim_table).format(
             minutes=time_range_minutes,
             api_scope_clause=api_scope_clause,
         )
 
-        rows = self._run_kql(query, time_range_minutes)
+        rows = self._run_kql(query, time_range_minutes, workspace_id=workspace_id)
         columns = list(rows[0].keys()) if rows else []
 
-        return {
+        response = {
             "rows": rows,
             "columns": columns,
             "chart_type": chart_type,
@@ -436,6 +458,10 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
             "api_filter": api_filter,
             "row_count": len(rows),
         }
+        if not rows and self._last_error:
+            response["error"] = self._user_error_message(self._last_error)
+            response["diagnostics"] = self._build_diagnostics(self._last_error)
+        return response
 
     def run_kql_raw(
         self,
@@ -450,9 +476,28 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
         Use this when the user asks a question that doesn't match any named template.
         The LLM should generate a valid KQL query targeting ApiManagementGatewayLogs.
         """
-        rows = self._run_kql(kql, time_range_minutes)
+        workspace_id, _ = self._resolve_workspace_and_table("all")
+        if not workspace_id:
+            return {
+                "rows": [],
+                "columns": [],
+                "chart_type": chart_type,
+                "title": title,
+                "subtitle": subtitle,
+                "template_name": "custom",
+                "time_range_minutes": time_range_minutes,
+                "api_filter": "all",
+                "row_count": 0,
+                "error": "APIM analytics connector is not configured with a workspace_id.",
+                "diagnostics": {
+                    "code": "config_missing",
+                    "hint": "Configure an active azure_monitor connector with connector_role=apim_logs and workspace_id.",
+                },
+            }
+
+        rows = self._run_kql(kql, time_range_minutes, workspace_id=workspace_id)
         columns = list(rows[0].keys()) if rows else []
-        return {
+        response = {
             "rows": rows,
             "columns": columns,
             "chart_type": chart_type,
@@ -463,28 +508,120 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
             "api_filter": "all",
             "row_count": len(rows),
         }
+        if not rows and self._last_error:
+            response["error"] = self._user_error_message(self._last_error)
+            response["diagnostics"] = self._build_diagnostics(self._last_error)
+        return response
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
-    def _run_kql(self, query: str, time_range_minutes: int) -> list[dict[str, Any]]:
+    _last_error: str | None = None
+
+    def _resolve_workspace_and_table(self, api_filter: str) -> tuple[str, str]:
+        # 1) explicit constructor config wins
+        workspace_id = str(self._workspace_id or "").strip()
+        apim_table = str(self._config.get("apim_table") or "ApiManagementGatewayLogs").strip() or "ApiManagementGatewayLogs"
+        if workspace_id:
+            return workspace_id, apim_table
+
+        # 2) service-specific connector (derived from api_filter) when available
+        api_tokens = [item.strip() for item in str(api_filter or "").split(",") if item.strip()]
+        service_hint = api_tokens[0] if api_tokens and api_tokens[0].lower() != "all" else ""
+        if service_hint:
+            cfg = resolve_log_source_config(
+                service_hint,
+                source_type="azure_monitor",
+                role=ROLE_APIM_LOGS,
+                fallback={},
+            )
+            ws = str(cfg.get("workspace_id") or "").strip()
+            if ws:
+                table = str(cfg.get("apim_table") or "ApiManagementGatewayLogs").strip() or "ApiManagementGatewayLogs"
+                return ws, table
+
+        # 3) fallback: any active APIM logs connector in DB
+        try:
+            with get_session() as db:
+                rows = db.query(LogSourceRow).filter_by(source_type="azure_monitor", is_active=True).all()
+                for row in rows:
+                    role = infer_connector_role(row.source_type, row.config_json or {}, row.display_name or "")
+                    if role != ROLE_APIM_LOGS:
+                        continue
+                    cfg = row.config_json or {}
+                    ws = str(cfg.get("workspace_id") or "").strip()
+                    if ws:
+                        table = str(cfg.get("apim_table") or "ApiManagementGatewayLogs").strip() or "ApiManagementGatewayLogs"
+                        return ws, table
+        except Exception:
+            pass
+
+        return "", apim_table
+
+    @staticmethod
+    def _build_diagnostics(error_message: str) -> dict[str, str]:
+        msg = str(error_message or "").strip()
+        low = msg.lower()
+        if "pathnotfounderror" in low or "requested path does not exist" in low:
+            return {
+                "code": "path_not_found",
+                "hint": "Workspace or APIM table path is unavailable. Verify workspace_id and APIM diagnostics routing to Log Analytics.",
+            }
+        if "defaultazurecredential failed" in low or "interactive authentication is needed" in low:
+            return {
+                "code": "auth_failed",
+                "hint": "Azure authentication failed. Re-authenticate with az login or configure service principal credentials.",
+            }
+        return {
+            "code": "query_failed",
+            "hint": "APIM analytics query failed. Check Log Analytics workspace configuration and permissions.",
+        }
+
+    @staticmethod
+    def _user_error_message(error_message: str) -> str:
+        msg = str(error_message or "").strip()
+        low = msg.lower()
+        if "pathnotfounderror" in low or "requested path does not exist" in low:
+            return "PathNotFoundError: Log Analytics workspace/table path was not found."
+        if "defaultazurecredential failed" in low or "interactive authentication is needed" in low:
+            return "Azure authentication failed for Log Analytics. Re-authenticate and retry."
+        first_line = msg.splitlines()[0] if msg else "APIM analytics query failed"
+        return first_line[:280]
+
+    def _run_kql(self, query: str, time_range_minutes: int, *, workspace_id: str | None = None) -> list[dict[str, Any]]:
         """Execute a KQL query against the configured Log Analytics workspace."""
+        self._last_error = None
         try:
             from azure.monitor.query import LogsQueryStatus
         except ImportError:
-            _log.warning("APIMAnalyticsAdapter: azure-monitor-query not installed.")
+            self._last_error = "azure-monitor-query not installed"
+            _log.warning("APIMAnalyticsAdapter: %s", self._last_error)
             return []
 
         if self._client is None:
-            _log.warning("APIMAnalyticsAdapter: LogsQueryClient not configured — returning [].")
+            self._last_error = "LogsQueryClient not configured"
+            _log.warning("APIMAnalyticsAdapter: %s — returning [].", self._last_error)
             return []
 
         try:
+            effective_workspace = str(workspace_id or self._workspace_id or "").strip()
+            if not effective_workspace:
+                self._last_error = "workspace_id is empty"
+                _log.warning("APIMAnalyticsAdapter._run_kql skipped: %s", self._last_error)
+                return []
             result = self._client.query_workspace(
-                workspace_id=self._workspace_id,
+                workspace_id=effective_workspace,
                 query=query,
                 timespan=timedelta(minutes=time_range_minutes),
             )
-            if result.status != LogsQueryStatus.SUCCESS or not result.tables:
+            if result.status != LogsQueryStatus.SUCCESS:
+                partial_error = getattr(result, "partial_error", None) or getattr(result, "error", None)
+                if partial_error:
+                    self._last_error = str(partial_error)
+                else:
+                    self._last_error = f"Log Analytics query status: {result.status}"
+                _log.warning("APIMAnalyticsAdapter._run_kql non-success status: %s", self._last_error)
+                return []
+            if not result.tables:
                 return []
             log_table = result.tables[0]
             cols = [c.name if hasattr(c, "name") else c for c in log_table.columns]
@@ -496,6 +633,7 @@ class APIMAnalyticsAdapter(LogAnalyticsAdapter):
                 for row in log_table.rows
             ]
         except Exception as exc:
+            self._last_error = str(exc)
             _log.warning("APIMAnalyticsAdapter._run_kql failed: %s", exc)
             return []
 
