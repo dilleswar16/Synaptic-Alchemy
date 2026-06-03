@@ -18,6 +18,7 @@ from typing import Any, Optional
 import httpx
 
 from corvin.core.contracts import InvestigationResult
+from corvin.connectors.secret_ref import resolve_secret_reference
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +35,25 @@ class SharePointAdapter:
 
     def __init__(self, config: dict[str, Any]) -> None:
         self._enabled: bool = config.get("enabled", False)
-        self._tenant_id: str = os.environ.get(
-            "MICROSOFT_GRAPH_TENANT_ID",
-            os.environ.get("AZURE_TENANT_ID", ""),
+        auth = config.get("auth") if isinstance(config.get("auth"), dict) else {}
+        client_id = str(auth.get("client_id") or "")
+        client_secret = str(auth.get("client_secret") or "")
+        tenant_id = str(auth.get("tenant_id") or "")
+
+        if not client_id:
+            client_id = str(resolve_secret_reference(str(auth.get("client_id_ref") or "")) or "")
+        if not client_secret:
+            client_secret = str(resolve_secret_reference(str(auth.get("client_secret_ref") or "")) or "")
+        if not tenant_id:
+            tenant_id = str(resolve_secret_reference(str(auth.get("tenant_id_ref") or "")) or "")
+
+        self._tenant_id: str = str(
+            tenant_id
+            or os.environ.get("MICROSOFT_GRAPH_TENANT_ID")
+            or os.environ.get("AZURE_TENANT_ID", "")
         )
-        self._client_id: str = os.environ.get("MICROSOFT_GRAPH_CLIENT_ID", "")
-        self._client_secret: str = os.environ.get("MICROSOFT_GRAPH_CLIENT_SECRET", "")
+        self._client_id: str = str(client_id or os.environ.get("MICROSOFT_GRAPH_CLIENT_ID", ""))
+        self._client_secret: str = str(client_secret or os.environ.get("MICROSOFT_GRAPH_CLIENT_SECRET", ""))
         self._site_id: str = config.get("site_id", "")
         self._drive_id: str = config.get("drive_id", "")
         self._folder_path: str = config.get("folder_path", "Corvin/Investigations")

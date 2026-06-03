@@ -5,7 +5,6 @@ import logging
 import os
 from typing import Any, Iterable
 
-from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import InvestigationResult
 
 _log = logging.getLogger(__name__)
@@ -15,7 +14,7 @@ class EmailAdapter:
     """Delivers RCA reports via Azure Communication Services Email SDK."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        self._config = config if config is not None else load_config("integrations/email", get_env())
+        self._config = config if config is not None else default_email_config()
 
     def _resolved_recipients(self, recipients: Iterable[str] | None = None) -> list[str]:
         if recipients:
@@ -324,3 +323,20 @@ class EmailAdapter:
                 result.request_id,
             )
         return True
+
+
+def default_email_config() -> dict[str, Any]:
+    recipients_raw = str(os.environ.get("CORVIN_EMAIL_TO", "")).strip()
+    recipients = [x.strip() for x in recipients_raw.split(",") if x.strip()] if recipients_raw else []
+    enabled_raw = str(os.environ.get("CORVIN_EMAIL_ENABLED", "")).strip().lower()
+    enabled = enabled_raw in {"1", "true", "yes", "on"} if enabled_raw else bool(recipients)
+    auto_send_raw = str(os.environ.get("CORVIN_EMAIL_AUTO_SEND_ON_RCA", "true")).strip().lower()
+    auto_send = auto_send_raw in {"1", "true", "yes", "on"}
+
+    return {
+        "enabled": enabled,
+        "auto_send_on_rca": auto_send,
+        "from_address": str(os.environ.get("CORVIN_EMAIL_FROM", "")).strip(),
+        "to_addresses": recipients,
+        "subject_prefix": str(os.environ.get("CORVIN_EMAIL_SUBJECT_PREFIX", "[Corvin RCA]")).strip() or "[Corvin RCA]",
+    }

@@ -409,7 +409,7 @@ class OutboundConnectorRow(Base):
     application_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("applications.id"), nullable=False, index=True
     )
-    connector_type: Mapped[str] = mapped_column(String(50), nullable=False)  # teams_webhook|servicenow|email|pagerduty
+    connector_type: Mapped[str] = mapped_column(String(50), nullable=False)  # teams_webhook|servicenow|email|pagerduty|generic_http
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     config_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)

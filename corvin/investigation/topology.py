@@ -25,6 +25,8 @@ class TopologyNode(BaseModel):
     total_containers: int | None = None
     restart_count: int | None = None
     unhealthy_containers: int | None = None
+    namespace: str | None = None
+    cluster_name: str | None = None
 
 
 class TopologyEdge(BaseModel):
@@ -154,11 +156,20 @@ def _resource_summary(rows: list[dict]) -> dict[str, float | None]:
 
 def _resource_summary_by_pod(rows: list[dict]) -> dict[str, dict[str, float | None]]:
     """Return per-pod resource summaries keyed by pod name."""
+    def _normalize_pod_name(value: str) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+        # Handle path-like values and namespace/pod formats.
+        if "/" in text:
+            text = text.split("/")[-1]
+        return text
+
     by_pod: dict[str, list[dict]] = {}
     for row in rows:
         if not isinstance(row, dict):
             continue
-        pod_name = str(row.get("Name") or row.get("pod_name") or row.get("PodName") or "").strip()
+        pod_name = _normalize_pod_name(str(row.get("Name") or row.get("pod_name") or row.get("PodName") or ""))
         if not pod_name:
             continue
         by_pod.setdefault(pod_name, []).append(row)
@@ -169,9 +180,14 @@ def _resource_summary_by_pod(rows: list[dict]) -> dict[str, dict[str, float | No
 def build_pod_topology_node(pod: dict) -> TopologyNode:
     """Build a pod topology node with status and judge-friendly metrics."""
     name = str(pod.get("name") or pod.get("pod") or "pod")
+    cluster_name = str(pod.get("cluster_name") or "").strip() or None
+    namespace = str(pod.get("namespace") or "").strip() or None
     metrics = _pod_health_metrics(pod)
+    node_id = f"pod:{name}"
+    if cluster_name:
+        node_id = f"pod:{cluster_name}:{name}"
     return TopologyNode(
-        id=f"pod:{name}",
+        id=node_id,
         label=name,
         kind="pod",
         status=str(metrics["status"]),
@@ -188,65 +204,31 @@ def build_pod_topology_node(pod: dict) -> TopologyNode:
         total_containers=int(metrics["total_containers"]),
         restart_count=int(metrics["restart_count"]),
         unhealthy_containers=int(metrics["unhealthy_containers"]),
+        namespace=namespace,
+        cluster_name=cluster_name,
     )
 
 
-# ── Static APIM knowledge (from site.md / config) ─────────────────────────────
-# Maps APIM ApiId → AKS service name. Kept here so the topology is always
-# complete even when a particular investigation had no APIM log data.
-
-_APIM_ROUTES: dict[str, str] = {
-    "fundapis":    "fundapis",
-    "partnerapis": "partnerapis",
-    # fundsso is SSO and routes directly — no APIM front-door
-}
 def _inject_apim_topology(
     nodes: dict[str, TopologyNode],
     edges: dict[tuple[str, str, str | None], TopologyEdge],
 ) -> None:
-    """Inject the APIM gateway, known API routes, and PingFederate into the topology.
+    """Inject APIM gateway edges for any observed API nodes.
 
-    APIM front-door:
-        APIM Gateway → fundapis API → svc:fundapis
-        APIM Gateway → partnerapis API → svc:partnerapis
-
-    fundsso routes DIRECT (no APIM) but depends on PingFederate for SSO federation:
-        svc:fundsso → backend:pingfederate
+    This is generic: API nodes are inferred from evidence, then linked through a
+    gateway node so topology visuals remain consistent across tenants.
     """
-    if not any(k.startswith("svc:") for k in nodes):
+    api_nodes = [node_id for node_id, node in nodes.items() if node.kind == "api"]
+    if not api_nodes:
         return
 
     gateway_id = "gateway:apim"
-    nodes[gateway_id] = TopologyNode(
+    nodes.setdefault(gateway_id, TopologyNode(
         id=gateway_id, label="APIM Gateway", kind="gateway", status="supporting"
-    )
-
-    for api_id, svc_name in _APIM_ROUTES.items():
-        service_id = f"svc:{svc_name}"
-        if service_id not in nodes:
-            continue
-        api_node_id = f"api:{api_id}"
-        nodes.setdefault(
-            api_node_id,
-            TopologyNode(id=api_node_id, label=api_id, kind="api", status="observed"),
-        )
+    ))
+    for api_node_id in api_nodes:
         edges[(gateway_id, api_node_id, "routes")] = TopologyEdge(
             source=gateway_id, target=api_node_id, label="routes"
-        )
-        edges[(api_node_id, service_id, "routes")] = TopologyEdge(
-            source=api_node_id, target=service_id, label="routes"
-        )
-
-    # PingFederate — external IdP for fundsso
-    fundsso_id = "svc:fundsso"
-    if fundsso_id in nodes:
-        pf_id = "backend:pingfederate"
-        nodes.setdefault(
-            pf_id,
-            TopologyNode(id=pf_id, label="PingFederate SSO", kind="backend", status="supporting"),
-        )
-        edges[(fundsso_id, pf_id, "depends-on")] = TopologyEdge(
-            source=fundsso_id, target=pf_id, label="depends-on"
         )
 
 

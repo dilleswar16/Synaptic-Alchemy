@@ -17,8 +17,10 @@ V2.5: GET /investigations/{id}/replay  returns full transparency payload.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import subprocess
 
 import litellm
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
@@ -28,7 +30,7 @@ from typing import Optional, List
 
 from corvin.core.contracts import ApprovalStatus, InvestigationRequest, InvestigationResult, TriggerSource
 from corvin.delivery.azure_devops_adapter import AzureDevOpsAdapter
-from corvin.delivery.rca_notification import send_rca_email_if_enabled
+from corvin.delivery.rca_notification import send_rca_email_if_enabled, resolve_ado_boards_config_for_service
 from corvin.delivery.rca_pdf import build_rca_pdf
 from corvin.delivery.teams_adapter import TeamsAdapter
 from corvin.execution.execution_service import ExecutionService
@@ -48,6 +50,33 @@ from corvin.triggers.prediction_penalty import penalize_prediction
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
+
+
+def _kubectl_live_pod_names(namespace: str) -> set[str]:
+    """Best-effort live pod names from kubectl for selected namespace."""
+    ns = str(namespace or "").strip()
+    if not ns:
+        return set()
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", ns, "-o", "json"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=20,
+        )
+        if result.returncode != 0 or not result.stdout:
+            return set()
+        payload = json.loads(result.stdout)
+        items = payload.get("items", []) if isinstance(payload, dict) else []
+        names = {
+            str(item.get("metadata", {}).get("name") or "").strip()
+            for item in items
+            if isinstance(item, dict)
+        }
+        return {name for name in names if name}
+    except Exception:
+        return set()
 
 
 # ── Dependency providers (overridable in tests) ───────────────────────────────
@@ -108,7 +137,13 @@ def _sync_ado_acknowledged_close(
     if not work_item_id:
         return True, "No Azure Boards ticket linked for this investigation."
 
-    config = load_config("integrations/azure_devops", get_env())
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        return False, f"Investigation {request_id!r} not found while syncing Azure Boards update."
+
+    config = resolve_ado_boards_config_for_service(result.request.service_name)
+    if not config:
+        return False, "Azure Boards connector is not configured for this service."
     adapter = AzureDevOpsAdapter(config)
 
     comment = (
@@ -551,14 +586,25 @@ def list_predictive_learnings(
 
 @router.get("/topology", response_model=dict)
 def get_topology(
+    application_id: str | None = Query(default=None, description="Optional application id to scope topology"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> dict:
-    topology = build_service_topology(repo.list_recent_results(limit=30))
+    service_names: list[str] | None = None
+    if hasattr(repo, "list_application_service_names"):
+        try:
+            service_names = repo.list_application_service_names(application_id)
+        except TypeError:
+            service_names = repo.list_application_service_names(application_id) if application_id else None
+    topology = build_service_topology(repo.list_recent_results(limit=30, service_names=service_names))
     return topology.model_dump()
 
 
 @router.get("/topology/live", response_model=dict)
-def get_topology_live() -> dict:
+def get_topology_live(
+    application_id: str | None = Query(default=None, description="Optional application id to scope topology"),
+    clusters: str | None = Query(default=None, description="Optional comma-separated cluster names to include"),
+    namespaces: str | None = Query(default=None, description="Optional comma-separated namespaces to include"),
+) -> dict:
     """Return live pod state from AKS, grouped by service, in ServiceTopology format.
 
     Unlike /topology (which is built from past DB investigations), this endpoint
@@ -576,19 +622,132 @@ def get_topology_live() -> dict:
         _resource_summary, _resource_summary_by_pod,
     )
     from corvin.storage.db import get_session as _get_db_session
-    from corvin.storage.models import ApplicationServiceRow as _SvcRow
+    from corvin.storage.models import ApplicationRow as _AppRow, ApplicationServiceRow as _SvcRow, LogSourceRow as _LogSourceRow
 
     nodes: dict[str, TopologyNode] = {}
     edges: dict[tuple[str, str, str | None], TopologyEdge] = {}
     # k8s deployment label (e.g. "chad-fundapis") → logical service name ("fundapis")
     aks_name_map: dict[str, str] = {}
+    allowed_service_ids: set[str] = set()
+    selected_clusters = [v.strip() for v in (clusters or "").split(",") if v.strip()]
+    selected_namespaces = [v.strip() for v in (namespaces or "").split(",") if v.strip()]
+    available_clusters: set[str] = set()
+    available_namespaces: set[str] = set()
+    cluster_namespaces: dict[str, set[str]] = {}
+    namespace_status: dict[str, dict[str, int | str]] = {}
+
+    def _add_cluster_ns(cluster_name: str | None, ns_name: str | None) -> None:
+        cluster = str(cluster_name or "").strip()
+        ns = str(ns_name or "").strip()
+        if not cluster or not ns:
+            return
+        bucket = cluster_namespaces.setdefault(cluster, set())
+        bucket.add(ns)
+
+    metrics_source_ok = False
+    pod_source_ok = False
+    filtered_service_count = 0
 
     # ── Build initial service nodes + routing edges from DB ──────────────────
     with _get_db_session() as _db:
-        svc_rows = _db.query(_SvcRow).all()
+        if application_id:
+            app_row = _db.get(_AppRow, application_id)
+            if app_row is None:
+                raise HTTPException(status_code=404, detail=f"Application {application_id!r} not found")
+            svc_rows = _db.query(_SvcRow).filter(_SvcRow.application_id == application_id).all()
+            log_source_rows = _db.query(_LogSourceRow).filter(_LogSourceRow.application_id == application_id).all()
+        else:
+            svc_rows = _db.query(_SvcRow).all()
+            log_source_rows = _db.query(_LogSourceRow).all()
 
     for svc in svc_rows:
+        if svc.namespace:
+            available_namespaces.add(str(svc.namespace))
+
+    for row in log_source_rows:
+        cfg = row.config_json or {}
+        if row.source_type == "aks":
+            if isinstance(cfg.get("clusters"), list):
+                for cluster in cfg.get("clusters", []):
+                    cluster_name = None
+                    if isinstance(cluster, dict) and cluster.get("cluster_name"):
+                        cluster_name = str(cluster.get("cluster_name"))
+                        available_clusters.add(cluster_name)
+                    cluster_ns = cluster.get("namespaces") if isinstance(cluster, dict) else None
+                    if isinstance(cluster_ns, list):
+                        for ns in cluster_ns:
+                            if str(ns).strip():
+                                ns_name = str(ns).strip()
+                                available_namespaces.add(ns_name)
+                                _add_cluster_ns(cluster_name if isinstance(cluster, dict) else None, ns_name)
+            if cfg.get("cluster_name"):
+                cluster_name = str(cfg.get("cluster_name"))
+                available_clusters.add(cluster_name)
+            if isinstance(cfg.get("namespaces"), list):
+                for ns in cfg.get("namespaces", []):
+                    if str(ns).strip():
+                        ns_name = str(ns).strip()
+                        available_namespaces.add(ns_name)
+                        _add_cluster_ns(cluster_name if cfg.get("cluster_name") else None, ns_name)
+            elif cfg.get("default_namespace"):
+                ns_name = str(cfg.get("default_namespace"))
+                available_namespaces.add(ns_name)
+                _add_cluster_ns(cluster_name if cfg.get("cluster_name") else None, ns_name)
+        if row.source_type == "azure_monitor" and str(cfg.get("connector_role") or "") == "container_insights":
+            if cfg.get("cluster_name"):
+                cluster_name = str(cfg.get("cluster_name"))
+                available_clusters.add(cluster_name)
+            if isinstance(cfg.get("namespaces"), list):
+                for ns in cfg.get("namespaces", []):
+                    if str(ns).strip():
+                        ns_name = str(ns).strip()
+                        available_namespaces.add(ns_name)
+                        _add_cluster_ns(cluster_name if cfg.get("cluster_name") else None, ns_name)
+            elif cfg.get("default_namespace"):
+                ns_name = str(cfg.get("default_namespace"))
+                available_namespaces.add(ns_name)
+                _add_cluster_ns(cluster_name if cfg.get("cluster_name") else None, ns_name)
+
+    # Default to one concrete cluster + namespace on first load for better UX.
+    if not selected_clusters and available_clusters:
+        selected_clusters = [sorted(available_clusters)[0]]
+    if not selected_namespaces:
+        ns_candidates: set[str] = set()
+        if selected_clusters:
+            for c in selected_clusters:
+                ns_candidates.update(cluster_namespaces.get(c, set()))
+        if not ns_candidates:
+            ns_candidates = set(available_namespaces)
+        if ns_candidates:
+            selected_namespaces = [sorted(ns_candidates)[0]]
+
+    # Preserve user-selected namespace(s) in metadata even when discovery is partial,
+    # so UI selection does not snap back to defaults.
+    for selected_ns in selected_namespaces:
+        if str(selected_ns).strip():
+            available_namespaces.add(str(selected_ns).strip())
+            for selected_cluster in selected_clusters:
+                _add_cluster_ns(selected_cluster, str(selected_ns).strip())
+
+    visible_svc_rows = svc_rows
+    if selected_namespaces:
+        selected_ns_set = {ns.lower() for ns in selected_namespaces}
+        visible_svc_rows = [
+            svc for svc in svc_rows
+            if str(svc.namespace or "").strip().lower() in selected_ns_set
+        ]
+
+    effective_available_namespaces = set(available_namespaces)
+    if selected_clusters:
+        narrowed_namespaces: set[str] = set()
+        for cluster_name in selected_clusters:
+            narrowed_namespaces.update(cluster_namespaces.get(cluster_name, set()))
+        if narrowed_namespaces:
+            effective_available_namespaces = narrowed_namespaces
+
+    for svc in visible_svc_rows:
         svc_id = f"svc:{svc.service_name}"
+        allowed_service_ids.add(svc_id)
         if svc.k8s_app_label:
             aks_name_map[svc.k8s_app_label] = svc.service_name
         nodes[svc_id] = TopologyNode(
@@ -616,36 +775,321 @@ def get_topology_live() -> dict:
             )
         # SSO / direct-to-IdP dependency
         if meta.get("is_sso_direct"):
-            pf_id = "backend:pingfederate"
+            pf_id = str(meta.get("sso_provider_id") or "backend:sso-provider")
+            pf_label = str(meta.get("sso_provider_label") or "SSO Provider")
             nodes.setdefault(
                 pf_id,
-                TopologyNode(id=pf_id, label="PingFederate SSO", kind="backend", status="supporting"),
+                TopologyNode(id=pf_id, label=pf_label, kind="backend", status="supporting"),
             )
             edges[(svc_id, pf_id, "depends-on")] = TopologyEdge(
                 source=svc_id, target=pf_id, label="depends-on",
             )
 
-    # If no services have been registered yet, return an empty topology
-    if not nodes:
-        return ServiceTopology(nodes=[], edges=[]).model_dump()
+    # If there are no catalog nodes and no runtime filters, return empty topology.
+    # When filters are present, continue to runtime discovery so non-catalog namespaces
+    # can still render live pods/services dynamically.
+    if not nodes and not (selected_clusters or selected_namespaces):
+        empty_topology = ServiceTopology(nodes=[], edges=[]).model_dump()
+        empty_topology["metadata"] = {
+            "available_clusters": sorted(available_clusters),
+            "available_namespaces": sorted(effective_available_namespaces),
+            "cluster_namespaces": {k: sorted(v) for k, v in sorted(cluster_namespaces.items())},
+            "selected_clusters": selected_clusters,
+            "selected_namespaces": selected_namespaces,
+            "namespace_status": {},
+            "metrics_source_ok": False,
+            "pod_source_ok": False,
+            "filtered_service_count": 0,
+        }
+        return empty_topology
+
+    def _resolve_logical_service(raw_name: str) -> str:
+        """Resolve AKS service/deployment names to catalog service names.
+
+        Supports exact k8s label matches plus common prefixed naming patterns
+        like "namespace-service" while keeping catalog ownership authoritative.
+        """
+        direct = aks_name_map.get(raw_name)
+        if direct:
+            return direct
+
+        raw_lower = raw_name.lower()
+        candidates: list[str] = []
+        for svc in svc_rows:
+            service_name = str(svc.service_name or "")
+            service_lower = service_name.lower()
+            k8s_label = str(svc.k8s_app_label or "")
+            k8s_lower = k8s_label.lower()
+
+            if service_lower and (raw_lower == service_lower or raw_lower.endswith(f"-{service_lower}")):
+                candidates.append(service_name)
+                continue
+            if k8s_lower and (raw_lower == k8s_lower or raw_lower.endswith(f"-{k8s_lower}")):
+                candidates.append(service_name)
+
+        if len(candidates) == 1:
+            return candidates[0]
+        return raw_name
+
+    # ── Service-level metrics overlay (independent from AKS availability) ───
+    connector_seed_service = None
+    if svc_rows:
+        connector_seed_service = str(svc_rows[0].service_name or "").strip() or None
+
+    logs_adapter_cfg = {}
+    for row in log_source_rows:
+        cfg = row.config_json or {}
+        if row.source_type == "azure_monitor" and str(cfg.get("connector_role") or "") == "container_insights":
+            if isinstance(cfg, dict):
+                logs_adapter_cfg = dict(cfg)
+                break
+
+    if connector_seed_service:
+        try:
+            from corvin.connectors.config_resolver import ROLE_CONTAINER_INSIGHTS, resolve_log_source_config
+
+            resolved_cfg = resolve_log_source_config(
+                connector_seed_service,
+                source_type="azure_monitor",
+                role=ROLE_CONTAINER_INSIGHTS,
+                fallback={},
+            )
+            if isinstance(resolved_cfg, dict):
+                logs_adapter_cfg = dict(resolved_cfg)
+        except Exception:
+            logs_adapter_cfg = {}
+
+    try:
+        logs_adapter = ContainerLogsAdapter(config=logs_adapter_cfg)
+    except TypeError:
+        logs_adapter = ContainerLogsAdapter()
+    service_metric_map: dict[str, tuple[dict[str, float | None], dict[str, dict[str, float | None]]]] = {}
+    for svc in visible_svc_rows:
+        logical_name = str(svc.service_name or "").strip()
+        if not logical_name:
+            continue
+        svc_namespace = str(svc.namespace or "").strip() or None
+        try:
+            try:
+                effective_namespace = svc_namespace
+                if selected_namespaces and (not svc_namespace or svc_namespace not in selected_namespaces):
+                    if len(selected_namespaces) > 1:
+                        effective_namespace = None
+                    else:
+                        effective_namespace = selected_namespaces[0]
+                if selected_clusters and not selected_namespaces:
+                    # Do not force namespace when cluster-only filter is active.
+                    effective_namespace = svc_namespace
+                if selected_namespaces and svc_namespace in selected_namespaces:
+                    effective_namespace = svc_namespace
+                if selected_namespaces and not svc_namespace and len(selected_namespaces) > 1:
+                    effective_namespace = None
+                if selected_namespaces and not svc_namespace and len(selected_namespaces) == 1:
+                    effective_namespace = selected_namespaces[0]
+                metric_rows = logs_adapter.get_resource_metrics(logical_name, namespace=effective_namespace)
+            except TypeError:
+                metric_rows = logs_adapter.get_resource_metrics(logical_name)
+        except Exception:
+            metric_rows = []
+        if metric_rows:
+            metrics_source_ok = True
+        service_resource = _resource_summary(metric_rows)
+        pod_resource_map = _resource_summary_by_pod(metric_rows)
+        service_metric_map[logical_name] = (service_resource, pod_resource_map)
+
+        svc_id = f"svc:{logical_name}"
+        base = nodes.get(svc_id)
+        if base is None:
+            continue
+        nodes[svc_id] = TopologyNode(
+            id=base.id,
+            label=base.label,
+            kind=base.kind,
+            status=base.status,
+            cpu_mcores=service_resource["cpu_mcores"],
+            cpu_request_mcores=service_resource["cpu_request_mcores"],
+            cpu_limit_mcores=service_resource["cpu_limit_mcores"],
+            cpu_utilization_pct=service_resource["cpu_utilization_pct"],
+            memory_mib=service_resource["memory_mib"],
+            memory_request_mib=service_resource["memory_request_mib"],
+            memory_limit_mib=service_resource["memory_limit_mib"],
+            memory_utilization_pct=service_resource["memory_utilization_pct"],
+        )
 
     # ── Live pod data from AKS — overlay status + pod children ───────────────
     try:
-        adapter = AKSAdapter()
-        logs_adapter = ContainerLogsAdapter()
-        result = adapter.list_all_pods()
+        aks_adapter_cfg = {}
+        for row in log_source_rows:
+            if row.source_type == "aks" and isinstance(row.config_json, dict):
+                aks_adapter_cfg = dict(row.config_json)
+                break
+        try:
+            adapter = AKSAdapter(config=aks_adapter_cfg)
+        except TypeError:
+            adapter = AKSAdapter()
+        result = {"services": []}
+        namespace_seed_service = None
+        if visible_svc_rows:
+            namespace_seed_service = str(visible_svc_rows[0].service_name or "").strip() or None
+        if not namespace_seed_service and svc_rows:
+            namespace_seed_service = str(svc_rows[0].service_name or "").strip() or None
+
+        list_namespaces_fn = getattr(adapter, "list_namespaces", None)
+        if callable(list_namespaces_fn):
+            try:
+                discovered = list_namespaces_fn(service_name=namespace_seed_service, cluster_names=selected_clusters or None)
+                if isinstance(discovered, dict):
+                    for cluster_name, ns_values in discovered.items():
+                        if str(cluster_name).strip():
+                            available_clusters.add(str(cluster_name).strip())
+                        if isinstance(ns_values, list):
+                            for ns in ns_values:
+                                ns_name = str(ns).strip()
+                                if ns_name:
+                                    available_namespaces.add(ns_name)
+                                    _add_cluster_ns(str(cluster_name), ns_name)
+            except TypeError:
+                # Backward-compatible adapter signature fallback.
+                try:
+                    discovered = list_namespaces_fn(cluster_names=selected_clusters or None)
+                    if isinstance(discovered, dict):
+                        for cluster_name, ns_values in discovered.items():
+                            if str(cluster_name).strip():
+                                available_clusters.add(str(cluster_name).strip())
+                            if isinstance(ns_values, list):
+                                for ns in ns_values:
+                                    ns_name = str(ns).strip()
+                                    if ns_name:
+                                        available_namespaces.add(ns_name)
+                                        _add_cluster_ns(str(cluster_name), ns_name)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        # Secondary runtime fallback: derive namespaces from Container Insights inventory.
+        try:
+            needs_namespace_fallback = len(effective_available_namespaces) <= 1
+            if needs_namespace_fallback:
+                ci_cluster = selected_clusters[0] if selected_clusters else None
+                ci_namespaces = logs_adapter.list_namespaces(
+                    service_name=namespace_seed_service or "*",
+                    cluster_name=ci_cluster,
+                )
+                if ci_namespaces:
+                    for ns_name in ci_namespaces:
+                        available_namespaces.add(ns_name)
+                        if ci_cluster:
+                            _add_cluster_ns(ci_cluster, ns_name)
+        except Exception:
+            pass
+
+        service_seeds = [svc.service_name for svc in visible_svc_rows if svc.service_name]
+        if not service_seeds and namespace_seed_service:
+            service_seeds = [namespace_seed_service]
+        if not service_seeds:
+            service_seeds = [None]
+
+        for seed_service in service_seeds:
+            seed_namespace = None
+            for svc in visible_svc_rows:
+                if svc.service_name == seed_service:
+                    seed_namespace = str(svc.namespace or "").strip() or None
+                    break
+            try:
+                try:
+                    request_namespace = seed_namespace
+                    if selected_namespaces and len(selected_namespaces) == 1:
+                        request_namespace = selected_namespaces[0]
+                    attempt = adapter.list_all_pods(
+                        namespace=request_namespace,
+                        service_name=seed_service,
+                        cluster_names=selected_clusters or None,
+                        discover_namespaces=not selected_namespaces,
+                    )
+                except TypeError:
+                    attempt = adapter.list_all_pods()
+            except Exception:
+                attempt = {"services": []}
+            if attempt.get("services"):
+                result = attempt
+                break
+
+        if not result.get("services"):
+            try:
+                try:
+                    request_namespace = None
+                    if selected_namespaces and len(selected_namespaces) == 1:
+                        request_namespace = selected_namespaces[0]
+                    result = adapter.list_all_pods(
+                        namespace=request_namespace,
+                        cluster_names=selected_clusters or None,
+                        discover_namespaces=not selected_namespaces,
+                    )
+                except TypeError:
+                    result = adapter.list_all_pods()
+            except Exception:
+                result = {"services": []}
+
         for svc in result.get("services", []):
+            svc_clusters = [str(c).strip() for c in (svc.get("clusters", []) if isinstance(svc.get("clusters"), list) else []) if str(c).strip()]
+            for cluster in svc_clusters:
+                if str(cluster).strip():
+                    available_clusters.add(str(cluster).strip())
+            if selected_clusters and svc_clusters and not any(c in selected_clusters for c in svc_clusters):
+                continue
+            svc_namespaces = svc.get("namespaces") if isinstance(svc.get("namespaces"), list) else []
+            if not svc_namespaces and isinstance(svc.get("pods"), list):
+                svc_namespaces = sorted(
+                    {
+                        str(p.get("namespace")).strip()
+                        for p in svc.get("pods", [])
+                        if isinstance(p, dict) and str(p.get("namespace") or "").strip()
+                    }
+                )
+            for cluster_name in svc_clusters:
+                for ns in svc_namespaces:
+                    _add_cluster_ns(cluster_name, str(ns))
+            if selected_namespaces and svc_namespaces and not any(str(ns) in selected_namespaces for ns in svc_namespaces):
+                continue
+
             raw_name = svc["name"]
             # Normalise k8s label → logical name using the DB-driven map
-            logical_name = aks_name_map.get(raw_name, raw_name)
+            logical_name = _resolve_logical_service(raw_name)
             svc_id = f"svc:{logical_name}"
+            if svc_id not in allowed_service_ids and not (selected_namespaces or selected_clusters):
+                continue
+            pod_source_ok = True
+            filtered_service_count += 1
             live_status = svc.get("status", "high")
-            try:
-                metric_rows = logs_adapter.get_resource_metrics(logical_name or raw_name)
-            except Exception:
-                metric_rows = []
-            service_resource = _resource_summary(metric_rows)
-            pod_resource_map = _resource_summary_by_pod(metric_rows)
+            if logical_name not in service_metric_map:
+                try:
+                    dynamic_ns = selected_namespaces[0] if selected_namespaces else None
+                    dynamic_rows = logs_adapter.get_resource_metrics(logical_name, namespace=dynamic_ns)
+                except TypeError:
+                    dynamic_rows = logs_adapter.get_resource_metrics(logical_name)
+                except Exception:
+                    dynamic_rows = []
+                if dynamic_rows:
+                    metrics_source_ok = True
+                service_metric_map[logical_name] = (
+                    _resource_summary(dynamic_rows),
+                    _resource_summary_by_pod(dynamic_rows),
+                )
+
+            service_resource, pod_resource_map = service_metric_map.get(
+                logical_name,
+                ({
+                    "cpu_mcores": None,
+                    "cpu_request_mcores": None,
+                    "cpu_limit_mcores": None,
+                    "cpu_utilization_pct": None,
+                    "memory_mib": None,
+                    "memory_request_mib": None,
+                    "memory_limit_mib": None,
+                    "memory_utilization_pct": None,
+                }, {}),
+            )
             # Update or create the service node with live status + resource metrics
             nodes[svc_id] = TopologyNode(
                 id=svc_id,
@@ -667,6 +1111,26 @@ def get_topology_live() -> dict:
                 pod_copy = dict(pod)
                 pod_name = str(pod_copy.get("name") or pod_copy.get("pod") or "").strip()
                 pod_resource = pod_resource_map.get(pod_name, {})
+
+                def _pod_base(value: str) -> str:
+                    parts = [p for p in str(value or "").split("-") if p]
+                    if len(parts) > 2:
+                        return "-".join(parts[:-2])
+                    return str(value or "")
+
+                if not pod_resource and pod_name:
+                    pod_base = _pod_base(pod_name)
+                    for metric_pod_name, metric_values in pod_resource_map.items():
+                        metric_key = str(metric_pod_name or "")
+                        metric_base = _pod_base(metric_key)
+                        if (
+                            metric_key == pod_name
+                            or metric_key.endswith(pod_name)
+                            or pod_name.endswith(metric_key)
+                            or (pod_base and metric_base and pod_base == metric_base)
+                        ):
+                            pod_resource = metric_values
+                            break
                 for key, value in pod_resource.items():
                     if value is not None:
                         pod_copy[key] = value
@@ -675,10 +1139,313 @@ def get_topology_live() -> dict:
                 edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(
                     source=svc_id, target=pod_node.id, label="runs",
                 )
+
+            for ns in svc_namespaces:
+                ns_name = str(ns)
+                if not ns_name:
+                    continue
+                state = namespace_status.setdefault(ns_name, {"high": 0, "recovering": 0, "hot": 0, "services": 0, "status": "high"})
+                state["services"] = int(state.get("services", 0)) + 1
+                if live_status in ("high", "recovering", "hot"):
+                    state[live_status] = int(state.get(live_status, 0)) + 1
+                if int(state.get("hot", 0)) > 0:
+                    state["status"] = "hot"
+                elif int(state.get("recovering", 0)) > 0:
+                    state["status"] = "recovering"
+                else:
+                    state["status"] = "high"
+
+        # Fallback: derive pod runtime from Container Insights when AKS API is unavailable.
+        if not pod_source_ok:
+            for svc in visible_svc_rows:
+                logical_name = str(svc.service_name or "").strip()
+                if not logical_name:
+                    continue
+                ns_candidates = selected_namespaces or ([str(svc.namespace)] if str(svc.namespace or "").strip() else [])
+                service_rows: list[dict] = []
+                for ns in ns_candidates:
+                    try:
+                        rows = logs_adapter.get_pod_inventory(logical_name, namespace=ns)
+                    except TypeError:
+                        rows = logs_adapter.get_pod_inventory(logical_name)
+                    except Exception:
+                        rows = []
+                    if rows:
+                        service_rows.extend(rows)
+
+                if not service_rows:
+                    continue
+
+                service_resource, pod_resource_map = service_metric_map.get(
+                    logical_name,
+                    ({
+                        "cpu_mcores": None,
+                        "cpu_request_mcores": None,
+                        "cpu_limit_mcores": None,
+                        "cpu_utilization_pct": None,
+                        "memory_mib": None,
+                        "memory_request_mib": None,
+                        "memory_limit_mib": None,
+                        "memory_utilization_pct": None,
+                    }, {}),
+                )
+
+                pod_payloads: list[dict] = []
+                for row in service_rows:
+                    pod_name = str(row.get("Name") or "").strip()
+                    ns_name = str(row.get("Namespace") or row.get("namespace") or (ns_candidates[0] if ns_candidates else "")).strip()
+                    phase = str(row.get("PodStatus") or "Unknown")
+                    restarts = int(row.get("PodRestartCount") or row.get("ContainerRestartCount") or 0)
+                    pod_payload = {
+                        "name": pod_name,
+                        "namespace": ns_name,
+                        "phase": phase,
+                        "containers": [{
+                            "name": "main",
+                            "ready": phase in ("Running", "Succeeded"),
+                            "restart_count": restarts,
+                        }],
+                    }
+                    metric_values = pod_resource_map.get(pod_name, {})
+                    for key, value in metric_values.items():
+                        if value is not None:
+                            pod_payload[key] = value
+                    pod_payloads.append(pod_payload)
+
+                any_failed = any(p.get("phase") not in ("Running", "Succeeded") for p in pod_payloads)
+                any_restarting = any(
+                    any(int(c.get("restart_count", 0)) > 3 for c in p.get("containers", []))
+                    for p in pod_payloads
+                )
+                live_status = "hot" if any_failed else ("recovering" if any_restarting else "high")
+
+                svc_id = f"svc:{logical_name}"
+                nodes[svc_id] = TopologyNode(
+                    id=svc_id,
+                    label=logical_name,
+                    kind="service",
+                    status=live_status,
+                    cpu_mcores=service_resource["cpu_mcores"],
+                    cpu_request_mcores=service_resource["cpu_request_mcores"],
+                    cpu_limit_mcores=service_resource["cpu_limit_mcores"],
+                    cpu_utilization_pct=service_resource["cpu_utilization_pct"],
+                    memory_mib=service_resource["memory_mib"],
+                    memory_request_mib=service_resource["memory_request_mib"],
+                    memory_limit_mib=service_resource["memory_limit_mib"],
+                    memory_utilization_pct=service_resource["memory_utilization_pct"],
+                )
+
+                for pod in pod_payloads:
+                    pod_node = build_pod_topology_node(pod)
+                    nodes[pod_node.id] = pod_node
+                    edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(
+                        source=svc_id,
+                        target=pod_node.id,
+                        label="runs",
+                    )
+
+                for ns_name in {str(p.get("namespace") or "") for p in pod_payloads if str(p.get("namespace") or "")}:
+                    state = namespace_status.setdefault(ns_name, {"high": 0, "recovering": 0, "hot": 0, "services": 0, "status": "high"})
+                    state["services"] = int(state.get("services", 0)) + 1
+                    state[live_status] = int(state.get(live_status, 0)) + 1
+                    if int(state.get("hot", 0)) > 0:
+                        state["status"] = "hot"
+                    elif int(state.get("recovering", 0)) > 0:
+                        state["status"] = "recovering"
+                    else:
+                        state["status"] = "high"
+
+                pod_source_ok = True
+                filtered_service_count += 1
+
+        # Namespace-wide fallback: when selected namespace has no app-catalog services,
+        # still render runtime pods/metrics discovered from Container Insights.
+        if not pod_source_ok and selected_namespaces and not visible_svc_rows:
+            selected_ns = selected_namespaces[0]
+            try:
+                ns_rows = logs_adapter.get_pod_inventory("all", namespace=selected_ns)
+            except TypeError:
+                ns_rows = logs_adapter.get_pod_inventory("all")
+            except Exception:
+                ns_rows = []
+
+            by_runtime_service: dict[str, list[dict]] = {}
+
+            def _runtime_service_name(pod_name: str, controller_name: str | None) -> str:
+                ctl = str(controller_name or "").strip()
+                if ctl:
+                    return ctl
+                parts = [p for p in str(pod_name or "").split("-") if p]
+                if len(parts) > 2:
+                    return "-".join(parts[:-2])
+                return str(pod_name or "")
+
+            for row in ns_rows:
+                if not isinstance(row, dict):
+                    continue
+                pod_name = str(row.get("Name") or "").strip()
+                if not pod_name:
+                    continue
+                runtime_service = _runtime_service_name(pod_name, row.get("ControllerName"))
+                if not runtime_service:
+                    continue
+                by_runtime_service.setdefault(runtime_service, []).append(row)
+
+            for runtime_service, rows in by_runtime_service.items():
+                try:
+                    metric_rows = logs_adapter.get_resource_metrics(runtime_service, namespace=selected_ns)
+                except TypeError:
+                    metric_rows = logs_adapter.get_resource_metrics(runtime_service)
+                except Exception:
+                    metric_rows = []
+
+                if metric_rows:
+                    metrics_source_ok = True
+
+                service_resource = _resource_summary(metric_rows)
+                pod_resource_map = _resource_summary_by_pod(metric_rows)
+
+                pod_payloads: list[dict] = []
+                for row in rows:
+                    pod_name = str(row.get("Name") or "").strip()
+                    phase = str(row.get("PodStatus") or "Unknown")
+                    restarts = int(row.get("PodRestartCount") or row.get("ContainerRestartCount") or 0)
+                    payload = {
+                        "name": pod_name,
+                        "namespace": selected_ns,
+                        "phase": phase,
+                        "containers": [{
+                            "name": "main",
+                            "ready": phase in ("Running", "Succeeded"),
+                            "restart_count": restarts,
+                        }],
+                    }
+                    metrics = pod_resource_map.get(pod_name, {})
+                    for key, value in metrics.items():
+                        if value is not None:
+                            payload[key] = value
+                    pod_payloads.append(payload)
+
+                any_failed = any(p.get("phase") not in ("Running", "Succeeded") for p in pod_payloads)
+                any_restarting = any(
+                    any(int(c.get("restart_count", 0)) > 3 for c in p.get("containers", []))
+                    for p in pod_payloads
+                )
+                live_status = "hot" if any_failed else ("recovering" if any_restarting else "high")
+
+                svc_id = f"svc:{runtime_service}"
+                nodes[svc_id] = TopologyNode(
+                    id=svc_id,
+                    label=runtime_service,
+                    kind="service",
+                    status=live_status,
+                    cpu_mcores=service_resource["cpu_mcores"],
+                    cpu_request_mcores=service_resource["cpu_request_mcores"],
+                    cpu_limit_mcores=service_resource["cpu_limit_mcores"],
+                    cpu_utilization_pct=service_resource["cpu_utilization_pct"],
+                    memory_mib=service_resource["memory_mib"],
+                    memory_request_mib=service_resource["memory_request_mib"],
+                    memory_limit_mib=service_resource["memory_limit_mib"],
+                    memory_utilization_pct=service_resource["memory_utilization_pct"],
+                )
+
+                for pod in pod_payloads:
+                    pod_node = build_pod_topology_node(pod)
+                    nodes[pod_node.id] = pod_node
+                    edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(
+                        source=svc_id,
+                        target=pod_node.id,
+                        label="runs",
+                    )
+
+                state = namespace_status.setdefault(selected_ns, {"high": 0, "recovering": 0, "hot": 0, "services": 0, "status": "high"})
+                state["services"] = int(state.get("services", 0)) + 1
+                state[live_status] = int(state.get(live_status, 0)) + 1
+                if int(state.get("hot", 0)) > 0:
+                    state["status"] = "hot"
+                elif int(state.get("recovering", 0)) > 0:
+                    state["status"] = "recovering"
+                else:
+                    state["status"] = "high"
+
+                pod_source_ok = True
+                filtered_service_count += 1
+
     except Exception as exc:
         _log.warning("topology/live AKS call failed (DB-seeded nodes still returned): %s", exc)
 
-    return ServiceTopology(nodes=list(nodes.values()), edges=list(edges.values())).model_dump()
+    if len(selected_namespaces) == 1 and not visible_svc_rows and not os.getenv("PYTEST_CURRENT_TEST"):
+        selected_ns = selected_namespaces[0]
+        live_pod_names = _kubectl_live_pod_names(selected_ns)
+        if live_pod_names:
+            live_pod_node_ids = {
+                node_id
+                for node_id, node in nodes.items()
+                if node.kind == "pod"
+                and str(node.namespace or "").strip() == selected_ns
+                and str(node.label or "").strip() in live_pod_names
+            }
+
+            # Only reconcile if we found matching pod nodes
+            if live_pod_node_ids:
+                keep_node_ids = {
+                    node_id
+                    for node_id, node in nodes.items()
+                    if node.kind != "pod"
+                }
+                keep_node_ids.update(live_pod_node_ids)
+
+                services_with_live_pods = {
+                    edge.source
+                    for edge in edges.values()
+                    if edge.target in live_pod_node_ids
+                }
+                for node_id, node in list(nodes.items()):
+                    if node.kind == "service" and node_id.startswith("svc:") and node_id not in services_with_live_pods:
+                        keep_node_ids.discard(node_id)
+
+                nodes = {
+                    node_id: node
+                    for node_id, node in nodes.items()
+                    if node_id in keep_node_ids
+                }
+                edges = {
+                    key: edge
+                    for key, edge in edges.items()
+                    if edge.source in nodes and edge.target in nodes
+                }
+
+                pod_source_ok = any(node.kind == "pod" for node in nodes.values())
+                filtered_service_count = sum(1 for node in nodes.values() if node.kind == "service")
+
+    catalog_service_count = len(
+        [svc for svc in visible_svc_rows if str(svc.service_name or "").strip()]
+    )
+
+    topology = ServiceTopology(nodes=list(nodes.values()), edges=list(edges.values())).model_dump()
+    effective_available_namespaces = set(available_namespaces)
+    if selected_clusters:
+        narrowed_namespaces: set[str] = set()
+        for cluster_name in selected_clusters:
+            narrowed_namespaces.update(cluster_namespaces.get(cluster_name, set()))
+        if narrowed_namespaces:
+            effective_available_namespaces = narrowed_namespaces
+
+    topology["metadata"] = {
+        "available_clusters": sorted(available_clusters),
+        "available_namespaces": sorted(effective_available_namespaces),
+        "cluster_namespaces": {k: sorted(v) for k, v in sorted(cluster_namespaces.items())},
+        "namespace_source": "runtime_aks_discovery_with_db_fallback",
+        "selected_clusters": selected_clusters,
+        "selected_namespaces": selected_namespaces,
+        "namespace_status": namespace_status,
+        "metrics_source_ok": metrics_source_ok,
+        "pod_source_ok": pod_source_ok,
+        "filtered_service_count": filtered_service_count,
+        "catalog_service_count": catalog_service_count,
+        "runtime_unmapped_pods_only": bool(selected_namespaces and catalog_service_count == 0),
+    }
+    return topology
 
 
 @router.get("/score", response_model=dict)
@@ -1317,7 +2084,12 @@ def sync_azure_boards(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
 
-    config = load_config("integrations/azure_devops", get_env())
+    config = resolve_ado_boards_config_for_service(result.request.service_name)
+    if not config:
+        raise HTTPException(
+            status_code=400,
+            detail="Azure Boards connector is not configured for this service.",
+        )
     adapter = AzureDevOpsAdapter(config)
     
     work_item_id = adapter.create_incident(result)
@@ -1358,9 +2130,13 @@ def sync_servicenow(
         inv = session.query(InvestigationRequestRow).filter_by(id=request_id).first()
         app_id = inv.application_id if inv else None
 
+        if app_id is None:
+            raise HTTPException(status_code=422, detail="Investigation has no application context.")
+
         connector = session.query(OutboundConnectorRow).filter(
+            OutboundConnectorRow.application_id == app_id,
             OutboundConnectorRow.connector_type == "servicenow",
-            OutboundConnectorRow.enabled == True,
+            OutboundConnectorRow.is_active == True,  # noqa: E712
         ).first()
 
     if connector is None:

@@ -39,11 +39,6 @@ class BlastRadiusEstimate(BaseModel):
     rationale: str
 
 
-# ── Estimator ─────────────────────────────────────────────────────────────────
-
-_KNOWN_APIM_IDS: list[str] = ["fundapis", "partnerapis", "system"]
-
-
 def estimate_blast_radius(
     service_name: str,
     environment: str,

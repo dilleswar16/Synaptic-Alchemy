@@ -1,5 +1,5 @@
 """
-One-time migration: seeds the Application Panel from YAML config files.
+One-time migration: seeds the Application Panel from existing environment and legacy config.
 
 Called via POST /applications/migrate-from-yaml or directly:
     python -m corvin.cli.migrate_config
@@ -13,18 +13,25 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from corvin.core.config_loader import load_config, get_env
-from corvin.storage.models import ApplicationRow, ApplicationServiceRow, LogSourceRow, SloConfigRow
+from corvin.core.config_loader import get_env
+from corvin.connectors.config_resolver import ROLE_APIM_LOGS, ROLE_CONTAINER_INSIGHTS
+from corvin.storage.models import (
+    ApplicationRow,
+    ApplicationServiceRow,
+    LogSourceRow,
+    OutboundConnectorRow,
+    SloConfigRow,
+)
 
 _log = logging.getLogger(__name__)
 
-_DEFAULT_APP_NAME = "ChAD Platform"
-_DEFAULT_TEAM = "AMS Platform"
+_DEFAULT_APP_NAME = "Auto-discovered Application"
+_DEFAULT_TEAM = "Platform Team"
 
 
 def run_migration(db: Session) -> dict[str, Any]:
     """
-    Read config/integrations/*.yaml and knowledge/site.md, then seed a default
+    Read existing environment/bootstrap values and knowledge/site.md, then seed a default
     Application record if none exists yet.  Idempotent — re-running is safe.
     """
     existing = db.query(ApplicationRow).count()
@@ -44,18 +51,20 @@ def run_migration(db: Session) -> dict[str, Any]:
 
     services_created = _seed_services(db, app_id)
     connectors_created = _seed_connectors(db, app_id)
+    outbound_created = _seed_outbound_connectors(db, app_id)
     slos_created = _seed_slo_defaults(db, app_id, services_created)
 
     db.flush()
     _log.info(
-        "migrate_config: seeded application %r (%d services, %d connectors, %d SLOs)",
-        app_id, len(services_created), connectors_created, slos_created,
+        "migrate_config: seeded application %r (%d services, %d connectors, %d outbound, %d SLOs)",
+        app_id, len(services_created), connectors_created, outbound_created, slos_created,
     )
     return {
         "status": "ok",
         "application_id": app_id,
         "services_created": len(services_created),
         "connectors_created": connectors_created,
+        "outbound_connectors_created": outbound_created,
         "slos_created": slos_created,
     }
 
@@ -79,7 +88,7 @@ def _seed_services(db: Session, app_id: str) -> list[str]:
 
     # Fallback default services
     if not service_names:
-        service_names = ["chad-api", "chad-frontend", "chad-worker", "apim-gateway"]
+        service_names = ["service-api", "service-frontend", "service-worker", "api-gateway"]
 
     tiers = {"frontend": "frontend", "gateway": "api", "api": "api", "worker": "worker", "db": "db"}
     for svc in service_names[:20]:  # cap at 20
@@ -96,28 +105,63 @@ def _seed_services(db: Session, app_id: str) -> list[str]:
 
 
 def _seed_connectors(db: Session, app_id: str) -> int:
-    """Seed connectors from existing YAML integration configs."""
+    """Seed connectors from existing bootstrap environment values."""
     count = 0
+    subscription_id = _env_string("AZURE_SUBSCRIPTION_ID")
+    tenant_id = _env_string("AZURE_TENANT_ID")
+    aks_cluster_name = _env_string("AKS_CLUSTER_NAME") or _site_value("AKS Cluster", "Cluster name")
+    aks_resource_group = _env_string("AKS_RESOURCE_GROUP") or _site_value("AKS Cluster", "Resource group")
+    aks_namespace = _env_string("AKS_NAMESPACE") or _site_value("AKS Cluster", "Default namespace") or "default"
+    apim_resource_group = _env_string("APIM_RESOURCE_GROUP") or _site_value("Azure API Management (APIM)", "Resource group")
+
     # Azure Log Analytics
-    try:
-        la_cfg = load_config("integrations/log_analytics", get_env())
-        workspace_id = la_cfg.get("workspace_id", "")
-        if workspace_id and not workspace_id.startswith("${"):
-            db.add(LogSourceRow(
-                id=str(uuid.uuid4()),
-                application_id=app_id,
-                source_type="azure_monitor",
-                display_name="Azure Log Analytics (APIM)",
-                config_json={
-                    "workspace_id": workspace_id,
-                    "apim_table": la_cfg.get("apim_table", "ApiManagementGatewayLogs"),
-                },
-                credential_type="env_var",
-                credential_ref=None,  # Uses DefaultAzureCredential
-            ))
-            count += 1
-    except Exception as exc:
-        _log.debug("migrate_config: log_analytics config not found: %s", exc)
+    workspace_id = _env_string("LOG_ANALYTICS_WORKSPACE_ID")
+    if workspace_id:
+        db.add(LogSourceRow(
+            id=str(uuid.uuid4()),
+            application_id=app_id,
+            source_type="azure_monitor",
+            display_name="APIM Log Analytics Workspace",
+            config_json={
+                "workspace_id": workspace_id,
+                "apim_table": "ApiManagementGatewayLogs",
+                "subscription_id": subscription_id,
+                "tenant_id": tenant_id,
+                "resource_group": apim_resource_group,
+                "connector_role": ROLE_APIM_LOGS,
+            },
+            credential_type="env_var",
+            credential_ref=None,
+        ))
+        count += 1
+
+    # Container Insights / AKS application logs
+    # Prefer generic name; keep legacy CHAD var as backward-compatible fallback.
+    container_workspace_id = (
+        _env_string("CONTAINER_LOG_ANALYTICS_WORKSPACE_ID")
+        or _env_string("CHAD_LOG_ANALYTICS_WORKSPACE_ID")
+    )
+    if container_workspace_id:
+        db.add(LogSourceRow(
+            id=str(uuid.uuid4()),
+            application_id=app_id,
+            source_type="azure_monitor",
+            display_name="Container Insights Workspace",
+            config_json={
+                "workspace_id": container_workspace_id,
+                "cluster_name": aks_cluster_name or "",
+                "resource_group": aks_resource_group,
+                "subscription_id": subscription_id,
+                "tenant_id": tenant_id,
+                "default_namespace": aks_namespace,
+                "default_time_range_minutes": 60,
+                "max_log_rows": 200,
+                "connector_role": ROLE_CONTAINER_INSIGHTS,
+            },
+            credential_type="env_var",
+            credential_ref=None,
+        ))
+        count += 1
 
     # Elasticsearch
     try:
@@ -140,6 +184,33 @@ def _seed_connectors(db: Session, app_id: str) -> int:
     return count
 
 
+def _seed_outbound_connectors(db: Session, app_id: str) -> int:
+    """Seed outbound delivery connectors from existing integration config."""
+    count = 0
+
+    webhook_url = str(os.environ.get("TEAMS_WEBHOOK_URL", "")).strip()
+    if webhook_url and not webhook_url.startswith("${"):
+        db.add(OutboundConnectorRow(
+            id=str(uuid.uuid4()),
+            application_id=app_id,
+            connector_type="teams_webhook",
+            display_name="Microsoft Teams",
+            config_json={
+                "endpoint": webhook_url,
+                "auth": {"type": "none"},
+                "variables": [
+                    {"key": "title", "default_value": "Corvin Alert: {{service_name}}"},
+                    {"key": "summary", "default_value": "{{rca_summary}}"},
+                    {"key": "severity_color", "default_value": "FF0000"},
+                ],
+                "payload_template": '{"title":"{{title}}","text":"{{summary}}","themeColor":"{{severity_color}}"}',
+            },
+        ))
+        count += 1
+
+    return count
+
+
 def _seed_slo_defaults(db: Session, app_id: str, service_names: list[str]) -> int:
     """Seed default availability SLOs for each discovered service."""
     for svc in service_names[:10]:
@@ -152,6 +223,35 @@ def _seed_slo_defaults(db: Session, app_id: str, service_names: list[str]) -> in
             enabled=True,
         ))
     return min(len(service_names), 10)
+
+
+def _env_string(name: str) -> str | None:
+    value = str(os.environ.get(name, "")).strip()
+    return value or None
+
+
+def _site_value(section_name: str, field_name: str) -> str | None:
+    site_path = os.path.join("knowledge", "site.md")
+    if not os.path.exists(site_path):
+        return None
+    try:
+        with open(site_path, encoding="utf-8") as f:
+            lines = f.readlines()
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("migrate_config: could not read site.md for %s/%s: %s", section_name, field_name, exc)
+        return None
+
+    in_section = False
+    target_prefix = f"- {field_name}:"
+    for raw_line in lines:
+        line = raw_line.strip()
+        if line.startswith("## "):
+            in_section = line[3:].strip() == section_name
+            continue
+        if in_section and line.startswith(target_prefix):
+            value = line.split(":", 1)[1].strip().strip("`")
+            return value or None
+    return None
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ from corvin.connectors.base import BaseConnector
 from corvin.connectors.azure_monitor import AzureMonitorConnector
 from corvin.connectors.elastic import ElasticConnector
 from corvin.connectors.byoa import ByoaConnector
+from corvin.connectors.aks import AKSConnector
 
 if TYPE_CHECKING:
     from corvin.storage.models import LogSourceRow
@@ -19,6 +20,7 @@ _SOURCE_TYPE_MAP: dict[str, type[BaseConnector]] = {
     "azure_monitor": AzureMonitorConnector,
     "elastic": ElasticConnector,
     "byoa": ByoaConnector,
+    "aks": AKSConnector,
 }
 
 

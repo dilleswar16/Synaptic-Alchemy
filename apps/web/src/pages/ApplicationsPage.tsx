@@ -2,14 +2,17 @@ import { useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Layout from '../components/Layout'
+import { TopologyRadar } from '../components/TopologyRadar'
 import {
   listApplications,
   getApplication,
   createApplication,
+  deleteApplication,
   addService,
   updateService,
   deleteService,
   addConnector,
+  updateConnector,
   deleteConnector,
   testConnector,
   addSloConfig,
@@ -18,10 +21,15 @@ import {
   addNotificationContact,
   deleteNotificationContact,
   addOutboundConnector,
+  updateOutboundConnector,
+  testOutboundConnector,
   deleteOutboundConnector,
+  bootstrapOutboundConnectors,
   migrateFromYaml,
   type Application,
+  type LogSource,
   type ApplicationService,
+  type OutboundConnector,
 } from '../api/client'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -42,9 +50,60 @@ const SOURCE_ICONS: Record<string, string> = {
   aks: '⎈',
 }
 
+const AZURE_ROLE_LABELS: Record<string, string> = {
+  apim_logs: 'APIM Logs',
+  container_insights: 'Container Insights',
+  azure_activity: 'Azure Activity',
+}
+
 const SLI_LABELS: Record<string, string> = {
   availability: 'Availability',
   latency: 'Latency p99',
+}
+
+function describeCredentialMode(source: LogSource) {
+  if (source.source_type === 'azure_monitor' && !source.credential_ref) {
+    return 'default_azure_credential'
+  }
+  return source.credential_type
+}
+
+function describeConnectorConfig(source: LogSource) {
+  const cfg = source.config_json as Record<string, unknown>
+  const cfgNamespaces = Array.isArray(cfg.namespaces)
+    ? cfg.namespaces.map(v => String(v)).filter(Boolean)
+    : []
+  if (source.source_type === 'azure_monitor') {
+    const parts: string[] = []
+    if (typeof cfg.connector_role === 'string' && cfg.connector_role) parts.push(AZURE_ROLE_LABELS[cfg.connector_role] ?? cfg.connector_role)
+    if (typeof cfg.workspace_id === 'string' && cfg.workspace_id) parts.push(`ws:${cfg.workspace_id}`)
+    if (typeof cfg.apim_table === 'string' && cfg.apim_table) parts.push(`table:${cfg.apim_table}`)
+    if (typeof cfg.activity_table === 'string' && cfg.activity_table) parts.push(`activity:${cfg.activity_table}`)
+    if (typeof cfg.max_events === 'number') parts.push(`max:${cfg.max_events}`)
+    if (typeof cfg.cluster_name === 'string' && cfg.cluster_name) parts.push(`aks:${cfg.cluster_name}`)
+    if (cfgNamespaces.length > 0) parts.push(`ns:${cfgNamespaces.join(',')}`)
+    else if (typeof cfg.default_namespace === 'string' && cfg.default_namespace) parts.push(`ns:${cfg.default_namespace}`)
+    return parts.join(' · ')
+  }
+  if (source.source_type === 'aks') {
+    const parts: string[] = []
+    if (typeof cfg.cluster_name === 'string' && cfg.cluster_name) parts.push(`aks:${cfg.cluster_name}`)
+    if (typeof cfg.resource_group === 'string' && cfg.resource_group) parts.push(`rg:${cfg.resource_group}`)
+    if (cfgNamespaces.length > 0) parts.push(`ns:${cfgNamespaces.join(',')}`)
+    else if (typeof cfg.default_namespace === 'string' && cfg.default_namespace) parts.push(`ns:${cfg.default_namespace}`)
+    return parts.join(' · ')
+  }
+  return ''
+}
+
+function parseNamespacesInput(raw: string): string[] {
+  const values = raw
+    .split(',')
+    .map(v => v.trim())
+    .filter(Boolean)
+  return values.length > 0 ? Array.from(new Set(values.map(v => v.toLowerCase()))).map(
+    lower => values.find(v => v.toLowerCase() === lower) as string,
+  ) : ['default']
 }
 
 function TierBadge({ tier }: { tier: string }) {
@@ -80,8 +139,9 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
       background: 'rgba(0,0,0,0.6)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
       padding: 24,
+      overflowY: 'auto',
     }} onClick={onClose}>
       <div
         onClick={e => e.stopPropagation()}
@@ -91,7 +151,10 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
           borderRadius: 12,
           padding: 28,
           width: '100%',
-          maxWidth: 520,
+          maxWidth: 760,
+          maxHeight: 'calc(100vh - 48px)',
+          overflowY: 'auto',
+          margin: '0 auto',
           boxShadow: '0 24px 48px rgba(0,0,0,0.4)',
         }}
       >
@@ -235,10 +298,10 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
         </select>
       </Field>
       <Field label="Kubernetes Namespace">
-        <input style={INPUT_STYLE} value={ns} onChange={e => setNs(e.target.value)} placeholder="e.g. chad" />
+        <input style={INPUT_STYLE} value={ns} onChange={e => setNs(e.target.value)} placeholder="e.g. default" />
       </Field>
       <Field label="K8s App Label">
-        <input style={INPUT_STYLE} value={k8sLabel} onChange={e => setK8sLabel(e.target.value)} placeholder="e.g. chad-fundapis (deployment app label in cluster)" />
+        <input style={INPUT_STYLE} value={k8sLabel} onChange={e => setK8sLabel(e.target.value)} placeholder="e.g. payments-api (deployment app label in cluster)" />
       </Field>
       <Field label="">
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.82rem' }}>
@@ -296,23 +359,55 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
 
 // ── Add Connector Modal ───────────────────────────────────────────────────────
 
-function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => void }) {
+function AddConnectorModal({
+  appId,
+  onClose,
+  existing,
+}: {
+  appId: string
+  onClose: () => void
+  existing?: LogSource
+}) {
   const qc = useQueryClient()
-  const [sourceType, setSourceType] = useState<'azure_monitor' | 'elastic' | 'byoa' | 'aks'>('azure_monitor')
-  const [displayName, setDisplayName] = useState('')
-  const [credType, setCredType] = useState<'env_var' | 'db_encrypted' | 'kv_reference'>('env_var')
+  const isEdit = Boolean(existing)
+  const [sourceType, setSourceType] = useState<'azure_monitor' | 'elastic' | 'byoa' | 'aks'>((existing?.source_type as 'azure_monitor' | 'elastic' | 'byoa' | 'aks') ?? 'azure_monitor')
+  const [displayName, setDisplayName] = useState(existing?.display_name ?? '')
+  const [credType, setCredType] = useState<'env_var' | 'db_encrypted' | 'kv_reference'>((existing?.credential_type as 'env_var' | 'db_encrypted' | 'kv_reference') ?? 'env_var')
   const [credRef, setCredRef] = useState('')
   const [credValue, setCredValue] = useState('')
-  const [configJson, setConfigJson] = useState('{}')
+  const existingConfig = (existing?.config_json ?? {}) as Record<string, unknown>
+  const [configJson, setConfigJson] = useState(JSON.stringify(existingConfig, null, 2))
   const [configError, setConfigError] = useState('')
 
+  // Azure Monitor guided fields
+  const [azureRole, setAzureRole] = useState<'apim_logs' | 'container_insights' | 'azure_activity'>((existingConfig.connector_role as 'apim_logs' | 'container_insights' | 'azure_activity') ?? 'apim_logs')
+  const [azureWorkspaceId, setAzureWorkspaceId] = useState(typeof existingConfig.workspace_id === 'string' ? existingConfig.workspace_id : '')
+  const [azureSub, setAzureSub] = useState(typeof existingConfig.subscription_id === 'string' ? existingConfig.subscription_id : '')
+  const [azureRg, setAzureRg] = useState(typeof existingConfig.resource_group === 'string' ? existingConfig.resource_group : '')
+  const [azureTenantId, setAzureTenantId] = useState(typeof existingConfig.tenant_id === 'string' ? existingConfig.tenant_id : '')
+  const [azureApimTable, setAzureApimTable] = useState(typeof existingConfig.apim_table === 'string' ? existingConfig.apim_table : 'ApiManagementGatewayLogs')
+  const [azureApimServiceName, setAzureApimServiceName] = useState(typeof existingConfig.apim_service_name === 'string' ? existingConfig.apim_service_name : '')
+  const [azureClusterName, setAzureClusterName] = useState(typeof existingConfig.cluster_name === 'string' ? existingConfig.cluster_name : '')
+  const [azureNs, setAzureNs] = useState(
+    Array.isArray(existingConfig.namespaces)
+      ? existingConfig.namespaces.map(v => String(v)).join(',')
+      : (typeof existingConfig.default_namespace === 'string' ? existingConfig.default_namespace : 'default'),
+  )
+  const [azureActivityTable, setAzureActivityTable] = useState(typeof existingConfig.activity_table === 'string' ? existingConfig.activity_table : 'AzureActivity')
+  const [azureActivityRange, setAzureActivityRange] = useState(String(existingConfig.default_time_range_minutes ?? 60))
+  const [azureActivityMax, setAzureActivityMax] = useState(String(existingConfig.max_events ?? 100))
+
   // AKS guided fields
-  const [aksCluster, setAksCluster] = useState('')
-  const [aksRg, setAksRg] = useState('')
-  const [aksSub, setAksSub] = useState('')
-  const [aksNs, setAksNs] = useState('default')
-  const [aksKubeconfigPath, setAksKubeconfigPath] = useState('')
-  const [aksInCluster, setAksInCluster] = useState(false)
+  const [aksCluster, setAksCluster] = useState(typeof existingConfig.cluster_name === 'string' ? existingConfig.cluster_name : '')
+  const [aksRg, setAksRg] = useState(typeof existingConfig.resource_group === 'string' ? existingConfig.resource_group : '')
+  const [aksSub, setAksSub] = useState(typeof existingConfig.subscription_id === 'string' ? existingConfig.subscription_id : '')
+  const [aksNs, setAksNs] = useState(
+    Array.isArray(existingConfig.namespaces)
+      ? existingConfig.namespaces.map(v => String(v)).join(',')
+      : (typeof existingConfig.default_namespace === 'string' ? existingConfig.default_namespace : 'default'),
+  )
+  const [aksKubeconfigPath, setAksKubeconfigPath] = useState(typeof existingConfig.kube_config_path === 'string' ? existingConfig.kube_config_path : '')
+  const [aksInCluster, setAksInCluster] = useState(Boolean(existingConfig.in_cluster))
   const [aksClientId, setAksClientId] = useState('')
   const [aksClientSecret, setAksClientSecret] = useState('')
   const [aksTenantId, setAksTenantId] = useState('')
@@ -325,11 +420,13 @@ function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => v
   const mut = useMutation({
     mutationFn: () => {
       if (sourceType === 'aks') {
+        const namespaces = parseNamespacesInput(aksNs)
         const config = {
           cluster_name: aksCluster.trim(),
           resource_group: aksRg.trim(),
           subscription_id: aksSub.trim(),
-          default_namespace: aksNs.trim() || 'default',
+          namespaces,
+          default_namespace: namespaces[0],
           ...(aksInCluster ? { in_cluster: true } : { kube_config_path: aksKubeconfigPath.trim() || undefined }),
         }
         const cred = JSON.stringify({
@@ -337,23 +434,73 @@ function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => v
           client_secret: aksClientSecret,
           tenant_id: aksTenantId.trim(),
         })
-        return addConnector(appId, {
+        const payload: Partial<LogSource> & { credential_value?: string } = {
           source_type: 'aks',
           display_name: displayName,
           config_json: config,
           credential_type: 'db_encrypted',
           credential_value: cred,
-        })
+        }
+        if (existing) {
+          return updateConnector(appId, existing.id, payload)
+        }
+        return addConnector(appId, payload)
+      }
+      if (sourceType === 'azure_monitor') {
+        const config: Record<string, unknown> = {
+          connector_role: azureRole,
+          workspace_id: azureWorkspaceId.trim(),
+        }
+        if (azureSub.trim()) config.subscription_id = azureSub.trim()
+        if (azureRg.trim()) config.resource_group = azureRg.trim()
+        if (azureTenantId.trim()) config.tenant_id = azureTenantId.trim()
+        if (azureRole === 'apim_logs') {
+          config.apim_table = azureApimTable.trim() || 'ApiManagementGatewayLogs'
+          if (azureApimServiceName.trim()) config.apim_service_name = azureApimServiceName.trim()
+        }
+        if (azureRole === 'container_insights') {
+          const namespaces = parseNamespacesInput(azureNs)
+          config.cluster_name = azureClusterName.trim()
+          config.namespaces = namespaces
+          config.default_namespace = namespaces[0]
+        }
+        if (azureRole === 'azure_activity') {
+          config.activity_table = azureActivityTable.trim() || 'AzureActivity'
+          config.default_time_range_minutes = Number(azureActivityRange || 60)
+          config.max_events = Number(azureActivityMax || 100)
+        }
+        const payload: Partial<LogSource> & { credential_value?: string } = {
+          source_type: sourceType,
+          display_name: displayName,
+          config_json: config,
+          credential_type: credType,
+        }
+        if (credType === 'db_encrypted') {
+          if (credValue) payload.credential_value = credValue
+        } else if (credRef.trim()) {
+          payload.credential_ref = credRef.trim()
+        }
+        if (existing) {
+          return updateConnector(appId, existing.id, payload)
+        }
+        return addConnector(appId, payload)
       }
       if (!validateJson(configJson)) return Promise.reject(new Error('Bad JSON'))
-      return addConnector(appId, {
+      const payload: Partial<LogSource> & { credential_value?: string } = {
         source_type: sourceType,
         display_name: displayName,
         config_json: JSON.parse(configJson),
         credential_type: credType,
-        credential_ref: credType !== 'db_encrypted' ? credRef || null : null,
-        credential_value: credType === 'db_encrypted' ? credValue : undefined,
-      })
+      }
+      if (credType === 'db_encrypted') {
+        if (credValue) payload.credential_value = credValue
+      } else if (credRef.trim()) {
+        payload.credential_ref = credRef.trim()
+      }
+      if (existing) {
+        return updateConnector(appId, existing.id, payload)
+      }
+      return addConnector(appId, payload)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['application', appId] }); onClose() },
   })
@@ -365,7 +512,7 @@ function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => v
   }
 
   return (
-    <Modal title="Add Connector" onClose={onClose}>
+    <Modal title={isEdit ? 'Edit Connector' : 'Add Connector'} onClose={onClose}>
       <Field label="Type">
         <select style={INPUT_STYLE} value={sourceType} onChange={e => setSourceType(e.target.value as typeof sourceType)}>
           <option value="azure_monitor">Azure Monitor / Log Analytics</option>
@@ -378,7 +525,7 @@ function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => v
         <input style={INPUT_STYLE} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder={
           sourceType === 'azure_monitor' ? 'e.g. Azure Log Analytics (APIM)'
           : sourceType === 'elastic' ? 'e.g. Production Elasticsearch'
-          : sourceType === 'aks' ? 'e.g. CHAD AKS Cluster'
+          : sourceType === 'aks' ? 'e.g. Production AKS Cluster'
           : 'e.g. Custom Observability API'
         } />
       </Field>
@@ -389,13 +536,13 @@ function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => v
             <input style={INPUT_STYLE} value={aksCluster} onChange={e => setAksCluster(e.target.value)} placeholder="e.g. azaustaekub14470dv0101" />
           </Field>
           <Field label="Resource Group *">
-            <input style={INPUT_STYLE} value={aksRg} onChange={e => setAksRg(e.target.value)} placeholder="e.g. RG_14470_AUCHAD_DV01" />
+            <input style={INPUT_STYLE} value={aksRg} onChange={e => setAksRg(e.target.value)} placeholder="e.g. rg-platform-prod" />
           </Field>
           <Field label="Subscription ID *">
             <input style={INPUT_STYLE} value={aksSub} onChange={e => setAksSub(e.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
           </Field>
-          <Field label="Default Namespace">
-            <input style={INPUT_STYLE} value={aksNs} onChange={e => setAksNs(e.target.value)} placeholder="e.g. chad" />
+          <Field label="Namespaces (comma-separated)">
+            <input style={INPUT_STYLE} value={aksNs} onChange={e => setAksNs(e.target.value)} placeholder="e.g. chad,funds,partner" />
           </Field>
           <Field label="">
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.82rem' }}>
@@ -421,6 +568,86 @@ function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => v
             <input style={INPUT_STYLE} value={aksTenantId} onChange={e => setAksTenantId(e.target.value)} placeholder="e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
           </Field>
         </>
+      ) : sourceType === 'azure_monitor' ? (
+        <>
+          <Field label="Azure Monitor Role *">
+            <select style={INPUT_STYLE} value={azureRole} onChange={e => setAzureRole(e.target.value as 'apim_logs' | 'container_insights' | 'azure_activity')}>
+              <option value="apim_logs">APIM Gateway Logs</option>
+              <option value="container_insights">AKS Container Insights</option>
+              <option value="azure_activity">Azure Activity Changes</option>
+            </select>
+          </Field>
+          <Field label="Workspace ID *">
+            <input style={INPUT_STYLE} value={azureWorkspaceId} onChange={e => setAzureWorkspaceId(e.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <Field label="Subscription ID">
+              <input style={INPUT_STYLE} value={azureSub} onChange={e => setAzureSub(e.target.value)} placeholder="Azure subscription GUID" />
+            </Field>
+            <Field label="Resource Group">
+              <input style={INPUT_STYLE} value={azureRg} onChange={e => setAzureRg(e.target.value)} placeholder="e.g. rg-platform-prod" />
+            </Field>
+          </div>
+          <Field label="Tenant ID">
+            <input style={INPUT_STYLE} value={azureTenantId} onChange={e => setAzureTenantId(e.target.value)} placeholder="Azure tenant GUID" />
+          </Field>
+          {azureRole === 'apim_logs' ? (
+            <>
+              <Field label="APIM Table">
+                <input style={INPUT_STYLE} value={azureApimTable} onChange={e => setAzureApimTable(e.target.value)} placeholder="ApiManagementGatewayLogs" />
+              </Field>
+              <Field label="APIM Service Name (optional)">
+                <input style={INPUT_STYLE} value={azureApimServiceName} onChange={e => setAzureApimServiceName(e.target.value)} placeholder="Helpful for vendor scoping" />
+              </Field>
+            </>
+          ) : azureRole === 'container_insights' ? (
+            <>
+              <Field label="AKS Cluster Name *">
+                <input style={INPUT_STYLE} value={azureClusterName} onChange={e => setAzureClusterName(e.target.value)} placeholder="e.g. azaustaekub14470dv0101" />
+              </Field>
+              <Field label="Namespaces (comma-separated)">
+                <input style={INPUT_STYLE} value={azureNs} onChange={e => setAzureNs(e.target.value)} placeholder="e.g. chad,funds,partner" />
+              </Field>
+            </>
+          ) : null}
+          {azureRole === 'azure_activity' && (
+            <>
+              <Field label="Activity Table">
+                <input style={INPUT_STYLE} value={azureActivityTable} onChange={e => setAzureActivityTable(e.target.value)} placeholder="AzureActivity" />
+              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <Field label="Default Time Range (minutes)">
+                  <input style={INPUT_STYLE} type="number" min="1" value={azureActivityRange} onChange={e => setAzureActivityRange(e.target.value)} placeholder="60" />
+                </Field>
+                <Field label="Max Events">
+                  <input style={INPUT_STYLE} type="number" min="1" value={azureActivityMax} onChange={e => setAzureActivityMax(e.target.value)} placeholder="100" />
+                </Field>
+              </div>
+            </>
+          )}
+          <Field label="Credential Type">
+            <select style={INPUT_STYLE} value={credType} onChange={e => setCredType(e.target.value as typeof credType)}>
+              <option value="env_var">DefaultAzureCredential / optional env var ref</option>
+              <option value="db_encrypted">DB Encrypted (AES-256-GCM)</option>
+              <option value="kv_reference">Azure Key Vault Reference</option>
+            </select>
+          </Field>
+          {credType === 'env_var' && (
+            <Field label="Env Var Name (optional)">
+              <input style={INPUT_STYLE} value={credRef} onChange={e => setCredRef(e.target.value)} placeholder="Leave blank for managed identity" />
+            </Field>
+          )}
+          {credType === 'db_encrypted' && (
+            <Field label="Secret Value (will be AES-256 encrypted at rest)">
+              <input type="password" style={INPUT_STYLE} value={credValue} onChange={e => setCredValue(e.target.value)} placeholder="Enter API key / password…" />
+            </Field>
+          )}
+          {credType === 'kv_reference' && (
+            <Field label="Key Vault Reference (vault_url|secret_name)">
+              <input style={INPUT_STYLE} value={credRef} onChange={e => setCredRef(e.target.value)} placeholder="https://my-vault.vault.azure.net|my-secret" />
+            </Field>
+          )}
+        </>
       ) : (
         <>
           <Field label={`Config JSON (${sourceType})`}>
@@ -435,7 +662,7 @@ function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => v
           </Field>
           <Field label="Credential Type">
             <select style={INPUT_STYLE} value={credType} onChange={e => setCredType(e.target.value as typeof credType)}>
-              <option value="env_var">Env Var (DefaultAzureCredential / no secret)</option>
+              <option value="env_var">DefaultAzureCredential / optional env var ref</option>
               <option value="db_encrypted">DB Encrypted (AES-256-GCM)</option>
               <option value="kv_reference">Azure Key Vault Reference</option>
             </select>
@@ -461,7 +688,7 @@ function AddConnectorModal({ appId, onClose }: { appId: string; onClose: () => v
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
         <button className="btn-secondary" onClick={onClose}>Cancel</button>
         <button className="btn-primary" onClick={() => mut.mutate()} disabled={!displayName || mut.isPending}>
-          {mut.isPending ? 'Saving…' : 'Add Connector'}
+          {mut.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Connector'}
         </button>
       </div>
       {mut.isError && <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: 8 }}>{String(mut.error)}</p>}
@@ -670,12 +897,23 @@ const OUTBOUND_ICONS: Record<string, string> = {
   email: '✉️',
   pagerduty: '🚨',
   generic_http: '🌐',
+  azure_devops_boards: '🧩',
+  azure_devops_wiki: '📘',
+  sharepoint: '📂',
 }
 
 // ── Connector builder constants ───────────────────────────────────────────────
 
 type ConnectorAuthType = 'none' | 'bearer' | 'api_key' | 'basic' | 'oauth2'
-type ConnectorType = 'teams_webhook' | 'servicenow' | 'email' | 'pagerduty' | 'generic_http'
+type ConnectorType =
+  | 'teams_webhook'
+  | 'servicenow'
+  | 'email'
+  | 'pagerduty'
+  | 'generic_http'
+  | 'azure_devops_boards'
+  | 'azure_devops_wiki'
+  | 'sharepoint'
 interface ConnectorVariable { key: string; default_value: string }
 
 const CONNECTOR_DEFAULT_ENDPOINTS: Record<string, string> = {
@@ -684,6 +922,9 @@ const CONNECTOR_DEFAULT_ENDPOINTS: Record<string, string> = {
   email: '',
   pagerduty: 'https://events.pagerduty.com/v2/enqueue',
   generic_http: '',
+  azure_devops_boards: 'https://dev.azure.com/your-org',
+  azure_devops_wiki: 'https://dev.azure.com/your-org',
+  sharepoint: 'https://yourtenant.sharepoint.com/sites/your-site',
 }
 
 const CONNECTOR_DEFAULT_AUTH: Record<string, ConnectorAuthType> = {
@@ -692,6 +933,9 @@ const CONNECTOR_DEFAULT_AUTH: Record<string, ConnectorAuthType> = {
   email: 'basic',
   pagerduty: 'none',
   generic_http: 'none',
+  azure_devops_boards: 'api_key',
+  azure_devops_wiki: 'api_key',
+  sharepoint: 'oauth2',
 }
 
 const CONNECTOR_DEFAULT_VARS: Record<string, ConnectorVariable[]> = {
@@ -721,6 +965,15 @@ const CONNECTOR_DEFAULT_VARS: Record<string, ConnectorVariable[]> = {
     { key: 'title',    default_value: '{{service_name}} alert' },
     { key: 'summary',  default_value: '{{rca_summary}}' },
     { key: 'severity', default_value: '{{confidence}}' },
+  ],
+  azure_devops_boards: [
+    { key: 'tags', default_value: 'corvin;{{environment}};{{service_name}}' },
+  ],
+  azure_devops_wiki: [
+    { key: 'section', default_value: 'Investigations' },
+  ],
+  sharepoint: [
+    { key: 'folder_hint', default_value: '{{environment}}/{{service_name}}' },
   ],
 }
 
@@ -757,6 +1010,21 @@ const CONNECTOR_DEFAULT_PAYLOADS: Record<string, string> = {
   "message": "{{summary}}",
   "severity": "{{severity}}"
 }`,
+  azure_devops_boards: `{
+  "title": "Corvin: {{service_name}} degraded",
+  "description": "{{rca_summary}}",
+  "tags": "{{tags}}"
+}`,
+  azure_devops_wiki: `{
+  "title": "Corvin Investigation {{request_id}}",
+  "summary": "{{rca_summary}}",
+  "section": "{{section}}"
+}`,
+  sharepoint: `{
+  "title": "Corvin Investigation {{request_id}}",
+  "summary": "{{rca_summary}}",
+  "folder_hint": "{{folder_hint}}"
+}`,
 }
 
 const AUTH_TYPE_OPTS: { key: ConnectorAuthType; label: string }[] = [
@@ -771,6 +1039,10 @@ function ConnectorsTab({ app }: { app: Application }) {
   const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [showAddOutbound, setShowAddOutbound] = useState(false)
+  const [editingInbound, setEditingInbound] = useState<LogSource | null>(null)
+  const [editingOutbound, setEditingOutbound] = useState<OutboundConnector | null>(null)
+  const [testingOutboundId, setTestingOutboundId] = useState<string | null>(null)
+  const [outboundTestResults, setOutboundTestResults] = useState<Record<string, { ok: boolean; message: string; latency_ms: number | null }>>({})
   const [testingId, setTestingId] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string; latency_ms: number | null }>>({})
   const connectors = app.log_sources ?? []
@@ -785,6 +1057,24 @@ function ConnectorsTab({ app }: { app: Application }) {
     mutationFn: (id: string) => deleteOutboundConnector(app.id, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['application', app.id] }),
   })
+
+  const bootstrapOutMut = useMutation({
+    mutationFn: () => bootstrapOutboundConnectors(app.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['application', app.id] }),
+  })
+
+  const runOutboundTest = useCallback(async (connId: string) => {
+    setTestingOutboundId(connId)
+    try {
+      const r = await testOutboundConnector(app.id, connId)
+      setOutboundTestResults(prev => ({ ...prev, [connId]: r }))
+      qc.invalidateQueries({ queryKey: ['application', app.id] })
+    } catch (err) {
+      setOutboundTestResults(prev => ({ ...prev, [connId]: { ok: false, message: String(err), latency_ms: null } }))
+    } finally {
+      setTestingOutboundId(null)
+    }
+  }, [app.id, qc])
 
   const runTest = useCallback(async (srcId: string) => {
     setTestingId(srcId)
@@ -833,8 +1123,13 @@ function ConnectorsTab({ app }: { app: Application }) {
                       )}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>
-                      {src.source_type} · {src.credential_type}
+                      {src.source_type} · {describeCredentialMode(src)}
                     </div>
+                    {describeConnectorConfig(src) && (
+                      <div style={{ fontSize: '0.68rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>
+                        {describeConnectorConfig(src)}
+                      </div>
+                    )}
                     {(localResult?.message || src.test_message) && (
                       <div style={{
                         fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
@@ -854,6 +1149,13 @@ function ConnectorsTab({ app }: { app: Application }) {
                     >
                       {isTesting ? 'Testing…' : 'Test'}
                     </button>
+                      <button
+                        className="btn-secondary"
+                        style={{ fontSize: '0.72rem', padding: '4px 10px' }}
+                        onClick={() => setEditingInbound(src)}
+                      >
+                        Edit
+                      </button>
                     <button
                       onClick={() => deleteMut.mutate(src.id)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}
@@ -871,7 +1173,17 @@ function ConnectorsTab({ app }: { app: Application }) {
       <div style={{ borderTop: '1px solid var(--c-border)', paddingTop: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.82rem', color: 'var(--c-text-muted)' }}>⬆ Outbound — Notifications & Integrations ({outbound.length})</span>
-          <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '5px 12px' }} onClick={() => setShowAddOutbound(true)}>+ Add Destination</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn-secondary"
+              style={{ fontSize: '0.75rem', padding: '5px 12px' }}
+              onClick={() => bootstrapOutMut.mutate()}
+              disabled={bootstrapOutMut.isPending}
+            >
+              {bootstrapOutMut.isPending ? 'Bootstrapping…' : 'Bootstrap Defaults'}
+            </button>
+            <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '5px 12px' }} onClick={() => setShowAddOutbound(true)}>+ Add Destination</button>
+          </div>
         </div>
         {outbound.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--c-text-faint)', padding: '24px 0', fontSize: '0.82rem' }}>
@@ -884,6 +1196,10 @@ function ConnectorsTab({ app }: { app: Application }) {
             const endpoint = cfg.endpoint || cfg.webhook_url || ''
             const authType = cfg.auth?.type ?? 'none'
             const varCount = Array.isArray(cfg.variables) ? cfg.variables.length : 0
+            const localResult = outboundTestResults[conn.id]
+            const ok = localResult?.ok ?? (conn.test_status === 'ok' ? true : conn.test_status === 'error' ? false : null)
+            const latency = localResult?.latency_ms ?? null
+            const isTesting = testingOutboundId === conn.id
             return (
               <div key={conn.id} style={{
                 background: 'var(--c-bg)', border: '1px solid var(--c-border)', borderRadius: 10, padding: '14px 16px',
@@ -894,20 +1210,50 @@ function ConnectorsTab({ app }: { app: Application }) {
                     <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.85rem', marginBottom: 3 }}>{conn.display_name}</div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', marginBottom: 4, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       <span>{conn.connector_type.replace(/_/g, ' ')}</span>
+                      <StatusDot ok={ok} tested={ok !== null} />
+                      {latency !== null && (
+                        <span style={{ color: 'var(--c-text-faint)' }}>{latency.toFixed(0)}ms</span>
+                      )}
                       {authType !== 'none' && <span style={{ color: 'var(--c-accent)', background: 'color-mix(in srgb, var(--c-accent) 12%, transparent)', padding: '1px 6px', borderRadius: 4 }}>{authType.replace('_', ' ')}</span>}
                       {varCount > 0 && <span style={{ color: 'var(--c-text-muted)' }}>{varCount} var{varCount !== 1 ? 's' : ''}</span>}
                     </div>
+                    {(localResult?.message || conn.test_message) && (
+                      <div style={{
+                        fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
+                        color: ok ? '#22c55e' : '#ef4444',
+                        marginTop: 2,
+                      }}>
+                        {localResult?.message ?? conn.test_message}
+                      </div>
+                    )}
                     {endpoint && (
                       <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--c-text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380 }}>
                         {endpoint}
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => deleteOutMut.mutate(conn.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4, flexShrink: 0 }}
-                    title="Remove outbound connector"
-                  >✕</button>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button
+                      className="btn-secondary"
+                      style={{ fontSize: '0.72rem', padding: '4px 10px' }}
+                      onClick={() => runOutboundTest(conn.id)}
+                      disabled={isTesting}
+                    >
+                      {isTesting ? 'Testing…' : 'Test'}
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      style={{ fontSize: '0.72rem', padding: '4px 10px' }}
+                      onClick={() => setEditingOutbound(conn)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteOutMut.mutate(conn.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}
+                      title="Remove outbound connector"
+                    >✕</button>
+                  </div>
                 </div>
               </div>
             )
@@ -916,44 +1262,78 @@ function ConnectorsTab({ app }: { app: Application }) {
       </div>
 
       {showAdd && <AddConnectorModal appId={app.id} onClose={() => setShowAdd(false)} />}
+      {editingInbound && <AddConnectorModal appId={app.id} onClose={() => setEditingInbound(null)} existing={editingInbound} />}
       {showAddOutbound && <AddOutboundModal appId={app.id} onClose={() => setShowAddOutbound(false)} />}
+      {editingOutbound && (
+        <AddOutboundModal
+          appId={app.id}
+          onClose={() => setEditingOutbound(null)}
+          existing={editingOutbound}
+        />
+      )}
     </div>
   )
 }
 
 // ── Add Outbound Modal ────────────────────────────────────────────────────────
 
-function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => void }) {
+function AddOutboundModal({
+  appId,
+  onClose,
+  existing,
+}: {
+  appId: string
+  onClose: () => void
+  existing?: OutboundConnector
+}) {
   const qc = useQueryClient()
+  const isEdit = Boolean(existing)
 
   // ── Basic ──────────────────────────────────────────────────────────────────
-  const [connType, setConnType] = useState<ConnectorType>('teams_webhook')
-  const [displayName, setDisplayName] = useState('')
+  const initialType = (existing?.connector_type ?? 'teams_webhook') as ConnectorType
+  const existingCfg = existing?.config_json
+  const existingEndpointFields = existingCfg?.endpoint_fields ?? {}
+  const existingAuth = existingCfg?.auth ?? { type: CONNECTOR_DEFAULT_AUTH[initialType] }
+
+  const [connType, setConnType] = useState<ConnectorType>(initialType)
+  const [displayName, setDisplayName] = useState(existing?.display_name ?? '')
 
   // ── Endpoint ───────────────────────────────────────────────────────────────
-  const [endpoint, setEndpoint] = useState(CONNECTOR_DEFAULT_ENDPOINTS['teams_webhook'])
-  const [httpMethod, setHttpMethod] = useState('POST')
-  const [snTable, setSnTable] = useState('incident')
-  const [emailPort, setEmailPort] = useState('587')
-  const [emailFrom, setEmailFrom] = useState('')
+  const [endpoint, setEndpoint] = useState(existingCfg?.endpoint ?? existingCfg?.webhook_url ?? CONNECTOR_DEFAULT_ENDPOINTS[initialType])
+  const [httpMethod, setHttpMethod] = useState(existingEndpointFields.http_method ?? 'POST')
+  const [snTable, setSnTable] = useState(existingEndpointFields.table ?? 'incident')
+  const [emailPort, setEmailPort] = useState(existingEndpointFields.port ?? '587')
+  const [emailFrom, setEmailFrom] = useState(existingEndpointFields.from ?? '')
+  const [adoProjectName, setAdoProjectName] = useState(existingEndpointFields.project_name ?? '')
+  const [adoWorkItemType, setAdoWorkItemType] = useState(existingEndpointFields.work_item_type ?? 'Issue')
+  const [adoWikiId, setAdoWikiId] = useState(existingEndpointFields.wiki_id ?? 'auto')
+  const [sharePointSiteId, setSharePointSiteId] = useState(existingEndpointFields.site_id ?? '')
+  const [sharePointDriveId, setSharePointDriveId] = useState(existingEndpointFields.drive_id ?? 'auto')
+  const [sharePointFolderPath, setSharePointFolderPath] = useState(existingEndpointFields.folder_path ?? 'Corvin/Investigations')
 
   // ── Auth ───────────────────────────────────────────────────────────────────
-  const [authType, setAuthType] = useState<ConnectorAuthType>(CONNECTOR_DEFAULT_AUTH['teams_webhook'])
-  const [bearerToken, setBearerToken] = useState('')
-  const [apiKey, setApiKey] = useState('')
-  const [apiKeyHeader, setApiKeyHeader] = useState('X-API-Key')
-  const [authUser, setAuthUser] = useState('')
-  const [authPass, setAuthPass] = useState('')
-  const [oauthTokenUrl, setOauthTokenUrl] = useState('')
-  const [oauthClientId, setOauthClientId] = useState('')
-  const [oauthClientSecret, setOauthClientSecret] = useState('')
-  const [oauthScopes, setOauthScopes] = useState('')
+  const [authType, setAuthType] = useState<ConnectorAuthType>((existingAuth.type ?? CONNECTOR_DEFAULT_AUTH[initialType]) as ConnectorAuthType)
+  const [bearerToken, setBearerToken] = useState(existingAuth.bearer_token ?? '')
+  const [bearerTokenRef, setBearerTokenRef] = useState(existingAuth.bearer_token_ref ?? '')
+  const [apiKey, setApiKey] = useState(existingAuth.api_key ?? '')
+  const [apiKeyRef, setApiKeyRef] = useState(existingAuth.api_key_ref ?? '')
+  const [apiKeyHeader, setApiKeyHeader] = useState(existingAuth.api_key_header ?? 'X-API-Key')
+  const [authUser, setAuthUser] = useState(existingAuth.username ?? '')
+  const [authPass, setAuthPass] = useState(existingAuth.password ?? '')
+  const [authPassRef, setAuthPassRef] = useState(existingAuth.password_ref ?? '')
+  const [oauthTokenUrl, setOauthTokenUrl] = useState(existingAuth.token_url ?? '')
+  const [oauthClientId, setOauthClientId] = useState(existingAuth.client_id ?? '')
+  const [oauthClientSecret, setOauthClientSecret] = useState(existingAuth.client_secret ?? '')
+  const [oauthClientSecretRef, setOauthClientSecretRef] = useState(existingAuth.client_secret_ref ?? '')
+  const [oauthScopes, setOauthScopes] = useState(existingAuth.scopes ?? '')
 
   // ── Variables ──────────────────────────────────────────────────────────────
-  const [variables, setVariables] = useState<ConnectorVariable[]>(() => CONNECTOR_DEFAULT_VARS['teams_webhook'].map(v => ({ ...v })))
+  const [variables, setVariables] = useState<ConnectorVariable[]>(
+    () => (existingCfg?.variables?.length ? existingCfg.variables.map((v: ConnectorVariable) => ({ ...v })) : CONNECTOR_DEFAULT_VARS[initialType].map(v => ({ ...v }))),
+  )
 
   // ── Payload template ───────────────────────────────────────────────────────
-  const [payloadTemplate, setPayloadTemplate] = useState(CONNECTOR_DEFAULT_PAYLOADS['teams_webhook'])
+  const [payloadTemplate, setPayloadTemplate] = useState(existingCfg?.payload_template ?? CONNECTOR_DEFAULT_PAYLOADS[initialType])
 
   const handleTypeChange = (t: ConnectorType) => {
     setConnType(t)
@@ -962,35 +1342,70 @@ function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => vo
     setVariables((CONNECTOR_DEFAULT_VARS[t] || []).map(v => ({ ...v })))
     setPayloadTemplate(CONNECTOR_DEFAULT_PAYLOADS[t] || '')
     setHttpMethod('POST'); setSnTable('incident'); setEmailPort('587'); setEmailFrom('')
+    setAdoProjectName(''); setAdoWorkItemType('Issue'); setAdoWikiId('auto')
+    setSharePointSiteId(''); setSharePointDriveId('auto'); setSharePointFolderPath('Corvin/Investigations')
     setBearerToken(''); setApiKey(''); setApiKeyHeader('X-API-Key')
+    setBearerTokenRef(''); setApiKeyRef('')
     setAuthUser(''); setAuthPass(''); setOauthTokenUrl('')
-    setOauthClientId(''); setOauthClientSecret(''); setOauthScopes('')
+    setAuthPassRef('')
+    setOauthClientId(''); setOauthClientSecret(''); setOauthClientSecretRef(''); setOauthScopes('')
   }
 
   const buildConfig = () => {
     const auth: Record<string, string> = { type: authType }
-    if (authType === 'bearer') auth.bearer_token = bearerToken
-    if (authType === 'api_key') { auth.api_key = apiKey; auth.api_key_header = apiKeyHeader }
-    if (authType === 'basic') { auth.username = authUser; auth.password = authPass }
+    if (authType === 'bearer') {
+      if (bearerToken.trim()) auth.bearer_token = bearerToken
+      if (bearerTokenRef.trim()) auth.bearer_token_ref = bearerTokenRef
+    }
+    if (authType === 'api_key') {
+      if (apiKey.trim()) auth.api_key = apiKey
+      if (apiKeyRef.trim()) auth.api_key_ref = apiKeyRef
+      auth.api_key_header = apiKeyHeader
+    }
+    if (authType === 'basic') {
+      if (authUser.trim()) auth.username = authUser
+      if (authPass.trim()) auth.password = authPass
+      if (authPassRef.trim()) auth.password_ref = authPassRef
+    }
     if (authType === 'oauth2') {
       auth.token_url = oauthTokenUrl
       auth.client_id = oauthClientId
-      auth.client_secret = oauthClientSecret
+      if (oauthClientSecret.trim()) auth.client_secret = oauthClientSecret
+      if (oauthClientSecretRef.trim()) auth.client_secret_ref = oauthClientSecretRef
       auth.scopes = oauthScopes
     }
     const endpoint_fields: Record<string, string> = {}
     if (connType === 'servicenow') endpoint_fields.table = snTable
     if (connType === 'email') { endpoint_fields.port = emailPort; endpoint_fields.from = emailFrom }
     if (connType === 'generic_http') endpoint_fields.http_method = httpMethod
+    if (connType === 'azure_devops_boards') {
+      endpoint_fields.project_name = adoProjectName
+      endpoint_fields.work_item_type = adoWorkItemType
+    }
+    if (connType === 'azure_devops_wiki') {
+      endpoint_fields.project_name = adoProjectName
+      endpoint_fields.wiki_id = adoWikiId
+    }
+    if (connType === 'sharepoint') {
+      endpoint_fields.site_id = sharePointSiteId
+      endpoint_fields.drive_id = sharePointDriveId
+      endpoint_fields.folder_path = sharePointFolderPath
+    }
     return { endpoint, endpoint_fields, auth, variables, payload_template: payloadTemplate }
   }
 
   const mut = useMutation({
-    mutationFn: () => addOutboundConnector(appId, {
-      connector_type: connType,
-      display_name: displayName,
-      config_json: buildConfig() as never,
-    }),
+    mutationFn: () => {
+      const payload = {
+        connector_type: connType,
+        display_name: displayName,
+        config_json: buildConfig() as never,
+      }
+      if (existing) {
+        return updateOutboundConnector(appId, existing.id, payload)
+      }
+      return addOutboundConnector(appId, payload)
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['application', appId] }); onClose() },
   })
 
@@ -1000,11 +1415,33 @@ function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => vo
   const lbl = { fontSize: '0.75rem', fontFamily: 'var(--font-display)', fontWeight: 600, display: 'block' as const }
   const sectionHdr = { fontSize: '0.68rem', fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--c-text-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', paddingBottom: 8, borderBottom: '1px solid var(--c-border)', marginBottom: 12 }
 
-  const endpointLabel = connType === 'servicenow' ? 'Instance URL' : connType === 'teams_webhook' ? 'Webhook URL' : connType === 'pagerduty' ? 'Events API URL' : connType === 'email' ? 'SMTP Host / API Endpoint' : 'Endpoint URL'
-  const endpointPlaceholder = connType === 'servicenow' ? 'https://myinstance.service-now.com' : connType === 'pagerduty' ? 'https://events.pagerduty.com/v2/enqueue' : connType === 'email' ? 'smtp.example.com' : 'https://...'
+  const endpointLabel = connType === 'servicenow'
+    ? 'Instance URL'
+    : connType === 'teams_webhook'
+      ? 'Webhook URL'
+      : connType === 'pagerduty'
+        ? 'Events API URL'
+        : connType === 'email'
+          ? 'SMTP Host / API Endpoint'
+          : connType === 'azure_devops_boards' || connType === 'azure_devops_wiki'
+            ? 'Azure DevOps Org URL'
+            : connType === 'sharepoint'
+              ? 'SharePoint Site URL'
+              : 'Endpoint URL'
+  const endpointPlaceholder = connType === 'servicenow'
+    ? 'https://myinstance.service-now.com'
+    : connType === 'pagerduty'
+      ? 'https://events.pagerduty.com/v2/enqueue'
+      : connType === 'email'
+        ? 'smtp.example.com'
+        : connType === 'azure_devops_boards' || connType === 'azure_devops_wiki'
+          ? 'https://dev.azure.com/your-org'
+          : connType === 'sharepoint'
+            ? 'https://yourtenant.sharepoint.com/sites/your-site'
+            : 'https://...'
 
   return (
-    <Modal title="Add Outbound Connector" onClose={onClose}>
+    <Modal title={isEdit ? 'Edit Outbound Connector' : 'Add Outbound Connector'} onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '4px 0 8px', maxHeight: '72vh', overflowY: 'auto', paddingRight: 2 }}>
 
         {/* ── Type + Name ── */}
@@ -1017,6 +1454,9 @@ function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => vo
               <option value="email">✉️  Email / SMTP</option>
               <option value="pagerduty">🚨  PagerDuty</option>
               <option value="generic_http">🌐  Generic HTTP</option>
+              <option value="azure_devops_boards">🧩  Azure DevOps Boards</option>
+              <option value="azure_devops_wiki">📘  Azure DevOps Wiki</option>
+              <option value="sharepoint">📂  SharePoint</option>
             </select>
           </label>
           <label style={lbl}>
@@ -1060,11 +1500,47 @@ function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => vo
                 <input value={snTable} onChange={e => setSnTable(e.target.value)} placeholder="incident" style={monoInp} />
               </label>
             )}
+            {(connType === 'azure_devops_boards' || connType === 'azure_devops_wiki') && (
+              <label style={lbl}>
+                Project Name
+                <input value={adoProjectName} onChange={e => setAdoProjectName(e.target.value)} placeholder="e.g. Corvin" style={monoInp} />
+              </label>
+            )}
+            {connType === 'azure_devops_boards' && (
+              <label style={lbl}>
+                Work Item Type
+                <input value={adoWorkItemType} onChange={e => setAdoWorkItemType(e.target.value)} placeholder="Issue" style={monoInp} />
+              </label>
+            )}
+            {connType === 'azure_devops_wiki' && (
+              <label style={lbl}>
+                Wiki ID
+                <input value={adoWikiId} onChange={e => setAdoWikiId(e.target.value)} placeholder="auto" style={monoInp} />
+              </label>
+            )}
             {connType === 'email' && (
               <label style={lbl}>
                 From Address
                 <input value={emailFrom} onChange={e => setEmailFrom(e.target.value)} placeholder="corvin@yourorg.com" style={inp} />
               </label>
+            )}
+            {connType === 'sharepoint' && (
+              <>
+                <label style={lbl}>
+                  Site ID
+                  <input value={sharePointSiteId} onChange={e => setSharePointSiteId(e.target.value)} placeholder="SharePoint site id" style={monoInp} />
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <label style={lbl}>
+                    Drive ID
+                    <input value={sharePointDriveId} onChange={e => setSharePointDriveId(e.target.value)} placeholder="auto" style={monoInp} />
+                  </label>
+                  <label style={lbl}>
+                    Folder Path
+                    <input value={sharePointFolderPath} onChange={e => setSharePointFolderPath(e.target.value)} placeholder="Corvin/Investigations" style={monoInp} />
+                  </label>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -1084,16 +1560,26 @@ function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => vo
             ))}
           </div>
           {authType === 'bearer' && (
-            <label style={lbl}>
-              Bearer Token
-              <input type="password" value={bearerToken} onChange={e => setBearerToken(e.target.value)} placeholder="eyJ..." style={monoInp} />
-            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <label style={lbl}>
+                Bearer Token
+                <input type="password" value={bearerToken} onChange={e => setBearerToken(e.target.value)} placeholder="eyJ..." style={monoInp} />
+              </label>
+              <label style={lbl}>
+                Bearer Token Ref
+                <input value={bearerTokenRef} onChange={e => setBearerTokenRef(e.target.value)} placeholder="env:TEAMS_BEARER_TOKEN" style={monoInp} />
+              </label>
+            </div>
           )}
           {authType === 'api_key' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 160px', gap: 10 }}>
               <label style={lbl}>
                 API Key
                 <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk-..." style={monoInp} />
+              </label>
+              <label style={lbl}>
+                API Key Ref
+                <input value={apiKeyRef} onChange={e => setApiKeyRef(e.target.value)} placeholder="env:SERVICENOW_API_KEY" style={monoInp} />
               </label>
               <label style={lbl}>
                 Header Name
@@ -1102,7 +1588,7 @@ function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => vo
             </div>
           )}
           {authType === 'basic' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
               <label style={lbl}>
                 Username
                 <input value={authUser} onChange={e => setAuthUser(e.target.value)} placeholder="admin" style={inp} />
@@ -1110,6 +1596,10 @@ function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => vo
               <label style={lbl}>
                 Password
                 <input type="password" value={authPass} onChange={e => setAuthPass(e.target.value)} placeholder="••••••" style={inp} />
+              </label>
+              <label style={lbl}>
+                Password Ref
+                <input value={authPassRef} onChange={e => setAuthPassRef(e.target.value)} placeholder="env:BASIC_AUTH_PASSWORD" style={monoInp} />
               </label>
             </div>
           )}
@@ -1127,6 +1617,10 @@ function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => vo
                 <label style={lbl}>
                   Client Secret
                   <input type="password" value={oauthClientSecret} onChange={e => setOauthClientSecret(e.target.value)} placeholder="••••••" style={monoInp} />
+                </label>
+                <label style={lbl}>
+                  Client Secret Ref
+                  <input value={oauthClientSecretRef} onChange={e => setOauthClientSecretRef(e.target.value)} placeholder="env:SERVICENOW_CLIENT_SECRET" style={monoInp} />
                 </label>
               </div>
               <label style={lbl}>
@@ -1205,7 +1699,7 @@ function AddOutboundModal({ appId, onClose }: { appId: string; onClose: () => vo
         <button className="btn-primary" onClick={() => mut.mutate()}
           disabled={!displayName.trim() || !endpoint.trim() || mut.isPending}
           style={{ marginTop: 4 }}>
-          {mut.isPending ? 'Saving…' : 'Save Connector'}
+          {mut.isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Save Connector'}
         </button>
       </div>
     </Modal>
@@ -1404,10 +1898,20 @@ function SloTab({ app }: { app: Application }) {
 type Tab = 'services' | 'connectors' | 'notifications' | 'slo'
 
 function AppDetail({ appId }: { appId: string }) {
+  const navigate = useNavigate()
+  const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('services')
   const { data: app, isLoading, isError } = useQuery({
     queryKey: ['application', appId],
     queryFn: () => getApplication(appId),
+  })
+  const deleteAppMut = useMutation({
+    mutationFn: () => deleteApplication(appId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['applications'] })
+      qc.removeQueries({ queryKey: ['application', appId] })
+      navigate('/applications')
+    },
   })
 
   if (isLoading) return (
@@ -1432,14 +1936,33 @@ function AppDetail({ appId }: { appId: string }) {
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Header */}
       <div style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 12, padding: '20px 24px' }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.25rem', marginBottom: 4 }}>{app.name}</div>
-        <div style={{ fontSize: '0.78rem', color: 'var(--c-text-muted)', marginBottom: 8 }}>
-          {app.team_name || 'No team'} · <span style={{ fontFamily: 'var(--font-mono)' }}>{app.environment_default}</span>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.25rem', marginBottom: 4 }}>{app.name}</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--c-text-muted)', marginBottom: 8 }}>
+              {app.team_name || 'No team'} · <span style={{ fontFamily: 'var(--font-mono)' }}>{app.environment_default}</span>
+            </div>
+            {app.description && (
+              <div style={{ fontSize: '0.8rem', color: 'var(--c-text-faint)', lineHeight: 1.5 }}>{app.description}</div>
+            )}
+          </div>
+          <button
+            className="btn-secondary"
+            style={{ fontSize: '0.75rem', padding: '7px 14px', color: '#ef4444', borderColor: '#ef444455' }}
+            onClick={() => {
+              if (window.confirm(`Delete application \"${app.name}\"? This removes its services, connectors, SLOs, and notifications.`)) {
+                deleteAppMut.mutate()
+              }
+            }}
+            disabled={deleteAppMut.isPending}
+            title="Delete application"
+          >
+            {deleteAppMut.isPending ? 'Deleting…' : 'Delete Application'}
+          </button>
         </div>
-        {app.description && (
-          <div style={{ fontSize: '0.8rem', color: 'var(--c-text-faint)', lineHeight: 1.5 }}>{app.description}</div>
-        )}
       </div>
+
+      <TopologyRadar applicationId={appId} appTitle={app.name} appOnly />
 
       {/* Tabs */}
       <div style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 12, overflow: 'hidden' }}>

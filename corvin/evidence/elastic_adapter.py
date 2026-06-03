@@ -2,12 +2,10 @@
 Elastic evidence adapter.
 
 Queries Elastic for application logs and metrics for a named service.
-Config is loaded from config/integrations/elastic.yaml with an optional
-environment overlay.
 
-All connection settings (host, api_key, index patterns, limits) come from
-config/integrations/elastic.yaml. Placeholder values like ${ELASTIC_HOST}
-are resolved from environment variables at runtime.
+Runtime config is env/bootstrap-driven by default (ELASTIC_HOST,
+ELASTIC_API_KEY, index and limit env vars), with adapter-level overrides
+supported via the constructor.
 """
 
 from __future__ import annotations
@@ -18,8 +16,6 @@ import re
 from typing import Any
 
 from elasticsearch import Elasticsearch
-
-from corvin.core.config_loader import get_env, load_config
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +39,18 @@ class ElasticAdapter:
     """Adapter for querying Elastic logs and metrics."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        self._config = config if config is not None else load_config("integrations/elastic", get_env())
+        self._config = config if config is not None else _default_config()
         # Build the client once so the internal connection pool is reused across calls.
-        self._client = _build_client(self._config)
+        self._client: Elasticsearch | None = None
+        try:
+            host = str(self._config.get("host", "")).strip()
+            if host:
+                self._client = _build_client(self._config)
+            else:
+                logger.warning("ElasticAdapter: ELASTIC_HOST is not configured; adapter will return empty results")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("ElasticAdapter: failed to initialize client: %s", exc)
+            self._client = None
 
     def get_logs(
         self,
@@ -64,6 +69,9 @@ class ElasticAdapter:
         Returns:
             List of log document _source dicts, newest first. Empty list on error.
         """
+        if self._client is None:
+            return []
+
         minutes = time_range_minutes or self._config.get("default_time_range_minutes", 30)
         max_hits = self._config.get("max_log_hits", 50)
         index = self._config.get("log_index_pattern", "logs-*")
@@ -111,6 +119,9 @@ class ElasticAdapter:
         Returns:
             List of aggregation bucket dicts. Empty list on error.
         """
+        if self._client is None:
+            return []
+
         minutes = time_range_minutes or self._config.get("default_time_range_minutes", 30)
         index = self._config.get("metrics_index_pattern", "metrics-*")
 
@@ -150,3 +161,14 @@ class ElasticAdapter:
         except Exception as exc:
             logger.warning("ElasticAdapter.get_metrics failed for service=%s: %s", service_name, exc)
             return []
+
+
+def _default_config() -> dict[str, Any]:
+    return {
+        "host": os.environ.get("ELASTIC_HOST", ""),
+        "api_key": os.environ.get("ELASTIC_API_KEY", ""),
+        "default_time_range_minutes": int(os.environ.get("ELASTIC_DEFAULT_TIME_RANGE_MINUTES", "30")),
+        "max_log_hits": int(os.environ.get("ELASTIC_MAX_LOG_HITS", "50")),
+        "log_index_pattern": os.environ.get("ELASTIC_LOG_INDEX_PATTERN", "logs-*"),
+        "metrics_index_pattern": os.environ.get("ELASTIC_METRICS_INDEX_PATTERN", "metrics-*"),
+    }

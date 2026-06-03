@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import uuid
+import os
+import re
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any, Generator
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, field_validator
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from pydantic import BaseModel, model_validator, field_validator
 from sqlalchemy.orm import Session
 
 from corvin.storage.db import get_session as _get_session
@@ -21,6 +23,13 @@ from corvin.storage.models import (
 )
 from corvin.connectors.registry import ConnectorRegistry
 from corvin.connectors.crypto import encrypt as _encrypt_token
+from corvin.connectors.config_resolver import (
+    infer_connector_role,
+    ROLE_APIM_LOGS,
+    ROLE_CONTAINER_INSIGHTS,
+    ROLE_AZURE_ACTIVITY,
+)
+from corvin.delivery.outbound_connectors import test_outbound_connector
 
 router = APIRouter()
 _registry = ConnectorRegistry()
@@ -28,6 +37,7 @@ _registry = ConnectorRegistry()
 _VALID_SOURCE_TYPES = {"azure_monitor", "elastic", "byoa", "aks"}
 _VALID_CREDENTIAL_TYPES = {"db_encrypted", "kv_reference", "env_var"}
 _VALID_SLI_TYPES = {"availability", "latency"}
+_VALID_AZURE_MONITOR_ROLES = {ROLE_APIM_LOGS, ROLE_CONTAINER_INSIGHTS, ROLE_AZURE_ACTIVITY}
 
 
 # ── FastAPI session dependency ────────────────────────────────────────────────
@@ -141,6 +151,34 @@ class ConnectorCreate(BaseModel):
             raise ValueError(f"credential_type must be one of {sorted(_VALID_CREDENTIAL_TYPES)}")
         return v
 
+    @model_validator(mode="after")
+    def _validate_connector_shape(self) -> ConnectorCreate:
+        _validate_connector_payload(self.source_type, self.config_json)
+        return self
+
+
+class ConnectorUpdate(BaseModel):
+    source_type: str | None = None
+    display_name: str | None = None
+    config_json: dict[str, Any] | None = None
+    credential_type: str | None = None
+    credential_value: str | None = None
+    credential_ref: str | None = None
+
+    @field_validator("source_type")
+    @classmethod
+    def _check_source_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALID_SOURCE_TYPES:
+            raise ValueError(f"source_type must be one of {sorted(_VALID_SOURCE_TYPES)}")
+        return v
+
+    @field_validator("credential_type")
+    @classmethod
+    def _check_credential_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALID_CREDENTIAL_TYPES:
+            raise ValueError(f"credential_type must be one of {sorted(_VALID_CREDENTIAL_TYPES)}")
+        return v
+
 
 class SloConfigCreate(BaseModel):
     service_name: str
@@ -167,7 +205,16 @@ class SloConfigUpdate(BaseModel):
 
 _VALID_CONTACT_METHODS = {"email", "phone", "teams"}
 _VALID_PRIORITY_FILTERS = {"all", "p1_only", "p1_p2"}
-_VALID_OUTBOUND_TYPES = {"teams_webhook", "servicenow", "email", "pagerduty", "generic_http"}
+_VALID_OUTBOUND_TYPES = {
+    "teams_webhook",
+    "servicenow",
+    "email",
+    "pagerduty",
+    "generic_http",
+    "azure_devops_boards",
+    "azure_devops_wiki",
+    "sharepoint",
+}
 
 # Per-type field schema used as hints (frontend reads this via /meta endpoint if needed)
 CONNECTOR_FIELD_SCHEMA: dict[str, dict] = {
@@ -176,6 +223,22 @@ CONNECTOR_FIELD_SCHEMA: dict[str, dict] = {
     "email": {"endpoint": "SMTP host or API endpoint", "port": "SMTP port", "from": "From address"},
     "pagerduty": {"endpoint": "Events API URL (https://events.pagerduty.com/v2/enqueue)"},
     "generic_http": {"endpoint": "Endpoint URL", "http_method": "HTTP method (POST/PUT/PATCH/GET)"},
+    "azure_devops_boards": {
+        "endpoint": "Azure DevOps org URL (https://dev.azure.com/<org>)",
+        "project_name": "Project name",
+        "work_item_type": "Work item type (default: Issue)",
+    },
+    "azure_devops_wiki": {
+        "endpoint": "Azure DevOps org URL (https://dev.azure.com/<org>)",
+        "project_name": "Project name",
+        "wiki_id": "Wiki id or slug (or 'auto')",
+    },
+    "sharepoint": {
+        "endpoint": "SharePoint site URL",
+        "site_id": "SharePoint site id",
+        "drive_id": "Document library drive id (or 'auto')",
+        "folder_path": "Folder path",
+    },
 }
 
 
@@ -218,6 +281,45 @@ class OutboundConnectorCreate(BaseModel):
     def _check_type(cls, v: str) -> str:
         if v not in _VALID_OUTBOUND_TYPES:
             raise ValueError(f"connector_type must be one of {sorted(_VALID_OUTBOUND_TYPES)}")
+        return v
+
+
+class OutboundConnectorUpdate(BaseModel):
+    connector_type: str | None = None
+    display_name: str | None = None
+    config_json: dict[str, Any] | None = None
+
+    @field_validator("connector_type")
+    @classmethod
+    def _check_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALID_OUTBOUND_TYPES:
+            raise ValueError(f"connector_type must be one of {sorted(_VALID_OUTBOUND_TYPES)}")
+        return v
+
+
+_BOOTSTRAP_OUTBOUND_TYPES = {
+    "teams_webhook",
+    "email",
+    "azure_devops_boards",
+    "azure_devops_wiki",
+    "sharepoint",
+}
+
+
+class OutboundBootstrapRequest(BaseModel):
+    include_types: list[str] | None = None
+    overwrite_existing: bool = True
+
+    @field_validator("include_types")
+    @classmethod
+    def _check_include_types(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        bad = [item for item in v if item not in _BOOTSTRAP_OUTBOUND_TYPES]
+        if bad:
+            raise ValueError(
+                f"include_types supports only {sorted(_BOOTSTRAP_OUTBOUND_TYPES)}; got invalid {bad}"
+            )
         return v
 
 
@@ -389,12 +491,13 @@ def list_connectors(app_id: str, db: Session = Depends(_db)):
 def add_connector(app_id: str, body: ConnectorCreate, db: Session = Depends(_db)):
     _get_or_404(db, app_id)
     credential_ref = _store_credential(body)
+    config_json = _normalize_connector_config(body.source_type, body.display_name, body.config_json)
     row = LogSourceRow(
         id=str(uuid.uuid4()),
         application_id=app_id,
         source_type=body.source_type,
         display_name=body.display_name,
-        config_json=body.config_json,
+        config_json=config_json,
         credential_type=body.credential_type,
         credential_ref=credential_ref,
     )
@@ -411,6 +514,38 @@ def delete_connector(app_id: str, src_id: str, db: Session = Depends(_db)):
     if not row or row.application_id != app_id:
         raise HTTPException(status_code=404, detail="Connector not found")
     db.delete(row)
+
+
+@router.put("/{app_id}/connectors/{src_id}", summary="Update connector")
+def update_connector(app_id: str, src_id: str, body: ConnectorUpdate, db: Session = Depends(_db)):
+    _get_or_404(db, app_id)
+    row = db.get(LogSourceRow, src_id)
+    if not row or row.application_id != app_id:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
+    data = body.model_dump(exclude_none=True)
+    if "credential_type" in data:
+        row.credential_type = data["credential_type"]
+    if "credential_value" in data or "credential_ref" in data or "credential_type" in data:
+        effective_type = data.get("credential_type", row.credential_type)
+        effective_value = data.get("credential_value")
+        effective_ref = data.get("credential_ref")
+        if effective_type == "db_encrypted" and effective_value:
+            from corvin.connectors.crypto import encrypt
+            row.credential_ref = encrypt(effective_value)
+        elif effective_type in ("kv_reference", "env_var") and effective_ref is not None:
+            row.credential_ref = effective_ref
+
+    for k in ("source_type", "display_name", "config_json"):
+        if k in data:
+            setattr(row, k, data[k])
+
+    row.config_json = _normalize_connector_config(row.source_type, row.display_name, row.config_json)
+    _validate_connector_payload(row.source_type, row.config_json)
+
+    db.flush()
+    db.refresh(row)
+    return _mask_connector(row)
 
 
 @router.post("/{app_id}/connectors/{src_id}/test", summary="Test connector connectivity")
@@ -532,6 +667,34 @@ def add_outbound_connector(app_id: str, body: OutboundConnectorCreate, db: Sessi
     return _outbound_dict(row)
 
 
+@router.put("/{app_id}/outbound-connectors/{conn_id}", summary="Update outbound connector")
+def update_outbound_connector(app_id: str, conn_id: str, body: OutboundConnectorUpdate, db: Session = Depends(_db)):
+    _get_or_404(db, app_id)
+    row = db.get(OutboundConnectorRow, conn_id)
+    if not row or row.application_id != app_id:
+        raise HTTPException(status_code=404, detail="Outbound connector not found")
+    data = body.model_dump(exclude_none=True)
+    for k, v in data.items():
+        setattr(row, k, v)
+    db.flush()
+    db.refresh(row)
+    return _outbound_dict(row)
+
+
+@router.post("/{app_id}/outbound-connectors/{conn_id}/test", summary="Test outbound connector connectivity")
+def test_outbound_connector_route(app_id: str, conn_id: str, db: Session = Depends(_db)):
+    _get_or_404(db, app_id)
+    row = db.get(OutboundConnectorRow, conn_id)
+    if not row or row.application_id != app_id:
+        raise HTTPException(status_code=404, detail="Outbound connector not found")
+    result = test_outbound_connector(row.connector_type, row.display_name, row.config_json or {})
+    row.last_tested_at = datetime.now(timezone.utc)
+    row.test_status = "ok" if result.ok else "error"
+    row.test_message = result.message
+    db.flush()
+    return {"ok": result.ok, "message": result.message, "latency_ms": result.latency_ms}
+
+
 @router.delete("/{app_id}/outbound-connectors/{conn_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_outbound_connector(app_id: str, conn_id: str, db: Session = Depends(_db)):
     _get_or_404(db, app_id)
@@ -565,6 +728,338 @@ def _store_credential(body: ConnectorCreate) -> str | None:
     if body.credential_type in ("kv_reference", "env_var") and body.credential_ref:
         return body.credential_ref
     return None
+
+
+def _normalize_connector_config(source_type: str, display_name: str, config_json: dict[str, Any] | None) -> dict[str, Any]:
+    cfg = dict(config_json or {})
+    role = infer_connector_role(source_type, cfg, display_name)
+    if role and not cfg.get("connector_role"):
+        cfg["connector_role"] = role
+    if source_type == "aks":
+        return _normalize_aks_config(cfg)
+    if source_type == "azure_monitor":
+        cfg = _normalize_azure_monitor_config(cfg)
+    return cfg
+
+
+def _normalize_aks_config(config_json: dict[str, Any]) -> dict[str, Any]:
+    cfg = dict(config_json)
+    for key in ("cluster_name", "resource_group", "subscription_id", "tenant_id", "kube_config_path"):
+        if key in cfg and cfg[key] is not None:
+            value = str(cfg[key]).strip()
+            if value:
+                cfg[key] = value
+            else:
+                cfg.pop(key, None)
+
+    namespaces = _normalize_namespaces(cfg.get("namespaces"), cfg.get("default_namespace"))
+    cfg["namespaces"] = namespaces
+    cfg["default_namespace"] = namespaces[0]
+
+    clusters_raw = cfg.get("clusters")
+    if isinstance(clusters_raw, list):
+        normalized_clusters: list[dict[str, Any]] = []
+        for item in clusters_raw:
+            if not isinstance(item, dict):
+                continue
+            cluster: dict[str, Any] = {}
+            for key in ("cluster_name", "resource_group", "subscription_id", "tenant_id", "kube_config_path"):
+                value = item.get(key)
+                if value is None:
+                    continue
+                text = str(value).strip()
+                if text:
+                    cluster[key] = text
+            cluster["in_cluster"] = bool(item.get("in_cluster", False))
+            cluster_namespaces = _normalize_namespaces(item.get("namespaces"), item.get("default_namespace") or cfg["default_namespace"])
+            cluster["namespaces"] = cluster_namespaces
+            cluster["default_namespace"] = cluster_namespaces[0]
+
+            if not cluster.get("cluster_name"):
+                continue
+            normalized_clusters.append(cluster)
+
+        if normalized_clusters:
+            cfg["clusters"] = normalized_clusters
+        else:
+            cfg.pop("clusters", None)
+    return cfg
+
+
+def _normalize_azure_monitor_config(config_json: dict[str, Any]) -> dict[str, Any]:
+    cfg = dict(config_json)
+    role = str(cfg.get("connector_role", "")).strip()
+    workspace_id = str(cfg.get("workspace_id", "")).strip()
+    if workspace_id:
+        cfg["workspace_id"] = workspace_id
+    for key in ("subscription_id", "resource_group", "tenant_id", "apim_service_name", "cluster_name", "default_namespace"):
+        if key in cfg and cfg[key] is not None:
+            value = str(cfg[key]).strip()
+            if value:
+                cfg[key] = value
+            else:
+                cfg.pop(key, None)
+    if role == ROLE_APIM_LOGS:
+        cfg.setdefault("apim_table", "ApiManagementGatewayLogs")
+    if role == ROLE_CONTAINER_INSIGHTS:
+        namespaces = _normalize_namespaces(cfg.get("namespaces"), cfg.get("default_namespace"))
+        cfg["namespaces"] = namespaces
+        cfg["default_namespace"] = namespaces[0]
+    if role == ROLE_AZURE_ACTIVITY:
+        cfg.setdefault("activity_table", "AzureActivity")
+        cfg.setdefault("default_time_range_minutes", 60)
+        cfg.setdefault("max_events", 100)
+    return cfg
+
+
+def _validate_connector_payload(source_type: str, config_json: dict[str, Any] | None) -> None:
+    cfg = dict(config_json or {})
+    if source_type == "aks":
+        clusters = cfg.get("clusters") if isinstance(cfg.get("clusters"), list) else []
+        if clusters:
+            for idx, cluster in enumerate(clusters):
+                if not isinstance(cluster, dict):
+                    raise ValueError(f"aks clusters[{idx}] must be an object")
+                if not str(cluster.get("cluster_name", "")).strip():
+                    raise ValueError(f"aks clusters[{idx}] requires cluster_name")
+                if not str(cluster.get("resource_group", "")).strip():
+                    raise ValueError(f"aks clusters[{idx}] requires resource_group")
+                if not str(cluster.get("subscription_id", "")).strip():
+                    raise ValueError(f"aks clusters[{idx}] requires subscription_id")
+                ns_list = _normalize_namespaces(cluster.get("namespaces"), cluster.get("default_namespace"))
+                if not ns_list:
+                    raise ValueError(f"aks clusters[{idx}] requires at least one namespace")
+        else:
+            cluster_name = str(cfg.get("cluster_name", "")).strip()
+            resource_group = str(cfg.get("resource_group", "")).strip()
+            subscription_id = str(cfg.get("subscription_id", "")).strip()
+            if not cluster_name:
+                raise ValueError("aks connector requires cluster_name")
+            if not resource_group:
+                raise ValueError("aks connector requires resource_group")
+            if not subscription_id:
+                raise ValueError("aks connector requires subscription_id")
+        namespaces = _normalize_namespaces(cfg.get("namespaces"), cfg.get("default_namespace"))
+        if not namespaces:
+            raise ValueError("aks connector requires at least one namespace")
+        return
+
+    if source_type != "azure_monitor":
+        return
+
+    role = str(cfg.get("connector_role", "")).strip()
+    if role not in _VALID_AZURE_MONITOR_ROLES:
+        raise ValueError(
+            f"azure_monitor connector_role must be one of {sorted(_VALID_AZURE_MONITOR_ROLES)}"
+        )
+
+    workspace_id = str(cfg.get("workspace_id", "")).strip()
+    if not workspace_id:
+        raise ValueError("azure_monitor workspace_id is required")
+
+    if role == ROLE_APIM_LOGS:
+        return
+
+    if role == ROLE_CONTAINER_INSIGHTS:
+        cluster_name = str(cfg.get("cluster_name", "")).strip()
+        if not cluster_name:
+            raise ValueError("container_insights connector requires cluster_name")
+        namespaces = _normalize_namespaces(cfg.get("namespaces"), cfg.get("default_namespace"))
+        if not namespaces:
+            raise ValueError("container_insights connector requires at least one namespace")
+        return
+
+    if role == ROLE_AZURE_ACTIVITY:
+        return
+
+
+def _normalize_namespaces(value: Any, fallback: Any = None) -> list[str]:
+    values: list[str] = []
+
+    if isinstance(value, list):
+        values = [str(v).strip() for v in value if str(v).strip()]
+    elif isinstance(value, str):
+        values = [part.strip() for part in re.split(r"[,\n]", value) if part.strip()]
+
+    if not values:
+        fb = str(fallback or "").strip()
+        if fb:
+            values = [fb]
+
+    if not values:
+        values = ["default"]
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for ns in values:
+        key = ns.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(ns)
+    return deduped
+
+
+@router.post("/{app_id}/outbound-connectors/bootstrap", summary="Bootstrap default outbound connectors for an application")
+def bootstrap_outbound_connectors(
+    app_id: str,
+    body: OutboundBootstrapRequest | None = Body(default=None),
+    db: Session = Depends(_db),
+):
+    _get_or_404(db, app_id)
+
+    include_types = set((body.include_types if body and body.include_types else sorted(_BOOTSTRAP_OUTBOUND_TYPES)))
+    overwrite_existing = body.overwrite_existing if body is not None else True
+
+    org = str(os.environ.get("AZURE_DEVOPS_ORG", "")).strip()
+    project = str(os.environ.get("AZURE_DEVOPS_PROJECT", "")).strip()
+    pat = str(os.environ.get("AZURE_DEVOPS_PAT", "")).strip()
+    teams_webhook = str(os.environ.get("TEAMS_WEBHOOK_URL", "")).strip()
+    email_host = str(os.environ.get("CORVIN_SMTP_HOST", "smtp.office365.com")).strip() or "smtp.office365.com"
+    email_from = str(os.environ.get("CORVIN_EMAIL_FROM", "")).strip()
+    email_to = str(os.environ.get("CORVIN_EMAIL_TO", "")).strip()
+    email_user = str(os.environ.get("CORVIN_SMTP_USERNAME", "")).strip()
+    email_pass = str(os.environ.get("CORVIN_SMTP_PASSWORD", "")).strip()
+    sharepoint_site_id = str(os.environ.get("SHAREPOINT_SITE_ID", "")).strip()
+
+    ado_endpoint = f"https://dev.azure.com/{org}" if org else "https://dev.azure.com/your-org"
+    sharepoint_endpoint = "https://yourtenant.sharepoint.com/sites/your-site"
+    if sharepoint_site_id:
+        host = sharepoint_site_id.split(",", 1)[0].strip()
+        if host:
+            if host.startswith("http://") or host.startswith("https://"):
+                sharepoint_endpoint = host
+            else:
+                sharepoint_endpoint = f"https://{host}"
+
+    defaults: dict[str, dict[str, Any]] = {
+        "teams_webhook": {
+            "display_name": "Microsoft Teams",
+            "config_json": {
+                "endpoint": teams_webhook or "https://placeholder.webhook.office.com/webhookb2/placeholder",
+                "endpoint_fields": {"http_method": "POST"},
+                "auth": {"type": "none"},
+                "variables": [
+                    {"key": "title", "default_value": "Corvin Alert: {{service_name}}"},
+                    {"key": "summary", "default_value": "{{rca_summary}}"},
+                    {"key": "severity_color", "default_value": "FF0000"},
+                ],
+                "payload_template": "{}",
+            },
+        },
+        "email": {
+            "display_name": "Corvin Email Delivery",
+            "config_json": {
+                "endpoint": email_host,
+                "endpoint_fields": {"port": "587", "from": email_from},
+                "auth": {
+                    "type": "basic" if email_user and email_pass else "none",
+                    "username": email_user,
+                    "password": email_pass,
+                },
+                "variables": [
+                    {"key": "to", "default_value": email_to},
+                    {"key": "title", "default_value": "[Corvin] {{service_name}} alert"},
+                    {"key": "summary", "default_value": "{{rca_summary}}"},
+                ],
+                "payload_template": "{}",
+            },
+        },
+        "azure_devops_boards": {
+            "display_name": "Azure DevOps Boards",
+            "config_json": {
+                "endpoint": ado_endpoint,
+                "endpoint_fields": {
+                    "project_name": project,
+                    "work_item_type": "Issue",
+                    "http_method": "GET",
+                },
+                "auth": {
+                    "type": "api_key" if pat else "none",
+                    "api_key": pat,
+                    "api_key_header": "X-API-Key",
+                },
+                "variables": [{"key": "tags", "default_value": "corvin;{{environment}};{{service_name}}"}],
+                "payload_template": "{}",
+            },
+        },
+        "azure_devops_wiki": {
+            "display_name": "Azure DevOps Wiki",
+            "config_json": {
+                "endpoint": ado_endpoint,
+                "endpoint_fields": {
+                    "project_name": project,
+                    "wiki_id": "auto",
+                    "http_method": "GET",
+                },
+                "auth": {
+                    "type": "api_key" if pat else "none",
+                    "api_key": pat,
+                    "api_key_header": "X-API-Key",
+                },
+                "variables": [{"key": "section", "default_value": "Investigations"}],
+                "payload_template": "{}",
+            },
+        },
+        "sharepoint": {
+            "display_name": "SharePoint RCA Library",
+            "config_json": {
+                "endpoint": sharepoint_endpoint,
+                "endpoint_fields": {
+                    "site_id": sharepoint_site_id,
+                    "drive_id": "auto",
+                    "folder_path": "Corvin/Investigations",
+                    "http_method": "GET",
+                },
+                "auth": {"type": "none"},
+                "variables": [{"key": "folder_hint", "default_value": "{{environment}}/{{service_name}}"}],
+                "payload_template": "{}",
+            },
+        },
+    }
+
+    inserted = 0
+    updated = 0
+    results: list[dict[str, str]] = []
+    for connector_type, payload in defaults.items():
+        if connector_type not in include_types:
+            continue
+        row = db.query(OutboundConnectorRow).filter_by(
+            application_id=app_id,
+            connector_type=connector_type,
+        ).first()
+        if row is None:
+            row = OutboundConnectorRow(
+                id=str(uuid.uuid4()),
+                application_id=app_id,
+                connector_type=connector_type,
+                display_name=str(payload["display_name"]),
+                config_json=dict(payload["config_json"]),
+                is_active=True,
+            )
+            db.add(row)
+            inserted += 1
+            action = "inserted"
+        else:
+            if not overwrite_existing:
+                results.append({"connector_type": connector_type, "action": "skipped"})
+                continue
+            row.display_name = str(payload["display_name"])
+            row.config_json = dict(payload["config_json"])
+            row.is_active = True
+            updated += 1
+            action = "updated"
+        results.append({"connector_type": connector_type, "action": action})
+
+    db.flush()
+    return {
+        "status": "ok",
+        "application_id": app_id,
+        "inserted": inserted,
+        "updated": updated,
+        "overwrite_existing": overwrite_existing,
+        "connectors": results,
+    }
 
 
 def _mask_connector(row: LogSourceRow) -> dict[str, Any]:
