@@ -1847,6 +1847,8 @@ export interface HeatmapDay {
   count: number
   /** Severity bucket based on investigation.yaml thresholds */
   severity: 'none' | 'low' | 'medium' | 'high' | 'critical'
+  /** Per-service investigation counts for tooltip breakdown */
+  services?: Record<string, number>
 }
 
 export interface HeatmapSeverityThresholds {

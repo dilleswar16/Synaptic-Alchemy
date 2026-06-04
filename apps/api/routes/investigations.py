@@ -28,6 +28,24 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
+# ── UUID path-converter ───────────────────────────────────────────────────────
+# Register a custom Starlette path converter so /{request_id:investigation_id}
+# only matches UUID-formatted strings.  This prevents literal-path routes like
+# /heatmap and /similarity-network from being swallowed by the catch-all
+# /{request_id} route, regardless of their registration order in the file.
+from starlette.convertors import Convertor, CONVERTOR_TYPES
+
+class _InvestigationIdConvertor(Convertor):
+    regex = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+
+    def convert(self, value: str) -> str:
+        return value
+
+    def to_string(self, value: str) -> str:
+        return value
+
+CONVERTOR_TYPES["investigation_id"] = _InvestigationIdConvertor()
+
 from corvin.core.contracts import ApprovalStatus, InvestigationRequest, InvestigationResult, TriggerSource
 from corvin.delivery.azure_devops_adapter import AzureDevOpsAdapter
 from corvin.delivery.rca_notification import send_rca_email_if_enabled, resolve_ado_boards_config_for_service
@@ -1579,7 +1597,7 @@ def update_runbook(
     }
 
 
-@router.get("/{request_id}", response_model=InvestigationResult)
+@router.get("/{request_id:investigation_id}", response_model=InvestigationResult)
 def get_investigation(
     request_id: str,
     repo: InvestigationRepository = Depends(get_repository),
@@ -2903,8 +2921,16 @@ def get_incident_heatmap(
             return "medium"
         return "low"
 
+    # Build service lookup from DB rows
+    services_by_date = {row["date"]: row.get("services", {}) for row in db_rows}
+
     days_list = [
-        {"date": d, "count": c, "severity": _severity(c)}
+        {
+            "date": d,
+            "count": c,
+            "severity": _severity(c),
+            "services": services_by_date.get(d, {}),
+        }
         for d, c in sorted(all_dates.items())
     ]
 

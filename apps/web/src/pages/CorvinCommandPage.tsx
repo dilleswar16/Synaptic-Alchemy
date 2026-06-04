@@ -803,7 +803,7 @@ export default function CorvinCommandPage() {
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
                 {toolEvents.length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', marginTop: 40, lineHeight: 2 }}>
+                  <div style={{ textAlign: 'center', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', lineHeight: 2 }}>
                     Tool results will appear here<br />as Corvin queries live data.
                   </div>
                 )}

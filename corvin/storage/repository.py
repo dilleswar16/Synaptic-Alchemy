@@ -1211,39 +1211,65 @@ class InvestigationRepository:
         service_name: str | None = None,
         environment: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Return daily incident counts for the heatmap calendar.
+        """Return daily incident counts with per-service breakdown for the heatmap.
 
-        Each dict: {"date": "2026-03-01", "count": 3}
+        Each dict: {"date": "2026-03-01", "count": 3, "services": {"api-svc": 2, "auth": 1}}
 
         Only days with at least 1 investigation appear in the result.
-        The caller is responsible for filling in zero-count days.
+        The caller fills in zero-count days.
         """
         from sqlalchemy import func
+        from datetime import timedelta
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
         with self._session_factory() as session:
-            # SQLite and Postgres both support DATE() via func.date()
             day_col = func.date(InvestigationRequestRow.created_at).label("day")
-            stmt = (
+
+            # Query 1: daily totals
+            total_stmt = (
                 select(day_col, func.count(InvestigationRequestRow.id).label("cnt"))
+                .where(InvestigationRequestRow.created_at >= cutoff)
                 .group_by(day_col)
                 .order_by(day_col.asc())
             )
-
-            # Days filter — use created_at relative to now
-            from datetime import timedelta
-            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-            stmt = stmt.where(InvestigationRequestRow.created_at >= cutoff)
-
             if service_name:
-                stmt = stmt.where(InvestigationRequestRow.service_name == service_name)
+                total_stmt = total_stmt.where(InvestigationRequestRow.service_name == service_name)
             if environment:
-                stmt = stmt.where(InvestigationRequestRow.environment == environment)
+                total_stmt = total_stmt.where(InvestigationRequestRow.environment == environment)
 
-            rows = session.execute(stmt).all()
+            # Query 2: daily per-service breakdown
+            svc_stmt = (
+                select(
+                    day_col,
+                    InvestigationRequestRow.service_name,
+                    func.count(InvestigationRequestRow.id).label("cnt"),
+                )
+                .where(InvestigationRequestRow.created_at >= cutoff)
+                .group_by(day_col, InvestigationRequestRow.service_name)
+                .order_by(day_col.asc())
+            )
+            if service_name:
+                svc_stmt = svc_stmt.where(InvestigationRequestRow.service_name == service_name)
+            if environment:
+                svc_stmt = svc_stmt.where(InvestigationRequestRow.environment == environment)
+
+            total_rows = session.execute(total_stmt).all()
+            svc_rows = session.execute(svc_stmt).all()
+
+        # Build service breakdown index  {date: {service: count}}
+        breakdown: dict[str, dict[str, int]] = {}
+        for row in svc_rows:
+            d = str(row.day)
+            breakdown.setdefault(d, {})[row.service_name] = int(row.cnt)
 
         return [
-            {"date": str(row.day), "count": int(row.cnt)}
-            for row in rows
+            {
+                "date": str(row.day),
+                "count": int(row.cnt),
+                "services": breakdown.get(str(row.day), {}),
+            }
+            for row in total_rows
         ]
 
 
