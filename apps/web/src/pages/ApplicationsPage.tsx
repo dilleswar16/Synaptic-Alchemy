@@ -2362,12 +2362,13 @@ function SimulatorPresetsTab({ appId, services }: { appId: string; services: App
 
 // ── Application Detail Panel ──────────────────────────────────────────────────
 
-type Tab = 'services' | 'connectors' | 'notifications' | 'slo' | 'simulator_presets' | 'environments' | 'knowledge' | 'runbooks'
+type Tab = 'services' | 'connectors' | 'notifications' | 'slo' | 'simulator_presets' | 'knowledge' | 'runbooks'
 
 function AppDetail({ appId }: { appId: string }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('services')
+  const [topologyOpen, setTopologyOpen] = useState(false)
   const { data: app, isLoading, isError } = useQuery({
     queryKey: ['application', appId],
     queryFn: () => getApplication(appId),
@@ -2397,7 +2398,6 @@ function AppDetail({ appId }: { appId: string }) {
     { key: 'connectors', label: `Connectors (${(app.log_sources?.length ?? 0) + (app.outbound_connectors?.length ?? 0)})` },
     { key: 'notifications', label: `Notifications (${app.notification_contacts?.length ?? 0})` },
     { key: 'slo', label: `SLO (${app.slo_configs?.length ?? 0})` },
-    { key: 'environments', label: 'Environments' },
     { key: 'knowledge', label: 'Knowledge Base' },
     { key: 'runbooks', label: 'Runbook Library' },
     { key: 'simulator_presets', label: 'Simulator Presets' },
@@ -2433,7 +2433,20 @@ function AppDetail({ appId }: { appId: string }) {
         </div>
       </div>
 
-      <TopologyRadar applicationId={appId} appTitle={app.name} appOnly />
+      <div style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 12, overflow: 'hidden' }}>
+        <button
+          onClick={() => setTopologyOpen(!topologyOpen)}
+          style={{ width: '100%', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.9rem', color: 'var(--c-text)' }}
+        >
+          <span>Dependency Visualizer</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--c-text-faint)', transform: topologyOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+        </button>
+        {topologyOpen && (
+          <div style={{ borderTop: '1px solid var(--c-border)', paddingBottom: 16 }}>
+            <TopologyRadar applicationId={appId} appTitle={app.name} appOnly />
+          </div>
+        )}
+      </div>
 
       {/* Tabs */}
       <div style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 12, overflow: 'hidden' }}>
@@ -2461,7 +2474,6 @@ function AppDetail({ appId }: { appId: string }) {
           {tab === 'connectors' && <ConnectorsTab app={app} />}
           {tab === 'notifications' && <NotificationsTab app={app} />}
           {tab === 'slo' && <SloTab app={app} />}
-          {tab === 'environments' && <EnvironmentsTab appId={app.id} />}
           {tab === 'knowledge' && <KnowledgeBaseTab appId={app.id} />}
           {tab === 'runbooks' && <RunbookLibraryTab appId={app.id} services={app.services ?? []} />}
           {tab === 'simulator_presets' && <SimulatorPresetsTab appId={app.id} services={app.services ?? []} />}
