@@ -1,0 +1,163 @@
+# Demo seed data — loaded by seed_demo.py when CORVIN_DEMO_MODE=true.
+#
+# Rename or replace this file for your own deployment.
+# The seeder is idempotent: it skips rows that already exist.
+#
+# health_profile controls simulated SLO trajectories:
+#   ok       → 99.5–99.9% availability, low burn rate
+#   at_risk  → 98–99% availability, elevated burn rate (>0.8)
+
+application:
+  name: "CHAD"
+  description: >
+    Channel Account & Distribution platform — fund APIs, partner APIs,
+    and SSO service running in AKS namespace 'chad'.
+  team_name: "CHAD Engineering"
+  environment_default: "dev"
+
+services:
+  # Fields: service_name, display_name, k8s_app_label, namespace, tier, health_profile
+  - service_name: fundapis
+    display_name: "Fund APIs"
+    k8s_app_label: chad-fundapis
+    namespace: chad
+    tier: api
+    health_profile: ok
+
+  - service_name: fundsso
+    display_name: "Fund SSO"
+    k8s_app_label: chad-fundsso
+    namespace: chad
+    tier: api
+    health_profile: ok
+
+  - service_name: partnerapis
+    display_name: "Partner APIs"
+    k8s_app_label: chad-partnerapis
+    namespace: chad
+    tier: api
+    health_profile: at_risk
+
+# SLO snapshot health profiles (simulated data — replace with real connectors).
+# Each profile defines 5 historical data points, oldest → newest.
+# Tuple order: (availability_pct, latency_pct, error_budget_pct, burn_rate)
+slo_profiles:
+  ok:
+    availability_target_pct: 99.5
+    latency_target_pct: 99.5
+    latency_threshold_ms: 200
+    snapshots:
+      - [99.72, 99.61, 68.4, 0.31]
+      - [99.68, 99.58, 64.2, 0.36]
+      - [99.75, 99.63, 70.1, 0.30]
+      - [99.71, 99.60, 66.8, 0.33]
+      - [99.69, 99.57, 63.5, 0.37]
+
+  at_risk:
+    availability_target_pct: 99.0
+    latency_target_pct: 99.0
+    latency_threshold_ms: 200
+    snapshots:
+      - [98.91, 98.72, 28.4, 0.81]
+      - [98.74, 98.55, 22.1, 0.93]
+      - [98.62, 98.44, 17.8, 1.02]
+      - [98.55, 98.38, 13.2, 1.11]
+      - [98.41, 98.26,  9.6, 1.21]
+
+# Simulator presets — loaded into SimulatorPresetRow linked to this application.
+# Customers manage these via the Application Panel → Simulator Presets tab.
+# Fields: scenario_id (slug), label, service_name, environment, description,
+#         icon_key (hpa|thunder|lock|memory|custom), accent_color (css var or hex), display_order
+simulator_presets:
+  - scenario_id: hpa_failure
+    label: "Inject Scale Lag"
+    service_name: partnerapis
+    environment: dev
+    description: "Freeze HPA controller — pods stuck at 1 replica despite high load."
+    icon_key: hpa
+    accent_color: "var(--c-signal)"
+    display_order: 0
+
+  - scenario_id: five_zero_three_spike
+    label: "Flood 503 Errors"
+    service_name: fundapis
+    environment: dev
+    description: "Simulate network partition — flood 18% error rate on /v1/funds."
+    icon_key: thunder
+    accent_color: "var(--c-red)"
+    display_order: 1
+
+  - scenario_id: auth_errors
+    label: "Poison JWT Tokens"
+    service_name: fundsso
+    environment: dev
+    description: "Corrupt identity cache — returning 401 on 35% of SSO requests."
+    icon_key: lock
+    accent_color: "var(--c-purple)"
+    display_order: 2
+
+  - scenario_id: memory_leak
+    label: "Leak Heap Memory"
+    service_name: fundapis
+    environment: dev
+    description: "Deploy memory pressure tool — simulate heap OOM trajectory."
+    icon_key: memory
+    accent_color: "var(--c-info)"
+    display_order: 3
+
+# Environment definitions — loaded into ApplicationEnvironmentRow.
+# Drives priority routing, lookback windows, and all env dropdowns in the UI.
+environments:
+  - name: production
+    display_name: Production
+    priority_tier: P1
+    lookback_minutes: 15
+    is_default: false
+    display_order: 0
+  - name: staging
+    display_name: Staging
+    priority_tier: P2
+    lookback_minutes: 30
+    is_default: false
+    display_order: 1
+  - name: dev
+    display_name: Development
+    priority_tier: P3
+    lookback_minutes: 60
+    is_default: true
+    display_order: 2
+
+# Initial knowledge base entry — placeholder until the team populates it.
+# Loaded into KnowledgeBaseRow. The disk-based knowledge/site.md takes over
+# if no DB entries exist, so this entry is optional but shows customers the pattern.
+knowledge_base:
+  - title: "Getting Started — Replace This With Your Site Knowledge"
+    content: |
+      # Site Knowledge Base
+
+      This is a placeholder. Replace this entry with your actual site knowledge:
+
+      - **Namespaces**: List your Kubernetes namespaces and what runs in each.
+      - **Services**: Key services, their owners, and what they do.
+      - **Monitoring**: Where to find dashboards (Grafana, Azure Monitor, etc.).
+      - **Known Issues**: Recurring problems and their workarounds.
+      - **Commands**: Useful kubectl commands for your cluster.
+
+      You can add multiple entries to keep different topics separate.
+    display_order: 0
+
+# Service metadata injected into ApplicationServiceRow.metadata_json.
+# apim_routes_through_gateway: true  → APIM adapter queries this service.
+# is_sso_direct: true                → SSO service (no APIM proxy).
+service_metadata:
+  fundapis:
+    apim_routes_through_gateway: true
+    apim_api_id: fundapis
+    is_sso_direct: false
+  fundsso:
+    apim_routes_through_gateway: false
+    is_sso_direct: true
+  partnerapis:
+    apim_routes_through_gateway: true
+    apim_api_id: partnerapis
+    is_sso_direct: false

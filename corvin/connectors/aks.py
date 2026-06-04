@@ -26,7 +26,9 @@ class AKSConnector(BaseConnector):
         cluster_name = str(self._config.get("cluster_name", "")).strip()
         resource_group = str(self._config.get("resource_group", "")).strip()
         subscription_id = str(self._config.get("subscription_id", "")).strip()
-        namespace = str(self._config.get("default_namespace", "default") or "default")
+        namespace = str(self._config.get("default_namespace") or "").strip()
+        if not namespace:
+            return TestResult(ok=False, message="default_namespace is required in connector config")
 
         if not cluster_name:
             return TestResult(ok=False, message="cluster_name is empty")

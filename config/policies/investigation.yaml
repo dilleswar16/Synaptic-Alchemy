@@ -32,31 +32,10 @@ blast_radius_revenue_per_user_per_min: 0.003
 # Currency symbol used in the UI display.
 blast_radius_currency: GBP
 
-# ── V3.5: Alert Simulator presets ─────────────────────────────────────────────
-# These define the synthetic Azure Monitor payloads fired by the UI simulator.
-# Each preset maps to a service + description; actual alert JSON is built in
-# the /triggers/simulate endpoint at runtime.
-simulator_presets:
-  - id: hpa_failure
-    label: "⚠ HPA Failure"
-    service_name: partnerapis
-    environment: dev
-    description: "HPA not scaling — partnerapis pods stuck at 1 replica despite 92% CPU. Partner integrations degraded."
-  - id: five_zero_three_spike
-    label: "⚡ 503 Spike"
-    service_name: fundapis
-    environment: dev
-    description: "503 error rate spiked to 18% on /v1/funds endpoint. Two pods restarted in the last 30 minutes."
-  - id: auth_errors
-    label: "🔒 Auth Errors"
-    service_name: fundsso
-    environment: dev
-    description: "JWT validation failures spiking — fundsso returning 401 on 35% of SSO requests since 09:00."
-  - id: memory_leak
-    label: "💾 Memory Leak"
-    service_name: fundapis
-    environment: dev
-    description: "Heap usage climbing steadily — fundapis at 89% memory limit, OOM kill expected within 2 hours."
+# ── V3.5: Alert Simulator ──────────────────────────────────────────────────────
+# Simulator presets are now DB-driven, managed per-application via the
+# Application Panel UI (Applications → Simulator Presets tab).
+# Add presets for demo deployments in config/demo/seed_data.yaml.
 
 # ── V3.9: ROI Dashboard ────────────────────────────────────────────────────────
 # Baseline MTTR (minutes) before Corvin — used to calculate time saved.
@@ -97,3 +76,18 @@ sla_target_percent: 99.9
 sla_month_minutes: 43200
 sla_amber_seconds: 7200
 sla_red_seconds: 1800
+
+# ── Alert Suppression / Deduplication ─────────────────────────────────────────
+# Minimum minutes before the same service can trigger a new investigation.
+# Prevents alert storms from DDoSing the investigation engine.
+alert_suppression_window_minutes: 15
+
+# ── Alert Correlation Windows ─────────────────────────────────────────────────
+# How close in time two alerts from the same service must be to be correlated.
+alert_correlation_same_service_minutes: 5
+# How close in time two alerts from adjacent (dependent) services must be.
+alert_correlation_adjacent_service_minutes: 10
+
+# ── Toil Tracking ─────────────────────────────────────────────────────────────
+# Lookback window for toil/ROI metrics aggregation.
+toil_lookback_days: 30

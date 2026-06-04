@@ -26,10 +26,30 @@ import {
   deleteOutboundConnector,
   bootstrapOutboundConnectors,
   migrateFromYaml,
+  listSimulatorPresets,
+  createSimulatorPreset,
+  updateSimulatorPreset,
+  deleteSimulatorPreset,
+  listEnvironments,
+  createEnvironment,
+  updateEnvironment,
+  deleteEnvironment,
+  listKnowledge,
+  createKnowledge,
+  updateKnowledge,
+  deleteKnowledge,
+  listRunbooks,
+  createRunbook,
+  updateRunbook,
+  deleteRunbook,
   type Application,
   type LogSource,
   type ApplicationService,
   type OutboundConnector,
+  type SimulatorPreset,
+  type ApplicationEnvironment,
+  type KnowledgeEntry,
+  type RunbookEntry,
 } from '../api/client'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -203,7 +223,7 @@ function CreateAppModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('')
   const [team, setTeam] = useState('')
   const [desc, setDesc] = useState('')
-  const [env, setEnv] = useState('prod')
+  const [env, setEnv] = useState('dev')
 
   const mut = useMutation({
     mutationFn: () => createApplication({ name, team_name: team, description: desc, environment_default: env }),
@@ -213,15 +233,13 @@ function CreateAppModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="New Application" onClose={onClose}>
       <Field label="Name *">
-        <input style={INPUT_STYLE} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. ChAD Platform" />
+        <input style={INPUT_STYLE} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Payments Platform" />
       </Field>
       <Field label="Team">
-        <input style={INPUT_STYLE} value={team} onChange={e => setTeam(e.target.value)} placeholder="e.g. AMS Platform" />
+        <input style={INPUT_STYLE} value={team} onChange={e => setTeam(e.target.value)} placeholder="e.g. Platform Engineering" />
       </Field>
       <Field label="Default Environment">
-        <select style={INPUT_STYLE} value={env} onChange={e => setEnv(e.target.value)}>
-          {['prod', 'staging', 'dev', 'uat'].map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
+        <input style={INPUT_STYLE} value={env} onChange={e => setEnv(e.target.value)} placeholder="e.g. dev, staging, production" />
       </Field>
       <Field label="Description">
         <textarea style={{ ...INPUT_STYLE, resize: 'vertical', minHeight: 64 }} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Brief description..." />
@@ -286,7 +304,7 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
   return (
     <Modal title="Add Service" onClose={onClose}>
       <Field label="Service Name *">
-        <input style={INPUT_STYLE} value={svcName} onChange={e => setSvcName(e.target.value)} placeholder="e.g. fundapis" />
+        <input style={INPUT_STYLE} value={svcName} onChange={e => setSvcName(e.target.value)} placeholder="e.g. payments-api" />
       </Field>
       <Field label="Display Name">
         <input style={INPUT_STYLE} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Defaults to service name" />
@@ -311,7 +329,7 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
       </Field>
       {apimGateway && (
         <Field label="APIM API ID">
-          <input style={INPUT_STYLE} value={apimApiId} onChange={e => setApimApiId(e.target.value)} placeholder="e.g. fundapis (defaults to service name)" />
+          <input style={INPUT_STYLE} value={apimApiId} onChange={e => setApimApiId(e.target.value)} placeholder="e.g. payments-api (defaults to service name)" />
         </Field>
       )}
       <Field label="">
@@ -542,7 +560,7 @@ function AddConnectorModal({
             <input style={INPUT_STYLE} value={aksSub} onChange={e => setAksSub(e.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
           </Field>
           <Field label="Namespaces (comma-separated)">
-            <input style={INPUT_STYLE} value={aksNs} onChange={e => setAksNs(e.target.value)} placeholder="e.g. chad,funds,partner" />
+            <input style={INPUT_STYLE} value={aksNs} onChange={e => setAksNs(e.target.value)} placeholder="e.g. default,monitoring,platform" />
           </Field>
           <Field label="">
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.82rem' }}>
@@ -606,7 +624,7 @@ function AddConnectorModal({
                 <input style={INPUT_STYLE} value={azureClusterName} onChange={e => setAzureClusterName(e.target.value)} placeholder="e.g. azaustaekub14470dv0101" />
               </Field>
               <Field label="Namespaces (comma-separated)">
-                <input style={INPUT_STYLE} value={azureNs} onChange={e => setAzureNs(e.target.value)} placeholder="e.g. chad,funds,partner" />
+                <input style={INPUT_STYLE} value={azureNs} onChange={e => setAzureNs(e.target.value)} placeholder="e.g. default,monitoring,platform" />
               </Field>
             </>
           ) : null}
@@ -1461,7 +1479,7 @@ function AddOutboundModal({
           </label>
           <label style={lbl}>
             Display Name
-            <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="e.g. CHAD Platform Alerts" style={{ ...inp, marginTop: 4 }} />
+            <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="e.g. Production Alerts" style={{ ...inp, marginTop: 4 }} />
           </label>
         </div>
 
@@ -1893,9 +1911,458 @@ function SloTab({ app }: { app: Application }) {
   )
 }
 
+// ── Environments Tab ──────────────────────────────────────────────────────────
+
+const PRIORITY_TIERS = ['P1', 'P2', 'P3']
+
+function EnvironmentsTab({ appId }: { appId: string }) {
+  const qc = useQueryClient()
+  const [showAdd, setShowAdd] = useState(false)
+  const [editId, setEditId] = useState<number | null>(null)
+  const [form, setForm] = useState<Partial<ApplicationEnvironment>>({})
+
+  const { data: envs = [], isLoading } = useQuery({
+    queryKey: ['app-environments', appId],
+    queryFn: () => listEnvironments(appId),
+  })
+
+  const createMut = useMutation({
+    mutationFn: (p: Partial<ApplicationEnvironment>) => createEnvironment(appId, p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['app-environments', appId] }); setShowAdd(false); setForm({}) },
+  })
+  const updateMut = useMutation({
+    mutationFn: ({ id, p }: { id: number; p: Partial<ApplicationEnvironment> }) => updateEnvironment(appId, id, p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['app-environments', appId] }); setEditId(null); setForm({}) },
+  })
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => deleteEnvironment(appId, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['app-environments', appId] }),
+  })
+
+  const fs: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', padding: '7px 10px',
+    background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)',
+    borderRadius: 6, color: 'var(--c-text)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem',
+  }
+
+  const PRIORITY_COLORS: Record<string, string> = { P1: '#ef4444', P2: '#f59e0b', P3: '#10b981' }
+
+  function openEdit(env: ApplicationEnvironment) {
+    setEditId(env.id)
+    setForm({ name: env.name, display_name: env.display_name, priority_tier: env.priority_tier, lookback_minutes: env.lookback_minutes, is_default: env.is_default, display_order: env.display_order })
+    setShowAdd(true)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>
+          Define your application's environments. These drive priority classification, alert routing, and all environment dropdowns across the UI.
+        </p>
+        <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 14px', whiteSpace: 'nowrap' }} onClick={() => { setEditId(null); setForm({}); setShowAdd(true) }}>+ Add Environment</button>
+      </div>
+
+      {isLoading && <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem' }}>Loading…</p>}
+      {!isLoading && envs.length === 0 && (
+        <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem', fontStyle: 'italic' }}>
+          No environments defined yet. Add at least one (e.g. production) to enable priority routing.
+        </p>
+      )}
+
+      {envs.map(env => (
+        <div key={env.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.82rem', color: PRIORITY_COLORS[env.priority_tier] || 'var(--c-text)' }}>{env.priority_tier}</span>
+            <div>
+              <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>{env.display_name}</span>
+              <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)' }}>{env.name}</span>
+              {env.is_default && <span style={{ marginLeft: 8, fontSize: '0.65rem', color: 'var(--c-signal)', background: 'var(--c-signal-light)', padding: '1px 6px', borderRadius: 4 }}>default</span>}
+            </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)' }}>lookback: {env.lookback_minutes}min</span>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => openEdit(env)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.8rem', padding: 4 }}>✎</button>
+            <button onClick={() => { if (window.confirm(`Delete environment "${env.name}"?`)) deleteMut.mutate(env.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}>✕</button>
+          </div>
+        </div>
+      ))}
+
+      {showAdd && (
+        <div style={{ padding: 16, background: 'var(--c-surface)', border: '1px solid var(--c-border-hi)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem' }}>{editId ? 'Edit Environment' : 'New Environment'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Name (slug)</label>
+              <input style={fs} value={form.name ?? ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. production" />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Display Name</label>
+              <input style={fs} value={form.display_name ?? ''} onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))} placeholder="e.g. Production" />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Priority Tier</label>
+              <select style={fs} value={form.priority_tier ?? 'P3'} onChange={e => setForm(f => ({ ...f, priority_tier: e.target.value }))}>
+                {PRIORITY_TIERS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Lookback (minutes)</label>
+              <input style={fs} type="number" value={form.lookback_minutes ?? 60} onChange={e => setForm(f => ({ ...f, lookback_minutes: parseInt(e.target.value) || 60 }))} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 20 }}>
+              <input type="checkbox" id="env-default" checked={!!form.is_default} onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))} />
+              <label htmlFor="env-default" style={{ fontSize: '0.78rem' }}>Set as default environment</label>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 16px' }}
+              onClick={() => { if (!form.name || !form.display_name) return; editId ? updateMut.mutate({ id: editId, p: form }) : createMut.mutate({ ...form, priority_tier: form.priority_tier ?? 'P3', lookback_minutes: form.lookback_minutes ?? 60 }) }}
+              disabled={createMut.isPending || updateMut.isPending}>
+              {editId ? 'Save Changes' : 'Add Environment'}
+            </button>
+            <button className="btn-ghost" style={{ fontSize: '0.75rem', padding: '6px 14px' }} onClick={() => { setShowAdd(false); setEditId(null); setForm({}) }}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ── Knowledge Base Tab ────────────────────────────────────────────────────────
+
+function KnowledgeBaseTab({ appId }: { appId: string }) {
+  const qc = useQueryClient()
+  const [editId, setEditId] = useState<string | null>(null)
+  const [form, setForm] = useState<Partial<KnowledgeEntry>>({})
+  const [showAdd, setShowAdd] = useState(false)
+
+  const { data: entries = [], isLoading } = useQuery({
+    queryKey: ['app-knowledge', appId],
+    queryFn: () => listKnowledge(appId),
+  })
+
+  const createMut = useMutation({
+    mutationFn: (p: Partial<KnowledgeEntry>) => createKnowledge(appId, p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['app-knowledge', appId] }); setShowAdd(false); setForm({}) },
+  })
+  const updateMut = useMutation({
+    mutationFn: ({ id, p }: { id: string; p: Partial<KnowledgeEntry> }) => updateKnowledge(appId, id, p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['app-knowledge', appId] }); setEditId(null); setForm({}) },
+  })
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteKnowledge(appId, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['app-knowledge', appId] }),
+  })
+
+  const fs: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', padding: '7px 10px',
+    background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)',
+    borderRadius: 6, color: 'var(--c-text)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--c-text-faint)', maxWidth: 600 }}>
+          Site knowledge is injected into every investigation prompt for this application. Add architecture docs, service inventories, known gotchas, and infra facts.
+          <span style={{ display: 'block', marginTop: 4, color: 'var(--c-text-faint)', fontSize: '0.72rem' }}>Disk-based knowledge/site.md is used as fallback when no entries exist here.</span>
+        </p>
+        <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 14px', whiteSpace: 'nowrap' }} onClick={() => { setEditId(null); setForm({}); setShowAdd(true) }}>+ Add Entry</button>
+      </div>
+
+      {isLoading && <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem' }}>Loading…</p>}
+      {!isLoading && entries.length === 0 && (
+        <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem', fontStyle: 'italic' }}>No knowledge entries. Using disk-based knowledge/site.md as fallback.</p>
+      )}
+
+      {entries.map(entry => (
+        <div key={entry.id} style={{ padding: '12px 14px', background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <span style={{ fontWeight: 700, fontSize: '0.82rem' }}>{entry.title}</span>
+              {!entry.is_active && <span style={{ marginLeft: 8, fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>inactive</span>}
+              <p style={{ margin: '4px 0 0', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{entry.content}</p>
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginLeft: 12 }}>
+              <button onClick={() => { setEditId(entry.id); setForm({ title: entry.title, content: entry.content, is_active: entry.is_active }); setShowAdd(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.8rem', padding: 4 }}>✎</button>
+              <button onClick={() => { if (window.confirm(`Delete "${entry.title}"?`)) deleteMut.mutate(entry.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}>✕</button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {showAdd && (
+        <div style={{ padding: 16, background: 'var(--c-surface)', border: '1px solid var(--c-border-hi)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem' }}>{editId ? 'Edit Entry' : 'New Knowledge Entry'}</div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Title</label>
+            <input style={fs} value={form.title ?? ''} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. AKS Cluster Layout" />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Content (Markdown)</label>
+            <textarea style={{ ...fs, resize: 'vertical' }} rows={8} value={form.content ?? ''} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} placeholder="# Architecture&#10;&#10;Describe your infrastructure, services, namespaces, monitoring endpoints…" />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 16px' }}
+              onClick={() => { if (!form.title || !form.content) return; editId ? updateMut.mutate({ id: editId, p: form }) : createMut.mutate({ ...form, is_active: true }) }}
+              disabled={createMut.isPending || updateMut.isPending}>
+              {editId ? 'Save Changes' : 'Add Entry'}
+            </button>
+            <button className="btn-ghost" style={{ fontSize: '0.75rem', padding: '6px 14px' }} onClick={() => { setShowAdd(false); setEditId(null); setForm({}) }}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ── Runbook Library Tab ───────────────────────────────────────────────────────
+
+function RunbookLibraryTab({ appId, services }: { appId: string; services: ApplicationService[] }) {
+  const qc = useQueryClient()
+  const [editId, setEditId] = useState<string | null>(null)
+  const [form, setForm] = useState<Partial<RunbookEntry>>({})
+  const [showAdd, setShowAdd] = useState(false)
+
+  const { data: runbooks = [], isLoading } = useQuery({
+    queryKey: ['app-runbooks', appId],
+    queryFn: () => listRunbooks(appId),
+  })
+
+  const createMut = useMutation({
+    mutationFn: (p: Partial<RunbookEntry>) => createRunbook(appId, p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['app-runbooks', appId] }); setShowAdd(false); setForm({}) },
+  })
+  const updateMut = useMutation({
+    mutationFn: ({ id, p }: { id: string; p: Partial<RunbookEntry> }) => updateRunbook(appId, id, p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['app-runbooks', appId] }); setEditId(null); setForm({}) },
+  })
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteRunbook(appId, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['app-runbooks', appId] }),
+  })
+
+  const fs: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', padding: '7px 10px',
+    background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)',
+    borderRadius: 6, color: 'var(--c-text)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem',
+  }
+
+  const serviceOptions = services.map(s => s.service_name)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--c-text-faint)', maxWidth: 600 }}>
+          Runbooks are matched to investigations by service or keywords and injected into the AI prompt.
+          <span style={{ display: 'block', marginTop: 4, fontSize: '0.72rem' }}>Disk-based runbooks in knowledge/runbooks/ are used as fallback when no DB runbooks match.</span>
+        </p>
+        <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 14px', whiteSpace: 'nowrap' }} onClick={() => { setEditId(null); setForm({ keywords: [] }); setShowAdd(true) }}>+ Add Runbook</button>
+      </div>
+
+      {isLoading && <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem' }}>Loading…</p>}
+      {!isLoading && runbooks.length === 0 && (
+        <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem', fontStyle: 'italic' }}>No runbooks in DB. Disk-based runbooks in knowledge/runbooks/ are active as fallback.</p>
+      )}
+
+      {runbooks.map(rb => (
+        <div key={rb.id} style={{ padding: '12px 14px', background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontWeight: 700, fontSize: '0.82rem' }}>{rb.title}</span>
+                {rb.service_name && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 4, padding: '1px 6px' }}>{rb.service_name}</span>}
+                {!rb.is_active && <span style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>inactive</span>}
+              </div>
+              {rb.keywords.length > 0 && (
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
+                  {rb.keywords.map(kw => <span key={kw} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 4, padding: '1px 6px' }}>{kw}</span>)}
+                </div>
+              )}
+              <p style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{rb.content}</p>
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginLeft: 12 }}>
+              <button onClick={() => { setEditId(rb.id); setForm({ title: rb.title, content: rb.content, service_name: rb.service_name, keywords: rb.keywords, is_active: rb.is_active }); setShowAdd(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.8rem', padding: 4 }}>✎</button>
+              <button onClick={() => { if (window.confirm(`Delete runbook "${rb.title}"?`)) deleteMut.mutate(rb.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}>✕</button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {showAdd && (
+        <div style={{ padding: 16, background: 'var(--c-surface)', border: '1px solid var(--c-border-hi)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem' }}>{editId ? 'Edit Runbook' : 'New Runbook'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Title</label>
+              <input style={fs} value={form.title ?? ''} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. OOM Kill Investigation" />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Specific Service (optional)</label>
+              <select style={fs} value={form.service_name ?? ''} onChange={e => setForm(f => ({ ...f, service_name: e.target.value || null }))}>
+                <option value="">— All services (keyword match) —</option>
+                {serviceOptions.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Keywords (comma-separated, for generic runbooks)</label>
+            <input style={fs} value={(form.keywords ?? []).join(', ')} onChange={e => setForm(f => ({ ...f, keywords: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))} placeholder="e.g. oom, memory, heap" />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Content (Markdown)</label>
+            <textarea style={{ ...fs, resize: 'vertical' }} rows={10} value={form.content ?? ''} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} placeholder="# Investigation Steps&#10;&#10;1. Check pod logs…&#10;2. …" />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 16px' }}
+              onClick={() => { if (!form.title || !form.content) return; editId ? updateMut.mutate({ id: editId, p: form }) : createMut.mutate({ ...form, is_active: true, keywords: form.keywords ?? [] }) }}
+              disabled={createMut.isPending || updateMut.isPending}>
+              {editId ? 'Save Changes' : 'Add Runbook'}
+            </button>
+            <button className="btn-ghost" style={{ fontSize: '0.75rem', padding: '6px 14px' }} onClick={() => { setShowAdd(false); setEditId(null); setForm({}) }}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ── Simulator Presets Tab ─────────────────────────────────────────────────────
+
+function SimulatorPresetsTab({ appId, services }: { appId: string; services: ApplicationService[] }) {
+  const qc = useQueryClient()
+  const [showAdd, setShowAdd] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [form, setForm] = useState<Partial<SimulatorPreset>>({})
+
+  const { data: presets = [], isLoading } = useQuery({
+    queryKey: ['simulator-presets', appId],
+    queryFn: () => listSimulatorPresets(appId),
+  })
+
+  const createMut = useMutation({
+    mutationFn: (payload: Partial<SimulatorPreset>) => createSimulatorPreset(appId, payload),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['simulator-presets', appId] }); setShowAdd(false); setForm({}) },
+  })
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<SimulatorPreset> }) => updateSimulatorPreset(appId, id, payload),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['simulator-presets', appId] }); setEditId(null); setForm({}) },
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteSimulatorPreset(appId, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['simulator-presets', appId] }),
+  })
+
+  const serviceOptions = services.map(s => s.service_name)
+
+  function openEdit(preset: SimulatorPreset) {
+    setEditId(preset.id)
+    setForm({ scenario_id: preset.scenario_id, label: preset.label, service_name: preset.service_name, environment: preset.environment, description: preset.description, icon_key: preset.icon_key ?? '', display_order: preset.display_order })
+  }
+
+  function handleSave() {
+    if (!form.scenario_id || !form.label || !form.service_name || !form.environment || !form.description) return
+    if (editId) {
+      updateMut.mutate({ id: editId, payload: form })
+    } else {
+      createMut.mutate({ ...form, is_active: true, display_order: form.display_order ?? presets.length })
+    }
+  }
+
+  const fieldStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', padding: '7px 10px',
+    background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)',
+    borderRadius: 6, color: 'var(--c-text)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--c-text-faint)' }}>
+          Manage the chaos scenarios shown in the Simulator panel. Each preset fires a full investigation pipeline.
+        </p>
+        <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 14px', whiteSpace: 'nowrap' }} onClick={() => { setEditId(null); setForm({}); setShowAdd(true) }}>
+          + Add Preset
+        </button>
+      </div>
+
+      {isLoading && <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem' }}>Loading…</p>}
+
+      {!isLoading && presets.length === 0 && (
+        <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem', fontStyle: 'italic' }}>No presets yet. Add one to enable the Chaos Engineering Console.</p>
+      )}
+
+      {presets.map(preset => (
+        <div key={preset.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '12px 14px', background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem' }}>{preset.label}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 4, padding: '1px 6px' }}>{preset.scenario_id}</span>
+              {!preset.is_active && <span style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>inactive</span>}
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)', marginBottom: 4 }}>
+              {preset.service_name} / {preset.environment}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--c-text-dim)', lineHeight: 1.4 }}>{preset.description}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginLeft: 12 }}>
+            <button onClick={() => { openEdit(preset); setShowAdd(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.8rem', padding: 4 }} title="Edit">✎</button>
+            <button onClick={() => { if (window.confirm(`Delete preset "${preset.label}"?`)) deleteMut.mutate(preset.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }} title="Delete">✕</button>
+          </div>
+        </div>
+      ))}
+
+      {showAdd && (
+        <div style={{ padding: 16, background: 'var(--c-surface)', border: '1px solid var(--c-border-hi)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem', marginBottom: 4 }}>{editId ? 'Edit Preset' : 'New Preset'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Scenario ID (slug)</label>
+              <input style={fieldStyle} value={form.scenario_id ?? ''} onChange={e => setForm(f => ({ ...f, scenario_id: e.target.value }))} placeholder="e.g. hpa_failure" />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Display Label</label>
+              <input style={fieldStyle} value={form.label ?? ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="e.g. Inject Scale Lag" />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Service</label>
+              <select style={fieldStyle} value={form.service_name ?? ''} onChange={e => setForm(f => ({ ...f, service_name: e.target.value }))}>
+                <option value="">— Select service —</option>
+                {serviceOptions.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Environment</label>
+              <input style={fieldStyle} value={form.environment ?? ''} onChange={e => setForm(f => ({ ...f, environment: e.target.value }))} placeholder="e.g. dev" />
+            </div>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Description</label>
+            <textarea style={{ ...fieldStyle, resize: 'vertical' }} rows={2} value={form.description ?? ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="What does this scenario simulate?" />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 16px' }} onClick={handleSave} disabled={createMut.isPending || updateMut.isPending}>
+              {editId ? 'Save Changes' : 'Add Preset'}
+            </button>
+            <button className="btn-ghost" style={{ fontSize: '0.75rem', padding: '6px 14px' }} onClick={() => { setShowAdd(false); setEditId(null); setForm({}) }}>Cancel</button>
+          </div>
+          {(createMut.isError || updateMut.isError) && (
+            <p style={{ margin: 0, color: 'var(--c-red)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>Save failed. Check all fields.</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Application Detail Panel ──────────────────────────────────────────────────
 
-type Tab = 'services' | 'connectors' | 'notifications' | 'slo'
+type Tab = 'services' | 'connectors' | 'notifications' | 'slo' | 'simulator_presets' | 'environments' | 'knowledge' | 'runbooks'
 
 function AppDetail({ appId }: { appId: string }) {
   const navigate = useNavigate()
@@ -1930,6 +2397,10 @@ function AppDetail({ appId }: { appId: string }) {
     { key: 'connectors', label: `Connectors (${(app.log_sources?.length ?? 0) + (app.outbound_connectors?.length ?? 0)})` },
     { key: 'notifications', label: `Notifications (${app.notification_contacts?.length ?? 0})` },
     { key: 'slo', label: `SLO (${app.slo_configs?.length ?? 0})` },
+    { key: 'environments', label: 'Environments' },
+    { key: 'knowledge', label: 'Knowledge Base' },
+    { key: 'runbooks', label: 'Runbook Library' },
+    { key: 'simulator_presets', label: 'Simulator Presets' },
   ]
 
   return (
@@ -1990,6 +2461,10 @@ function AppDetail({ appId }: { appId: string }) {
           {tab === 'connectors' && <ConnectorsTab app={app} />}
           {tab === 'notifications' && <NotificationsTab app={app} />}
           {tab === 'slo' && <SloTab app={app} />}
+          {tab === 'environments' && <EnvironmentsTab appId={app.id} />}
+          {tab === 'knowledge' && <KnowledgeBaseTab appId={app.id} />}
+          {tab === 'runbooks' && <RunbookLibraryTab appId={app.id} services={app.services ?? []} />}
+          {tab === 'simulator_presets' && <SimulatorPresetsTab appId={app.id} services={app.services ?? []} />}
         </div>
       </div>
     </div>

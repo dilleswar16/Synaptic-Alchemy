@@ -85,10 +85,23 @@ class ContainerLogsAdapter:
             )
         workspace_id = _expand(str(cfg.get("workspace_id", self._workspace_id)))
         minutes = time_range_minutes or cfg.get("default_time_range_minutes", 60)
-        ns = namespace or cfg.get("default_namespace", "default")
+
+        # Namespace resolution: explicit param → connector config → DB service record → None.
+        # None causes the calling method to return empty results, forcing proper onboarding.
+        ns = namespace or cfg.get("default_namespace")
+        if not ns and normalized_service not in ("", "*", "all"):
+            from corvin.connectors.config_resolver import resolve_service_namespace
+            ns = resolve_service_namespace(service_name)
+        if not ns:
+            logger.warning(
+                "ContainerLogsAdapter: no namespace configured for service=%s — returning empty. "
+                "Add ApplicationServiceRow.namespace via the Application Panel.",
+                service_name,
+            )
+
         cfg = dict(cfg)
         cfg["workspace_id"] = workspace_id
-        return cfg, ns, minutes
+        return cfg, ns or "", minutes
 
     # ── Public methods ────────────────────────────────────────────────────────
 

@@ -15,8 +15,12 @@ from sqlalchemy.orm import Session
 from corvin.storage.db import get_session as _get_session
 from corvin.storage.models import (
     ApplicationRow,
+    ApplicationEnvironmentRow,
     ApplicationServiceRow,
+    KnowledgeBaseRow,
     LogSourceRow,
+    RunbookRow,
+    SimulatorPresetRow,
     SloConfigRow,
     NotificationContactRow,
     OutboundConnectorRow,
@@ -1170,3 +1174,378 @@ def _outbound_dict(row: OutboundConnectorRow) -> dict[str, Any]:
         "test_message": row.test_message,
         "created_at": row.created_at.isoformat(),
     }
+
+
+# ── Simulator Presets ─────────────────────────────────────────────────────────
+
+class SimulatorPresetCreate(BaseModel):
+    scenario_id: str
+    label: str
+    service_name: str
+    environment: str
+    description: str
+    icon_key: str | None = None
+    accent_color: str | None = None
+    is_active: bool = True
+    display_order: int = 0
+
+
+class SimulatorPresetUpdate(BaseModel):
+    label: str | None = None
+    service_name: str | None = None
+    environment: str | None = None
+    description: str | None = None
+    icon_key: str | None = None
+    accent_color: str | None = None
+    is_active: bool | None = None
+    display_order: int | None = None
+
+
+def _preset_dict(row: SimulatorPresetRow) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "application_id": row.application_id,
+        "scenario_id": row.scenario_id,
+        "label": row.label,
+        "service_name": row.service_name,
+        "environment": row.environment,
+        "description": row.description,
+        "icon_key": row.icon_key,
+        "accent_color": row.accent_color,
+        "is_active": row.is_active,
+        "display_order": row.display_order,
+        "created_at": row.created_at.isoformat(),
+        "updated_at": row.updated_at.isoformat(),
+    }
+
+
+@router.get("/{app_id}/simulator-presets", response_model=list[dict])
+def list_simulator_presets(app_id: str, db: Session = Depends(_db)) -> list[dict]:
+    """List all simulator presets for an application, ordered by display_order."""
+    _get_or_404(db, app_id)
+    rows = (
+        db.query(SimulatorPresetRow)
+        .filter_by(application_id=app_id)
+        .order_by(SimulatorPresetRow.display_order, SimulatorPresetRow.created_at)
+        .all()
+    )
+    return [_preset_dict(r) for r in rows]
+
+
+@router.post("/{app_id}/simulator-presets", response_model=dict, status_code=201)
+def create_simulator_preset(
+    app_id: str, body: SimulatorPresetCreate, db: Session = Depends(_db)
+) -> dict:
+    """Create a new simulator preset for an application."""
+    _get_or_404(db, app_id)
+    existing = db.query(SimulatorPresetRow).filter_by(
+        application_id=app_id, scenario_id=body.scenario_id
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Preset with scenario_id '{body.scenario_id}' already exists for this application.",
+        )
+    row = SimulatorPresetRow(
+        id=str(uuid.uuid4()),
+        application_id=app_id,
+        **body.model_dump(),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _preset_dict(row)
+
+
+@router.put("/{app_id}/simulator-presets/{preset_id}", response_model=dict)
+def update_simulator_preset(
+    app_id: str,
+    preset_id: str,
+    body: SimulatorPresetUpdate,
+    db: Session = Depends(_db),
+) -> dict:
+    """Update a simulator preset."""
+    _get_or_404(db, app_id)
+    row = db.query(SimulatorPresetRow).filter_by(id=preset_id, application_id=app_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Preset not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return _preset_dict(row)
+
+
+@router.delete("/{app_id}/simulator-presets/{preset_id}", status_code=204)
+def delete_simulator_preset(
+    app_id: str, preset_id: str, db: Session = Depends(_db)
+) -> None:
+    """Delete a simulator preset."""
+    _get_or_404(db, app_id)
+    row = db.query(SimulatorPresetRow).filter_by(id=preset_id, application_id=app_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Preset not found")
+    db.delete(row)
+    db.commit()
+
+
+# ── Application Environments ──────────────────────────────────────────────────
+
+class EnvironmentCreate(BaseModel):
+    name: str
+    display_name: str
+    priority_tier: str = "P3"
+    lookback_minutes: int = 60
+    is_default: bool = False
+    display_order: int = 0
+
+
+class EnvironmentUpdate(BaseModel):
+    name: str | None = None
+    display_name: str | None = None
+    priority_tier: str | None = None
+    lookback_minutes: int | None = None
+    is_default: bool | None = None
+    display_order: int | None = None
+
+
+def _env_dict(row: ApplicationEnvironmentRow) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "application_id": row.application_id,
+        "name": row.name,
+        "display_name": row.display_name,
+        "priority_tier": row.priority_tier,
+        "lookback_minutes": row.lookback_minutes,
+        "is_default": row.is_default,
+        "display_order": row.display_order,
+        "created_at": row.created_at.isoformat(),
+        "updated_at": row.updated_at.isoformat(),
+    }
+
+
+@router.get("/{app_id}/environments", response_model=list[dict])
+def list_environments(app_id: str, db: Session = Depends(_db)) -> list[dict]:
+    """List all defined environments for an application, ordered by display_order."""
+    _get_or_404(db, app_id)
+    rows = db.query(ApplicationEnvironmentRow).filter_by(application_id=app_id).order_by(
+        ApplicationEnvironmentRow.display_order, ApplicationEnvironmentRow.id
+    ).all()
+    return [_env_dict(r) for r in rows]
+
+
+@router.post("/{app_id}/environments", response_model=dict, status_code=201)
+def create_environment(app_id: str, body: EnvironmentCreate, db: Session = Depends(_db)) -> dict:
+    """Create an environment definition for an application."""
+    _get_or_404(db, app_id)
+    existing = db.query(ApplicationEnvironmentRow).filter_by(
+        application_id=app_id, name=body.name
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=409, detail=f"Environment '{body.name}' already exists for this application."
+        )
+    if body.is_default:
+        db.query(ApplicationEnvironmentRow).filter_by(
+            application_id=app_id, is_default=True
+        ).update({"is_default": False})
+    row = ApplicationEnvironmentRow(application_id=app_id, **body.model_dump())
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _env_dict(row)
+
+
+@router.put("/{app_id}/environments/{env_id}", response_model=dict)
+def update_environment(
+    app_id: str, env_id: int, body: EnvironmentUpdate, db: Session = Depends(_db)
+) -> dict:
+    """Update an environment definition."""
+    _get_or_404(db, app_id)
+    row = db.query(ApplicationEnvironmentRow).filter_by(id=env_id, application_id=app_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    if body.is_default:
+        db.query(ApplicationEnvironmentRow).filter_by(
+            application_id=app_id, is_default=True
+        ).update({"is_default": False})
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return _env_dict(row)
+
+
+@router.delete("/{app_id}/environments/{env_id}", status_code=204)
+def delete_environment(app_id: str, env_id: int, db: Session = Depends(_db)) -> None:
+    """Delete an environment definition."""
+    _get_or_404(db, app_id)
+    row = db.query(ApplicationEnvironmentRow).filter_by(id=env_id, application_id=app_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    db.delete(row)
+    db.commit()
+
+
+# ── Knowledge Base ────────────────────────────────────────────────────────────
+
+class KnowledgeBaseCreate(BaseModel):
+    title: str
+    content: str
+    is_active: bool = True
+    display_order: int = 0
+
+
+class KnowledgeBaseUpdate(BaseModel):
+    title: str | None = None
+    content: str | None = None
+    is_active: bool | None = None
+    display_order: int | None = None
+
+
+def _kb_dict(row: KnowledgeBaseRow) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "application_id": row.application_id,
+        "title": row.title,
+        "content": row.content,
+        "is_active": row.is_active,
+        "display_order": row.display_order,
+        "created_at": row.created_at.isoformat(),
+        "updated_at": row.updated_at.isoformat(),
+    }
+
+
+@router.get("/{app_id}/knowledge", response_model=list[dict])
+def list_knowledge(app_id: str, db: Session = Depends(_db)) -> list[dict]:
+    """List all active knowledge base entries for an application."""
+    _get_or_404(db, app_id)
+    rows = db.query(KnowledgeBaseRow).filter_by(application_id=app_id).order_by(
+        KnowledgeBaseRow.display_order, KnowledgeBaseRow.created_at
+    ).all()
+    return [_kb_dict(r) for r in rows]
+
+
+@router.post("/{app_id}/knowledge", response_model=dict, status_code=201)
+def create_knowledge(app_id: str, body: KnowledgeBaseCreate, db: Session = Depends(_db)) -> dict:
+    """Add a knowledge base entry."""
+    _get_or_404(db, app_id)
+    row = KnowledgeBaseRow(id=str(uuid.uuid4()), application_id=app_id, **body.model_dump())
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _kb_dict(row)
+
+
+@router.put("/{app_id}/knowledge/{kb_id}", response_model=dict)
+def update_knowledge(
+    app_id: str, kb_id: str, body: KnowledgeBaseUpdate, db: Session = Depends(_db)
+) -> dict:
+    """Update a knowledge base entry."""
+    _get_or_404(db, app_id)
+    row = db.query(KnowledgeBaseRow).filter_by(id=kb_id, application_id=app_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Knowledge entry not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return _kb_dict(row)
+
+
+@router.delete("/{app_id}/knowledge/{kb_id}", status_code=204)
+def delete_knowledge(app_id: str, kb_id: str, db: Session = Depends(_db)) -> None:
+    """Delete a knowledge base entry."""
+    _get_or_404(db, app_id)
+    row = db.query(KnowledgeBaseRow).filter_by(id=kb_id, application_id=app_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Knowledge entry not found")
+    db.delete(row)
+    db.commit()
+
+
+# ── Runbook Library ────────────────────────────────────────────────────────────
+
+class RunbookCreate(BaseModel):
+    title: str
+    content: str
+    service_name: str | None = None
+    keywords: list[str] = []
+    is_active: bool = True
+    display_order: int = 0
+
+
+class RunbookUpdate(BaseModel):
+    title: str | None = None
+    content: str | None = None
+    service_name: str | None = None
+    keywords: list[str] | None = None
+    is_active: bool | None = None
+    display_order: int | None = None
+
+
+def _runbook_dict(row: RunbookRow) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "application_id": row.application_id,
+        "service_name": row.service_name,
+        "title": row.title,
+        "keywords": row.keywords or [],
+        "content": row.content,
+        "is_active": row.is_active,
+        "display_order": row.display_order,
+        "created_at": row.created_at.isoformat(),
+        "updated_at": row.updated_at.isoformat(),
+    }
+
+
+@router.get("/{app_id}/runbooks", response_model=list[dict])
+def list_runbooks(app_id: str, db: Session = Depends(_db)) -> list[dict]:
+    """List all runbooks for an application."""
+    _get_or_404(db, app_id)
+    rows = db.query(RunbookRow).filter_by(application_id=app_id).order_by(
+        RunbookRow.display_order, RunbookRow.created_at
+    ).all()
+    return [_runbook_dict(r) for r in rows]
+
+
+@router.post("/{app_id}/runbooks", response_model=dict, status_code=201)
+def create_runbook(app_id: str, body: RunbookCreate, db: Session = Depends(_db)) -> dict:
+    """Add a runbook to the application's runbook library."""
+    _get_or_404(db, app_id)
+    row = RunbookRow(id=str(uuid.uuid4()), application_id=app_id, **body.model_dump())
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _runbook_dict(row)
+
+
+@router.put("/{app_id}/runbooks/{rb_id}", response_model=dict)
+def update_runbook_entry(
+    app_id: str, rb_id: str, body: RunbookUpdate, db: Session = Depends(_db)
+) -> dict:
+    """Update a runbook."""
+    _get_or_404(db, app_id)
+    row = db.query(RunbookRow).filter_by(id=rb_id, application_id=app_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Runbook not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return _runbook_dict(row)
+
+
+@router.delete("/{app_id}/runbooks/{rb_id}", status_code=204)
+def delete_runbook_entry(app_id: str, rb_id: str, db: Session = Depends(_db)) -> None:
+    """Delete a runbook."""
+    _get_or_404(db, app_id)
+    row = db.query(RunbookRow).filter_by(id=rb_id, application_id=app_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Runbook not found")
+    db.delete(row)
+    db.commit()

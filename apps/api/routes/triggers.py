@@ -153,12 +153,33 @@ class SimulateAlertRequest(BaseModel):
     description: str | None = None
 
 
-_SCENARIO_DESCRIPTIONS: dict[str, str] = {
-    "hpa_failure": "HPA not scaling — pods stuck at 1 replica despite 92% CPU. Partner integrations degraded.",
-    "five_zero_three_spike": "503 error rate spiked to 18% on /v1/funds endpoint. Two pods restarted in the last 30 minutes.",
-    "auth_errors": "JWT validation failures spiking — service returning 401 on 35% of SSO requests since 09:00.",
-    "memory_leak": "Heap usage climbing steadily — service at 89% memory limit, OOM kill expected within 2 hours.",
-}
+def _resolve_preset_description(service_name: str, scenario: str, default: str) -> str:
+    """Look up the preset description from the DB for the matching service/scenario.
+
+    Falls back to *default* if no matching SimulatorPresetRow is found.
+    This removes the hardcoded _SCENARIO_DESCRIPTIONS dict — descriptions
+    now live in the DB, managed via the Application Panel.
+    """
+    try:
+        from corvin.storage.db import get_session
+        from corvin.storage.models import ApplicationServiceRow, SimulatorPresetRow
+        from sqlalchemy import or_
+        with get_session() as session:
+            svc = session.query(ApplicationServiceRow).filter(
+                or_(ApplicationServiceRow.service_name == service_name,
+                    ApplicationServiceRow.k8s_app_label == service_name)
+            ).first()
+            if svc is None:
+                return default
+            preset = session.query(SimulatorPresetRow).filter_by(
+                application_id=svc.application_id,
+                scenario_id=scenario,
+            ).first()
+            if preset and preset.description:
+                return preset.description
+    except Exception as exc:
+        _log.debug("preset description DB lookup failed: %s", exc)
+    return default
 
 
 @router.post("/simulate", status_code=202)
@@ -180,9 +201,9 @@ def simulate_alert(
 
     Returns immediately with the new request_id so the UI can open the SSE stream.
     """
-    description = body.description or _SCENARIO_DESCRIPTIONS.get(
-        body.scenario,
-        f"Simulated {body.scenario} scenario on {body.service_name}.",
+    default_desc = f"Simulated {body.scenario} scenario on {body.service_name}."
+    description = body.description or _resolve_preset_description(
+        body.service_name, body.scenario, default_desc
     )
 
     request = InvestigationRequest(
@@ -215,7 +236,7 @@ def simulate_alert(
 class AutonomousAlertRequest(BaseModel):
     """Incoming alert payload for autonomous investigation."""
     service_name: str
-    environment: str = "prod"
+    environment: str
     description: str
     priority: str = "P2"
     source: str = "webhook"  # webhook | alertmanager | azure_monitor | datadog

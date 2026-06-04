@@ -107,6 +107,31 @@ def _find_matching_log_source(service_name: str, source_type: str, role: str | N
         return None
 
 
+def resolve_service_namespace(service_name: str) -> str | None:
+    """Return the configured Kubernetes namespace for a service from the DB.
+
+    Queries ApplicationServiceRow.namespace for the first service matching
+    service_name or k8s_app_label. Returns None when the service is not
+    onboarded or no namespace has been configured — callers must handle
+    None explicitly and should NOT fall back to a hardcoded string.
+    """
+    try:
+        from corvin.storage.db import get_session
+        from corvin.storage.models import ApplicationServiceRow
+
+        with get_session() as session:
+            row = session.query(ApplicationServiceRow).filter(
+                (ApplicationServiceRow.service_name == service_name)
+                | (ApplicationServiceRow.k8s_app_label == service_name)
+            ).first()
+            if row is not None and row.namespace:
+                return row.namespace
+            return None
+    except Exception as exc:
+        _log.warning("resolve_service_namespace: DB lookup failed for service=%s: %s", service_name, exc)
+        return None
+
+
 def resolve_outbound_connector_config(
     service_name: str,
     *,

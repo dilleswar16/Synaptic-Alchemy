@@ -74,7 +74,9 @@ class NLToKQLService:
         Returns:
             {"query": "<kql>", "explanation": "<brief explanation>", "safe": True/False}
         """
-        model = self._config.get("fallback_model", "azure/gpt-4.1-mini")
+        model = self._config.get("fallback_model") or self._config.get("model")
+        if not model:
+            raise ValueError("models/llm.yaml must define 'model' or 'fallback_model'")
         user_msg = question
         if time_range:
             user_msg += f"\n(Time range: {time_range})"

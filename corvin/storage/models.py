@@ -279,6 +279,14 @@ class ApplicationRow(Base):
     git_repo_url: Mapped[str | None] = mapped_column(String(500), nullable=True, default=None)  # e.g. https://dev.azure.com/org/project/_git/repo
     git_branch: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)    # default branch to read from
     git_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)  # AES-256-GCM encrypted PAT
+    # Per-application scoring weight overrides. When set, these values take
+    # precedence over the system-wide defaults in config/policies/scoring.yaml.
+    # Schema mirrors scoring.yaml — only keys present here override defaults.
+    scoring_config_json: Mapped[dict | None] = mapped_column(JSONB_COMPAT, nullable=True, default=None)
+    # Per-application environment → priority tier mapping.
+    # Schema: {"environments": [{"name": "production", "priority_tier": "P1", "lookback_minutes": 15}, ...]}
+    # Falls back to config/policies/environments.yaml when absent.
+    environment_config_json: Mapped[dict | None] = mapped_column(JSONB_COMPAT, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
@@ -316,7 +324,7 @@ class ApplicationServiceRow(Base):
     tier: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)  # frontend|api|db|queue|worker
     dependencies: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
     metadata_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
-    # Kubernetes deployment label (e.g. "chad-fundapis") — may differ from service_name.
+    # Kubernetes deployment label (e.g. "payments-api-deployment") — may differ from service_name.
     # Used by the topology/live endpoint to map AKS pod labels to logical service names.
     k8s_app_label: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     # ── Git repository config (per-service, for code-aware investigation) ─────
@@ -549,6 +557,104 @@ class RunbookSessionRow(Base):
     messages_json: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
     current_draft_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     current_draft_version: Mapped[int | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class ApplicationEnvironmentRow(Base):
+    """Structured environment definition owned by an application.
+
+    Replaces all hardcoded environment dropdown lists in the UI. Each application
+    defines its own environments with priority tiers and lookback windows.
+    The investigation engine uses these to classify incoming alerts automatically.
+    """
+    __tablename__ = "application_environments"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    priority_tier: Mapped[str] = mapped_column(String(10), nullable=False, default="P3")
+    lookback_minutes: Mapped[int] = mapped_column(nullable=False, default=60)
+    is_default: Mapped[bool] = mapped_column(nullable=False, default=False)
+    display_order: Mapped[int] = mapped_column(nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    __table_args__ = (
+        __import__("sqlalchemy").UniqueConstraint("application_id", "name", name="uq_app_env_name"),
+    )
+
+
+class KnowledgeBaseRow(Base):
+    """DB-backed site knowledge entry for an application.
+
+    Replaces (or supplements) the flat knowledge/site.md file on disk.
+    The KnowledgeLoader reads these first, then falls back to disk for
+    backward compatibility with existing deployments.
+    """
+    __tablename__ = "knowledge_base"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    display_order: Mapped[int] = mapped_column(nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class RunbookRow(Base):
+    """DB-backed runbook entry for an application.
+
+    Replaces (or supplements) on-disk runbook files in knowledge/runbooks/.
+    The KnowledgeLoader checks DB runbooks first, then falls back to disk.
+    This means existing disk-based runbooks continue to work until explicitly
+    migrated — safe to maintain both during transition.
+    """
+    __tablename__ = "runbooks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=False, index=True
+    )
+    service_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    keywords: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    display_order: Mapped[int] = mapped_column(nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class SimulatorPresetRow(Base):
+    """A chaos / alert simulation scenario owned by an application.
+
+    Customers define these in the Application Panel instead of hardcoding
+    service names in the source tree. The /triggers/simulate endpoint
+    reads them at runtime.
+    """
+    __tablename__ = "simulator_presets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=False, index=True
+    )
+    scenario_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    environment: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    icon_key: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)
+    accent_color: Mapped[str | None] = mapped_column(String(30), nullable=True, default=None)
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    display_order: Mapped[int] = mapped_column(nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
 

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import Layout from '../components/Layout'
@@ -6,7 +6,8 @@ import { HeroAlertSection } from '../components/HeroAlertSection'
 import { SignalDetailDrawer } from '../components/SignalDetailDrawer'
 import { RiskScoreGauge } from '../components/RiskScoreGauge'
 import { MiniSparkline } from '../components/MiniSparkline'
-import { DEMO_ALERTS } from '../data/demoAlerts'
+import { buildDemoAlerts } from '../data/demoAlerts'
+import { useServiceNames } from '../hooks/useApplicationData'
 import {
   fetchFixPreview,
   fetchInvestigations,
@@ -18,8 +19,6 @@ import {
   type PredictiveAlert,
 } from '../api/client'
 import { timeAgo } from '../utils/time'
-
-const KNOWN_SERVICES = ['fundapis', 'fundsso', 'partnerapis']
 
 const SEVERITY_WEIGHT: Record<PredictiveAlert['severity'], number> = {
   critical: 1,
@@ -89,6 +88,7 @@ const sevIcon = (t: string) =>
 
 export default function PredictiveAnalyticsPage() {
   const queryClient = useQueryClient()
+  const { names: registeredServices } = useServiceNames()
   const [feedback, setFeedback] = useState<Record<string, 'useful' | 'wrong'>>({})
   const [demoMode, setDemoMode] = useState(false)
 
@@ -99,7 +99,7 @@ export default function PredictiveAnalyticsPage() {
     staleTime: 20_000,
   })
 
-  const alerts: PredictiveAlert[] = demoMode ? DEMO_ALERTS : rawAlerts
+  const alerts: PredictiveAlert[] = demoMode ? buildDemoAlerts(registeredServices) : rawAlerts
 
   const { data: investigations = [] } = useQuery({
     queryKey: ['investigations', 'page'],
@@ -124,7 +124,7 @@ export default function PredictiveAnalyticsPage() {
   const serviceSet = useMemo(() => {
     const fromAlerts = alerts.map((a) => a.service_name)
     const fromRecent = investigations.slice(0, 20).map((i) => i.service_name)
-    const merged = Array.from(new Set([...KNOWN_SERVICES, ...fromAlerts, ...fromRecent]))
+    const merged = Array.from(new Set([...registeredServices, ...fromAlerts, ...fromRecent]))
     return merged.slice(0, 8)
   }, [alerts, investigations])
 

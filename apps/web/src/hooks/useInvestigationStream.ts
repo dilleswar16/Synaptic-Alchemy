@@ -99,7 +99,7 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
   }, [])
 
   const start = useCallback(
-    ({ service_name, environment = 'production', description = '' }: StreamParams) => {
+    ({ service_name, environment, description = '' }: StreamParams) => {
       // Close any existing stream before starting a new one.
       reset()
 

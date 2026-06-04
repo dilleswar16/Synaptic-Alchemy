@@ -89,8 +89,19 @@ class CorrelationGroup:
 
 # ── Correlation Engine ────────────────────────────────────────────────────────
 
-_TEMPORAL_WINDOW_SAME_SERVICE = timedelta(minutes=5)
-_TEMPORAL_WINDOW_ADJACENT = timedelta(minutes=10)
+def _load_correlation_windows() -> tuple[timedelta, timedelta]:
+    """Load alert correlation windows from config, with hardcoded fallback."""
+    try:
+        from corvin.core.config_loader import load_config, get_env
+        cfg = load_config("policies/investigation", get_env())
+        same = int(cfg.get("alert_correlation_same_service_minutes", 5))
+        adj = int(cfg.get("alert_correlation_adjacent_service_minutes", 10))
+        return timedelta(minutes=same), timedelta(minutes=adj)
+    except Exception:
+        return timedelta(minutes=5), timedelta(minutes=10)
+
+
+_TEMPORAL_WINDOW_SAME_SERVICE, _TEMPORAL_WINDOW_ADJACENT = _load_correlation_windows()
 _SEVERITY_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 
 

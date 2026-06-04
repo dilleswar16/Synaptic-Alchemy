@@ -85,30 +85,17 @@ class InvestigationRequest(BaseModel):
         return None
 
     @model_validator(mode="after")
-    def _set_dynamic_lookback(self) -> InvestigationRequest:
-        if self.trigger_source == TriggerSource.AZURE_ALERT:
-            self.lookback_minutes = 15
-        elif self.trigger_source in (
-            TriggerSource.PREDICTIVE,
-            TriggerSource.MANUAL_CLI,
-            TriggerSource.MANUAL_API,
-            TriggerSource.TEAMS,
-            TriggerSource.MANUAL_WEB,
-        ):
-            self.lookback_minutes = 60
-            
-        payload_priority = self._priority_from_payload(self.raw_payload)
+    def _apply_payload_priority(self) -> InvestigationRequest:
+        """Apply only payload-derived priority at construction time.
 
-        # Automatic generic priority classification.
+        Full priority classification (DB + config lookup) is performed by
+        corvin.core.priority.classify_priority() after the request is created.
+        Trigger adapters and API routes call classify_priority() and write the
+        result back to incident_priority and lookback_minutes.
+        """
+        payload_priority = self._priority_from_payload(self.raw_payload)
         if payload_priority is not None:
             self.incident_priority = payload_priority
-        elif self.environment.lower() != "prod":
-            self.incident_priority = "P3"
-        elif self.trigger_source == TriggerSource.PREDICTIVE:
-            self.incident_priority = "P3"
-        else:
-            self.incident_priority = "P2"
-            
         return self
 
 

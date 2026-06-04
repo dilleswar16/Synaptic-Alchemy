@@ -13,7 +13,7 @@ interface ChatMessage {
   timestamp: string
 }
 
-export default function RunbookBuilderChat({ requestId, serviceName, environment = 'prod' }: {
+export default function RunbookBuilderChat({ requestId, serviceName, environment = '' }: {
   requestId: string
   serviceName: string
   environment?: string

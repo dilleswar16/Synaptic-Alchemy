@@ -1,0 +1,64 @@
+# Service health score weights and predictive confidence scoring parameters.
+#
+# These are the system-wide defaults. Any ApplicationRow.scoring_config_json
+# stored in the DB overrides these on a per-application basis, allowing
+# customers to tune scoring to their own incident patterns.
+#
+# ── Service Health Score ─────────────────────────────────────────────────────
+# Weights must sum to 100. The score is computed from the last `lookback_days`
+# of investigation history for the service.
+
+service_health:
+  lookback_days: 30
+  # Max incidents per period before the frequency score hits zero.
+  frequency_baseline_count: 10
+  weights:
+    frequency: 30      # Fewer incidents → higher score
+    confidence: 25     # Higher average RCA confidence → higher score
+    mttr: 25           # Shorter average MTTR → higher score
+    recency: 20        # More days since last incident → higher score
+  # Confidence level → numeric weight for the confidence component.
+  confidence_map:
+    high: 1.0
+    medium: 0.6
+    low: 0.2
+  # MTTR cap in minutes. Any MTTR >= this value scores 0 on the MTTR component.
+  mttr_cap_minutes: 60
+  # Recency cap in days. No incident for this many days → full recency score.
+  recency_cap_days: 30
+  # Estimated MTTR in seconds when no historical data is available.
+  estimated_mttr_seconds: 300
+  thresholds:
+    healthy: 80    # score >= 80 → Healthy (green)
+    degraded: 50   # score >= 50 → Degraded (amber); below → Critical (red)
+
+# ── Predictive Confidence Scoring ────────────────────────────────────────────
+# Weights for the _confidence_pct() function in predictive.py.
+# Each key maps to the maximum number of points that component can contribute.
+# The base score is applied before any bonuses.
+
+predictive_confidence:
+  base_score: 25.0
+  # Signal proximity to threshold (how close is the metric to breaching?).
+  proximity:
+    breached: 30.0      # signal >= threshold
+    imminent: 25.0      # signal >= 80% of threshold
+    approaching: 18.0   # signal >= 60% of threshold
+    moderate: 10.0      # signal >= 40% of threshold
+    distant: 3.0        # signal < 40% of threshold (low confidence)
+  # Trend direction bonus.
+  trend:
+    rising: 15.0        # Positive slope
+    flat: 5.0           # Zero slope (uncertain)
+    declining: 0.0      # Negative slope (no bonus)
+  # Evidence diversity: max points when all 5 evidence types are present.
+  evidence_diversity_max: 12.0
+  evidence_diversity_types: 5
+  # Live metrics bonus.
+  live_metrics_bonus: 8.0
+  # RCA reasoning quality bonuses.
+  reasoning_quality:
+    rich: 5.0           # reasoning length > 100 chars
+    brief: 3.0          # reasoning length > 50 chars
+  # Evidence references bonus (1 point per reference, capped).
+  evidence_refs_max: 5.0

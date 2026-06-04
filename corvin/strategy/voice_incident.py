@@ -74,7 +74,10 @@ class VoiceIncidentService:
         self._config = config if config is not None else load_config("models/llm", get_env())
 
     def _get_model(self) -> str:
-        return self._config.get("fallback_model", "azure/gpt-4.1-mini")
+        model = self._config.get("fallback_model") or self._config.get("model")
+        if not model:
+            raise ValueError("models/llm.yaml must define 'model' or 'fallback_model'")
+        return model
 
     def transcribe(self, audio_bytes: bytes, content_type: str = "audio/wav") -> TranscriptionResult:
         """
@@ -174,7 +177,7 @@ Keep alert_summary concise but include key symptoms (error codes, behaviors)."""
 
             request = InvestigationRequest(
                 service_name=parsed.get("service_name", "unknown"),
-                environment=parsed.get("environment", "prod"),
+                environment=parsed.get("environment") or "unknown",
                 alert_summary=parsed.get("alert_summary", transcription.text[:200]),
                 trigger_source=TriggerSource.MANUAL,
                 raw_payload={"voice_transcription": transcription.text},
@@ -188,10 +191,11 @@ Keep alert_summary concise but include key symptoms (error codes, behaviors)."""
             )
         except Exception as exc:
             _log.warning("Voice incident extraction failed: %s", exc)
-            # Fallback: create a generic request from the raw text
+            # Fallback: create a generic request from the raw text — environment is unknown
+            # until the operator reviews and updates it.
             request = InvestigationRequest(
                 service_name="unknown",
-                environment="prod",
+                environment="unknown",
                 alert_summary=transcription.text[:200] if transcription.text else "Voice-reported incident",
                 trigger_source=TriggerSource.MANUAL,
                 raw_payload={"voice_transcription": transcription.text},

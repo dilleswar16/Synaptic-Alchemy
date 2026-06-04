@@ -53,8 +53,10 @@ class CausalChainGenerator:
     def generate(self, result: InvestigationResult) -> dict[str, Any]:
         """Produce causal chain JSON from an InvestigationResult."""
         context = self._build_context(result)
-        model = self._config.get("model", "azure/gpt-4.1-mini")
-        fallback = self._config.get("fallback_model", "azure/gpt-4.1-mini")
+        model = self._config.get("model") or self._config.get("fallback_model")
+        if not model:
+            raise ValueError("models/llm.yaml must define 'model'")
+        fallback = self._config.get("fallback_model") or model
 
         for attempt_model in (model, fallback):
             try:

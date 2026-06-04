@@ -1,81 +1,42 @@
 /**
- * SimulateAlertPanel — V3.5
+ * SimulateAlertPanel — V3.5+
  *
- * Hackathon demo widget: fires a synthetic alert investigation with one click.
- * Shows 4 preset scenarios, then navigates to the new investigation detail page.
+ * Chaos Engineering Console. Loads simulation presets from the API
+ * (managed in the Application Panel → Simulator Presets tab) so that
+ * any onboarded application's services and scenarios are available
+ * without hardcoding anything in source.
  */
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { simulateAlert } from '../api/client'
+import { useApplicationPresets } from '../hooks/useApplicationData'
 
-interface Preset {
-  id: string
-  label: string
-  icon: React.ReactNode
-  service: string
-  environment: string
-  description: string
-  accentColor: string
-  accentBg: string
-  accentBorder: string
+const ICON_MAP: Record<string, React.ReactNode> = {
+  hpa: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>,
+  thunder: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+  lock: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  memory: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>,
+  custom: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
 }
 
-const PRESETS: Preset[] = [
-  {
-    id: 'hpa_failure',
-    label: 'Inject Scale Lag',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>,
-    service: 'partnerapis',
-    environment: 'dev',
-    description: 'Freeze HPA controller — pods stuck at 1 replica despite high load.',
-    accentColor: 'var(--c-signal)',
-    accentBg: 'var(--c-signal-light)',
-    accentBorder: 'var(--c-signal-dim)',
-  },
-  {
-    id: 'five_zero_three_spike',
-    label: 'Flood 503 Errors',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
-    service: 'fundapis',
-    environment: 'dev',
-    description: 'Simulate network partition — flood 18% error rate on /v1/funds.',
-    accentColor: 'var(--c-red)',
-    accentBg: 'var(--c-error-bg)',
-    accentBorder: 'var(--c-error-border)',
-  },
-  {
-    id: 'auth_errors',
-    label: 'Poison JWT Tokens',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
-    service: 'fundsso',
-    environment: 'dev',
-    description: 'Corrupt identity cache — fundsso returning 401 on 35% of requests.',
-    accentColor: 'var(--c-purple)',
-    accentBg: 'var(--c-purple-bg)',
-    accentBorder: 'var(--c-purple-border)',
-  },
-  {
-    id: 'memory_leak',
-    label: 'Leak Heap Memory',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>,
-    service: 'fundapis',
-    environment: 'dev',
-    description: 'Deploy memory pressure tool — simulate heap OOM trajectory.',
-    accentColor: 'var(--c-info)',
-    accentBg: 'rgba(59,130,246,0.15)',
-    accentBorder: 'rgba(59,130,246,0.6)',
-  },
+const ACCENT_FALLBACKS = [
+  'var(--c-signal)',
+  'var(--c-red)',
+  'var(--c-purple)',
+  'var(--c-info)',
+  'var(--c-green)',
 ]
 
 export function SimulateAlertPanel() {
   const navigate = useNavigate()
+  const { data: presets, loading, error: loadError } = useApplicationPresets()
   const [selected, setSelected] = useState<string | null>(null)
   const [customDesc, setCustomDesc] = useState('')
   const [firing, setFiring] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const activePreset = PRESETS.find(p => p.id === selected)
+  const activePreset = presets.find(p => p.id === selected)
 
   async function fire() {
     if (!activePreset) return
@@ -83,9 +44,9 @@ export function SimulateAlertPanel() {
     setError(null)
     try {
       const result = await simulateAlert({
-        service_name: activePreset.service,
+        service_name: activePreset.service_name,
         environment: activePreset.environment,
-        scenario: activePreset.id,
+        scenario: activePreset.scenario_id,
         description: customDesc.trim() || undefined,
       })
       navigate(`/investigations/${result.request_id}`)
@@ -118,92 +79,93 @@ export function SimulateAlertPanel() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: '1.4rem' }}>☣️</span>
           <div>
-            <div style={{
-              fontWeight: 600,
-              fontSize: '0.8125rem',
-              color: 'var(--c-text)',
-            }}>
+            <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--c-text)' }}>
               Chaos Engineering Console
             </div>
-            <p style={{
-              margin: '2px 0 0',
-              fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-              color: 'var(--c-text-faint)',
-            }}>
-              Select experiment to deploy into DEV environment
+            <p style={{ margin: '2px 0 0', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)' }}>
+              Select experiment — fires the full investigation pipeline
             </p>
           </div>
         </div>
-        <div style={{ 
-          background: 'var(--c-error-bg)', border: '1px solid var(--c-error-border)', 
-          padding: '2px 8px', borderRadius: 6, color: 'var(--c-red)', fontSize: '0.6875rem', 
-          fontFamily: 'var(--font-mono)', fontWeight: 600 
+        <div style={{
+          background: 'var(--c-error-bg)', border: '1px solid var(--c-error-border)',
+          padding: '2px 8px', borderRadius: 6, color: 'var(--c-red)', fontSize: '0.6875rem',
+          fontFamily: 'var(--font-mono)', fontWeight: 600
         }}>
           RED TEAM MODE
         </div>
       </div>
 
+      {/* Loading / empty state */}
+      {loading && (
+        <p style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)' }}>
+          Loading scenarios…
+        </p>
+      )}
+
+      {!loading && presets.length === 0 && (
+        <p style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-text-faint)' }}>
+          No presets configured. Add scenarios in the Application Panel → Simulator Presets tab.
+        </p>
+      )}
+
       {/* Preset grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {PRESETS.map(preset => {
-          const isSelected = selected === preset.id
-          return (
-            <button
-              key={preset.id}
-              onClick={() => setSelected(isSelected ? null : preset.id)}
-              style={{
-                position: 'relative',
-                padding: '10px 12px',
-                borderRadius: 6,
-                background: isSelected ? `linear-gradient(135deg, ${preset.accentBg}, color-mix(in srgb, ${preset.accentBg} 10%, transparent))` : 'var(--c-surface-2)',
-                border: `1px solid ${isSelected ? preset.accentColor : 'var(--c-border)'}`,
-                boxShadow: isSelected ? `0 4px 20px color-mix(in srgb, ${preset.accentColor} 15%, transparent)` : 'none',
-                textAlign: 'left',
-                cursor: 'pointer',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
-              className="corvin-interactive"
-            >
-              {isSelected && (
-                <span style={{
-                  position: 'absolute', top: 8, right: 10,
-                  fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
-                  color: preset.accentColor, fontWeight: 700,
-                  textShadow: `0 0 8px color-mix(in srgb, ${preset.accentColor} 50%, transparent)`,
-                }}>✓</span>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <span style={{ color: isSelected ? preset.accentColor : 'var(--c-text-faint)' }}>{preset.icon}</span>
-                <span style={{
-                  fontFamily: 'var(--font-display)', fontWeight: 700,
-                  fontSize: '0.72rem', color: isSelected ? preset.accentColor : 'var(--c-text)',
-                  textShadow: isSelected ? `0 0 10px color-mix(in srgb, ${preset.accentColor} 40%, transparent)` : 'none',
+      {!loading && presets.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {presets.map((preset, idx) => {
+            const isSelected = selected === preset.id
+            const accent = preset.accent_color || ACCENT_FALLBACKS[idx % ACCENT_FALLBACKS.length]
+            const icon = ICON_MAP[preset.icon_key ?? 'custom'] ?? ICON_MAP.custom
+            return (
+              <button
+                key={preset.id}
+                onClick={() => setSelected(isSelected ? null : preset.id)}
+                style={{
+                  position: 'relative',
+                  padding: '10px 12px',
+                  borderRadius: 6,
+                  background: isSelected ? `color-mix(in srgb, ${accent} 15%, transparent)` : 'var(--c-surface-2)',
+                  border: `1px solid ${isSelected ? accent : 'var(--c-border)'}`,
+                  boxShadow: isSelected ? `0 4px 20px color-mix(in srgb, ${accent} 15%, transparent)` : 'none',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+                className="corvin-interactive"
+              >
+                {isSelected && (
+                  <span style={{
+                    position: 'absolute', top: 8, right: 10,
+                    fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
+                    color: accent, fontWeight: 700,
+                  }}>✓</span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ color: isSelected ? accent : 'var(--c-text-faint)' }}>{icon}</span>
+                  <span style={{
+                    fontFamily: 'var(--font-display)', fontWeight: 700,
+                    fontSize: '0.72rem', color: isSelected ? accent : 'var(--c-text)',
+                  }}>
+                    {preset.label}
+                  </span>
+                </div>
+                <p style={{
+                  margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
+                  color: 'var(--c-text-faint)', lineHeight: 1.5,
+                  display: '-webkit-box', WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical', overflow: 'hidden',
                 }}>
-                  {preset.label}
-                </span>
-              </div>
-              <p style={{
-                margin: 0,
-                fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
-                color: 'var(--c-text-faint)', lineHeight: 1.5,
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}>
-                {preset.description}
-              </p>
-              <p style={{
-                margin: '4px 0 0',
-              fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
-                color: 'var(--c-text-faint)', opacity: 0.6,
-              }}>
-                {preset.service} / {preset.environment}
-              </p>
-            </button>
-          )
-        })}
-      </div>
+                  {preset.description}
+                </p>
+                <p style={{ margin: '4px 0 0', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', opacity: 0.6 }}>
+                  {preset.service_name} / {preset.environment}
+                  {preset.application_name && ` · ${preset.application_name}`}
+                </p>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Custom description */}
       {activePreset && (
@@ -233,13 +195,10 @@ export function SimulateAlertPanel() {
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <p style={{
-          margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
-          color: 'var(--c-red)',
-        }}>
-          ✗ {error}
+      {/* API load error */}
+      {(error || loadError) && (
+        <p style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--c-red)' }}>
+          ✗ {error || loadError}
         </p>
       )}
 
@@ -253,10 +212,8 @@ export function SimulateAlertPanel() {
           border: selected && !firing ? '1px solid var(--c-signal)' : '1px solid var(--c-border)',
           background: selected && !firing ? 'var(--c-signal)' : 'var(--c-surface-2)',
           color: selected && !firing ? 'white' : 'var(--c-text-faint)',
-          fontFamily: 'var(--font-display)',
-          fontWeight: 700,
-          fontSize: '0.72rem',
-          letterSpacing: '0.06em',
+          fontFamily: 'var(--font-display)', fontWeight: 700,
+          fontSize: '0.72rem', letterSpacing: '0.06em',
           cursor: selected && !firing ? 'pointer' : 'not-allowed',
           transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           opacity: !selected ? 0.6 : 1,
@@ -272,7 +229,7 @@ export function SimulateAlertPanel() {
             Firing simulation…
           </span>
         ) : selected ? (
-          `⚡ Simulate ${activePreset?.label} on ${activePreset?.service}`
+          `⚡ Simulate ${activePreset?.label} on ${activePreset?.service_name}`
         ) : (
           'Select a scenario above'
         )}

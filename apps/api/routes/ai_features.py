@@ -141,8 +141,8 @@ def approve_correlation_action(body: CorrelationApprovalRequest = Body(...)) -> 
 @router.get("/capacity-forecast/{service_name}")
 async def get_capacity_forecast(
     service_name: str,
-    environment: str = Query("prod"),
-    namespace: str = Query("default"),
+    environment: str = Query(..., description="Target environment (e.g. production, staging, dev)"),
+    namespace: str = Query(..., description="Kubernetes namespace"),
 ) -> dict:
     """
     Generate a capacity forecast for a given service based on stored metrics.
@@ -238,7 +238,7 @@ def approve_scaling_action(body: ScalingApprovalRequest = Body(...)) -> dict:
 class RunbookSessionStartRequest(BaseModel):
     request_id: str
     service_name: str
-    environment: str = "prod"
+    environment: str
 
 
 @router.post("/runbooks/start-session")

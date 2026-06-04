@@ -23,7 +23,7 @@ class ChatService:
         Takes the investigation context and a list of OpenAI-style messages,
         injects the context as a system prompt, and yields SSE tokens.
         """
-        # 1. Load CHAD knowledge — site architecture + any matching runbooks
+        # 1. Load site knowledge — architecture overview + any matching runbooks
         site_knowledge = self.knowledge.load_site_knowledge()
         runbook_list = self.knowledge.load_matching_runbooks(result.request.service_name)
         runbook = "\n".join(runbook_list)
@@ -51,10 +51,10 @@ class ChatService:
             f"Summary: {result.fix_strategy.summary if result.fix_strategy else 'None'}\n"
             f"Actions: {[a.title for a in result.fix_strategy.actions] if result.fix_strategy else 'None'}\n\n"
             
-            "=== CHAD SITE KNOWLEDGE (Architecture & Conventions) ===\n"
+            "=== SITE KNOWLEDGE (Architecture & Conventions) ===\n"
             f"{site_knowledge[:3000] if site_knowledge else 'No site knowledge loaded.'}\n\n"
 
-            "=== CHAD RUNBOOK FOR THIS SERVICE ===\n"
+            "=== RUNBOOK FOR THIS SERVICE ===\n"
             f"{runbook[:2000] if runbook else 'No runbook exists yet for this service. You may help draft one.'}\n\n"
 
             "Be concise, technical, and blameless. Respond in Markdown. "
@@ -75,11 +75,14 @@ class ChatService:
         # its entire chain-of-thought before emitting a single token — causing
         # 60-90 second delays. Use the fast chat_model if configured, otherwise
         # fall back to fallback_model, otherwise strip the /responses/ prefix.
-        model_name: str = (
+        _raw_model = (
             llm_cfg.get("chat_model")
             or llm_cfg.get("fallback_model")
-            or llm_cfg.get("model", "azure/gpt-4.1-mini").replace("azure/responses/", "azure/")
+            or llm_cfg.get("model")
         )
+        if not _raw_model:
+            raise ValueError("models/llm.yaml must define 'model', 'fallback_model', or 'chat_model'")
+        model_name: str = _raw_model.replace("azure/responses/", "azure/")
 
         # Build kwargs. Do NOT forward reasoning_effort — chat uses a fast
         # non-reasoning model. drop_params=True still silently drops unknown

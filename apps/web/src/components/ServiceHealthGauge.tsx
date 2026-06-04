@@ -52,7 +52,7 @@ interface Props {
   environment?: string
 }
 
-export function ServiceHealthGauge({ serviceName, environment = 'dev' }: Props) {
+export function ServiceHealthGauge({ serviceName, environment = '' }: Props) {
   const navigate = useNavigate()
   const [data, setData] = useState<ServiceScore | null>(null)
   const [loading, setLoading] = useState(true)

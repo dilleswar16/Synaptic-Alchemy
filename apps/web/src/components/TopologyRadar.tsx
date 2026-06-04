@@ -98,7 +98,7 @@ function ServiceNode({ data }: { data: { label: string; status: string; sublabel
 }
 
 // Split a k8s pod name into [deploymentBase, hashSuffix]
-// e.g. "fundapis-7d9b4c8d6-xk2vq" → ["fundapis", "7d9b4c8d6-xk2vq"]
+// e.g. "payments-api-7d9b4c8d6-xk2vq" → ["payments-api", "7d9b4c8d6-xk2vq"]
 function splitPodName(name: string): [string, string] {
   const parts = name.split('-')
   // A k8s hash segment is short (≤10 chars), all lowercase alphanumeric

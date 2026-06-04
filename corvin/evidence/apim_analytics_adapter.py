@@ -50,8 +50,7 @@ _TEMPLATES: dict[str, tuple[str, str, str, str]] = {
         '    TotalRequests     = count(),\n'
         '    SuccessRate       = round(100.0 * countif(IsRequestSuccess == true) / count(), 1),\n'
         '    ErrorCount        = countif(ResponseCode >= 400),\n'
-        '    AvgResponseTimeMs = round(avg(TotalTime), 0),\n'
-        '    UniqueMembers     = dcount(extract(@"/members/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})", 1, Url))',
+        '    AvgResponseTimeMs = round(avg(TotalTime), 0)',
         "tiles",
         "📊 APIM Key Metrics",
         "Headline numbers for all APIs in the selected time window.",
@@ -111,76 +110,72 @@ _TEMPLATES: dict[str, tuple[str, str, str, str]] = {
         "Proportion of traffic going to each API over the selected period.",
     ),
 
-    "unique_members_by_fund": (
+    # NOTE: The three templates below (unique_ids_by_segment, requests_by_segment,
+    # top_client_ids, activity_heatmap) use URL regex patterns as examples.
+    # Customise the extract() expressions for your API's URL structure.
+    "unique_ids_by_segment": (
         'ApiManagementGatewayLogs\n'
         '| where TimeGenerated >= ago({minutes}m)\n'
         '{api_scope_clause}'
-        '| extend MemberUUID = extract(@"/members/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})", 1, Url)\n'
-        '| extend FundCode   = toupper(extract(@"/schemes/([^/]+)/", 1, Url))\n'
-        '| extend FundCode   = iff(FundCode == "CARESUPER", "CARE", FundCode)\n'
-        '| where isnotempty(MemberUUID) and isnotempty(FundCode)\n'
-        '| summarize UniqueMembers = dcount(MemberUUID) by FundCode, bin(TimeGenerated, 1h)\n'
+        '| extend ClientId   = extract(@"/clients/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})", 1, Url)\n'
+        '| extend SegmentKey = toupper(extract(@"/segments/([^/]+)/", 1, Url))\n'
+        '| where isnotempty(ClientId) and isnotempty(SegmentKey)\n'
+        '| summarize UniqueClients = dcount(ClientId) by SegmentKey, bin(TimeGenerated, 1h)\n'
         '| order by TimeGenerated asc',
         "area",
-        "👥 Unique Members by Fund Over Time",
-        "Distinct member UUIDs per fund bucketed hourly — shows which fund is active and how member reach evolves.",
+        "👥 Unique Client IDs by URL Segment Over Time",
+        "Distinct client IDs per URL path segment, bucketed hourly. Customise the URL regex for your API.",
     ),
 
-    "requests_by_fund": (
+    "requests_by_segment": (
         'ApiManagementGatewayLogs\n'
         '| where TimeGenerated >= ago({minutes}m)\n'
         '{api_scope_clause}'
-        '| extend FundCode = toupper(extract(@"/schemes/([^/]+)/", 1, Url))\n'
-        '| extend FundCode = iff(FundCode == "CARESUPER", "CARE", FundCode)\n'
-        '| where isnotempty(FundCode)\n'
+        '| extend SegmentKey = toupper(extract(@"/segments/([^/]+)/", 1, Url))\n'
+        '| where isnotempty(SegmentKey)\n'
         '| summarize\n'
-        '    RequestCount  = count(),\n'
-        '    ErrorCount    = countif(ResponseCode >= 400),\n'
-        '    UniqueMembers = dcount(extract(@"/members/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})", 1, Url))\n'
-        '    by FundCode\n'
+        '    RequestCount = count(),\n'
+        '    ErrorCount   = countif(ResponseCode >= 400)\n'
+        '    by SegmentKey\n'
         '| order by RequestCount desc',
         "bar",
-        "🏦 Requests by Fund Code",
-        "Total requests, errors, and unique member reach per superannuation fund.",
+        "📊 Requests by URL Path Segment",
+        "Total requests and errors grouped by a URL path segment value. Customise the extract() regex for your API.",
     ),
 
-    "top_members": (
+    "top_client_ids": (
         'ApiManagementGatewayLogs\n'
         '| where TimeGenerated >= ago({minutes}m)\n'
         '{api_scope_clause}'
-        '| extend FundCode   = toupper(extract(@"/schemes/([^/]+)/", 1, Url))\n'
-        '| extend FundCode   = iff(FundCode == "CARESUPER", "CARE", FundCode)\n'
-        '| extend MemberUUID = extract(@"/members/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})", 1, Url)\n'
-        '| where isnotempty(MemberUUID)\n'
+        '| extend ClientId = extract(@"/clients/([0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}})", 1, Url)\n'
+        '| where isnotempty(ClientId)\n'
         '| summarize\n'
         '    RequestCount = count(),\n'
         '    ErrorCount   = countif(ResponseCode >= 400),\n'
-        '    LastSeen     = max(TimeGenerated),\n'
-        '    FundCode     = any(FundCode)\n'
-        '    by MemberUUID\n'
+        '    LastSeen     = max(TimeGenerated)\n'
+        '    by ClientId\n'
         '| order by RequestCount desc\n'
         '| take 10',
         "table",
-        "🏆 Top 10 Members by Request Volume",
-        "Members with the highest request count — review for unusual volumes or repeated errors.",
+        "🏆 Top 10 Clients by Request Volume",
+        "Clients with the highest request count — review for unusual volumes or repeated errors. Customise the URL regex.",
     ),
 
-    "fund_activity_heatmap": (
+    "activity_heatmap": (
         'ApiManagementGatewayLogs\n'
         '| where TimeGenerated >= ago({minutes}m)\n'
         '{api_scope_clause}'
-        '| extend FundCode  = toupper(extract(@"/schemes/([^/]+)/", 1, Url))\n'
-        '| extend FundCode  = iff(FundCode == "CARESUPER", "CARE", FundCode)\n'
-        '| where isnotempty(FundCode)\n'
+        '| extend SegmentKey = toupper(extract(@"/segments/([^/]+)/", 1, Url))\n'
+        '| where isnotempty(SegmentKey)\n'
         '| extend HourOfDay = datetime_part("Hour", TimeGenerated)\n'
-        '| summarize RequestCount = count() by FundCode, HourOfDay\n'
-        '| order by FundCode asc, HourOfDay asc',
+        '| summarize RequestCount = count() by SegmentKey, HourOfDay\n'
+        '| order by SegmentKey asc, HourOfDay asc',
         "heatmap",
-        "🕒 Fund Activity by Hour of Day",
-        "Request volume per fund by hour of day — useful for understanding peak load patterns.",
+        "🕒 Activity by URL Segment and Hour of Day",
+        "Request volume per URL segment value by hour of day — useful for understanding peak load patterns. Customise the extract() regex.",
     ),
 
-    "partnerapis_operations": (
+    "api_operations": (
         'ApiManagementGatewayLogs\n'
         '| where TimeGenerated >= ago({minutes}m)\n'
         '{api_scope_clause}'
@@ -195,7 +190,7 @@ _TEMPLATES: dict[str, tuple[str, str, str, str]] = {
         "Per-operation request, success, and error counts for selected APIs.",
     ),
 
-    "fundapis_traffic": (
+    "api_traffic": (
         'ApiManagementGatewayLogs\n'
         '| where TimeGenerated >= ago({minutes}m)\n'
         '{api_scope_clause}'
@@ -206,26 +201,25 @@ _TEMPLATES: dict[str, tuple[str, str, str, str]] = {
         '    by bin(TimeGenerated, 1h)\n'
         '| order by TimeGenerated asc',
         "area",
-        "💰 API Traffic & Error Rate",
+        "📈 API Traffic & Error Rate Over Time",
         "Hourly request and error volume for selected APIs.",
     ),
 
-    "fundapis_operations_by_fund": (
+    "api_ops_by_segment": (
         'ApiManagementGatewayLogs\n'
         '| where TimeGenerated >= ago({minutes}m)\n'
         '{api_scope_clause}'
-        '| extend FundCode = toupper(extract(@"/schemes/([^/]+)/", 1, Url))\n'
-        '| extend FundCode = iff(FundCode == "CARESUPER", "CARE", FundCode)\n'
+        '| extend SegmentKey = toupper(extract(@"/segments/([^/]+)/", 1, Url))\n'
         '| summarize\n'
         '    RequestCount  = count(),\n'
         '    ErrorCount    = countif(ResponseCode >= 400),\n'
         '    ErrorRate_pct = round(100.0 * countif(ResponseCode >= 400) / count(), 1),\n'
         '    AvgTime_ms    = round(avg(TotalTime), 0)\n'
-        '    by OperationId, FundCode\n'
-        '| order by FundCode asc, OperationId asc',
+        '    by OperationId, SegmentKey\n'
+        '| order by SegmentKey asc, OperationId asc',
         "table",
-        "📋 API Operations by Fund Code",
-        "Per-operation and per-fund breakdown for selected APIs including error rates and latency.",
+        "📋 API Operations by URL Segment",
+        "Per-operation and per-URL-segment breakdown including error rates and latency. Customise the extract() regex.",
     ),
 
     "latency_percentiles": (

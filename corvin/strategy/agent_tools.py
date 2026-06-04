@@ -129,11 +129,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "The service to score (e.g. 'fundsso', 'partnerapis').",
+                        "description": "The service to score (e.g. 'payments-api', 'auth-service').",
                     },
                     "environment": {
                         "type": "string",
-                        "description": "Target environment (default: 'dev').",
+                        "description": "Target environment. Required — ask the user if not provided.",
                     },
                 },
                 "required": ["service_name"],
@@ -192,11 +192,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     },
                     "service_name": {
                         "type": "string",
-                        "description": "The name of the service to analyze (optional, e.g. 'partnerapis').",
+                        "description": "The name of the service to analyze (optional, e.g. 'payments-api').",
                     },
                     "environment": {
                         "type": "string",
-                        "description": "Environment for speculative analysis (default: 'dev').",
+                        "description": "Target environment for speculative analysis.",
                     },
                 },
                 "required": [],
@@ -243,7 +243,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     },
                     "environment": {
                         "type": "string",
-                        "description": "Environment (default: 'dev').",
+                        "description": "Target environment filter.",
                     },
                     "n": {
                         "type": "integer",
@@ -283,7 +283,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                         "type": "string",
                         "description": (
                             "A keyword or phrase to match the correct runbook, e.g. "
-                            "'fundsso memory leak' or 'partnerapis 401 jwt'."
+                            "'auth-service memory leak' or 'payments-api 401 jwt'."
                         ),
                     }
                 },
@@ -306,11 +306,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "The API or backend service name (e.g. 'partnerapis', 'fundapis').",
+                        "description": "The API or backend service name (e.g. 'payments-api', 'order-service').",
                     },
                     "environment": {
                         "type": "string",
-                        "description": "Environment to filter by (default: 'dev').",
+                        "description": "Environment to filter by.",
                     },
                     "time_range_minutes": {
                         "type": "integer",
@@ -367,9 +367,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "(1) Template mode: pass template_name to use a pre-validated query. "
                 "(2) Custom mode: if no template fits, write your own KQL and pass it as `kql`. "
                 "Available templates: kpi_summary, traffic_over_time, success_rate, "
-                "response_code_distribution, api_traffic_split, unique_members_by_fund, "
-                "requests_by_fund, top_members, fund_activity_heatmap, partnerapis_operations, "
-                "fundapis_traffic, fundapis_operations_by_fund, latency_percentiles, "
+                "response_code_distribution, api_traffic_split, api_operations, "
+                "api_traffic, api_ops_by_segment, unique_ids_by_segment, "
+                "requests_by_segment, top_client_ids, activity_heatmap, latency_percentiles, "
                 "backend_vs_overhead, slowest_operations, error_rate, errors_by_code, "
                 "error_origin, top_caller_ips, tls_versions, traffic_source."
             ),
@@ -380,16 +380,18 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                         "type": "string",
                         "description": (
                             "The pre-validated analytics template to run. Choose based on the user's question. "
-                            "'how many users/members today' → unique_members_by_fund. "
                             "'overall health/KPIs/summary' → kpi_summary. "
                             "'traffic over time' → traffic_over_time. "
                             "'error rate/errors' → error_rate or errors_by_code. "
                             "'latency/performance/slow' → latency_percentiles or slowest_operations. "
-                            "'which fund gets most traffic' → requests_by_fund. "
-                            "'peak hours/heatmap' → fund_activity_heatmap. "
+                            "'ops breakdown by operation' → api_operations. "
+                            "'traffic and error rate over time' → api_traffic. "
+                            "'ops by url segment' → api_ops_by_segment. "
+                            "'unique clients by segment' → unique_ids_by_segment. "
+                            "'requests by path segment' → requests_by_segment. "
+                            "'peak hours/heatmap' → activity_heatmap. "
+                            "'top clients' → top_client_ids. "
                             "'backend vs gateway overhead' → backend_vs_overhead. "
-                            "'api ops by operation' → partnerapis_operations. "
-                            "'api operations by fund' → fundapis_operations_by_fund. "
                             "'tls/security' → tls_versions. "
                             "'caller ips' → top_caller_ips. "
                             "Omit this field when using custom `kql` mode."
@@ -493,7 +495,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "The service whose repository to search (e.g. 'fundapis').",
+                        "description": "The service whose repository to search (e.g. 'payments-api').",
                     },
                     "query": {
                         "type": "string",
@@ -524,7 +526,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "The service whose repository to read from (e.g. 'fundapis').",
+                        "description": "The service whose repository to read from (e.g. 'payments-api').",
                     },
                     "path": {
                         "type": "string",
@@ -549,7 +551,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "The service whose repository to browse (e.g. 'fundapis').",
+                        "description": "The service whose repository to browse (e.g. 'payments-api').",
                     },
                     "path": {
                         "type": "string",
@@ -620,7 +622,9 @@ def _exec_predictive_alerts(args: dict) -> list:
 def _exec_service_score(args: dict) -> dict:
     from corvin.storage.repository import InvestigationRepository
     service = args["service_name"]
-    env = args.get("environment", "dev")
+    env = args.get("environment") or ""
+    if not env:
+        return {"error": "environment is required for service score lookup."}
     repo = InvestigationRepository()
     return repo.get_service_score(service_name=service, environment=env)
 
@@ -769,7 +773,7 @@ def _exec_blast_radius(args: dict) -> dict:
     if not service_name:
         return {"error": "Either investigation_id or service_name must be provided."}
     
-    env = args.get("environment", "dev")
+    env = args.get("environment") or ""
     # For speculative analysis, we pass an empty evidence bundle
     # The estimator will use downstream API counts if evidence is empty
     # But here we should ideally try to find some recent evidence if possible
@@ -796,7 +800,7 @@ def _exec_postmortem(args: dict) -> dict:
 def _exec_similar_incidents(args: dict) -> list:
     from corvin.storage.repository import InvestigationRepository
     service = args["service_name"]
-    env = args.get("environment", "dev")
+    env = args.get("environment") or ""
     n = max(1, min(int(args.get("n", 5)), 10))
     repo = InvestigationRepository()
     return repo.get_similar_incidents(service_name=service, environment=env, n=n)
@@ -821,7 +825,7 @@ def _exec_run_kql(args: dict) -> Any:
     adapter = LogAnalyticsAdapter()
     return adapter.get_apim_logs(
         service_name=args["service_name"],
-        environment=args.get("environment", "dev"),
+        environment=args.get("environment") or "",
         time_range_minutes=int(args.get("time_range_minutes", 60)),
     )
 
@@ -894,7 +898,7 @@ def _exec_container_resource_metrics(args: dict) -> dict[str, Any]:
 
     return {
         "service_name": service_name,
-        "namespace": namespace or "default",
+        "namespace": namespace or "",
         "time_range_minutes": minutes,
         "sample_count": len(rows),
         "service": service_summary,

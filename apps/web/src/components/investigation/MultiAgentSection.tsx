@@ -108,7 +108,7 @@ function MultiAgentTraceView({ trace }: { trace: MultiAgentTrace }) {
 // ── Standalone launcher for new multi-agent investigations ──
 
 export function MultiAgentLauncher() {
-  const [form, setForm] = useState({ service_name: '', description: '', environment: 'prod', priority: 'P2' })
+  const [form, setForm] = useState({ service_name: '', description: '', environment: '', priority: 'P2' })
   const [result, setResult] = useState<MultiAgentResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

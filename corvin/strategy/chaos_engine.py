@@ -98,7 +98,10 @@ class ChaosExperimentGenerator:
         self._config = config if config is not None else load_config("models/llm", get_env())
 
     def _get_model(self) -> str:
-        return self._config.get("fallback_model", "azure/gpt-4.1-mini")
+        model = self._config.get("fallback_model") or self._config.get("model")
+        if not model:
+            raise ValueError("models/llm.yaml must define 'model' or 'fallback_model'")
+        return model
 
     def generate(self, result: InvestigationResult) -> ChaosExperimentPlan:
         """

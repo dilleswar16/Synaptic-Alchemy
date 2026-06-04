@@ -267,7 +267,7 @@ def start_investigation(
 @router.get("/stream")
 def stream_investigation(
     service_name: str = Query(..., description="Service to investigate"),
-    environment: str = Query(default="production", description="Target environment"),
+    environment: str = Query(..., description="Target environment (e.g. production, staging, dev)"),
     description: str = Query(default="Streaming investigation", description="Optional description"),
     streamer: InvestigationStreamer = Depends(get_streamer),
 ) -> StreamingResponse:
@@ -311,7 +311,7 @@ def stream_investigation(
 @router.get("/memory", response_model=list[dict])
 def get_incident_memory(
     service_name: str = Query(..., description="Service to look up past incidents for"),
-    environment: str = Query(default="production", description="Target environment"),
+    environment: str = Query(..., description="Target environment (e.g. production, staging, dev)"),
     n: int = Query(default=3, ge=1, le=10, description="Max number of past incidents to return"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> list[dict]:
@@ -626,7 +626,7 @@ def get_topology_live(
 
     nodes: dict[str, TopologyNode] = {}
     edges: dict[tuple[str, str, str | None], TopologyEdge] = {}
-    # k8s deployment label (e.g. "chad-fundapis") → logical service name ("fundapis")
+    # k8s deployment label (e.g. "payments-api-deployment") → logical service name ("payments-api")
     aks_name_map: dict[str, str] = {}
     allowed_service_ids: set[str] = set()
     selected_clusters = [v.strip() for v in (clusters or "").split(",") if v.strip()]
@@ -1451,7 +1451,7 @@ def get_topology_live(
 @router.get("/score", response_model=dict)
 def get_service_score(
     service_name: str = Query(..., description="Service name to score"),
-    environment: str = Query(default="dev", description="Target environment"),
+    environment: str = Query(..., description="Target environment (e.g. production, staging, dev)"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> dict:
     """Return the Corvin Score (0–100) for a specific service/environment.
@@ -1547,9 +1547,13 @@ def update_runbook(
         f"Be specific. Max 200 words. Start with ## Resolution: <short title>."
     )
 
+    _runbook_model = llm_cfg.get("fallback_model") or llm_cfg.get("model")
+    if not _runbook_model:
+        raise ValueError("models/llm.yaml must define 'model' or 'fallback_model'")
+
     try:
         response = litellm.completion(
-            model=llm_cfg.get("model", "azure/responses/gpt-5.1"),
+            model=_runbook_model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=400,
         )
@@ -2409,7 +2413,7 @@ def translate_nl_to_kql(body: NLToKQLRequest) -> dict:
 
 class MultiAgentRequest(BaseModel):
     service_name: str
-    environment: str = "prod"
+    environment: str
     description: str
     priority: str = "P2"
 

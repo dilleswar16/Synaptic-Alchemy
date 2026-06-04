@@ -73,7 +73,9 @@ class CommsDraftGenerator:
     ) -> dict[str, Any]:
         """Generate a communication draft for the given audience level."""
         context = self._build_context(result)
-        model = self._config.get("fallback_model", "azure/gpt-4.1-mini")  # Use cheaper model for comms
+        model = self._config.get("fallback_model") or self._config.get("model")
+        if not model:
+            raise ValueError("models/llm.yaml must define 'model' or 'fallback_model'")
 
         try:
             response = litellm.completion(

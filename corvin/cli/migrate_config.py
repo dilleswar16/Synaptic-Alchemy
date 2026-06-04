@@ -136,7 +136,8 @@ def _seed_connectors(db: Session, app_id: str) -> int:
         count += 1
 
     # Container Insights / AKS application logs
-    # Prefer generic name; keep legacy CHAD var as backward-compatible fallback.
+    # CONTAINER_LOG_ANALYTICS_WORKSPACE_ID is the generic name.
+    # CHAD_LOG_ANALYTICS_WORKSPACE_ID is a deprecated alias kept only for backward compat with existing deployments.
     container_workspace_id = (
         _env_string("CONTAINER_LOG_ANALYTICS_WORKSPACE_ID")
         or _env_string("CHAD_LOG_ANALYTICS_WORKSPACE_ID")

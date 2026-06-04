@@ -300,23 +300,23 @@ function PieChartView({ data, compact }: { data: ApimChartData; compact: boolean
 
 function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean }) {
   const { rows } = data
-  const [tooltip, setTooltip] = _useHeatmapState<{ fund: string; hour: number; count: number; x: number; y: number } | null>(null)
+  const [tooltip, setTooltip] = _useHeatmapState<{ segment: string; hour: number; count: number; x: number; y: number } | null>(null)
   if (!rows.length) return <EmptyState />
 
-  // Build fund → hour → count matrix
+  // Build segment → hour → count matrix (SegmentKey is the generic column name; FundCode kept for backward compat)
   const grouped: Record<string, Record<number, number>> = {}
   rows.forEach(r => {
-    const fund = String(r['FundCode'] ?? r['id'] ?? 'Unknown')
+    const segment = String(r['SegmentKey'] ?? r['FundCode'] ?? r['id'] ?? 'Unknown')
     const hour = Number(r['HourOfDay'] ?? r['x'] ?? 0)
     const count = Number(r['RequestCount'] ?? r['y'] ?? 0)
-    if (!grouped[fund]) grouped[fund] = {}
-    grouped[fund][hour] = (grouped[fund][hour] ?? 0) + count
+    if (!grouped[segment]) grouped[segment] = {}
+    grouped[segment][hour] = (grouped[segment][hour] ?? 0) + count
   })
 
-  const funds = Object.keys(grouped).sort()
+  const segments = Object.keys(grouped).sort()
   const hours = Array.from({ length: 24 }, (_, i) => i)
   let maxVal = 1
-  funds.forEach(f => hours.forEach(h => { maxVal = Math.max(maxVal, grouped[f][h] ?? 0) }))
+  segments.forEach(s => hours.forEach(h => { maxVal = Math.max(maxVal, grouped[s][h] ?? 0) }))
 
   function cellColor(v: number): { bg: string; border: string } {
     if (v === 0) return { bg: 'var(--c-surface-2)', border: 'var(--c-border)' }
@@ -348,22 +348,22 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
       </div>
 
       {/* Grid rows */}
-      {funds.map(fund => (
-        <div key={fund} style={{ display: 'flex', alignItems: 'center', marginBottom: gap }}>
-          {/* Fund label */}
+      {segments.map(segment => (
+        <div key={segment} style={{ display: 'flex', alignItems: 'center', marginBottom: gap }}>
+          {/* Segment label */}
           <div style={{
             width: labelW, minWidth: labelW, textAlign: 'right', paddingRight: 10,
             fontSize: '0.72rem', fontWeight: 600, color: 'var(--c-text)',
             fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           }}>
-            {fund}
+            {segment}
           </div>
 
           {/* Cells */}
           <div style={{ display: 'flex', flex: 1, gap }}>
             {hours.map(h => {
-              const v = grouped[fund][h] ?? 0
+              const v = grouped[segment][h] ?? 0
               const { bg, border } = cellColor(v)
               const isPeak = v === maxVal && v > 0
               return (
@@ -383,7 +383,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
                   onMouseEnter={e => {
                     if (v > 0) {
                       const rect = (e.target as HTMLElement).getBoundingClientRect()
-                      setTooltip({ fund, hour: h, count: v, x: rect.left + rect.width / 2, y: rect.top })
+                      setTooltip({ segment, hour: h, count: v, x: rect.left + rect.width / 2, y: rect.top })
                     }
                   }}
                   onMouseLeave={() => setTooltip(null)}
@@ -431,7 +431,7 @@ function HeatmapView({ data, compact }: { data: ApimChartData; compact: boolean 
           zIndex: 9999, whiteSpace: 'nowrap',
           boxShadow: 'var(--shadow-lg)',
         }}>
-          <div style={{ fontWeight: 600, color: 'var(--c-signal)', marginBottom: 2 }}>{tooltip.fund}</div>
+          <div style={{ fontWeight: 600, color: 'var(--c-signal)', marginBottom: 2 }}>{tooltip.segment}</div>
           <div>
             <span style={{ color: 'var(--c-text-muted)' }}>{String(tooltip.hour).padStart(2, '0')}:00</span>
             {' — '}

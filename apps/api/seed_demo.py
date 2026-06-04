@@ -1,18 +1,11 @@
-"""
-Seeder for Corvin — CHAD application only.
-
-Populates the DB with the single real CHAD application and its three services:
-  - fundapis     (k8s: chad-fundapis)    — Fund APIs backend, via APIM
-  - fundsso      (k8s: chad-fundsso)     — SSO / auth service, direct (no APIM)
-  - partnerapis  (k8s: chad-partnerapis) — Partner APIs backend, via APIM
+"""Demo data seeder — reads from config/demo/seed_data.yaml.
 
 Activation:
-    Set  CORVIN_DEMO_MODE=true  (default in dev) before starting uvicorn.
-    The seeder is idempotent: it skips if CHAD is already present.
+    Set CORVIN_DEMO_MODE=true before starting uvicorn.
+    The seeder is idempotent: it skips rows that already exist.
 
-Data contract:
-    SloSnapshotRow rows are written with  data_source='simulated'.
-    Swap in a real SLO connector and the simulated rows age out naturally.
+To customise for a new deployment, edit config/demo/seed_data.yaml.
+No source code changes are required.
 """
 
 from __future__ import annotations
@@ -20,87 +13,39 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
 
+import yaml
 from sqlalchemy.orm import Session
 
 from corvin.storage.models import (
+    ApplicationEnvironmentRow,
     ApplicationRow,
     ApplicationServiceRow,
+    KnowledgeBaseRow,
+    SimulatorPresetRow,
     SloConfigRow,
     SloSnapshotRow,
 )
 
 log = logging.getLogger("corvin.seed_demo")
 
-# ---------------------------------------------------------------------------
-# CHAD application — single entry
-# Services: (service_name, display_name, k8s_label, tier, health_profile)
-#
-# health_profile controls simulated SLO trajectory:
-#   "ok"       -> 99.5–99.9%, moderate burn rate
-#   "at_risk"  -> 98–99%, elevated burn rate (>0.8)
-# ---------------------------------------------------------------------------
-
-_CHAD_APP: dict = {
-    "name": "CHAD",
-    "description": (
-        "Channel Account & Distribution platform — fund APIs, partner APIs, "
-        "and SSO service running in AKS namespace 'chad'."
-    ),
-    "team": "CHAD Engineering",
-    "env": "dev",
-    "services": [
-        # (service_name,  display_name,    k8s_label,          tier,   health_profile)
-        ("fundapis",     "Fund APIs",      "chad-fundapis",     "api",  "ok"),
-        ("fundsso",      "Fund SSO",       "chad-fundsso",      "api",  "ok"),
-        ("partnerapis",  "Partner APIs",   "chad-partnerapis",  "api",  "at_risk"),
-    ],
-}
-
-_AVAIL_TARGET: dict[str, float] = {
-    "ok":      99.5,
-    "at_risk": 99.0,
-}
-_LATENCY_TARGET: dict[str, float] = {
-    "ok":      99.5,
-    "at_risk": 99.0,
-}
-
-# Snapshot values per health profile over 5 windows (most-recent LAST)
-# Each tuple: (measured_avail_pct, measured_latency_pct, error_budget_pct, burn_rate)
-_SNAPSHOTS: dict[str, list[tuple[float, float, float, float]]] = {
-    "ok": [
-        (99.72, 99.61, 68.4, 0.31),
-        (99.68, 99.58, 64.2, 0.36),
-        (99.75, 99.63, 70.1, 0.30),
-        (99.71, 99.60, 66.8, 0.33),
-        (99.69, 99.57, 63.5, 0.37),
-    ],
-    "at_risk": [
-        (98.91, 98.72, 28.4, 0.81),
-        (98.74, 98.55, 22.1, 0.93),
-        (98.62, 98.44, 17.8, 1.02),
-        (98.55, 98.38, 13.2, 1.11),
-        (98.41, 98.26,  9.6, 1.21),
-    ],
-}
-
+_SEED_FILE = Path(__file__).parents[2] / "config" / "demo" / "seed_data.yaml"
 _NOW = datetime.now(tz=timezone.utc)
 
 
+def _load_seed_config() -> dict[str, Any]:
+    if not _SEED_FILE.exists():
+        log.warning("Demo seed: %s not found — skipping", _SEED_FILE)
+        return {}
+    with _SEED_FILE.open("r", encoding="utf-8") as fh:
+        return yaml.safe_load(fh) or {}
+
+
 def _snapshot_times(n: int = 5) -> list[datetime]:
-    """Return n evenly-spaced timestamps over the last 30 days, ending ~now."""
     step = timedelta(days=30) / n
     return [_NOW - timedelta(days=30) + step * i for i in range(n)]
-
-
-def _baseline_service_metadata(service_name: str, profile: str) -> dict:
-    return {
-        "health_profile": profile,
-        "apim_routes_through_gateway": service_name != "fundsso",
-        "apim_api_id": service_name,
-        "is_sso_direct": service_name == "fundsso",
-    }
 
 
 def _ensure_slo_config(
@@ -146,8 +91,7 @@ def _ensure_slo_snapshots(
     times: list[datetime],
     snaps: list[tuple[float, float, float, float]],
 ) -> bool:
-    existing_count = db.query(SloSnapshotRow).filter_by(slo_config_id=slo_config_id).count()
-    if existing_count > 0:
+    if db.query(SloSnapshotRow).filter_by(slo_config_id=slo_config_id).count() > 0:
         return False
 
     for i, (avail_pct, lat_pct, budget_pct, burn) in enumerate(snaps):
@@ -172,121 +116,182 @@ def _ensure_slo_snapshots(
 
 
 def ensure_demo_data(db: Session) -> bool:
-    """
-    Seed the DB with the CHAD application if it is not already present.
+    """Seed the DB from config/demo/seed_data.yaml if not already present.
 
-    Returns True if data was seeded, False if already populated.
+    Returns True if data was inserted or updated, False if already complete.
     Idempotent — safe to call on every startup.
     """
+    seed = _load_seed_config()
+    if not seed:
+        return False
+
+    app_cfg: dict[str, Any] = seed.get("application", {})
+    app_name = app_cfg.get("name", "Demo Application")
+    if not app_name:
+        log.warning("Demo seed: application.name not set in seed_data.yaml — skipping")
+        return False
+
     changed = False
-    app = db.query(ApplicationRow).filter_by(name="CHAD").first()
+    app = db.query(ApplicationRow).filter_by(name=app_name).first()
     if app is None:
-        log.info("Demo seed: creating CHAD application baseline …")
+        log.info("Demo seed: creating '%s' application …", app_name)
         app = ApplicationRow(
             id=str(uuid.uuid4()),
-            name=_CHAD_APP["name"],
-            description=_CHAD_APP["description"],
-            team_name=_CHAD_APP["team"],
-            environment_default=_CHAD_APP["env"],
+            name=app_name,
+            description=app_cfg.get("description"),
+            team_name=app_cfg.get("team_name"),
+            environment_default=app_cfg.get("environment_default", "dev"),
             topology_json={},
         )
         db.add(app)
         db.flush()
         changed = True
     else:
-        log.info("Demo seed: reconciling CHAD baseline data …")
+        log.info("Demo seed: reconciling '%s' baseline data …", app_name)
 
+    slo_profiles: dict[str, Any] = seed.get("slo_profiles", {})
+    service_metadata: dict[str, Any] = seed.get("service_metadata", {})
     times = _snapshot_times(5)
     app_id = app.id
+
     existing_services = {
         row.service_name: row
         for row in db.query(ApplicationServiceRow).filter_by(application_id=app_id).all()
     }
 
-    for svc_name, display_name, k8s_label, tier, profile in _CHAD_APP["services"]:
-        baseline_metadata = _baseline_service_metadata(svc_name, profile)
+    for svc_def in seed.get("services", []):
+        svc_name = svc_def["service_name"]
+        display_name = svc_def.get("display_name", svc_name)
+        k8s_label = svc_def.get("k8s_app_label", svc_name)
+        namespace = svc_def.get("namespace")
+        tier = svc_def.get("tier")
+        profile = svc_def.get("health_profile", "ok")
+        metadata = dict(service_metadata.get(svc_name, {}))
+
         svc = existing_services.get(svc_name)
         if svc is None:
             svc = ApplicationServiceRow(
                 application_id=app_id,
                 service_name=svc_name,
                 display_name=display_name,
-                namespace="chad",
+                namespace=namespace,
                 tier=tier,
                 k8s_app_label=k8s_label,
                 dependencies=[],
-                metadata_json=baseline_metadata,
+                metadata_json=metadata,
             )
             db.add(svc)
             changed = True
         else:
-            merged_metadata = dict(baseline_metadata)
+            merged_metadata = dict(metadata)
             merged_metadata.update(svc.metadata_json or {})
             if not svc.display_name:
                 svc.display_name = display_name
                 changed = True
-            if not svc.namespace:
-                svc.namespace = "chad"
+            if not svc.namespace and namespace:
+                svc.namespace = namespace
                 changed = True
-            if not svc.tier:
+            if not svc.tier and tier:
                 svc.tier = tier
                 changed = True
-            if not svc.k8s_app_label:
+            if not svc.k8s_app_label and k8s_label:
                 svc.k8s_app_label = k8s_label
                 changed = True
             if merged_metadata != (svc.metadata_json or {}):
                 svc.metadata_json = merged_metadata
                 changed = True
 
-        snaps = _SNAPSHOTS[profile]
-        avail_target = _AVAIL_TARGET[profile]
-        latency_target = _LATENCY_TARGET[profile]
+        profile_cfg = slo_profiles.get(profile, {})
+        snaps_raw = profile_cfg.get("snapshots", [])
+        snaps: list[tuple[float, float, float, float]] = [tuple(s) for s in snaps_raw]  # type: ignore[misc]
+        avail_target = float(profile_cfg.get("availability_target_pct", 99.5))
+        latency_target = float(profile_cfg.get("latency_target_pct", 99.5))
+        latency_threshold_ms = profile_cfg.get("latency_threshold_ms", 200)
 
         avail_cfg, avail_created = _ensure_slo_config(
-            db,
-            app_id=app_id,
-            service_name=svc_name,
-            sli_type="availability",
-            target_pct=avail_target,
-            latency_threshold_ms=None,
+            db, app_id=app_id, service_name=svc_name,
+            sli_type="availability", target_pct=avail_target, latency_threshold_ms=None,
         )
         latency_cfg, latency_created = _ensure_slo_config(
-            db,
-            app_id=app_id,
-            service_name=svc_name,
-            sli_type="latency",
-            target_pct=latency_target,
-            latency_threshold_ms=200,
+            db, app_id=app_id, service_name=svc_name,
+            sli_type="latency", target_pct=latency_target, latency_threshold_ms=latency_threshold_ms,
         )
-        changed = avail_created or changed
-        changed = latency_created or changed
+        changed = avail_created or latency_created or changed
 
         changed = _ensure_slo_snapshots(
-            db,
-            app_id=app_id,
-            service_name=svc_name,
-            slo_config_id=avail_cfg.id,
-            sli_type="availability",
-            target_pct=avail_target,
-            profile=profile,
-            times=times,
-            snaps=snaps,
+            db, app_id=app_id, service_name=svc_name,
+            slo_config_id=avail_cfg.id, sli_type="availability",
+            target_pct=avail_target, profile=profile, times=times, snaps=snaps,
         ) or changed
         changed = _ensure_slo_snapshots(
-            db,
-            app_id=app_id,
-            service_name=svc_name,
-            slo_config_id=latency_cfg.id,
-            sli_type="latency",
-            target_pct=latency_target,
-            profile=profile,
-            times=times,
-            snaps=snaps,
+            db, app_id=app_id, service_name=svc_name,
+            slo_config_id=latency_cfg.id, sli_type="latency",
+            target_pct=latency_target, profile=profile, times=times, snaps=snaps,
         ) or changed
+
+    # ── Environments ─────────────────────────────────────────────────────────
+    existing_env_names = {
+        row.name
+        for row in db.query(ApplicationEnvironmentRow).filter_by(application_id=app_id).all()
+    }
+    for order, env_def in enumerate(seed.get("environments", [])):
+        name = env_def.get("name")
+        if not name or name in existing_env_names:
+            continue
+        db.add(ApplicationEnvironmentRow(
+            application_id=app_id,
+            name=name,
+            display_name=env_def.get("display_name", name.title()),
+            priority_tier=env_def.get("priority_tier", "P3"),
+            lookback_minutes=int(env_def.get("lookback_minutes", 60)),
+            is_default=bool(env_def.get("is_default", False)),
+            display_order=int(env_def.get("display_order", order)),
+        ))
+        changed = True
+
+    # ── Knowledge base ────────────────────────────────────────────────────────
+    existing_kb_count = db.query(KnowledgeBaseRow).filter_by(application_id=app_id).count()
+    if existing_kb_count == 0:
+        for order, kb_def in enumerate(seed.get("knowledge_base", [])):
+            title = kb_def.get("title")
+            content = kb_def.get("content")
+            if not title or not content:
+                continue
+            db.add(KnowledgeBaseRow(
+                id=str(uuid.uuid4()),
+                application_id=app_id,
+                title=title,
+                content=str(content).strip(),
+                is_active=True,
+                display_order=int(kb_def.get("display_order", order)),
+            ))
+            changed = True
+
+    # ── Simulator presets ─────────────────────────────────────────────────────
+    existing_preset_ids = {
+        row.scenario_id
+        for row in db.query(SimulatorPresetRow).filter_by(application_id=app_id).all()
+    }
+    for order, preset_def in enumerate(seed.get("simulator_presets", [])):
+        sid = preset_def.get("scenario_id")
+        if not sid or sid in existing_preset_ids:
+            continue
+        db.add(SimulatorPresetRow(
+            id=str(uuid.uuid4()),
+            application_id=app_id,
+            scenario_id=sid,
+            label=preset_def.get("label", sid),
+            service_name=preset_def["service_name"],
+            environment=preset_def.get("environment", "dev"),
+            description=preset_def.get("description", ""),
+            icon_key=preset_def.get("icon_key"),
+            accent_color=preset_def.get("accent_color"),
+            is_active=True,
+            display_order=preset_def.get("display_order", order),
+        ))
+        changed = True
 
     db.commit()
-    if changed:
-        log.info("Demo seed complete: CHAD baseline is present and reconciled.")
-    else:
-        log.info("Demo seed: CHAD baseline already complete, no changes needed.")
+    status = "complete and reconciled" if changed else "already complete, no changes needed"
+    log.info("Demo seed (%s): %s.", app_name, status)
     return changed

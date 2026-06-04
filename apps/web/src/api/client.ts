@@ -1434,7 +1434,7 @@ export interface CapacityForecastReport {
   generated_at: string
 }
 
-export function fetchCapacityForecast(serviceName: string, environment = 'prod', namespace = 'default') {
+export function fetchCapacityForecast(serviceName: string, environment: string, namespace: string) {
   return apiFetch<CapacityForecastReport>(
     `/ai/capacity-forecast/${encodeURIComponent(serviceName)}?environment=${encodeURIComponent(environment)}&namespace=${encodeURIComponent(namespace)}`
   )
@@ -1469,7 +1469,7 @@ export interface RunbookChatResponse {
   message_count: number
 }
 
-export function startRunbookSession(requestId: string, serviceName: string, environment = 'prod') {
+export function startRunbookSession(requestId: string, serviceName: string, environment: string) {
   return apiFetch<RunbookSessionResponse>('/ai/runbooks/start-session', {
     method: 'POST',
     body: JSON.stringify({ request_id: requestId, service_name: serviceName, environment }),
@@ -1512,5 +1512,174 @@ export interface WarGamesScenario {
 
 export function fetchWarGamesScenarios() {
   return apiFetch<WarGamesScenario[]>('/ai/war-games/scenarios')
+}
+
+// ── Simulator Presets (per-application, DB-driven) ───────────────────────────
+
+export interface SimulatorPreset {
+  id: string
+  application_id: string
+  scenario_id: string
+  label: string
+  service_name: string
+  environment: string
+  description: string
+  icon_key: string | null
+  accent_color: string | null
+  is_active: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+export function listSimulatorPresets(appId: string) {
+  return apiFetch<SimulatorPreset[]>(`/applications/${appId}/simulator-presets`)
+}
+
+export function createSimulatorPreset(appId: string, payload: Partial<SimulatorPreset>) {
+  return apiFetch<SimulatorPreset>(`/applications/${appId}/simulator-presets`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateSimulatorPreset(appId: string, presetId: string, payload: Partial<SimulatorPreset>) {
+  return apiFetch<SimulatorPreset>(`/applications/${appId}/simulator-presets/${presetId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteSimulatorPreset(appId: string, presetId: string) {
+  return apiFetch<void>(`/applications/${appId}/simulator-presets/${presetId}`, { method: 'DELETE' })
+}
+
+// ── Convenience: list all services across all onboarded applications ──────────
+
+export async function listAllServices(): Promise<Array<ApplicationService & { application_name: string; application_id: string }>> {
+  const apps = await listApplications()
+  const results: Array<ApplicationService & { application_name: string; application_id: string }> = []
+  for (const app of apps) {
+    const svcs = await apiFetch<ApplicationService[]>(`/applications/${app.id}/services`)
+    for (const svc of svcs) {
+      results.push({ ...svc, application_name: app.name, application_id: app.id })
+    }
+  }
+  return results
+}
+
+// ── Application Environments ─────────────────────────────────────────────────
+
+export interface ApplicationEnvironment {
+  id: number
+  application_id: string
+  name: string
+  display_name: string
+  priority_tier: 'P1' | 'P2' | 'P3'
+  lookback_minutes: number
+  is_default: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+export function listEnvironments(appId: string) {
+  return apiFetch<ApplicationEnvironment[]>(`/applications/${appId}/environments`)
+}
+
+export function createEnvironment(appId: string, payload: Partial<ApplicationEnvironment>) {
+  return apiFetch<ApplicationEnvironment>(`/applications/${appId}/environments`, {
+    method: 'POST', body: JSON.stringify(payload),
+  })
+}
+
+export function updateEnvironment(appId: string, envId: number, payload: Partial<ApplicationEnvironment>) {
+  return apiFetch<ApplicationEnvironment>(`/applications/${appId}/environments/${envId}`, {
+    method: 'PUT', body: JSON.stringify(payload),
+  })
+}
+
+export function deleteEnvironment(appId: string, envId: number) {
+  return apiFetch<void>(`/applications/${appId}/environments/${envId}`, { method: 'DELETE' })
+}
+
+// ── Knowledge Base ───────────────────────────────────────────────────────────
+
+export interface KnowledgeEntry {
+  id: string
+  application_id: string
+  title: string
+  content: string
+  is_active: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+export function listKnowledge(appId: string) {
+  return apiFetch<KnowledgeEntry[]>(`/applications/${appId}/knowledge`)
+}
+
+export function createKnowledge(appId: string, payload: Partial<KnowledgeEntry>) {
+  return apiFetch<KnowledgeEntry>(`/applications/${appId}/knowledge`, {
+    method: 'POST', body: JSON.stringify(payload),
+  })
+}
+
+export function updateKnowledge(appId: string, kbId: string, payload: Partial<KnowledgeEntry>) {
+  return apiFetch<KnowledgeEntry>(`/applications/${appId}/knowledge/${kbId}`, {
+    method: 'PUT', body: JSON.stringify(payload),
+  })
+}
+
+export function deleteKnowledge(appId: string, kbId: string) {
+  return apiFetch<void>(`/applications/${appId}/knowledge/${kbId}`, { method: 'DELETE' })
+}
+
+// ── Runbook Library ──────────────────────────────────────────────────────────
+
+export interface RunbookEntry {
+  id: string
+  application_id: string
+  service_name: string | null
+  title: string
+  keywords: string[]
+  content: string
+  is_active: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+export function listRunbooks(appId: string) {
+  return apiFetch<RunbookEntry[]>(`/applications/${appId}/runbooks`)
+}
+
+export function createRunbook(appId: string, payload: Partial<RunbookEntry>) {
+  return apiFetch<RunbookEntry>(`/applications/${appId}/runbooks`, {
+    method: 'POST', body: JSON.stringify(payload),
+  })
+}
+
+export function updateRunbook(appId: string, rbId: string, payload: Partial<RunbookEntry>) {
+  return apiFetch<RunbookEntry>(`/applications/${appId}/runbooks/${rbId}`, {
+    method: 'PUT', body: JSON.stringify(payload),
+  })
+}
+
+export function deleteRunbook(appId: string, rbId: string) {
+  return apiFetch<void>(`/applications/${appId}/runbooks/${rbId}`, { method: 'DELETE' })
+}
+
+export async function listAllPresetsAcrossApplications(): Promise<Array<SimulatorPreset & { application_name: string }>> {
+  const apps = await listApplications()
+  const results: Array<SimulatorPreset & { application_name: string }> = []
+  for (const app of apps) {
+    const presets = await apiFetch<SimulatorPreset[]>(`/applications/${app.id}/simulator-presets`)
+    for (const p of presets) {
+      if (p.is_active) results.push({ ...p, application_name: app.name })
+    }
+  }
+  return results
 }
 

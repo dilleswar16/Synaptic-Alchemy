@@ -266,7 +266,7 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
           .replace(/<br\s*\/?>/gi, '\n')
 
         // 2. Sanitize node labels: parentheses inside ["..."] labels break Mermaid parsing
-        //    e.g. ["chad-fundsso (SSO)"] → ["chad-fundsso - SSO"]
+        //    e.g. ["auth-service (SSO)"] → ["auth-service - SSO"]
         //    Also strip escaped quotes inside labels
         processedChart = processedChart.replace(
           /\["([^"]*?)"\]/g,

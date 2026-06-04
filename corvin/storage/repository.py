@@ -618,19 +618,61 @@ class InvestigationRepository:
         """
         Compute a Corvin Score (0–100) for a specific service/environment.
 
-        Formula (weighted):
-          - 30 pts: incident frequency (fewer = better, baseline = 10/month)
-          - 25 pts: average RCA confidence (high=1, medium=0.6, low=0.2)
-          - 25 pts: average MTTR (≤5 min = full pts, scaled up to 60 min cap)
-          - 20 pts: days since last incident (≥30 days = full pts)
+        Score weights are loaded from ApplicationRow.scoring_config_json (DB-first),
+        falling back to config/policies/scoring.yaml (system-wide defaults).
 
         Returns dict with: score, label, color, total, high_conf, avg_mttr_minutes,
         days_since_last, last_incident_at.
         """
-        CONF_WEIGHT = {"high": 1.0, "medium": 0.6, "low": 0.2}
-        LOOKBACK_DAYS = 30
+        from corvin.storage.models import ApplicationServiceRow, ApplicationRow
+        from corvin.core.config_loader import load_config, get_env
+        from sqlalchemy import or_
 
         with self._session_factory() as session:
+            # ── Load scoring config: DB-first, YAML fallback ──────────────────
+            scoring_cfg: dict = {}
+            try:
+                svc_row = session.query(ApplicationServiceRow).filter(
+                    or_(
+                        ApplicationServiceRow.service_name == service_name,
+                        ApplicationServiceRow.k8s_app_label == service_name,
+                    )
+                ).first()
+                if svc_row:
+                    app_row: ApplicationRow | None = session.get(ApplicationRow, svc_row.application_id)
+                    if app_row and app_row.scoring_config_json:
+                        scoring_cfg = app_row.scoring_config_json
+            except Exception:
+                pass  # DB unavailable — fall through to YAML
+
+            if not scoring_cfg:
+                try:
+                    scoring_cfg = load_config("policies/scoring", get_env())
+                except Exception:
+                    scoring_cfg = {}
+
+            health_cfg = scoring_cfg.get("service_health", scoring_cfg)
+            weights = health_cfg.get("weights", {})
+            w_freq = float(weights.get("frequency", 30))
+            w_conf = float(weights.get("confidence", 25))
+            w_mttr = float(weights.get("mttr", 25))
+            w_rec = float(weights.get("recency", 20))
+
+            conf_map_raw = health_cfg.get("confidence_map", {})
+            CONF_WEIGHT = {
+                "high": float(conf_map_raw.get("high", 1.0)),
+                "medium": float(conf_map_raw.get("medium", 0.6)),
+                "low": float(conf_map_raw.get("low", 0.2)),
+            }
+            LOOKBACK_DAYS = int(health_cfg.get("lookback_days", 30))
+            FREQ_BASELINE = float(health_cfg.get("frequency_baseline_count", 10))
+            MTTR_CAP = float(health_cfg.get("mttr_cap_minutes", 60))
+            RECENCY_CAP = float(health_cfg.get("recency_cap_days", 30))
+            thresholds = health_cfg.get("thresholds", {})
+            THRESH_HEALTHY = int(thresholds.get("healthy", 80))
+            THRESH_DEGRADED = int(thresholds.get("degraded", 50))
+
+            # ── Query investigation history ───────────────────────────────────
             rows = session.execute(
                 select(InvestigationRequestRow)
                 .where(InvestigationRequestRow.service_name == service_name)
@@ -654,11 +696,11 @@ class InvestigationRepository:
             cutoff = now - __import__('datetime').timedelta(days=LOOKBACK_DAYS)
             recent = [r for r in rows if _as_utc(r.created_at) >= cutoff]
 
-            # --- Frequency score (30 pts) ---
+            # --- Frequency score ---
             freq_count = len(recent)
-            freq_score = max(0.0, 1.0 - freq_count / 10.0) * 30
+            freq_score = max(0.0, 1.0 - freq_count / FREQ_BASELINE) * w_freq
 
-            # --- Confidence score (25 pts) ---
+            # --- Confidence score ---
             rca_rows = session.execute(
                 select(RCAOutputRow)
                 .join(InvestigationRequestRow, RCAOutputRow.request_id == InvestigationRequestRow.id)
@@ -670,10 +712,10 @@ class InvestigationRepository:
             if rca_rows:
                 avg_conf_weight = sum(CONF_WEIGHT.get(r.confidence, 0.6) for r in rca_rows) / len(rca_rows)
             else:
-                avg_conf_weight = 0.6
-            conf_score = avg_conf_weight * 25
+                avg_conf_weight = CONF_WEIGHT.get("medium", 0.6)
+            conf_score = avg_conf_weight * w_conf
 
-            # --- MTTR score (25 pts) ---
+            # --- MTTR score ---
             mttr_values = []
             for r in rows:
                 if r.created_at and r.completed_at:
@@ -681,21 +723,21 @@ class InvestigationRepository:
                     mttr_values.append(delta)
             avg_mttr = sum(mttr_values) / len(mttr_values) if mttr_values else None
             if avg_mttr is None:
-                mttr_score = 25.0
+                mttr_score = w_mttr
             else:
-                mttr_score = max(0.0, 1.0 - min(avg_mttr, 60.0) / 60.0) * 25
+                mttr_score = max(0.0, 1.0 - min(avg_mttr, MTTR_CAP) / MTTR_CAP) * w_mttr
 
-            # --- Recency score (20 pts) ---
+            # --- Recency score ---
             last_row = rows[0]
             last_at = _as_utc(last_row.completed_at)
             days_since = (now - last_at).days
-            recency_score = min(days_since / 30.0, 1.0) * 20
+            recency_score = min(days_since / RECENCY_CAP, 1.0) * w_rec
 
             score = round(freq_score + conf_score + mttr_score + recency_score)
 
-            if score >= 80:
+            if score >= THRESH_HEALTHY:
                 label, color = "Healthy", "green"
-            elif score >= 50:
+            elif score >= THRESH_DEGRADED:
                 label, color = "Degraded", "amber"
             else:
                 label, color = "Critical", "red"

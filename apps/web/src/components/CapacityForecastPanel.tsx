@@ -64,7 +64,7 @@ export default function CapacityForecastPanel() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <input
           type="text"
-          placeholder="Service name (e.g. partnerapis)"
+          placeholder="Service name (e.g. payments-api)"
           value={service}
           onChange={(e) => setService(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && runForecast()}

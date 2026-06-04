@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchInvestigations, type InvestigationSummary } from '../api/client'
 import { useInvestigationStream, type StreamParams } from '../hooks/useInvestigationStream'
+import { useServiceNames, useApplicationPresets, useDefaultEnvironment, useEnvironmentOptions } from '../hooks/useApplicationData'
 import StreamingProgress from '../components/StreamingProgress'
 import Layout from '../components/Layout'
 import { timeAgo, fmtTs } from '../utils/time'
@@ -185,39 +186,17 @@ function DescriptionField({
   )
 }
 
-// ── Known services + demo presets ───────────────────────────────────────────
-
-const SERVICES = ['fundapis', 'fundsso', 'partnerapis'] as const
-
-const DEMO_PRESETS = [
-  {
-    label: '503 Spike',
-    icon: '⚡',
-    service_name: 'fundapis' as string,
-    environment: 'dev',
-    description: 'High error rate — 503s spiking on /v1/funds endpoint since 14:00. Two pods restarted in the last hour.',
-  },
-  {
-    label: 'HPA Failure',
-    icon: '⚠',
-    service_name: 'partnerapis' as string,
-    environment: 'dev',
-    description: 'HPA reports FailedComputeMetricsReplicas — only 1/2 replicas running, CPU metrics unavailable.',
-  },
-  {
-    label: 'Auth Errors',
-    icon: '🔒',
-    service_name: 'fundsso' as string,
-    environment: 'dev',
-    description: 'Elevated RBAC 403 errors on /auth/token — users unable to authenticate since deployment at 09:30.',
-  },
-]
+// Service names and presets are loaded from the API at runtime.
 
 // ── Start investigation form ──────────────────────────────────────────────────
 
 function StartInvestigationForm() {
+  const { names: serviceNames, loading: servicesLoading } = useServiceNames()
+  const { data: presets } = useApplicationPresets()
+  const defaultEnv = useDefaultEnvironment()
+  const envOptions = useEnvironmentOptions()
   const [service, setService] = useState('')
-  const [environment, setEnvironment] = useState('dev')
+  const [environment, setEnvironment] = useState(defaultEnv || '')
   const [description, setDescription] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const pendingQueue = useRef<StreamParams[]>([])
@@ -242,7 +221,7 @@ function StartInvestigationForm() {
     }
   }, [isComplete, start, reset])
 
-  function handlePreset(preset: typeof DEMO_PRESETS[number]) {
+  function handlePreset(preset: { service_name: string; environment: string; description: string }) {
     setService(preset.service_name)
     setEnvironment(preset.environment)
     setDescription(preset.description)
@@ -254,7 +233,7 @@ function StartInvestigationForm() {
     setFormError(null)
     if (!service) { setFormError('Please select a service.'); return }
     if (service === '__all__') {
-      const params = SERVICES.map(s => ({ service_name: s, environment, description }))
+      const params = serviceNames.map(s => ({ service_name: s, environment, description }))
       pendingQueue.current = params.slice(1)
       setQueueTotal(params.length)
       setQueueDone(0)
@@ -292,30 +271,32 @@ function StartInvestigationForm() {
 
       {/* Form */}
       <div style={{ padding: '20px 24px' }}>
-        {/* Demo preset buttons */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{
-            fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
-            letterSpacing: '0.12em', textTransform: 'uppercase',
-            color: 'var(--c-text-muted)', marginBottom: 8,
-          }}>
-            Demo Presets
+        {/* Simulator preset buttons (loaded from API) */}
+        {presets.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: 'var(--c-text-muted)', marginBottom: 8,
+            }}>
+              Quick Presets
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {presets.map(preset => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handlePreset(preset)}
+                  disabled={isStreaming}
+                  className="btn-ghost"
+                  style={{ padding: '5px 14px', fontSize: '0.75rem', opacity: isStreaming ? 0.5 : 1 }}
+                >
+                  ⚡ {preset.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {DEMO_PRESETS.map(preset => (
-              <button
-                key={preset.label}
-                type="button"
-                onClick={() => handlePreset(preset)}
-                disabled={isStreaming}
-                className="btn-ghost"
-                style={{ padding: '5px 14px', fontSize: '0.75rem', opacity: isStreaming ? 0.5 : 1 }}
-              >
-                {preset.icon} {preset.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
@@ -323,14 +304,12 @@ function StartInvestigationForm() {
               label="Service"
               value={service}
               onChange={setService}
-              disabled={isStreaming}
+              disabled={isStreaming || servicesLoading}
               required
               options={[
-                { value: '',            label: '— Select a service —', disabled: true },
-                { value: 'fundapis',    label: 'fundapis',    note: 'Fund APIs backend' },
-                { value: 'fundsso',     label: 'fundsso',     note: 'Fund SSO service' },
-                { value: 'partnerapis', label: 'partnerapis', note: 'Partner APIs' },
-                { value: '__all__',     label: '— All Services —' },
+                { value: '', label: servicesLoading ? 'Loading…' : '— Select a service —', disabled: true },
+                ...serviceNames.map(n => ({ value: n, label: n })),
+                ...(serviceNames.length > 1 ? [{ value: '__all__', label: '— All Services —' }] : []),
               ]}
             />
             <SelectField
@@ -339,9 +318,8 @@ function StartInvestigationForm() {
               onChange={setEnvironment}
               disabled={isStreaming}
               options={[
-                { value: 'dev',  label: 'dev' },
-                { value: 'qa',   label: 'qa',   disabled: true, note: 'coming soon' },
-                { value: 'prod', label: 'prod', disabled: true, note: 'coming soon' },
+                { value: '', label: '— Select environment —', disabled: true },
+                ...envOptions.map(e => ({ value: e, label: e })),
               ]}
             />
           </div>

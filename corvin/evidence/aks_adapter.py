@@ -23,22 +23,29 @@ from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
 from kubernetes.client.exceptions import ApiException
 
-from corvin.connectors.config_resolver import resolve_log_source_config
+from corvin.connectors.config_resolver import resolve_log_source_config, resolve_service_namespace
 
 logger = logging.getLogger(__name__)
 
 
-def _normalize_namespaces(value: Any, fallback: str = "default") -> list[str]:
-    """Normalize namespace config values into a de-duplicated list."""
+def _normalize_namespaces(value: Any, fallback: str | None = None) -> list[str]:
+    """Normalize namespace config values into a de-duplicated list.
+
+    Returns an empty list when no namespace is configured and no fallback is
+    provided. Callers that need a namespace must handle an empty list explicitly —
+    silently falling back to "default" would query the wrong namespace in a
+    multi-tenant deployment.
+    """
     items: list[str] = []
     if isinstance(value, list):
         items = [str(v).strip() for v in value if str(v).strip()]
     elif isinstance(value, str):
         items = [part.strip() for part in value.split(",") if part.strip()]
 
-    if not items:
-        fb = str(fallback or "").strip() or "default"
-        items = [fb]
+    if not items and fallback:
+        fb = str(fallback).strip()
+        if fb:
+            items = [fb]
 
     deduped: list[str] = []
     seen: set[str] = set()
@@ -60,7 +67,7 @@ def _cluster_entries(cfg: dict[str, Any], namespace_override: str | None = None)
         for item in clusters:
             if not isinstance(item, dict):
                 continue
-            cluster_name = str(item.get("cluster_name") or "").strip() or str(cfg.get("cluster_name") or "").strip() or "default"
+            cluster_name = str(item.get("cluster_name") or "").strip() or str(cfg.get("cluster_name") or "").strip() or "unknown"
             entry = {
                 "cluster_name": cluster_name,
                 "resource_group": str(item.get("resource_group") or cfg.get("resource_group") or "").strip(),
@@ -72,11 +79,12 @@ def _cluster_entries(cfg: dict[str, Any], namespace_override: str | None = None)
             if namespace_override:
                 entry["namespaces"] = [namespace_override]
             else:
-                fallback_ns = str(item.get("default_namespace") or cfg.get("default_namespace") or "default")
+                fallback_ns = str(item.get("default_namespace") or cfg.get("default_namespace") or "").strip() or None
                 entry["namespaces"] = _normalize_namespaces(item.get("namespaces"), fallback_ns)
             entries.append(entry)
     else:
-        cluster_name = str(cfg.get("cluster_name") or "").strip() or "default"
+        cluster_name = str(cfg.get("cluster_name") or "").strip() or "unknown"
+        fallback_ns = str(cfg.get("default_namespace") or "").strip() or None
         entry = {
             "cluster_name": cluster_name,
             "resource_group": str(cfg.get("resource_group") or "").strip(),
@@ -84,7 +92,7 @@ def _cluster_entries(cfg: dict[str, Any], namespace_override: str | None = None)
             "tenant_id": str(cfg.get("tenant_id") or "").strip(),
             "in_cluster": bool(cfg.get("in_cluster", False)),
             "kube_config_path": str(cfg.get("kube_config_path") or "~/.kube/config"),
-            "namespaces": [namespace_override] if namespace_override else _normalize_namespaces(cfg.get("namespaces"), str(cfg.get("default_namespace") or "default")),
+            "namespaces": [namespace_override] if namespace_override else _normalize_namespaces(cfg.get("namespaces"), fallback_ns),
         }
         entries.append(entry)
 
@@ -243,9 +251,16 @@ class AKSAdapter:
                 role=None,
                 fallback=cfg,
             )
-        ns = namespace or str(cfg.get("default_namespace", "default") or "default")
-        if not namespace and cfg.get("namespaces"):
-            ns = _normalize_namespaces(cfg.get("namespaces"), ns)[0]
+        ns = namespace or str(cfg.get("default_namespace") or "").strip()
+        if not ns:
+            # DB-first namespace resolution: look up the service's registered namespace
+            db_ns = resolve_service_namespace(service_name)
+            if db_ns:
+                ns = db_ns
+        if not ns and cfg.get("namespaces"):
+            candidates = _normalize_namespaces(cfg.get("namespaces"))
+            if candidates:
+                ns = candidates[0]
         return cfg, ns
 
     # ── Internal helpers ──────────────────────────────────────────────────────
@@ -927,7 +942,7 @@ def _default_config() -> dict[str, Any]:
     return {
         "in_cluster": in_cluster,
         "kube_config_path": os.environ.get("KUBE_CONFIG_PATH", "~/.kube/config"),
-        "default_namespace": os.environ.get("AKS_NAMESPACE", "default"),
+        "default_namespace": os.environ.get("AKS_NAMESPACE", ""),
         "cluster_name": os.environ.get("AKS_CLUSTER_NAME", ""),
         "resource_group": os.environ.get("AKS_RESOURCE_GROUP", ""),
     }

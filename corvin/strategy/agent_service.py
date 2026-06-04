@@ -67,13 +67,13 @@ Code Analysis (Git Repository Access):
   showing what should change.
 
 APIM Analytics:
-- For ANY question about API traffic, success rates, error rates, latency, member counts,
-  fund breakdowns, peak hours, caller IPs, TLS compliance, or APIM performance:
+- For ANY question about API traffic, success rates, error rates, latency, request volumes,
+  operations breakdown, peak hours, caller IPs, TLS compliance, or APIM performance:
   ALWAYS use the `query_apim_analytics` tool — it returns live data WITH chart type hints
   so the UI can render beautiful charts automatically.
 - TWO MODES — pick the right one:
   (A) TEMPLATE MODE: if the question maps to a named template, pass `template_name`.
-      Example: "how many members per fund" → template_name="unique_members_by_fund".
+      Example: "show traffic and error rate over time" → template_name="api_traffic".
   (B) CUSTOM KQL MODE: if no template fits the question, write your own KQL query and
       pass it as the `kql` parameter. Also set `chart_type` and `title`.
       The table is `ApiManagementGatewayLogs`. Do NOT add a TimeGenerated filter —
@@ -113,7 +113,9 @@ class CorvinAgentService:
         import os
 
         llm_cfg = load_config("models/llm", get_env())
-        model_name = llm_cfg.get("model", "azure/responses/gpt-5.1")
+        model_name = llm_cfg.get("model")
+        if not model_name:
+            raise ValueError("models/llm.yaml must define 'model'")
 
         base_kwargs: dict = {
             "model": model_name,
@@ -253,7 +255,9 @@ class CorvinAgentService:
         import os
 
         llm_cfg = load_config("models/llm", get_env())
-        model_name = llm_cfg.get("model", "azure/responses/gpt-5.1")
+        model_name = llm_cfg.get("model")
+        if not model_name:
+            raise ValueError("models/llm.yaml must define 'model'")
 
         base_kwargs: dict = {"model": model_name, "drop_params": True}
         endpoint = os.environ.get("LITELLM_ENDPOINT", "").strip()

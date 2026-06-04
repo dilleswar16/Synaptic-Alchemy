@@ -3,7 +3,7 @@ ADO Wiki Adapter — creates a Wiki page per investigation in Azure DevOps.
 
 Page structure:
   Investigations/
-        2026-05-21_fundsso_production_<investigation-id>/
+        2026-05-21_auth-service_production_<investigation-id>/
       (full RCA + fix strategy as markdown)
 
 Uses the same PAT and org/project as the work-item adapter.
