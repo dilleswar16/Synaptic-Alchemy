@@ -221,8 +221,8 @@ export default function IncidentHeatmap({
     })
   }, [])
 
-  const CELL = compact ? 12 : 16
-  const GAP  = compact ? 2 : 3
+  const CELL = compact ? 12 : 26
+  const GAP  = compact ? 2 : 4
 
   if (isLoading) return (
     <div id="incident-heatmap" style={{ padding: compact ? 0 : '4px 0' }}>
@@ -262,23 +262,26 @@ export default function IncidentHeatmap({
 
       {/* ── Header ───────────────────────────────────────────────────── */}
       {!compact && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: 20, gap: 16 }}>
+          {/* Left: Title */}
           <div>
             <div style={{
               fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700,
               letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-accent)',
-              marginBottom: 4,
             }}>
               Incident Activity
             </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--c-text-muted)' }}>
-              Last {days} days &nbsp;·&nbsp;
-              <strong style={{ color: 'var(--c-text)' }}>{data.total_incidents}</strong> investigations &nbsp;·&nbsp;
-              Peak <strong style={{ color: 'var(--c-text)' }}>{data.max_count}</strong>/day
-            </div>
           </div>
-          {/* Legend */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          
+          {/* Center: Stats */}
+          <div style={{ fontSize: '0.82rem', color: 'var(--c-text-muted)', textAlign: 'center' }}>
+            Last {days} days &nbsp;·&nbsp;
+            <strong style={{ color: 'var(--c-text)' }}>{data.total_incidents}</strong> investigations &nbsp;·&nbsp;
+            Peak <strong style={{ color: 'var(--c-text)' }}>{data.max_count}</strong>/day
+          </div>
+          
+          {/* Right: Legend */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
             <span style={{ fontSize: '0.65rem', color: 'var(--c-text-muted)' }}>None</span>
             {(['none','low','medium','high','critical'] as const).map(s => (
               <div key={s} title={SEVERITY_LABELS[s]} style={{
@@ -293,7 +296,7 @@ export default function IncidentHeatmap({
       )}
 
       {/* ── Calendar grid ─────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
         {/* Weekday labels */}
         {!compact && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: GAP, paddingTop: 18, marginRight: 2 }}>

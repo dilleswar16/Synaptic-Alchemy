@@ -370,7 +370,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── 6. ROI + AI Briefing ─────────────────────────────────────── */}
-      <div className="dash-bottom-row">
+      <div className="dash-bottom-row" style={{ marginBottom: 40, gap: 32 }}>
         <RoiWidget />
 
         {/* AI Briefing — collapsed by default */}
