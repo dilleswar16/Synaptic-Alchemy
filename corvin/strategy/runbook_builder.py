@@ -15,6 +15,7 @@ All saves require human approval — no auto-writing to knowledge base.
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -141,17 +142,22 @@ class RunbookBuilder:
         # Add user message
         session.messages.append({"role": "user", "content": user_message})
 
-        # Call LLM
-        try:
-            resp = litellm.completion(
-                messages=session.messages,
-                **self._model_config,
-            )
-            assistant_content = resp.choices[0].message.content.strip()
-        except Exception as exc:
-            _log.warning("Runbook builder LLM call failed: %s", exc)
-            session.messages.pop()  # Remove failed user message
-            return {"error": f"LLM call failed: {str(exc)}"}
+        # Call LLM when configured; otherwise use deterministic fallback so UI
+        # remains usable in local/dev environments without cloud credentials.
+        completion_kwargs = self._build_completion_kwargs()
+        if completion_kwargs is None:
+            _log.warning("Runbook builder: LLM credentials missing, using deterministic fallback")
+            assistant_content = self._fallback_runbook_response(session, user_message)
+        else:
+            try:
+                resp = litellm.completion(
+                    messages=session.messages,
+                    **completion_kwargs,
+                )
+                assistant_content = (resp.choices[0].message.content or "").strip()
+            except Exception as exc:
+                _log.warning("Runbook builder LLM call failed; using deterministic fallback: %s", exc)
+                assistant_content = self._fallback_runbook_response(session, user_message)
 
         # Add assistant response
         session.messages.append({"role": "assistant", "content": assistant_content})
@@ -168,6 +174,79 @@ class RunbookBuilder:
             "draft": session.current_draft.to_dict() if session.current_draft else None,
             "message_count": len([m for m in session.messages if m["role"] != "system"]),
         }
+
+    def _build_completion_kwargs(self) -> dict[str, Any] | None:
+        """Build LiteLLM kwargs only when valid credentials are present."""
+        model = self._model_config.get("fallback_model") or self._model_config.get("model")
+        if not model:
+            return None
+
+        endpoint = os.environ.get("LITELLM_ENDPOINT", "").strip()
+        api_version = os.environ.get("AZURE_API_VERSION", "").strip()
+        api_key = (
+            os.environ.get("LITELLM_API_KEY", "").strip()
+            or os.environ.get("AZURE_OPENAI_API_KEY", "").strip()
+        )
+        ad_token = os.environ.get("AZURE_OPENAI_AD_TOKEN", "").strip()
+
+        if not api_key and not ad_token:
+            return None
+
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "api_base": endpoint if endpoint else "",
+            "temperature": self._model_config.get("temperature", 0.2),
+            "max_tokens": self._model_config.get("max_tokens", 2048),
+        }
+        if api_version:
+            kwargs["api_version"] = api_version
+        if api_key:
+            kwargs["api_key"] = api_key
+        if ad_token:
+            kwargs["azure_ad_token"] = ad_token
+        return kwargs
+
+    def _fallback_runbook_response(self, session: RunbookSession, user_message: str) -> str:
+        """Deterministic markdown fallback used when LLM is unavailable."""
+        message = (user_message or "").strip().lower()
+        is_initial = "generate an initial runbook" in message or "initial" in message
+        title = "Initial Runbook Draft" if is_initial else "Runbook Revision"
+
+        refinement = (
+            f"Requested refinement: {user_message.strip()}"
+            if user_message.strip()
+            else "Requested refinement: update the runbook for better clarity"
+        )
+
+        prior = session.current_draft.content if session.current_draft else ""
+
+        base = f"""## {title} — {session.service_name} ({session.environment})
+
+### When to apply
+- Use when incident telemetry indicates sustained failures, timeout symptoms, or exporter/dependency resolution issues for **{session.service_name}**.
+
+### Steps
+- Confirm current incident scope in Corvin evidence and RCA sections.
+- Validate dependency endpoints, service discovery, and configuration alignment.
+- Apply the smallest safe remediation first (config correction or targeted restart).
+- Observe error rate and latency for 15 minutes before further changes.
+
+### Rollback
+- Revert to the last known good deployment/config if error rate increases.
+- Escalate to incident channel if rollback does not stabilize service.
+
+### Verification
+- No new critical alerts for this service.
+- RCA signals no longer reproducing.
+- Core health checks pass across the namespace.
+
+### Notes
+- {refinement}
+"""
+
+        if prior and not is_initial:
+            return f"{base}\n### Previous Draft Context\n{prior[:1200]}"
+        return base
 
     async def generate_initial_draft(self, session_id: str) -> dict[str, Any]:
         """Generate the first draft without user input."""

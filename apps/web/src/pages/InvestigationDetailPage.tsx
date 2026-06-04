@@ -50,7 +50,7 @@ export default function InvestigationDetailPage() {
     rawAction === 'approve' || rawAction === 'reject' ? rawAction : null
   const clearPendingAction = () => setSearchParams({})
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch: refetchInvestigation } = useQuery({
     queryKey: ['investigation', id],
     queryFn: () => fetchInvestigation(id!),
     enabled: !!id,
@@ -475,10 +475,9 @@ export default function InvestigationDetailPage() {
                   {/* Feature 8 — Root Cause Debate Mode */}
                   <HypothesisDebatePanel
                     investigationId={id!}
-                    onHypothesisSelected={(_hid) => {
-                      // When a hypothesis is selected, the fix strategy is re-generated.
-                      // Invalidate the investigation query so the RcaSection reflects the new fix.
-                      // The query client is not imported here; we rely on the 30s stale time + re-fetch.
+                    onHypothesisSelected={async (_hid) => {
+                      // Ensure RCA/Fix sections refresh immediately after backend regeneration.
+                      await refetchInvestigation()
                     }}
                   />
                 </div>

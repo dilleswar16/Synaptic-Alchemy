@@ -17,7 +17,6 @@ import {
   type JourneyConfig,
   type DryRunResult,
   type PlaywrightResult,
-  type ValidationStepResult,
 } from '../api/client'
 
 // ── Styles ────────────────────────────────────────────────────────────────────

@@ -1078,6 +1078,7 @@
   border-radius: var(--radius-lg);
   padding: 24px;
   box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 .hypothesis-panel-header {
@@ -1105,6 +1106,31 @@
   line-height: 1.5;
 }
 
+.hypothesis-meta-row {
+  margin-top: 9px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hypothesis-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--c-border-hi);
+  background: var(--c-surface-2);
+  color: var(--c-text-muted);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.hypothesis-meta-pill.leader {
+  border-color: var(--c-success-border);
+  background: var(--c-success-bg);
+  color: var(--c-success);
+}
+
 /* Cards grid — 3 equal columns */
 .hypothesis-cards-grid {
   display: grid;
@@ -1129,6 +1155,7 @@
   flex-direction: column;
   gap: 12px;
   transition: box-shadow 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+  min-width: 0;
 }
 
 .hypothesis-card:hover {
@@ -1178,6 +1205,7 @@
   color: var(--c-text);
   letter-spacing: -0.01em;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 /* Evidence strength bar */
@@ -1239,6 +1267,7 @@
   font-size: 0.8125rem;
   color: var(--c-text-dim);
   line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 
 .hypothesis-signal-list {
@@ -1256,6 +1285,7 @@
   padding-left: 12px;
   position: relative;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .hypothesis-signal::before {
@@ -1270,6 +1300,140 @@
 
 .hypothesis-signal.supporting::before { background: var(--c-success); }
 .hypothesis-signal.refuting::before   { background: var(--c-error); }
+
+.hypothesis-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.hypothesis-evidence-chip {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  font-size: 0.68rem;
+  border-radius: 10px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  white-space: normal;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.hypothesis-evidence-chip.supporting {
+  background: var(--c-success-bg);
+  border-color: var(--c-success-border);
+  color: var(--c-success);
+}
+
+.hypothesis-evidence-chip.refuting {
+  background: var(--c-error-bg);
+  border-color: var(--c-error-border);
+  color: var(--c-error);
+}
+
+.hypothesis-insight-panel {
+  margin-bottom: 16px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--c-surface-2), var(--c-surface));
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hypothesis-insight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hypothesis-insight-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--c-text-faint);
+}
+
+.hypothesis-insight-gap {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--c-text-muted);
+}
+
+.hypothesis-ambiguity-banner {
+  border: 1px solid var(--c-warning-border);
+  background: var(--c-warning-bg);
+  color: var(--c-warning);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.hypothesis-notice-banner {
+  border: 1px solid var(--c-success-border);
+  background: var(--c-success-bg);
+  color: var(--c-success);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  margin-bottom: 10px;
+}
+
+.hypothesis-recommendation {
+  font-size: 0.8rem;
+  color: var(--c-text-dim);
+  line-height: 1.5;
+}
+
+.hypothesis-pairwise-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .hypothesis-pairwise-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .hypothesis-pairwise-grid { grid-template-columns: 1fr; }
+}
+
+.hypothesis-pairwise-card {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  background: var(--c-surface-2);
+  min-width: 0;
+}
+
+.hypothesis-pairwise-head {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--c-text);
+}
+
+.hypothesis-pairwise-winner {
+  margin-top: 3px;
+  font-size: 0.74rem;
+  color: var(--c-success);
+}
+
+.hypothesis-pairwise-reason {
+  margin-top: 2px;
+  font-size: 0.72rem;
+  color: var(--c-text-muted);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
 
 /* Select button */
 .hypothesis-select-btn {

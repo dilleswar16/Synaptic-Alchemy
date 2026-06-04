@@ -62,6 +62,7 @@ interface HypothesisCardProps {
   isSelected: boolean
   isWinner: boolean
   isSelecting: boolean
+  isDisabled: boolean
   onSelect: (id: string) => void
 }
 
@@ -70,9 +71,12 @@ function HypothesisCard({
   isSelected,
   isWinner,
   isSelecting,
+  isDisabled,
   onSelect,
 }: HypothesisCardProps) {
   const colours = ANGLE_COLOURS[h.id] ?? ANGLE_COLOURS.h1
+  const supportingEvidence = h.supporting_evidence ?? []
+  const refutingEvidence = h.refuting_evidence ?? []
 
   return (
     <div
@@ -135,6 +139,15 @@ function HypothesisCard({
               <li key={i} className="hypothesis-signal supporting">{s}</li>
             ))}
           </ul>
+          {supportingEvidence.length > 0 && (
+            <div className="hypothesis-evidence-list">
+              {supportingEvidence.map((ev, i) => (
+                <span key={`${ev.source_id}-${i}`} className="hypothesis-evidence-chip supporting">
+                  {ev.source_id}: {ev.summary}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -149,6 +162,15 @@ function HypothesisCard({
               <li key={i} className="hypothesis-signal refuting">{s}</li>
             ))}
           </ul>
+          {refutingEvidence.length > 0 && (
+            <div className="hypothesis-evidence-list">
+              {refutingEvidence.map((ev, i) => (
+                <span key={`${ev.source_id}-${i}`} className="hypothesis-evidence-chip refuting">
+                  {ev.source_id}: {ev.summary}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -156,7 +178,7 @@ function HypothesisCard({
       <button
         id={`select-hypothesis-${h.id}`}
         className={`hypothesis-select-btn ${isWinner ? 'winner' : ''}`}
-        disabled={isWinner || isSelecting}
+        disabled={isWinner || isDisabled}
         onClick={() => onSelect(h.id)}
       >
         {isWinner
@@ -178,8 +200,9 @@ export default function HypothesisDebatePanel({
   const [state, setState] = useState<HypothesesResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [isSelecting, setIsSelecting] = useState(false)
+  const [selectingHypothesisId, setSelectingHypothesisId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   // Load existing hypotheses on mount (no LLM call)
   useEffect(() => {
@@ -193,9 +216,11 @@ export default function HypothesisDebatePanel({
   const handleGenerate = useCallback(async () => {
     setIsGenerating(true)
     setError(null)
+    setNotice(null)
     try {
       const result = await generateHypotheses(investigationId)
       setState(result)
+      setNotice(`Debate regenerated with ${result.hypotheses?.length ?? 0} hypotheses.`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate hypotheses.')
     } finally {
@@ -205,16 +230,18 @@ export default function HypothesisDebatePanel({
 
   const handleSelect = useCallback(
     async (hypothesisId: string) => {
-      setIsSelecting(true)
+      setSelectingHypothesisId(hypothesisId)
       setError(null)
+      setNotice(null)
       try {
         const result = await selectHypothesis(investigationId, hypothesisId)
         setState({ ...result, hypotheses: result.hypotheses ?? [] })
+        setNotice(`Selected ${hypothesisId.toUpperCase()} as root cause. Fix strategy re-generated.`)
         onHypothesisSelected?.(hypothesisId)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to select hypothesis.')
       } finally {
-        setIsSelecting(false)
+        setSelectingHypothesisId(null)
       }
     },
     [investigationId, onHypothesisSelected],
@@ -238,6 +265,7 @@ export default function HypothesisDebatePanel({
 
   // ── Empty state — not yet generated ────────────────────────────────────────
   const hasHypotheses = state && state.hypotheses.length > 0
+  const hypothesisCount = state?.hypotheses.length ?? 0
 
   return (
     <div className="hypothesis-panel">
@@ -250,6 +278,16 @@ export default function HypothesisDebatePanel({
               ? 'Review the competing hypotheses and select the root cause that best matches the evidence.'
               : 'Generate competing root-cause hypotheses from the evidence and debate them before committing to a fix.'}
           </p>
+          {hasHypotheses && (
+            <div className="hypothesis-meta-row">
+              <span className="hypothesis-meta-pill">{hypothesisCount} hypotheses loaded</span>
+              {state?.debate_meta?.leader_id && (
+                <span className="hypothesis-meta-pill leader">
+                  Leader: {state.debate_meta.leader_id.toUpperCase()} ({Math.round(state.debate_meta.leader_score * 100)}%)
+                </span>
+              )}
+            </div>
+          )}
         </div>
         {!hasHypotheses && (
           <button
@@ -287,6 +325,12 @@ export default function HypothesisDebatePanel({
         </div>
       )}
 
+      {notice && (
+        <div className="hypothesis-notice-banner" role="status">
+          {notice}
+        </div>
+      )}
+
       {/* Winner summary (when hypothesis selected) */}
       {hasHypotheses && state.selected_hypothesis_id && (() => {
         const winner = state.hypotheses.find(h => h.id === state.selected_hypothesis_id)
@@ -302,6 +346,42 @@ export default function HypothesisDebatePanel({
         ) : null
       })()}
 
+      {/* Debate calibration and pairwise insights */}
+      {hasHypotheses && state?.debate_meta && (
+        <div className="hypothesis-insight-panel">
+          <div className="hypothesis-insight-header">
+            <div className="hypothesis-insight-title">Decision Calibration</div>
+            <div className="hypothesis-insight-gap">
+              Confidence gap: {(state.debate_meta.score_gap * 100).toFixed(0)}%
+            </div>
+          </div>
+
+          {state.debate_meta.is_ambiguous && !state.selected_hypothesis_id && (
+            <div className="hypothesis-ambiguity-banner" role="status">
+              Top hypotheses are close. Run one focused disproof check before selecting a root cause.
+            </div>
+          )}
+
+          <div className="hypothesis-recommendation">
+            {state.debate_meta.recommendation}
+          </div>
+
+          {state.debate_meta.pairwise.length > 0 && (
+            <div className="hypothesis-pairwise-grid">
+              {state.debate_meta.pairwise.map((p, idx) => (
+                <div key={`${p.left_id}-${p.right_id}-${idx}`} className="hypothesis-pairwise-card">
+                  <div className="hypothesis-pairwise-head">
+                    {p.left_id} vs {p.right_id}
+                  </div>
+                  <div className="hypothesis-pairwise-winner">Winner: {p.winner_id}</div>
+                  <div className="hypothesis-pairwise-reason">{p.reason}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Cards grid */}
       {hasHypotheses && (
         <div className="hypothesis-cards-grid">
@@ -311,7 +391,8 @@ export default function HypothesisDebatePanel({
               hypothesis={h}
               isSelected={state.selected_hypothesis_id === h.id}
               isWinner={state.selected_hypothesis_id === h.id}
-              isSelecting={isSelecting}
+              isSelecting={selectingHypothesisId === h.id}
+              isDisabled={!!selectingHypothesisId}
               onSelect={handleSelect}
             />
           ))}

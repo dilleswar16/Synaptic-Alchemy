@@ -418,7 +418,7 @@ function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary
         ))}
       </div>
 
-      {items.map((inv, i) => {
+      {items.map((inv) => {
         const status = inv.approval_status ?? 'pending'
         const priority = (inv as any).incident_priority ?? 'P3'
         const priColor = priority === 'P1' ? 'var(--c-red)' : priority === 'P2' ? 'var(--c-signal)' : 'var(--c-text-muted)'

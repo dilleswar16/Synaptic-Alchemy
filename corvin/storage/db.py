@@ -127,11 +127,17 @@ _SQLITE_COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
     ("applications", "git_repo_url", "VARCHAR(500)"),
     ("applications", "git_branch", "VARCHAR(255)"),
     ("applications", "git_token_encrypted", "TEXT"),
+    # Application-level scoring/environment config overrides
+    ("applications", "scoring_config_json", "JSON"),
+    ("applications", "environment_config_json", "JSON"),
     # Git config columns added to application_services table (per-service git)
     ("application_services", "git_provider", "VARCHAR(30)"),
     ("application_services", "git_repo_url", "VARCHAR(500)"),
     ("application_services", "git_branch", "VARCHAR(255)"),
     ("application_services", "git_token_encrypted", "TEXT"),
+    # Feature 8 — Root Cause Debate Mode columns on investigation requests
+    ("investigation_requests", "hypotheses_json", "JSON"),
+    ("investigation_requests", "selected_hypothesis_id", "VARCHAR(10)"),
 ]
 
 

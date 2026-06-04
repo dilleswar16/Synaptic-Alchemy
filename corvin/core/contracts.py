@@ -185,6 +185,14 @@ class RCAHypothesis(BaseModel):
         default_factory=list,
         description="Signals that argue against this hypothesis.",
     )
+    supporting_evidence: list[dict[str, str]] = Field(
+        default_factory=list,
+        description="Traceable evidence refs for supporting signals. Each item: source_id + summary.",
+    )
+    refuting_evidence: list[dict[str, str]] = Field(
+        default_factory=list,
+        description="Traceable evidence refs for refuting signals. Each item: source_id + summary.",
+    )
 
 
 # ── Fix strategy ─────────────────────────────────────────────────────────────

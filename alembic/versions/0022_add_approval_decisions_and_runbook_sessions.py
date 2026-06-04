@@ -1,14 +1,14 @@
 """Add approval_decisions and runbook_sessions tables.
 
 Revision ID: 0022
-Revises: 0021
+Revises: 0021_add_git_config_to_applications
 Create Date: 2025-06-01
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = "0022"
-down_revision = "0021"
+down_revision = "0021_add_git_config_to_applications"
 branch_labels = None
 depends_on = None
 

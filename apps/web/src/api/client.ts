@@ -14,7 +14,14 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   })
   if (!res.ok) {
-    throw new Error(`Corvin API error ${res.status}: ${res.statusText}`)
+    let detail = res.statusText
+    try {
+      const payload = await res.json() as { detail?: string; message?: string }
+      detail = payload.detail || payload.message || detail
+    } catch {
+      // Non-JSON error payloads keep status text fallback.
+    }
+    throw new Error(`Corvin API error ${res.status}: ${detail}`)
   }
   return res.json() as Promise<T>
 }
@@ -636,7 +643,7 @@ export interface RunbookUpdateResult {
   message: string
 }
 
-export function updateRunbook(requestId: string) {
+export function updateInvestigationRunbook(requestId: string) {
   return apiFetch<RunbookUpdateResult>(`/investigations/${requestId}/update-runbook`, {
     method: 'POST',
   })
@@ -1434,7 +1441,7 @@ export interface CapacityForecastReport {
   generated_at: string
 }
 
-export function fetchCapacityForecast(serviceName: string, environment: string, namespace: string) {
+export function fetchCapacityForecast(serviceName: string, environment = 'dev', namespace = 'default') {
   return apiFetch<CapacityForecastReport>(
     `/ai/capacity-forecast/${encodeURIComponent(serviceName)}?environment=${encodeURIComponent(environment)}&namespace=${encodeURIComponent(namespace)}`
   )
@@ -1703,6 +1710,30 @@ export interface RCAHypothesis {
   supporting_signals: string[]
   /** Signals that argue against this hypothesis */
   refuting_signals: string[]
+  /** Traceability map for supporting signals */
+  supporting_evidence?: Array<{ source_id: string; summary: string }>
+  /** Traceability map for refuting signals */
+  refuting_evidence?: Array<{ source_id: string; summary: string }>
+}
+
+export interface DebatePairwiseInsight {
+  left_id: string
+  right_id: string
+  winner_id: string
+  score_gap: number
+  reason: string
+}
+
+export interface DebateMeta {
+  leader_id: string | null
+  leader_score: number
+  runner_up_id: string | null
+  runner_up_score: number | null
+  score_gap: number
+  is_ambiguous: boolean
+  recommendation: string
+  pairwise: DebatePairwiseInsight[]
+  selected_id: string | null
 }
 
 export interface HypothesesResponse {
@@ -1710,6 +1741,7 @@ export interface HypothesesResponse {
   hypotheses: RCAHypothesis[]
   /** "h1" | "h2" | "h3" | null — set when SRE selects a winner */
   selected_hypothesis_id: string | null
+  debate_meta?: DebateMeta
 }
 
 /** Generate competing hypotheses for an investigation (triggers LLM call). */

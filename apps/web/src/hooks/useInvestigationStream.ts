@@ -103,11 +103,10 @@ export function useInvestigationStream(): UseInvestigationStreamResult {
       // Close any existing stream before starting a new one.
       reset()
 
-      const params = new URLSearchParams({
-        service_name,
-        environment,
-        ...(description ? { description } : {}),
-      })
+      const queryParams: Record<string, string> = { service_name }
+      if (environment) queryParams.environment = environment
+      if (description) queryParams.description = description
+      const params = new URLSearchParams(queryParams)
 
       const url = `${API_BASE}/investigations/stream?${params.toString()}`
       const es = new EventSource(url)

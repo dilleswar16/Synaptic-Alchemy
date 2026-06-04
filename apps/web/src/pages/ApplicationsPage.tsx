@@ -2001,7 +2001,7 @@ function EnvironmentsTab({ appId }: { appId: string }) {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Priority Tier</label>
-              <select style={fs} value={form.priority_tier ?? 'P3'} onChange={e => setForm(f => ({ ...f, priority_tier: e.target.value }))}>
+              <select style={fs} value={form.priority_tier ?? 'P3'} onChange={e => setForm(f => ({ ...f, priority_tier: e.target.value as ApplicationEnvironment['priority_tier'] }))}>
                 {PRIORITY_TIERS.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>

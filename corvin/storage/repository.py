@@ -1090,63 +1090,6 @@ class InvestigationRepository:
                 "narrative": narrative,
             }
 
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
-def _build_briefing_narrative(
-    total: int,
-    pending: int,
-    high_conf_pending: int,
-    top_services: list[dict],
-    conf_map: dict[str, int],
-    hours: int,
-) -> str:
-    """Build a Jarvis-style narrative sentence for the Morning Briefing widget."""
-    if total == 0:
-        return (
-            f"No incidents investigated in the last {hours} hours. "
-            "Systems appear stable — no active investigations on record."
-        )
-
-    parts: list[str] = []
-
-    # Total count
-    if total == 1:
-        parts.append(f"1 incident was investigated in the last {hours} hours.")
-    else:
-        parts.append(f"{total} incidents were investigated in the last {hours} hours.")
-
-    # Confidence headline
-    high = conf_map.get("high", 0)
-    if high > 0 and total > 0:
-        pct = round((high / total) * 100)
-        parts.append(f"{pct}% of root causes were identified with high confidence.")
-
-    # Pending approval — most operationally important
-    if high_conf_pending > 0:
-        noun = "investigation requires" if high_conf_pending == 1 else "investigations require"
-        parts.append(f"{high_conf_pending} high-confidence {noun} your approval.")
-    elif pending > 0:
-        noun = "investigation is" if pending == 1 else "investigations are"
-        parts.append(f"{pending} {noun} awaiting review.")
-    else:
-        parts.append("All investigations have been reviewed — no pending approvals.")
-
-    # Service spotlight
-    if top_services:
-        top = top_services[0]
-        inv_noun = "investigation" if top["count"] == 1 else "investigations"
-        parts.append(
-            f"{top['service']} ({top['environment']}) is the most active service "
-            f"with {top['count']} {inv_noun} this window."
-        )
-
-    return " ".join(parts)
-
-
     # ── Feature 8: Debate Mode hypothesis persistence ─────────────────────────
 
     def save_hypotheses(
@@ -1222,7 +1165,7 @@ def _build_briefing_narrative(
         Only days with at least 1 investigation appear in the result.
         The caller is responsible for filling in zero-count days.
         """
-        from sqlalchemy import func, cast, Date
+        from sqlalchemy import func
 
         with self._session_factory() as session:
             # SQLite and Postgres both support DATE() via func.date()
@@ -1249,6 +1192,62 @@ def _build_briefing_narrative(
             {"date": str(row.day), "count": int(row.cnt)}
             for row in rows
         ]
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_briefing_narrative(
+    total: int,
+    pending: int,
+    high_conf_pending: int,
+    top_services: list[dict],
+    conf_map: dict[str, int],
+    hours: int,
+) -> str:
+    """Build a Jarvis-style narrative sentence for the Morning Briefing widget."""
+    if total == 0:
+        return (
+            f"No incidents investigated in the last {hours} hours. "
+            "Systems appear stable — no active investigations on record."
+        )
+
+    parts: list[str] = []
+
+    # Total count
+    if total == 1:
+        parts.append(f"1 incident was investigated in the last {hours} hours.")
+    else:
+        parts.append(f"{total} incidents were investigated in the last {hours} hours.")
+
+    # Confidence headline
+    high = conf_map.get("high", 0)
+    if high > 0 and total > 0:
+        pct = round((high / total) * 100)
+        parts.append(f"{pct}% of root causes were identified with high confidence.")
+
+    # Pending approval — most operationally important
+    if high_conf_pending > 0:
+        noun = "investigation requires" if high_conf_pending == 1 else "investigations require"
+        parts.append(f"{high_conf_pending} high-confidence {noun} your approval.")
+    elif pending > 0:
+        noun = "investigation is" if pending == 1 else "investigations are"
+        parts.append(f"{pending} {noun} awaiting review.")
+    else:
+        parts.append("All investigations have been reviewed — no pending approvals.")
+
+    # Service spotlight
+    if top_services:
+        top = top_services[0]
+        inv_noun = "investigation" if top["count"] == 1 else "investigations"
+        parts.append(
+            f"{top['service']} ({top['environment']}) is the most active service "
+            f"with {top['count']} {inv_noun} this window."
+        )
+
+    return " ".join(parts)
 
 
 # ---------------------------------------------------------------------------

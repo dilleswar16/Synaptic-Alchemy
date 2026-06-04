@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react'
-import { fetchHeatmap, type HeatmapResponse, type HeatmapDay } from '../../api/client'
+import { fetchHeatmap, type HeatmapResponse, type HeatmapDay } from '../api/client'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,10 +51,6 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
 function parseDate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number)
   return new Date(y, m - 1, d)
-}
-
-function isoFromDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /** Group flat day list into columns of 7 (one column = one week, Sun→Sat). */

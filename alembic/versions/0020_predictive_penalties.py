@@ -1,7 +1,7 @@
 """Add predictive_penalties table for the learning feedback loop.
 
-Revision ID: 0020
-Revises: 0019_validation_automation_policies
+Revision ID: 0020_predictive_penalties
+Revises: 0019
 Create Date: 2025-06-01
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "0020_predictive_penalties"
-down_revision = "0019_validation_automation_policies"
+down_revision = "0019"
 branch_labels = None
 depends_on = None
 

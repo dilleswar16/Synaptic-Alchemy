@@ -2606,6 +2606,85 @@ class SelectHypothesisRequest(BaseModel):
     hypothesis_id: str = Field(..., min_length=1, max_length=10)
 
 
+def _to_float(value: object, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _build_debate_meta(hypotheses: list[dict], selected_id: str | None) -> dict:
+    """Build compact decision-support metadata for the debate panel."""
+    if not hypotheses:
+        return {
+            "leader_id": None,
+            "leader_score": 0.0,
+            "runner_up_id": None,
+            "runner_up_score": 0.0,
+            "score_gap": 0.0,
+            "is_ambiguous": False,
+            "recommendation": "No hypotheses available yet.",
+            "pairwise": [],
+            "selected_id": selected_id,
+        }
+
+    ranked = sorted(
+        hypotheses,
+        key=lambda h: _to_float(h.get("confidence_score"), 0.0),
+        reverse=True,
+    )
+    leader = ranked[0]
+    runner = ranked[1] if len(ranked) > 1 else leader
+    leader_score = _to_float(leader.get("confidence_score"), 0.0)
+    runner_score = _to_float(runner.get("confidence_score"), 0.0)
+    gap = max(0.0, round(leader_score - runner_score, 3))
+    is_ambiguous = len(ranked) > 1 and gap < 0.12
+
+    if selected_id:
+        recommendation = "Root cause selected. Verify action outcomes and close loop with post-fix validation."
+    elif is_ambiguous:
+        recommendation = (
+            "Top hypotheses are close. Run one targeted disproof check before selecting a winner."
+        )
+    else:
+        recommendation = "Confidence gap is clear enough to proceed with a primary root-cause candidate."
+
+    pairwise: list[dict] = []
+    for i in range(len(ranked)):
+        for j in range(i + 1, len(ranked)):
+            left = ranked[i]
+            right = ranked[j]
+            left_score = _to_float(left.get("confidence_score"), 0.0)
+            right_score = _to_float(right.get("confidence_score"), 0.0)
+            winner = left if left_score >= right_score else right
+            loser = right if winner is left else left
+            pairwise.append(
+                {
+                    "left_id": left.get("id"),
+                    "right_id": right.get("id"),
+                    "winner_id": winner.get("id"),
+                    "score_gap": round(abs(left_score - right_score), 3),
+                    "reason": (
+                        f"{winner.get('id')} leads on confidence "
+                        f"({_to_float(winner.get('confidence_score'), 0.0):.2f} vs "
+                        f"{_to_float(loser.get('confidence_score'), 0.0):.2f})"
+                    ),
+                }
+            )
+
+    return {
+        "leader_id": leader.get("id"),
+        "leader_score": round(leader_score, 3),
+        "runner_up_id": runner.get("id") if len(ranked) > 1 else None,
+        "runner_up_score": round(runner_score, 3) if len(ranked) > 1 else None,
+        "score_gap": gap,
+        "is_ambiguous": is_ambiguous,
+        "recommendation": recommendation,
+        "pairwise": pairwise,
+        "selected_id": selected_id,
+    }
+
+
 @router.post("/{id}/hypotheses", response_model=dict)
 def generate_hypotheses(
     id: str,
@@ -2635,10 +2714,13 @@ def generate_hypotheses(
     hypotheses = svc.generate(result)
     repo.save_hypotheses(id, hypotheses)
 
+    hypotheses_payload = [h.model_dump(mode="json") for h in hypotheses]
+
     return {
         "request_id": id,
-        "hypotheses": [h.model_dump(mode="json") for h in hypotheses],
+        "hypotheses": hypotheses_payload,
         "selected_hypothesis_id": None,
+        "debate_meta": _build_debate_meta(hypotheses_payload, None),
     }
 
 
@@ -2662,10 +2744,13 @@ def get_hypotheses(
 
     stored = repo.get_hypotheses(id)
 
+    hypotheses_payload = stored or []
+
     return {
         "request_id": id,
-        "hypotheses": stored or [],
+        "hypotheses": hypotheses_payload,
         "selected_hypothesis_id": selected,
+        "debate_meta": _build_debate_meta(hypotheses_payload, selected),
     }
 
 
@@ -2753,6 +2838,7 @@ def select_hypothesis(
         **updated.model_dump(mode="json"),
         "selected_hypothesis_id": body.hypothesis_id,
         "hypotheses": stored,
+        "debate_meta": _build_debate_meta(stored, body.hypothesis_id),
     }
 
 

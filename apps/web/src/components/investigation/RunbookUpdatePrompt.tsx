@@ -7,7 +7,7 @@
  */
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { updateRunbook, type RunbookUpdateResult } from '../../api/client'
+import { updateInvestigationRunbook, type RunbookUpdateResult } from '../../api/client'
 
 interface Props {
   requestId: string
@@ -20,7 +20,7 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
   const [merged, setMerged] = useState(false)
 
   const mutation = useMutation({
-    mutationFn: () => updateRunbook(requestId),
+    mutationFn: () => updateInvestigationRunbook(requestId),
     onSuccess: (data) => setResult(data),
   })
 
