@@ -9,10 +9,12 @@ Covers:
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from corvin.core.config_loader import get_env, load_config
@@ -297,6 +299,16 @@ async def runbook_chat(body: RunbookChatRequest = Body(...)) -> dict:
         raise HTTPException(status_code=400, detail=result["error"])
 
     return result
+
+
+@router.post("/runbooks/chat/stream")
+def runbook_chat_stream(body: RunbookChatRequest = Body(...)) -> StreamingResponse:
+    """Stream runbook chat response as SSE token events."""
+    def event_stream():
+        for event in _runbook_builder.stream_chat(body.session_id, body.message):
+            yield f"data: {json.dumps(event)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 class RunbookApproveRequest(BaseModel):

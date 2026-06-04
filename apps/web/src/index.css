@@ -1435,6 +1435,64 @@
   overflow-wrap: anywhere;
 }
 
+/* Runbook Builder markdown rendering */
+.runbook-markdown {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.runbook-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.runbook-markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.runbook-markdown h1,
+.runbook-markdown h2,
+.runbook-markdown h3,
+.runbook-markdown h4 {
+  margin: 0.45rem 0 0.35rem;
+  font-family: var(--font-display);
+  line-height: 1.3;
+}
+
+.runbook-markdown p {
+  margin: 0.35rem 0;
+}
+
+.runbook-markdown ul,
+.runbook-markdown ol {
+  margin: 0.35rem 0 0.35rem 1rem;
+  padding: 0;
+}
+
+.runbook-markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--c-surface-3);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.runbook-markdown pre {
+  margin: 0.45rem 0;
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  background: var(--c-surface-2);
+  overflow: auto;
+  padding: 8px;
+}
+
+.runbook-markdown pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
 /* Select button */
 .hypothesis-select-btn {
   margin-top: auto;

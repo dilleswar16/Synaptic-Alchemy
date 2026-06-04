@@ -19,7 +19,7 @@ import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Generator
 
 import litellm
 
@@ -35,11 +35,23 @@ You ALWAYS output runbook content in Markdown format.
 Rules:
 - Start runbook steps with ## heading
 - Use bullet points for procedural steps
+- Include a dedicated "Pre-checks (before restart)" section before any restart action
 - Include rollback instructions when relevant
 - Include "When to apply" context
 - Keep each step under 300 words
 - Be specific: include actual commands, service names, thresholds
 - When asked to revise, output the FULL updated runbook step (not just the diff)
+- Prefer parameterized placeholders over hardcoded cluster identities, for example:
+    - {{AKS_CONTEXT}}
+    - {{TARGET_NAMESPACE}}
+    - {{TARGET_SERVICE}}
+    - {{OTLP_SERVICE_FQDN}}
+    - {{KNOWN_GOOD_MANIFEST_PATH}}
+
+Safety guardrails:
+- Never suggest a restart as first step when simple validation can disprove the hypothesis.
+- Add at least 3 pre-checks before any restart/rollback command.
+- Include explicit verification criteria and success thresholds.
 
 You have context from the investigation that generated this runbook entry.
 Use it to provide specific, actionable steps."""
@@ -159,17 +171,65 @@ class RunbookBuilder:
                 _log.warning("Runbook builder LLM call failed; using deterministic fallback: %s", exc)
                 assistant_content = self._fallback_runbook_response(session, user_message)
 
-        # Add assistant response
+        return self._apply_assistant_response(session, assistant_content)
+
+    def stream_chat(self, session_id: str, user_message: str) -> Generator[dict[str, Any], None, None]:
+        """Stream runbook response tokens and finish with a done payload."""
+        session = self._sessions.get(session_id)
+        if not session:
+            yield {"type": "error", "error": f"Session '{session_id}' not found."}
+            return
+
+        if session.status == "saved":
+            yield {"type": "error", "error": "Session already saved. Start a new session to make changes."}
+            return
+
+        session.messages.append({"role": "user", "content": user_message})
+
+        completion_kwargs = self._build_completion_kwargs()
+        assistant_content = ""
+
+        if completion_kwargs is None:
+            _log.warning("Runbook builder: LLM credentials missing, using deterministic fallback")
+            assistant_content = self._fallback_runbook_response(session, user_message)
+            yield {"type": "token", "text": assistant_content}
+        else:
+            try:
+                response = litellm.completion(
+                    messages=session.messages,
+                    stream=True,
+                    **completion_kwargs,
+                )
+                for chunk in response:
+                    if not getattr(chunk, "choices", None):
+                        continue
+                    delta = chunk.choices[0].delta
+                    text = getattr(delta, "content", None)
+                    if text:
+                        assistant_content += text
+                        yield {"type": "token", "text": text}
+            except Exception as exc:
+                _log.warning("Runbook builder stream failed; using deterministic fallback: %s", exc)
+                assistant_content = self._fallback_runbook_response(session, user_message)
+                yield {"type": "token", "text": assistant_content}
+
+        result = self._apply_assistant_response(session, assistant_content)
+        yield {
+            "type": "done",
+            **result,
+        }
+
+    def _apply_assistant_response(self, session: RunbookSession, assistant_content: str) -> dict[str, Any]:
+        """Persist assistant response and refresh draft/version."""
         session.messages.append({"role": "assistant", "content": assistant_content})
 
-        # Extract markdown content as the draft
         draft_content = self._extract_runbook_content(assistant_content)
         if draft_content:
             version = (session.current_draft.version + 1) if session.current_draft else 1
             session.current_draft = RunbookDraft(content=draft_content, version=version)
 
         return {
-            "session_id": session_id,
+            "session_id": session.session_id,
             "response": assistant_content,
             "draft": session.current_draft.to_dict() if session.current_draft else None,
             "message_count": len([m for m in session.messages if m["role"] != "system"]),
@@ -220,19 +280,31 @@ class RunbookBuilder:
 
         prior = session.current_draft.content if session.current_draft else ""
 
-        base = f"""## {title} — {session.service_name} ({session.environment})
+        base = f"""## {title} — {{TARGET_SERVICE}} (env: {{TARGET_ENVIRONMENT}})
 
 ### When to apply
-- Use when incident telemetry indicates sustained failures, timeout symptoms, or exporter/dependency resolution issues for **{session.service_name}**.
+- Use when incident telemetry indicates sustained failures, timeout symptoms, or exporter/dependency resolution issues for **{{TARGET_SERVICE}}**.
+
+### Pre-checks (before restart)
+- Confirm cluster context is correct: `kubectl config current-context` should match **{{AKS_CONTEXT}}**.
+- Validate namespace and service existence:
+    - `kubectl get ns {{TARGET_NAMESPACE}}`
+    - `kubectl get svc {{TARGET_SERVICE}} -n {{TARGET_NAMESPACE}}`
+- Validate endpoint readiness before any restart:
+    - `kubectl get endpoints {{TARGET_SERVICE}} -n {{TARGET_NAMESPACE}}`
+    - `kubectl get pods -n {{TARGET_NAMESPACE}} -l app={{TARGET_SERVICE}}`
+- If incident is OTLP-related, verify FQDN resolution target: **{{OTLP_SERVICE_FQDN}}**.
 
 ### Steps
 - Confirm current incident scope in Corvin evidence and RCA sections.
 - Validate dependency endpoints, service discovery, and configuration alignment.
-- Apply the smallest safe remediation first (config correction or targeted restart).
+- If service object is missing/misconfigured, re-apply from known-good manifest: `kubectl apply -f {{KNOWN_GOOD_MANIFEST_PATH}} -n {{TARGET_NAMESPACE}}`.
+- Apply the smallest safe remediation first (config correction, then targeted restart only if pre-checks pass).
 - Observe error rate and latency for 15 minutes before further changes.
 
 ### Rollback
-- Revert to the last known good deployment/config if error rate increases.
+- Revert to the last known good deployment/config if error rate increases:
+    - `kubectl rollout undo deployment/{{TARGET_SERVICE}} -n {{TARGET_NAMESPACE}}`
 - Escalate to incident channel if rollback does not stabilize service.
 
 ### Verification

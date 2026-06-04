@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   startRunbookSession,
-  sendRunbookMessage,
+  streamRunbookMessage,
   approveRunbookDraft,
   saveRunbook,
   type RunbookDraft,
@@ -53,19 +55,53 @@ export default function RunbookBuilderChat({ requestId, serviceName, environment
   async function handleSend() {
     if (!sessionId || !input.trim()) return
     const userMsg = input.trim()
+    const assistantTs = new Date().toISOString()
     setInput('')
-    setMessages((prev) => [...prev, { role: 'user', content: userMsg, timestamp: new Date().toISOString() }])
+    let assistantIndex = -1
+    setMessages((prev) => {
+      assistantIndex = prev.length + 1
+      return [
+        ...prev,
+        { role: 'user', content: userMsg, timestamp: new Date().toISOString() },
+        { role: 'assistant', content: '', timestamp: assistantTs },
+      ]
+    })
     setLoading(true)
     setError(null)
-    try {
-      const res = await sendRunbookMessage(sessionId, userMsg)
-      setMessages((prev) => [...prev, { role: 'assistant', content: res.response, timestamp: new Date().toISOString() }])
-      if (res.draft) setDraft(res.draft)
-    } catch (e: any) {
-      setError(e.message || 'Send failed')
-    } finally {
-      setLoading(false)
-    }
+
+    streamRunbookMessage(
+      sessionId,
+      userMsg,
+      (event) => {
+        if (event.type === 'token') {
+          setMessages((prev) => {
+            if (assistantIndex < 0 || assistantIndex >= prev.length) return prev
+            const next = [...prev]
+            next[assistantIndex] = {
+              ...next[assistantIndex],
+              content: `${next[assistantIndex].content || ''}${event.text || ''}`,
+            }
+            return next
+          })
+          return
+        }
+
+        if (event.type === 'done') {
+          if (event.draft) setDraft(event.draft)
+          setLoading(false)
+          return
+        }
+
+        if (event.type === 'error') {
+          setError(event.error || 'Send failed')
+          setLoading(false)
+        }
+      },
+      (err) => {
+        setError(err.message || 'Send failed')
+        setLoading(false)
+      },
+    )
   }
 
   async function handleApprove() {
@@ -176,11 +212,11 @@ export default function RunbookBuilderChat({ requestId, serviceName, environment
           maxHeight: 180,
           overflow: 'auto',
           fontSize: '0.78rem',
-          fontFamily: 'var(--font-mono)',
-          whiteSpace: 'pre-wrap',
           lineHeight: 1.5,
         }}>
-          {draft.content}
+          <div className="runbook-markdown">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft.content}</ReactMarkdown>
+          </div>
         </div>
       )}
 
@@ -201,9 +237,14 @@ export default function RunbookBuilderChat({ requestId, serviceName, environment
               lineHeight: 1.4,
               background: msg.role === 'user' ? 'var(--c-link)' : msg.role === 'system' ? 'var(--c-bg)' : 'var(--c-border)',
               color: msg.role === 'user' ? '#fff' : 'var(--c-text)',
-              whiteSpace: 'pre-wrap',
             }}>
-              {msg.content}
+              {msg.role === 'user' ? (
+                msg.content
+              ) : (
+                <div className="runbook-markdown">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                </div>
+              )}
             </div>
             <span style={{ fontSize: '0.65rem', color: 'var(--c-text-muted)', marginTop: 2 }}>
               {new Date(msg.timestamp).toLocaleTimeString()}

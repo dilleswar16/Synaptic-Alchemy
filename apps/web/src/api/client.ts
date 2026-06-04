@@ -1476,6 +1476,16 @@ export interface RunbookChatResponse {
   message_count: number
 }
 
+export interface RunbookChatStreamEvent {
+  type: 'token' | 'done' | 'error'
+  text?: string
+  error?: string
+  session_id?: string
+  response?: string
+  draft?: RunbookDraft | null
+  message_count?: number
+}
+
 export function startRunbookSession(requestId: string, serviceName: string, environment: string) {
   return apiFetch<RunbookSessionResponse>('/ai/runbooks/start-session', {
     method: 'POST',
@@ -1488,6 +1498,63 @@ export function sendRunbookMessage(sessionId: string, message: string) {
     method: 'POST',
     body: JSON.stringify({ session_id: sessionId, message }),
   })
+}
+
+export function streamRunbookMessage(
+  sessionId: string,
+  message: string,
+  onEvent: (event: RunbookChatStreamEvent) => void,
+  onError?: (err: Error) => void,
+): AbortController {
+  const controller = new AbortController()
+  const url = `${API_BASE}/ai/runbooks/chat/stream`
+
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sessionId, message }),
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        let detail = res.statusText
+        try {
+          const payload = await res.json() as { detail?: string; message?: string }
+          detail = payload.detail || payload.message || detail
+        } catch {
+          // keep status text fallback
+        }
+        throw new Error(`Corvin API error ${res.status}: ${detail}`)
+      }
+
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error('No response body')
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const payload = JSON.parse(line.slice(6)) as RunbookChatStreamEvent
+            onEvent(payload)
+          } catch {
+            // Ignore malformed events.
+          }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError') onError?.(err as Error)
+    })
+
+  return controller
 }
 
 export function approveRunbookDraft(sessionId: string, approvedBy = 'operator') {
