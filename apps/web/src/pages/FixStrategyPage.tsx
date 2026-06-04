@@ -182,28 +182,36 @@ export default function FixStrategyPage() {
             {/* Summary + Justification layout */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 16 }}>
               <div className="panel" style={{ padding: '24px 28px' }}>
-                <div style={{
-                  fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 800,
-                  letterSpacing: '0.14em', textTransform: 'uppercase',
-                  color: 'var(--c-signal)', marginBottom: 12,
-                }}>
-                  Summary
-                </div>
-                <div className="pm-prose" style={{ color: 'var(--c-text)' }}>
-                  <SemanticMarkdown>{fixStrategy.summary}</SemanticMarkdown>
-                </div>
+                <details>
+                  <summary style={{
+                    fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 800,
+                    letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer',
+                    color: 'var(--c-signal)', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    listStyle: 'none'
+                  }}>
+                    <span>Summary</span>
+                    <span style={{ fontSize: '0.6rem', color: 'var(--c-text-muted)' }}>▼ Read</span>
+                  </summary>
+                  <div className="pm-prose" style={{ color: 'var(--c-text)', marginTop: 12 }}>
+                    <SemanticMarkdown>{fixStrategy.summary}</SemanticMarkdown>
+                  </div>
+                </details>
               </div>
               <div className="panel" style={{ padding: '24px 28px', background: 'var(--c-surface-2)' }}>
-                <div style={{
-                  fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 800,
-                  letterSpacing: '0.14em', textTransform: 'uppercase',
-                  color: 'var(--c-text-muted)', marginBottom: 12,
-                }}>
-                  Justification
-                </div>
-                <div className="pm-prose" style={{ color: 'var(--c-text-dim)' }}>
-                  <SemanticMarkdown>{fixStrategy.justification}</SemanticMarkdown>
-                </div>
+                <details>
+                  <summary style={{
+                    fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 800,
+                    letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer',
+                    color: 'var(--c-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    listStyle: 'none'
+                  }}>
+                    <span>Justification</span>
+                    <span style={{ fontSize: '0.6rem' }}>▼ Read</span>
+                  </summary>
+                  <div className="pm-prose" style={{ color: 'var(--c-text-dim)', marginTop: 12 }}>
+                    <SemanticMarkdown>{fixStrategy.justification}</SemanticMarkdown>
+                  </div>
+                </details>
               </div>
             </div>
 
@@ -343,9 +351,19 @@ export default function FixStrategyPage() {
                                   </span>
                                 )}
                               </div>
-                              <div className="pm-prose" style={{ color: 'var(--c-text-dim)' }}>
-                                <SemanticMarkdown>{action.description}</SemanticMarkdown>
-                              </div>
+                              <details style={{ marginTop: 8 }}>
+                                <summary style={{
+                                  cursor: 'pointer', fontFamily: 'var(--font-display)',
+                                  fontSize: '0.75rem', fontWeight: 600, color: 'var(--c-text-muted)',
+                                  listStyle: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
+                                  background: 'var(--c-surface-2)', padding: '4px 10px', borderRadius: 6, border: '1px solid var(--c-border)'
+                                }}>
+                                  View Description
+                                </summary>
+                                <div className="pm-prose" style={{ color: 'var(--c-text-dim)', marginTop: 12, paddingLeft: 12, borderLeft: '2px solid var(--c-border-hi)' }}>
+                                  <SemanticMarkdown>{action.description}</SemanticMarkdown>
+                                </div>
+                              </details>
                             </div>
                           </div>
 
