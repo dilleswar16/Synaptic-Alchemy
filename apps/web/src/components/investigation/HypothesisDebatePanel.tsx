@@ -389,7 +389,7 @@ export default function HypothesisDebatePanel({
             <HypothesisCard
               key={h.id}
               hypothesis={h}
-              isSelected={state.selected_hypothesis_id === h.id}
+              isSelected={selectingHypothesisId === h.id}
               isWinner={state.selected_hypothesis_id === h.id}
               isSelecting={selectingHypothesisId === h.id}
               isDisabled={!!selectingHypothesisId}

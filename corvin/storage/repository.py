@@ -479,6 +479,59 @@ class InvestigationRepository:
                 for r in rows
             ]
 
+    def list_investigations_for_similarity(
+        self,
+        limit: int = 50,
+        service_name: str | None = None,
+        environment: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return lightweight rows for similarity network computation.
+
+        Each dict contains: id, service_name, environment, priority,
+        rca_summary, created_at.  Joins rca_outputs to include the summary
+        text used for Jaccard similarity; investigations without a completed
+        RCA are excluded.
+        """
+        from sqlalchemy import join
+
+        with self._session_factory() as session:
+            stmt = (
+                select(
+                    InvestigationRequestRow.id,
+                    InvestigationRequestRow.service_name,
+                    InvestigationRequestRow.environment,
+                    InvestigationRequestRow.incident_priority,
+                    InvestigationRequestRow.created_at,
+                    RCAOutputRow.summary.label("rca_summary"),
+                )
+                .select_from(
+                    join(
+                        InvestigationRequestRow,
+                        RCAOutputRow,
+                        InvestigationRequestRow.id == RCAOutputRow.request_id,
+                    )
+                )
+                .order_by(InvestigationRequestRow.created_at.desc())
+                .limit(limit)
+            )
+            if service_name:
+                stmt = stmt.where(InvestigationRequestRow.service_name == service_name)
+            if environment:
+                stmt = stmt.where(InvestigationRequestRow.environment == environment)
+
+            rows = session.execute(stmt).all()
+            return [
+                {
+                    "id": r.id,
+                    "service_name": r.service_name,
+                    "environment": r.environment,
+                    "priority": r.incident_priority,
+                    "rca_summary": r.rca_summary or "",
+                    "created_at": _as_utc(r.created_at).isoformat() if r.created_at else "",
+                }
+                for r in rows
+            ]
+
     def get_investigation_replay(
         self, request_id: str
     ) -> dict[str, Any] | None:

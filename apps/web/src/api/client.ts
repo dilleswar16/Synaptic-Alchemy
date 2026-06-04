@@ -1952,3 +1952,56 @@ export function fetchSemanticSimilar(
 }
 
 
+// ── Feature 11: Similarity Network ───────────────────────────────────────────
+
+export interface SimilarityNode {
+  id: string
+  service_name: string
+  environment: string
+  priority: string
+  rca_summary: string
+  created_at: string
+  /** 1–5 derived from priority (P1=5) — drives node radius */
+  node_size: number
+  /** Short display label shown inside the node */
+  label: string
+}
+
+export interface SimilarityEdge {
+  source_id: string
+  target_id: string
+  /** 0.0–1.0 — drives edge stroke width */
+  similarity_score: number
+  /** Human-readable reasons why these two are similar */
+  reasons: string[]
+}
+
+export interface SimilarityNetworkResponse {
+  nodes: SimilarityNode[]
+  edges: SimilarityEdge[]
+  focus_id: string | null
+  stats: {
+    node_count: number
+    edge_count: number
+    threshold: number
+  }
+}
+
+export function fetchSimilarityNetwork(opts?: {
+  focusId?: string
+  limit?: number
+  minSimilarity?: number
+  serviceFilter?: string
+  environmentFilter?: string
+}): Promise<SimilarityNetworkResponse> {
+  const params = new URLSearchParams()
+  if (opts?.focusId) params.set('focus_id', opts.focusId)
+  if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+  if (opts?.minSimilarity !== undefined) params.set('min_similarity', String(opts.minSimilarity))
+  if (opts?.serviceFilter) params.set('service_name', opts.serviceFilter)
+  if (opts?.environmentFilter) params.set('environment', opts.environmentFilter)
+  const query = params.toString() ? `?${params.toString()}` : ''
+  return apiFetch<SimilarityNetworkResponse>(`/investigations/similarity-network${query}`)
+}
+
+

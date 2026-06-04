@@ -27,7 +27,8 @@ from corvin.strategy.runbook_builder import RunbookBuilder
 router = APIRouter()
 _log = logging.getLogger(__name__)
 
-# ── Shared instances (stateful for sessions) ──────────────────────────────────
+# RunbookBuilder carries no mutable Python state — sessions live in the DB.
+# Safe to reuse as a module-level singleton across workers.
 _runbook_builder = RunbookBuilder()
 
 

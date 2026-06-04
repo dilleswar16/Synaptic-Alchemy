@@ -225,7 +225,9 @@ def generate_playwright_script(payload: PlaywrightGenerateRequest) -> dict[str, 
                 h["Authorization"] = f"Bearer ${{authToken}}"
             elif auth_config and auth_config.get("type") == "api_key":
                 pass  # handled via apiKeyHeader spread
-            opts_parts.append(f"headers: {{ {', '.join(f"'{k}': '{v}'" for k, v in h.items())}{', ...apiKeyHeader' if auth_config and auth_config.get('type') == 'api_key' else ''} }}")
+            header_pairs = ', '.join("'%s': '%s'" % (k, v) for k, v in h.items())
+            api_key_spread = ', ...apiKeyHeader' if auth_config and auth_config.get('type') == 'api_key' else ''
+            opts_parts.append(f"headers: {{ {header_pairs}{api_key_spread} }}")
         if body:
             opts_parts.append(f"data: {json.dumps(body)}")
 

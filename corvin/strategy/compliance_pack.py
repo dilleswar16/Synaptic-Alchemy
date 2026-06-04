@@ -49,10 +49,20 @@ class CompliancePackBuilder:
 
     # ── Public API ──────────────────────────────────────────────────────────
 
+    @staticmethod
+    def reportlab_available() -> bool:
+        """Return True when reportlab is installed and PDF generation is possible."""
+        try:
+            import reportlab  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
     def build_zip(
         self,
         result: InvestigationResult,
         post_mortem: PostMortemOutput | None = None,
+        approved_at: datetime | None = None,
     ) -> bytes:
         """Build the full ZIP evidence bundle in memory. Returns raw bytes."""
         now = datetime.now(timezone.utc)
@@ -85,7 +95,7 @@ class CompliancePackBuilder:
 
             # ── approval_audit.json ───────────────────────────────────────
             approval_json = json.dumps(
-                self._render_approval_audit(result),
+                self._render_approval_audit(result, approved_at=approved_at),
                 indent=2,
                 sort_keys=True,
                 default=str,
@@ -141,17 +151,19 @@ class CompliancePackBuilder:
         self,
         result: InvestigationResult,
         post_mortem: PostMortemOutput | None = None,
+        approved_at: datetime | None = None,
     ) -> bytes:
         """Build a single-document PDF compliance pack.
 
-        Falls back to a plain text PDF when reportlab is not installed.
-        The caller always receives valid bytes regardless.
+        Falls back to a UTF-8 plain-text document (with .txt content) when
+        reportlab is not installed. The route adjusts the Content-Type header
+        accordingly when the fallback is used.
         """
         try:
-            return self._build_pdf_reportlab(result, post_mortem)
+            return self._build_pdf_reportlab(result, post_mortem, approved_at=approved_at)
         except ImportError:
-            _log.warning("reportlab not installed — falling back to plain text PDF")
-            return self._build_pdf_plain_text(result, post_mortem)
+            _log.warning("reportlab not installed — falling back to plain text document")
+            return self._build_pdf_plain_text(result, post_mortem, approved_at=approved_at)
 
     # ── Private rendering helpers ───────────────────────────────────────────
 
@@ -226,7 +238,11 @@ class CompliancePackBuilder:
             ]
         return "\n".join(lines)
 
-    def _render_approval_audit(self, result: InvestigationResult) -> dict[str, Any]:
+    def _render_approval_audit(
+        self,
+        result: InvestigationResult,
+        approved_at: datetime | None = None,
+    ) -> dict[str, Any]:
         req = result.request
         return {
             "investigation_id": result.request_id,
@@ -238,13 +254,14 @@ class CompliancePackBuilder:
             "created_at": req.created_at.isoformat(),
             "completed_at": result.completed_at.isoformat(),
             "approved_by": getattr(req, "approved_by", None),
-            "approved_at": None,  # available on InvestigationRequestRow but not on contract
+            "approved_at": approved_at.isoformat() if approved_at else None,
         }
 
     def _build_pdf_reportlab(
         self,
         result: InvestigationResult,
         post_mortem: PostMortemOutput | None,
+        approved_at: datetime | None = None,
     ) -> bytes:
         """Build PDF using reportlab. Raises ImportError when not installed."""
         from reportlab.lib.pagesizes import A4
@@ -331,7 +348,7 @@ class CompliancePackBuilder:
 
         # Approval audit section
         story.append(Paragraph("Approval Audit", h2_style))
-        audit = self._render_approval_audit(result)
+        audit = self._render_approval_audit(result, approved_at=approved_at)
         for k, v in audit.items():
             story.append(Paragraph(f"<b>{k}:</b> {v}", body_style))
 
@@ -358,41 +375,66 @@ class CompliancePackBuilder:
         self,
         result: InvestigationResult,
         post_mortem: PostMortemOutput | None,
+        approved_at: datetime | None = None,
     ) -> bytes:
-        """Minimal fallback PDF using only stdlib — no external dependencies."""
+        """Plain-text compliance document used when reportlab is not installed.
+
+        Returns UTF-8 encoded text. The caller (route handler) should detect the
+        ImportError fallback and serve this with Content-Type: text/plain and a
+        .txt filename rather than claiming it is a PDF.
+        """
         now = datetime.now(timezone.utc)
         inv_id = result.request_id
+        sep = "=" * 60
         lines = [
-            f"%PDF-1.4",
-            f"% {self._watermark}",
-            f"",
-            f"Corvin Compliance Evidence Pack",
-            f"Investigation ID: {inv_id}",
-            f"Generated: {now.strftime('%Y-%m-%d %H:%M UTC')}",
-            f"Frameworks: {', '.join(self._frameworks)}",
-            f"",
-            f"=== ROOT CAUSE ANALYSIS ===",
-            f"Summary: {result.rca.summary}",
-            f"Root Cause: {result.rca.root_cause}",
-            f"Confidence: {result.rca.confidence.value.upper()}",
-            f"",
-            f"=== FIX STRATEGY ===",
-            f"{result.fix_strategy.summary}",
+            self._watermark,
+            "",
+            "CORVIN COMPLIANCE EVIDENCE PACK",
+            sep,
+            f"Investigation ID : {inv_id}",
+            f"Generated        : {now.strftime('%Y-%m-%d %H:%M UTC')}",
+            f"Frameworks       : {', '.join(self._frameworks)}",
+            "",
+            sep,
+            "ROOT CAUSE ANALYSIS",
+            sep,
+            f"Summary    : {result.rca.summary}",
+            f"Root Cause : {result.rca.root_cause}",
+            f"Confidence : {result.rca.confidence.value.upper()}",
+            f"Reasoning  : {result.rca.confidence_reasoning}",
+            "",
+            "Contributing Factors:",
+        ]
+        for factor in result.rca.contributing_factors:
+            lines.append(f"  - {factor}")
+        lines += [
+            "",
+            sep,
+            "FIX STRATEGY",
+            sep,
+            result.fix_strategy.summary,
+            "",
         ]
         for i, a in enumerate(result.fix_strategy.actions, 1):
-            lines.append(f"{i}. {a.title} [{a.risk_level.value}] — {a.description}")
+            lines += [
+                f"{i}. {a.title}",
+                f"   Type   : {a.action_type.value}",
+                f"   Risk   : {a.risk_level.value.upper()}",
+                f"   Impact : {a.estimated_impact}",
+                f"   Details: {a.description}",
+                "",
+            ]
         lines += [
-            f"",
-            f"=== APPROVAL AUDIT ===",
+            sep,
+            "APPROVAL AUDIT",
+            sep,
         ]
-        for k, v in self._render_approval_audit(result).items():
-            lines.append(f"{k}: {v}")
+        for k, v in self._render_approval_audit(result, approved_at=approved_at).items():
+            lines.append(f"{k:<20}: {v}")
         if post_mortem:
-            lines += ["", "=== POST-MORTEM ===", post_mortem.markdown]
+            lines += ["", sep, "POST-MORTEM", sep, post_mortem.markdown]
 
-        # Wrap in a minimal valid PDF envelope
-        body = "\n".join(lines).encode("utf-8", errors="replace")
-        return body
+        return "\n".join(lines).encode("utf-8", errors="replace")
 
 
 def _sha256(data: bytes) -> str:

@@ -105,7 +105,12 @@ class HypothesisService:
         # Use simple token replacement so JSON braces in the prompt body are not
         # interpreted by str.format (which would raise KeyError on schema keys).
         system = _SYSTEM_PROMPT.replace("{count}", str(count))
-        model = self._llm_config.get("fallback_model") or self._llm_config.get("model", "azure/gpt-4.1-mini")
+        model = self._llm_config.get("fallback_model") or self._llm_config.get("model")
+        if not model:
+            raise ValueError(
+                "HypothesisService: models/llm.yaml must define 'model' or 'fallback_model'. "
+                "Set one of these keys or configure LITELLM credentials."
+            )
 
         completion_kwargs = self._build_completion_kwargs(model)
         if completion_kwargs is None:

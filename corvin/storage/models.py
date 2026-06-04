@@ -551,17 +551,24 @@ class ApprovalDecisionRow(Base):
 
 
 class RunbookSessionRow(Base):
-    """Persists conversational runbook builder sessions across restarts."""
+    """Persists conversational runbook builder sessions across restarts.
+
+    Replaces the in-memory dict in RunbookBuilder so sessions survive
+    server restarts and are safely accessible from multiple workers.
+    """
     __tablename__ = "runbook_sessions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     request_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     service_name: Mapped[str] = mapped_column(String(255), nullable=False)
     environment: Mapped[str] = mapped_column(String(100), nullable=False)
+    # "drafting" | "approved" | "saved"
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="drafting")
+    # Full conversation history including system prompt, stored as JSON list.
     messages_json: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
     current_draft_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     current_draft_version: Mapped[int | None] = mapped_column(nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
 

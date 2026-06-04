@@ -2926,7 +2926,7 @@ def get_incident_heatmap(
 @router.get("/{id}/compliance-pack")
 def download_compliance_pack(
     id: str,
-    format: str = Query(default="zip", regex="^(zip|pdf)$"),
+    format: str = Query(default="zip", pattern="^(zip|pdf)$"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> Response:
     """Generate and download a tamper-evident compliance evidence bundle.
@@ -2941,6 +2941,8 @@ def download_compliance_pack(
     Returns 422 when compliance_pack.enabled=false in investigation.yaml.
     """
     from corvin.strategy.compliance_pack import CompliancePackBuilder
+    from corvin.storage.db import get_session
+    from corvin.storage.models import InvestigationRequestRow
 
     policy = load_config("policies/investigation", get_env())
     pack_cfg = policy.get("compliance_pack", {})
@@ -2954,6 +2956,13 @@ def download_compliance_pack(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {id!r} not found.")
 
+    # Load approved_at from the DB row — not exposed on the contract model.
+    approved_at = None
+    with get_session() as session:
+        req_row = session.get(InvestigationRequestRow, id)
+        if req_row is not None:
+            approved_at = req_row.approved_at
+
     # Include post-mortem in the pack when already generated (optional)
     pm = None
     try:
@@ -2964,16 +2973,23 @@ def download_compliance_pack(
     builder = CompliancePackBuilder(config=pack_cfg)
 
     if format == "pdf":
-        pdf_bytes = builder.build_pdf(result, pm)
+        content = builder.build_pdf(result, pm, approved_at=approved_at)
+        # When reportlab is absent, build_pdf falls back to plain text.
+        if CompliancePackBuilder.reportlab_available():
+            media_type = "application/pdf"
+            ext = "pdf"
+        else:
+            media_type = "text/plain; charset=utf-8"
+            ext = "txt"
         return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
+            content=content,
+            media_type=media_type,
             headers={
-                "Content-Disposition": f'attachment; filename="corvin-evidence-pack-{id}.pdf"'
+                "Content-Disposition": f'attachment; filename="corvin-evidence-pack-{id}.{ext}"'
             },
         )
     else:
-        zip_bytes = builder.build_zip(result, pm)
+        zip_bytes = builder.build_zip(result, pm, approved_at=approved_at)
         return Response(
             content=zip_bytes,
             media_type="application/zip",
@@ -2982,3 +2998,45 @@ def download_compliance_pack(
             },
         )
 
+
+# ── Feature 11: Similarity Network ───────────────────────────────────────────
+
+
+@router.get("/similarity-network", response_model=dict)
+def get_similarity_network(
+    focus_id: Optional[str] = Query(default=None, description="Highlight edges from/to this investigation ID"),
+    limit: int = Query(default=50, ge=5, le=200, description="Max investigations to include as nodes"),
+    min_similarity: float = Query(default=0.20, ge=0.05, le=0.95, description="Minimum similarity score to draw an edge"),
+    service_name: Optional[str] = Query(default=None, description="Filter nodes to a specific service"),
+    environment: Optional[str] = Query(default=None, description="Filter nodes to a specific environment"),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Build an investigation similarity graph for the Similarity Network view.
+
+    Each node is a completed investigation. Edges connect pairs whose
+    RCA text, service match, and time proximity exceed ``min_similarity``.
+
+    Similarity is computed using:
+      - Service + environment overlap (40 %)
+      - RCA Jaccard text similarity  (40 %)
+      - Time proximity               (20 %)
+
+    When ``focus_id`` is supplied only edges that touch the focus node are
+    returned, reducing graph density for single-investigation drill-down.
+    """
+    from corvin.strategy.similarity_network import SimilarityNetworkEngine
+
+    policy = load_config("policies/investigation", get_env())
+    engine = SimilarityNetworkEngine(config=policy)
+
+    investigations = repo.list_investigations_for_similarity(
+        limit=limit,
+        service_name=service_name,
+        environment=environment,
+    )
+
+    return engine.build(
+        investigations=investigations,
+        focus_id=focus_id,
+        min_similarity=min_similarity,
+    )

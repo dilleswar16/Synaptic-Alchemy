@@ -138,6 +138,8 @@ _SQLITE_COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
     # Feature 8 — Root Cause Debate Mode columns on investigation requests
     ("investigation_requests", "hypotheses_json", "JSON"),
     ("investigation_requests", "selected_hypothesis_id", "VARCHAR(10)"),
+    # Feature 6 — DB-backed runbook sessions (approved_by added after initial table creation)
+    ("runbook_sessions", "approved_by", "VARCHAR(255)"),
 ]
 
 

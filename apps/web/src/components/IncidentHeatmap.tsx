@@ -261,14 +261,17 @@ export default function IncidentHeatmap({
         </div>
       </div>
 
-      {/* Tooltip */}
-      {tooltip && (
+      {/* Tooltip — flips below the cell when near the top edge */}
+      {tooltip && (() => {
+        const TOOLTIP_APPROX_HEIGHT = 60
+        const flipBelow = tooltip.y < TOOLTIP_APPROX_HEIGHT
+        return (
         <div
           className="heatmap-tooltip"
           style={{
             left: tooltip.x,
-            top: tooltip.y - 8,
-            transform: 'translate(-50%, -100%)',
+            top: flipBelow ? tooltip.y + (compact ? 10 : 13) + 6 : tooltip.y - 8,
+            transform: flipBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
           }}
           role="tooltip"
         >
@@ -287,7 +290,8 @@ export default function IncidentHeatmap({
             </div>
           )}
         </div>
-      )}
+        )
+      })()}
 
       {/* Legend */}
       {!compact && (
