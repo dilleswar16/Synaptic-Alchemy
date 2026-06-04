@@ -8,6 +8,7 @@ import StreamingProgress from '../components/StreamingProgress'
 import Layout from '../components/Layout'
 import { timeAgo, fmtTs } from '../utils/time'
 import { STATUS_CLS } from '../components/StatusBadge'
+import SimilarityNetworkGraph from '../components/SimilarityNetworkGraph'
 
 // ── Form fields ───────────────────────────────────────────────────────────────
 
@@ -471,6 +472,7 @@ function InvestigationList({ items, isFiltered }: { items: (InvestigationSummary
 export default function InvestigationsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [viewMode, setViewMode] = useState<'list' | 'network'>('list')
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['investigations'],
@@ -526,17 +528,40 @@ export default function InvestigationsPage() {
       {/* ── New investigation form (PRIMARY ACTION) ──────────────────────── */}
       <StartInvestigationForm />
 
-      {/* ── Investigation log ─────────────────────────────────────────────── */}
+      {/* ── Log header + view toggle ──────────────────────────────────────── */}
       <div style={{ marginTop: 28, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{
           fontFamily: 'var(--font-display)', fontSize: '0.7rem', fontWeight: 700,
           letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--c-text-muted)',
           flexShrink: 0,
         }}>
-          Investigation Log
+          {viewMode === 'list' ? 'Investigation Log' : 'Similarity Network'}
         </span>
         <div style={{ flex: 1, height: 1, background: 'var(--c-border-hi)' }} />
-        {data && (
+        {/* List / Network view toggle */}
+        <div style={{
+          display: 'flex', gap: 2, padding: 3,
+          background: 'var(--c-surface-2)', borderRadius: 8,
+          border: '1px solid var(--c-border)', flexShrink: 0,
+        }}>
+          {(['list', 'network'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              style={{
+                padding: '4px 12px',
+                fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 600,
+                borderRadius: 5, border: 'none', cursor: 'pointer',
+                background: viewMode === mode ? 'var(--c-accent)' : 'transparent',
+                color: viewMode === mode ? '#fff' : 'var(--c-text-muted)',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              {mode === 'list' ? '≡ List' : '⬡ Network'}
+            </button>
+          ))}
+        </div>
+        {data && viewMode === 'list' && (
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', flexShrink: 0 }}>
             {filteredItems.length !== items.length
               ? `${filteredItems.length} / ${items.length} records`
@@ -545,7 +570,15 @@ export default function InvestigationsPage() {
         )}
       </div>
 
-      {/* ── Filter bar ─────────────────────────────────────────────────── */}
+      {/* ── Network view ─────────────────────────────────────────────────── */}
+      {viewMode === 'network' && (
+        <div className="panel animate-fade-up-1" style={{ padding: '20px 24px' }}>
+          <SimilarityNetworkGraph />
+        </div>
+      )}
+
+      {/* ── Filter bar + list (list view only) ──────────────────────────── */}
+      {viewMode === 'list' && (<>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <span style={{
@@ -599,6 +632,7 @@ export default function InvestigationsPage() {
         )}
         {data && <InvestigationList items={filteredItems} isFiltered={searchQuery.trim() !== '' || statusFilter !== 'all'} />}
       </div>
+      </>)}
     </Layout>
   )
 }

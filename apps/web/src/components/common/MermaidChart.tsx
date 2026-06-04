@@ -246,6 +246,7 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
   const isLight = theme === 'light'
   const [svg, setSvg] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
+  const [sanitizedChart, setSanitizedChart] = useState<string>('')
   const [isRendering, setIsRendering] = useState(false)
   const uniqueId = useId().replace(/:/g, '') // IDs can't contain colons for Mermaid
 
@@ -257,17 +258,33 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
 
     const renderDiagram = async () => {
       setIsRendering(true)
+      let processedChart = cleanChart
       try {
-        // Pre-process common LLM errors:
-        // 1. With htmlLabels:false, replace literal \n and <br/> with actual newlines
-        //    Mermaid SVG text mode uses \n for multi-line tspan rendering
-        let processedChart = cleanChart
+
+        // ── Step 0: Sanitize edge labels BEFORE any global replacements ─────────
+        // Edge labels  -->|text|  must contain NO HTML, NO parentheses, NO newlines.
+        // The global <br/> → \n that runs in Step 1 would split an edge label across
+        // lines and cause a parse error — so we clean edge labels first.
+        processedChart = processedChart.replace(
+          /\|([^|\n]{1,200})\|/g,
+          (_match: string, label: string) => {
+            const clean = label
+              .replace(/<[^>]+>/g, ' ')         // strip all HTML tags  e.g. <br/>
+              .replace(/\(([^)]*)\)/g, '- $1')  // (note) → - note
+              .replace(/[&"\\]/g, '')            // strip special chars
+              .replace(/\s{2,}/g, ' ')           // collapse whitespace
+              .trim()
+            return `|${clean}|`
+          }
+        )
+
+        // ── Step 1: Replace remaining <br/> and literal \n (node labels only now) ─
+        processedChart = processedChart
           .replace(/\\n/g, '\n')
           .replace(/<br\s*\/?>/gi, '\n')
 
-        // 2. Sanitize node labels: parentheses inside ["..."] labels break Mermaid parsing
-        //    e.g. ["auth-service (SSO)"] → ["auth-service - SSO"]
-        //    Also strip escaped quotes inside labels
+        // ── Step 2: Sanitize double-quoted node labels ["..."] ──────────────────
+        // Parentheses inside ["..."] labels break Mermaid parsing in some versions
         processedChart = processedChart.replace(
           /\["([^"]*?)"\]/g,
           (_match: string, label: string) => {
@@ -278,12 +295,11 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
           }
         )
 
-        // 3. Mermaid 11 does not support rgba() in classDef — replace with hex equivalents
+        // ── Step 3: classDef rgba() → hex (Mermaid 11 rejects rgba in classDef) ─
         processedChart = processedChart.replace(
           /\bclassDef\b([^\n]*)/g,
           (_line: string, rest: string) => {
             const fixed = rest.replace(/rgba?\([^)]+\)/g, (rgba: string) => {
-              // Extract r,g,b from rgba/rgb and convert to hex
               const m = rgba.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
               if (!m) return '#374151'
               const r = parseInt(m[1]).toString(16).padStart(2, '0')
@@ -295,21 +311,30 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
           }
         )
 
+        // ── Step 4: Remove standalone () node IDs that aren't inside labels ─────
+        // e.g.  SsoSvc(fundsso) → SsoSvc["fundsso"]  (round-bracket nodes are fine,
+        // but () after an edge target that already has a label confuses some versions)
+        // Only remap if it looks like an accidental bare round node after an arrow:
+        processedChart = processedChart.replace(
+          /(\s)([A-Za-z0-9_]+)\(([^)]{1,60})\)(\s*(?:-->|---|-.-))/g,
+          (_m: string, pre: string, id: string, label: string, arrow: string) =>
+            `${pre}${id}["${label}"]${arrow}`
+        )
+
         // v11 render is async and requires a unique ID per call to avoid cache collisions
         const renderId = `mermaid-${uniqueId}-${Math.random().toString(36).slice(2, 6)}`
-        
+
         const { svg: rawSvg } = await mermaid.render(renderId, processedChart)
-        
+
         if (isMounted) {
           setSvg(sanitizeSvg(rawSvg, isLight))
+          setSanitizedChart(processedChart)
           setError(null)
         }
       } catch (err: any) {
-        // If it's a syntax error (expected during streaming), we just wait.
-        // If it's been a while and still failing, we record it.
         if (isMounted && cleanChart.length > 100) {
-          // Only show error for long, presumably "finished" diagrams
           setError(err.message || 'Invalid diagram syntax')
+          setSanitizedChart(processedChart)
         }
       } finally {
         if (isMounted) setIsRendering(false)
@@ -369,20 +394,43 @@ export function MermaidChart({ chart, background }: MermaidChartProps) {
     )
   }
 
-  // Fallback: If it's a long block and failing to render, show the raw code
+  // Fallback: diagram failed — show the sanitized source (usually copyable + fixable)
+  // alongside the parse error so the SRE can debug or copy to mermaid.live
   if (error && chart.length > 50) {
+    const displaySource = sanitizedChart || chart
     return (
       <div style={{ margin: '16px 0' }}>
-        <pre style={{ 
-          margin: 0, padding: '16px', background: 'var(--c-error-bg)', 
-          border: '1px solid var(--c-error-border)', borderRadius: 8,
-          fontSize: '0.75rem', color: 'var(--c-text-dim)', overflowX: 'auto'
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
+          fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
         }}>
-          {chart}
-        </pre>
-        <div style={{ fontSize: '0.65rem', color: 'var(--c-red)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
-          ⚠ {error}
+          <span style={{ color: 'var(--c-red)' }}>⚠ Diagram parse error</span>
+          <span style={{ color: 'var(--c-text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {error}
+          </span>
+          <button
+            onClick={() => navigator.clipboard?.writeText(displaySource)}
+            style={{
+              fontSize: '0.68rem', padding: '2px 8px', borderRadius: 4, cursor: 'pointer',
+              background: 'transparent', border: '1px solid var(--c-border)',
+              color: 'var(--c-text-muted)', flexShrink: 0,
+            }}
+          >
+            Copy source
+          </button>
         </div>
+        <pre style={{
+          margin: 0, padding: '14px 16px',
+          background: 'var(--c-surface)',
+          border: '1px solid var(--c-border)',
+          borderRadius: 8,
+          fontSize: '0.72rem', color: 'var(--c-text-dim)',
+          overflowX: 'auto', maxHeight: 280, overflowY: 'auto',
+          fontFamily: 'var(--font-mono)',
+          lineHeight: 1.55,
+        }}>
+          {displaySource}
+        </pre>
       </div>
     )
   }

@@ -388,7 +388,7 @@ export default function SimilarityNetworkGraph({
             <Background gap={24} size={1} color="var(--c-border)" />
             <Controls showInteractive={false} />
             <MiniMap
-              nodeColor={n => serviceColor((n.data as SimilarityNodeData).service_name)}
+              nodeColor={n => serviceColor(((n.data as unknown) as SimilarityNodeData).service_name)}
               maskColor="rgba(0,0,0,0.2)"
               style={{ background: 'var(--c-surface)' }}
             />
