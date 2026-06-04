@@ -2597,3 +2597,302 @@ async def voice_transcribe_and_report(
     service = VoiceIncidentService()
     report = service.process_audio(audio, content_type="audio/wav")
     return report.to_dict()
+
+
+# ── Feature 8: Root Cause Debate Mode ────────────────────────────────────────
+
+
+class SelectHypothesisRequest(BaseModel):
+    hypothesis_id: str = Field(..., min_length=1, max_length=10)
+
+
+@router.post("/{id}/hypotheses", response_model=dict)
+def generate_hypotheses(
+    id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Generate competing root-cause hypotheses for an existing investigation.
+
+    Reads the investigation result from DB, calls HypothesisService, persists
+    the generated hypotheses, and returns them.
+
+    Returns 404 when the investigation is not found.
+    Returns 422 when debate_mode.enabled=false in investigation.yaml.
+    """
+    from corvin.strategy.hypothesis_service import HypothesisService
+
+    result = repo.get_investigation_result(id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {id!r} not found.")
+
+    svc = HypothesisService()
+    if not svc.is_enabled():
+        raise HTTPException(
+            status_code=422,
+            detail="Debate mode is disabled (debate_mode.enabled=false in investigation.yaml).",
+        )
+
+    hypotheses = svc.generate(result)
+    repo.save_hypotheses(id, hypotheses)
+
+    return {
+        "request_id": id,
+        "hypotheses": [h.model_dump(mode="json") for h in hypotheses],
+        "selected_hypothesis_id": None,
+    }
+
+
+@router.get("/{id}/hypotheses", response_model=dict)
+def get_hypotheses(
+    id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return stored hypotheses for an investigation.
+
+    Returns 404 when the investigation is not found.
+    Returns an empty hypotheses list when the investigation pre-dates Feature 8.
+    """
+    # Confirm investigation exists
+    with repo._session_factory() as session:
+        from corvin.storage.models import InvestigationRequestRow
+        req_row = session.get(InvestigationRequestRow, id)
+        if req_row is None:
+            raise HTTPException(status_code=404, detail=f"Investigation {id!r} not found.")
+        selected = getattr(req_row, "selected_hypothesis_id", None)
+
+    stored = repo.get_hypotheses(id)
+
+    return {
+        "request_id": id,
+        "hypotheses": stored or [],
+        "selected_hypothesis_id": selected,
+    }
+
+
+@router.post("/{id}/select-hypothesis", response_model=dict)
+def select_hypothesis(
+    id: str,
+    body: SelectHypothesisRequest,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Set the winning hypothesis and regenerate fix strategy.
+
+    Sets selected_hypothesis_id on the investigation row.
+    Then regenerates the fix strategy based on the winning hypothesis's root_cause.
+    Returns the updated InvestigationResult.
+
+    Returns 404 when the investigation is not found.
+    Returns 400 when the hypothesis_id is not in the stored list.
+    """
+    from corvin.strategy.fix_strategy_generator import FixStrategyGenerator
+    from corvin.core.contracts import RCAOutput, RCAConfidence
+
+    result = repo.get_investigation_result(id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {id!r} not found.")
+
+    stored = repo.get_hypotheses(id) or []
+    hypothesis_map = {h["id"]: h for h in stored if isinstance(h, dict)}
+
+    if body.hypothesis_id not in hypothesis_map:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Hypothesis {body.hypothesis_id!r} not found. Available: {list(hypothesis_map.keys())}",
+        )
+
+    selected = hypothesis_map[body.hypothesis_id]
+    repo.set_selected_hypothesis(id, body.hypothesis_id)
+
+    # Regenerate fix strategy using the selected hypothesis root_cause.
+    # We synthesise an RCAOutput that substitutes the hypothesis fields.
+    patched_rca = RCAOutput(
+        request_id=id,
+        summary=selected.get("title", result.rca.summary),
+        root_cause=selected.get("root_cause", result.rca.root_cause),
+        contributing_factors=selected.get("supporting_signals", result.rca.contributing_factors),
+        confidence=RCAConfidence.MEDIUM,
+        confidence_reasoning=f"Selected hypothesis: {selected.get('title', '')}",
+        evidence_references=selected.get("evidence_ids", result.rca.evidence_references),
+    )
+
+    try:
+        fix_gen = FixStrategyGenerator()
+        new_fix = fix_gen.generate(result.request, patched_rca)
+        new_fix = new_fix.model_copy(update={"request_id": id})
+    except Exception as exc:
+        _log.warning("select-hypothesis: fix strategy regeneration failed: %s", exc)
+        new_fix = result.fix_strategy
+
+    # Persist via upsert directly
+    from corvin.storage.models import FixStrategyOutputRow
+    with repo._session_factory() as session:
+        existing = session.execute(
+            __import__("sqlalchemy").select(FixStrategyOutputRow).where(
+                FixStrategyOutputRow.request_id == id
+            )
+        ).scalar_one_or_none()
+        if existing:
+            existing.summary = new_fix.summary
+            existing.actions = [a.model_dump(mode="json") for a in new_fix.actions]
+            existing.justification = new_fix.justification
+        else:
+            session.add(FixStrategyOutputRow(
+                request_id=id,
+                summary=new_fix.summary,
+                actions=[a.model_dump(mode="json") for a in new_fix.actions],
+                justification=new_fix.justification,
+            ))
+        session.commit()
+
+    # Return updated result
+    updated = repo.get_investigation_result(id)
+    if updated is None:
+        raise HTTPException(status_code=500, detail="Failed to reload investigation after update.")
+
+    return {
+        **updated.model_dump(mode="json"),
+        "selected_hypothesis_id": body.hypothesis_id,
+        "hypotheses": stored,
+    }
+
+
+# ── Feature 9: Incident Heatmap Calendar ─────────────────────────────────────
+
+
+@router.get("/heatmap", response_model=dict)
+def get_incident_heatmap(
+    days: int = Query(default=90, ge=1, le=365),
+    service_name: Optional[str] = Query(default=None),
+    environment: Optional[str] = Query(default=None),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return daily investigation counts for the GitHub-style heatmap calendar.
+
+    days: lookback window — capped by heatmap.max_days in investigation.yaml.
+    Severity thresholds are loaded from investigation.yaml and returned
+    alongside the data so the frontend never needs to hardcode them.
+
+    Returns:
+        days: list of {date, count, severity}
+        max_count: the highest single-day count in the window
+        total_incidents: total investigations in the window
+        date_range: {start, end}
+        severity_thresholds: {low, medium, high, critical}
+    """
+    from datetime import date, timedelta
+
+    policy = load_config("policies/investigation", get_env())
+    heatmap_cfg = policy.get("heatmap", {})
+
+    # Honour max_days cap from config
+    max_days = int(heatmap_cfg.get("max_days", 365))
+    days = min(days, max_days)
+
+    thresholds = heatmap_cfg.get("severity_thresholds", {
+        "low": 1, "medium": 3, "high": 5, "critical": 10
+    })
+
+    # Build a complete zero-filled date index for the window
+    today = date.today()
+    start_date = today - timedelta(days=days - 1)
+    all_dates = {
+        (start_date + timedelta(days=i)).isoformat(): 0
+        for i in range(days)
+    }
+
+    # Fetch DB data and merge
+    db_rows = repo.get_heatmap_data(days=days, service_name=service_name, environment=environment)
+    for row in db_rows:
+        if row["date"] in all_dates:
+            all_dates[row["date"]] = row["count"]
+
+    def _severity(count: int) -> str:
+        if count == 0:
+            return "none"
+        if count >= int(thresholds.get("critical", 10)):
+            return "critical"
+        if count >= int(thresholds.get("high", 5)):
+            return "high"
+        if count >= int(thresholds.get("medium", 3)):
+            return "medium"
+        return "low"
+
+    days_list = [
+        {"date": d, "count": c, "severity": _severity(c)}
+        for d, c in sorted(all_dates.items())
+    ]
+
+    total = sum(d["count"] for d in days_list)
+    max_count = max((d["count"] for d in days_list), default=0)
+
+    return {
+        "days": days_list,
+        "max_count": max_count,
+        "total_incidents": total,
+        "date_range": {"start": start_date.isoformat(), "end": today.isoformat()},
+        "severity_thresholds": thresholds,
+    }
+
+
+# ── Feature 10: Compliance Evidence Pack ─────────────────────────────────────
+
+
+@router.get("/{id}/compliance-pack")
+def download_compliance_pack(
+    id: str,
+    format: str = Query(default="zip", regex="^(zip|pdf)$"),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> Response:
+    """Generate and download a tamper-evident compliance evidence bundle.
+
+    format=zip — returns a ZIP archive with all evidence files + SHA-256 manifest.
+    format=pdf — returns a single PDF document with all sections.
+
+    The SHA-256 hash of the manifest.json is included as integrity.sha256.
+    Watermark text and supported frameworks are configurable via investigation.yaml.
+
+    Returns 404 when the investigation is not found.
+    Returns 422 when compliance_pack.enabled=false in investigation.yaml.
+    """
+    from corvin.strategy.compliance_pack import CompliancePackBuilder
+
+    policy = load_config("policies/investigation", get_env())
+    pack_cfg = policy.get("compliance_pack", {})
+    if not pack_cfg.get("enabled", True):
+        raise HTTPException(
+            status_code=422,
+            detail="Compliance pack is disabled (compliance_pack.enabled=false in investigation.yaml).",
+        )
+
+    result = repo.get_investigation_result(id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {id!r} not found.")
+
+    # Include post-mortem in the pack when already generated (optional)
+    pm = None
+    try:
+        pm = repo.get_post_mortem(id)
+    except Exception:
+        pass  # post-mortem is optional
+
+    builder = CompliancePackBuilder(config=pack_cfg)
+
+    if format == "pdf":
+        pdf_bytes = builder.build_pdf(result, pm)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="corvin-evidence-pack-{id}.pdf"'
+            },
+        )
+    else:
+        zip_bytes = builder.build_zip(result, pm)
+        return Response(
+            content=zip_bytes,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="corvin-evidence-pack-{id}.zip"'
+            },
+        )
+

@@ -91,3 +91,55 @@ alert_correlation_adjacent_service_minutes: 10
 # ── Toil Tracking ─────────────────────────────────────────────────────────────
 # Lookback window for toil/ROI metrics aggregation.
 toil_lookback_days: 30
+
+# ── Feature 8: Root Cause Debate Mode ─────────────────────────────────────────
+# When enabled, POST /investigations/{id}/hypotheses generates N competing
+# root-cause hypotheses from the evidence bundle. The SRE selects the winner
+# and the fix strategy is regenerated against the chosen hypothesis.
+debate_mode:
+  enabled: true
+  # Number of competing hypotheses to generate (must be ≥ 2).
+  hypothesis_count: 3
+  # Minimum number of supporting signals a hypothesis must have to be surfaced.
+  # Hypotheses below this threshold are padded with a placeholder signal.
+  min_evidence_signals: 2
+
+# ── Feature 9: Incident Heatmap Calendar ──────────────────────────────────────
+# Powers GET /investigations/heatmap — a GitHub-contribution-style 90-day view
+# of investigation density. Severity colours are mapped to these thresholds.
+heatmap:
+  severity_thresholds:
+    low: 1      # 1 incident/day
+    medium: 3   # 3+ incidents/day
+    high: 5     # 5+ incidents/day
+    critical: 10  # 10+ incidents/day
+  default_days: 90
+  max_days: 365
+
+# ── Feature 10: Compliance Evidence Pack ──────────────────────────────────────
+# Powers GET /investigations/{id}/compliance-pack?format=pdf|zip.
+# Generates a tamper-evident audit bundle for SOX/SOC2/ISO27001 auditors.
+compliance_pack:
+  enabled: true
+  # Watermark text printed on PDF and embedded in ZIP manifest.
+  watermark_text: "CONFIDENTIAL — FOR AUDIT USE"
+  # Whether to include raw evidence JSON files in the ZIP bundle.
+  include_raw_evidence: true
+  # Compliance frameworks listed in the report header (informational only).
+  supported_frameworks:
+    - SOX
+    - SOC2
+    - ISO27001
+
+# ── Feature 7: pgvector Semantic RAG ──────────────────────────────────────────
+# Semantic similarity search over past RCA embeddings using pgvector.
+# Requires PostgreSQL with the pgvector extension installed.
+# When pgvector is unavailable (SQLite or Postgres without extension), the
+# system auto-detects this at startup and falls back to keyword search.
+# No code change required — just set backend: keyword to force keyword mode.
+similarity:
+  backend: pgvector        # pgvector | keyword (auto-detected when pgvector unavailable)
+  top_k_default: 5         # default number of similar incidents to return
+  min_similarity_threshold: 0.72  # minimum cosine similarity score (0.0–1.0)
+  index_on_completion: true  # embed + index each investigation when it completes
+

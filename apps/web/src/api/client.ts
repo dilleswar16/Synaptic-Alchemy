@@ -1683,3 +1683,173 @@ export async function listAllPresetsAcrossApplications(): Promise<Array<Simulato
   return results
 }
 
+
+// ── Feature 8: Root Cause Debate Mode ─────────────────────────────────────────
+
+export interface RCAHypothesis {
+  /** Positional identifier: "h1" | "h2" | "h3" */
+  id: string
+  /** Short label ≤60 chars */
+  title: string
+  /** Full technical explanation of this hypothesis */
+  root_cause: string
+  /** Evidence source keys that support this hypothesis */
+  evidence_ids: string[]
+  /** LLM-assigned confidence score 0.0–1.0 */
+  confidence_score: number
+  /** Evidence strength 0–100 for UI progress bar */
+  evidence_strength_pct: number
+  /** Bullet list of key signals that support this hypothesis */
+  supporting_signals: string[]
+  /** Signals that argue against this hypothesis */
+  refuting_signals: string[]
+}
+
+export interface HypothesesResponse {
+  request_id: string
+  hypotheses: RCAHypothesis[]
+  /** "h1" | "h2" | "h3" | null — set when SRE selects a winner */
+  selected_hypothesis_id: string | null
+}
+
+/** Generate competing hypotheses for an investigation (triggers LLM call). */
+export function generateHypotheses(investigationId: string): Promise<HypothesesResponse> {
+  return apiFetch<HypothesesResponse>(`/investigations/${investigationId}/hypotheses`, {
+    method: 'POST',
+  })
+}
+
+/** Fetch already-generated hypotheses for an investigation (no LLM call). */
+export function fetchHypotheses(investigationId: string): Promise<HypothesesResponse> {
+  return apiFetch<HypothesesResponse>(`/investigations/${investigationId}/hypotheses`)
+}
+
+/** Select a winning hypothesis and re-run fix strategy generation. */
+export function selectHypothesis(
+  investigationId: string,
+  hypothesisId: string,
+): Promise<InvestigationResult & HypothesesResponse> {
+  return apiFetch<InvestigationResult & HypothesesResponse>(
+    `/investigations/${investigationId}/select-hypothesis`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ hypothesis_id: hypothesisId }),
+    },
+  )
+}
+
+
+// ── Feature 9: Incident Heatmap Calendar ──────────────────────────────────────
+
+export interface HeatmapDay {
+  /** ISO date string e.g. "2026-03-01" */
+  date: string
+  /** Number of investigations on this day */
+  count: number
+  /** Severity bucket based on investigation.yaml thresholds */
+  severity: 'none' | 'low' | 'medium' | 'high' | 'critical'
+}
+
+export interface HeatmapSeverityThresholds {
+  low: number
+  medium: number
+  high: number
+  critical: number
+}
+
+export interface HeatmapResponse {
+  /** Fully populated day-by-day list including zero-count days */
+  days: HeatmapDay[]
+  /** Highest single-day count in the window */
+  max_count: number
+  /** Total incidents across the entire window */
+  total_incidents: number
+  date_range: { start: string; end: string }
+  /** Thresholds from investigation.yaml — use for color legend */
+  severity_thresholds: HeatmapSeverityThresholds
+}
+
+export function fetchHeatmap(
+  days?: number,
+  serviceFilter?: string,
+  environmentFilter?: string,
+): Promise<HeatmapResponse> {
+  const params = new URLSearchParams()
+  if (days !== undefined) params.set('days', String(days))
+  if (serviceFilter) params.set('service_name', serviceFilter)
+  if (environmentFilter) params.set('environment', environmentFilter)
+  const query = params.toString() ? `?${params.toString()}` : ''
+  return apiFetch<HeatmapResponse>(`/investigations/heatmap${query}`)
+}
+
+
+// ── Feature 10: Compliance Evidence Pack ──────────────────────────────────────
+
+/**
+ * Download a compliance evidence pack for the given investigation.
+ * Triggers a browser file download and returns the raw Blob.
+ */
+export async function downloadCompliancePack(
+  investigationId: string,
+  format: 'pdf' | 'zip',
+): Promise<Blob> {
+  const res = await fetch(
+    `${API_BASE}/investigations/${investigationId}/compliance-pack?format=${format}`,
+  )
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(detail?.detail ?? `Compliance pack error ${res.status}`)
+  }
+  const blob = await res.blob()
+
+  // Trigger browser download automatically
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `corvin-evidence-pack-${investigationId}.${format}`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+
+  return blob
+}
+
+
+// ── Feature 7: pgvector Semantic RAG ──────────────────────────────────────────
+
+export interface SemanticSimilarIncident {
+  request_id: string
+  service_name: string
+  environment: string
+  completed_at: string
+  rca_summary: string
+  root_cause: string
+  confidence: 'high' | 'medium' | 'low'
+  /** Cosine similarity score 0.0–1.0 (pgvector) or null (keyword fallback) */
+  similarity_score: number | null
+  /** "pgvector" | "keyword" — which backend served this result */
+  search_backend: 'pgvector' | 'keyword'
+}
+
+export interface SemanticSearchResponse {
+  results: SemanticSimilarIncident[]
+  query: string
+  backend: 'pgvector' | 'keyword'
+  k: number
+}
+
+export function fetchSemanticSimilar(
+  query: string,
+  k?: number,
+  serviceFilter?: string,
+  environmentFilter?: string,
+): Promise<SemanticSearchResponse> {
+  const params = new URLSearchParams({ q: query })
+  if (k !== undefined) params.set('k', String(k))
+  if (serviceFilter) params.set('service_name', serviceFilter)
+  if (environmentFilter) params.set('environment', environmentFilter)
+  return apiFetch<SemanticSearchResponse>(`/investigations/similar?${params.toString()}`)
+}
+
+

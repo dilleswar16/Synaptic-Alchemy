@@ -147,6 +147,46 @@ class RCAOutput(BaseModel):
     generated_at: datetime = Field(default_factory=_utcnow)
 
 
+# ── Feature 8 — Debate Mode Hypothesis ────────────────────────────────────────
+
+
+class RCAHypothesis(BaseModel):
+    """One competing root-cause hypothesis generated during Debate Mode.
+
+    The LLM produces exactly N of these (default 3) from the evidence bundle.
+    The SRE selects the winner via POST /investigations/{id}/select-hypothesis.
+    Winner’s root_cause is then used to re-run fix strategy generation.
+    """
+
+    id: str = Field(..., description="\"h1\" | \"h2\" | \"h3\" (positional index)")
+    title: str = Field(..., description="Short label, e.g. \"Memory Leak in Worker Pool\"")
+    root_cause: str = Field(..., description="Full explanation of this hypothesis.")
+    evidence_ids: list[str] = Field(
+        default_factory=list,
+        description="Evidence keys that support this hypothesis.",
+    )
+    confidence_score: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="LLM-assigned confidence score 0.0–1.0.",
+    )
+    evidence_strength_pct: int = Field(
+        ...,
+        ge=0,
+        le=100,
+        description="Evidence strength 0–100 for UI progress bar.",
+    )
+    supporting_signals: list[str] = Field(
+        default_factory=list,
+        description="Bullet list of key signals that support this hypothesis.",
+    )
+    refuting_signals: list[str] = Field(
+        default_factory=list,
+        description="Signals that argue against this hypothesis.",
+    )
+
+
 # ── Fix strategy ─────────────────────────────────────────────────────────────
 
 
@@ -218,9 +258,13 @@ class InvestigationResult(BaseModel):
     ado_url: str | None = None
     wiki_url: str | None = None
     sharepoint_url: str | None = None
+    # Feature 8 — Debate Mode
+    # None when investigation was completed before Feature 8, or when debate_mode.enabled=false.
+    hypotheses: list[RCAHypothesis] | None = None
+    selected_hypothesis_id: str | None = None
 
 
-# ── Post-Mortem ───────────────────────────────────────────────────────────────
+# ── Post-Mortem ──────────────────────────────────────────────────────────────
 
 
 class PostMortemOutput(BaseModel):

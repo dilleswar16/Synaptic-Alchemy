@@ -51,6 +51,11 @@ class InvestigationRequestRow(Base):
     approved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
     )
+    # Feature 8 — Root Cause Debate Mode
+    # Stores list[RCAHypothesis] as JSON. Null = pre-Feature-8 investigation.
+    hypotheses_json: Mapped[dict | None] = mapped_column(JSONB_COMPAT, nullable=True, default=None)
+    # "h1" | "h2" | "h3" — set when SRE selects a winning hypothesis. Null = not yet selected.
+    selected_hypothesis_id: Mapped[str | None] = mapped_column(String(10), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

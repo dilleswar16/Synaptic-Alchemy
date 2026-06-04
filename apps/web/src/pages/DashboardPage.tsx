@@ -20,6 +20,7 @@ import { KpiStrip } from '../components/KpiStrip'
 import { ServiceFleetGrid } from '../components/ServiceFleetGrid'
 import { ErrorBudgetBurnChart } from '../components/ErrorBudgetBurnChart'
 import { DoraSidebar } from '../components/DoraSidebar'
+import IncidentHeatmap from '../components/IncidentHeatmap'
 import { useTheme } from '../context/ThemeContext'
 
 // ── Morning Briefing widget ───────────────────────────────────────────────
@@ -362,6 +363,11 @@ export default function DashboardPage() {
 
       {/* ── 5. TOPOLOGY (full width) ────────────────────────────────── */}
       <TopologyRadar />
+
+      {/* ── 5b. INCIDENT HEATMAP (Feature 9) ─────────────────────── */}
+      <div className="panel animate-fade-up" style={{ marginTop: 20, padding: '20px 24px' }}>
+        <IncidentHeatmap days={90} />
+      </div>
 
       {/* ── 6. ROI + AI Briefing ─────────────────────────────────────── */}
       <div className="dash-bottom-row">

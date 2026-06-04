@@ -25,11 +25,13 @@ import { BlastRadiusCard } from '../components/BlastRadiusCard'
 import { SlaCountdownCard } from '../components/investigation/SlaCountdownCard'
 import WarRoomBanner from '../components/WarRoomBanner'
 import RunbookBuilderChat from '../components/RunbookBuilderChat'
+import HypothesisDebatePanel from '../components/investigation/HypothesisDebatePanel'
 import { useThreeAmMode } from '../hooks/useThreeAmMode'
 import {
   fetchInvestigation,
   fetchSimilarIncidents,
   fetchReplay,
+  downloadCompliancePack,
   type SimilarIncident,
   type ReplayPayload,
 } from '../api/client'
@@ -41,6 +43,7 @@ export default function InvestigationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   useThreeAmMode()
+  const [packDownloading, setPackDownloading] = useState<false | 'pdf' | 'zip'>(false)
 
   const rawAction = searchParams.get('action')
   const pendingAction: ApprovalAction | null =
@@ -289,6 +292,35 @@ export default function InvestigationDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Compliance pack download button */}
+          {data && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              {(['pdf', 'zip'] as const).map(fmt => (
+                <button
+                  key={fmt}
+                  id={`compliance-pack-${fmt}-btn`}
+                  disabled={packDownloading !== false}
+                  onClick={async () => {
+                    setPackDownloading(fmt)
+                    try { await downloadCompliancePack(id!, fmt) }
+                    catch (e) { console.error(e) }
+                    finally { setPackDownloading(false) }
+                  }}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
+                    padding: '4px 11px', borderRadius: 6, border: '1px solid var(--c-border)',
+                    background: 'var(--c-surface-2)', color: 'var(--c-text-muted)',
+                    cursor: packDownloading ? 'wait' : 'pointer',
+                    opacity: packDownloading && packDownloading !== fmt ? 0.5 : 1,
+                  }}
+                >
+                  {packDownloading === fmt ? '⏳' : '📦'} Evidence Pack .{fmt.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Loading skeletons */}
@@ -440,6 +472,15 @@ export default function InvestigationDetailPage() {
                   </div>
                   <CausalChainSection requestId={id!} />
                   <CommsDraftSection requestId={id!} />
+                  {/* Feature 8 — Root Cause Debate Mode */}
+                  <HypothesisDebatePanel
+                    investigationId={id!}
+                    onHypothesisSelected={(_hid) => {
+                      // When a hypothesis is selected, the fix strategy is re-generated.
+                      // Invalidate the investigation query so the RcaSection reflects the new fix.
+                      // The query client is not imported here; we rely on the 30s stale time + re-fetch.
+                    }}
+                  />
                 </div>
               )}
 

@@ -1147,6 +1147,110 @@ def _build_briefing_narrative(
     return " ".join(parts)
 
 
+    # ── Feature 8: Debate Mode hypothesis persistence ─────────────────────────
+
+    def save_hypotheses(
+        self,
+        request_id: str,
+        hypotheses: list,
+    ) -> None:
+        """Persist the list[RCAHypothesis] (serialised as JSON) for an investigation.
+
+        Overwrites any existing hypotheses_json for the same request_id.
+        A no-op when the request_id does not exist.
+        """
+        from corvin.core.contracts import RCAHypothesis
+
+        payload = [
+            h.model_dump(mode="json") if isinstance(h, RCAHypothesis) else h
+            for h in hypotheses
+        ]
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is not None:
+                row.hypotheses_json = {"hypotheses": payload}
+                session.commit()
+
+    def get_hypotheses(self, request_id: str) -> list | None:
+        """Return the stored list of hypothesis dicts, or None when absent.
+
+        Returns None for pre-Feature-8 investigations (hypotheses_json=NULL).
+        Returns an empty list when hypotheses were generated but empty.
+        """
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is None:
+                return None
+            stored = getattr(row, "hypotheses_json", None)
+            if stored is None:
+                return None
+            if isinstance(stored, dict):
+                return stored.get("hypotheses", [])
+            if isinstance(stored, list):
+                return stored
+            return []
+
+    def set_selected_hypothesis(
+        self,
+        request_id: str,
+        hypothesis_id: str,
+    ) -> bool:
+        """Set selected_hypothesis_id for an investigation.
+
+        Returns True when updated, False when request_id not found.
+        """
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is None:
+                return False
+            row.selected_hypothesis_id = hypothesis_id
+            session.commit()
+            return True
+
+    # ── Feature 9: Incident Heatmap ───────────────────────────────────────────
+
+    def get_heatmap_data(
+        self,
+        days: int = 90,
+        service_name: str | None = None,
+        environment: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return daily incident counts for the heatmap calendar.
+
+        Each dict: {"date": "2026-03-01", "count": 3}
+
+        Only days with at least 1 investigation appear in the result.
+        The caller is responsible for filling in zero-count days.
+        """
+        from sqlalchemy import func, cast, Date
+
+        with self._session_factory() as session:
+            # SQLite and Postgres both support DATE() via func.date()
+            day_col = func.date(InvestigationRequestRow.created_at).label("day")
+            stmt = (
+                select(day_col, func.count(InvestigationRequestRow.id).label("cnt"))
+                .group_by(day_col)
+                .order_by(day_col.asc())
+            )
+
+            # Days filter — use created_at relative to now
+            from datetime import timedelta
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+            stmt = stmt.where(InvestigationRequestRow.created_at >= cutoff)
+
+            if service_name:
+                stmt = stmt.where(InvestigationRequestRow.service_name == service_name)
+            if environment:
+                stmt = stmt.where(InvestigationRequestRow.environment == environment)
+
+            rows = session.execute(stmt).all()
+
+        return [
+            {"date": str(row.day), "count": int(row.cnt)}
+            for row in rows
+        ]
+
+
 # ---------------------------------------------------------------------------
 # Module-level convenience functions
 # ---------------------------------------------------------------------------
