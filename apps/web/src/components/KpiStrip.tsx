@@ -36,10 +36,10 @@ export function KpiStrip() {
     },
     {
       label: 'Active Investigations',
-      value: stats ? String(stats.approval_distribution.pending + stats.approval_distribution.approved) : '—',
+      value: stats ? String(stats.active_count ?? 0) : '—',
       sub: stats ? `${stats.today_count} today` : undefined,
       accent: 'info',
-      tooltip: 'Investigations currently in the human-approval pipeline — either awaiting engineer sign-off (pending) or approved and queued for execution. Excludes completed and rejected investigations.',
+      tooltip: 'Investigations in the human-approval pipeline (pending or approved) that were created in the last 24 hours. Older stale investigations are excluded.',
     },
     {
       label: 'Avg MTTR',

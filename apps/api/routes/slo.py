@@ -158,10 +158,12 @@ def get_slo_summary(db: Session = Depends(_db)) -> dict[str, Any]:
         )
         if snap is None or snap.measured_pct is None:
             no_data += 1
+        elif snap.burn_rate is not None and snap.burn_rate > 1.0:
+            breached += 1
+        elif snap.burn_rate is not None and snap.burn_rate > 0.7:
+            at_risk += 1
         elif not snap.is_compliant:
             breached += 1
-        elif snap.burn_rate is not None and snap.burn_rate > 0.9:
-            at_risk += 1
         else:
             compliant += 1
 

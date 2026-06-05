@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { SemanticMarkdown } from '../components/SemanticMarkdown'
-import { fetchInvestigation, executeSingleAction } from '../api/client'
+import { fetchInvestigation, executeSingleAction, createGithubIssue } from '../api/client'
 import Layout from '../components/Layout'
 import { RemediationPreviewPanel } from '../components/RemediationPreviewPanel'
 import { FixStrategyFlowchart } from '../components/investigation/FixStrategyFlowchart'
@@ -65,6 +65,19 @@ export default function FixStrategyPage() {
     },
   })
 
+  const [githubError, setGithubError] = useState<string | null>(null)
+  const githubMutation = useMutation({
+    mutationFn: () => createGithubIssue(id!),
+    onSuccess: () => {
+      setGithubError(null)
+      queryClient.invalidateQueries({ queryKey: ['investigation', id] })
+    },
+    onError: (err: Error) => setGithubError(err.message),
+  })
+
+  const existingIssueUrl = data?.fix_strategy?.github_issue_url
+  const existingIssueNumber = data?.fix_strategy?.github_issue_number
+
   return (
     <Layout>
       <div style={{ maxWidth: 860 }}>
@@ -115,6 +128,57 @@ export default function FixStrategyPage() {
                     {fixStrategy?.actions?.length ?? 0} action{(fixStrategy?.actions?.length ?? 0) !== 1 ? 's' : ''}
                   </span>
                 )}
+
+                {/* ── GitHub Issue button / badge ── */}
+                {fixStrategy && (
+                  existingIssueUrl ? (
+                    <a
+                      href={existingIssueUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
+                        padding: '4px 12px', borderRadius: 6,
+                        background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)',
+                        color: 'var(--c-green)', textDecoration: 'none',
+                      }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                      </svg>
+                      #{existingIssueNumber} on GitHub
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => githubMutation.mutate()}
+                      disabled={githubMutation.isPending}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 600,
+                        padding: '5px 14px', borderRadius: 6, cursor: githubMutation.isPending ? 'not-allowed' : 'pointer',
+                        background: githubMutation.isPending ? 'var(--c-surface-3)' : 'var(--c-surface-2)',
+                        border: '1px solid var(--c-border-hi)',
+                        color: githubMutation.isPending ? 'var(--c-text-faint)' : 'var(--c-text)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                      </svg>
+                      {githubMutation.isPending ? 'Creating issue…' : 'Create GitHub Issue'}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
+            {githubError && (
+              <div style={{
+                marginTop: 10, padding: '8px 12px',
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+                borderRadius: 6, fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--c-red)',
+              }}>
+                {githubError}
               </div>
             )}
           </div>

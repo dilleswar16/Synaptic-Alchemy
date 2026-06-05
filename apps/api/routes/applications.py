@@ -103,6 +103,7 @@ class ServiceCreate(BaseModel):
     git_repo_url: str | None = None
     git_branch: str | None = None
     git_token: str | None = None  # plaintext PAT — encrypted before storage
+    git_assignee: str | None = None  # GitHub username (or Copilot agent) to assign issues to
 
     @field_validator("git_provider")
     @classmethod
@@ -123,6 +124,7 @@ class ServiceUpdate(BaseModel):
     git_repo_url: str | None = None
     git_branch: str | None = None
     git_token: str | None = None
+    git_assignee: str | None = None
 
     @field_validator("git_provider")
     @classmethod
@@ -1131,6 +1133,7 @@ def _svc_dict(row: ApplicationServiceRow) -> dict[str, Any]:
         "git_repo_url": row.git_repo_url,
         "git_branch": row.git_branch,
         "has_git_token": row.git_token_encrypted is not None,
+        "git_assignee": row.git_assignee,
     }
 
 

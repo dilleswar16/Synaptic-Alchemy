@@ -241,6 +241,8 @@ class FixStrategyOutput(BaseModel):
     actions: list[FixAction] = Field(default_factory=list)
     justification: str
     generated_at: datetime = Field(default_factory=_utcnow)
+    github_issue_url: str | None = None
+    github_issue_number: int | None = None
 
 
 # ── Combined result ──────────────────────────────────────────────────────────

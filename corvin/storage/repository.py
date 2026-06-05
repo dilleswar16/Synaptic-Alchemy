@@ -19,7 +19,7 @@ functions for production call sites that want the default ``get_session()``.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -287,6 +287,8 @@ class InvestigationRepository:
                     "actions": fix_row.actions,
                     "justification": fix_row.justification,
                     "generated_at": _as_utc(fix_row.generated_at),
+                    "github_issue_url": getattr(fix_row, "github_issue_url", None),
+                    "github_issue_number": getattr(fix_row, "github_issue_number", None),
                 }
             )
 
@@ -389,6 +391,25 @@ class InvestigationRepository:
                     row.wiki_url = wiki_url
                 if sharepoint_url is not None:
                     row.sharepoint_url = sharepoint_url
+                session.commit()
+
+    def save_github_issue(
+        self,
+        request_id: str,
+        issue_url: str,
+        issue_number: int,
+    ) -> None:
+        """Persist GitHub issue URL and number on the fix strategy row."""
+        from corvin.storage.models import FixStrategyOutputRow
+        with self._session_factory() as session:
+            row = session.execute(
+                __import__("sqlalchemy").select(FixStrategyOutputRow).where(
+                    FixStrategyOutputRow.request_id == request_id
+                )
+            ).scalar_one_or_none()
+            if row is not None:
+                row.github_issue_url = issue_url
+                row.github_issue_number = issue_number
                 session.commit()
 
     def get_similar_incidents(
@@ -1014,10 +1035,19 @@ class InvestigationRepository:
                     "recent_services": [],
                 }
 
-            today = datetime.now(timezone.utc).date()
+            now = datetime.now(timezone.utc)
+            today = now.date()
+            cutoff_24h = now - timedelta(hours=24)
             today_count = sum(
                 1 for r in rows
                 if r.created_at and _as_utc(r.created_at).date() == today
+            )
+
+            # Active = pending or approved, created within last 24 hours
+            active_count = sum(
+                1 for r in rows
+                if (r.approval_status or "pending") in ("pending", "approved")
+                and r.created_at and _as_utc(r.created_at) >= cutoff_24h
             )
 
             approval_dist: dict[str, int] = {
@@ -1057,6 +1087,7 @@ class InvestigationRepository:
             return {
                 "total_investigations": len(rows),
                 "today_count": today_count,
+                "active_count": active_count,
                 "confidence_distribution": conf_dist,
                 "approval_distribution": approval_dist,
                 "avg_mttr_minutes": round(avg_mttr, 1) if avg_mttr is not None else None,

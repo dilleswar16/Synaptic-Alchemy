@@ -1974,6 +1974,177 @@ def stream_execute_all(
     )
 
 
+@router.post("/{request_id}/create-github-issue", status_code=200)
+def create_github_issue(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Create a GitHub Issue from this investigation's fix strategy.
+
+    Pulls git_repo_url, git_token (encrypted), and git_assignee from the
+    ApplicationService record matched by service_name.  The issue body
+    includes RCA summary, root cause, fix strategy, and acceptance criteria
+    so a Copilot agent (or human) has full context to implement the fix.
+
+    Returns the created issue URL and number, and persists them on the
+    fix_strategy row for display in the UI.
+    """
+    import re
+    import httpx
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    if result.fix_strategy is None:
+        raise HTTPException(status_code=409, detail="No fix strategy generated yet for this investigation.")
+
+    if result.fix_strategy.github_issue_url:
+        return {
+            "request_id": request_id,
+            "github_issue_url": result.fix_strategy.github_issue_url,
+            "github_issue_number": result.fix_strategy.github_issue_number,
+            "message": "GitHub issue already created.",
+        }
+
+    # ── Resolve service git config ────────────────────────────────────────────
+    from corvin.storage.models import ApplicationServiceRow
+    from corvin.connectors.crypto import decrypt
+
+    with repo._session_factory() as session:
+        svc_row = (
+            session.query(ApplicationServiceRow)
+            .filter_by(service_name=result.request.service_name)
+            .order_by(ApplicationServiceRow.id.desc())
+            .first()
+        )
+
+    if svc_row is None or svc_row.git_provider != "github" or not svc_row.git_repo_url:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "No GitHub repository configured for this service. "
+                "Go to Applications → Services → Git config and set provider=github, repo URL, and a PAT."
+            ),
+        )
+
+    if not svc_row.git_token_encrypted:
+        raise HTTPException(
+            status_code=409,
+            detail="No GitHub PAT stored for this service. Add one in Applications → Services → Git config.",
+        )
+
+    token = decrypt(svc_row.git_token_encrypted)
+
+    # Parse owner/repo from URL: https://github.com/owner/repo or git@github.com:owner/repo.git
+    url = svc_row.git_repo_url.rstrip("/")
+    match = re.search(r"github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$", url)
+    if not match:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot parse GitHub owner/repo from URL: {url!r}",
+        )
+    owner, repo_name = match.group(1), match.group(2)
+
+    # ── Build issue body ──────────────────────────────────────────────────────
+    fix = result.fix_strategy
+    rca = result.rca
+    svc = result.request.service_name
+    env = result.request.environment
+
+    action_lines = "\n".join(
+        f"- **{a.title}** (`{getattr(a, 'action_type', 'manual')}`): {a.description}"
+        for a in fix.actions
+    )
+    acceptance_criteria = "\n".join(
+        f"- [ ] {a.title} has been applied and verified"
+        for a in fix.actions
+    )
+
+    body = f"""## Investigation Summary
+
+**Service:** `{svc}` | **Environment:** `{env}`
+**Investigation ID:** `{request_id}`
+
+---
+
+## Root Cause
+
+{rca.root_cause if rca else '_Not available_'}
+
+**RCA Summary:** {rca.summary if rca else '_Not available_'}
+
+**Confidence:** {rca.confidence if rca else 'unknown'}
+
+---
+
+## Fix Strategy
+
+{fix.summary}
+
+**Justification:** {fix.justification}
+
+### Recommended Actions
+
+{action_lines}
+
+---
+
+## Acceptance Criteria
+
+{acceptance_criteria}
+- [ ] No regression in dependent services after the fix
+- [ ] Monitoring confirms the symptom is resolved
+
+---
+
+_Created automatically by [Corvin](https://github.com/corvin-ai) from investigation `{request_id}`._
+"""
+
+    title = f"[Corvin] Fix: {svc} — {fix.summary[:80]}"
+
+    # ── Call GitHub Issues API ────────────────────────────────────────────────
+    assignees = [svc_row.git_assignee] if svc_row.git_assignee else []
+    payload: dict = {"title": title, "body": body, "labels": ["corvin", "bug"]}
+    if assignees:
+        payload["assignees"] = assignees
+
+    try:
+        resp = httpx.post(
+            f"https://api.github.com/repos/{owner}/{repo_name}/issues",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        _log.error("GitHub API error creating issue: %s — %s", exc.response.status_code, exc.response.text)
+        raise HTTPException(
+            status_code=502,
+            detail=f"GitHub API returned {exc.response.status_code}: {exc.response.text[:300]}",
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not reach GitHub API: {exc}")
+
+    data = resp.json()
+    issue_url: str = data["html_url"]
+    issue_number: int = data["number"]
+
+    repo.save_github_issue(request_id, issue_url, issue_number)
+
+    _log.info("Created GitHub issue #%d for investigation %s: %s", issue_number, request_id, issue_url)
+    return {
+        "request_id": request_id,
+        "github_issue_url": issue_url,
+        "github_issue_number": issue_number,
+        "message": f"GitHub issue #{issue_number} created successfully.",
+    }
+
+
 @router.get("/{request_id}/logs")
 def get_service_logs(
     request_id: str,

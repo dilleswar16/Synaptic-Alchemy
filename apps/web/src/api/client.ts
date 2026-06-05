@@ -84,6 +84,8 @@ export interface InvestigationResult {
       estimated_impact: string
       requires_approval: boolean
     }>
+    github_issue_url: string | null
+    github_issue_number: number | null
   } | null
   completed_at: string
   ado_work_item_id: string | null
@@ -186,6 +188,17 @@ export function executeSingleAction(id: string, actionIndex: number) {
   return apiFetch<SingleActionResult>(`/investigations/${id}/execute/${actionIndex}`, { method: 'POST' })
 }
 
+export interface GithubIssueResult {
+  request_id: string
+  github_issue_url: string
+  github_issue_number: number
+  message: string
+}
+
+export function createGithubIssue(id: string) {
+  return apiFetch<GithubIssueResult>(`/investigations/${id}/create-github-issue`, { method: 'POST' })
+}
+
 // ── Streaming execution (SSE) ─────────────────────────────────────────────
 
 export interface ExecutionStreamEvent {
@@ -261,6 +274,7 @@ export function fetchPodLogs(id: string, tailLines = 60, sinceSeconds = 30) {
 export interface InvestigationStats {
   total_investigations: number
   today_count: number
+  active_count: number
   confidence_distribution: { high: number; medium: number; low: number }
   approval_distribution: { pending: number; approved: number; rejected: number; acknowledged: number; executed: number }
   avg_mttr_minutes: number | null
@@ -819,6 +833,7 @@ export interface ApplicationService {
   git_repo_url: string | null
   git_branch: string | null
   has_git_token: boolean
+  git_assignee: string | null
 }
 
 export interface LogSource {

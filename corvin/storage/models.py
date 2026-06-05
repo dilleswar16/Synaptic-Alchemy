@@ -115,6 +115,8 @@ class FixStrategyOutputRow(Base):
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )
+    github_issue_url: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
+    github_issue_number: Mapped[int | None] = mapped_column(nullable=True, default=None)
 
     request: Mapped[InvestigationRequestRow] = relationship(
         "InvestigationRequestRow", back_populates="fix_strategy"
@@ -337,6 +339,7 @@ class ApplicationServiceRow(Base):
     git_repo_url: Mapped[str | None] = mapped_column(String(500), nullable=True, default=None)
     git_branch: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     git_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    git_assignee: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)  # GitHub username for issue assignment (supports Copilot agents)
 
     application: Mapped["ApplicationRow"] = relationship("ApplicationRow", back_populates="services")
 

@@ -273,6 +273,7 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
   const [gitRepoUrl, setGitRepoUrl] = useState('')
   const [gitBranch, setGitBranch] = useState('')
   const [gitToken, setGitToken] = useState('')
+  const [gitAssignee, setGitAssignee] = useState('')
 
   const mut = useMutation({
     mutationFn: () => {
@@ -295,6 +296,7 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
         payload.git_repo_url = gitRepoUrl.trim()
         payload.git_branch = gitBranch.trim() || null
         if (gitToken.trim()) payload.git_token = gitToken.trim()
+        if (gitAssignee.trim()) payload.git_assignee = gitAssignee.trim()
       }
       return addService(appId, payload as any)
     },
@@ -360,6 +362,9 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
             </Field>
             <Field label="Personal Access Token">
               <input style={INPUT_STYLE} type="password" value={gitToken} onChange={e => setGitToken(e.target.value)} placeholder="Optional — stored encrypted" />
+            </Field>
+            <Field label="Issue Assignee (GitHub username)">
+              <input style={INPUT_STYLE} value={gitAssignee} onChange={e => setGitAssignee(e.target.value)} placeholder="e.g. Copilot, octocat — assigned when issues are created" />
             </Field>
           </div>
         )}
@@ -810,6 +815,7 @@ function ServiceCard({ svc, appId }: { svc: ApplicationService; appId: string })
   const [gitRepoUrl, setGitRepoUrl] = useState(svc.git_repo_url ?? '')
   const [gitBranch, setGitBranch] = useState(svc.git_branch ?? '')
   const [gitToken, setGitToken] = useState('')
+  const [gitAssignee, setGitAssignee] = useState(svc.git_assignee ?? '')
 
   const deleteMut = useMutation({
     mutationFn: () => deleteService(appId, svc.id),
@@ -821,6 +827,7 @@ function ServiceCard({ svc, appId }: { svc: ApplicationService; appId: string })
         git_provider: gitProvider,
         git_repo_url: gitRepoUrl.trim() || null,
         git_branch: gitBranch.trim() || null,
+        git_assignee: gitAssignee.trim() || null,
       }
       if (gitToken.trim()) payload.git_token = gitToken.trim()
       return updateService(appId, svc.id, payload as any)
@@ -869,6 +876,9 @@ function ServiceCard({ svc, appId }: { svc: ApplicationService; appId: string })
           </Field>
           <Field label={svc.has_git_token ? "PAT (stored ✓ — enter to replace)" : "Personal Access Token"}>
             <input style={INPUT_STYLE} type="password" value={gitToken} onChange={e => setGitToken(e.target.value)} placeholder="Optional — stored encrypted" />
+          </Field>
+          <Field label="Issue Assignee (GitHub username)">
+            <input style={INPUT_STYLE} value={gitAssignee} onChange={e => setGitAssignee(e.target.value)} placeholder="e.g. Copilot, octocat — assigned when issues are created" />
           </Field>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
             <button className="btn-primary" style={{ fontSize: '0.72rem', padding: '4px 10px' }} onClick={() => gitMut.mutate()} disabled={gitMut.isPending}>

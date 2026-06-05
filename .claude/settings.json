@@ -9,7 +9,11 @@
       "Read(//c/c/Users/nites/Documents/My Projects/Corvin/**)",
       "Bash(xargs grep -l \"load_matching_runbooks\\\\|SystemPromptBuilder\")",
       "Bash(git config *)",
-      "Bash(rm _seed_knowledge.py)"
+      "Bash(rm _seed_knowledge.py)",
+      "Bash(python -c \"from apps.api.routes.investigations import router\")",
+      "Bash(python -c \"from corvin.storage.models import FixStrategyOutputRow, ApplicationServiceRow; print\\('models ok'\\)\")",
+      "Bash(python -m uvicorn apps.api.main:app --reload)",
+      "Read(//c/Users/nites/AppData/Local/Temp/claude/c--Users-nites-Documents-My-Projects-Corvin-Synaptic-Alchemy/6c1a0d63-c0c2-48f1-968b-13cb321750fa/tasks/**)"
     ]
   }
 }
