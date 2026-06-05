@@ -61,22 +61,31 @@ export default function NavBar() {
           flexShrink: 0,
           marginRight: 32,
         }}>
-          <img
-            src="/metlife-logo.svg"
-            alt="MetLife"
-            style={{
-              height: 20,
-              width: 'auto',
-              display: 'block',
-              filter: theme === 'dark' ? 'brightness(0) invert(1)' : 'none',
-            }}
-          />
+          {/* Wrap img to neutralise any inherited line-height */}
+          <span style={{ display: 'flex', alignItems: 'center', lineHeight: 0, flexShrink: 0 }}>
+            <img
+              src="/metlife-logo.svg"
+              alt="MetLife"
+              style={{
+                height: 20,
+                width: 'auto',
+                display: 'block',
+                filter: theme === 'dark' ? 'brightness(0) invert(1)' : 'none',
+              }}
+            />
+          </span>
+          {/* Thin divider */}
+          <span style={{
+            display: 'block', width: 1, height: 16,
+            background: 'var(--c-border)', flexShrink: 0,
+          }} />
           <span style={{
             fontFamily: 'var(--font-display)',
             fontWeight: 700,
             fontSize: '1.0625rem',
             color: 'var(--c-text)',
             letterSpacing: '-0.025em',
+            lineHeight: 1,
           }}>
             Corvin
           </span>

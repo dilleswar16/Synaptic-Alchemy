@@ -42,13 +42,13 @@ def get_repository() -> InvestigationRepository:
 
 
 @router.get("/alerts/correlated")
-def get_correlated_alerts(
+async def get_correlated_alerts(
     environment: Optional[str] = Query(None),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> dict:
     """
     Fetch all open predictive alerts, run correlation engine,
-    and return grouped alerts with suppression recommendations.
+    and return grouped alerts with LLM-generated unified summaries.
     """
     from corvin.storage.models import PredictiveAlertRow
     from corvin.storage.db import get_session
@@ -78,6 +78,15 @@ def get_correlated_alerts(
 
     engine = AlertCorrelationEngine()
     groups = engine.correlate(alerts)
+
+    # Generate LLM unified summaries for groups that need operator attention.
+    # Non-fatal: groups keep their template summary if LLM fails.
+    for group in groups:
+        if not group.unified_summary or group.unified_summary.startswith(str(len(group.alerts))):
+            try:
+                await engine.generate_unified_summary(group)
+            except Exception:
+                pass  # template summary already set by correlate()
 
     return {
         "total_alerts": len(alerts),

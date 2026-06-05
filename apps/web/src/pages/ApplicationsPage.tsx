@@ -2355,6 +2355,7 @@ function KnowledgeBaseTab({ appId }: { appId: string }) {
   const [form, setForm] = useState<Partial<KnowledgeEntry>>({})
   const [showAdd, setShowAdd] = useState(false)
   const [showScaffold, setShowScaffold] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['app-knowledge', appId],
@@ -2367,7 +2368,7 @@ function KnowledgeBaseTab({ appId }: { appId: string }) {
   })
   const updateMut = useMutation({
     mutationFn: ({ id, p }: { id: string; p: Partial<KnowledgeEntry> }) => updateKnowledge(appId, id, p),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['app-knowledge', appId] }); setEditId(null); setForm({}) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['app-knowledge', appId] }); setEditId(null); setForm({}); setShowAdd(false) },
   })
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteKnowledge(appId, id),
@@ -2375,88 +2376,392 @@ function KnowledgeBaseTab({ appId }: { appId: string }) {
   })
 
   const fs: React.CSSProperties = {
-    width: '100%', boxSizing: 'border-box', padding: '7px 10px',
-    background: 'var(--c-surface-2)', border: '1px solid var(--c-border-hi)',
-    borderRadius: 6, color: 'var(--c-text)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem',
+    width: '100%', boxSizing: 'border-box', padding: '8px 12px',
+    background: 'var(--c-bg)', border: '1px solid var(--c-border-hi)',
+    borderRadius: 7, color: 'var(--c-text)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem',
+    outline: 'none', transition: 'border-color 0.15s',
   }
 
+  const activeCount = entries.filter(e => e.is_active).length
+  const totalChars = entries.reduce((n, e) => n + e.content.length, 0)
+
+  function openEdit(entry: KnowledgeEntry) {
+    setEditId(entry.id)
+    setForm({ title: entry.title, content: entry.content, is_active: entry.is_active })
+    setShowAdd(true)
+    setExpandedId(null)
+  }
+
+  function closeForm() { setShowAdd(false); setEditId(null); setForm({}) }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {showScaffold && (
         <KnowledgeScaffoldModal
           onClose={() => setShowScaffold(false)}
           onAddEntry={() => { setEditId(null); setForm({}); setShowAdd(true) }}
         />
       )}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--c-text-faint)', maxWidth: 600 }}>
-          Site knowledge is injected into every investigation prompt for this application. Add architecture docs, service inventories, known gotchas, and infra facts.
-          <span style={{ display: 'block', marginTop: 4, color: 'var(--c-text-faint)', fontSize: '0.72rem' }}>Disk-based knowledge/site.md is used as fallback when no entries exist here.</span>
-        </p>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+
+      {/* ── Header strip ─────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        gap: 16, padding: '0 0 18px',
+        borderBottom: '1px solid var(--c-border)',
+        marginBottom: 20,
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span style={{
+              fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.88rem',
+              color: 'var(--c-text)',
+            }}>
+              Knowledge Base
+            </span>
+            {/* Stats pills */}
+            {!isLoading && entries.length > 0 && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.62rem', fontWeight: 700,
+                  background: 'rgba(34,197,94,0.1)', color: 'var(--c-green)',
+                  border: '1px solid rgba(34,197,94,0.2)', borderRadius: 4,
+                  padding: '1px 7px',
+                }}>
+                  {activeCount} active
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
+                  background: 'var(--c-surface-3)', color: 'var(--c-text-faint)',
+                  border: '1px solid var(--c-border)', borderRadius: 4,
+                  padding: '1px 7px',
+                }}>
+                  {totalChars.toLocaleString()} chars injected
+                </span>
+              </div>
+            )}
+          </div>
+          <p style={{ margin: 0, fontSize: '0.77rem', color: 'var(--c-text-faint)', lineHeight: 1.6 }}>
+            Site knowledge is injected into <strong style={{ color: 'var(--c-text-dim)', fontWeight: 600 }}>every investigation prompt</strong> for this application.
+            Add architecture docs, service inventories, known failure modes, and infra facts so Corvin reasons with context specific to your stack.
+          </p>
+          <p style={{ margin: '4px 0 0', fontSize: '0.7rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)' }}>
+            Fallback: disk-based knowledge/site.md is used when no entries are active.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'flex-start' }}>
           <button
             onClick={() => setShowScaffold(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              fontSize: '0.75rem', padding: '6px 14px', whiteSpace: 'nowrap',
+              fontSize: '0.75rem', padding: '7px 14px', whiteSpace: 'nowrap',
               background: 'var(--c-surface-3)',
               border: '1px solid var(--c-border-hi)',
-              borderRadius: 6,
+              borderRadius: 7,
               color: 'var(--c-text-dim)',
               cursor: 'pointer',
               fontFamily: 'var(--font-body)',
               fontWeight: 500,
-              transition: 'border-color 0.15s',
+              transition: 'all 0.15s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--c-signal)')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--c-border-hi)')}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--c-signal)'; e.currentTarget.style.color = 'var(--c-text)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--c-border-hi)'; e.currentTarget.style.color = 'var(--c-text-dim)' }}
           >
-            <span style={{ fontSize: '0.8rem' }}>⚡</span> Scaffold with Copilot
+            <span>⚡</span> Scaffold with Copilot
           </button>
-          <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 14px', whiteSpace: 'nowrap' }} onClick={() => { setEditId(null); setForm({}); setShowAdd(true) }}>+ Add Entry</button>
+          <button
+            className="btn-primary"
+            style={{ fontSize: '0.75rem', padding: '7px 16px', whiteSpace: 'nowrap', borderRadius: 7 }}
+            onClick={() => { closeForm(); setShowAdd(true) }}
+          >
+            + Add Entry
+          </button>
         </div>
       </div>
 
-      {isLoading && <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem' }}>Loading…</p>}
-      {!isLoading && entries.length === 0 && (
-        <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem', fontStyle: 'italic' }}>No knowledge entries. Using disk-based knowledge/site.md as fallback.</p>
-      )}
+      {/* ── Add / Edit form ───────────────────────────────────────────── */}
+      {showAdd && (
+        <div style={{
+          marginBottom: 20,
+          background: 'var(--c-surface)',
+          border: '1px solid var(--c-border-hi)',
+          borderRadius: 10,
+          overflow: 'hidden',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+        }}>
+          {/* Form header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 18px',
+            background: 'var(--c-surface-2)',
+            borderBottom: '1px solid var(--c-border)',
+          }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.82rem', color: 'var(--c-text)' }}>
+              {editId ? '✎ Edit Knowledge Entry' : '+ New Knowledge Entry'}
+            </span>
+            <button onClick={closeForm} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '1.1rem', padding: '2px 4px', lineHeight: 1 }}>×</button>
+          </div>
 
-      {entries.map(entry => (
-        <div key={entry.id} style={{ padding: '12px 14px', background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          {/* Form body */}
+          <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <span style={{ fontWeight: 700, fontSize: '0.82rem' }}>{entry.title}</span>
-              {!entry.is_active && <span style={{ marginLeft: 8, fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>inactive</span>}
-              <p style={{ margin: '4px 0 0', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{entry.content}</p>
+              <label style={{ display: 'block', fontSize: '0.67rem', fontWeight: 600, color: 'var(--c-text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Title
+              </label>
+              <input
+                style={fs}
+                value={form.title ?? ''}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="e.g. AKS Cluster Layout"
+                onFocus={e => (e.target.style.borderColor = 'var(--c-signal)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--c-border-hi)')}
+              />
             </div>
-            <div style={{ display: 'flex', gap: 6, marginLeft: 12 }}>
-              <button onClick={() => { setEditId(entry.id); setForm({ title: entry.title, content: entry.content, is_active: entry.is_active }); setShowAdd(true) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.8rem', padding: 4 }}>✎</button>
-              <button onClick={() => { if (window.confirm(`Delete "${entry.title}"?`)) deleteMut.mutate(entry.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.9rem', padding: 4 }}>✕</button>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ fontSize: '0.67rem', fontWeight: 600, color: 'var(--c-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Content
+                </label>
+                <span style={{ fontSize: '0.65rem', fontFamily: 'var(--font-mono)', color: 'var(--c-text-faint)' }}>
+                  Markdown · {(form.content ?? '').length.toLocaleString()} chars
+                </span>
+              </div>
+              <textarea
+                style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }}
+                rows={10}
+                value={form.content ?? ''}
+                onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                placeholder={'# Architecture\n\nDescribe your infrastructure, services, namespaces, monitoring endpoints…'}
+                onFocus={e => (e.target.style.borderColor = 'var(--c-signal)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--c-border-hi)')}
+              />
+            </div>
+            {editId && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input
+                  type="checkbox"
+                  id="kb-active"
+                  checked={form.is_active ?? true}
+                  onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))}
+                  style={{ width: 14, height: 14, accentColor: 'var(--c-signal)', cursor: 'pointer' }}
+                />
+                <label htmlFor="kb-active" style={{ fontSize: '0.75rem', color: 'var(--c-text-dim)', cursor: 'pointer', userSelect: 'none' }}>
+                  Active — inject this entry into investigation prompts
+                </label>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+              <button
+                className="btn-primary"
+                style={{ fontSize: '0.75rem', padding: '7px 18px', borderRadius: 7 }}
+                onClick={() => {
+                  if (!form.title?.trim() || !form.content?.trim()) return
+                  editId
+                    ? updateMut.mutate({ id: editId, p: form })
+                    : createMut.mutate({ ...form, is_active: true })
+                }}
+                disabled={createMut.isPending || updateMut.isPending || !form.title?.trim() || !form.content?.trim()}
+              >
+                {createMut.isPending || updateMut.isPending ? 'Saving…' : editId ? 'Save Changes' : 'Add Entry'}
+              </button>
+              <button className="btn-ghost" style={{ fontSize: '0.75rem', padding: '7px 14px', borderRadius: 7 }} onClick={closeForm}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>
-      ))}
+      )}
 
-      {showAdd && (
-        <div style={{ padding: 16, background: 'var(--c-surface)', border: '1px solid var(--c-border-hi)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem' }}>{editId ? 'Edit Entry' : 'New Knowledge Entry'}</div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Title</label>
-            <input style={fs} value={form.title ?? ''} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. AKS Cluster Layout" />
+      {/* ── Loading ───────────────────────────────────────────────────── */}
+      {isLoading && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} className="pulse-skeleton" style={{ height: 82, borderRadius: 10 }} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Empty state ───────────────────────────────────────────────── */}
+      {!isLoading && entries.length === 0 && !showAdd && (
+        <div style={{
+          textAlign: 'center', padding: '48px 24px',
+          border: '1px dashed var(--c-border-hi)', borderRadius: 12,
+          background: 'var(--c-surface-2)',
+        }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 12, margin: '0 auto 14px',
+            background: 'var(--c-surface-3)', border: '1px solid var(--c-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1.3rem', opacity: 0.5,
+          }}>
+            ◎
           </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--c-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Content (Markdown)</label>
-            <textarea style={{ ...fs, resize: 'vertical' }} rows={8} value={form.content ?? ''} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} placeholder="# Architecture&#10;&#10;Describe your infrastructure, services, namespaces, monitoring endpoints…" />
+          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--c-text)', marginBottom: 6 }}>
+            No knowledge entries yet
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 16px' }}
-              onClick={() => { if (!form.title || !form.content) return; editId ? updateMut.mutate({ id: editId, p: form }) : createMut.mutate({ ...form, is_active: true }) }}
-              disabled={createMut.isPending || updateMut.isPending}>
-              {editId ? 'Save Changes' : 'Add Entry'}
+          <p style={{ margin: '0 auto 20px', fontSize: '0.77rem', color: 'var(--c-text-faint)', maxWidth: 380, lineHeight: 1.6 }}>
+            Knowledge entries are injected into every Corvin investigation prompt, giving the AI context about your specific architecture.
+            Start from scratch or use the Copilot scaffold to auto-generate them from your codebase.
+          </p>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <button
+              onClick={() => setShowScaffold(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: '0.78rem', padding: '8px 16px',
+                background: 'var(--c-surface-3)', border: '1px solid var(--c-border-hi)',
+                borderRadius: 7, color: 'var(--c-text-dim)', cursor: 'pointer',
+                fontFamily: 'var(--font-body)', fontWeight: 500,
+              }}
+            >
+              ⚡ Scaffold with Copilot
             </button>
-            <button className="btn-ghost" style={{ fontSize: '0.75rem', padding: '6px 14px' }} onClick={() => { setShowAdd(false); setEditId(null); setForm({}) }}>Cancel</button>
+            <button
+              className="btn-primary"
+              style={{ fontSize: '0.78rem', padding: '8px 16px', borderRadius: 7 }}
+              onClick={() => { setShowAdd(true) }}
+            >
+              + Add Entry
+            </button>
           </div>
+        </div>
+      )}
+
+      {/* ── Entry cards ───────────────────────────────────────────────── */}
+      {!isLoading && entries.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {entries.map((entry, idx) => {
+            const isExpanded = expandedId === entry.id
+            const lines = entry.content.split('\n')
+            const previewLines = lines.slice(0, 4).join('\n')
+            const hasMore = lines.length > 4
+
+            return (
+              <div
+                key={entry.id}
+                style={{
+                  background: 'var(--c-surface)',
+                  border: '1px solid var(--c-border)',
+                  borderLeft: `3px solid ${entry.is_active ? 'var(--c-signal)' : 'var(--c-border-hi)'}`,
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  opacity: entry.is_active ? 1 : 0.6,
+                  transition: 'opacity 0.15s',
+                }}
+              >
+                {/* Card header */}
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start',
+                  justifyContent: 'space-between', gap: 12,
+                  padding: '12px 16px 10px',
+                  borderBottom: isExpanded ? '1px solid var(--c-border)' : 'none',
+                  background: 'var(--c-surface-2)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flex: 1, minWidth: 0 }}>
+                    {/* Order badge */}
+                    <span style={{
+                      flexShrink: 0, marginTop: 1,
+                      width: 22, height: 22, borderRadius: 6,
+                      background: entry.is_active ? 'rgba(0,122,188,0.1)' : 'var(--c-surface-3)',
+                      border: `1px solid ${entry.is_active ? 'rgba(0,122,188,0.25)' : 'var(--c-border)'}`,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'var(--font-mono)', fontSize: '0.6rem', fontWeight: 700,
+                      color: entry.is_active ? 'var(--c-primary)' : 'var(--c-text-faint)',
+                    }}>
+                      {idx + 1}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.84rem', color: 'var(--c-text)', lineHeight: 1.3 }}>
+                          {entry.title}
+                        </span>
+                        {!entry.is_active && (
+                          <span style={{
+                            fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em',
+                            textTransform: 'uppercase', fontFamily: 'var(--font-mono)',
+                            color: 'var(--c-text-faint)', background: 'var(--c-surface-3)',
+                            border: '1px solid var(--c-border)', borderRadius: 3, padding: '1px 5px',
+                          }}>
+                            INACTIVE
+                          </span>
+                        )}
+                        <span style={{
+                          fontSize: '0.62rem', fontFamily: 'var(--font-mono)',
+                          color: 'var(--c-text-faint)', background: 'var(--c-surface-3)',
+                          border: '1px solid var(--c-border)', borderRadius: 3, padding: '1px 6px',
+                        }}>
+                          {entry.content.length.toLocaleString()} chars
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button
+                      onClick={() => openEdit(entry)}
+                      title="Edit entry"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: 28, height: 28, borderRadius: 6,
+                        background: 'none', border: '1px solid transparent',
+                        cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.78rem',
+                        transition: 'all 0.12s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--c-surface-3)'; e.currentTarget.style.borderColor = 'var(--c-border)'; e.currentTarget.style.color = 'var(--c-text)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.color = 'var(--c-text-faint)' }}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      onClick={() => { if (window.confirm(`Delete "${entry.title}"?`)) deleteMut.mutate(entry.id) }}
+                      title="Delete entry"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: 28, height: 28, borderRadius: 6,
+                        background: 'none', border: '1px solid transparent',
+                        cursor: 'pointer', color: 'var(--c-text-faint)', fontSize: '0.85rem',
+                        transition: 'all 0.12s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.2)'; e.currentTarget.style.color = 'var(--c-red)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.color = 'var(--c-text-faint)' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content preview */}
+                <div style={{ padding: '10px 16px 12px' }}>
+                  <pre style={{
+                    margin: 0,
+                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
+                    color: 'var(--c-text-faint)', lineHeight: 1.65,
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                    maxHeight: isExpanded ? 'none' : '5.6em',
+                    overflow: isExpanded ? 'visible' : 'hidden',
+                    position: 'relative',
+                  }}>
+                    {isExpanded ? entry.content : previewLines}
+                  </pre>
+                  {hasMore && (
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : entry.id)}
+                      style={{
+                        marginTop: 6, padding: 0,
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: '0.68rem', fontFamily: 'var(--font-mono)',
+                        color: 'var(--c-primary)', fontWeight: 600,
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      {isExpanded ? '▲ Collapse' : `▼ Show all ${lines.length} lines`}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

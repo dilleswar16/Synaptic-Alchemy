@@ -671,6 +671,79 @@ class SimulatorPresetRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
 
+class PlaywrightScriptRow(Base):
+    """Uploaded Playwright test script stored in the database."""
+    __tablename__ = "playwright_scripts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    application_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    script_content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    runs: Mapped[list["PlaywrightRunRow"]] = relationship(
+        back_populates="script",
+        cascade="all, delete-orphan",
+    )
+
+
+class PlaywrightRunRow(Base):
+    """Execution record for a Playwright script run."""
+    __tablename__ = "playwright_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    script_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("playwright_scripts.id"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="running")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(nullable=True)
+    output: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    result_json: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    triggered_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    script: Mapped["PlaywrightScriptRow"] = relationship(back_populates="runs")
+
+
+class ChaosRunRow(Base):
+    """Execution record for a Level-1 Kubernetes chaos experiment.
+
+    Lifecycle: armed → running → completed | failed | aborted
+    Rollback runs automatically after duration_seconds, or immediately on abort.
+    """
+    __tablename__ = "chaos_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    preset_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("simulator_presets.id"), nullable=True, index=True
+    )
+    application_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("applications.id"), nullable=True, index=True
+    )
+    service_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    namespace: Mapped[str] = mapped_column(String(255), nullable=False, default="default")
+    experiment_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    experiment_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    parameters: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    commands: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
+    rollback_commands: Mapped[list] = mapped_column(JSONB_COMPAT, nullable=False, default=list)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="armed")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    duration_seconds: Mapped[int] = mapped_column(nullable=False, default=60)
+    output: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    observations: Mapped[dict] = mapped_column(JSONB_COMPAT, nullable=False, default=dict)
+    rollback_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    triggered_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
 class ValidationAutomationPolicyRow(Base):
     """Links a predictive alert pattern to a validation definition for auto-trigger."""
     __tablename__ = "validation_automation_policies"

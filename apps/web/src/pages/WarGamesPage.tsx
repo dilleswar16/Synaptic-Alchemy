@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import NavBar from '../components/NavBar'
-import { SimulateAlertPanel } from '../components/SimulateAlertPanel'
+import { ChaosExperimentStudio } from '../components/ChaosExperimentStudio'
 import AlertCorrelationPanel from '../components/AlertCorrelationPanel'
 import CapacityForecastPanel from '../components/CapacityForecastPanel'
 
 type Tab = 'chaos' | 'correlation' | 'capacity' | 'replay'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'chaos', label: 'Chaos Experiments', icon: '☣️' },
+  { id: 'chaos', label: 'Chaos Studio', icon: '⚗️' },
   { id: 'correlation', label: 'Alert Correlation', icon: '🔗' },
   { id: 'capacity', label: 'Capacity Forecast', icon: '📈' },
   { id: 'replay', label: 'Incident Replay', icon: '⏪' },
@@ -19,61 +19,95 @@ export default function WarGamesPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--c-bg)', color: 'var(--c-text)' }}>
       <NavBar />
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+      <main style={{ maxWidth: 1280, margin: '0 auto', padding: '40px 24px' }}>
         {/* Page Header */}
-        <div style={{ marginBottom: 28 }}>
-          <h1 style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '1.6rem',
-            fontWeight: 800,
-            margin: '0 0 6px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
+        <div style={{
+          marginBottom: 36,
+          paddingBottom: 32,
+          borderBottom: '1px solid var(--c-border)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 16 }}>
+            <div>
+              <h1 style={{
+                fontFamily: 'var(--font-display)', fontSize: '2.2rem', fontWeight: 900,
+                margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 12,
+                letterSpacing: '-0.02em',
+              }}>
+                <span style={{ fontSize: '2rem' }}>⚔</span> War Games
+              </h1>
+              <p style={{
+                fontSize: '1rem', color: 'var(--c-text-dim)', margin: 0, lineHeight: 1.7,
+                maxWidth: 700,
+              }}>
+                Kubernetes chaos experiments · Alert correlation · Capacity forecasting · Incident replay.
+                All actions require approval before execution.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.05em',
+                color: 'var(--c-green)', background: 'rgba(34,197,94,0.12)',
+                border: '1px solid rgba(34,197,94,0.3)', borderRadius: 6, padding: '5px 10px',
+                textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 5,
+              }}>
+                <span>⚗️</span> <span>5 kubectl</span>
+              </span>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.05em',
+                color: '#b45309', background: 'rgba(251,191,36,0.12)',
+                border: '1px solid rgba(251,191,36,0.3)', borderRadius: 6, padding: '5px 10px',
+                textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 5,
+              }}>
+                <span>☣️</span> <span>4 simulated</span>
+              </span>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.05em',
+                color: 'var(--c-text-faint)', background: 'var(--c-surface-3)',
+                border: '1px solid var(--c-border)', borderRadius: 6, padding: '5px 10px',
+                textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 5,
+              }}>
+                <span>🔁</span> <span>auto-rollback</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab bar — redesigned */}
+        <div style={{ marginBottom: 32, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{
+            display: 'flex', gap: 2,
           }}>
-            <span style={{ fontSize: '1.4rem' }}>⚔</span> War Games
-          </h1>
-          <p style={{ fontSize: '0.85rem', color: 'var(--c-text-muted)', margin: 0 }}>
-            Chaos engineering, alert correlation analysis, capacity forecasting, and incident replay simulations.
-            All actions require human approval before execution.
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    padding: '12px 20px', fontSize: '0.9rem', fontWeight: isActive ? 700 : 600,
+                    color: isActive ? 'var(--c-text)' : 'var(--c-text-dim)',
+                    background: isActive ? 'rgba(0,122,188,0.12)' : 'var(--c-surface-2)',
+                    border: isActive ? '2px solid var(--c-primary)' : '1px solid var(--c-border)',
+                    borderRadius: 8, cursor: 'pointer', transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    fontFamily: 'var(--font-body)', letterSpacing: '-0.01em',
+                  }}
+                >
+                  <span style={{ fontSize: '1.1rem' }}>{tab.icon}</span>
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
+          <p style={{
+            margin: '8px 0 0', fontSize: '0.72rem', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)',
+          }}>
+            Select a war game scenario to test your platform's resilience and detection capabilities
           </p>
         </div>
 
-        {/* Tab bar */}
-        <div style={{
-          display: 'flex',
-          gap: 2,
-          marginBottom: 24,
-          borderBottom: '1px solid var(--c-border)',
-          paddingBottom: 0,
-        }}>
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '10px 18px',
-                fontSize: '0.82rem',
-                fontWeight: activeTab === tab.id ? 700 : 500,
-                color: activeTab === tab.id ? 'var(--c-link)' : 'var(--c-text-muted)',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === tab.id ? '2px solid var(--c-link)' : '2px solid transparent',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-            >
-              {tab.icon} {tab.label}
-            </button>
-          ))}
-        </div>
-
         {/* Tab content */}
-        {activeTab === 'chaos' && (
-          <div style={{ maxWidth: 700 }}>
-            <SimulateAlertPanel />
-          </div>
-        )}
+        {activeTab === 'chaos' && <ChaosExperimentStudio />}
 
         {activeTab === 'correlation' && <AlertCorrelationPanel />}
 

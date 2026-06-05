@@ -105,6 +105,52 @@ simulator_presets:
     accent_color: "var(--c-info)"
     display_order: 3
 
+  # ── Level-1 Kubernetes chaos experiments (real kubectl execution) ──────────
+  - scenario_id: k8s_pod_kill_fundapis
+    label: "Pod Termination — Fund APIs"
+    service_name: fundapis
+    environment: dev
+    description: "Force-delete all fundapis pods with --grace-period=0. Kubernetes recreates them immediately. Measures pod restart latency and request failure rate during the recovery window."
+    icon_key: thunder
+    accent_color: "var(--c-red)"
+    display_order: 4
+
+  - scenario_id: k8s_scale_down_partnerapis
+    label: "Scale-Down — Partner APIs"
+    service_name: partnerapis
+    environment: dev
+    description: "Scale partnerapis deployment to 1 replica for 2 minutes, then restore. Tests HPA recovery behaviour and whether the service degrades gracefully under under-provisioning."
+    icon_key: hpa
+    accent_color: "var(--c-signal)"
+    display_order: 5
+
+  - scenario_id: k8s_resource_pressure_fundapis
+    label: "Resource Starvation — Fund APIs"
+    service_name: fundapis
+    environment: dev
+    description: "Throttle fundapis container to 50m CPU and 256Mi memory for 3 minutes. Validates OOMKill detection, CPU throttling alerts, and Corvin's MTTR after limits are restored."
+    icon_key: memory
+    accent_color: "var(--c-warning)"
+    display_order: 6
+
+  - scenario_id: k8s_rollout_pause_fundsso
+    label: "Rollout Pause — Fund SSO"
+    service_name: fundsso
+    environment: dev
+    description: "Pause the fundsso deployment rollout for 90 seconds, then resume. Tests Corvin's ability to detect a stuck deployment and validates runbook procedures for un-sticking releases."
+    icon_key: lock
+    accent_color: "var(--c-purple)"
+    display_order: 7
+
+  - scenario_id: k8s_cascading_fundapis
+    label: "Cascading Failure — Scale to Zero"
+    service_name: fundapis
+    environment: dev
+    description: "Scale fundapis to 0 replicas for 2 minutes. Since partnerapis and fundsso depend on fundapis, this triggers a real cascading failure across all three CHAD services. Validates Corvin's multi-service blast radius detection."
+    icon_key: custom
+    accent_color: "var(--c-red)"
+    display_order: 8
+
 # Environment definitions — loaded into ApplicationEnvironmentRow.
 # Drives priority routing, lookback windows, and all env dropdowns in the UI.
 environments:

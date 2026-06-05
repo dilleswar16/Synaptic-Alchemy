@@ -8,7 +8,8 @@
       "Bash(cd /c/Users/nites/'Documents/My Projects'/Corvin/'Synaptic Alchemy' && grep -r \"SystemPromptBuilder\" --include=\"*.py\" | head -20)",
       "Read(//c/c/Users/nites/Documents/My Projects/Corvin/**)",
       "Bash(xargs grep -l \"load_matching_runbooks\\\\|SystemPromptBuilder\")",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(rm _seed_knowledge.py)"
     ]
   }
 }

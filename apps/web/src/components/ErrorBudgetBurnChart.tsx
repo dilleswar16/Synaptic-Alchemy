@@ -11,6 +11,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { listSloStatus } from '../api/client'
+import { InfoTooltip } from './Section'
 import '../styles/ErrorBudgetBurnChart.css'
 
 const MAX_ROWS = 20
@@ -58,7 +59,10 @@ export function ErrorBudgetBurnChart() {
     <section className="ebc-section" aria-label="Error budget burn chart">
       <div className="ebc-header">
         <div>
-          <h3 className="ebc-title">Error Budget Burn Rate</h3>
+          <h3 className="ebc-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            Error Budget Burn Rate
+            <InfoTooltip text="Each service's rate of SLO error budget consumption over the 30-day rolling window. A burn rate >1.0× means the budget will be exhausted before the window ends. Breaching (>1.2×) services are consuming budget faster than their reliability target allows." />
+          </h3>
           <p className="ebc-subtitle">
             Services sorted by burn rate — critical SLOs consuming budget fastest
             {breachCount > 0 && (

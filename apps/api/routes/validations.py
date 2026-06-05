@@ -12,7 +12,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from corvin.storage.db import get_session as _get_session
-from corvin.storage.models import ValidationAutomationPolicyRow, ValidationDefinitionRow, ValidationRunRow
+from corvin.storage.models import (
+    PlaywrightRunRow,
+    PlaywrightScriptRow,
+    ValidationAutomationPolicyRow,
+    ValidationDefinitionRow,
+    ValidationRunRow,
+)
 
 router = APIRouter()
 
@@ -435,6 +441,150 @@ async def trigger_run(definition_id: str, db: Session = Depends(_db)) -> dict[st
     from corvin.validations.runner import run_validation
     run = await run_validation(defn, db)
     return _run_dict(run)
+
+
+# ── Playwright script routes ──────────────────────────────────────────────────
+
+
+class PlaywrightScriptCreate(BaseModel):
+    name: str
+    filename: str
+    description: str | None = None
+    script_content: str
+    application_id: str | None = None
+
+
+def _script_dict(s: PlaywrightScriptRow, include_content: bool = False) -> dict[str, Any]:
+    d: dict[str, Any] = {
+        "id": s.id,
+        "application_id": s.application_id,
+        "name": s.name,
+        "filename": s.filename,
+        "description": s.description,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "content_length": len(s.script_content),
+    }
+    if include_content:
+        d["script_content"] = s.script_content
+    return d
+
+
+def _pw_run_dict(r: PlaywrightRunRow) -> dict[str, Any]:
+    return {
+        "id": r.id,
+        "script_id": r.script_id,
+        "status": r.status,
+        "started_at": r.started_at.isoformat() if r.started_at else None,
+        "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+        "duration_ms": r.duration_ms,
+        "output": r.output,
+        "result_json": r.result_json,
+        "triggered_by": r.triggered_by,
+    }
+
+
+@router.get("/playwright-scripts")
+def list_playwright_scripts(
+    app_id: str | None = Query(default=None),
+    db: Session = Depends(_db),
+) -> list[dict[str, Any]]:
+    q = db.query(PlaywrightScriptRow)
+    if app_id:
+        q = q.filter(PlaywrightScriptRow.application_id == app_id)
+    scripts = q.order_by(PlaywrightScriptRow.created_at.desc()).all()
+    return [_script_dict(s) for s in scripts]
+
+
+@router.post("/playwright-scripts", status_code=201)
+def create_playwright_script(
+    payload: PlaywrightScriptCreate,
+    db: Session = Depends(_db),
+) -> dict[str, Any]:
+    if not payload.script_content.strip():
+        raise HTTPException(status_code=422, detail="script_content must not be empty")
+    script = PlaywrightScriptRow(
+        id=str(uuid.uuid4()),
+        application_id=payload.application_id,
+        name=payload.name,
+        filename=payload.filename,
+        description=payload.description,
+        script_content=payload.script_content,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    db.add(script)
+    db.commit()
+    db.refresh(script)
+    return _script_dict(script, include_content=True)
+
+
+@router.get("/playwright-scripts/{script_id}")
+def get_playwright_script(script_id: str, db: Session = Depends(_db)) -> dict[str, Any]:
+    script = db.get(PlaywrightScriptRow, script_id)
+    if script is None:
+        raise HTTPException(status_code=404, detail="Script not found")
+    return _script_dict(script, include_content=True)
+
+
+@router.delete("/playwright-scripts/{script_id}", status_code=204)
+def delete_playwright_script(script_id: str, db: Session = Depends(_db)) -> None:
+    script = db.get(PlaywrightScriptRow, script_id)
+    if script is None:
+        raise HTTPException(status_code=404, detail="Script not found")
+    db.delete(script)
+    db.commit()
+
+
+@router.post("/playwright-scripts/{script_id}/run")
+async def run_playwright_script_endpoint(
+    script_id: str,
+    db: Session = Depends(_db),
+) -> dict[str, Any]:
+    """Execute a stored Playwright script and persist the result."""
+    script = db.get(PlaywrightScriptRow, script_id)
+    if script is None:
+        raise HTTPException(status_code=404, detail="Script not found")
+
+    run_row = PlaywrightRunRow(
+        id=str(uuid.uuid4()),
+        script_id=script_id,
+        status="running",
+        started_at=datetime.now(timezone.utc),
+        triggered_by="ui",
+    )
+    db.add(run_row)
+    db.commit()
+
+    from corvin.validations.playwright_runner import run_playwright_script
+    result = await run_playwright_script(script.script_content, script.filename)
+
+    run_row.status = "pass" if result.get("passed") else "fail"
+    run_row.finished_at = datetime.now(timezone.utc)
+    run_row.duration_ms = result.get("duration_ms")
+    run_row.output = result.get("output", "")
+    run_row.result_json = result
+    db.commit()
+    db.refresh(run_row)
+    return _pw_run_dict(run_row)
+
+
+@router.get("/playwright-scripts/{script_id}/runs")
+def get_playwright_run_history(
+    script_id: str,
+    limit: int = Query(default=20, le=100),
+    db: Session = Depends(_db),
+) -> list[dict[str, Any]]:
+    script = db.get(PlaywrightScriptRow, script_id)
+    if script is None:
+        raise HTTPException(status_code=404, detail="Script not found")
+    runs = (
+        db.query(PlaywrightRunRow)
+        .filter(PlaywrightRunRow.script_id == script_id)
+        .order_by(PlaywrightRunRow.started_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return [_pw_run_dict(r) for r in runs]
 
 
 @router.get("/{definition_id}/history")

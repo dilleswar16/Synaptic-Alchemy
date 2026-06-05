@@ -440,6 +440,65 @@ export interface SimulateAlertResponse {
   environment: string
 }
 
+// ── Level-1 Kubernetes Chaos ──────────────────────────────────────────────────
+
+export interface ChaosRunRecord {
+  id: string
+  preset_id: string | null
+  application_id: string | null
+  service_name: string
+  namespace: string
+  experiment_type: string
+  experiment_name: string
+  parameters: Record<string, unknown>
+  commands: string[]
+  rollback_commands: string[]
+  status: 'armed' | 'running' | 'completed' | 'failed' | 'aborted'
+  started_at: string | null
+  completed_at: string | null
+  duration_seconds: number
+  output: string
+  observations: Record<string, unknown>
+  rollback_status: string | null
+  triggered_by: string | null
+  created_at: string
+  catalogue: {
+    name?: string
+    description?: string
+    hypothesis?: string
+    steady_state?: string
+    blast_radius?: 'limited' | 'moderate' | 'wide'
+    duration_seconds?: number
+    rollback_note?: string
+    prerequisites?: string[]
+  }
+}
+
+export function armChaosExperiment(presetId: string, environment = 'dev') {
+  return apiFetch<ChaosRunRecord>('/chaos/arm', {
+    method: 'POST',
+    body: JSON.stringify({ preset_id: presetId, environment }),
+  })
+}
+
+export function executeChaosRun(runId: string) {
+  return apiFetch<ChaosRunRecord>(`/chaos/runs/${runId}/execute`, { method: 'POST' })
+}
+
+export function getChaosRunStatus(runId: string) {
+  return apiFetch<ChaosRunRecord>(`/chaos/runs/${runId}/status`)
+}
+
+export function abortChaosRun(runId: string) {
+  return apiFetch<ChaosRunRecord>(`/chaos/runs/${runId}/abort`, { method: 'POST' })
+}
+
+export function listChaosRuns(limit = 20, applicationId?: string) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (applicationId) params.set('application_id', applicationId)
+  return apiFetch<ChaosRunRecord[]>(`/chaos/runs?${params}`)
+}
+
 export function simulateAlert(payload: SimulateAlertPayload) {
   return apiFetch<SimulateAlertResponse>('/triggers/simulate', {
     method: 'POST',
@@ -1352,6 +1411,73 @@ export function generatePlaywrightScript(config: JourneyConfig, name: string) {
     method: 'POST',
     body: JSON.stringify({ config_json: config, name }),
   })
+}
+
+// ── Playwright Scripts ────────────────────────────────────────────────────────
+
+export interface PlaywrightScript {
+  id: string
+  application_id: string | null
+  name: string
+  filename: string
+  description: string | null
+  created_at: string
+  content_length: number
+  script_content?: string
+}
+
+export interface PlaywrightTestResult {
+  title: string
+  status: 'passed' | 'failed' | 'skipped' | 'timedOut' | 'error'
+  duration_ms: number
+  error: string | null
+}
+
+export interface PlaywrightRunResult {
+  id: string
+  script_id: string
+  status: 'running' | 'pass' | 'fail' | 'error'
+  started_at: string
+  finished_at: string | null
+  duration_ms: number | null
+  output: string
+  result_json: {
+    passed: boolean
+    total: number
+    failed_count: number
+    tests: PlaywrightTestResult[]
+  }
+  triggered_by: string | null
+}
+
+export function listPlaywrightScripts(appId?: string) {
+  const params = appId ? `?app_id=${encodeURIComponent(appId)}` : ''
+  return apiFetch<PlaywrightScript[]>(`/validations/playwright-scripts${params}`)
+}
+
+export function uploadPlaywrightScript(payload: {
+  name: string
+  filename: string
+  description?: string
+  script_content: string
+  application_id?: string
+}) {
+  return apiFetch<PlaywrightScript>('/validations/playwright-scripts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deletePlaywrightScript(id: string) {
+  return apiFetch<void>(`/validations/playwright-scripts/${id}`, { method: 'DELETE' })
+}
+
+export function runPlaywrightScript(id: string) {
+  return apiFetch<PlaywrightRunResult>(`/validations/playwright-scripts/${id}/run`, { method: 'POST' })
+}
+
+export function getPlaywrightRunHistory(id: string, limit = 20) {
+  return apiFetch<PlaywrightRunResult[]>(`/validations/playwright-scripts/${id}/runs?limit=${limit}`)
 }
 
 // ── Alert Correlation ─────────────────────────────────────────────────────────

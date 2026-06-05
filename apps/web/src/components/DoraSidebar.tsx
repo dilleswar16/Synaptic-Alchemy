@@ -11,6 +11,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { fetchDora } from '../api/client'
+import { InfoTooltip } from './Section'
 import '../styles/DoraSidebar.css'
 
 const TREND_ICON: Record<string, string> = {
@@ -79,7 +80,10 @@ export function DoraSidebar() {
 
   return (
     <aside className="dora-sidebar" aria-label="DORA metrics and ROI sidebar">
-      <h3 className="dora-sidebar-title">DORA · 30 days</h3>
+      <h3 className="dora-sidebar-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        DORA · 30 days
+        <InfoTooltip text="DORA (DevOps Research & Assessment) four-key metrics measured over the last 30 days. Tracks engineering operational maturity: deployment frequency (incident rate), MTTR, change failure rate, and high-confidence RCA ratio." />
+      </h3>
 
       {/* Arc gauges */}
       <div className="dora-gauges">

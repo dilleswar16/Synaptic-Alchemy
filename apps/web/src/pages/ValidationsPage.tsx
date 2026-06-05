@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Layout from '../components/Layout'
 import { Modal } from '../components/Modal'
 import { JourneyBuilderModal } from '../components/JourneyBuilderModal'
+import { PlaywrightScriptsPanel } from '../components/PlaywrightScriptsPanel'
 import {
   listValidations,
   createValidation,
@@ -555,6 +556,9 @@ export default function ValidationsPage() {
             ))}
           </div>
         )}
+
+        {/* ── Playwright Scripts ──────────────────────────────────────────── */}
+        <PlaywrightScriptsPanel appId={appFilter || undefined} />
 
         {showCreate && <CreateValidationModal onClose={() => setShowCreate(false)} />}
         {showJourneyBuilder && <JourneyBuilderModal onClose={() => setShowJourneyBuilder(false)} />}

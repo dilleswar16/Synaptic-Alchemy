@@ -6,6 +6,7 @@
  */
 import { useQuery } from '@tanstack/react-query'
 import { fetchRoi } from '../api/client'
+import { InfoTooltip } from './Section'
 
 /** Per-colour tinted backgrounds using token vars. */
 const TINTS: Record<string, string> = {
@@ -100,11 +101,13 @@ export function RoiWidget() {
       {/* Header */}
       <div style={{ marginBottom: 18 }}>
         <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
           fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.75rem',
           letterSpacing: '0.2em', textTransform: 'uppercase',
           color: 'var(--c-signal)', marginBottom: 5,
         }}>
           Corvin ROI
+          <InfoTooltip text="Quantified operational value delivered by Corvin over the current period. Incident count and MTTR reduction are derived from real investigation data — not estimates. Use this to demonstrate the platform's business case." />
         </div>
         <div style={{
           fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.125rem',
