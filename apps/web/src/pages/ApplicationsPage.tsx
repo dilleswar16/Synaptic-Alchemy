@@ -3044,13 +3044,13 @@ function AppDetail({ appId }: { appId: string }) {
     </div>
   )
 
-  const TABS: { key: Tab; label: string }[] = [
-    { key: 'services', label: `Services (${app.services?.length ?? 0})` },
-    { key: 'connectors', label: `Connectors (${(app.log_sources?.length ?? 0) + (app.outbound_connectors?.length ?? 0)})` },
-    { key: 'notifications', label: `Notifications (${app.notification_contacts?.length ?? 0})` },
-    { key: 'slo', label: `SLO (${app.slo_configs?.length ?? 0})` },
-    { key: 'knowledge', label: 'Knowledge Base' },
-    { key: 'runbooks', label: 'Runbook Library' },
+  const TABS: { key: Tab; label: string; count?: number }[] = [
+    { key: 'services',          label: 'Services',          count: app.services?.length ?? 0 },
+    { key: 'connectors',        label: 'Connectors',        count: (app.log_sources?.length ?? 0) + (app.outbound_connectors?.length ?? 0) },
+    { key: 'notifications',     label: 'Notifications',     count: app.notification_contacts?.length ?? 0 },
+    { key: 'slo',               label: 'SLO',               count: app.slo_configs?.length ?? 0 },
+    { key: 'knowledge',         label: 'Knowledge Base' },
+    { key: 'runbooks',          label: 'Runbook Library' },
     { key: 'simulator_presets', label: 'Simulator Presets' },
   ]
 
@@ -3102,23 +3102,53 @@ function AppDetail({ appId }: { appId: string }) {
       {/* Tabs */}
       <div style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ display: 'flex', borderBottom: '1px solid var(--c-border)' }}>
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              style={{
-                flex: 1, padding: '12px 16px',
-                background: tab === t.key ? 'var(--c-surface-2)' : 'transparent',
-                border: 'none', borderBottom: tab === t.key ? '2px solid var(--c-border-glow)' : '2px solid transparent',
-                color: tab === t.key ? 'var(--c-text)' : 'var(--c-text-muted)',
-                fontFamily: 'var(--font-display)', fontWeight: tab === t.key ? 700 : 500,
-                fontSize: '0.78rem', cursor: 'pointer',
-                transition: 'color 0.15s, background 0.1s',
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
+          {TABS.map(t => {
+            const isActive = tab === t.key
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  flex: 1,
+                  padding: '10px 8px',
+                  background: isActive ? 'rgba(0,112,240,0.18)' : 'transparent',
+                  border: 'none',
+                  borderBottom: isActive ? '2px solid var(--c-primary)' : '2px solid transparent',
+                  color: isActive ? 'var(--c-primary)' : 'var(--c-text-muted)',
+                  fontFamily: 'var(--font-body)',
+                  fontWeight: isActive ? 700 : 500,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 4,
+                  textAlign: 'center',
+                  lineHeight: 1.3,
+                  minHeight: 52,
+                }}
+              >
+                <span>{t.label}</span>
+                {t.count !== undefined && (
+                  <span style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    color: isActive ? 'var(--c-primary)' : 'var(--c-text-faint)',
+                    background: isActive ? 'rgba(0,112,240,0.15)' : 'var(--c-surface-3)',
+                    border: `1px solid ${isActive ? 'rgba(0,112,240,0.35)' : 'var(--c-border)'}`,
+                    borderRadius: 10,
+                    padding: '1px 7px',
+                    lineHeight: 1.5,
+                  }}>
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
         <div style={{ padding: 20 }}>
           {tab === 'services' && <ServicesTab app={app} />}
