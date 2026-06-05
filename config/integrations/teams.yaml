@@ -18,8 +18,13 @@ channel_name: "corvin-alerts"
 enabled: true
 
 # ── V2 ChatOps Bot settings ───────────────────────────────────────────────────
-# Set bot_enabled to true once the Azure Bot registration is complete.
-# Env vars: TEAMS_APP_ID, TEAMS_APP_PASSWORD
+# Bot auth modes supported by the deployed branch:
+#   1) User-Assigned Managed Identity (portal configuration you showed)
+#   2) Secret-based Azure Bot registration (app_id + app_password)
+#
+# For UAMI, set TEAMS_APP_ID to the managed identity client ID and leave
+# TEAMS_APP_PASSWORD unset/empty. TEAMS_TENANT_ID should still be provided.
+# Env vars: TEAMS_APP_ID, TEAMS_APP_PASSWORD, TEAMS_TENANT_ID
 bot_enabled: true
 app_id: "${TEAMS_APP_ID}"
 app_password: "${TEAMS_APP_PASSWORD}"
