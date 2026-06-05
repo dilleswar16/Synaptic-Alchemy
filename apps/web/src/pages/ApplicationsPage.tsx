@@ -2029,6 +2029,324 @@ function EnvironmentsTab({ appId }: { appId: string }) {
 }
 
 
+// ── Knowledge Scaffold Modal ──────────────────────────────────────────────────
+
+const SCAFFOLD_PROMPT = `You are mapping this workspace's architecture for Corvin — an AI-powered SRE intelligence platform. Your output will be injected verbatim into live incident-investigation prompts, so precision matters more than prose.
+
+Scan ALL of the following files and directories (silently skip anything absent):
+  • package.json / requirements.txt / pyproject.toml / *.csproj
+  • docker-compose.yml / docker-compose.*.yml
+  • Kubernetes manifests, Helm charts, Kustomize overlays
+  • Azure resources: APIM policies, Function App host.json, App Service config
+  • CI/CD pipelines: .github/workflows/, azure-pipelines.yml, .gitlab-ci.yml
+  • Environment configs: .env.example, appsettings*.json, config/*.yaml
+  • OpenAPI / Swagger specs: openapi.json, swagger.json, swagger.yaml
+  • Infrastructure-as-code: Terraform .tf files, Bicep .bicep, ARM templates
+  • Service mesh: Istio VirtualService / DestinationRule, Linkerd ServiceProfiles
+
+Output ONLY the markdown sections below — no preamble, no commentary, no apologies.
+Omit any section that yields no data. Include every section that does.
+
+---
+
+## Service Inventory
+
+| Service | Runtime | Tier | K8s Namespace | k8s_app_label | Health Endpoint | Purpose |
+|---|---|---|---|---|---|---|
+
+Tier values: frontend | api | worker | db | cache | gateway
+
+---
+
+## Service Dependencies
+
+Bullet list — show direction and protocol:
+- **ServiceA** → ServiceB (sync/HTTP), ServiceC (async/Service Bus queue: payments)
+- **ServiceA** → PostgreSQL (direct), Redis (cache-aside)
+
+Include all external dependencies: managed databases, blob storage, third-party APIs, identity providers.
+
+---
+
+## API & APIM Routes
+
+If Azure API Management is present:
+- Gateway hostname:
+- Products and route prefixes:
+
+Top API endpoints (up to 20):
+| Method | Path | Service | Auth | Purpose |
+|---|---|---|---|---|
+
+---
+
+## AKS Infrastructure
+
+- Cluster name and region:
+- Namespaces and their purpose:
+- Key deployments (name | replicas | CPU limit | Memory limit):
+- HPA targets (service | min replicas | max replicas | CPU target %):
+- Ingress hostnames and controllers:
+- Stateful sets or PVCs:
+
+---
+
+## Azure Resources (names only — no secrets, no connection strings)
+
+- Resource groups:
+- Key Vaults:
+- Storage accounts:
+- Service Bus namespaces + queues/topics:
+- Event Hub namespaces + hub names:
+- App Insights / Log Analytics workspace names:
+- Managed Identity names and their access scope:
+
+---
+
+## Known Failure Modes & Gotchas
+
+Non-obvious risks an on-call engineer must know:
+- Services with no circuit breaker or retry policy
+- Rate-limit-sensitive external integrations
+- Cold-start / scale-to-zero services and warm-up time
+- Known flaky dependencies
+- Deployment sequencing constraints (deploy A before B)
+
+---
+
+## SLO Candidates
+
+| Service | Endpoint / Signal | SLI Type | Suggested Target | Notes |
+|---|---|---|---|---|
+
+SLI types: availability | latency_p99 (estimate target in ms)`
+
+const STEPS = [
+  {
+    num: '01',
+    title: 'Open your AI assistant',
+    body: 'Use any premium AI model with codebase access. Best results with:',
+    extra: (
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' as const }}>
+        {[
+          { icon: '⎈', label: 'GitHub Copilot', sub: 'VS Code / JetBrains' },
+          { icon: '◈', label: 'Cursor', sub: 'Composer / Agent' },
+          { icon: '◆', label: 'Claude Code', sub: 'Terminal / IDE' },
+          { icon: '✦', label: 'Windsurf', sub: 'Cascade' },
+        ].map(t => (
+          <div key={t.label} style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '6px 12px',
+            background: 'var(--c-surface-3)',
+            border: '1px solid var(--c-border)',
+            borderRadius: 8,
+            fontSize: '0.72rem',
+          }}>
+            <span style={{ fontSize: '1rem', opacity: 0.7 }}>{t.icon}</span>
+            <div>
+              <div style={{ fontWeight: 600, color: 'var(--c-text)', lineHeight: 1.2 }}>{t.label}</div>
+              <div style={{ color: 'var(--c-text-faint)', fontSize: '0.65rem' }}>{t.sub}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    num: '02',
+    title: 'Open it in your project workspace',
+    body: 'Navigate to the root of your service repository before running the prompt. For monorepos or multi-repo architectures, run once per project and combine the outputs into separate knowledge entries.',
+    extra: null,
+  },
+  {
+    num: '03',
+    title: 'Paste and run this prompt',
+    body: 'Copy the prompt below and send it to your AI assistant. It will analyse your codebase and return structured markdown. One-time run — typically takes 15–60 seconds.',
+    extra: null,
+  },
+  {
+    num: '04',
+    title: 'Paste the output into Add Entry',
+    body: 'Split the output into logical sections if preferred (e.g. one entry for "Service Inventory", another for "AKS Infrastructure"). Use the section headings as entry titles. Corvin will inject all active entries into every investigation prompt for this application.',
+    extra: null,
+  },
+]
+
+function KnowledgeScaffoldModal({ onClose, onAddEntry }: { onClose: () => void; onAddEntry: () => void }) {
+  const [copied, setCopied] = useState(false)
+
+  function copyPrompt() {
+    navigator.clipboard.writeText(SCAFFOLD_PROMPT).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2200)
+    })
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 300,
+      background: 'rgba(0,0,0,0.72)',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      padding: '24px 16px',
+      overflowY: 'auto',
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--c-surface)',
+        border: '1px solid var(--c-border-hi)',
+        borderRadius: 14,
+        width: '100%',
+        maxWidth: 820,
+        boxShadow: '0 32px 64px rgba(0,0,0,0.5)',
+        overflow: 'hidden',
+        margin: '0 auto',
+      }}>
+
+        {/* Modal header */}
+        <div style={{
+          padding: '20px 28px',
+          borderBottom: '1px solid var(--c-border)',
+          background: 'var(--c-surface-2)',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16,
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 28, height: 28, borderRadius: 8,
+                background: 'var(--c-signal)',
+                fontSize: '0.85rem', flexShrink: 0,
+              }}>⚡</span>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1rem', color: 'var(--c-text)' }}>
+                Corvin Knowledge Scaffold
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--c-text-faint)', lineHeight: 1.5 }}>
+              Use your AI assistant to reverse-engineer your codebase and generate architecture context that Corvin injects into every investigation. One prompt run covers services, dependencies, APIM, AKS, and known failure modes.
+            </p>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--c-text-faint)', fontSize: '1.3rem', lineHeight: 1, flexShrink: 0, padding: 2,
+          }}>×</button>
+        </div>
+
+        <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+          {/* Steps 01–04 */}
+          {STEPS.map((step, idx) => (
+            <div key={step.num} style={{ display: 'flex', gap: 16, paddingBottom: idx < STEPS.length - 1 ? 0 : 0 }}>
+              {/* Step spine */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 36 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                  background: 'var(--c-surface-3)',
+                  border: '1.5px solid var(--c-border-hi)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.62rem',
+                  color: 'var(--c-signal)', letterSpacing: '0.05em',
+                }}>
+                  {step.num}
+                </div>
+                {idx < STEPS.length - 1 && (
+                  <div style={{ flex: 1, width: 1.5, background: 'var(--c-border)', minHeight: 24, marginTop: 6, marginBottom: 6 }} />
+                )}
+              </div>
+
+              {/* Step content */}
+              <div style={{ flex: 1, paddingBottom: idx < STEPS.length - 1 ? 20 : 0 }}>
+                <div style={{
+                  fontWeight: 700, fontSize: '0.82rem', color: 'var(--c-text)',
+                  marginBottom: 4, lineHeight: 1.3,
+                }}>
+                  {step.title}
+                </div>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--c-text-faint)', lineHeight: 1.6 }}>
+                  {step.body}
+                </p>
+                {step.extra}
+
+                {/* Prompt block — shown inline in step 03 */}
+                {step.num === '03' && (
+                  <div style={{ marginTop: 12 }}>
+                    {/* Prompt header bar */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 14px',
+                      background: 'var(--c-surface-3)',
+                      border: '1px solid var(--c-border-hi)',
+                      borderBottom: 'none',
+                      borderRadius: '8px 8px 0 0',
+                    }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                        Corvin Architecture Scaffold Prompt
+                      </span>
+                      <button
+                        onClick={copyPrompt}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '4px 12px',
+                          background: copied ? 'var(--c-green)' : 'var(--c-surface)',
+                          border: `1px solid ${copied ? 'var(--c-green)' : 'var(--c-border-hi)'}`,
+                          borderRadius: 6,
+                          color: copied ? '#fff' : 'var(--c-text-dim)',
+                          fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.18s',
+                        }}
+                      >
+                        {copied ? '✓ Copied' : '⧉ Copy'}
+                      </button>
+                    </div>
+                    {/* Prompt content */}
+                    <pre style={{
+                      margin: 0,
+                      padding: '14px 16px',
+                      background: 'var(--c-bg)',
+                      border: '1px solid var(--c-border-hi)',
+                      borderRadius: '0 0 8px 8px',
+                      fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
+                      color: 'var(--c-text-dim)', lineHeight: 1.6,
+                      overflowX: 'auto',
+                      maxHeight: 320,
+                      overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}>
+                      {SCAFFOLD_PROMPT}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Footer CTA */}
+          <div style={{
+            marginTop: 24,
+            padding: '14px 18px',
+            background: 'var(--c-surface-2)',
+            border: '1px solid var(--c-border)',
+            borderRadius: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+          }}>
+            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--c-text-faint)', lineHeight: 1.5 }}>
+              Ready to add the generated content? Click <strong style={{ color: 'var(--c-text-dim)' }}>Add Entry</strong> to paste your output into a knowledge entry.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button className="btn-ghost" style={{ fontSize: '0.75rem', padding: '6px 14px' }} onClick={onClose}>
+                Close
+              </button>
+              <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 16px' }} onClick={() => { onClose(); onAddEntry() }}>
+                + Add Entry
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Knowledge Base Tab ────────────────────────────────────────────────────────
 
 function KnowledgeBaseTab({ appId }: { appId: string }) {
@@ -2036,6 +2354,7 @@ function KnowledgeBaseTab({ appId }: { appId: string }) {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<KnowledgeEntry>>({})
   const [showAdd, setShowAdd] = useState(false)
+  const [showScaffold, setShowScaffold] = useState(false)
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['app-knowledge', appId],
@@ -2063,12 +2382,39 @@ function KnowledgeBaseTab({ appId }: { appId: string }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      {showScaffold && (
+        <KnowledgeScaffoldModal
+          onClose={() => setShowScaffold(false)}
+          onAddEntry={() => { setEditId(null); setForm({}); setShowAdd(true) }}
+        />
+      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--c-text-faint)', maxWidth: 600 }}>
           Site knowledge is injected into every investigation prompt for this application. Add architecture docs, service inventories, known gotchas, and infra facts.
           <span style={{ display: 'block', marginTop: 4, color: 'var(--c-text-faint)', fontSize: '0.72rem' }}>Disk-based knowledge/site.md is used as fallback when no entries exist here.</span>
         </p>
-        <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 14px', whiteSpace: 'nowrap' }} onClick={() => { setEditId(null); setForm({}); setShowAdd(true) }}>+ Add Entry</button>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button
+            onClick={() => setShowScaffold(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: '0.75rem', padding: '6px 14px', whiteSpace: 'nowrap',
+              background: 'var(--c-surface-3)',
+              border: '1px solid var(--c-border-hi)',
+              borderRadius: 6,
+              color: 'var(--c-text-dim)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-body)',
+              fontWeight: 500,
+              transition: 'border-color 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--c-signal)')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--c-border-hi)')}
+          >
+            <span style={{ fontSize: '0.8rem' }}>⚡</span> Scaffold with Copilot
+          </button>
+          <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '6px 14px', whiteSpace: 'nowrap' }} onClick={() => { setEditId(null); setForm({}); setShowAdd(true) }}>+ Add Entry</button>
+        </div>
       </div>
 
       {isLoading && <p style={{ margin: 0, color: 'var(--c-text-faint)', fontSize: '0.78rem' }}>Loading…</p>}

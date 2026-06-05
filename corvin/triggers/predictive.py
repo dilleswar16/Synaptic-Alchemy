@@ -41,6 +41,7 @@ class PredictiveAlert(BaseModel):
     related_count: int = 1  # Number of deduplicated signals grouped into this alert
     blast_radius_users: int = 0  # Actual APIM request count (user-facing impact)
     blast_radius_requests: int = 0  # Total APIM requests in window
+    suggested_runbook_title: str | None = None  # Title of first matching runbook (if any)
 
 
 _SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
@@ -121,6 +122,20 @@ class PredictiveMonitor:
             key=lambda a: (_SEVERITY_RANK.get(a.severity.lower(), 0), a.created_at),
             reverse=True,
         )
+
+        # ── Enrich each alert with a matching runbook title (non-fatal) ───────
+        try:
+            from corvin.core.knowledge_loader import KnowledgeLoader
+            _loader = KnowledgeLoader()
+            for alert in ordered:
+                search_text = f"{alert.alert_type} {alert.title} {alert.summary}"
+                matching = _loader.load_matching_runbooks(search_text, service_name=alert.service_name)
+                if matching:
+                    first_line = matching[0].split("\n")[0].lstrip("# ").strip()
+                    alert.suggested_runbook_title = first_line or None
+        except Exception as _exc:
+            _log.debug("Runbook title enrichment failed (non-fatal): %s", _exc)
+
         self._repo.replace_predictive_alerts([alert.model_dump(mode="json") for alert in ordered])
 
         # ── Notify application contacts via email ──

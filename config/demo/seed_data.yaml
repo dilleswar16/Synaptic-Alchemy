@@ -146,6 +146,420 @@ knowledge_base:
       You can add multiple entries to keep different topics separate.
     display_order: 0
 
+# Runbook library — loaded into RunbookRow. Matched to investigations by
+# service_name (exact) and/or keywords (any match in alert text).
+# content is injected into the investigation system prompt when matched.
+runbooks:
+  - title: "Fund APIs — 503 Error Rate Spike"
+    service_name: fundapis
+    keywords: ["503", "error_rate", "network_partition", "5xx", "fundapis", "funds", "backend_error"]
+    display_order: 0
+    content: |
+      # Fund APIs — 503 Error Rate Spike
+
+      **Service:** fundapis | **Tier:** API | **Namespace:** chad
+      **Trigger:** Error rate on `/v1/funds` endpoints exceeds 5% over a 5-minute window
+      **Severity:** P1 — customer-facing fund data unavailable
+
+      ---
+
+      ## Quick Assessment (2 min)
+
+      ```bash
+      # Check current pod health
+      kubectl get pods -n chad -l app=chad-fundapis
+
+      # Check recent 5xx errors in Log Analytics (KQL)
+      # AzureDiagnostics | where ResourceType == "MICROSOFT.APIMANAGEMENT/SERVICE"
+      # | where backendResponseCode_d >= 500
+      # | summarize count() by bin(TimeGenerated, 1m) | order by TimeGenerated desc
+
+      # Check pod-level health endpoint
+      kubectl exec -n chad deploy/chad-fundapis -- curl -s localhost:8080/health
+      ```
+
+      ## Diagnosis Decision Tree
+
+      **Pods Running but errors persist →** Network issue between APIM and pods.
+        - Check APIM backend health probe in Azure Portal → API Management → Backends
+        - Verify downstream dependencies: `kubectl exec -n chad deploy/chad-fundapis -- curl -s http://redis-service:6379/ping`
+
+      **Pods in Pending or Error state →** Proceed to Pod Recovery.
+
+      **APIM showing backend timeouts but pods are healthy →** Backend URL misconfiguration or certificate expiry.
+        - Check APIM → Backends → verify backend URL resolves to correct AKS cluster IP
+
+      ## Pod Recovery
+
+      ```bash
+      # Rolling restart (zero-downtime)
+      kubectl rollout restart deployment/chad-fundapis -n chad
+      kubectl rollout status deployment/chad-fundapis -n chad --timeout=3m
+
+      # If rollout hangs
+      kubectl describe deployment chad-fundapis -n chad
+      kubectl get events -n chad --sort-by='.lastTimestamp' | tail -20
+      ```
+
+      ## Escalation Criteria
+
+      - Error rate does not drop below 2% within 10 min of pod restart → page Platform Lead
+      - 3+ consecutive failed rollout attempts → page DevOps on-call
+      - APIM backend timeouts on ALL services simultaneously → likely Azure regional outage, check Azure Status
+
+      ## Post-Incident Checklist
+
+      - Validate fund data consistency in downstream systems after recovery
+      - Review APIM retry policy — confirm exponential backoff is configured
+      - Check circuit breaker thresholds and adjust if needed
+
+  - title: "Fund APIs — Heap Memory Pressure & OOM Recovery"
+    service_name: fundapis
+    keywords: ["OOMKilled", "memory", "heap", "oom", "evicted", "memory_pressure", "fundapis", "MemoryPressure"]
+    display_order: 1
+    content: |
+      # Fund APIs — Heap Memory Pressure & OOM Recovery
+
+      **Service:** fundapis | **Tier:** API | **Namespace:** chad
+      **Trigger:** Pod memory usage >85% of limit, OOMKilled restart events, or Corvin memory pressure alert
+      **Severity:** P1 if OOMKilled in production / P2 if approaching limit in staging
+
+      ---
+
+      ## Confirm OOM Condition
+
+      ```bash
+      # Check for OOMKilled events (look for OOMKilled in REASON column)
+      kubectl get pods -n chad -l app=chad-fundapis -o wide
+
+      # Get previous container logs (last run before restart)
+      kubectl logs -n chad -l app=chad-fundapis --previous --tail=100
+
+      # Current memory consumption vs limits
+      kubectl top pods -n chad -l app=chad-fundapis
+      kubectl get deployment chad-fundapis -n chad -o jsonpath='{.spec.template.spec.containers[0].resources}'
+      ```
+
+      ## Immediate Recovery (Scale Bounce)
+
+      This procedure flushes all in-memory heap state including any leak:
+
+      ```bash
+      # Step 1: Scale to zero
+      kubectl scale deployment chad-fundapis -n chad --replicas=0
+
+      # Step 2: Wait for full termination
+      kubectl wait --for=delete pod -l app=chad-fundapis -n chad --timeout=60s
+
+      # Step 3: Scale back to production baseline
+      kubectl scale deployment chad-fundapis -n chad --replicas=3
+
+      # Step 4: Validate memory is stable
+      kubectl rollout status deployment/chad-fundapis -n chad --timeout=3m
+      kubectl top pods -n chad -l app=chad-fundapis
+      ```
+
+      ## Root Cause Investigation
+
+      After service is restored:
+
+      ```bash
+      # Check if memory grew linearly (leak) or spiked (burst load)
+      # Log Analytics KQL:
+      # Perf | where ObjectName == "K8SContainer" and CounterName == "memoryWorkingSetBytes"
+      # | where InstanceName has "chad-fundapis"
+      # | summarize avg(CounterValue) by bin(TimeGenerated, 5m)
+
+      # Look for large payload sizes or unbounded result sets
+      kubectl logs -n chad -l app=chad-fundapis --tail=200 | grep -i "heap\|payload\|size\|large"
+      ```
+
+      ## Escalation
+
+      - OOMKilled 3+ times within 1 hour → page service owner (confirmed memory leak, not burst)
+      - Memory pressure spans ALL chad namespace pods → suspect node-level pressure, page infra
+      - After recovery, memory climbs to 85% within 30 min → set up scheduled restart as temporary mitigation, notify team
+
+  - title: "Fund SSO — Identity Cache Poisoning & 401 Spike"
+    service_name: fundsso
+    keywords: ["401", "unauthorized", "jwt", "sso", "auth", "identity", "fundsso", "token", "authentication"]
+    display_order: 2
+    content: |
+      # Fund SSO — Identity Cache Poisoning & 401 Spike
+
+      **Service:** fundsso | **Tier:** API | **Namespace:** chad
+      **Trigger:** 401 Unauthorized rate exceeds 10% across SSO endpoints
+      **Severity:** P1 — users cannot authenticate, all fund access blocked
+
+      ---
+
+      ## Confirm Scope
+
+      ```bash
+      # Check SSO pod logs for token errors
+      kubectl logs -n chad -l app=chad-fundsso --tail=200 | grep "401\|invalid_token\|expired\|signature\|cache"
+
+      # Check Redis identity cache state (if Redis-backed)
+      kubectl exec -n chad deploy/chad-fundsso -- redis-cli -h redis-service DBSIZE
+      kubectl exec -n chad deploy/chad-fundsso -- redis-cli -h redis-service INFO keyspace
+      ```
+
+      **Universal 401s (all users/apps)** → Signing key rotation or cache-wide corruption. Proceed to Cache Flush.
+
+      **Scoped 401s (specific users or apps)** → Specific token issuer or client secret rotation. Check JWKS endpoint.
+
+      ## Cache Flush (Identity Reset)
+
+      ```bash
+      # Flush Redis identity/token cache
+      kubectl exec -n chad deploy/chad-fundsso -- redis-cli -h redis-service FLUSHDB
+
+      # Restart SSO pods to clear in-memory token state
+      kubectl rollout restart deployment/chad-fundsso -n chad
+      kubectl rollout status deployment/chad-fundsso -n chad --timeout=3m
+
+      # Validate new tokens are being issued
+      kubectl logs -n chad -l app=chad-fundsso --tail=50 | grep -i "token\|200\|authenticated"
+      ```
+
+      ## JWKS / Signing Key Verification
+
+      ```bash
+      # Verify JWKS endpoint is reachable
+      kubectl exec -n chad deploy/chad-fundsso -- curl -s \
+        https://login.microsoftonline.com/{tenant_id}/.well-known/openid-configuration
+
+      # Confirm Key Vault secret references are resolving
+      # Azure Portal → Key Vault → Access Policies → verify fundsso Managed Identity has GET permission
+      ```
+
+      ## Escalation
+
+      - 401 rate does not drop below 5% within 5 min of cache flush → page Identity Platform team
+      - Azure AD / Entra connectivity is down → check Azure Status; activate read-only mode if supported
+      - Client-side caching causing stale JWTs → notify API consumers to flush their local token caches
+
+      ## Post-Incident
+
+      - Audit Key Vault rotation logs — if a signing key rotated, ensure all consumers received the new JWKS
+      - Review token TTL settings — long TTLs compound cache poisoning impact duration
+      - Confirm alerting fires within 2 min of 401 rate crossing 5% threshold
+
+  - title: "Partner APIs — HPA Controller Failure & Scale Lag"
+    service_name: partnerapis
+    keywords: ["hpa", "scale", "autoscaler", "replicas", "cpu", "throughput", "partnerapis", "ScalingDisabled", "scale_lag"]
+    display_order: 3
+    content: |
+      # Partner APIs — HPA Controller Failure & Scale Lag
+
+      **Service:** partnerapis | **Tier:** API | **Namespace:** chad
+      **Trigger:** CPU utilisation >80% with no scale-out event, or HPA showing ScalingDisabled/ScalingLimited
+      **Severity:** P1 if error rate rising / P2 if latency elevated but stable
+
+      ---
+
+      ## Confirm HPA State
+
+      ```bash
+      # Check HPA — look for ScalingDisabled or DesiredReplicas stuck at 1
+      kubectl get hpa -n chad
+      kubectl describe hpa chad-partnerapis -n chad
+
+      # Compare current vs desired replicas
+      kubectl get deployment chad-partnerapis -n chad
+
+      # Check if metrics-server is healthy (HPA depends on it)
+      kubectl get pods -n kube-system -l k8s-app=metrics-server
+      kubectl top pods -n chad -l app=chad-partnerapis
+      ```
+
+      **Common HPA failure causes:**
+      - `metrics-server` pod down → HPA cannot read CPU metrics, freezes replica count
+      - `LimitedByMaxReplicas` → manually increase max in HPA spec
+      - `InvalidSelector` → deployment labels drifted from HPA target after a rollout
+
+      ## Manual Scale-Out (Immediate Relief)
+
+      ```bash
+      # Scale manually to safe baseline while HPA issue is investigated
+      kubectl scale deployment chad-partnerapis -n chad --replicas=5
+
+      # Monitor pod startup
+      kubectl get pods -n chad -l app=chad-partnerapis -w
+      ```
+
+      ## Restore HPA Automation
+
+      ```bash
+      # If metrics-server is down, restart it
+      kubectl rollout restart deployment/metrics-server -n kube-system
+      kubectl rollout status deployment/metrics-server -n kube-system --timeout=3m
+
+      # After metrics-server recovers, confirm HPA resumes
+      kubectl describe hpa chad-partnerapis -n chad
+      # Look for 'SuccessfulRescale' in events
+
+      # If HPA selector is broken (after deployment label change):
+      kubectl edit hpa chad-partnerapis -n chad
+      # Update spec.scaleTargetRef.name to match current deployment name
+      ```
+
+      ## Escalation
+
+      - CPU remains >90% after manual scale to 5 replicas → node-level pressure, page infra
+      - HPA not recovering after metrics-server restart → page AKS Platform team
+      - partnerapis latency p99 >2s for >5 min → activate APIM rate limiting on partner endpoints to shed load
+
+      ## Post-Incident
+
+      - Review HPA min/max replica bounds — consider raising minimum replicas in production
+      - Confirm metrics-server runs 2+ replicas for HA
+      - Verify APIM backend timeout aligns with pod scale-out warm-up time
+
+  - title: "AKS — Pod CrashLoop & Eviction Response"
+    service_name: null
+    keywords: ["CrashLoopBackOff", "crashloop", "eviction", "OOMKilled", "ImagePullBackOff", "pod_restart", "evicted"]
+    display_order: 4
+    content: |
+      # AKS — Pod CrashLoop & Eviction Response
+
+      **Scope:** All services in namespace chad
+      **Trigger:** Pod in CrashLoopBackOff, Evicted, or restart count >5 within 10 minutes
+      **Severity:** P1 if production pods affected / P2 if dev or staging
+
+      ---
+
+      ## First Response
+
+      ```bash
+      # Full pod state for chad namespace
+      kubectl get pods -n chad -o wide
+
+      # Events and restart detail for failing pod
+      kubectl describe pod <pod-name> -n chad
+
+      # Logs from the previous (crashed) container run
+      kubectl logs <pod-name> -n chad --previous --tail=100
+      ```
+
+      ## Exit Code Reference
+
+      **Exit Code 1 — Application Error**
+      ```bash
+      kubectl logs <pod-name> -n chad --previous | grep -i "error\|exception\|panic\|fatal"
+      # If config/secret reference broken: kubectl describe secret <name> -n chad
+      ```
+
+      **Exit Code 137 — OOMKilled**
+      → Follow runbook: **Fund APIs — Heap Memory Pressure & OOM Recovery** (scale-bounce procedure applies to all services)
+
+      **Exit Code 139 — Segfault**
+      ```bash
+      kubectl rollout history deployment/<service-name> -n chad
+      kubectl rollout undo deployment/<service-name> -n chad
+      ```
+
+      **ImagePullBackOff**
+      ```bash
+      kubectl describe pod <pod-name> -n chad | grep Image
+      # Verify image tag exists in ACR:
+      az acr repository show-tags --name <acrname> --repository <repo> --output table
+      # Roll back to last known-good image
+      kubectl set image deployment/<name> <container>=<acr>/<image>:<prev-tag> -n chad
+      ```
+
+      ## Evicted Pods
+
+      ```bash
+      # List evicted (they consume no resources but clutter state)
+      kubectl get pods -n chad --field-selector=status.phase=Failed
+
+      # Check why node evicted
+      kubectl describe node <node-name> | grep -A 10 "Conditions\|Allocated"
+
+      # Clean up evicted pods
+      kubectl delete pods -n chad --field-selector=status.phase=Failed
+      ```
+
+      ## Escalation
+
+      - 3+ services crashing simultaneously → suspect shared dependency failure (DB, secrets, DNS), page Platform Lead
+      - All pods crashing on one specific node → node failure, drain and cordon:
+        ```bash
+        kubectl cordon <node-name>
+        kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+        ```
+      - Node drain in production → page infra on-call before executing
+
+  - title: "APIM — Gateway Degradation & Backend Failover"
+    service_name: null
+    keywords: ["apim", "gateway", "backend", "502", "503", "latency", "timeout", "api_management", "throttling", "429"]
+    display_order: 5
+    content: |
+      # APIM — Gateway Degradation & Backend Failover
+
+      **Scope:** All services routed through Azure API Management (fundapis, partnerapis)
+      **Trigger:** APIM response latency p99 >2s, backend error rate >5%, or gateway health probe failures
+      **Severity:** P1 — all external API consumers affected
+
+      ---
+
+      ## Confirm APIM Health
+
+      ```kusto
+      // Log Analytics KQL — run in Azure Monitor
+      AzureDiagnostics
+      | where ResourceType == "MICROSOFT.APIMANAGEMENT/SERVICE"
+      | where TimeGenerated > ago(15m)
+      | summarize Errors=countif(responseCode_d >= 500), Total=count() by bin(TimeGenerated, 1m)
+      | extend ErrorRate = toreal(Errors) / Total * 100
+      | order by TimeGenerated desc
+      ```
+
+      **Azure Portal quick checks:**
+      - APIM → APIs → backend health status for fundapis and partnerapis
+      - APIM → Metrics → Gateway Requests / Failed Requests / Duration
+      - APIM → Diagnostic Logs → filter 5xx within last 15 min
+
+      ## Backend-Specific Failures
+
+      If APIM is healthy but one backend is failing:
+      1. APIM → Backends → locate the failing service backend
+      2. Verify backend URL resolves to correct AKS service internal IP
+      3. Check backend TLS certificate validity if HTTPS is used between APIM and AKS
+      4. Toggle to secondary backend if failover pool is configured
+
+      If APIM gateway itself is degraded (elevated gateway latency):
+      1. Check Azure Service Health for API Management in your region
+      2. Scale APIM capacity units: Azure Portal → APIM → Scale
+      3. Enable APIM response caching on high-read fund endpoints to reduce backend pressure
+
+      ## Policy-Level Debugging
+
+      ```bash
+      # Test endpoint with trace header to capture policy execution detail
+      curl -H "Ocp-Apim-Trace: true" \
+           -H "Ocp-Apim-Subscription-Key: <test-key>" \
+           https://<apim-gateway>/fundapis/v1/funds
+
+      # If direct-to-backend call succeeds but APIM fails:
+      # → Check inbound/outbound policy for rate-limit, IP filter, or JWT validation errors
+      # → Review Policy Editor for recent policy changes in the last 24h
+      ```
+
+      ## Throttling / 429 Response
+
+      If APIM is returning 429 Too Many Requests to partners:
+      1. APIM → Subscriptions → identify which product/subscription is hitting quota
+      2. Temporarily increase quota for the subscription if traffic is legitimate burst
+      3. If abuse: blacklist the subscription key in APIM policy or revoke it
+
+      ## Escalation
+
+      - APIM gateway unreachable from all regions → page Azure support (Premium SLA: 99.95%), activate contingency static response
+      - Backend failover exhausted → page service owner for emergency deployment
+      - All APIs degraded simultaneously → coordinate with Azure support, check for regional outage
+
 # Service metadata injected into ApplicationServiceRow.metadata_json.
 # apim_routes_through_gateway: true  → APIM adapter queries this service.
 # is_sso_direct: true                → SSO service (no APIM proxy).

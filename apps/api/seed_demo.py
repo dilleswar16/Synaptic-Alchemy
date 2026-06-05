@@ -24,6 +24,7 @@ from corvin.storage.models import (
     ApplicationRow,
     ApplicationServiceRow,
     KnowledgeBaseRow,
+    RunbookRow,
     SimulatorPresetRow,
     SloConfigRow,
     SloSnapshotRow,
@@ -290,6 +291,27 @@ def ensure_demo_data(db: Session) -> bool:
             display_order=preset_def.get("display_order", order),
         ))
         changed = True
+
+    # ── Runbook library ───────────────────────────────────────────────────────
+    existing_runbook_count = db.query(RunbookRow).filter_by(application_id=app_id).count()
+    if existing_runbook_count == 0:
+        for order, rb_def in enumerate(seed.get("runbooks", [])):
+            title = rb_def.get("title")
+            content = rb_def.get("content")
+            if not title or not content:
+                continue
+            db.add(RunbookRow(
+                id=str(uuid.uuid4()),
+                application_id=app_id,
+                service_name=rb_def.get("service_name") or None,
+                title=title,
+                keywords=rb_def.get("keywords", []),
+                content=str(content).strip(),
+                is_active=True,
+                display_order=int(rb_def.get("display_order", order)),
+            ))
+        changed = True
+        log.info("Demo seed: inserted %d runbooks.", len(seed.get("runbooks", [])))
 
     db.commit()
     status = "complete and reconciled" if changed else "already complete, no changes needed"

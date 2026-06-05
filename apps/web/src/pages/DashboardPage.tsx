@@ -259,7 +259,6 @@ function BriefingWidget({ data }: { data: BriefingPayload }) {
 
 export default function DashboardPage() {
   const { theme: _theme } = useTheme()
-  const [briefingOpen, setBriefingOpen] = useState(false)
 
   const { data: recent } = useQuery<(InvestigationSummary & { approval_status?: string })[]>({
     queryKey: ['investigations'],
@@ -282,16 +281,35 @@ export default function DashboardPage() {
       {/* ── 1. KPI STRIP (sticky) ──────────────────────────────────────── */}
       <KpiStrip />
 
-      {/* ── 2. FLEET VIEW: Service Grid + DORA sidebar ────────────────── */}
+      {/* ── 2. AI BRIEFING (full-width, always visible) ───────────────── */}
+      {briefing
+        ? <BriefingWidget data={briefing} />
+        : (
+          <div style={{
+            marginBottom: 16,
+            padding: '14px 20px',
+            background: 'var(--c-surface)',
+            border: '1px solid var(--c-border)',
+            borderRadius: 'var(--radius-lg)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.72rem',
+            color: 'var(--c-text-faint)',
+          }}>
+            Loading AI briefing…
+          </div>
+        )
+      }
+
+      {/* ── 3. FLEET VIEW: Service Grid + DORA sidebar ────────────────── */}
       <div className="dash-fleet-view">
         <ServiceFleetGrid />
         <DoraSidebar />
       </div>
 
-      {/* ── 3. ERROR BUDGET BURN CHART (full width) ───────────────────── */}
+      {/* ── 4. ERROR BUDGET BURN CHART (full width) ───────────────────── */}
       <ErrorBudgetBurnChart />
 
-      {/* ── 4. OPS ROW: Investigation Queue + Predictive Alerts ───────── */}
+      {/* ── 5. OPS ROW: Investigation Queue + Predictive Alerts ───────── */}
       <div className="dash-ops-row">
         {/* Left: top-5 investigation queue */}
         <div className="panel dash-inv-queue animate-fade-up">
@@ -311,8 +329,8 @@ export default function DashboardPage() {
           </div>
           {/* Table header */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '90px 1fr 100px 80px 16px',
-            gap: 12, padding: '7px 10px',
+            display: 'grid', gridTemplateColumns: '90px 1fr 120px 68px 16px',
+            gap: 16, padding: '7px 10px',
             borderBottom: '1px solid var(--c-border-hi)',
             background: 'var(--c-surface-2)',
             borderRadius: '6px 6px 0 0',
@@ -337,7 +355,7 @@ export default function DashboardPage() {
                 key={inv.request_id}
                 to={`/investigations/${inv.request_id}`}
                 className="log-row animate-fade-up"
-                style={{ gridTemplateColumns: '90px 1fr 100px 80px 16px', animationDelay: `${i * 30}ms` }}
+                style={{ gridTemplateColumns: '90px 1fr 120px 68px 16px', animationDelay: `${i * 30}ms` }}
               >
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-text-faint)' }}>
                   {fmtTs(inv.completed_at ?? inv.created_at)}
@@ -369,36 +387,9 @@ export default function DashboardPage() {
         <IncidentHeatmap days={90} />
       </div>
 
-      {/* ── 6. ROI + AI Briefing ─────────────────────────────────────── */}
-      <div className="dash-bottom-row" style={{ marginBottom: 40, gap: 32 }}>
+      {/* ── 6. ROI ───────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 40 }}>
         <RoiWidget />
-
-        {/* AI Briefing — collapsed by default */}
-        <div className="panel dash-briefing-collapsible animate-fade-up">
-          <button
-            className="dash-briefing-toggle"
-            onClick={() => setBriefingOpen(v => !v)}
-            aria-expanded={briefingOpen}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {(briefing?.high_confidence_pending ?? 0) > 0 && (
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-signal)', display: 'inline-block', flexShrink: 0 }} />
-              )}
-              <span>AI Briefing</span>
-            </span>
-            <span style={{ fontSize: '0.9rem', transform: briefingOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
-          </button>
-          {briefingOpen && briefing && (
-            <div style={{ borderTop: '1px solid var(--c-border)', padding: '0' }}>
-              <BriefingWidget data={briefing} />
-            </div>
-          )}
-          {briefingOpen && !briefing && (
-            <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--c-text-muted)', fontSize: '0.8rem' }}>
-              Loading AI briefing…
-            </div>
-          )}
-        </div>
       </div>
 
       {/* ── 7. CHAOS (collapsed) ──────────────────────────────────────── */}

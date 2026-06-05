@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchCausalChain, type CausalChain } from '../../api/client'
+import { InfoTooltip } from '../Section'
 
 interface Props {
   requestId: string
@@ -37,8 +38,9 @@ export function CausalChainSection({ requestId }: Props) {
           padding: '12px 20px', borderBottom: '1px solid var(--c-border)',
           background: 'var(--c-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          <span style={{ fontWeight: 600, fontSize: '0.8125rem', letterSpacing: '0.02em', color: 'var(--c-text-dim)' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 600, fontSize: '0.8125rem', letterSpacing: '0.02em', color: 'var(--c-text-dim)' }}>
             Causal Reasoning Chain
+            <InfoTooltip text="A structured event graph tracing the failure from initial trigger through propagation path to full impact — built from timestamped telemetry evidence, not inferred from log text alone." />
           </span>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', padding: '2px 7px', borderRadius: 4, background: 'var(--c-signal-glow)', color: 'var(--c-signal)', fontWeight: 700 }}>
             AI

@@ -18,7 +18,7 @@ export function EvidenceReferencesSection({ references }: EvidenceReferencesSect
   if (!references || references.length === 0) return null
 
   return (
-    <Section title="Evidence References">
+    <Section title="Evidence References" info="The specific telemetry data points that directly informed the root cause conclusion. Corvin cites its sources so engineers can verify which evidence drove each inference.">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {references.map((ref: string, i: number) => {
           const badge = getSourceBadge(ref)

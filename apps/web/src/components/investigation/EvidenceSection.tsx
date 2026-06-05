@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import type { EvidenceBundle } from '../../api/client'
+import { InfoTooltip } from '../Section'
 
 const ADAPTER_LABEL: Record<string, string> = {
   elastic_logs:                'Application Logs',
@@ -172,11 +173,9 @@ export function EvidenceSection({ evidence }: { evidence: EvidenceBundle }) {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span className={isOpen ? "animate-pulse-glow" : ""} style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c-signal)' }} />
-            <span style={{
-              fontWeight: 600, fontSize: '0.75rem',
-              letterSpacing: '0.02em', color: 'var(--c-text-muted)',
-            }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.02em', color: 'var(--c-text-muted)' }}>
               Telemetry Intelligence &middot; {totalRecords} points
+              <InfoTooltip text="Raw signal data collected across all configured observability sources within the incident time window: application logs and metrics from Elasticsearch, API gateway events from Azure APIM, and Kubernetes cluster state from AKS." />
             </span>
             <span style={{ fontSize: '0.65rem', color: 'var(--c-text-faint)', marginLeft: 8 }}>
               {isOpen ? '▼' : '▶'}

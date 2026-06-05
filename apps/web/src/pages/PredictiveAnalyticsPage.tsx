@@ -248,6 +248,17 @@ export default function PredictiveAnalyticsPage() {
   const [drawerAlert, setDrawerAlert] = useState<PredictiveAlert | null>(null)
   const closeDrawer = useCallback(() => setDrawerAlert(null), [])
 
+  const [heroService, setHeroService] = useState<string | null>(null)
+
+  const heroServices = useMemo(() => {
+    return Array.from(new Set(topRisks.map((a) => a.service_name)))
+  }, [topRisks])
+
+  const heroAlert = useMemo(() => {
+    if (heroService) return topRisks.find((a) => a.service_name === heroService) ?? topRisks[0] ?? null
+    return topRisks[0] ?? null
+  }, [heroService, topRisks])
+
   const isLoading = loadingAlerts && !demoMode
 
   return (
@@ -273,8 +284,43 @@ export default function PredictiveAnalyticsPage() {
         </div>
       </div>
 
+      {/* ── Hero service selector ───────────────────────────────────────── */}
+      {!isLoading && heroServices.length > 1 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+          <button
+            onClick={() => setHeroService(null)}
+            style={{
+              fontFamily: 'var(--font-mono)', fontSize: '0.66rem', fontWeight: 700,
+              padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
+              background: heroService === null ? 'var(--c-signal)' : 'var(--c-surface-2)',
+              color: heroService === null ? '#fff' : 'var(--c-text-muted)',
+              border: `1px solid ${heroService === null ? 'var(--c-signal)' : 'var(--c-border-hi)'}`,
+              transition: 'all 0.15s',
+            }}
+          >
+            Top Risk
+          </button>
+          {heroServices.map((svc) => (
+            <button
+              key={svc}
+              onClick={() => setHeroService(svc)}
+              style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.66rem', fontWeight: 700,
+                padding: '4px 12px', borderRadius: 999, cursor: 'pointer',
+                background: heroService === svc ? 'var(--c-signal)' : 'var(--c-surface-2)',
+                color: heroService === svc ? '#fff' : 'var(--c-text-muted)',
+                border: `1px solid ${heroService === svc ? 'var(--c-signal)' : 'var(--c-border-hi)'}`,
+                transition: 'all 0.15s',
+              }}
+            >
+              {svc}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <HeroAlertSection alert={topRisks[0] ?? null} loading={isLoading} />
+      <HeroAlertSection alert={heroAlert} loading={isLoading} />
 
       {/* ── KPI Row: Gauge + Cards ──────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 12, marginBottom: 16 }}>

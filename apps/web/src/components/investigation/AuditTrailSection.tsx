@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchReplay, type ReplayPayload } from '../../api/client'
 import { totalDuration, deltaLabel } from '../../utils/time'
+import { InfoTooltip } from '../Section'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -207,11 +208,9 @@ export function AuditTrailSection({ requestId, defaultOpen = false }: { requestI
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{
-              fontWeight: 600, fontSize: '0.75rem',
-              letterSpacing: '0.02em', color: 'var(--c-text-muted)',
-            }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.02em', color: 'var(--c-text-muted)' }}>
               Audit Trail
+              <InfoTooltip text="An immutable lifecycle record for this investigation: trigger, evidence collection, RCA generation, fix strategy, human approval decision, and execution. Timestamps and durations at each stage satisfy change management and regulatory audit requirements." />
             </span>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                <span style={{ 

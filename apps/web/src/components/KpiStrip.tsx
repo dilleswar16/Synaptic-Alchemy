@@ -11,14 +11,12 @@ import { useQuery } from '@tanstack/react-query'
 import {
   getSloSummary,
   fetchInvestigationStats,
-  fetchRoi,
 } from '../api/client'
 import '../styles/KpiStrip.css'
 
 export function KpiStrip() {
   const { data: slo } = useQuery({ queryKey: ['slo-summary'], queryFn: getSloSummary, staleTime: 60_000 })
   const { data: stats } = useQuery({ queryKey: ['inv-stats'], queryFn: fetchInvestigationStats, staleTime: 30_000 })
-  const { data: roi } = useQuery({ queryKey: ['roi'], queryFn: fetchRoi, staleTime: 120_000 })
 
   const kpis: { label: string; value: string; sub?: string; accent?: 'ok' | 'warn' | 'crit' | 'info' }[] = [
     {
@@ -60,22 +58,6 @@ export function KpiStrip() {
       value: stats ? String(stats.confidence_distribution.high) : '—',
       sub: stats ? `of ${stats.total_investigations} total` : undefined,
       accent: 'info',
-    },
-    {
-      label: 'Eng Hours Saved',
-      value: roi ? `${roi.hours_saved.toFixed(0)}h` : '—',
-      sub: `last ${roi?.period_months ?? '—'} months`,
-      accent: 'ok',
-    },
-    {
-      label: 'Cost Saved',
-      value: roi
-        ? roi.cost_saved >= 1_000_000
-          ? `$${(roi.cost_saved / 1_000_000).toFixed(1)}M`
-          : `$${(roi.cost_saved / 1_000).toFixed(0)}K`
-        : '—',
-      sub: roi ? `${Math.round(roi.mttr_reduction_pct)}% MTTR reduction` : undefined,
-      accent: 'ok',
     },
   ]
 

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { InfoTooltip } from './Section'
 import {
   startRunbookSession,
   streamRunbookMessage,
@@ -172,7 +173,10 @@ export default function RunbookBuilderChat({ requestId, serviceName, environment
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
-        <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>📝 Runbook Builder</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700, fontSize: '0.88rem' }}>
+          📝 Runbook Builder
+          <InfoTooltip text="A conversational AI interface for iteratively drafting and refining operational procedures. Corvin applies investigation context to generate step-by-step runbooks, which engineers approve before committing to the knowledge base." />
+        </span>
         <div style={{ display: 'flex', gap: 6 }}>
           {draft && (
             <button

@@ -28,11 +28,11 @@ function LoadingSkeleton() {
       {bar('6rem', '0.55rem')}
       {bar('12rem', '1rem')}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+        display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)',
         gap: 2, marginTop: 18, borderRadius: 10, overflow: 'hidden',
         border: '1px solid var(--c-border)',
       }}>
-        {[0, 1, 2, 3].map(i => (
+        {[0, 1].map(i => (
           <div key={i} style={{ padding: '16px 18px', background: 'var(--c-surface)' }}>
             {bar('60%', '0.5rem')}
             {bar('80%', '1.75rem')}
@@ -80,12 +80,6 @@ export function RoiWidget() {
     )
   }
 
-  const savingStr = data.cost_saved >= 1000
-    ? `${data.currency} ${(data.cost_saved / 1000).toFixed(1)}k`
-    : `${data.currency} ${Math.round(data.cost_saved)}`
-
-  const mttrSavedMin = Math.max(0, data.baseline_mttr_minutes - data.corvin_mttr_minutes)
-
   const stats = [
     {
       label:   'Incidents Handled',
@@ -98,18 +92,6 @@ export function RoiWidget() {
       value:   `${data.mttr_reduction_pct}%`,
       sub:     `${Math.round(data.corvin_mttr_minutes)}min vs ${Math.round(data.baseline_mttr_minutes)}min baseline`,
       colour:  'var(--c-green)',
-    },
-    {
-      label:   'Engineer Hours Saved',
-      value:   `${data.hours_saved}h`,
-      sub:     `${Math.round(mttrSavedMin)}min saved per incident`,
-      colour:  'var(--c-info)',
-    },
-    {
-      label:   'Cost Saved This Month',
-      value:   savingStr,
-      sub:     `vs ${Math.round(data.baseline_mttr_minutes)}min baseline · ${data.period_months}mo window`,
-      colour:  'var(--c-warning)',
     },
   ]
 
@@ -135,7 +117,7 @@ export function RoiWidget() {
       {/* Stat grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
+        gridTemplateColumns: 'repeat(2, 1fr)',
         gap: 2,
         borderRadius: 10,
         overflow: 'hidden',

@@ -87,13 +87,13 @@ class PromptBuilder:
         sections: list[str] = []
 
         # ── Site knowledge ────────────────────────────────────────────────────
-        site_knowledge = self._loader.load_site_knowledge()
+        site_knowledge = self._loader.load_site_knowledge(service_name=request.service_name)
         if site_knowledge.strip():
             sections.append(f"## Site Knowledge\n\n{site_knowledge.strip()}")
 
         # ── Runbook matching ──────────────────────────────────────────────────
         alert_text = self._build_alert_text(request)
-        runbooks = self._loader.load_matching_runbooks(alert_text)
+        runbooks = self._loader.load_matching_runbooks(alert_text, service_name=request.service_name)
         if runbooks:
             runbook_content = "\n\n---\n\n".join(rb.strip() for rb in runbooks)
             runbook_section = (

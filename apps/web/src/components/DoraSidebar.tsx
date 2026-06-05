@@ -10,7 +10,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { fetchDora, fetchRoi } from '../api/client'
+import { fetchDora } from '../api/client'
 import '../styles/DoraSidebar.css'
 
 const TREND_ICON: Record<string, string> = {
@@ -72,11 +72,6 @@ export function DoraSidebar() {
     queryFn: () => fetchDora(30),
     staleTime: 300_000,
     retry: false,
-  })
-  const { data: roi } = useQuery({
-    queryKey: ['roi'],
-    queryFn: fetchRoi,
-    staleTime: 120_000,
   })
 
   const trendCls = dora ? TREND_CLS[dora.mttr_trend] ?? 'warn' : 'warn'
@@ -145,39 +140,7 @@ export function DoraSidebar() {
         </div>
       )}
 
-      {/* ROI summary */}
-      {roi && (
-        <div className="dora-roi">
-          <div className="roi-divider" />
-          <div className="roi-title">ROI Summary</div>
-          <div className="roi-rows">
-            <div className="roi-row">
-              <span className="roi-label">Eng hours saved</span>
-              <span className="roi-val roi-ok">{roi.hours_saved.toFixed(0)}h</span>
-            </div>
-            <div className="roi-row">
-              <span className="roi-label">Cost saved</span>
-              <span className="roi-val roi-ok">
-                {roi.cost_saved >= 1_000_000
-                  ? `$${(roi.cost_saved / 1_000_000).toFixed(1)}M`
-                  : `$${(roi.cost_saved / 1_000).toFixed(0)}K`}
-              </span>
-            </div>
-            <div className="roi-row">
-              <span className="roi-label">MTTR reduction</span>
-              <span className="roi-val roi-ok">{Math.round(roi.mttr_reduction_pct)}%</span>
-            </div>
-            <div className="roi-row">
-              <span className="roi-label">Auto-resolved</span>
-              <span className="roi-val roi-info">
-                {Math.round(roi.total_incidents)} incidents
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!dora && !roi && (
+      {!dora && (
         <div className="dora-empty">No DORA data yet. Run at least one investigation.</div>
       )}
     </aside>

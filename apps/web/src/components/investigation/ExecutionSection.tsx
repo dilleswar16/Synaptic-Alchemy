@@ -166,7 +166,7 @@ export function ExecutionSection({ requestId, status, actions = [] }: ExecutionS
   const completedCount = steps.filter(s => s.state === 'success' || s.state === 'failed').length
 
   return (
-    <Section title="Execution">
+    <Section title="Execution" info="Approved fix actions applied directly to the target Kubernetes namespace or infrastructure tier. Each action is scoped, logged, and attributed to the authorising operator. Real-time execution progress is streamed back to this panel.">
       {/* Already executed banner (only when no active stream) */}
       {status === 'executed' && mode === 'idle' && !legacyOutcome && (
         <AlertBanner ok message="Fix strategy has already been executed." />

@@ -487,7 +487,7 @@ export default function InvestigationDetailPage() {
               {activeTab === 'evidence' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                   {data.request?.description && (
-                    <Section title="Context">
+                    <Section title="Context" info="The operator-supplied description and context at investigation trigger time — observed symptoms and intent before automated analysis began.">
                       <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem', color: 'var(--c-text-dim)', lineHeight: 1.75 }}>
                         <TechnicalHighlighter text={data.request.description} />
                       </p>

@@ -20,6 +20,7 @@ import {
   type RCAHypothesis,
   type HypothesesResponse,
 } from '../../api/client'
+import { InfoTooltip } from '../Section'
 
 // ── Component props ──────────────────────────────────────────────────────────
 
@@ -272,7 +273,10 @@ export default function HypothesisDebatePanel({
       {/* Panel header */}
       <div className="hypothesis-panel-header">
         <div>
-          <h2 className="hypothesis-panel-title">⚖️ Root Cause Debate</h2>
+          <h2 className="hypothesis-panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            ⚖️ Root Cause Debate
+            <InfoTooltip text="When root cause confidence is uncertain, Corvin surfaces competing hypotheses and stress-tests each against collected evidence. Selecting an alternative hypothesis re-generates the fix strategy accordingly." />
+          </h2>
           <p className="hypothesis-panel-subtitle">
             {hasHypotheses
               ? 'Review the competing hypotheses and select the root cause that best matches the evidence.'
