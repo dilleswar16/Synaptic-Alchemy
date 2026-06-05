@@ -156,6 +156,25 @@ async def messages(
     return Response(status_code=201)
 
 
+@router.get("/messages")
+async def messages_get() -> JSONResponse:
+    """Health/readiness endpoint for the Teams bot route.
+
+    Some proxies, app service health checks, and manual probes hit the same
+    path with GET. Returning 200 here avoids noisy 405s while making it clear
+    that only POST is used for actual bot messages.
+    """
+    cfg = _load_teams_config()
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "ok",
+            "bot_enabled": bool(cfg.get("bot_enabled", False)),
+            "message": "POST /teams/messages is the Bot Framework ingress; GET is health/readiness only.",
+        },
+    )
+
+
 # ── War Room Channel ──────────────────────────────────────────────────────────
 
 
