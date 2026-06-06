@@ -2156,10 +2156,15 @@ _Created automatically by [Corvin](https://github.com/corvin-ai) from investigat
     title = f"[Corvin] Fix: {svc} — {fix.summary[:80]}"
 
     # ── Call GitHub Issues API ────────────────────────────────────────────────
-    assignees = [svc_row.git_assignee] if svc_row.git_assignee else []
+    # Custom Copilot agent takes priority over a plain GitHub username assignee.
+    # The GitHub API requires the bot account in `assignees` plus the agent name
+    # in `agent_assignment.custom_agent` (file stem from .github/agents/).
     payload: dict = {"title": title, "body": body, "labels": ["corvin", "bug"]}
-    if assignees:
-        payload["assignees"] = assignees
+    if svc_row.git_copilot_agent:
+        payload["assignees"] = ["copilot-swe-agent[bot]"]
+        payload["agent_assignment"] = {"custom_agent": svc_row.git_copilot_agent}
+    elif svc_row.git_assignee:
+        payload["assignees"] = [svc_row.git_assignee]
 
     headers = {
         "Authorization": f"Bearer {token}",
