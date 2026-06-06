@@ -2156,14 +2156,13 @@ _Created automatically by [Corvin](https://github.com/corvin-ai) from investigat
     title = f"[Corvin] Fix: {svc} — {fix.summary[:80]}"
 
     # ── Call GitHub Issues API ────────────────────────────────────────────────
-    # Custom Copilot agent takes priority over a plain GitHub username assignee.
-    # The GitHub API requires the bot account in `assignees` plus the agent name
-    # in `agent_assignment.custom_agent` (file stem from .github/agents/).
+    # Custom .github/agents/ agents (e.g. ChAD Agency) have no public REST API
+    # for programmatic assignment — the "Assign to Agent" UI dialog uses an
+    # undocumented internal endpoint.  We create the issue with full context;
+    # the user assigns the custom agent in one click from the GitHub UI.
+    # Plain GitHub usernames work fine through the standard assignees field.
     payload: dict = {"title": title, "body": body, "labels": ["corvin", "bug"]}
-    if svc_row.git_copilot_agent:
-        payload["assignees"] = ["copilot-swe-agent[bot]"]
-        payload["agent_assignment"] = {"custom_agent": svc_row.git_copilot_agent}
-    elif svc_row.git_assignee:
+    if svc_row.git_assignee:
         payload["assignees"] = [svc_row.git_assignee]
 
     headers = {
@@ -2273,11 +2272,23 @@ _Created automatically by [Corvin](https://github.com/corvin-ai) from investigat
     repo.save_github_issue(request_id, issue_url, issue_number)
 
     _log.info("Created GitHub issue #%d for investigation %s: %s", issue_number, request_id, issue_url)
+
+    # If a custom Copilot agent is configured, GitHub has no public API to assign it.
+    # Surface instructions so the user can do it in one click from the GitHub UI.
+    agent_note: str | None = None
+    if svc_row.git_copilot_agent:
+        agent_note = (
+            f"Issue #{issue_number} created. To start ChAD Agency: open the issue on GitHub → "
+            f"click ‘Assign to Agent’ (top-right of the issue) → "
+            f"select ‘{svc_row.git_copilot_agent}’ under Custom agents → click Assign."
+        )
+
     return {
         "request_id": request_id,
         "github_issue_url": issue_url,
         "github_issue_number": issue_number,
         "message": f"GitHub issue #{issue_number} created successfully.",
+        "agent_note": agent_note,
     }
 
 

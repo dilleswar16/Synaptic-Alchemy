@@ -193,6 +193,7 @@ export interface GithubIssueResult {
   github_issue_url: string
   github_issue_number: number
   message: string
+  agent_note: string | null
 }
 
 export function createGithubIssue(id: string) {

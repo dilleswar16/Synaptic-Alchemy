@@ -66,10 +66,12 @@ export default function FixStrategyPage() {
   })
 
   const [githubError, setGithubError] = useState<string | null>(null)
+  const [agentNote, setAgentNote] = useState<string | null>(null)
   const githubMutation = useMutation({
     mutationFn: () => createGithubIssue(id!),
-    onSuccess: () => {
+    onSuccess: (result) => {
       setGithubError(null)
+      setAgentNote(result.agent_note ?? null)
       queryClient.invalidateQueries({ queryKey: ['investigation', id] })
     },
     onError: (err: Error) => setGithubError(err.message),
@@ -179,6 +181,16 @@ export default function FixStrategyPage() {
                 borderRadius: 6, fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--c-red)',
               }}>
                 {githubError}
+              </div>
+            )}
+            {agentNote && (
+              <div style={{
+                marginTop: 10, padding: '10px 14px',
+                background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.25)',
+                borderRadius: 6, fontSize: '0.78rem', lineHeight: 1.5, color: 'var(--c-text-muted)',
+              }}>
+                <span style={{ fontWeight: 600, color: 'var(--c-text)' }}>Next step — assign to ChAD Agency:</span>{' '}
+                {agentNote}
               </div>
             )}
           </div>
