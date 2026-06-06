@@ -274,6 +274,7 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
   const [gitBranch, setGitBranch] = useState('')
   const [gitToken, setGitToken] = useState('')
   const [gitAssignee, setGitAssignee] = useState('')
+  const [gitCopilotAgent, setGitCopilotAgent] = useState('')
 
   const mut = useMutation({
     mutationFn: () => {
@@ -297,6 +298,7 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
         payload.git_branch = gitBranch.trim() || null
         if (gitToken.trim()) payload.git_token = gitToken.trim()
         if (gitAssignee.trim()) payload.git_assignee = gitAssignee.trim()
+        if (gitCopilotAgent.trim()) payload.git_copilot_agent = gitCopilotAgent.trim()
       }
       return addService(appId, payload as any)
     },
@@ -364,7 +366,13 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
               <input style={INPUT_STYLE} type="password" value={gitToken} onChange={e => setGitToken(e.target.value)} placeholder="Optional — stored encrypted" />
             </Field>
             <Field label="Issue Assignee (GitHub username)">
-              <input style={INPUT_STYLE} value={gitAssignee} onChange={e => setGitAssignee(e.target.value)} placeholder="e.g. Copilot, octocat — assigned when issues are created" />
+              <input style={INPUT_STYLE} value={gitAssignee} onChange={e => setGitAssignee(e.target.value)} placeholder="e.g. octocat — a real GitHub user account" />
+            </Field>
+            <Field label="Custom Copilot Agent">
+              <input style={INPUT_STYLE} value={gitCopilotAgent} onChange={e => setGitCopilotAgent(e.target.value)} placeholder="e.g. chad_agency — file stem from .github/agents/" />
+              <span style={{ fontSize: '0.7rem', color: 'var(--c-muted)', marginTop: 3, display: 'block' }}>
+                If set, issues are assigned to GitHub Copilot using this custom agent. Use the filename without extension (e.g. <code>chad_agency</code> for <code>.github/agents/chad_agency.agents.md</code>). Overrides the username field above.
+              </span>
             </Field>
           </div>
         )}
@@ -816,6 +824,7 @@ function ServiceCard({ svc, appId }: { svc: ApplicationService; appId: string })
   const [gitBranch, setGitBranch] = useState(svc.git_branch ?? '')
   const [gitToken, setGitToken] = useState('')
   const [gitAssignee, setGitAssignee] = useState(svc.git_assignee ?? '')
+  const [gitCopilotAgent, setGitCopilotAgent] = useState(svc.git_copilot_agent ?? '')
 
   const deleteMut = useMutation({
     mutationFn: () => deleteService(appId, svc.id),
@@ -828,6 +837,7 @@ function ServiceCard({ svc, appId }: { svc: ApplicationService; appId: string })
         git_repo_url: gitRepoUrl.trim() || null,
         git_branch: gitBranch.trim() || null,
         git_assignee: gitAssignee.trim() || null,
+        git_copilot_agent: gitCopilotAgent.trim() || null,
       }
       if (gitToken.trim()) payload.git_token = gitToken.trim()
       return updateService(appId, svc.id, payload as any)
@@ -878,7 +888,13 @@ function ServiceCard({ svc, appId }: { svc: ApplicationService; appId: string })
             <input style={INPUT_STYLE} type="password" value={gitToken} onChange={e => setGitToken(e.target.value)} placeholder="Optional — stored encrypted" />
           </Field>
           <Field label="Issue Assignee (GitHub username)">
-            <input style={INPUT_STYLE} value={gitAssignee} onChange={e => setGitAssignee(e.target.value)} placeholder="e.g. Copilot, octocat — assigned when issues are created" />
+            <input style={INPUT_STYLE} value={gitAssignee} onChange={e => setGitAssignee(e.target.value)} placeholder="e.g. octocat — a real GitHub user account" />
+          </Field>
+          <Field label="Custom Copilot Agent">
+            <input style={INPUT_STYLE} value={gitCopilotAgent} onChange={e => setGitCopilotAgent(e.target.value)} placeholder="e.g. chad_agency" />
+            <span style={{ fontSize: '0.7rem', color: 'var(--c-muted)', marginTop: 3, display: 'block' }}>
+              File stem from <code>.github/agents/</code> — e.g. <code>chad_agency</code> for <code>chad_agency.agents.md</code>. When set, issues are routed to GitHub Copilot with this custom agent.
+            </span>
           </Field>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
             <button className="btn-primary" style={{ fontSize: '0.72rem', padding: '4px 10px' }} onClick={() => gitMut.mutate()} disabled={gitMut.isPending}>

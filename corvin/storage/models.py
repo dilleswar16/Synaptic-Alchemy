@@ -339,7 +339,8 @@ class ApplicationServiceRow(Base):
     git_repo_url: Mapped[str | None] = mapped_column(String(500), nullable=True, default=None)
     git_branch: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     git_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
-    git_assignee: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)  # GitHub username for issue assignment (supports Copilot agents)
+    git_assignee: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)  # GitHub username for issue assignment
+    git_copilot_agent: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)  # Custom Copilot agent name (file stem from .github/agents/)
 
     application: Mapped["ApplicationRow"] = relationship("ApplicationRow", back_populates="services")
 

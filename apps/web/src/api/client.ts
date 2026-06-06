@@ -834,6 +834,7 @@ export interface ApplicationService {
   git_branch: string | null
   has_git_token: boolean
   git_assignee: string | null
+  git_copilot_agent: string | null
 }
 
 export interface LogSource {
