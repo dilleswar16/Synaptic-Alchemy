@@ -135,6 +135,11 @@ _SQLITE_COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
     ("application_services", "git_repo_url", "VARCHAR(500)"),
     ("application_services", "git_branch", "VARCHAR(255)"),
     ("application_services", "git_token_encrypted", "TEXT"),
+    ("application_services", "git_assignee", "VARCHAR(255)"),
+    ("application_services", "git_copilot_agent", "VARCHAR(255)"),
+    # GitHub Issue tracking on fix strategy outputs
+    ("fix_strategy_outputs", "github_issue_url", "VARCHAR(1024)"),
+    ("fix_strategy_outputs", "github_issue_number", "INTEGER"),
     # Feature 8 — Root Cause Debate Mode columns on investigation requests
     ("investigation_requests", "hypotheses_json", "JSON"),
     ("investigation_requests", "selected_hypothesis_id", "VARCHAR(10)"),
