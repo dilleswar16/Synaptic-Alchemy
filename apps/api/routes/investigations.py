@@ -2008,36 +2008,72 @@ def create_github_issue(
         }
 
     # ── Resolve service git config ────────────────────────────────────────────
-    from corvin.storage.models import ApplicationServiceRow
+    from corvin.storage.models import ApplicationRow, ApplicationServiceRow
     from corvin.connectors.crypto import decrypt
 
     with repo._session_factory() as session:
-        svc_row = (
+        svc_rows = (
             session.query(ApplicationServiceRow)
             .filter_by(service_name=result.request.service_name)
             .order_by(ApplicationServiceRow.id.desc())
-            .first()
+            .all()
         )
 
-    if svc_row is None or svc_row.git_provider != "github" or not svc_row.git_repo_url:
+        app_ids = {row.application_id for row in svc_rows if row.application_id}
+        app_rows: dict[str, ApplicationRow] = {}
+        if app_ids:
+            app_rows = {
+                app.id: app
+                for app in session.query(ApplicationRow).filter(ApplicationRow.id.in_(app_ids)).all()
+            }
+
+    candidates: list[dict] = []
+    for row in svc_rows:
+        app_row = app_rows.get(row.application_id)
+        effective_provider = row.git_provider or (app_row.git_provider if app_row else None)
+        effective_repo_url = row.git_repo_url or (app_row.git_repo_url if app_row else None)
+        effective_token = row.git_token_encrypted or (app_row.git_token_encrypted if app_row else None)
+
+        if effective_provider == "github" and effective_repo_url and effective_token:
+            candidates.append(
+                {
+                    "service_row": row,
+                    "repo_url": effective_repo_url,
+                    "token_encrypted": effective_token,
+                    "provider_scope": "service" if row.git_provider == "github" and row.git_repo_url else "application",
+                }
+            )
+
+    if not candidates:
         raise HTTPException(
             status_code=409,
             detail=(
                 "No GitHub repository configured for this service. "
-                "Go to Applications → Services → Git config and set provider=github, repo URL, and a PAT."
+                "Go to Applications → Services (or Application Git config) and set provider=github, repo URL, and a PAT."
             ),
         )
 
-    if not svc_row.git_token_encrypted:
+    if len(candidates) > 1:
+        options = ", ".join(
+            f"service_id={c['service_row'].id} app_id={c['service_row'].application_id} repo={c['repo_url']}"
+            for c in candidates[:5]
+        )
         raise HTTPException(
             status_code=409,
-            detail="No GitHub PAT stored for this service. Add one in Applications → Services → Git config.",
+            detail=(
+                "Multiple GitHub configs match this service_name. "
+                "Corvin cannot safely decide which repository to use. "
+                f"Matches: {options}. "
+                "Use unique service names per application or align Git config so only one match is valid."
+            ),
         )
 
-    token = decrypt(svc_row.git_token_encrypted)
+    selected = candidates[0]
+    svc_row = selected["service_row"]
+    token = decrypt(selected["token_encrypted"])
 
     # Parse owner/repo from URL: https://github.com/owner/repo or git@github.com:owner/repo.git
-    url = svc_row.git_repo_url.rstrip("/")
+    url = selected["repo_url"].rstrip("/")
     match = re.search(r"github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$", url)
     if not match:
         raise HTTPException(
@@ -2109,15 +2145,37 @@ _Created automatically by [Corvin](https://github.com/corvin-ai) from investigat
     if assignees:
         payload["assignees"] = assignees
 
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    # Preflight repository access check so 404 errors are actionable.
+    repo_resp = httpx.get(
+        f"https://api.github.com/repos/{owner}/{repo_name}",
+        headers=headers,
+        timeout=15,
+    )
+    if repo_resp.status_code == 404:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"GitHub repository '{owner}/{repo_name}' was not found or is not accessible with the configured token. "
+                "Verify repo URL and PAT permissions (Issues: read/write, repository access)."
+            ),
+        )
+    if repo_resp.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail=f"GitHub repo access check failed ({repo_resp.status_code}): {repo_resp.text[:300]}",
+        )
+
     try:
         resp = httpx.post(
             f"https://api.github.com/repos/{owner}/{repo_name}/issues",
             json=payload,
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
+            headers=headers,
             timeout=15,
         )
         resp.raise_for_status()
