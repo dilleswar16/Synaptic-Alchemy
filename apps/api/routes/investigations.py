@@ -2072,15 +2072,31 @@ def create_github_issue(
     svc_row = selected["service_row"]
     token = decrypt(selected["token_encrypted"])
 
-    # Parse owner/repo from URL: https://github.com/owner/repo or git@github.com:owner/repo.git
-    url = selected["repo_url"].rstrip("/")
-    match = re.search(r"github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$", url)
-    if not match:
+    # Parse owner/repo from URL.
+    # Accepts: https://github.com/owner/repo[.git], git@github.com:owner/repo[.git], owner/repo
+    def _parse_github_coords(raw: str) -> tuple[str, str] | None:
+        s = raw.strip().rstrip("/")
+        # Full URL (https or SSH)
+        m = re.search(r"github\.com[:/]([^/\s]+)/([^/\s]+?)(?:\.git)?$", s)
+        if m:
+            return m.group(1), m.group(2)
+        # Bare owner/repo shorthand
+        m = re.match(r"^([A-Za-z0-9_.\-]+)/([A-Za-z0-9_.\-]+)$", s)
+        if m:
+            return m.group(1), m.group(2)
+        return None
+
+    url = selected["repo_url"]
+    coords = _parse_github_coords(url)
+    if coords is None:
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot parse GitHub owner/repo from URL: {url!r}",
+            detail=(
+                f"Cannot parse GitHub owner/repo from the stored URL: {url!r}. "
+                "Accepted formats: 'https://github.com/owner/repo', 'git@github.com:owner/repo.git', or 'owner/repo'."
+            ),
         )
-    owner, repo_name = match.group(1), match.group(2)
+    owner, repo_name = coords
 
     # ── Build issue body ──────────────────────────────────────────────────────
     fix = result.fix_strategy
@@ -2151,24 +2167,81 @@ _Created automatically by [Corvin](https://github.com/corvin-ai) from investigat
         "X-GitHub-Api-Version": "2022-11-28",
     }
 
-    # Preflight repository access check so 404 errors are actionable.
-    repo_resp = httpx.get(
-        f"https://api.github.com/repos/{owner}/{repo_name}",
-        headers=headers,
-        timeout=15,
-    )
+    # ── Preflight: validate token, then repo access, then issues enabled ─────
+    try:
+        user_resp = httpx.get("https://api.github.com/user", headers=headers, timeout=10)
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not reach GitHub API: {exc}")
+
+    if user_resp.status_code == 401:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "GitHub token is invalid or expired. "
+                "Generate a new PAT at GitHub → Settings → Developer Settings → Personal Access Tokens, "
+                "then update it under Applications → Services → Git configuration."
+            ),
+        )
+    if user_resp.status_code == 403:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "GitHub token is valid but lacks the required scope. "
+                "Classic PATs need the 'repo' scope (or 'public_repo' for public repos). "
+                "Fine-grained PATs need 'Issues: Read and Write' + 'Contents: Read' access."
+            ),
+        )
+
+    token_user: str = user_resp.json().get("login", "unknown") if user_resp.status_code == 200 else "unknown"
+
+    try:
+        repo_resp = httpx.get(
+            f"https://api.github.com/repos/{owner}/{repo_name}",
+            headers=headers,
+            timeout=15,
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not reach GitHub API while checking repo: {exc}")
+
+    if repo_resp.status_code == 401:
+        raise HTTPException(
+            status_code=409,
+            detail="GitHub token was rejected when accessing the repository. The token may have been revoked.",
+        )
+    if repo_resp.status_code == 403:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Token (owner: '{token_user}') does not have permission to access '{owner}/{repo_name}'. "
+                "For organization repos: the org may require SSO authorization — visit "
+                f"https://github.com/settings/tokens and authorize the PAT for the '{owner}' org. "
+                "For fine-grained PATs: ensure this repo is explicitly selected in the token's repository access."
+            ),
+        )
     if repo_resp.status_code == 404:
         raise HTTPException(
             status_code=409,
             detail=(
-                f"GitHub repository '{owner}/{repo_name}' was not found or is not accessible with the configured token. "
-                "Verify repo URL and PAT permissions (Issues: read/write, repository access)."
+                f"Repository '{owner}/{repo_name}' not found for token owner '{token_user}'. "
+                "Check: (1) the repo URL is correct and the repo exists, "
+                "(2) for private or org repos the PAT has the 'repo' scope, "
+                "(3) for fine-grained PATs the repo is explicitly listed in the token's repository access settings."
             ),
         )
     if repo_resp.status_code >= 400:
         raise HTTPException(
             status_code=502,
             detail=f"GitHub repo access check failed ({repo_resp.status_code}): {repo_resp.text[:300]}",
+        )
+
+    repo_meta = repo_resp.json()
+    if not repo_meta.get("has_issues", True):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Issues are disabled on '{owner}/{repo_name}'. "
+                "Enable them under the repository Settings → General → Features → Issues."
+            ),
         )
 
     try:
