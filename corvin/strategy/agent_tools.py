@@ -129,11 +129,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "The service to score (e.g. 'fundsso', 'partnerapis').",
+                        "description": "The service to score (e.g. 'payments-api', 'auth-service').",
                     },
                     "environment": {
                         "type": "string",
-                        "description": "Target environment (default: 'dev').",
+                        "description": "Target environment. Required — ask the user if not provided.",
                     },
                 },
                 "required": ["service_name"],
@@ -192,11 +192,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     },
                     "service_name": {
                         "type": "string",
-                        "description": "The name of the service to analyze (optional, e.g. 'partnerapis').",
+                        "description": "The name of the service to analyze (optional, e.g. 'payments-api').",
                     },
                     "environment": {
                         "type": "string",
-                        "description": "Environment for speculative analysis (default: 'dev').",
+                        "description": "Target environment for speculative analysis.",
                     },
                 },
                 "required": [],
@@ -243,7 +243,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     },
                     "environment": {
                         "type": "string",
-                        "description": "Environment (default: 'dev').",
+                        "description": "Target environment filter.",
                     },
                     "n": {
                         "type": "integer",
@@ -259,9 +259,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "function": {
             "name": "get_site_knowledge",
             "description": (
-                "Return the CHAD site knowledge base: architecture overview, service descriptions, "
+                "Return the site knowledge base: architecture overview, service descriptions, "
                 "AKS cluster details, APIM configuration, namespaces, and infrastructure conventions. "
-                "Use this whenever the user asks about CHAD architecture, how services are deployed, "
+                "Use this whenever the user asks about platform architecture, how services are deployed, "
                 "cluster names, namespaces, or any infrastructure-level question."
             ),
             "parameters": {"type": "object", "properties": {}, "required": []},
@@ -272,7 +272,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "function": {
             "name": "get_runbook",
             "description": (
-                "Return the runbook for a specific service or incident type from the CHAD knowledge base. "
+                "Return the runbook for a specific service or incident type from the knowledge base. "
                 "Runbooks contain step-by-step investigation and resolution procedures. "
                 "Use this when the user asks about how to fix or diagnose a specific service or issue."
             ),
@@ -283,7 +283,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                         "type": "string",
                         "description": (
                             "A keyword or phrase to match the correct runbook, e.g. "
-                            "'fundsso memory leak' or 'partnerapis 401 jwt'."
+                            "'auth-service memory leak' or 'payments-api 401 jwt'."
                         ),
                     }
                 },
@@ -306,11 +306,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "The API or backend service name (e.g. 'partnerapis', 'fundapis').",
+                        "description": "The API or backend service name (e.g. 'payments-api', 'order-service').",
                     },
                     "environment": {
                         "type": "string",
-                        "description": "Environment to filter by (default: 'dev').",
+                        "description": "Environment to filter by.",
                     },
                     "time_range_minutes": {
                         "type": "integer",
@@ -327,7 +327,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "name": "get_aks_health",
             "description": (
                 "Fetch live AKS pod status, restart counts, resource pressure, recent events, "
-                "and deployment rollout state for a named service from the CHAD cluster. "
+                "and deployment rollout state for a named service from the configured AKS cluster. "
                 "Use this when the user asks about pod health, restarts, OOMKill, deployment status, "
                 "or anything Kubernetes-related."
             ),
@@ -336,11 +336,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "Kubernetes deployment or service name (e.g. 'fundsso', 'partnerapis').",
+                        "description": "Kubernetes deployment or service name (e.g. 'payments-api').",
                     },
                     "namespace": {
                         "type": "string",
-                        "description": "Kubernetes namespace (default: 'chad').",
+                        "description": "Kubernetes namespace (defaults to connector-configured namespace).",
                     },
                     "environment": {
                         "type": "string",
@@ -362,14 +362,14 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "ALWAYS use this — not run_kql — when the user asks about: API traffic volumes, "
                 "success/error rates, latency percentiles, unique member counts, fund code "
                 "breakdowns, caller IPs, TLS compliance, peak hours, or anything about "
-                "partnerapis or fundapis performance. "
+                "APIM API performance. "
                 "TWO MODES: "
                 "(1) Template mode: pass template_name to use a pre-validated query. "
                 "(2) Custom mode: if no template fits, write your own KQL and pass it as `kql`. "
                 "Available templates: kpi_summary, traffic_over_time, success_rate, "
-                "response_code_distribution, api_traffic_split, unique_members_by_fund, "
-                "requests_by_fund, top_members, fund_activity_heatmap, partnerapis_operations, "
-                "fundapis_traffic, fundapis_operations_by_fund, latency_percentiles, "
+                "response_code_distribution, api_traffic_split, api_operations, "
+                "api_traffic, api_ops_by_segment, unique_ids_by_segment, "
+                "requests_by_segment, top_client_ids, activity_heatmap, latency_percentiles, "
                 "backend_vs_overhead, slowest_operations, error_rate, errors_by_code, "
                 "error_origin, top_caller_ips, tls_versions, traffic_source."
             ),
@@ -380,16 +380,18 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                         "type": "string",
                         "description": (
                             "The pre-validated analytics template to run. Choose based on the user's question. "
-                            "'how many users/members today' → unique_members_by_fund. "
                             "'overall health/KPIs/summary' → kpi_summary. "
                             "'traffic over time' → traffic_over_time. "
                             "'error rate/errors' → error_rate or errors_by_code. "
                             "'latency/performance/slow' → latency_percentiles or slowest_operations. "
-                            "'which fund gets most traffic' → requests_by_fund. "
-                            "'peak hours/heatmap' → fund_activity_heatmap. "
+                            "'ops breakdown by operation' → api_operations. "
+                            "'traffic and error rate over time' → api_traffic. "
+                            "'ops by url segment' → api_ops_by_segment. "
+                            "'unique clients by segment' → unique_ids_by_segment. "
+                            "'requests by path segment' → requests_by_segment. "
+                            "'peak hours/heatmap' → activity_heatmap. "
+                            "'top clients' → top_client_ids. "
                             "'backend vs gateway overhead' → backend_vs_overhead. "
-                            "'partnerapis ops' → partnerapis_operations. "
-                            "'fundapis ops/flow' → fundapis_operations_by_fund. "
                             "'tls/security' → tls_versions. "
                             "'caller ips' → top_caller_ips. "
                             "Omit this field when using custom `kql` mode."
@@ -436,8 +438,10 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     },
                     "api_filter": {
                         "type": "string",
-                        "enum": ["all", "partnerapis", "fundapis"],
-                        "description": "Filter to a specific API. Only applies in template mode. Default: 'all'.",
+                        "description": (
+                            "Filter to a specific APIM ApiId. Use 'all' for all APIs, "
+                            "or provide one ApiId (e.g. 'payments-api') or a comma-separated list."
+                        ),
                     },
                 },
                 "required": [],
@@ -459,15 +463,99 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "Kubernetes service/deployment name to query (e.g. 'fundapis').",
+                        "description": "Kubernetes service/deployment name to query (e.g. 'payments-api').",
                     },
                     "namespace": {
                         "type": "string",
-                        "description": "Kubernetes namespace (default: 'chad').",
+                        "description": "Kubernetes namespace (defaults to connector-configured namespace).",
                     },
                     "time_range_minutes": {
                         "type": "integer",
                         "description": "Look-back window in minutes (default: 60).",
+                    },
+                },
+                "required": ["service_name"],
+            },
+        },
+    },
+    # ── Code Analysis Tools ───────────────────────────────────────────────────
+    {
+        "type": "function",
+        "function": {
+            "name": "code_search_files",
+            "description": (
+                "Search the application's Git repository source code for a class, function, "
+                "variable, or error pattern. Use this when you see a stack trace, exception, "
+                "or code-related error in logs and want to find the relevant source file. "
+                "Returns matching file paths and code snippets. "
+                "Only works if the service has Git repository access configured."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "The service whose repository to search (e.g. 'payments-api').",
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "Search query — class name, function name, error message, or variable.",
+                    },
+                    "extensions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional file extensions to filter (e.g. ['.cs', '.py', '.ts']).",
+                    },
+                },
+                "required": ["service_name", "query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "code_read_file",
+            "description": (
+                "Read the content of a specific source file from the service's Git repository. "
+                "Use this after code_search_files identifies a relevant file, or when a stack "
+                "trace points to a specific file path. Returns the full file content (up to 128KB). "
+                "Only works if the service has Git repository access configured."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "The service whose repository to read from (e.g. 'payments-api').",
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "File path relative to repo root (e.g. 'src/Services/OrderService.cs').",
+                    },
+                },
+                "required": ["service_name", "path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "code_list_directory",
+            "description": (
+                "List files and folders in a directory of the service's Git repository. "
+                "Use this to explore the project structure when you need to locate relevant "
+                "source files. Only works if the service has Git repository access configured."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "The service whose repository to browse (e.g. 'payments-api').",
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Directory path relative to repo root (e.g. 'src/Services/'). Use '/' for root.",
                     },
                 },
                 "required": ["service_name"],
@@ -534,7 +622,9 @@ def _exec_predictive_alerts(args: dict) -> list:
 def _exec_service_score(args: dict) -> dict:
     from corvin.storage.repository import InvestigationRepository
     service = args["service_name"]
-    env = args.get("environment", "dev")
+    env = args.get("environment") or ""
+    if not env:
+        return {"error": "environment is required for service score lookup."}
     repo = InvestigationRepository()
     return repo.get_service_score(service_name=service, environment=env)
 
@@ -560,12 +650,13 @@ def _exec_roi(args: dict) -> dict:
 
 def _exec_topology(args: dict) -> dict:
     from corvin.storage.repository import InvestigationRepository
+    from corvin.storage.db import get_session as _get_db_session
+    from corvin.storage.models import ApplicationServiceRow as _SvcRow
     from corvin.investigation.topology import (
         build_service_topology,
         ServiceTopology,
         TopologyNode,
         TopologyEdge,
-        _inject_apim_topology,
         build_pod_topology_node,
         _resource_summary,
         _resource_summary_by_pod,
@@ -579,33 +670,45 @@ def _exec_topology(args: dict) -> dict:
         nodes = {n.id: n for n in base.nodes}
         edges = {(e.source, e.target, e.label): e for e in base.edges}
     else:
-        # No investigations yet — fall back to static CHAD architecture + live AKS pods.
-        static_services = [
-            ("fundapis", "high"),
-            ("partnerapis", "high"),
-            ("fundsso", "high"),
-        ]
+        # No investigations yet — bootstrap topology from service registrations.
         nodes = {}
         edges = {}
-        for svc_name, status in static_services:
-            svc_id = f"svc:{svc_name}"
-            nodes[svc_id] = TopologyNode(id=svc_id, label=svc_name, kind="service", status=status)
-        _inject_apim_topology(nodes, edges)
+        with _get_db_session() as _db:
+            svc_rows = _db.query(_SvcRow).all()
+        for svc in svc_rows:
+            svc_id = f"svc:{svc.service_name}"
+            nodes[svc_id] = TopologyNode(id=svc_id, label=svc.service_name, kind="service", status="unknown")
+            meta: dict = svc.metadata_json or {}
+            if meta.get("apim_routes_through_gateway"):
+                api_id = meta.get("apim_api_id") or svc.service_name
+                gateway_id = "gateway:apim"
+                api_node_id = f"api:{api_id}"
+                nodes.setdefault(gateway_id, TopologyNode(id=gateway_id, label="APIM Gateway", kind="gateway", status="supporting"))
+                nodes.setdefault(api_node_id, TopologyNode(id=api_node_id, label=api_id, kind="api", status="observed"))
+                edges[(gateway_id, api_node_id, "routes")] = TopologyEdge(source=gateway_id, target=api_node_id, label="routes")
+                edges[(api_node_id, svc_id, "routes")] = TopologyEdge(source=api_node_id, target=svc_id, label="routes")
+            if meta.get("is_sso_direct"):
+                dep_id = str(meta.get("sso_provider_id") or "backend:sso-provider")
+                dep_label = str(meta.get("sso_provider_label") or "SSO Provider")
+                nodes.setdefault(dep_id, TopologyNode(id=dep_id, label=dep_label, kind="backend", status="supporting"))
+                edges[(svc_id, dep_id, "depends-on")] = TopologyEdge(source=svc_id, target=dep_id, label="depends-on")
 
     try:
         from corvin.evidence.aks_adapter import AKSAdapter
         from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
-        _AKS_NAME_MAP = {
-            "chad-fundapis":    "fundapis",
-            "chad-fundsso":     "fundsso",
-            "chad-partnerapis": "partnerapis",
-        }
+        aks_name_map: dict[str, str] = {}
+        with _get_db_session() as _db:
+            svc_rows = _db.query(_SvcRow).all()
+        for svc in svc_rows:
+            if svc.k8s_app_label:
+                aks_name_map[svc.k8s_app_label] = svc.service_name
+
         adapter = AKSAdapter()
         logs_adapter = ContainerLogsAdapter()
         live = adapter.list_all_pods()
         for svc in live.get("services", []):
             raw_name = svc["name"]
-            svc_name = _AKS_NAME_MAP.get(raw_name, raw_name)
+            svc_name = aks_name_map.get(raw_name, raw_name)
             svc_id = f"svc:{svc_name}"
             try:
                 metric_rows = logs_adapter.get_resource_metrics(svc_name)
@@ -670,7 +773,7 @@ def _exec_blast_radius(args: dict) -> dict:
     if not service_name:
         return {"error": "Either investigation_id or service_name must be provided."}
     
-    env = args.get("environment", "dev")
+    env = args.get("environment") or ""
     # For speculative analysis, we pass an empty evidence bundle
     # The estimator will use downstream API counts if evidence is empty
     # But here we should ideally try to find some recent evidence if possible
@@ -697,7 +800,7 @@ def _exec_postmortem(args: dict) -> dict:
 def _exec_similar_incidents(args: dict) -> list:
     from corvin.storage.repository import InvestigationRepository
     service = args["service_name"]
-    env = args.get("environment", "dev")
+    env = args.get("environment") or ""
     n = max(1, min(int(args.get("n", 5)), 10))
     repo = InvestigationRepository()
     return repo.get_similar_incidents(service_name=service, environment=env, n=n)
@@ -722,7 +825,7 @@ def _exec_run_kql(args: dict) -> Any:
     adapter = LogAnalyticsAdapter()
     return adapter.get_apim_logs(
         service_name=args["service_name"],
-        environment=args.get("environment", "dev"),
+        environment=args.get("environment") or "",
         time_range_minutes=int(args.get("time_range_minutes", 60)),
     )
 
@@ -795,12 +898,53 @@ def _exec_container_resource_metrics(args: dict) -> dict[str, Any]:
 
     return {
         "service_name": service_name,
-        "namespace": namespace or "chad",
+        "namespace": namespace or "",
         "time_range_minutes": minutes,
         "sample_count": len(rows),
         "service": service_summary,
         "pods": pods,
     }
+
+
+# ── Code Analysis Executors ───────────────────────────────────────────────────
+
+def _exec_code_search_files(args: dict) -> Any:
+    from corvin.connectors.git_repo import get_connector_for_service
+    service_name = args["service_name"]
+    connector = get_connector_for_service(service_name)
+    if connector is None:
+        return {"error": f"No Git repository configured for service '{service_name}'. Configure it in the Applications onboarding panel."}
+    results = connector.search_files(args["query"], args.get("extensions"))
+    if not results:
+        return {"message": f"No files found matching '{args['query']}'.", "results": []}
+    return {"results": results}
+
+
+def _exec_code_read_file(args: dict) -> Any:
+    from corvin.connectors.git_repo import get_connector_for_service, _MAX_CODE_CONTEXT_CHARS
+    service_name = args["service_name"]
+    connector = get_connector_for_service(service_name)
+    if connector is None:
+        return {"error": f"No Git repository configured for service '{service_name}'. Configure it in the Applications onboarding panel."}
+    content = connector.get_file(args["path"])
+    if content is None:
+        return {"error": f"File not found: {args['path']}"}
+    if len(content) > _MAX_CODE_CONTEXT_CHARS:
+        content = content[:_MAX_CODE_CONTEXT_CHARS] + "\n\n[... truncated — file too large ...]"
+    return {"path": args["path"], "content": content}
+
+
+def _exec_code_list_directory(args: dict) -> Any:
+    from corvin.connectors.git_repo import get_connector_for_service
+    service_name = args["service_name"]
+    connector = get_connector_for_service(service_name)
+    if connector is None:
+        return {"error": f"No Git repository configured for service '{service_name}'. Configure it in the Applications onboarding panel."}
+    path = args.get("path", "/")
+    items = connector.list_directory(path)
+    if not items:
+        return {"message": f"Directory empty or not found: {path}", "items": []}
+    return {"path": path, "items": items}
 
 
 _EXECUTORS = {
@@ -820,4 +964,8 @@ _EXECUTORS = {
     "get_aks_health":           _exec_aks_health,
     "get_container_resource_metrics": _exec_container_resource_metrics,
     "query_apim_analytics":     _exec_apim_analytics,
+    "code_search_files":        _exec_code_search_files,
+    "code_read_file":           _exec_code_read_file,
+    "code_list_directory":      _exec_code_list_directory,
 }
+

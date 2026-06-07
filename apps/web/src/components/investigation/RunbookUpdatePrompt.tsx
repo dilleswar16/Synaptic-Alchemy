@@ -7,7 +7,8 @@
  */
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { updateRunbook, type RunbookUpdateResult } from '../../api/client'
+import { updateInvestigationRunbook, type RunbookUpdateResult } from '../../api/client'
+import { InfoTooltip } from '../Section'
 
 interface Props {
   requestId: string
@@ -20,7 +21,7 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
   const [merged, setMerged] = useState(false)
 
   const mutation = useMutation({
-    mutationFn: () => updateRunbook(requestId),
+    mutationFn: () => updateInvestigationRunbook(requestId),
     onSuccess: (data) => setResult(data),
   })
 
@@ -142,8 +143,9 @@ export function RunbookUpdatePrompt({ requestId, serviceName }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: '1.2rem' }}>🐙</span>
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem', color: 'var(--c-text)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem', color: 'var(--c-text)' }}>
               This Fix Worked — Create a Pull Request?
+              <InfoTooltip text="Codifies the resolution into the team's operational runbook library via a pull request. Prevents the same diagnostic effort from being repeated for future instances of the same failure pattern." />
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-dim)', marginTop: 2 }}>
               Corvin will generate a runbook step and open a PR against your GitOps repository.

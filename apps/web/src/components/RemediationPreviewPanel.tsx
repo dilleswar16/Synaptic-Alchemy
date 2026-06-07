@@ -25,7 +25,22 @@ export function RemediationPreviewPanel({ requestId }: { requestId: string }) {
   }, [data, requestId])
 
   if (isLoading) {
-    return <div className="panel scan-sweep" style={{ minHeight: 220 }} />
+    return (
+      <div className="panel scan-sweep" style={{ minHeight: 220, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+          <div>
+            <div style={{ height: 12, width: 120, background: 'var(--c-border-hi)', borderRadius: 3, marginBottom: 8 }} />
+            <div style={{ height: 18, width: 200, background: 'var(--c-border-hi)', borderRadius: 4 }} />
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{ height: 50, width: 70, background: 'var(--c-border-hi)', borderRadius: 8 }} />
+            ))}
+          </div>
+        </div>
+        <div style={{ height: 80, width: '100%', background: 'var(--c-border)', borderRadius: 8 }} />
+      </div>
+    )
   }
   if (!data) return null
 
@@ -85,26 +100,36 @@ export function RemediationPreviewPanel({ requestId }: { requestId: string }) {
                   </span>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'var(--c-border)' }}>
-                {[
-                  ['Current State', item.current_state],
-                  ['Proposed Command', item.proposed_command],
-                  ['After State', item.predicted_after_state],
-                ].map(([label, value], i) => (
-                  <div key={i} style={{ padding: '14px 14px 16px', background: 'var(--c-surface)' }}>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: i === 1 ? accent : 'var(--c-text-faint)', marginBottom: 8 }}>{label}</div>
-                    <div style={{ fontFamily: i === 1 ? 'var(--font-mono)' : 'var(--font-body)', fontSize: '0.76rem', color: 'var(--c-text-dim)', lineHeight: 1.7 }}>{value}</div>
-                  </div>
-                ))}
-              </div>
-              {item.operator_notes.length > 0 && (
-                <div style={{ padding: '12px 14px', background: 'color-mix(in srgb, var(--c-signal) 6%, var(--c-surface-2))', borderTop: '1px solid var(--c-border)' }}>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 6 }}>Operator Notes</div>
-                  {item.operator_notes.map((note, noteIndex) => (
-                    <div key={noteIndex} style={{ fontFamily: 'var(--font-body)', fontSize: '0.74rem', color: 'var(--c-text-muted)', lineHeight: 1.6 }}>{note}</div>
+              <details style={{ background: 'var(--c-surface)' }}>
+                <summary style={{
+                  cursor: 'pointer', fontFamily: 'var(--font-display)',
+                  fontSize: '0.7rem', fontWeight: 700, color: 'var(--c-text-muted)',
+                  listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '8px 0', borderBottom: '1px solid var(--c-border)'
+                }}>
+                  <span style={{ fontSize: '0.6rem' }}>▼</span> View Code & State Diffs
+                </summary>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'var(--c-border)' }}>
+                  {[
+                    ['Current State', item.current_state],
+                    ['Proposed Command', item.proposed_command],
+                    ['After State', item.predicted_after_state],
+                  ].map(([label, value], i) => (
+                    <div key={i} style={{ padding: '14px 14px 16px', background: 'var(--c-surface)' }}>
+                      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: i === 1 ? accent : 'var(--c-text-faint)', marginBottom: 8 }}>{label}</div>
+                      <div style={{ fontFamily: i === 1 ? 'var(--font-mono)' : 'var(--font-body)', fontSize: '0.76rem', color: 'var(--c-text-dim)', lineHeight: 1.7 }}>{value}</div>
+                    </div>
                   ))}
                 </div>
-              )}
+                {item.operator_notes.length > 0 && (
+                  <div style={{ padding: '12px 14px', background: 'color-mix(in srgb, var(--c-signal) 6%, var(--c-surface-2))', borderTop: '1px solid var(--c-border)' }}>
+                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--c-text-faint)', marginBottom: 6 }}>Operator Notes</div>
+                    {item.operator_notes.map((note, noteIndex) => (
+                      <div key={noteIndex} style={{ fontFamily: 'var(--font-body)', fontSize: '0.74rem', color: 'var(--c-text-muted)', lineHeight: 1.6 }}>{note}</div>
+                    ))}
+                  </div>
+                )}
+              </details>
             </div>
           )
         })}

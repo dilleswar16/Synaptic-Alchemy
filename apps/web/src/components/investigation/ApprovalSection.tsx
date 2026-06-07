@@ -65,7 +65,7 @@ export function ApprovalSection({
   const isPending = approveMutation.isPending || rejectMutation.isPending || acknowledgeMutation.isPending
 
   return (
-    <Section title="Approval Decision" accent id="approval-section">
+    <Section title="Approval Decision" accent id="approval-section" info="All AI-generated remediation actions require explicit human authorisation before execution. No changes are applied to production systems without operator sign-off. The decision is logged with timestamp and attribution for governance records.">
 
       {/* ── Informational banner (healthy service, no fix needed) ── */}
       {isInformational && status === 'pending' && (

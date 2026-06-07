@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 
 const PULSE_EVENTS = [
-  "Corvin: Monitoring APIM 4xx rates for fundapis",
-  "Intelligence: Trend analysis detected slight memory growth in fundsso",
+  "Corvin: Monitoring APIM 4xx rates for payments-api",
+  "Intelligence: Trend analysis detected slight memory growth in auth-service",
   "Storage: Persistence layer synced 47 investigations",
-  "Corvin: Ready to investigate partnerapis JWT failures",
-  "Knowledge: CHAD Site Map updated with latest AKS topology",
-  "System: Daily Briefing narrative generated via GPT-4.1",
+  "Corvin: Ready to investigate order-service JWT failures",
+  "Knowledge: Site Knowledge Base updated with latest AKS topology",
+  "System: Daily Briefing narrative generated successfully",
   "Audit: 3 approvals pending in the operations queue",
-  "Corvin: Correlating Elastic logs with APIM latency spikes",
+  "Corvin: Correlating container logs with APIM latency spikes",
 ]
 
 export function PlatformPulse() {

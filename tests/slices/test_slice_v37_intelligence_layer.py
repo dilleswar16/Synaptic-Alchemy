@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+from datetime import datetime, timezone
+
 from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import create_engine
@@ -23,7 +26,7 @@ from corvin.core.contracts import (
 )
 from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
 from corvin.investigation.topology import build_service_topology
-from corvin.storage.models import Base
+from corvin.storage.models import ApplicationRow, ApplicationServiceRow, Base, LogSourceRow
 from corvin.storage.repository import InvestigationRepository
 from corvin.strategy.sla import build_sla_countdown
 from corvin.triggers.predictive import PredictiveMonitor
@@ -260,6 +263,58 @@ def test_topology_endpoint_returns_graph(sqlite_repo):
     app.dependency_overrides.clear()
 
 
+def test_topology_endpoint_scopes_by_application_id():
+    class _FakeRepo:
+        def __init__(self):
+            self.seen_service_names = None
+
+        def list_application_service_names(self, application_id: str):
+            assert application_id == "app-123"
+            return ["payments-api"]
+
+        def list_recent_results(self, limit: int = 30, service_names=None):
+            self.seen_service_names = service_names
+            return [_make_result(service="payments-api")]
+
+    fake_repo = _FakeRepo()
+    client = _client_with(fake_repo)
+
+    response = client.get("/investigations/topology?application_id=app-123")
+
+    assert response.status_code == 200
+    assert fake_repo.seen_service_names == ["payments-api"]
+    payload = response.json()
+    assert any(node.get("id") == "svc:payments-api" for node in payload["nodes"])
+    assert not any(node.get("id") == "svc:fundapis" for node in payload["nodes"])
+    app.dependency_overrides.clear()
+
+
+def test_topology_endpoint_global_scope_filters_to_catalog_services():
+    class _FakeRepo:
+        def __init__(self):
+            self.seen_service_names = None
+
+        def list_application_service_names(self, application_id=None):
+            assert application_id is None
+            return ["catalog-api"]
+
+        def list_recent_results(self, limit: int = 30, service_names=None):
+            self.seen_service_names = service_names
+            return [_make_result(service="catalog-api")]
+
+    fake_repo = _FakeRepo()
+    client = _client_with(fake_repo)
+
+    response = client.get("/investigations/topology")
+
+    assert response.status_code == 200
+    assert fake_repo.seen_service_names == ["catalog-api"]
+    payload = response.json()
+    assert any(node.get("id") == "svc:catalog-api" for node in payload["nodes"])
+    assert not any(node.get("id") == "svc:fundsso" for node in payload["nodes"])
+    app.dependency_overrides.clear()
+
+
 def test_topology_live_endpoint_marks_unhealthy_pod_hot(monkeypatch):
     class _FakeAksAdapter:
         def list_all_pods(self):
@@ -317,6 +372,234 @@ def test_topology_live_endpoint_marks_unhealthy_pod_hot(monkeypatch):
     assert any(n.get("memory_limit_mib") is not None for n in pod_nodes)
     assert any(n.get("cpu_utilization_pct") is not None for n in pod_nodes)
     assert any(n.get("memory_utilization_pct") is not None for n in pod_nodes)
+
+
+def test_topology_live_endpoint_supports_cluster_namespace_filters_and_metadata(monkeypatch):
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    with Session() as s:
+        s.add(ApplicationRow(
+            id="app-1",
+            name="CHAD",
+            description="CHAD app",
+            team_name="Platform",
+            environment_default="dev",
+            topology_json={},
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        ))
+        s.add(ApplicationServiceRow(
+            application_id="app-1",
+            service_name="fundapis",
+            display_name="fundapis",
+            namespace="chad",
+            tier="api",
+            dependencies=[],
+            metadata_json={},
+        ))
+        s.add(LogSourceRow(
+            id="ls-aks-1",
+            application_id="app-1",
+            source_type="aks",
+            display_name="AKS",
+            config_json={
+                "clusters": [
+                    {"cluster_name": "aks-east", "resource_group": "rg-east", "subscription_id": "sub-east", "namespaces": ["chad", "partner"]},
+                    {"cluster_name": "aks-west", "resource_group": "rg-west", "subscription_id": "sub-west", "namespaces": ["funds"]},
+                ],
+                "default_namespace": "chad",
+            },
+            credential_type="env_var",
+            credential_ref=None,
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+        ))
+        s.commit()
+
+    @contextmanager
+    def fake_get_db_session():
+        with Session() as session:
+            yield session
+
+    class _FakeAksAdapter:
+        def list_all_pods(self, namespace=None, service_name=None, cluster_names=None):
+            if cluster_names and "aks-east" not in cluster_names:
+                return {"services": []}
+            return {
+                "services": [
+                    {
+                        "name": "fundapis",
+                        "status": "recovering",
+                        "clusters": ["aks-east"],
+                        "namespaces": ["chad"],
+                        "pods": [
+                            {
+                                "name": "fundapis-abc-123",
+                                "cluster_name": "aks-east",
+                                "namespace": "chad",
+                                "phase": "Running",
+                                "containers": [{"name": "main", "ready": True, "restart_count": 1}],
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    class _FakeContainerLogsAdapter:
+        def get_resource_metrics(self, service_name: str, namespace=None):
+            return [
+                {"Name": "fundapis-abc-123", "CounterName": "cpuUsageNanoCores", "AvgValue": 120_000_000},
+                {"Name": "fundapis-abc-123", "CounterName": "cpuLimitNanoCores", "AvgValue": 500_000_000},
+            ]
+
+    monkeypatch.setattr("corvin.storage.db.get_session", fake_get_db_session)
+    monkeypatch.setattr("corvin.evidence.aks_adapter.AKSAdapter", _FakeAksAdapter)
+    monkeypatch.setattr("corvin.evidence.container_logs_adapter.ContainerLogsAdapter", _FakeContainerLogsAdapter)
+
+    client = TestClient(app)
+    response = client.get("/investigations/topology/live?application_id=app-1&clusters=aks-east&namespaces=chad")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["metadata"]["selected_clusters"] == ["aks-east"]
+    assert payload["metadata"]["selected_namespaces"] == ["chad"]
+    assert "aks-east" in payload["metadata"]["available_clusters"]
+    assert "chad" in payload["metadata"]["available_namespaces"]
+    assert "funds" not in payload["metadata"]["available_namespaces"]
+    assert payload["metadata"]["cluster_namespaces"]["aks-east"] == ["chad", "partner"]
+    assert payload["metadata"]["cluster_namespaces"]["aks-west"] == ["funds"]
+    assert payload["metadata"]["pod_source_ok"] is True
+    assert payload["metadata"]["metrics_source_ok"] is True
+    assert payload["metadata"]["filtered_service_count"] >= 1
+    assert payload["metadata"]["namespace_status"]["chad"]["status"] == "recovering"
+
+    pod_nodes = [n for n in payload["nodes"] if n.get("kind") == "pod"]
+    assert pod_nodes
+    assert any(n.get("cluster_name") == "aks-east" for n in pod_nodes)
+    assert any(n.get("namespace") == "chad" for n in pod_nodes)
+
+
+def test_topology_live_endpoint_returns_runtime_pods_for_namespace_without_catalog_service(monkeypatch):
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    with Session() as s:
+        s.add(ApplicationRow(
+            id="app-1",
+            name="CHAD",
+            description="CHAD app",
+            team_name="Platform",
+            environment_default="dev",
+            topology_json={},
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        ))
+        # Only chad service exists in catalog; elastic-agent has no configured service rows.
+        s.add(ApplicationServiceRow(
+            application_id="app-1",
+            service_name="fundapis",
+            display_name="fundapis",
+            namespace="chad",
+            tier="api",
+            dependencies=[],
+            metadata_json={},
+        ))
+        s.add(LogSourceRow(
+            id="ls-aks-1",
+            application_id="app-1",
+            source_type="aks",
+            display_name="AKS",
+            config_json={
+                "clusters": [
+                    {
+                        "cluster_name": "aks-east",
+                        "resource_group": "rg-east",
+                        "subscription_id": "sub-east",
+                        "namespaces": ["chad", "elastic-agent"],
+                    }
+                ],
+                "default_namespace": "chad",
+            },
+            credential_type="env_var",
+            credential_ref=None,
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+        ))
+        s.commit()
+
+    @contextmanager
+    def fake_get_db_session():
+        with Session() as session:
+            yield session
+
+    class _FakeAksAdapter:
+        def __init__(self, config=None):
+            self._config = config or {}
+
+        def list_all_pods(self, namespace=None, service_name=None, cluster_names=None, discover_namespaces=False):
+            if namespace and namespace != "elastic-agent":
+                return {"services": []}
+            if cluster_names and "aks-east" not in cluster_names:
+                return {"services": []}
+            return {
+                "services": [
+                    {
+                        "name": "elastic-agent",
+                        "status": "high",
+                        "clusters": ["aks-east"],
+                        "namespaces": ["elastic-agent"],
+                        "pods": [
+                            {
+                                "name": "elastic-agent-0",
+                                "cluster_name": "aks-east",
+                                "namespace": "elastic-agent",
+                                "phase": "Running",
+                                "containers": [{"name": "main", "ready": True, "restart_count": 0}],
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    class _FakeContainerLogsAdapter:
+        def __init__(self, config=None):
+            self._config = config or {}
+
+        def get_resource_metrics(self, service_name: str, namespace=None):
+            if service_name != "elastic-agent":
+                return []
+            return [
+                {"Name": "elastic-agent-0", "CounterName": "cpuUsageNanoCores", "AvgValue": 80_000_000},
+                {"Name": "elastic-agent-0", "CounterName": "cpuLimitNanoCores", "AvgValue": 200_000_000},
+            ]
+
+    monkeypatch.setattr("corvin.storage.db.get_session", fake_get_db_session)
+    monkeypatch.setattr("corvin.evidence.aks_adapter.AKSAdapter", _FakeAksAdapter)
+    monkeypatch.setattr("corvin.evidence.container_logs_adapter.ContainerLogsAdapter", _FakeContainerLogsAdapter)
+
+    client = TestClient(app)
+    response = client.get("/investigations/topology/live?application_id=app-1&clusters=aks-east&namespaces=elastic-agent")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["metadata"]["selected_namespaces"] == ["elastic-agent"]
+    assert payload["metadata"]["pod_source_ok"] is True
+    assert payload["metadata"]["metrics_source_ok"] is True
+
+    pod_nodes = [n for n in payload["nodes"] if n.get("kind") == "pod"]
+    assert pod_nodes
+    assert any(n.get("namespace") == "elastic-agent" for n in pod_nodes)
 
 
 def test_investigate_predictive_alert_runs_pipeline(sqlite_repo):

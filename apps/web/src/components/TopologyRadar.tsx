@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -98,7 +98,7 @@ function ServiceNode({ data }: { data: { label: string; status: string; sublabel
 }
 
 // Split a k8s pod name into [deploymentBase, hashSuffix]
-// e.g. "fundapis-7d9b4c8d6-xk2vq" → ["fundapis", "7d9b4c8d6-xk2vq"]
+// e.g. "payments-api-7d9b4c8d6-xk2vq" → ["payments-api", "7d9b4c8d6-xk2vq"]
 function splitPodName(name: string): [string, string] {
   const parts = name.split('-')
   // A k8s hash segment is short (≤10 chars), all lowercase alphanumeric
@@ -127,7 +127,7 @@ function PodNode({ data }: { data: { label: string; status: string; sublabel?: s
   const memoryLimit = typeof data.memory_limit_mib === 'number' ? data.memory_limit_mib : null
   const memoryPct = typeof data.memory_utilization_pct === 'number' ? data.memory_utilization_pct : null
   const phase = data.phase ?? 'Unknown'
-  const showRuntimeMetrics = String(typeLabel).toLowerCase() === 'pod'
+  const showRuntimeMetrics = true
   const healthBadgeLabel = healthLabel.charAt(0).toUpperCase() + healthLabel.slice(1)
   const healthTooltip = `Health: ${healthLabel}. Phase: ${phase}. Ready: ${ready}/${total}. Restarts: ${restarts}.`
 
@@ -291,7 +291,43 @@ const SERVICE_CARD_HEIGHT = 126
 const SERVICE_GROUP_GAP = 58
 const CENTER_Y = 320
 
-function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: string) => void) {
+function buildFlowElements(
+  topology: ServiceTopology,
+  onServiceClick: (label: string) => void,
+  opts?: { runtimePodsOnly?: boolean },
+) {
+  if (opts?.runtimePodsOnly) {
+    const pods = topology.nodes.filter((n) => n.kind === 'pod')
+    const baseY = 140
+    const stepY = 118
+    const podNodes: Node[] = pods.map((pod, i) => ({
+      id: pod.id,
+      type: 'pod',
+      position: { x: 420, y: baseY + i * stepY },
+      data: {
+        label: pod.label,
+        status: pod.status,
+        sublabel: [pod.cluster_name, pod.namespace].filter(Boolean).join(' • ') || undefined,
+        phase: pod.phase,
+        cpu_mcores: pod.cpu_mcores,
+        cpu_request_mcores: pod.cpu_request_mcores,
+        cpu_limit_mcores: pod.cpu_limit_mcores,
+        cpu_utilization_pct: pod.cpu_utilization_pct,
+        memory_mib: pod.memory_mib,
+        memory_request_mib: pod.memory_request_mib,
+        memory_limit_mib: pod.memory_limit_mib,
+        memory_utilization_pct: pod.memory_utilization_pct,
+        ready_containers: pod.ready_containers,
+        total_containers: pod.total_containers,
+        restart_count: pod.restart_count,
+        unhealthy_containers: pod.unhealthy_containers,
+      },
+    }))
+
+    const estimatedHeight = Math.max(560, 220 + Math.max(0, pods.length - 1) * stepY)
+    return { nodes: podNodes, edges: [], estimatedHeight }
+  }
+
   const nodeMap = new Map(topology.nodes.map(n => [n.id, n]))
 
   // Outbound adjacency: source → [target ids]
@@ -371,6 +407,7 @@ function buildFlowElements(topology: ServiceTopology, onServiceClick: (label: st
         data: {
           label: pod.label,
           status: pod.status,
+          sublabel: [pod.cluster_name, pod.namespace].filter(Boolean).join(' • ') || undefined,
           phase: pod.phase,
           cpu_mcores: pod.cpu_mcores,
           cpu_request_mcores: pod.cpu_request_mcores,
@@ -586,44 +623,122 @@ function TopologyFlow({ appNodes, appEdges, colorMode }: { appNodes: Node[]; app
 
 type ViewMode = 'app' | 'corvin'
 
-export function TopologyRadar() {
+export function TopologyRadar({
+  applicationId,
+  appTitle,
+  appOnly = false,
+}: {
+  applicationId?: string
+  appTitle?: string
+  appOnly?: boolean
+}) {
   const navigate = useNavigate()
   const [viewMode, setViewMode] = useState<ViewMode>('app')
+  const [selectedCluster, setSelectedCluster] = useState<string>('')
+  const [selectedNamespace, setSelectedNamespace] = useState<string>('')
+  const [reloadToken, setReloadToken] = useState(0)
   const { theme } = useTheme()
+  const currentViewMode: ViewMode = appOnly ? 'app' : viewMode
+  const appHeading = appTitle ? `${appTitle} Topology` : 'Application Topology'
 
-  // Live AKS pods — used for CHAD App Topology view
   const { data: liveData, isLoading: liveLoading } = useQuery({
-    queryKey: ['topology-live'],
-    queryFn: fetchTopologyLive,
+    queryKey: [
+      'topology-live',
+      applicationId ?? 'global',
+      selectedCluster,
+      selectedNamespace,
+      reloadToken,
+    ],
+    queryFn: () => fetchTopologyLive({
+      applicationId,
+      clusters: selectedCluster ? [selectedCluster] : [],
+      namespaces: selectedNamespace ? [selectedNamespace] : [],
+    }),
     refetchInterval: 30_000,  // refresh every 30s so pods reflect current state
   })
 
-  // DB-backed topology — used for Corvin Investigation Flow view
   const { data, isLoading } = useQuery({
-    queryKey: ['topology'],
-    queryFn: fetchTopology,
+    queryKey: ['topology', applicationId ?? 'global'],
+    queryFn: () => fetchTopology(applicationId),
     refetchInterval: 60_000,
+    enabled: !appOnly,
   })
 
   const onServiceClick = useCallback((label: string) => {
     navigate(`/investigations?service=${encodeURIComponent(label)}`)
   }, [navigate])
 
-  // App view: live pods from AKS. Corvin view: DB-backed investigation graph.
-  const activeSource = viewMode === 'app' ? liveData : data
+  const activeSource = currentViewMode === 'app' ? liveData : data
+  const metadata = liveData?.metadata
+  const runtimePodsOnly = Boolean(metadata?.runtime_unmapped_pods_only && currentViewMode === 'app')
 
   const { nodes: appNodes, edges: appEdges, estimatedHeight: appHeight } = useMemo(
-    () => activeSource ? buildFlowElements(activeSource, onServiceClick) : { nodes: [], edges: [], estimatedHeight: 560 },
-    [activeSource, onServiceClick],
+    () => activeSource ? buildFlowElements(activeSource, onServiceClick, { runtimePodsOnly }) : { nodes: [], edges: [], estimatedHeight: 560 },
+    [activeSource, onServiceClick, runtimePodsOnly],
   )
 
-  const graphHeight = viewMode === 'app' ? appHeight : 560
+  const graphHeight = currentViewMode === 'app' ? appHeight : 560
 
   const serviceNodes = activeSource?.nodes.filter(n => n.kind === 'service') ?? []
-  const activeNodes = viewMode === 'app' ? appNodes : CORVIN_NODES
-  const activeEdges = viewMode === 'app' ? appEdges : CORVIN_EDGES
+  const allNodes = activeSource?.nodes ?? []
+  const metricsAvailableFromNodes = serviceNodes.some((n: TopologyNode) =>
+    typeof n.cpu_mcores === 'number'
+    || typeof n.memory_mib === 'number'
+    || typeof n.cpu_limit_mcores === 'number'
+    || typeof n.memory_limit_mib === 'number',
+  )
+  const podDataAvailableFromNodes = allNodes.some((n: TopologyNode) => n.kind === 'pod')
+  const metricsAvailable = metadata?.metrics_source_ok ?? metricsAvailableFromNodes
+  const podDataAvailable = metadata?.pod_source_ok ?? podDataAvailableFromNodes
+  const availableClusters = metadata?.available_clusters ?? []
+  const clusterNamespaces = metadata?.cluster_namespaces ?? {}
+  const availableNamespaces = useMemo(() => {
+    if (selectedCluster) {
+      const forCluster = clusterNamespaces[selectedCluster]
+      if (Array.isArray(forCluster) && forCluster.length > 0) {
+        return forCluster
+      }
+    }
+    return metadata?.available_namespaces ?? []
+  }, [clusterNamespaces, metadata?.available_namespaces, selectedCluster])
+  const namespaceStatus = metadata?.namespace_status ?? {}
+  const activeNodes = currentViewMode === 'app' ? appNodes : CORVIN_NODES
+  const activeEdges = currentViewMode === 'app' ? appEdges : CORVIN_EDGES
 
-  const currentlyLoading = viewMode === 'app' ? liveLoading : isLoading
+  useEffect(() => {
+    if (selectedCluster) return
+    const serverSelected = metadata?.selected_clusters?.[0]
+    if (serverSelected) {
+      setSelectedCluster(serverSelected)
+      return
+    }
+  }, [metadata?.selected_clusters, selectedCluster])
+
+  useEffect(() => {
+    if (selectedNamespace) return
+    const serverSelected = metadata?.selected_namespaces?.[0]
+    if (serverSelected) {
+      setSelectedNamespace(serverSelected)
+      return
+    }
+  }, [metadata?.selected_namespaces, selectedNamespace])
+
+  useEffect(() => {
+    if (selectedCluster) return
+    if (availableClusters.length === 1) {
+      setSelectedCluster(availableClusters[0])
+    }
+  }, [availableClusters, selectedCluster])
+
+  useEffect(() => {
+    if (selectedNamespace) return
+    if (!selectedCluster) return
+    if (availableNamespaces.length === 1) {
+      setSelectedNamespace(availableNamespaces[0])
+    }
+  }, [availableNamespaces, selectedCluster, selectedNamespace])
+
+  const currentlyLoading = currentViewMode === 'app' ? liveLoading : isLoading
   if (currentlyLoading && !activeSource) {
     return (
       <div className="panel animate-fade-up" style={{ padding: '18px 20px', overflow: 'hidden' }}>
@@ -634,10 +749,10 @@ export function TopologyRadar() {
               Dependency Visualizer
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.2rem', color: 'var(--c-text)' }}>
-              {viewMode === 'app' ? 'CHAD App Topology' : 'Corvin Investigation Flow'}
+              {currentViewMode === 'app' ? appHeading : 'Corvin Investigation Flow'}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: 3 }}>
+          {!appOnly && <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: 3 }}>
             {(['app', 'corvin'] as ViewMode[]).map(mode => (
               <button key={mode} onClick={() => setViewMode(mode)} style={{
                 fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 700,
@@ -649,7 +764,7 @@ export function TopologyRadar() {
                 {mode === 'app' ? 'App Architecture' : 'Corvin Flow'}
               </button>
             ))}
-          </div>
+          </div>}
         </div>
         {/* Canvas loading state */}
         <div style={{
@@ -665,22 +780,22 @@ export function TopologyRadar() {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--c-signal)', marginBottom: 6 }}>
-              {viewMode === 'app' ? 'Connecting to AKS Cluster' : 'Loading Graph'}
+              {currentViewMode === 'app' ? 'Connecting to AKS Cluster' : 'Loading Graph'}
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--c-text-faint)', lineHeight: 1.8 }}>
-              {viewMode === 'app'
-                ? <>Querying live pod state · namespace <span style={{ color: 'var(--c-text-dim)' }}>chad</span></>
+              {currentViewMode === 'app'
+                ? <>Querying live pod state for the selected application</>
                 : 'Loading investigation topology…'}
             </div>
-            {viewMode === 'app' && (
+            {currentViewMode === 'app' && serviceNodes.length > 0 && (
               <div style={{ marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center' }}>
-                {['fundapis', 'fundsso', 'partnerapis'].map((s, i) => (
-                  <span key={s} style={{
+                {serviceNodes.slice(0, 4).map((s, i) => (
+                  <span key={s.id ?? `${s.label}-${i}`} style={{
                     fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '3px 9px',
                     borderRadius: 999, border: '1px solid var(--c-signal-dim)',
                     background: 'var(--c-signal-light)', color: 'var(--c-text-faint)',
                     animation: `signal-pulse 1.8s ease-in-out ${i * 0.25}s infinite`,
-                  }}>{s}</span>
+                  }}>{s.label}</span>
                 ))}
               </div>
             )}
@@ -699,12 +814,11 @@ export function TopologyRadar() {
             Dependency Visualizer
           </div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.2rem', color: 'var(--c-text)' }}>
-            {viewMode === 'app' ? 'CHAD App Topology' : 'Corvin Investigation Flow'}
+            {currentViewMode === 'app' ? appHeading : 'Corvin Investigation Flow'}
           </div>
         </div>
 
-        {/* Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: 3 }}>
+        {!appOnly && <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'var(--c-surface-2)', border: '1px solid var(--c-border)', borderRadius: 10, padding: 3 }}>
           {(['app', 'corvin'] as ViewMode[]).map(mode => (
             <button
               key={mode}
@@ -722,8 +836,133 @@ export function TopologyRadar() {
               {mode === 'app' ? 'App Architecture' : 'Corvin Flow'}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
+
+      {currentViewMode === 'app' && (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 10 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+            <label style={{ display: 'grid', gap: 4, minWidth: 210 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Clusters</span>
+              <select
+                value={selectedCluster}
+                onChange={(e) => {
+                  setSelectedCluster(e.currentTarget.value)
+                }}
+                style={{ height: 34, background: 'var(--c-surface-2)', color: 'var(--c-text)', border: '1px solid var(--c-border)', borderRadius: 8, padding: 6, fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}
+              >
+                <option value="">All Clusters</option>
+                {availableClusters.map((cluster) => (
+                  <option key={cluster} value={cluster}>{cluster}</option>
+                ))}
+              </select>
+            </label>
+
+            <label style={{ display: 'grid', gap: 4, minWidth: 220 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--c-text-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Namespaces</span>
+              <select
+                value={selectedNamespace}
+                onChange={(e) => {
+                  setSelectedNamespace(e.currentTarget.value)
+                }}
+                style={{ height: 34, background: 'var(--c-surface-2)', color: 'var(--c-text)', border: '1px solid var(--c-border)', borderRadius: 8, padding: 6, fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}
+              >
+                <option value="">All Namespaces</option>
+                {selectedNamespace && !availableNamespaces.includes(selectedNamespace) && (
+                  <option value={selectedNamespace}>{selectedNamespace}</option>
+                )}
+                {availableNamespaces.map((ns) => (
+                  <option key={ns} value={ns}>{ns}</option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setReloadToken((v) => v + 1)}
+              style={{
+                alignSelf: 'end',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.66rem',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                border: '1px solid var(--c-border-hi)',
+                background: 'var(--c-surface-2)',
+                color: 'var(--c-text)',
+                borderRadius: 8,
+                padding: '8px 12px',
+                cursor: 'pointer',
+              }}
+            >
+              Reload Topology
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.64rem',
+              padding: '4px 9px',
+              borderRadius: 999,
+              border: '1px solid var(--c-border)',
+              background: 'var(--c-surface)',
+              color: 'var(--c-text-dim)',
+              letterSpacing: '0.04em',
+            }}>
+              Active filter: {selectedCluster || 'all clusters'} / {selectedNamespace || 'all namespaces'}
+            </span>
+            <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.64rem',
+            padding: '4px 9px',
+            borderRadius: 999,
+            border: `1px solid ${metricsAvailable ? 'color-mix(in srgb, var(--c-green) 55%, transparent)' : 'color-mix(in srgb, var(--c-warning) 55%, transparent)'}`,
+            background: metricsAvailable ? 'color-mix(in srgb, var(--c-green) 14%, var(--c-surface))' : 'color-mix(in srgb, var(--c-warning) 14%, var(--c-surface))',
+            color: metricsAvailable ? 'var(--c-green)' : 'var(--c-warning)',
+            letterSpacing: '0.04em',
+          }}>
+            Metrics source: {metricsAvailable ? 'Container Insights data available' : 'Container Insights data unavailable'}
+          </span>
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.64rem',
+            padding: '4px 9px',
+            borderRadius: 999,
+            border: `1px solid ${podDataAvailable ? 'color-mix(in srgb, var(--c-green) 55%, transparent)' : 'color-mix(in srgb, var(--c-warning) 55%, transparent)'}`,
+            background: podDataAvailable ? 'color-mix(in srgb, var(--c-green) 14%, var(--c-surface))' : 'color-mix(in srgb, var(--c-warning) 14%, var(--c-surface))',
+            color: podDataAvailable ? 'var(--c-green)' : 'var(--c-warning)',
+            letterSpacing: '0.04em',
+          }}>
+            Pod source: {podDataAvailable ? 'AKS pod data available' : 'AKS pod data unavailable'}
+          </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {Object.entries(namespaceStatus).map(([ns, state]) => {
+              const status = String(state.status || 'high')
+              const accent = STATUS_HEX[status] ?? 'var(--c-text-faint)'
+              return (
+                <span
+                  key={ns}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.62rem',
+                    padding: '4px 9px',
+                    borderRadius: 999,
+                    border: `1px solid color-mix(in srgb, ${accent} 55%, transparent)`,
+                    background: `color-mix(in srgb, ${accent} 15%, var(--c-surface))`,
+                    color: accent,
+                    letterSpacing: '0.03em',
+                  }}
+                >
+                  ns:{ns} {status} ({state.services})
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* React Flow canvas */}
       <div style={{
@@ -737,10 +976,10 @@ export function TopologyRadar() {
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, background: 'color-mix(in srgb, var(--c-bg) 85%, transparent)', backdropFilter: 'blur(4px)' }}>
             <span style={{ width: 32, height: 32, borderRadius: '50%', border: '2.5px solid var(--c-border-glow)', borderTopColor: 'var(--c-signal)', display: 'inline-block', animation: 'spin 0.9s linear infinite', marginBottom: 12 }} />
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--c-signal)', letterSpacing: '0.1em' }}>
-              {viewMode === 'app' ? 'QUERYING AKS CLUSTER…' : 'LOADING GRAPH…'}
+              {currentViewMode === 'app' ? 'QUERYING AKS CLUSTER…' : 'LOADING GRAPH…'}
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', marginTop: 4 }}>
-              {viewMode === 'app' ? 'Fetching live pod state from chad namespace' : ''}
+              {currentViewMode === 'app' ? 'Fetching live pod state for the selected application' : ''}
             </div>
           </div>
         )}
@@ -748,14 +987,14 @@ export function TopologyRadar() {
         {!currentlyLoading && activeNodes.length === 0 && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--c-text-faint)', textAlign: 'center', lineHeight: 2 }}>
-              {viewMode === 'app'
+              {currentViewMode === 'app'
                 ? <>No live pod data available.<br /><span style={{ fontSize: '0.65rem' }}>AKS cluster unreachable — check kubeconfig or cluster access.</span></>
                 : <>No investigation data yet.<br /><span style={{ fontSize: '0.65rem' }}>Run an investigation to populate this graph.</span></>}
             </div>
           </div>
         )}
         <ReactFlowProvider>
-          <TopologyFlow key={`${viewMode}-${theme}`} appNodes={activeNodes} appEdges={activeEdges} colorMode={theme} />
+          <TopologyFlow key={`${currentViewMode}-${applicationId ?? 'global'}-${selectedCluster}-${selectedNamespace}-${reloadToken}-${theme}`} appNodes={activeNodes} appEdges={activeEdges} colorMode={theme} />
         </ReactFlowProvider>
       </div>
 

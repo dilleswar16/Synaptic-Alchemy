@@ -32,3 +32,14 @@ name: "Corvin Phased Delivery"
 - V2: Human-in-the-Loop Execution (Approve & Execute), Two-Way ChatOps, and Streaming RCA via SSE.
 - V2.5: AI Intelligence — Incident Memory, SRE Morning Briefing, and Confidence Meter.
 - V3: Premium UI overhaul, Blameless Post-Mortem auto-generator, and Corvin Score health dashboard.
+- V3.5–V3.9: Predictive Detections, SLA Countdown, Topology, ROI Dashboard, Voice TTS, 3AM Mode, War Room.
+- V4.5: DB-driven AKS onboarding.
+- V5.0–V5.1: Agentic AI (AutonomousAgent, Multi-Agent, Chaos Engine, IDE Integration, Voice Incident).
+- V5.2: UX Maturity (font, connector builder).
+- V5.3: AI Intelligence Suite (Alert Correlation, Capacity Forecaster, Conversational Runbook Builder, War Games, War Room Banner).
+
+## Human Approval Mandate (V5.3+)
+
+- ALL automated actions must require human approval before execution. No "Auto" mode.
+- Alert suppression, scaling actions, runbook saves, chaos experiments — all gated.
+- The pattern: backend produces a recommendation → frontend shows approve/reject buttons → user decides.

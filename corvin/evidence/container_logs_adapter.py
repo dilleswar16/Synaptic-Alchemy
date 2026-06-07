@@ -1,19 +1,16 @@
-"""
-Container Insights evidence adapter.
+"""Container Insights evidence adapter.
 
-Queries the CHAD Log Analytics workspace for AKS container logs and pod
-inventory using Azure Monitor Container Insights tables:
+Queries the configured application Log Analytics workspace for AKS container
+logs and pod inventory using Azure Monitor Container Insights tables:
 
   - ContainerLogV2    : pod stdout/stderr application logs
   - KubePodInventory  : pod state, restarts, phases
   - KubeEvents        : OOMKill, BackOff, scheduling failures
 
 This adapter replaces Elastic for application and Kubernetes metrics when
-Elastic is unavailable (e.g. org SSO restrictions).
-
-Config is loaded from config/integrations/container_logs.yaml.
-Auth uses DefaultAzureCredential (AzureCliCredential for local dev,
-service principal via AZURE_CLIENT_ID/SECRET/TENANT for production).
+Elastic is unavailable (e.g. org SSO restrictions). Runtime workspace
+resolution is DB-first via the application connector registry. Optional
+injected config is supported for tests or explicit overrides.
 """
 
 from __future__ import annotations
@@ -33,7 +30,7 @@ except ImportError:
 from azure.identity import DefaultAzureCredential
 from azure.monitor.query import LogsQueryClient, LogsQueryStatus
 
-from corvin.core.config_loader import get_env, load_config
+from corvin.connectors.config_resolver import ROLE_CONTAINER_INSIGHTS, resolve_log_source_config
 
 logger = logging.getLogger(__name__)
 
@@ -58,19 +55,53 @@ class ContainerLogsAdapter:
     """Adapter for querying AKS container logs via Azure Monitor Container Insights."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        self._config = (
-            config if config is not None
-            else load_config("integrations/container_logs", get_env())
-        )
+        self._config = dict(config or {})
         self._client: LogsQueryClient | None = None
         try:
             credential = DefaultAzureCredential()
             self._client = LogsQueryClient(credential)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "ContainerLogsAdapter: could not build client (will return empty results): %s", exc
+                "ContainerLogsAdapter: could not build client (will return empty results): %s",
+                exc,
             )
         self._workspace_id = _expand(self._config.get("workspace_id", ""))
+
+    def _resolved_runtime(
+        self,
+        service_name: str,
+        namespace: str | None,
+        time_range_minutes: int | None,
+    ) -> tuple[dict[str, Any], str, int]:
+        normalized_service = str(service_name or "").strip().lower()
+        if normalized_service in ("", "*", "all"):
+            cfg = dict(self._config)
+        else:
+            cfg = resolve_log_source_config(
+                service_name,
+                source_type="azure_monitor",
+                role=ROLE_CONTAINER_INSIGHTS,
+                fallback=self._config,
+            )
+        workspace_id = _expand(str(cfg.get("workspace_id", self._workspace_id)))
+        minutes = time_range_minutes or cfg.get("default_time_range_minutes", 60)
+
+        # Namespace resolution: explicit param → connector config → DB service record → None.
+        # None causes the calling method to return empty results, forcing proper onboarding.
+        ns = namespace or cfg.get("default_namespace")
+        if not ns and normalized_service not in ("", "*", "all"):
+            from corvin.connectors.config_resolver import resolve_service_namespace
+            ns = resolve_service_namespace(service_name)
+        if not ns:
+            logger.warning(
+                "ContainerLogsAdapter: no namespace configured for service=%s — returning empty. "
+                "Add ApplicationServiceRow.namespace via the Application Panel.",
+                service_name,
+            )
+
+        cfg = dict(cfg)
+        cfg["workspace_id"] = workspace_id
+        return cfg, ns or "", minutes
 
     # ── Public methods ────────────────────────────────────────────────────────
 
@@ -94,9 +125,8 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
-        max_rows = self._config.get("max_log_rows", 200)
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
+        max_rows = cfg.get("max_log_rows", 200)
 
         query = (
             f"let pods = KubePodInventory"
@@ -112,7 +142,7 @@ class ContainerLogsAdapter:
             f"| take {max_rows}"
         )
 
-        return self._run_query(query, minutes, f"get_container_logs(service={service_name})")
+        return self._run_query(query, minutes, f"get_container_logs(service={service_name})", workspace_id=cfg["workspace_id"])
 
     def get_pod_inventory(
         self,
@@ -134,20 +164,24 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
+
+        service_filter = ""
+        if str(service_name or "").strip() and str(service_name).strip() not in ("*", "all"):
+            safe_service_name = str(service_name).replace('"', '')
+            service_filter = f'| where Name contains "{safe_service_name}"\n'
 
         query = (
             f"KubePodInventory\n"
             f"| where TimeGenerated >= ago({minutes}m)\n"
             f'| where Namespace == "{ns}"\n'
-            f'| where Name contains "{service_name}"\n'
+            f"{service_filter}"
             f"| project TimeGenerated, Name, Namespace, PodStatus, ContainerStatus,"
             f" ContainerStatusReason, ContainerRestartCount, PodRestartCount, ControllerName, ControllerKind\n"
             f"| summarize arg_max(TimeGenerated, *) by Name"
         )
 
-        return self._run_query(query, minutes, f"get_pod_inventory(service={service_name})")
+        return self._run_query(query, minutes, f"get_pod_inventory(service={service_name})", workspace_id=cfg["workspace_id"])
 
     def get_kube_events(
         self,
@@ -169,8 +203,7 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
 
         query = (
             f"KubeEvents\n"
@@ -183,7 +216,7 @@ class ContainerLogsAdapter:
             f"| take 50"
         )
 
-        return self._run_query(query, minutes, f"get_kube_events(service={service_name})")
+        return self._run_query(query, minutes, f"get_kube_events(service={service_name})", workspace_id=cfg["workspace_id"])
 
     def get_resource_metrics(
         self,
@@ -202,8 +235,7 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
 
         query = (
             f"let podUids = KubePodInventory\n"
@@ -227,7 +259,7 @@ class ContainerLogsAdapter:
             f"| take 200"
         )
 
-        return self._run_query(query, minutes, f"get_resource_metrics(service={service_name})")
+        return self._run_query(query, minutes, f"get_resource_metrics(service={service_name})", workspace_id=cfg["workspace_id"])
 
     def get_container_inventory(
         self,
@@ -245,8 +277,7 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
 
         query = (
             f"let pods = KubePodInventory\n"
@@ -263,7 +294,7 @@ class ContainerLogsAdapter:
             f"| order by TimeGenerated desc"
         )
 
-        return self._run_query(query, minutes, f"get_container_inventory(service={service_name})")
+        return self._run_query(query, minutes, f"get_container_inventory(service={service_name})", workspace_id=cfg["workspace_id"])
 
     def get_node_inventory(
         self,
@@ -281,8 +312,7 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
 
         query = (
             f"let nodes = KubePodInventory\n"
@@ -299,7 +329,7 @@ class ContainerLogsAdapter:
             f"| order by Computer asc"
         )
 
-        return self._run_query(query, minutes, f"get_node_inventory(service={service_name})")
+        return self._run_query(query, minutes, f"get_node_inventory(service={service_name})", workspace_id=cfg["workspace_id"])
 
     def get_network_metrics(
         self,
@@ -316,8 +346,7 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
 
         query = (
             f"let nodes = KubePodInventory\n"
@@ -335,7 +364,7 @@ class ContainerLogsAdapter:
             f"| take 200"
         )
 
-        return self._run_query(query, minutes, f"get_network_metrics(service={service_name})")
+        return self._run_query(query, minutes, f"get_network_metrics(service={service_name})", workspace_id=cfg["workspace_id"])
 
     def get_pod_restarts(
         self,
@@ -352,8 +381,7 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
 
         query = (
             f"KubePodInventory\n"
@@ -366,7 +394,7 @@ class ContainerLogsAdapter:
             f"| order by PodRestartCount desc"
         )
 
-        return self._run_query(query, minutes, f"get_pod_restarts(service={service_name})")
+        return self._run_query(query, minutes, f"get_pod_restarts(service={service_name})", workspace_id=cfg["workspace_id"])
 
     def get_oom_kill_events(
         self,
@@ -383,8 +411,7 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
 
         query = (
             f"KubeEvents\n"
@@ -398,7 +425,7 @@ class ContainerLogsAdapter:
             f"| take 50"
         )
 
-        return self._run_query(query, minutes, f"get_oom_kill_events(service={service_name})")
+        return self._run_query(query, minutes, f"get_oom_kill_events(service={service_name})", workspace_id=cfg["workspace_id"])
 
     def get_autoscaler_events(
         self,
@@ -415,8 +442,7 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
 
         query = (
             f"KubeEvents\n"
@@ -431,7 +457,7 @@ class ContainerLogsAdapter:
             f"| take 50"
         )
 
-        return self._run_query(query, minutes, f"get_autoscaler_events(service={service_name})")
+        return self._run_query(query, minutes, f"get_autoscaler_events(service={service_name})", workspace_id=cfg["workspace_id"])
 
     def get_health_probe_failures(
         self,
@@ -448,8 +474,7 @@ class ContainerLogsAdapter:
         if self._client is None:
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        ns = namespace or self._config.get("default_namespace", "chad")
+        cfg, ns, minutes = self._resolved_runtime(service_name, namespace, time_range_minutes)
 
         query = (
             f"KubeEvents\n"
@@ -463,16 +488,59 @@ class ContainerLogsAdapter:
             f"| take 50"
         )
 
-        return self._run_query(query, minutes, f"get_health_probe_failures(service={service_name})")
+        return self._run_query(query, minutes, f"get_health_probe_failures(service={service_name})", workspace_id=cfg["workspace_id"])
+
+    def list_namespaces(
+        self,
+        service_name: str = "*",
+        cluster_name: str | None = None,
+        time_range_minutes: int | None = None,
+    ) -> list[str]:
+        """Discover namespaces from KubePodInventory (runtime fallback path)."""
+        if self._client is None:
+            return []
+
+        cfg, _ns, minutes = self._resolved_runtime(service_name, None, time_range_minutes)
+        cluster_filter = ""
+        if cluster_name and str(cluster_name).strip():
+            safe_cluster = str(cluster_name).replace('"', '')
+            cluster_filter = f"| where tostring(column_ifexists('ClusterName', '')) =~ \"{safe_cluster}\"\n"
+
+        query = (
+            f"KubePodInventory\n"
+            f"| where TimeGenerated >= ago({minutes}m)\n"
+            f"{cluster_filter}"
+            f"| where isnotempty(Namespace)\n"
+            f"| summarize by Namespace\n"
+            f"| order by Namespace asc"
+        )
+
+        rows = self._run_query(
+            query,
+            minutes,
+            f"list_namespaces(cluster={cluster_name or 'any'})",
+            workspace_id=cfg["workspace_id"],
+        )
+        namespaces = sorted(
+            {
+                str(r.get("Namespace") or r.get("namespace") or "").strip()
+                for r in rows
+                if isinstance(r, dict)
+            }
+        )
+        return [ns for ns in namespaces if ns]
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _run_query(
-        self, query: str, minutes: int, label: str
+        self, query: str, minutes: int, label: str, *, workspace_id: str | None = None
     ) -> list[dict[str, Any]]:
+        if not workspace_id:
+            logger.warning("ContainerLogsAdapter.%s skipped: no workspace configured", label)
+            return []
         try:
             result = self._client.query_workspace(  # type: ignore[union-attr]
-                workspace_id=self._workspace_id,
+                workspace_id=workspace_id or self._workspace_id,
                 query=query,
                 timespan=timedelta(minutes=minutes),
             )
@@ -480,5 +548,9 @@ class ContainerLogsAdapter:
                 return []
             return _to_dicts(result.tables[0])
         except Exception as exc:
-            logger.warning("ContainerLogsAdapter.%s failed: %s", label, exc)
+            # SSL errors are expected in corporate proxy environments without
+            # the corporate CA trusted by aiohttp — log at DEBUG to avoid noise.
+            import ssl
+            log_fn = logger.debug if isinstance(exc.__cause__, ssl.SSLError) or "CERTIFICATE_VERIFY_FAILED" in str(exc) else logger.warning
+            log_fn("ContainerLogsAdapter.%s failed: %s", label, exc)
             return []

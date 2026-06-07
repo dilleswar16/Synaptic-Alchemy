@@ -4,7 +4,7 @@ Log Analytics toolset.
 Wraps LogAnalyticsAdapter and exposes one tool for the investigation engine LLM:
   - log_analytics_get_apim_logs — fetch APIM gateway logs from Log Analytics
 
-Config is loaded from config/integrations/log_analytics.yaml.
+Runtime connector resolution is DB-first via the application connector registry.
 Enable/disable via config/tools/toolsets.yaml.
 """
 

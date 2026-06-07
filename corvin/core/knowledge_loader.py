@@ -1,20 +1,28 @@
 """
 Knowledge loader for the Corvin investigation engine.
 
-Responsible for:
-  1. Loading the static site knowledge base (knowledge/site.md).
-  2. Matching an alert description/rule name against runbook keywords and
-     loading matching runbook content (knowledge/runbooks/).
-  3. Loading learnings files from knowledge/learnings/*.md.
+Resolution order for each knowledge type (DB-first, disk fallback):
+
+  Site knowledge:
+    1. Active KnowledgeBaseRow entries for the application (from DB) — concatenated in display_order.
+    2. knowledge/site.md on disk — loaded if DB has no entries or service is not onboarded.
+
+  Runbooks:
+    1. Active RunbookRow entries matching the alert text (from DB).
+    2. Disk-based runbooks from knowledge/runbooks/ + catalog.json — loaded only when no
+       DB runbooks match and the disk catalog exists.
+
+  Learnings:
+    1. knowledge/learnings/*.md on disk (no DB-backed variant yet — see prompt-centralization.md).
+
+This means:
+  - Existing disk-based runbooks and site.md continue to work with zero changes.
+  - New customers manage knowledge via the Application Panel UI.
+  - When a customer migrates a disk runbook to DB, they can delete the file — the disk
+    fallback will simply not find it and DB takes over.
 
 Config is read from config/tools/knowledge.yaml.
 Paths in the config are relative to the project root.
-
-Folder structure:
-    knowledge/
-        site.md          ← static infra facts injected into every investigation prompt
-        runbooks/        ← per-alert investigation workflows + catalog.json keyword registry
-        learnings/       ← patterns and gotchas discovered from real incidents
 """
 
 from __future__ import annotations
@@ -50,9 +58,50 @@ class KnowledgeLoader:
 
     # ── Site knowledge ────────────────────────────────────────────────────────
 
-    def load_site_knowledge(self) -> str:
-        """Return the content of knowledge/site.md."""
+    def load_site_knowledge(self, service_name: str | None = None) -> str:
+        """Return site knowledge for injection into the investigation prompt.
+
+        Resolution order:
+          1. Active KnowledgeBaseRow entries from DB (for the application owning service_name).
+          2. knowledge/site.md on disk (backward-compatible fallback).
+        """
+        db_knowledge = self._load_db_knowledge(service_name)
+        if db_knowledge:
+            return db_knowledge
+
         return _read_file(self._resolve("knowledge_path"))
+
+    def _load_db_knowledge(self, service_name: str | None) -> str:
+        """Load active KnowledgeBaseRow entries from DB. Returns empty string on any error."""
+        if not service_name:
+            return ""
+        try:
+            from sqlalchemy import or_
+            from corvin.storage.db import get_session
+            from corvin.storage.models import ApplicationServiceRow, KnowledgeBaseRow
+            with get_session() as session:
+                svc = session.query(ApplicationServiceRow).filter(
+                    or_(
+                        ApplicationServiceRow.service_name == service_name,
+                        ApplicationServiceRow.k8s_app_label == service_name,
+                    )
+                ).first()
+                if svc is None:
+                    return ""
+                rows = (
+                    session.query(KnowledgeBaseRow)
+                    .filter_by(application_id=svc.application_id, is_active=True)
+                    .order_by(KnowledgeBaseRow.display_order, KnowledgeBaseRow.created_at)
+                    .all()
+                )
+                if not rows:
+                    return ""
+                parts = [f"## {r.title}\n\n{r.content}" for r in rows]
+                return "\n\n---\n\n".join(parts)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("DB knowledge lookup failed: %s", exc)
+            return ""
 
     # ── Runbooks ──────────────────────────────────────────────────────────────
 
@@ -124,25 +173,34 @@ class KnowledgeLoader:
 
         return None
 
-    def load_matching_runbooks(self, alert_text: str) -> list[str]:
-        """
-        Return the content of all runbooks whose catalog keywords appear in
-        `alert_text` (case-insensitive).
+    def load_matching_runbooks(self, alert_text: str, service_name: str | None = None) -> list[str]:
+        """Return runbook content for runbooks whose keywords appear in alert_text.
+
+        Resolution order:
+          1. Active RunbookRow entries from DB (matched by service_name or keywords).
+          2. Disk-based runbooks from knowledge/runbooks/catalog.json (fallback).
 
         Args:
-            alert_text: Combined alert rule name + description to match against.
+            alert_text:   Combined alert rule name + description to match against.
+            service_name: Service being investigated — used for DB lookup.
 
         Returns:
             List of runbook content strings (one per matching runbook).
         """
-        runbooks_dir = self._resolve("runbooks_path")
         max_chars = self._config.get("runbook_max_chars", 3000)
+        normalised = alert_text.lower()
 
+        # ── 1. DB-backed runbooks ─────────────────────────────────────────────
+        db_runbooks = self._load_db_runbooks(service_name, normalised, max_chars)
+        if db_runbooks:
+            return db_runbooks
+
+        # ── 2. Disk fallback ──────────────────────────────────────────────────
+        runbooks_dir = self._resolve("runbooks_path")
         if not runbooks_dir.is_dir():
             return []
 
         matched: list[str] = []
-        normalised = alert_text.lower()
         seen_paths: set[Path] = set()
 
         for entry in self._load_runbook_catalog():
@@ -160,6 +218,46 @@ class KnowledgeLoader:
                 seen_paths.add(runbook_path)
 
         return matched
+
+    def _load_db_runbooks(
+        self, service_name: str | None, normalised_alert: str, max_chars: int
+    ) -> list[str]:
+        """Query RunbookRow from DB, matching by service_name or keyword overlap."""
+        if not service_name:
+            return []
+        try:
+            from sqlalchemy import or_
+            from corvin.storage.db import get_session
+            from corvin.storage.models import ApplicationServiceRow, RunbookRow
+            with get_session() as session:
+                svc = session.query(ApplicationServiceRow).filter(
+                    or_(
+                        ApplicationServiceRow.service_name == service_name,
+                        ApplicationServiceRow.k8s_app_label == service_name,
+                    )
+                ).first()
+                if svc is None:
+                    return []
+                rows = (
+                    session.query(RunbookRow)
+                    .filter_by(application_id=svc.application_id, is_active=True)
+                    .order_by(RunbookRow.display_order, RunbookRow.created_at)
+                    .all()
+                )
+                matched: list[str] = []
+                for row in rows:
+                    # Match: service-specific runbooks always included; keyword-match for generic ones
+                    if row.service_name and row.service_name == service_name:
+                        matched.append(row.content[:max_chars])
+                    elif not row.service_name:
+                        keywords = [str(kw).lower() for kw in (row.keywords or [])]
+                        if any(kw in normalised_alert for kw in keywords):
+                            matched.append(row.content[:max_chars])
+                return matched
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).debug("DB runbook lookup failed: %s", exc)
+            return []
 
     # ── Learnings ─────────────────────────────────────────────────────────────
 

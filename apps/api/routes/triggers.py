@@ -119,7 +119,12 @@ def receive_azure_alert(
 
 
 @router.post("/manual", status_code=202)
-def manual_trigger(payload: dict[str, Any]) -> dict[str, str]:
+def manual_trigger(
+    payload: dict[str, Any],
+    background_tasks: BackgroundTasks,
+    engine: InvestigationEngine = Depends(get_engine),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict[str, str]:
     """
     Accept a free-form manual trigger from Teams or other surfaces.
 
@@ -132,7 +137,9 @@ def manual_trigger(payload: dict[str, Any]) -> dict[str, str]:
         description=payload.get("description", "Manual trigger"),
         raw_payload=payload,
     )
-    # TODO (Slice 5+): hand off to orchestrator
+    # Persist the request and hand off to the investigation orchestrator
+    repo.save_request(request)
+    background_tasks.add_task(engine.run_investigation, request)
     return {"request_id": request.id, "status": "accepted", "trigger_source": request.trigger_source}
 
 
@@ -146,12 +153,33 @@ class SimulateAlertRequest(BaseModel):
     description: str | None = None
 
 
-_SCENARIO_DESCRIPTIONS: dict[str, str] = {
-    "hpa_failure": "HPA not scaling — pods stuck at 1 replica despite 92% CPU. Partner integrations degraded.",
-    "five_zero_three_spike": "503 error rate spiked to 18% on /v1/funds endpoint. Two pods restarted in the last 30 minutes.",
-    "auth_errors": "JWT validation failures spiking — service returning 401 on 35% of SSO requests since 09:00.",
-    "memory_leak": "Heap usage climbing steadily — service at 89% memory limit, OOM kill expected within 2 hours.",
-}
+def _resolve_preset_description(service_name: str, scenario: str, default: str) -> str:
+    """Look up the preset description from the DB for the matching service/scenario.
+
+    Falls back to *default* if no matching SimulatorPresetRow is found.
+    This removes the hardcoded _SCENARIO_DESCRIPTIONS dict — descriptions
+    now live in the DB, managed via the Application Panel.
+    """
+    try:
+        from corvin.storage.db import get_session
+        from corvin.storage.models import ApplicationServiceRow, SimulatorPresetRow
+        from sqlalchemy import or_
+        with get_session() as session:
+            svc = session.query(ApplicationServiceRow).filter(
+                or_(ApplicationServiceRow.service_name == service_name,
+                    ApplicationServiceRow.k8s_app_label == service_name)
+            ).first()
+            if svc is None:
+                return default
+            preset = session.query(SimulatorPresetRow).filter_by(
+                application_id=svc.application_id,
+                scenario_id=scenario,
+            ).first()
+            if preset and preset.description:
+                return preset.description
+    except Exception as exc:
+        _log.debug("preset description DB lookup failed: %s", exc)
+    return default
 
 
 @router.post("/simulate", status_code=202)
@@ -173,9 +201,9 @@ def simulate_alert(
 
     Returns immediately with the new request_id so the UI can open the SSE stream.
     """
-    description = body.description or _SCENARIO_DESCRIPTIONS.get(
-        body.scenario,
-        f"Simulated {body.scenario} scenario on {body.service_name}.",
+    default_desc = f"Simulated {body.scenario} scenario on {body.service_name}."
+    description = body.description or _resolve_preset_description(
+        body.service_name, body.scenario, default_desc
     )
 
     request = InvestigationRequest(
@@ -201,3 +229,67 @@ def simulate_alert(
         "environment": body.environment,
     }
 
+
+# ── V5.0 F1: Autonomous Agent Webhook ────────────────────────────────────────
+
+
+class AutonomousAlertRequest(BaseModel):
+    """Incoming alert payload for autonomous investigation."""
+    service_name: str
+    environment: str
+    description: str
+    priority: str = "P2"
+    source: str = "webhook"  # webhook | alertmanager | azure_monitor | datadog
+
+
+def _run_autonomous_agent_in_background(
+    request: InvestigationRequest,
+) -> None:
+    """Run the full autonomous pipeline in background. Never raises."""
+    from corvin.strategy.autonomous_agent import AutonomousAgent
+    try:
+        agent = AutonomousAgent()
+        result = agent.run(request)
+        _log.info(
+            "Autonomous agent completed for %s — status=%s, events=%d",
+            request.id, result.get("status"), len(result.get("events", [])),
+        )
+    except Exception as exc:
+        _log.exception("Autonomous agent failed for request %s: %s", request.id, exc)
+
+
+@router.post("/autonomous", status_code=202)
+def autonomous_alert(
+    body: AutonomousAlertRequest,
+    background_tasks: BackgroundTasks,
+) -> dict[str, str]:
+    """
+    V5.0 Autonomous Incident Response — Zero-touch investigation.
+
+    Accepts an alert payload and immediately launches the full autonomous pipeline:
+    1. Auto-investigate (evidence collection + RCA)
+    2. Generate causal chain
+    3. Draft incident communications
+    4. Notify Teams with proposed fix + approval buttons
+    5. Wait for human approval before executing remediation
+
+    "Corvin investigated the 3AM incident before your SRE woke up."
+    """
+    request = InvestigationRequest(
+        trigger_source=TriggerSource.AZURE_ALERT,
+        service_name=body.service_name,
+        environment=body.environment,
+        description=f"[AUTONOMOUS:{body.source}] {body.description}",
+        raw_payload={"source": body.source, "priority": body.priority},
+    )
+
+    background_tasks.add_task(_run_autonomous_agent_in_background, request)
+
+    return {
+        "request_id": request.id,
+        "status": "autonomous_investigation_started",
+        "service_name": body.service_name,
+        "environment": body.environment,
+        "priority": request.incident_priority,
+        "message": "Corvin is autonomously investigating. You will be notified via Teams when complete.",
+    }

@@ -72,6 +72,7 @@ export function PostMortemSection({ requestId, isExecuted, hasRca, serviceName, 
   return (
     <Section
       title="Blameless Post-Mortem"
+      info="A structured incident report generated from investigation data: verified timeline, root cause, contributing factors, and corrective actions taken. Ready for stakeholder distribution and compliance records."
       headerRight={
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {!isExecuted && (

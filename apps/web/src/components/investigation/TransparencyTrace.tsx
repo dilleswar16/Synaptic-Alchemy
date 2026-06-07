@@ -109,7 +109,7 @@ export function TransparencyTrace({ rca, serviceName, environment }: Transparenc
 
   return (
     <div className="animate-fade-up-3">
-      <Section title="Investigation Trace">
+      <Section title="Investigation Trace" info="The full evidence-to-conclusion reasoning path Corvin followed — every telemetry source weighted, every inference made explicit. Supports engineering audit and model accountability requirements.">
         <div style={{ marginBottom: 10, fontSize: '0.72rem', color: 'var(--c-text-faint)' }}>
           How Corvin traced evidence across {topSources.join(', ')} to reach this conclusion.
         </div>

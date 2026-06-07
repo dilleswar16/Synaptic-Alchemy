@@ -10,28 +10,21 @@ POST /teams/messages
     here.  The endpoint validates the Bot Framework JWT token, deserialises the
     Activity, and dispatches to ``CorvinBot.on_turn``.
 
-    Returns 501 when ``bot_enabled: false`` in config/integrations/teams.yaml
+    Returns 501 when ``TEAMS_BOT_ENABLED`` is false/unset.
     so that V1/V2 development environments work without a registered Azure Bot.
     Returns 201 on successful dispatch.
     Returns 400 on malformed JSON body.
 
 Configuration
 -------------
-Set in ``config/integrations/teams.yaml``:
+Set via environment variables:
 
-    bot_enabled: true
-    app_id: "${TEAMS_APP_ID}"
-    app_password: "${TEAMS_APP_PASSWORD}"
+    TEAMS_BOT_ENABLED=true
+    TEAMS_APP_ID=<app id>
+    AZURE_TENANT_ID=<tenant id>
 
-Supported auth modes
---------------------
-- User-Assigned Managed Identity: set ``TEAMS_APP_ID`` to the managed identity
-    client ID, leave ``TEAMS_APP_PASSWORD`` empty, and provide ``TEAMS_TENANT_ID``.
-- Secret-based bot registration: provide both ``TEAMS_APP_ID`` and
-    ``TEAMS_APP_PASSWORD``.
-
-``bot_enabled: false`` (the default) causes the endpoint to return 501 — safe
-for local and CI environments that have no Bot Framework registration.
+When disabled/unset, the endpoint returns 501 so local and CI environments can
+run without Bot Framework registration.
 """
 
 from __future__ import annotations
@@ -65,8 +58,14 @@ _BOT_INSTANCE: CorvinBot | None = None
 
 
 def _load_teams_config() -> dict[str, Any]:
-    """Load the teams integration config for the current environment."""
-    return load_config("integrations/teams", get_env())
+    """Load Teams bot config from environment variables."""
+    enabled_raw = str(os.environ.get("TEAMS_BOT_ENABLED", "")).strip().lower()
+    enabled = enabled_raw in {"1", "true", "yes", "on"}
+    return {
+        "bot_enabled": enabled,
+        "app_id": os.environ.get("TEAMS_APP_ID", ""),
+        "tenant_id": os.environ.get("AZURE_TENANT_ID", ""),
+    }
 
 
 def _resolve_env(value: str) -> str:
@@ -158,8 +157,7 @@ async def messages(
         return Response(
             content=(
                 "Teams bot is not enabled. "
-                "Set bot_enabled: true in config/integrations/teams.yaml "
-                "and supply TEAMS_APP_ID / TEAMS_APP_PASSWORD."
+                "Set TEAMS_BOT_ENABLED=true and supply TEAMS_APP_ID / AZURE_TENANT_ID."
             ),
             status_code=501,
             media_type="text/plain",
@@ -211,16 +209,16 @@ async def messages(
             content=invoke_response.body, status_code=invoke_response.status
         )
 
-    return Response(status_code=200)
+    return Response(status_code=201)
 
 
 @router.get("/messages")
 async def messages_get() -> JSONResponse:
-    """Health/readiness endpoint for Teams probes hitting the message route.
+    """Health/readiness endpoint for the Teams bot route.
 
-    Some channel checks and manual probes use GET against the same path. A 200
-    here avoids noisy 405s and clarifies that POST is the actual Bot Framework
-    ingress method.
+    Some proxies, app service health checks, and manual probes hit the same
+    path with GET. Returning 200 here avoids noisy 405s while making it clear
+    that only POST is used for actual bot messages.
     """
     cfg = _load_teams_config()
     return JSONResponse(
@@ -229,20 +227,6 @@ async def messages_get() -> JSONResponse:
             "status": "ok",
             "bot_enabled": bool(cfg.get("bot_enabled", False)),
             "message": "POST /teams/messages is the Bot Framework ingress; GET is health/readiness only.",
-        },
-    )
-
-
-@router.get("/health")
-async def teams_health() -> JSONResponse:
-    """Dedicated health endpoint for the Teams integration."""
-    cfg = _load_teams_config()
-    return JSONResponse(
-        status_code=200,
-        content={
-            "status": "ok",
-            "bot_enabled": bool(cfg.get("bot_enabled", False)),
-            "message": "Teams integration is reachable.",
         },
     )
 

@@ -161,7 +161,7 @@ Max tool rounds: **6** (prevents infinite loops).
 | `get_postmortem` | `InvestigationRepository.get_post_mortem()` | No |
 | `get_similar_incidents` | `InvestigationRepository.get_similar_incidents()` | No |
 | `get_site_knowledge` | `KnowledgeLoader.load_site_knowledge()` (knowledge/site.md) | No |
-| `get_runbook` | `KnowledgeLoader.load_matching_runbooks()` | No |
+| `get_runbook` | `KnowledgeLoader.load_matching_runbooks()` — DB-first (RunbookRow), disk catalog fallback | No |
 | `run_kql` | `LogAnalyticsAdapter.get_apim_logs()` | **Yes** |
 | `get_aks_health` | `AKSAdapter.get_pod_context()` | **Yes** |
 | `run_elastic_query` | `ElasticAdapter.get_logs/get_metrics()` | **Yes** |
@@ -220,8 +220,10 @@ POST   /corvin/sessions/{session_id}/chat       Send message, stream SSE respons
    context. No summarization yet (V4 roadmap).
 
 4. **Knowledge base always available** — `get_site_knowledge` and `get_runbook` tools
-   hit the local `knowledge/` directory. No network required. The LLM is instructed
-   in the system prompt to call these when asked about CHAD architecture or services.
+   query the DB-backed runbook library first (RunbookRow, managed via Applications UI),
+   then fall back to the local `knowledge/` directory. No network required. The LLM is
+   instructed in the system prompt to call these when asked about CHAD architecture,
+   services, or incident playbooks.
 
 5. **Auto-title** — the session title is set to the first 60 characters of the first
    user message, exactly like ChatGPT. Updated on first message, never after.

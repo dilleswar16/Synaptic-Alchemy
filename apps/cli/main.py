@@ -106,7 +106,10 @@ def cmd_investigate(args: list[str]) -> None:
         console.print("  [red]Service name is required.[/red]")
         return
     if not environment:
-        environment = console.input("  Environment [production]: ").strip() or "production"
+        environment = console.input("  Environment: ").strip()
+    if not environment:
+        console.print("  [red]Environment is required (e.g. production, staging, dev).[/red]")
+        return
     if not description:
         description = console.input("  Description [Manual CLI investigation]: ").strip() \
                       or "Manual CLI investigation"

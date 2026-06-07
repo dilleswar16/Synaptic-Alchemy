@@ -52,18 +52,24 @@ export function FixStrategyFlowchart({ serviceName, actions, rcaConfidence }: Fi
   const confSuffix = rcaConfidence ? ` · ${rcaConfidence} confidence` : ''
   const svcLabel = safeLabel(serviceName, 22)
 
-  let chart = 'graph TD\n'
-  chart += `  Start["⚠ ${svcLabel}<br/>RCA Confirmed${confSuffix}"] --> A0\n`
+  let chart = 'graph LR\n'
+  chart += `  Start["⚠ ${svcLabel}<br/>RCA Confirmed${confSuffix}"]:::startNode --> A0\n`
 
   actions.forEach((action, i) => {
     const risk = action.risk_level.toLowerCase()
     const riskTag = RISK_LABEL[risk] ?? risk.toUpperCase()
     const titleLabel = digest(action.title, 50)
     const nextId = i < actions.length - 1 ? `A${i + 1}` : 'Gate'
-    chart += `  A${i}["${i + 1}. ${titleLabel}<br/>${riskTag} RISK"] --> ${nextId}\n`
+    chart += `  A${i}["${i + 1}. ${titleLabel}<br/>${riskTag} RISK"]:::${risk}Risk --> ${nextId}\n`
   })
 
-  chart += `  Gate[["Human Approval Required<br/>${actions.length} action${actions.length > 1 ? 's' : ''} need SRE sign-off"]]\n`
+  chart += `  Gate[["Human Approval Required<br/>${actions.length} action${actions.length > 1 ? 's' : ''} need SRE sign-off"]]:::gateNode\n\n`
+  
+  chart += `  classDef startNode fill:#1E293B,stroke:#94A3B8,stroke-width:2px,color:#F8FAFC\n`
+  chart += `  classDef lowRisk fill:#064E3B,stroke:#10B981,stroke-width:2px,color:#ECFDF5\n`
+  chart += `  classDef mediumRisk fill:#78350F,stroke:#F59E0B,stroke-width:2px,color:#FFFBEB\n`
+  chart += `  classDef highRisk fill:#450A0A,stroke:#EF4444,stroke-width:2px,color:#FEF2F2\n`
+  chart += `  classDef gateNode fill:#111827,stroke:#6366F1,stroke-width:2px,color:#E0E7FF\n`
 
   return (
     <div style={{ marginTop: 24, marginBottom: 24 }}>

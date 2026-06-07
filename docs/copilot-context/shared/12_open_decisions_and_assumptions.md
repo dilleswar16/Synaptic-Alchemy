@@ -25,6 +25,10 @@
 - Exact rollback model in V3.
 - Whether change correlation is built through Azure-native events only or also through deployment-system adapters.
 
+## Known Issues
+
+- **Topology metrics/CPU empty when CORVIN_ENV=local** (introduced in `bbbeab9` by Nitesh, May 30 2026): `corvin/evidence/container_logs_adapter.py` line 69 skips Azure Monitor client creation when `get_env() == "local"` to avoid corporate proxy SSL errors. This means topology visualizer returns no data in local dev. Fix options: set `CORVIN_ENV=dev`, remove the guard, or add a separate `CORVIN_SKIP_AZURE` toggle.
+
 ## Assumptions To Keep Stable Unless Revisited
 
 - V1 stops at fix strategy.

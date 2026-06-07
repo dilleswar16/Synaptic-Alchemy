@@ -121,6 +121,30 @@ _SQLITE_COLUMN_MIGRATIONS: list[tuple[str, str, str]] = [
     ("predictive_alerts", "blast_radius_users", "INTEGER DEFAULT 0"),
     ("predictive_alerts", "blast_radius_requests", "INTEGER DEFAULT 0"),
     ("predictive_alerts", "change_correlation", "TEXT"),
+    ("predictive_alerts", "suppression_status", "VARCHAR(20)"),
+    # Git config columns added to applications table
+    ("applications", "git_provider", "VARCHAR(30)"),
+    ("applications", "git_repo_url", "VARCHAR(500)"),
+    ("applications", "git_branch", "VARCHAR(255)"),
+    ("applications", "git_token_encrypted", "TEXT"),
+    # Application-level scoring/environment config overrides
+    ("applications", "scoring_config_json", "JSON"),
+    ("applications", "environment_config_json", "JSON"),
+    # Git config columns added to application_services table (per-service git)
+    ("application_services", "git_provider", "VARCHAR(30)"),
+    ("application_services", "git_repo_url", "VARCHAR(500)"),
+    ("application_services", "git_branch", "VARCHAR(255)"),
+    ("application_services", "git_token_encrypted", "TEXT"),
+    ("application_services", "git_assignee", "VARCHAR(255)"),
+    ("application_services", "git_copilot_agent", "VARCHAR(255)"),
+    # GitHub Issue tracking on fix strategy outputs
+    ("fix_strategy_outputs", "github_issue_url", "VARCHAR(1024)"),
+    ("fix_strategy_outputs", "github_issue_number", "INTEGER"),
+    # Feature 8 — Root Cause Debate Mode columns on investigation requests
+    ("investigation_requests", "hypotheses_json", "JSON"),
+    ("investigation_requests", "selected_hypothesis_id", "VARCHAR(10)"),
+    # Feature 6 — DB-backed runbook sessions (approved_by added after initial table creation)
+    ("runbook_sessions", "approved_by", "VARCHAR(255)"),
 ]
 
 

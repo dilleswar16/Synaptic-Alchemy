@@ -19,7 +19,7 @@ functions for production call sites that want the default ``get_session()``.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -49,6 +49,7 @@ from corvin.core.contracts import (
 )
 from corvin.storage.db import get_session
 from corvin.storage.models import (
+    ApplicationServiceRow,
     EvidenceBundleRow,
     FixStrategyOutputRow,
     InvestigationRequestRow,
@@ -286,6 +287,8 @@ class InvestigationRepository:
                     "actions": fix_row.actions,
                     "justification": fix_row.justification,
                     "generated_at": _as_utc(fix_row.generated_at),
+                    "github_issue_url": getattr(fix_row, "github_issue_url", None),
+                    "github_issue_number": getattr(fix_row, "github_issue_number", None),
                 }
             )
 
@@ -294,8 +297,10 @@ class InvestigationRepository:
             ado_url: str | None = None
             if ado_wid:
                 try:
-                    from corvin.core.config_loader import get_env, load_config
-                    ado_cfg = load_config("integrations/azure_devops", get_env())
+                    from corvin.delivery.rca_notification import resolve_ado_boards_config_for_service
+                    ado_cfg = resolve_ado_boards_config_for_service(req_row.service_name)
+                    if not ado_cfg:
+                        ado_cfg = {}
                     org = str(ado_cfg.get("org_name", "")).strip()
                     proj = str(ado_cfg.get("project_name", "")).strip()
                     if org and proj and not org.startswith("${") and not proj.startswith("${"):
@@ -388,6 +393,25 @@ class InvestigationRepository:
                     row.sharepoint_url = sharepoint_url
                 session.commit()
 
+    def save_github_issue(
+        self,
+        request_id: str,
+        issue_url: str,
+        issue_number: int,
+    ) -> None:
+        """Persist GitHub issue URL and number on the fix strategy row."""
+        from corvin.storage.models import FixStrategyOutputRow
+        with self._session_factory() as session:
+            row = session.execute(
+                __import__("sqlalchemy").select(FixStrategyOutputRow).where(
+                    FixStrategyOutputRow.request_id == request_id
+                )
+            ).scalar_one_or_none()
+            if row is not None:
+                row.github_issue_url = issue_url
+                row.github_issue_number = issue_number
+                session.commit()
+
     def get_similar_incidents(
         self,
         service_name: str,
@@ -472,6 +496,59 @@ class InvestigationRepository:
                     "approved_at": _as_utc(r.approved_at).isoformat() if r.approved_at else None,
                     "completed_at": _as_utc(r.completed_at).isoformat(),
                     "created_at": _as_utc(r.created_at).isoformat(),
+                }
+                for r in rows
+            ]
+
+    def list_investigations_for_similarity(
+        self,
+        limit: int = 50,
+        service_name: str | None = None,
+        environment: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return lightweight rows for similarity network computation.
+
+        Each dict contains: id, service_name, environment, priority,
+        rca_summary, created_at.  Joins rca_outputs to include the summary
+        text used for Jaccard similarity; investigations without a completed
+        RCA are excluded.
+        """
+        from sqlalchemy import join
+
+        with self._session_factory() as session:
+            stmt = (
+                select(
+                    InvestigationRequestRow.id,
+                    InvestigationRequestRow.service_name,
+                    InvestigationRequestRow.environment,
+                    InvestigationRequestRow.incident_priority,
+                    InvestigationRequestRow.created_at,
+                    RCAOutputRow.summary.label("rca_summary"),
+                )
+                .select_from(
+                    join(
+                        InvestigationRequestRow,
+                        RCAOutputRow,
+                        InvestigationRequestRow.id == RCAOutputRow.request_id,
+                    )
+                )
+                .order_by(InvestigationRequestRow.created_at.desc())
+                .limit(limit)
+            )
+            if service_name:
+                stmt = stmt.where(InvestigationRequestRow.service_name == service_name)
+            if environment:
+                stmt = stmt.where(InvestigationRequestRow.environment == environment)
+
+            rows = session.execute(stmt).all()
+            return [
+                {
+                    "id": r.id,
+                    "service_name": r.service_name,
+                    "environment": r.environment,
+                    "priority": r.incident_priority,
+                    "rca_summary": r.rca_summary or "",
+                    "created_at": _as_utc(r.created_at).isoformat() if r.created_at else "",
                 }
                 for r in rows
             ]
@@ -615,19 +692,61 @@ class InvestigationRepository:
         """
         Compute a Corvin Score (0–100) for a specific service/environment.
 
-        Formula (weighted):
-          - 30 pts: incident frequency (fewer = better, baseline = 10/month)
-          - 25 pts: average RCA confidence (high=1, medium=0.6, low=0.2)
-          - 25 pts: average MTTR (≤5 min = full pts, scaled up to 60 min cap)
-          - 20 pts: days since last incident (≥30 days = full pts)
+        Score weights are loaded from ApplicationRow.scoring_config_json (DB-first),
+        falling back to config/policies/scoring.yaml (system-wide defaults).
 
         Returns dict with: score, label, color, total, high_conf, avg_mttr_minutes,
         days_since_last, last_incident_at.
         """
-        CONF_WEIGHT = {"high": 1.0, "medium": 0.6, "low": 0.2}
-        LOOKBACK_DAYS = 30
+        from corvin.storage.models import ApplicationServiceRow, ApplicationRow
+        from corvin.core.config_loader import load_config, get_env
+        from sqlalchemy import or_
 
         with self._session_factory() as session:
+            # ── Load scoring config: DB-first, YAML fallback ──────────────────
+            scoring_cfg: dict = {}
+            try:
+                svc_row = session.query(ApplicationServiceRow).filter(
+                    or_(
+                        ApplicationServiceRow.service_name == service_name,
+                        ApplicationServiceRow.k8s_app_label == service_name,
+                    )
+                ).first()
+                if svc_row:
+                    app_row: ApplicationRow | None = session.get(ApplicationRow, svc_row.application_id)
+                    if app_row and app_row.scoring_config_json:
+                        scoring_cfg = app_row.scoring_config_json
+            except Exception:
+                pass  # DB unavailable — fall through to YAML
+
+            if not scoring_cfg:
+                try:
+                    scoring_cfg = load_config("policies/scoring", get_env())
+                except Exception:
+                    scoring_cfg = {}
+
+            health_cfg = scoring_cfg.get("service_health", scoring_cfg)
+            weights = health_cfg.get("weights", {})
+            w_freq = float(weights.get("frequency", 30))
+            w_conf = float(weights.get("confidence", 25))
+            w_mttr = float(weights.get("mttr", 25))
+            w_rec = float(weights.get("recency", 20))
+
+            conf_map_raw = health_cfg.get("confidence_map", {})
+            CONF_WEIGHT = {
+                "high": float(conf_map_raw.get("high", 1.0)),
+                "medium": float(conf_map_raw.get("medium", 0.6)),
+                "low": float(conf_map_raw.get("low", 0.2)),
+            }
+            LOOKBACK_DAYS = int(health_cfg.get("lookback_days", 30))
+            FREQ_BASELINE = float(health_cfg.get("frequency_baseline_count", 10))
+            MTTR_CAP = float(health_cfg.get("mttr_cap_minutes", 60))
+            RECENCY_CAP = float(health_cfg.get("recency_cap_days", 30))
+            thresholds = health_cfg.get("thresholds", {})
+            THRESH_HEALTHY = int(thresholds.get("healthy", 80))
+            THRESH_DEGRADED = int(thresholds.get("degraded", 50))
+
+            # ── Query investigation history ───────────────────────────────────
             rows = session.execute(
                 select(InvestigationRequestRow)
                 .where(InvestigationRequestRow.service_name == service_name)
@@ -651,11 +770,11 @@ class InvestigationRepository:
             cutoff = now - __import__('datetime').timedelta(days=LOOKBACK_DAYS)
             recent = [r for r in rows if _as_utc(r.created_at) >= cutoff]
 
-            # --- Frequency score (30 pts) ---
+            # --- Frequency score ---
             freq_count = len(recent)
-            freq_score = max(0.0, 1.0 - freq_count / 10.0) * 30
+            freq_score = max(0.0, 1.0 - freq_count / FREQ_BASELINE) * w_freq
 
-            # --- Confidence score (25 pts) ---
+            # --- Confidence score ---
             rca_rows = session.execute(
                 select(RCAOutputRow)
                 .join(InvestigationRequestRow, RCAOutputRow.request_id == InvestigationRequestRow.id)
@@ -667,10 +786,10 @@ class InvestigationRepository:
             if rca_rows:
                 avg_conf_weight = sum(CONF_WEIGHT.get(r.confidence, 0.6) for r in rca_rows) / len(rca_rows)
             else:
-                avg_conf_weight = 0.6
-            conf_score = avg_conf_weight * 25
+                avg_conf_weight = CONF_WEIGHT.get("medium", 0.6)
+            conf_score = avg_conf_weight * w_conf
 
-            # --- MTTR score (25 pts) ---
+            # --- MTTR score ---
             mttr_values = []
             for r in rows:
                 if r.created_at and r.completed_at:
@@ -678,21 +797,21 @@ class InvestigationRepository:
                     mttr_values.append(delta)
             avg_mttr = sum(mttr_values) / len(mttr_values) if mttr_values else None
             if avg_mttr is None:
-                mttr_score = 25.0
+                mttr_score = w_mttr
             else:
-                mttr_score = max(0.0, 1.0 - min(avg_mttr, 60.0) / 60.0) * 25
+                mttr_score = max(0.0, 1.0 - min(avg_mttr, MTTR_CAP) / MTTR_CAP) * w_mttr
 
-            # --- Recency score (20 pts) ---
+            # --- Recency score ---
             last_row = rows[0]
             last_at = _as_utc(last_row.completed_at)
             days_since = (now - last_at).days
-            recency_score = min(days_since / 30.0, 1.0) * 20
+            recency_score = min(days_since / RECENCY_CAP, 1.0) * w_rec
 
             score = round(freq_score + conf_score + mttr_score + recency_score)
 
-            if score >= 80:
+            if score >= THRESH_HEALTHY:
                 label, color = "Healthy", "green"
-            elif score >= 50:
+            elif score >= THRESH_DEGRADED:
                 label, color = "Degraded", "amber"
             else:
                 label, color = "Critical", "red"
@@ -708,13 +827,18 @@ class InvestigationRepository:
                 "last_incident_at": last_at.isoformat(),
             }
 
-    def list_recent_results(self, limit: int = 20) -> list[InvestigationResult]:
+    def list_recent_results(
+        self,
+        limit: int = 20,
+        service_names: list[str] | None = None,
+    ) -> list[InvestigationResult]:
         """Return the most recent complete investigations, newest first."""
         with self._session_factory() as session:
+            stmt = select(InvestigationRequestRow.id)
+            if service_names:
+                stmt = stmt.where(InvestigationRequestRow.service_name.in_(service_names))
             rows = session.execute(
-                select(InvestigationRequestRow.id).order_by(
-                    InvestigationRequestRow.completed_at.desc()
-                ).limit(limit)
+                stmt.order_by(InvestigationRequestRow.completed_at.desc()).limit(limit)
             ).scalars().all()
 
         results: list[InvestigationResult] = []
@@ -723,6 +847,14 @@ class InvestigationRepository:
             if result is not None:
                 results.append(result)
         return results
+
+    def list_application_service_names(self, application_id: str | None = None) -> list[str]:
+        with self._session_factory() as session:
+            stmt = select(ApplicationServiceRow.service_name)
+            if application_id:
+                stmt = stmt.where(ApplicationServiceRow.application_id == application_id)
+            rows = session.execute(stmt).all()
+        return [str(row[0]) for row in rows]
 
     def get_monthly_downtime_seconds(self, service_name: str, environment: str) -> float:
         """Approximate downtime budget already consumed this month for one service.
@@ -903,10 +1035,19 @@ class InvestigationRepository:
                     "recent_services": [],
                 }
 
-            today = datetime.now(timezone.utc).date()
+            now = datetime.now(timezone.utc)
+            today = now.date()
+            cutoff_24h = now - timedelta(hours=24)
             today_count = sum(
                 1 for r in rows
                 if r.created_at and _as_utc(r.created_at).date() == today
+            )
+
+            # Active = pending or approved, created within last 24 hours
+            active_count = sum(
+                1 for r in rows
+                if (r.approval_status or "pending") in ("pending", "approved")
+                and r.created_at and _as_utc(r.created_at) >= cutoff_24h
             )
 
             approval_dist: dict[str, int] = {
@@ -946,6 +1087,7 @@ class InvestigationRepository:
             return {
                 "total_investigations": len(rows),
                 "today_count": today_count,
+                "active_count": active_count,
                 "confidence_distribution": conf_dist,
                 "approval_distribution": approval_dist,
                 "avg_mttr_minutes": round(avg_mttr, 1) if avg_mttr is not None else None,
@@ -1031,6 +1173,135 @@ class InvestigationRepository:
                 "top_services": top_services,
                 "narrative": narrative,
             }
+
+    # ── Feature 8: Debate Mode hypothesis persistence ─────────────────────────
+
+    def save_hypotheses(
+        self,
+        request_id: str,
+        hypotheses: list,
+    ) -> None:
+        """Persist the list[RCAHypothesis] (serialised as JSON) for an investigation.
+
+        Overwrites any existing hypotheses_json for the same request_id.
+        A no-op when the request_id does not exist.
+        """
+        from corvin.core.contracts import RCAHypothesis
+
+        payload = [
+            h.model_dump(mode="json") if isinstance(h, RCAHypothesis) else h
+            for h in hypotheses
+        ]
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is not None:
+                row.hypotheses_json = {"hypotheses": payload}
+                session.commit()
+
+    def get_hypotheses(self, request_id: str) -> list | None:
+        """Return the stored list of hypothesis dicts, or None when absent.
+
+        Returns None for pre-Feature-8 investigations (hypotheses_json=NULL).
+        Returns an empty list when hypotheses were generated but empty.
+        """
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is None:
+                return None
+            stored = getattr(row, "hypotheses_json", None)
+            if stored is None:
+                return None
+            if isinstance(stored, dict):
+                return stored.get("hypotheses", [])
+            if isinstance(stored, list):
+                return stored
+            return []
+
+    def set_selected_hypothesis(
+        self,
+        request_id: str,
+        hypothesis_id: str,
+    ) -> bool:
+        """Set selected_hypothesis_id for an investigation.
+
+        Returns True when updated, False when request_id not found.
+        """
+        with self._session_factory() as session:
+            row = session.get(InvestigationRequestRow, request_id)
+            if row is None:
+                return False
+            row.selected_hypothesis_id = hypothesis_id
+            session.commit()
+            return True
+
+    # ── Feature 9: Incident Heatmap ───────────────────────────────────────────
+
+    def get_heatmap_data(
+        self,
+        days: int = 90,
+        service_name: str | None = None,
+        environment: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return daily incident counts with per-service breakdown for the heatmap.
+
+        Each dict: {"date": "2026-03-01", "count": 3, "services": {"api-svc": 2, "auth": 1}}
+
+        Only days with at least 1 investigation appear in the result.
+        The caller fills in zero-count days.
+        """
+        from sqlalchemy import func
+        from datetime import timedelta
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+        with self._session_factory() as session:
+            day_col = func.date(InvestigationRequestRow.created_at).label("day")
+
+            # Query 1: daily totals
+            total_stmt = (
+                select(day_col, func.count(InvestigationRequestRow.id).label("cnt"))
+                .where(InvestigationRequestRow.created_at >= cutoff)
+                .group_by(day_col)
+                .order_by(day_col.asc())
+            )
+            if service_name:
+                total_stmt = total_stmt.where(InvestigationRequestRow.service_name == service_name)
+            if environment:
+                total_stmt = total_stmt.where(InvestigationRequestRow.environment == environment)
+
+            # Query 2: daily per-service breakdown
+            svc_stmt = (
+                select(
+                    day_col,
+                    InvestigationRequestRow.service_name,
+                    func.count(InvestigationRequestRow.id).label("cnt"),
+                )
+                .where(InvestigationRequestRow.created_at >= cutoff)
+                .group_by(day_col, InvestigationRequestRow.service_name)
+                .order_by(day_col.asc())
+            )
+            if service_name:
+                svc_stmt = svc_stmt.where(InvestigationRequestRow.service_name == service_name)
+            if environment:
+                svc_stmt = svc_stmt.where(InvestigationRequestRow.environment == environment)
+
+            total_rows = session.execute(total_stmt).all()
+            svc_rows = session.execute(svc_stmt).all()
+
+        # Build service breakdown index  {date: {service: count}}
+        breakdown: dict[str, dict[str, int]] = {}
+        for row in svc_rows:
+            d = str(row.day)
+            breakdown.setdefault(d, {})[row.service_name] = int(row.cnt)
+
+        return [
+            {
+                "date": str(row.day),
+                "count": int(row.cnt),
+                "services": breakdown.get(str(row.day), {}),
+            }
+            for row in total_rows
+        ]
 
 
 # ---------------------------------------------------------------------------

@@ -50,7 +50,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_service_score: 'Service Score', get_roi: 'ROI Metrics',
   get_service_topology: 'Service Topology', get_blast_radius: 'Blast Radius',
   get_postmortem: 'Post-Mortem', get_similar_incidents: 'Similar Incidents',
-  get_site_knowledge: 'CHAD Architecture', get_runbook: 'Runbook',
+  get_site_knowledge: 'Site Knowledge', get_runbook: 'Runbook',
   run_kql: 'Log Analytics Query', get_aks_health: 'AKS Health',
   get_container_resource_metrics: 'Container Resource Metrics',
   run_elastic_query: 'Container Resource Metrics',
@@ -472,14 +472,14 @@ export default function CorvinCommandPage() {
               {[
                 "What's the MTTR this week?",
                 'Show me recent incidents',
-                'Is fundsso healthy?',
-                'Tell me about CHAD architecture',
+                'Which services are healthy?',
+                'Tell me about the platform architecture',
                 'Any predictive alerts?',
                 "What's the ROI this month?",
-                'How many unique members per fund today?',
                 'Show me APIM error rate last 24h',
-                'Which partnerapis operations are slowest?',
-                'Show fund activity heatmap this week',
+                'Which services have the highest blast radius?',
+                'Show me recent post-mortems',
+                'What changed in the last hour?',
               ].map(q => (
                 <button
                   key={q}
@@ -529,7 +529,7 @@ export default function CorvinCommandPage() {
                   <div style={{ textAlign: 'center', color: 'var(--c-text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', marginTop: 60, lineHeight: 2 }}>
                     I have live access to your entire platform.<br />
                     <span style={{ color: 'var(--c-text-faint)', fontSize: '0.68rem' }}>
-                      Incidents · AKS · Log Analytics · Elastic · CHAD Knowledge
+                      Incidents · AKS · Log Analytics · Elastic · Site Knowledge
                     </span><br />
                     Ask me anything.
                   </div>
@@ -803,7 +803,7 @@ export default function CorvinCommandPage() {
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
                 {toolEvents.length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', marginTop: 40, lineHeight: 2 }}>
+                  <div style={{ textAlign: 'center', color: 'var(--c-text-faint)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', lineHeight: 2 }}>
                     Tool results will appear here<br />as Corvin queries live data.
                   </div>
                 )}

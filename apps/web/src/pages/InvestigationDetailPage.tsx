@@ -17,15 +17,21 @@ import { TransparencyTrace } from '../components/investigation/TransparencyTrace
 import { IncidentHeroCard } from '../components/investigation/IncidentHeroCard'
 import { RunbookUpdatePrompt } from '../components/investigation/RunbookUpdatePrompt'
 import { CopilotChatWidget } from '../components/investigation/CopilotChatWidget'
+import { CausalChainSection } from '../components/investigation/CausalChainSection'
+import { CommsDraftSection } from '../components/investigation/CommsDraftSection'
 import { TechnicalHighlighter } from '../components/TechnicalHighlighter'
 import { Section } from '../components/Section'
 import { BlastRadiusCard } from '../components/BlastRadiusCard'
 import { SlaCountdownCard } from '../components/investigation/SlaCountdownCard'
+import WarRoomBanner from '../components/WarRoomBanner'
+import RunbookBuilderChat from '../components/RunbookBuilderChat'
+import HypothesisDebatePanel from '../components/investigation/HypothesisDebatePanel'
 import { useThreeAmMode } from '../hooks/useThreeAmMode'
 import {
   fetchInvestigation,
   fetchSimilarIncidents,
   fetchReplay,
+  downloadCompliancePack,
   type SimilarIncident,
   type ReplayPayload,
 } from '../api/client'
@@ -37,13 +43,14 @@ export default function InvestigationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   useThreeAmMode()
+  const [packDownloading, setPackDownloading] = useState<false | 'pdf' | 'zip'>(false)
 
   const rawAction = searchParams.get('action')
   const pendingAction: ApprovalAction | null =
     rawAction === 'approve' || rawAction === 'reject' ? rawAction : null
   const clearPendingAction = () => setSearchParams({})
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch: refetchInvestigation } = useQuery({
     queryKey: ['investigation', id],
     queryFn: () => fetchInvestigation(id!),
     enabled: !!id,
@@ -285,6 +292,35 @@ export default function InvestigationDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Compliance pack download button */}
+          {data && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              {(['pdf', 'zip'] as const).map(fmt => (
+                <button
+                  key={fmt}
+                  id={`compliance-pack-${fmt}-btn`}
+                  disabled={packDownloading !== false}
+                  onClick={async () => {
+                    setPackDownloading(fmt)
+                    try { await downloadCompliancePack(id!, fmt) }
+                    catch (e) { console.error(e) }
+                    finally { setPackDownloading(false) }
+                  }}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700,
+                    padding: '4px 11px', borderRadius: 6, border: '1px solid var(--c-border)',
+                    background: 'var(--c-surface-2)', color: 'var(--c-text-muted)',
+                    cursor: packDownloading ? 'wait' : 'pointer',
+                    opacity: packDownloading && packDownloading !== fmt ? 0.5 : 1,
+                  }}
+                >
+                  {packDownloading === fmt ? '⏳' : '📦'} Evidence Pack .{fmt.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Loading skeletons */}
@@ -322,6 +358,12 @@ export default function InvestigationDetailPage() {
         {data && (
           <>
             {/* Always-visible: hero + SLA + stepper */}
+            {approvalStatus === 'pending' && (
+              <WarRoomBanner
+                serviceName={data.request.service_name}
+                environment={data.request.environment}
+              />
+            )}
             <IncidentHeroCard data={data} approvalStatus={approvalStatus} />
             <SlaCountdownCard requestId={id!} status={approvalStatus} />
             <div className="three-am-hide" style={{ marginTop: 4 }}>
@@ -428,6 +470,16 @@ export default function InvestigationDetailPage() {
                       })) ?? []}
                     />
                   </div>
+                  <CausalChainSection requestId={id!} />
+                  <CommsDraftSection requestId={id!} />
+                  {/* Feature 8 — Root Cause Debate Mode */}
+                  <HypothesisDebatePanel
+                    investigationId={id!}
+                    onHypothesisSelected={async (_hid) => {
+                      // Ensure RCA/Fix sections refresh immediately after backend regeneration.
+                      await refetchInvestigation()
+                    }}
+                  />
                 </div>
               )}
 
@@ -435,7 +487,7 @@ export default function InvestigationDetailPage() {
               {activeTab === 'evidence' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                   {data.request?.description && (
-                    <Section title="Context">
+                    <Section title="Context" info="The operator-supplied description and context at investigation trigger time — observed symptoms and intent before automated analysis began.">
                       <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: '0.88rem', color: 'var(--c-text-dim)', lineHeight: 1.75 }}>
                         <TechnicalHighlighter text={data.request.description} />
                       </p>
@@ -461,6 +513,13 @@ export default function InvestigationDetailPage() {
                     <RunbookUpdatePrompt
                       requestId={id!}
                       serviceName={data.request?.service_name ?? 'unknown'}
+                    />
+                  )}
+                  {approvalStatus === 'executed' && (
+                    <RunbookBuilderChat
+                      requestId={id!}
+                      serviceName={data.request?.service_name ?? 'unknown'}
+                      environment={data.request?.environment ?? 'production'}
                     />
                   )}
                   <AuditTrailSection requestId={id!} defaultOpen={true} />

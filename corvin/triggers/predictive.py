@@ -37,10 +37,11 @@ class PredictiveAlert(BaseModel):
     investigation_request_id: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     # --- New fields ---
-    change_correlation: str | None = None  # e.g. "Alert triggered 7 min after deployment fundapis-deploy-v42"
+    change_correlation: str | None = None  # e.g. "Alert triggered 7 min after deployment payments-api-deploy-v42"
     related_count: int = 1  # Number of deduplicated signals grouped into this alert
     blast_radius_users: int = 0  # Actual APIM request count (user-facing impact)
     blast_radius_requests: int = 0  # Total APIM requests in window
+    suggested_runbook_title: str | None = None  # Title of first matching runbook (if any)
 
 
 _SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
@@ -121,13 +122,43 @@ class PredictiveMonitor:
             key=lambda a: (_SEVERITY_RANK.get(a.severity.lower(), 0), a.created_at),
             reverse=True,
         )
+
+        # ── Enrich each alert with a matching runbook title (non-fatal) ───────
+        try:
+            from corvin.core.knowledge_loader import KnowledgeLoader
+            _loader = KnowledgeLoader()
+            for alert in ordered:
+                search_text = f"{alert.alert_type} {alert.title} {alert.summary}"
+                matching = _loader.load_matching_runbooks(search_text, service_name=alert.service_name)
+                if matching:
+                    first_line = matching[0].split("\n")[0].lstrip("# ").strip()
+                    alert.suggested_runbook_title = first_line or None
+        except Exception as _exc:
+            _log.debug("Runbook title enrichment failed (non-fatal): %s", _exc)
+
         self._repo.replace_predictive_alerts([alert.model_dump(mode="json") for alert in ordered])
+
+        # ── Notify application contacts via email ──
+        if ordered:
+            try:
+                from corvin.delivery.prediction_notification import send_prediction_emails
+                send_prediction_emails([a.model_dump(mode="json") for a in ordered])
+            except Exception as exc:
+                _log.warning("Prediction email notification failed (non-fatal): %s", exc)
+
         return ordered
 
     async def run_forever(self, interval_seconds: int = 300) -> None:
         while True:
             try:
-                self.refresh_alerts()
+                alerts = self.refresh_alerts()
+                # ── Validation automation: trigger user journeys for matching policies ──
+                if alerts:
+                    try:
+                        from corvin.triggers.validation_automation import evaluate_policies
+                        await evaluate_policies(alerts)
+                    except Exception as exc:
+                        _log.warning("Validation automation evaluation failed: %s", exc)
             except Exception:
                 pass
             await asyncio.sleep(interval_seconds)
@@ -146,31 +177,64 @@ def _calculate_confidence_pct(
     actually is to the threshold. A 24% signal vs an 85% threshold should
     NOT produce 100% confidence.
     """
-    score = 25.0  # Conservative base
+    # ── Load scoring weights: DB-first, YAML fallback ────────────────────────
+    _w: dict = {}
+    try:
+        service_name = result.request.service_name
+        from sqlalchemy import or_
+        from corvin.storage.db import get_session
+        from corvin.storage.models import ApplicationServiceRow, ApplicationRow
+        with get_session() as _sess:
+            _svc = _sess.query(ApplicationServiceRow).filter(
+                or_(ApplicationServiceRow.service_name == service_name,
+                    ApplicationServiceRow.k8s_app_label == service_name)
+            ).first()
+            if _svc:
+                _app: ApplicationRow | None = _sess.get(ApplicationRow, _svc.application_id)
+                if _app and _app.scoring_config_json:
+                    _w = (_app.scoring_config_json.get("predictive_confidence") or {})
+    except Exception:
+        pass
+    if not _w:
+        try:
+            from corvin.core.config_loader import load_config, get_env
+            _w = load_config("policies/scoring", get_env()).get("predictive_confidence", {})
+        except Exception:
+            _w = {}
 
-    # ── Signal proximity to threshold (up to +30) ──
-    # This is the single biggest factor: how close is the signal to breaching?
+    base_score = float(_w.get("base_score", 25.0))
+    prox = _w.get("proximity", {})
+    trend = _w.get("trend", {})
+    evidence_diversity_max = float(_w.get("evidence_diversity_max", 12.0))
+    evidence_diversity_types = int(_w.get("evidence_diversity_types", 5))
+    live_metrics_bonus = float(_w.get("live_metrics_bonus", 8.0))
+    reasoning_quality = _w.get("reasoning_quality", {})
+    evidence_refs_max = float(_w.get("evidence_refs_max", 5.0))
+
+    score = base_score
+
+    # ── Signal proximity to threshold ──────────────────────────────────────────
     if threshold_value > 0:
-        proximity = signal_value / threshold_value  # 0.0 to 1.0+
+        proximity = signal_value / threshold_value
         if proximity >= 1.0:
-            score += 30.0  # Already breached
+            score += float(prox.get("breached", 30.0))
         elif proximity >= 0.8:
-            score += 25.0  # Imminent
+            score += float(prox.get("imminent", 25.0))
         elif proximity >= 0.6:
-            score += 18.0
+            score += float(prox.get("approaching", 18.0))
         elif proximity >= 0.4:
-            score += 10.0
+            score += float(prox.get("moderate", 10.0))
         else:
-            score += 3.0  # Far from threshold — low confidence in breach
+            score += float(prox.get("distant", 3.0))
 
-    # ── Trend direction (up to +15) ──
+    # ── Trend direction ────────────────────────────────────────────────────────
     if slope_direction > 0:
-        score += 15.0  # Rising trend — breach more likely
+        score += float(trend.get("rising", 15.0))
     elif slope_direction == 0:
-        score += 5.0   # Flat — uncertain
+        score += float(trend.get("flat", 5.0))
     # Negative slope: no bonus (declining is good)
 
-    # ── Evidence diversity (up to +12) ──
+    # ── Evidence diversity ─────────────────────────────────────────────────────
     evidence_types = 0
     if result.evidence.log_analytics_apim:
         evidence_types += 1
@@ -182,22 +246,22 @@ def _calculate_confidence_pct(
         evidence_types += 1
     if result.evidence.pod_restarts or result.evidence.oom_kill_events:
         evidence_types += 1
-    score += (evidence_types / 5.0) * 12.0
+    score += (evidence_types / evidence_diversity_types) * evidence_diversity_max
 
-    # ── Live metrics bonus (up to +8) ──
+    # ── Live metrics bonus ────────────────────────────────────────────────────
     if live_metrics:
-        score += 8.0
+        score += live_metrics_bonus
 
-    # ── RCA reasoning quality (up to +5) ──
+    # ── RCA reasoning quality ─────────────────────────────────────────────────
     reasoning_length = len(result.rca.confidence_reasoning or "")
     if reasoning_length > 100:
-        score += 5.0
+        score += float(reasoning_quality.get("rich", 5.0))
     elif reasoning_length > 50:
-        score += 3.0
+        score += float(reasoning_quality.get("brief", 3.0))
 
-    # ── Evidence references (up to +5) ──
+    # ── Evidence references ───────────────────────────────────────────────────
     refs = len(result.rca.evidence_references or [])
-    score += min(5.0, refs * 1.0)
+    score += min(evidence_refs_max, float(refs))
 
     return min(100.0, round(score, 1))
 

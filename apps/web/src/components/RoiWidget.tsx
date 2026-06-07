@@ -6,6 +6,7 @@
  */
 import { useQuery } from '@tanstack/react-query'
 import { fetchRoi } from '../api/client'
+import { InfoTooltip } from './Section'
 
 /** Per-colour tinted backgrounds using token vars. */
 const TINTS: Record<string, string> = {
@@ -28,11 +29,11 @@ function LoadingSkeleton() {
       {bar('6rem', '0.55rem')}
       {bar('12rem', '1rem')}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+        display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)',
         gap: 2, marginTop: 18, borderRadius: 10, overflow: 'hidden',
         border: '1px solid var(--c-border)',
       }}>
-        {[0, 1, 2, 3].map(i => (
+        {[0, 1].map(i => (
           <div key={i} style={{ padding: '16px 18px', background: 'var(--c-surface)' }}>
             {bar('60%', '0.5rem')}
             {bar('80%', '1.75rem')}
@@ -80,12 +81,6 @@ export function RoiWidget() {
     )
   }
 
-  const savingStr = data.cost_saved >= 1000
-    ? `${data.currency} ${(data.cost_saved / 1000).toFixed(1)}k`
-    : `${data.currency} ${Math.round(data.cost_saved)}`
-
-  const mttrSavedMin = Math.max(0, data.baseline_mttr_minutes - data.corvin_mttr_minutes)
-
   const stats = [
     {
       label:   'Incidents Handled',
@@ -99,18 +94,6 @@ export function RoiWidget() {
       sub:     `${Math.round(data.corvin_mttr_minutes)}min vs ${Math.round(data.baseline_mttr_minutes)}min baseline`,
       colour:  'var(--c-green)',
     },
-    {
-      label:   'Engineer Hours Saved',
-      value:   `${data.hours_saved}h`,
-      sub:     `${Math.round(mttrSavedMin)}min saved per incident`,
-      colour:  'var(--c-info)',
-    },
-    {
-      label:   'Cost Saved This Month',
-      value:   savingStr,
-      sub:     `vs ${Math.round(data.baseline_mttr_minutes)}min baseline · ${data.period_months}mo window`,
-      colour:  'var(--c-warning)',
-    },
   ]
 
   return (
@@ -118,11 +101,13 @@ export function RoiWidget() {
       {/* Header */}
       <div style={{ marginBottom: 18 }}>
         <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
           fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.75rem',
           letterSpacing: '0.2em', textTransform: 'uppercase',
           color: 'var(--c-signal)', marginBottom: 5,
         }}>
           Corvin ROI
+          <InfoTooltip text="Quantified operational value delivered by Corvin over the current period. Incident count and MTTR reduction are derived from real investigation data — not estimates. Use this to demonstrate the platform's business case." />
         </div>
         <div style={{
           fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.125rem',
@@ -135,7 +120,7 @@ export function RoiWidget() {
       {/* Stat grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
+        gridTemplateColumns: 'repeat(2, 1fr)',
         gap: 2,
         borderRadius: 10,
         overflow: 'hidden',

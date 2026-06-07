@@ -200,13 +200,19 @@ class CorvinBot(ActivityHandler):
         """
         if not args:
             await turn_context.send_activity(
-                "Usage: `investigate <service_name> [environment]`\n"
+                "Usage: `investigate <service_name> <environment>`\n"
                 "Example: `investigate order-service production`"
             )
             return
 
         service_name = args[0]
-        environment = args[1] if len(args) > 1 else "production"
+        if len(args) < 2:
+            await turn_context.send_activity(
+                f"Please specify an environment for **{service_name}**.\n"
+                "Example: `investigate order-service production`"
+            )
+            return
+        environment = args[1]
 
         await turn_context.send_activity(
             f"🔍 Investigating **{service_name}** in **{environment}**... "

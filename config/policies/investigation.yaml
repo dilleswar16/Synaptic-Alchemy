@@ -32,31 +32,10 @@ blast_radius_revenue_per_user_per_min: 0.003
 # Currency symbol used in the UI display.
 blast_radius_currency: GBP
 
-# ── V3.5: Alert Simulator presets ─────────────────────────────────────────────
-# These define the synthetic Azure Monitor payloads fired by the UI simulator.
-# Each preset maps to a service + description; actual alert JSON is built in
-# the /triggers/simulate endpoint at runtime.
-simulator_presets:
-  - id: hpa_failure
-    label: "⚠ HPA Failure"
-    service_name: partnerapis
-    environment: dev
-    description: "HPA not scaling — partnerapis pods stuck at 1 replica despite 92% CPU. Partner integrations degraded."
-  - id: five_zero_three_spike
-    label: "⚡ 503 Spike"
-    service_name: fundapis
-    environment: dev
-    description: "503 error rate spiked to 18% on /v1/funds endpoint. Two pods restarted in the last 30 minutes."
-  - id: auth_errors
-    label: "🔒 Auth Errors"
-    service_name: fundsso
-    environment: dev
-    description: "JWT validation failures spiking — fundsso returning 401 on 35% of SSO requests since 09:00."
-  - id: memory_leak
-    label: "💾 Memory Leak"
-    service_name: fundapis
-    environment: dev
-    description: "Heap usage climbing steadily — fundapis at 89% memory limit, OOM kill expected within 2 hours."
+# ── V3.5: Alert Simulator ──────────────────────────────────────────────────────
+# Simulator presets are now DB-driven, managed per-application via the
+# Application Panel UI (Applications → Simulator Presets tab).
+# Add presets for demo deployments in config/demo/seed_data.yaml.
 
 # ── V3.9: ROI Dashboard ────────────────────────────────────────────────────────
 # Baseline MTTR (minutes) before Corvin — used to calculate time saved.
@@ -79,7 +58,7 @@ war_room_enabled: false
 war_room_min_severity: critical
 
 # ── V3.7: Intelligence Layer ─────────────────────────────────────────────────
-predictive_background_enabled: true
+predictive_background_enabled: false
 predictive_interval_seconds: 300
 # Memory pressure threshold for predictive pre-mortem alerts.
 predictive_memory_threshold_pct: 85
@@ -97,3 +76,70 @@ sla_target_percent: 99.9
 sla_month_minutes: 43200
 sla_amber_seconds: 7200
 sla_red_seconds: 1800
+
+# ── Alert Suppression / Deduplication ─────────────────────────────────────────
+# Minimum minutes before the same service can trigger a new investigation.
+# Prevents alert storms from DDoSing the investigation engine.
+alert_suppression_window_minutes: 15
+
+# ── Alert Correlation Windows ─────────────────────────────────────────────────
+# How close in time two alerts from the same service must be to be correlated.
+alert_correlation_same_service_minutes: 5
+# How close in time two alerts from adjacent (dependent) services must be.
+alert_correlation_adjacent_service_minutes: 10
+
+# ── Toil Tracking ─────────────────────────────────────────────────────────────
+# Lookback window for toil/ROI metrics aggregation.
+toil_lookback_days: 30
+
+# ── Feature 8: Root Cause Debate Mode ─────────────────────────────────────────
+# When enabled, POST /investigations/{id}/hypotheses generates N competing
+# root-cause hypotheses from the evidence bundle. The SRE selects the winner
+# and the fix strategy is regenerated against the chosen hypothesis.
+debate_mode:
+  enabled: true
+  # Number of competing hypotheses to generate (must be ≥ 2).
+  hypothesis_count: 3
+  # Minimum number of supporting signals a hypothesis must have to be surfaced.
+  # Hypotheses below this threshold are padded with a placeholder signal.
+  min_evidence_signals: 2
+
+# ── Feature 9: Incident Heatmap Calendar ──────────────────────────────────────
+# Powers GET /investigations/heatmap — a GitHub-contribution-style 90-day view
+# of investigation density. Severity colours are mapped to these thresholds.
+heatmap:
+  severity_thresholds:
+    low: 1      # 1 incident/day
+    medium: 3   # 3+ incidents/day
+    high: 5     # 5+ incidents/day
+    critical: 10  # 10+ incidents/day
+  default_days: 90
+  max_days: 365
+
+# ── Feature 10: Compliance Evidence Pack ──────────────────────────────────────
+# Powers GET /investigations/{id}/compliance-pack?format=pdf|zip.
+# Generates a tamper-evident audit bundle for SOX/SOC2/ISO27001 auditors.
+compliance_pack:
+  enabled: true
+  # Watermark text printed on PDF and embedded in ZIP manifest.
+  watermark_text: "CONFIDENTIAL — FOR AUDIT USE"
+  # Whether to include raw evidence JSON files in the ZIP bundle.
+  include_raw_evidence: true
+  # Compliance frameworks listed in the report header (informational only).
+  supported_frameworks:
+    - SOX
+    - SOC2
+    - ISO27001
+
+# ── Feature 7: pgvector Semantic RAG ──────────────────────────────────────────
+# Semantic similarity search over past RCA embeddings using pgvector.
+# Requires PostgreSQL with the pgvector extension installed.
+# When pgvector is unavailable (SQLite or Postgres without extension), the
+# system auto-detects this at startup and falls back to keyword search.
+# No code change required — just set backend: keyword to force keyword mode.
+similarity:
+  backend: pgvector        # pgvector | keyword (auto-detected when pgvector unavailable)
+  top_k_default: 5         # default number of similar incidents to return
+  min_similarity_threshold: 0.72  # minimum cosine similarity score (0.0–1.0)
+  index_on_completion: true  # embed + index each investigation when it completes
+

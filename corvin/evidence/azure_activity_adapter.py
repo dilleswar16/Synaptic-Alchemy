@@ -8,10 +8,8 @@ Activity Log is queried via Log Analytics using the AzureActivity table.
 This is the change-correlation evidence source: it answers "what changed
 before the alert fired?"
 
-Config is loaded from config/integrations/azure_activity.yaml with an
-optional environment overlay.  Placeholder values like ${AZURE_CLIENT_ID}
-are resolved from environment variables at runtime.  The credential and
-client are built once in __init__ and reused across calls.
+Runtime config is env/bootstrap-driven by default and can be overridden by
+DB connector settings resolved per service at call time.
 """
 
 from __future__ import annotations
@@ -31,7 +29,7 @@ except ImportError:
 from azure.identity import DefaultAzureCredential
 from azure.monitor.query import LogsQueryClient, LogsQueryStatus
 
-from corvin.core.config_loader import get_env, load_config
+from corvin.connectors.config_resolver import ROLE_AZURE_ACTIVITY, resolve_log_source_config
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +45,7 @@ class AzureActivityAdapter:
     """Adapter for querying the Azure Activity Log (change correlation)."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        self._config = (
-            config
-            if config is not None
-            else load_config("integrations/azure_activity", get_env())
-        )
+        self._config = config if config is not None else _default_config()
         # Build the credential and client once so they are reused across calls.
         # Guard construction so that missing credentials in dev produce a warning
         # and a None client rather than raising at import time.
@@ -67,6 +61,17 @@ class AzureActivityAdapter:
                 "AzureActivityAdapter: could not build client (will return empty results): %s", exc
             )
         self._workspace_id = _expand(self._config.get("workspace_id", ""))
+
+    def _resolved_config(self, service_name: str) -> dict[str, Any]:
+        cfg = resolve_log_source_config(
+            service_name,
+            source_type="azure_monitor",
+            role=ROLE_AZURE_ACTIVITY,
+            fallback=self._config,
+        )
+        if cfg.get("workspace_id"):
+            cfg["workspace_id"] = _expand(str(cfg["workspace_id"]))
+        return cfg
 
     def get_recent_changes(
         self,
@@ -96,11 +101,21 @@ class AzureActivityAdapter:
             )
             return []
 
-        minutes = time_range_minutes or self._config.get("default_time_range_minutes", 60)
-        max_events = self._config.get("max_events", 100)
+        cfg = self._resolved_config(service_name)
+        minutes = time_range_minutes or cfg.get("default_time_range_minutes", 60)
+        max_events = cfg.get("max_events", 100)
+        table = str(cfg.get("activity_table", "AzureActivity"))
+        workspace_id = str(cfg.get("workspace_id", self._workspace_id))
+
+        if not workspace_id:
+            logger.warning(
+                "AzureActivityAdapter.get_recent_changes skipped: no workspace configured for service=%s",
+                service_name,
+            )
+            return []
 
         query = (
-            f"AzureActivity\n"
+            f"{table}\n"
             f"| where TimeGenerated >= ago({minutes}m)\n"
             f'| where ResourceGroup contains "{service_name}" or Resource contains "{service_name}"\n'
             f"| project TimeGenerated, OperationNameValue, ActivityStatusValue, "
@@ -111,7 +126,7 @@ class AzureActivityAdapter:
 
         try:
             result = self._client.query_workspace(
-                workspace_id=self._workspace_id,
+                workspace_id=workspace_id,
                 query=query,
                 timespan=timedelta(minutes=minutes),
             )
@@ -127,3 +142,19 @@ class AzureActivityAdapter:
                 exc,
             )
             return []
+
+
+def _default_config() -> dict[str, Any]:
+    return {
+        "workspace_id": os.environ.get("LOG_ANALYTICS_WORKSPACE_ID", ""),
+        "activity_table": os.environ.get("AZURE_ACTIVITY_TABLE", "AzureActivity"),
+        "default_time_range_minutes": _env_int("AZURE_ACTIVITY_DEFAULT_TIME_RANGE_MINUTES", 60),
+        "max_events": _env_int("AZURE_ACTIVITY_MAX_EVENTS", 100),
+    }
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(str(os.environ.get(name, default)))
+    except (TypeError, ValueError):
+        return default

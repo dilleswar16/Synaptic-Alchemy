@@ -17,18 +17,38 @@ V2.5: GET /investigations/{id}/replay  returns full transparency payload.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import subprocess
 
 import litellm
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
+# ── UUID path-converter ───────────────────────────────────────────────────────
+# Register a custom Starlette path converter so /{request_id:investigation_id}
+# only matches UUID-formatted strings.  This prevents literal-path routes like
+# /heatmap and /similarity-network from being swallowed by the catch-all
+# /{request_id} route, regardless of their registration order in the file.
+from starlette.convertors import Convertor, CONVERTOR_TYPES
+
+class _InvestigationIdConvertor(Convertor):
+    regex = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+
+    def convert(self, value: str) -> str:
+        return value
+
+    def to_string(self, value: str) -> str:
+        return value
+
+CONVERTOR_TYPES["investigation_id"] = _InvestigationIdConvertor()
+
 from corvin.core.contracts import ApprovalStatus, InvestigationRequest, InvestigationResult, TriggerSource
 from corvin.delivery.azure_devops_adapter import AzureDevOpsAdapter
-from corvin.delivery.rca_notification import send_rca_email_if_enabled
+from corvin.delivery.rca_notification import send_rca_email_if_enabled, resolve_ado_boards_config_for_service
 from corvin.delivery.rca_pdf import build_rca_pdf
 from corvin.delivery.teams_adapter import TeamsAdapter
 from corvin.execution.execution_service import ExecutionService
@@ -44,9 +64,37 @@ from corvin.strategy.roi import build_roi_stats
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.knowledge_loader import KnowledgeLoader
 from corvin.triggers.predictive import PredictiveMonitor
+from corvin.triggers.prediction_penalty import penalize_prediction
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
+
+
+def _kubectl_live_pod_names(namespace: str) -> set[str]:
+    """Best-effort live pod names from kubectl for selected namespace."""
+    ns = str(namespace or "").strip()
+    if not ns:
+        return set()
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", ns, "-o", "json"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=20,
+        )
+        if result.returncode != 0 or not result.stdout:
+            return set()
+        payload = json.loads(result.stdout)
+        items = payload.get("items", []) if isinstance(payload, dict) else []
+        names = {
+            str(item.get("metadata", {}).get("name") or "").strip()
+            for item in items
+            if isinstance(item, dict)
+        }
+        return {name for name in names if name}
+    except Exception:
+        return set()
 
 
 # ── Dependency providers (overridable in tests) ───────────────────────────────
@@ -107,7 +155,13 @@ def _sync_ado_acknowledged_close(
     if not work_item_id:
         return True, "No Azure Boards ticket linked for this investigation."
 
-    config = load_config("integrations/azure_devops", get_env())
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        return False, f"Investigation {request_id!r} not found while syncing Azure Boards update."
+
+    config = resolve_ado_boards_config_for_service(result.request.service_name)
+    if not config:
+        return False, "Azure Boards connector is not configured for this service."
     adapter = AzureDevOpsAdapter(config)
 
     comment = (
@@ -215,6 +269,12 @@ def start_investigation(
     # Optional and non-fatal: auto-send RCA PDF email when configured.
     send_rca_email_if_enabled(result)
 
+    # Penalize predictive analysis: record miss/insufficient prediction for learning.
+    try:
+        penalize_prediction(result)
+    except Exception as exc:
+        _log.warning("Prediction penalty recording failed (non-fatal): %s", exc)
+
     return InvestigationAccepted(
         request_id=result.request_id,
         status="completed",
@@ -225,7 +285,7 @@ def start_investigation(
 @router.get("/stream")
 def stream_investigation(
     service_name: str = Query(..., description="Service to investigate"),
-    environment: str = Query(default="production", description="Target environment"),
+    environment: str = Query(..., description="Target environment (e.g. production, staging, dev)"),
     description: str = Query(default="Streaming investigation", description="Optional description"),
     streamer: InvestigationStreamer = Depends(get_streamer),
 ) -> StreamingResponse:
@@ -269,7 +329,7 @@ def stream_investigation(
 @router.get("/memory", response_model=list[dict])
 def get_incident_memory(
     service_name: str = Query(..., description="Service to look up past incidents for"),
-    environment: str = Query(default="production", description="Target environment"),
+    environment: str = Query(..., description="Target environment (e.g. production, staging, dev)"),
     n: int = Query(default=3, ge=1, le=10, description="Max number of past incidents to return"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> list[dict]:
@@ -488,6 +548,12 @@ def investigate_predictive_alert(
 
     send_rca_email_if_enabled(result)
 
+    # Penalize predictive analysis: record miss/insufficient prediction for learning.
+    try:
+        penalize_prediction(result)
+    except Exception as exc:
+        _log.warning("Prediction penalty recording failed (non-fatal): %s", exc)
+
     return InvestigationAccepted(
         request_id=result.request_id,
         status="completed",
@@ -495,75 +561,557 @@ def investigate_predictive_alert(
     )
 
 
+# ─── Predictive Learnings / Penalties ─────────────────────────────────────────
+
+
+@router.get("/predictive-learnings")
+def list_predictive_learnings(
+    service: Optional[str] = Query(None, description="Filter by service name"),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """Return recorded predictive penalties (missed or insufficient predictions)."""
+    from corvin.triggers.prediction_penalty import load_penalties_for_service
+    from corvin.storage.db import get_session as _get_db_session
+    from corvin.storage.models import PredictivePenaltyRow
+
+    if service:
+        return load_penalties_for_service(service, limit=limit)
+
+    with _get_db_session() as db:
+        rows = (
+            db.query(PredictivePenaltyRow)
+            .order_by(PredictivePenaltyRow.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "id": r.id,
+                "service_name": r.service_name,
+                "environment": r.environment,
+                "alert_type": r.alert_type,
+                "penalty_type": r.penalty_type,
+                "investigation_id": r.investigation_id,
+                "predictive_alert_id": r.predictive_alert_id,
+                "pattern_description": r.pattern_description,
+                "root_cause_fingerprint": r.root_cause_fingerprint,
+                "suggested_threshold_adjustment": r.suggested_threshold_adjustment,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ]
+
+
 @router.get("/topology", response_model=dict)
 def get_topology(
+    application_id: str | None = Query(default=None, description="Optional application id to scope topology"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> dict:
-    topology = build_service_topology(repo.list_recent_results(limit=30))
+    service_names: list[str] | None = None
+    if hasattr(repo, "list_application_service_names"):
+        try:
+            service_names = repo.list_application_service_names(application_id)
+        except TypeError:
+            service_names = repo.list_application_service_names(application_id) if application_id else None
+    topology = build_service_topology(repo.list_recent_results(limit=30, service_names=service_names))
     return topology.model_dump()
 
 
 @router.get("/topology/live", response_model=dict)
-def get_topology_live() -> dict:
+def get_topology_live(
+    application_id: str | None = Query(default=None, description="Optional application id to scope topology"),
+    clusters: str | None = Query(default=None, description="Optional comma-separated cluster names to include"),
+    namespaces: str | None = Query(default=None, description="Optional comma-separated namespaces to include"),
+) -> dict:
     """Return live pod state from AKS, grouped by service, in ServiceTopology format.
 
     Unlike /topology (which is built from past DB investigations), this endpoint
     calls the AKS API directly so it always reflects the current running state.
 
-    Even when AKS is unreachable, the known CHAD service architecture (APIM gateway,
-    fundapis, partnerapis, fundsso with correct routing) is always included as static
-    nodes so the canvas is never blank.
+    Service nodes, the k8s label→name mapping, and APIM routing edges are all
+    driven by ApplicationServiceRow records registered through the Applications UI.
+    No service details are hardcoded — add/remove services via Applications → Services.
     """
     from corvin.evidence.aks_adapter import AKSAdapter
     from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
     from corvin.investigation.topology import (
         ServiceTopology, TopologyNode, TopologyEdge,
-        _inject_apim_topology, build_pod_topology_node,
+        build_pod_topology_node,
         _resource_summary, _resource_summary_by_pod,
     )
+    from corvin.storage.db import get_session as _get_db_session
+    from corvin.storage.models import ApplicationRow as _AppRow, ApplicationServiceRow as _SvcRow, LogSourceRow as _LogSourceRow
 
-    # AKS deployment label → logical CHAD service name.
-    # The `app` label in k8s is "chad-fundapis" but we call it "fundapis" everywhere.
-    _AKS_NAME_MAP: dict[str, str] = {
-        "chad-fundapis":    "fundapis",
-        "chad-fundsso":     "fundsso",
-        "chad-partnerapis": "partnerapis",
-    }
-
-    # ── Static CHAD architecture — always shown regardless of AKS reachability ──
-    # Start with the three logical service nodes. Live pod data will update their
-    # status and attach pod children to these same nodes (not duplicate them).
-    nodes: dict[str, TopologyNode] = {
-        "svc:fundapis":    TopologyNode(id="svc:fundapis",    label="fundapis",    kind="service", status="high"),
-        "svc:partnerapis": TopologyNode(id="svc:partnerapis", label="partnerapis", kind="service", status="high"),
-        "svc:fundsso":     TopologyNode(id="svc:fundsso",     label="fundsso",     kind="service", status="high"),
-    }
+    nodes: dict[str, TopologyNode] = {}
     edges: dict[tuple[str, str, str | None], TopologyEdge] = {}
+    # k8s deployment label (e.g. "payments-api-deployment") → logical service name ("payments-api")
+    aks_name_map: dict[str, str] = {}
+    allowed_service_ids: set[str] = set()
+    selected_clusters = [v.strip() for v in (clusters or "").split(",") if v.strip()]
+    selected_namespaces = [v.strip() for v in (namespaces or "").split(",") if v.strip()]
+    available_clusters: set[str] = set()
+    available_namespaces: set[str] = set()
+    cluster_namespaces: dict[str, set[str]] = {}
+    namespace_status: dict[str, dict[str, int | str]] = {}
 
-    # Inject APIM gateway + API route nodes (fundapis/partnerapis) + PingFederate (fundsso)
-    _inject_apim_topology(nodes, edges)
+    def _add_cluster_ns(cluster_name: str | None, ns_name: str | None) -> None:
+        cluster = str(cluster_name or "").strip()
+        ns = str(ns_name or "").strip()
+        if not cluster or not ns:
+            return
+        bucket = cluster_namespaces.setdefault(cluster, set())
+        bucket.add(ns)
+
+    metrics_source_ok = False
+    pod_source_ok = False
+    filtered_service_count = 0
+
+    # ── Build initial service nodes + routing edges from DB ──────────────────
+    with _get_db_session() as _db:
+        if application_id:
+            app_row = _db.get(_AppRow, application_id)
+            if app_row is None:
+                raise HTTPException(status_code=404, detail=f"Application {application_id!r} not found")
+            svc_rows = _db.query(_SvcRow).filter(_SvcRow.application_id == application_id).all()
+            log_source_rows = _db.query(_LogSourceRow).filter(_LogSourceRow.application_id == application_id).all()
+        else:
+            svc_rows = _db.query(_SvcRow).all()
+            log_source_rows = _db.query(_LogSourceRow).all()
+
+    for svc in svc_rows:
+        if svc.namespace:
+            available_namespaces.add(str(svc.namespace))
+
+    for row in log_source_rows:
+        cfg = row.config_json or {}
+        if row.source_type == "aks":
+            if isinstance(cfg.get("clusters"), list):
+                for cluster in cfg.get("clusters", []):
+                    cluster_name = None
+                    if isinstance(cluster, dict) and cluster.get("cluster_name"):
+                        cluster_name = str(cluster.get("cluster_name"))
+                        available_clusters.add(cluster_name)
+                    cluster_ns = cluster.get("namespaces") if isinstance(cluster, dict) else None
+                    if isinstance(cluster_ns, list):
+                        for ns in cluster_ns:
+                            if str(ns).strip():
+                                ns_name = str(ns).strip()
+                                available_namespaces.add(ns_name)
+                                _add_cluster_ns(cluster_name if isinstance(cluster, dict) else None, ns_name)
+            if cfg.get("cluster_name"):
+                cluster_name = str(cfg.get("cluster_name"))
+                available_clusters.add(cluster_name)
+            if isinstance(cfg.get("namespaces"), list):
+                for ns in cfg.get("namespaces", []):
+                    if str(ns).strip():
+                        ns_name = str(ns).strip()
+                        available_namespaces.add(ns_name)
+                        _add_cluster_ns(cluster_name if cfg.get("cluster_name") else None, ns_name)
+            elif cfg.get("default_namespace"):
+                ns_name = str(cfg.get("default_namespace"))
+                available_namespaces.add(ns_name)
+                _add_cluster_ns(cluster_name if cfg.get("cluster_name") else None, ns_name)
+        if row.source_type == "azure_monitor" and str(cfg.get("connector_role") or "") == "container_insights":
+            if cfg.get("cluster_name"):
+                cluster_name = str(cfg.get("cluster_name"))
+                available_clusters.add(cluster_name)
+            if isinstance(cfg.get("namespaces"), list):
+                for ns in cfg.get("namespaces", []):
+                    if str(ns).strip():
+                        ns_name = str(ns).strip()
+                        available_namespaces.add(ns_name)
+                        _add_cluster_ns(cluster_name if cfg.get("cluster_name") else None, ns_name)
+            elif cfg.get("default_namespace"):
+                ns_name = str(cfg.get("default_namespace"))
+                available_namespaces.add(ns_name)
+                _add_cluster_ns(cluster_name if cfg.get("cluster_name") else None, ns_name)
+
+    # Default to one concrete cluster + namespace on first load for better UX.
+    if not selected_clusters and available_clusters:
+        selected_clusters = [sorted(available_clusters)[0]]
+    if not selected_namespaces:
+        ns_candidates: set[str] = set()
+        if selected_clusters:
+            for c in selected_clusters:
+                ns_candidates.update(cluster_namespaces.get(c, set()))
+        if not ns_candidates:
+            ns_candidates = set(available_namespaces)
+        if ns_candidates:
+            selected_namespaces = [sorted(ns_candidates)[0]]
+
+    # Preserve user-selected namespace(s) in metadata even when discovery is partial,
+    # so UI selection does not snap back to defaults.
+    for selected_ns in selected_namespaces:
+        if str(selected_ns).strip():
+            available_namespaces.add(str(selected_ns).strip())
+            for selected_cluster in selected_clusters:
+                _add_cluster_ns(selected_cluster, str(selected_ns).strip())
+
+    visible_svc_rows = svc_rows
+    if selected_namespaces:
+        selected_ns_set = {ns.lower() for ns in selected_namespaces}
+        visible_svc_rows = [
+            svc for svc in svc_rows
+            if str(svc.namespace or "").strip().lower() in selected_ns_set
+        ]
+
+    effective_available_namespaces = set(available_namespaces)
+    if selected_clusters:
+        narrowed_namespaces: set[str] = set()
+        for cluster_name in selected_clusters:
+            narrowed_namespaces.update(cluster_namespaces.get(cluster_name, set()))
+        if narrowed_namespaces:
+            effective_available_namespaces = narrowed_namespaces
+
+    for svc in visible_svc_rows:
+        svc_id = f"svc:{svc.service_name}"
+        allowed_service_ids.add(svc_id)
+        if svc.k8s_app_label:
+            aks_name_map[svc.k8s_app_label] = svc.service_name
+        nodes[svc_id] = TopologyNode(
+            id=svc_id, label=svc.service_name, kind="service", status="unknown",
+        )
+        meta: dict = svc.metadata_json or {}
+        # APIM routing: inject gateway → api node → service edges
+        if meta.get("apim_routes_through_gateway"):
+            api_id = meta.get("apim_api_id") or svc.service_name
+            gateway_id = "gateway:apim"
+            api_node_id = f"api:{api_id}"
+            if gateway_id not in nodes:
+                nodes[gateway_id] = TopologyNode(
+                    id=gateway_id, label="APIM Gateway", kind="gateway", status="supporting",
+                )
+            nodes.setdefault(
+                api_node_id,
+                TopologyNode(id=api_node_id, label=api_id, kind="api", status="observed"),
+            )
+            edges[(gateway_id, api_node_id, "routes")] = TopologyEdge(
+                source=gateway_id, target=api_node_id, label="routes",
+            )
+            edges[(api_node_id, svc_id, "routes")] = TopologyEdge(
+                source=api_node_id, target=svc_id, label="routes",
+            )
+        # SSO / direct-to-IdP dependency
+        if meta.get("is_sso_direct"):
+            pf_id = str(meta.get("sso_provider_id") or "backend:sso-provider")
+            pf_label = str(meta.get("sso_provider_label") or "SSO Provider")
+            nodes.setdefault(
+                pf_id,
+                TopologyNode(id=pf_id, label=pf_label, kind="backend", status="supporting"),
+            )
+            edges[(svc_id, pf_id, "depends-on")] = TopologyEdge(
+                source=svc_id, target=pf_id, label="depends-on",
+            )
+
+    # If there are no catalog nodes and no runtime filters, return empty topology.
+    # When filters are present, continue to runtime discovery so non-catalog namespaces
+    # can still render live pods/services dynamically.
+    if not nodes and not (selected_clusters or selected_namespaces):
+        empty_topology = ServiceTopology(nodes=[], edges=[]).model_dump()
+        empty_topology["metadata"] = {
+            "available_clusters": sorted(available_clusters),
+            "available_namespaces": sorted(effective_available_namespaces),
+            "cluster_namespaces": {k: sorted(v) for k, v in sorted(cluster_namespaces.items())},
+            "selected_clusters": selected_clusters,
+            "selected_namespaces": selected_namespaces,
+            "namespace_status": {},
+            "metrics_source_ok": False,
+            "pod_source_ok": False,
+            "filtered_service_count": 0,
+        }
+        return empty_topology
+
+    def _resolve_logical_service(raw_name: str) -> str:
+        """Resolve AKS service/deployment names to catalog service names.
+
+        Supports exact k8s label matches plus common prefixed naming patterns
+        like "namespace-service" while keeping catalog ownership authoritative.
+        """
+        direct = aks_name_map.get(raw_name)
+        if direct:
+            return direct
+
+        raw_lower = raw_name.lower()
+        candidates: list[str] = []
+        for svc in svc_rows:
+            service_name = str(svc.service_name or "")
+            service_lower = service_name.lower()
+            k8s_label = str(svc.k8s_app_label or "")
+            k8s_lower = k8s_label.lower()
+
+            if service_lower and (raw_lower == service_lower or raw_lower.endswith(f"-{service_lower}")):
+                candidates.append(service_name)
+                continue
+            if k8s_lower and (raw_lower == k8s_lower or raw_lower.endswith(f"-{k8s_lower}")):
+                candidates.append(service_name)
+
+        if len(candidates) == 1:
+            return candidates[0]
+        return raw_name
+
+    # ── Service-level metrics overlay (independent from AKS availability) ───
+    connector_seed_service = None
+    if svc_rows:
+        connector_seed_service = str(svc_rows[0].service_name or "").strip() or None
+
+    logs_adapter_cfg = {}
+    for row in log_source_rows:
+        cfg = row.config_json or {}
+        if row.source_type == "azure_monitor" and str(cfg.get("connector_role") or "") == "container_insights":
+            if isinstance(cfg, dict):
+                logs_adapter_cfg = dict(cfg)
+                break
+
+    if connector_seed_service:
+        try:
+            from corvin.connectors.config_resolver import ROLE_CONTAINER_INSIGHTS, resolve_log_source_config
+
+            resolved_cfg = resolve_log_source_config(
+                connector_seed_service,
+                source_type="azure_monitor",
+                role=ROLE_CONTAINER_INSIGHTS,
+                fallback={},
+            )
+            if isinstance(resolved_cfg, dict):
+                logs_adapter_cfg = dict(resolved_cfg)
+        except Exception:
+            logs_adapter_cfg = {}
+
+    try:
+        logs_adapter = ContainerLogsAdapter(config=logs_adapter_cfg)
+    except TypeError:
+        logs_adapter = ContainerLogsAdapter()
+    service_metric_map: dict[str, tuple[dict[str, float | None], dict[str, dict[str, float | None]]]] = {}
+    for svc in visible_svc_rows:
+        logical_name = str(svc.service_name or "").strip()
+        if not logical_name:
+            continue
+        svc_namespace = str(svc.namespace or "").strip() or None
+        try:
+            try:
+                effective_namespace = svc_namespace
+                if selected_namespaces and (not svc_namespace or svc_namespace not in selected_namespaces):
+                    if len(selected_namespaces) > 1:
+                        effective_namespace = None
+                    else:
+                        effective_namespace = selected_namespaces[0]
+                if selected_clusters and not selected_namespaces:
+                    # Do not force namespace when cluster-only filter is active.
+                    effective_namespace = svc_namespace
+                if selected_namespaces and svc_namespace in selected_namespaces:
+                    effective_namespace = svc_namespace
+                if selected_namespaces and not svc_namespace and len(selected_namespaces) > 1:
+                    effective_namespace = None
+                if selected_namespaces and not svc_namespace and len(selected_namespaces) == 1:
+                    effective_namespace = selected_namespaces[0]
+                metric_rows = logs_adapter.get_resource_metrics(logical_name, namespace=effective_namespace)
+            except TypeError:
+                metric_rows = logs_adapter.get_resource_metrics(logical_name)
+        except Exception:
+            metric_rows = []
+        if metric_rows:
+            metrics_source_ok = True
+        service_resource = _resource_summary(metric_rows)
+        pod_resource_map = _resource_summary_by_pod(metric_rows)
+        service_metric_map[logical_name] = (service_resource, pod_resource_map)
+
+        svc_id = f"svc:{logical_name}"
+        base = nodes.get(svc_id)
+        if base is None:
+            continue
+        nodes[svc_id] = TopologyNode(
+            id=base.id,
+            label=base.label,
+            kind=base.kind,
+            status=base.status,
+            cpu_mcores=service_resource["cpu_mcores"],
+            cpu_request_mcores=service_resource["cpu_request_mcores"],
+            cpu_limit_mcores=service_resource["cpu_limit_mcores"],
+            cpu_utilization_pct=service_resource["cpu_utilization_pct"],
+            memory_mib=service_resource["memory_mib"],
+            memory_request_mib=service_resource["memory_request_mib"],
+            memory_limit_mib=service_resource["memory_limit_mib"],
+            memory_utilization_pct=service_resource["memory_utilization_pct"],
+        )
 
     # ── Live pod data from AKS — overlay status + pod children ───────────────
     try:
-        adapter = AKSAdapter()
-        logs_adapter = ContainerLogsAdapter()
-        result = adapter.list_all_pods()
-        for svc in result.get("services", []):
-            raw_name = svc["name"]
-            # Normalise "chad-fundapis" → "fundapis" so pods attach to the right node
-            logical_name = _AKS_NAME_MAP.get(raw_name, raw_name)
-            svc_id = f"svc:{logical_name}"
-            live_status = svc.get("status", "high")
+        aks_adapter_cfg = {}
+        for row in log_source_rows:
+            if row.source_type == "aks" and isinstance(row.config_json, dict):
+                aks_adapter_cfg = dict(row.config_json)
+                break
+        try:
+            adapter = AKSAdapter(config=aks_adapter_cfg)
+        except TypeError:
+            adapter = AKSAdapter()
+        result = {"services": []}
+        namespace_seed_service = None
+        if visible_svc_rows:
+            namespace_seed_service = str(visible_svc_rows[0].service_name or "").strip() or None
+        if not namespace_seed_service and svc_rows:
+            namespace_seed_service = str(svc_rows[0].service_name or "").strip() or None
+
+        list_namespaces_fn = getattr(adapter, "list_namespaces", None)
+        if callable(list_namespaces_fn):
             try:
-                metric_rows = logs_adapter.get_resource_metrics(logical_name)
+                discovered = list_namespaces_fn(service_name=namespace_seed_service, cluster_names=selected_clusters or None)
+                if isinstance(discovered, dict):
+                    for cluster_name, ns_values in discovered.items():
+                        if str(cluster_name).strip():
+                            available_clusters.add(str(cluster_name).strip())
+                        if isinstance(ns_values, list):
+                            for ns in ns_values:
+                                ns_name = str(ns).strip()
+                                if ns_name:
+                                    available_namespaces.add(ns_name)
+                                    _add_cluster_ns(str(cluster_name), ns_name)
+            except TypeError:
+                # Backward-compatible adapter signature fallback.
+                try:
+                    discovered = list_namespaces_fn(cluster_names=selected_clusters or None)
+                    if isinstance(discovered, dict):
+                        for cluster_name, ns_values in discovered.items():
+                            if str(cluster_name).strip():
+                                available_clusters.add(str(cluster_name).strip())
+                            if isinstance(ns_values, list):
+                                for ns in ns_values:
+                                    ns_name = str(ns).strip()
+                                    if ns_name:
+                                        available_namespaces.add(ns_name)
+                                        _add_cluster_ns(str(cluster_name), ns_name)
+                except Exception:
+                    pass
             except Exception:
-                metric_rows = []
-            service_resource = _resource_summary(metric_rows)
-            pod_resource_map = _resource_summary_by_pod(metric_rows)
-            # Update or create the service node with the live status
+                pass
+
+        # Secondary runtime fallback: derive namespaces from Container Insights inventory.
+        try:
+            needs_namespace_fallback = len(effective_available_namespaces) <= 1
+            if needs_namespace_fallback:
+                ci_cluster = selected_clusters[0] if selected_clusters else None
+                ci_namespaces = logs_adapter.list_namespaces(
+                    service_name=namespace_seed_service or "*",
+                    cluster_name=ci_cluster,
+                )
+                if ci_namespaces:
+                    for ns_name in ci_namespaces:
+                        available_namespaces.add(ns_name)
+                        if ci_cluster:
+                            _add_cluster_ns(ci_cluster, ns_name)
+        except Exception:
+            pass
+
+        service_seeds = [svc.service_name for svc in visible_svc_rows if svc.service_name]
+        if not service_seeds and namespace_seed_service:
+            service_seeds = [namespace_seed_service]
+        if not service_seeds:
+            service_seeds = [None]
+
+        for seed_service in service_seeds:
+            seed_namespace = None
+            for svc in visible_svc_rows:
+                if svc.service_name == seed_service:
+                    seed_namespace = str(svc.namespace or "").strip() or None
+                    break
+            try:
+                try:
+                    request_namespace = seed_namespace
+                    if selected_namespaces and len(selected_namespaces) == 1:
+                        request_namespace = selected_namespaces[0]
+                    attempt = adapter.list_all_pods(
+                        namespace=request_namespace,
+                        service_name=seed_service,
+                        cluster_names=selected_clusters or None,
+                        discover_namespaces=not selected_namespaces,
+                    )
+                except TypeError:
+                    attempt = adapter.list_all_pods()
+            except Exception:
+                attempt = {"services": []}
+            if attempt.get("services"):
+                result = attempt
+                break
+
+        if not result.get("services"):
+            try:
+                try:
+                    request_namespace = None
+                    if selected_namespaces and len(selected_namespaces) == 1:
+                        request_namespace = selected_namespaces[0]
+                    result = adapter.list_all_pods(
+                        namespace=request_namespace,
+                        cluster_names=selected_clusters or None,
+                        discover_namespaces=not selected_namespaces,
+                    )
+                except TypeError:
+                    result = adapter.list_all_pods()
+            except Exception:
+                result = {"services": []}
+
+        for svc in result.get("services", []):
+            svc_clusters = [str(c).strip() for c in (svc.get("clusters", []) if isinstance(svc.get("clusters"), list) else []) if str(c).strip()]
+            for cluster in svc_clusters:
+                if str(cluster).strip():
+                    available_clusters.add(str(cluster).strip())
+            if selected_clusters and svc_clusters and not any(c in selected_clusters for c in svc_clusters):
+                continue
+            svc_namespaces = svc.get("namespaces") if isinstance(svc.get("namespaces"), list) else []
+            if not svc_namespaces and isinstance(svc.get("pods"), list):
+                svc_namespaces = sorted(
+                    {
+                        str(p.get("namespace")).strip()
+                        for p in svc.get("pods", [])
+                        if isinstance(p, dict) and str(p.get("namespace") or "").strip()
+                    }
+                )
+            for cluster_name in svc_clusters:
+                for ns in svc_namespaces:
+                    _add_cluster_ns(cluster_name, str(ns))
+            if selected_namespaces and svc_namespaces and not any(str(ns) in selected_namespaces for ns in svc_namespaces):
+                continue
+
+            raw_name = svc["name"]
+            # Normalise k8s label → logical name using the DB-driven map
+            logical_name = _resolve_logical_service(raw_name)
+            svc_id = f"svc:{logical_name}"
+            if svc_id not in allowed_service_ids and not (selected_namespaces or selected_clusters):
+                continue
+            pod_source_ok = True
+            filtered_service_count += 1
+            live_status = svc.get("status", "high")
+            if logical_name not in service_metric_map:
+                try:
+                    dynamic_ns = selected_namespaces[0] if selected_namespaces else None
+                    dynamic_rows = logs_adapter.get_resource_metrics(logical_name, namespace=dynamic_ns)
+                except TypeError:
+                    dynamic_rows = logs_adapter.get_resource_metrics(logical_name)
+                except Exception:
+                    dynamic_rows = []
+                if dynamic_rows:
+                    metrics_source_ok = True
+                service_metric_map[logical_name] = (
+                    _resource_summary(dynamic_rows),
+                    _resource_summary_by_pod(dynamic_rows),
+                )
+
+            service_resource, pod_resource_map = service_metric_map.get(
+                logical_name,
+                ({
+                    "cpu_mcores": None,
+                    "cpu_request_mcores": None,
+                    "cpu_limit_mcores": None,
+                    "cpu_utilization_pct": None,
+                    "memory_mib": None,
+                    "memory_request_mib": None,
+                    "memory_limit_mib": None,
+                    "memory_utilization_pct": None,
+                }, {}),
+            )
+            # Update or create the service node with live status + resource metrics
             nodes[svc_id] = TopologyNode(
                 id=svc_id,
-                label=logical_name,
+                label=logical_name or raw_name,
                 kind="service",
                 status=live_status,
                 cpu_mcores=service_resource["cpu_mcores"],
@@ -581,23 +1129,347 @@ def get_topology_live() -> dict:
                 pod_copy = dict(pod)
                 pod_name = str(pod_copy.get("name") or pod_copy.get("pod") or "").strip()
                 pod_resource = pod_resource_map.get(pod_name, {})
+
+                def _pod_base(value: str) -> str:
+                    parts = [p for p in str(value or "").split("-") if p]
+                    if len(parts) > 2:
+                        return "-".join(parts[:-2])
+                    return str(value or "")
+
+                if not pod_resource and pod_name:
+                    pod_base = _pod_base(pod_name)
+                    for metric_pod_name, metric_values in pod_resource_map.items():
+                        metric_key = str(metric_pod_name or "")
+                        metric_base = _pod_base(metric_key)
+                        if (
+                            metric_key == pod_name
+                            or metric_key.endswith(pod_name)
+                            or pod_name.endswith(metric_key)
+                            or (pod_base and metric_base and pod_base == metric_base)
+                        ):
+                            pod_resource = metric_values
+                            break
                 for key, value in pod_resource.items():
                     if value is not None:
                         pod_copy[key] = value
                 pod_node = build_pod_topology_node(pod_copy)
                 nodes[pod_node.id] = pod_node
-                edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(source=svc_id, target=pod_node.id, label="runs")
-    except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning("topology/live AKS call failed (static nodes still returned): %s", exc)
+                edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(
+                    source=svc_id, target=pod_node.id, label="runs",
+                )
 
-    return ServiceTopology(nodes=list(nodes.values()), edges=list(edges.values())).model_dump()
+            for ns in svc_namespaces:
+                ns_name = str(ns)
+                if not ns_name:
+                    continue
+                state = namespace_status.setdefault(ns_name, {"high": 0, "recovering": 0, "hot": 0, "services": 0, "status": "high"})
+                state["services"] = int(state.get("services", 0)) + 1
+                if live_status in ("high", "recovering", "hot"):
+                    state[live_status] = int(state.get(live_status, 0)) + 1
+                if int(state.get("hot", 0)) > 0:
+                    state["status"] = "hot"
+                elif int(state.get("recovering", 0)) > 0:
+                    state["status"] = "recovering"
+                else:
+                    state["status"] = "high"
+
+        # Fallback: derive pod runtime from Container Insights when AKS API is unavailable.
+        if not pod_source_ok:
+            for svc in visible_svc_rows:
+                logical_name = str(svc.service_name or "").strip()
+                if not logical_name:
+                    continue
+                ns_candidates = selected_namespaces or ([str(svc.namespace)] if str(svc.namespace or "").strip() else [])
+                service_rows: list[dict] = []
+                for ns in ns_candidates:
+                    try:
+                        rows = logs_adapter.get_pod_inventory(logical_name, namespace=ns)
+                    except TypeError:
+                        rows = logs_adapter.get_pod_inventory(logical_name)
+                    except Exception:
+                        rows = []
+                    if rows:
+                        service_rows.extend(rows)
+
+                if not service_rows:
+                    continue
+
+                service_resource, pod_resource_map = service_metric_map.get(
+                    logical_name,
+                    ({
+                        "cpu_mcores": None,
+                        "cpu_request_mcores": None,
+                        "cpu_limit_mcores": None,
+                        "cpu_utilization_pct": None,
+                        "memory_mib": None,
+                        "memory_request_mib": None,
+                        "memory_limit_mib": None,
+                        "memory_utilization_pct": None,
+                    }, {}),
+                )
+
+                pod_payloads: list[dict] = []
+                for row in service_rows:
+                    pod_name = str(row.get("Name") or "").strip()
+                    ns_name = str(row.get("Namespace") or row.get("namespace") or (ns_candidates[0] if ns_candidates else "")).strip()
+                    phase = str(row.get("PodStatus") or "Unknown")
+                    restarts = int(row.get("PodRestartCount") or row.get("ContainerRestartCount") or 0)
+                    pod_payload = {
+                        "name": pod_name,
+                        "namespace": ns_name,
+                        "phase": phase,
+                        "containers": [{
+                            "name": "main",
+                            "ready": phase in ("Running", "Succeeded"),
+                            "restart_count": restarts,
+                        }],
+                    }
+                    metric_values = pod_resource_map.get(pod_name, {})
+                    for key, value in metric_values.items():
+                        if value is not None:
+                            pod_payload[key] = value
+                    pod_payloads.append(pod_payload)
+
+                any_failed = any(p.get("phase") not in ("Running", "Succeeded") for p in pod_payloads)
+                any_restarting = any(
+                    any(int(c.get("restart_count", 0)) > 3 for c in p.get("containers", []))
+                    for p in pod_payloads
+                )
+                live_status = "hot" if any_failed else ("recovering" if any_restarting else "high")
+
+                svc_id = f"svc:{logical_name}"
+                nodes[svc_id] = TopologyNode(
+                    id=svc_id,
+                    label=logical_name,
+                    kind="service",
+                    status=live_status,
+                    cpu_mcores=service_resource["cpu_mcores"],
+                    cpu_request_mcores=service_resource["cpu_request_mcores"],
+                    cpu_limit_mcores=service_resource["cpu_limit_mcores"],
+                    cpu_utilization_pct=service_resource["cpu_utilization_pct"],
+                    memory_mib=service_resource["memory_mib"],
+                    memory_request_mib=service_resource["memory_request_mib"],
+                    memory_limit_mib=service_resource["memory_limit_mib"],
+                    memory_utilization_pct=service_resource["memory_utilization_pct"],
+                )
+
+                for pod in pod_payloads:
+                    pod_node = build_pod_topology_node(pod)
+                    nodes[pod_node.id] = pod_node
+                    edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(
+                        source=svc_id,
+                        target=pod_node.id,
+                        label="runs",
+                    )
+
+                for ns_name in {str(p.get("namespace") or "") for p in pod_payloads if str(p.get("namespace") or "")}:
+                    state = namespace_status.setdefault(ns_name, {"high": 0, "recovering": 0, "hot": 0, "services": 0, "status": "high"})
+                    state["services"] = int(state.get("services", 0)) + 1
+                    state[live_status] = int(state.get(live_status, 0)) + 1
+                    if int(state.get("hot", 0)) > 0:
+                        state["status"] = "hot"
+                    elif int(state.get("recovering", 0)) > 0:
+                        state["status"] = "recovering"
+                    else:
+                        state["status"] = "high"
+
+                pod_source_ok = True
+                filtered_service_count += 1
+
+        # Namespace-wide fallback: when selected namespace has no app-catalog services,
+        # still render runtime pods/metrics discovered from Container Insights.
+        if not pod_source_ok and selected_namespaces and not visible_svc_rows:
+            selected_ns = selected_namespaces[0]
+            try:
+                ns_rows = logs_adapter.get_pod_inventory("all", namespace=selected_ns)
+            except TypeError:
+                ns_rows = logs_adapter.get_pod_inventory("all")
+            except Exception:
+                ns_rows = []
+
+            by_runtime_service: dict[str, list[dict]] = {}
+
+            def _runtime_service_name(pod_name: str, controller_name: str | None) -> str:
+                ctl = str(controller_name or "").strip()
+                if ctl:
+                    return ctl
+                parts = [p for p in str(pod_name or "").split("-") if p]
+                if len(parts) > 2:
+                    return "-".join(parts[:-2])
+                return str(pod_name or "")
+
+            for row in ns_rows:
+                if not isinstance(row, dict):
+                    continue
+                pod_name = str(row.get("Name") or "").strip()
+                if not pod_name:
+                    continue
+                runtime_service = _runtime_service_name(pod_name, row.get("ControllerName"))
+                if not runtime_service:
+                    continue
+                by_runtime_service.setdefault(runtime_service, []).append(row)
+
+            for runtime_service, rows in by_runtime_service.items():
+                try:
+                    metric_rows = logs_adapter.get_resource_metrics(runtime_service, namespace=selected_ns)
+                except TypeError:
+                    metric_rows = logs_adapter.get_resource_metrics(runtime_service)
+                except Exception:
+                    metric_rows = []
+
+                if metric_rows:
+                    metrics_source_ok = True
+
+                service_resource = _resource_summary(metric_rows)
+                pod_resource_map = _resource_summary_by_pod(metric_rows)
+
+                pod_payloads: list[dict] = []
+                for row in rows:
+                    pod_name = str(row.get("Name") or "").strip()
+                    phase = str(row.get("PodStatus") or "Unknown")
+                    restarts = int(row.get("PodRestartCount") or row.get("ContainerRestartCount") or 0)
+                    payload = {
+                        "name": pod_name,
+                        "namespace": selected_ns,
+                        "phase": phase,
+                        "containers": [{
+                            "name": "main",
+                            "ready": phase in ("Running", "Succeeded"),
+                            "restart_count": restarts,
+                        }],
+                    }
+                    metrics = pod_resource_map.get(pod_name, {})
+                    for key, value in metrics.items():
+                        if value is not None:
+                            payload[key] = value
+                    pod_payloads.append(payload)
+
+                any_failed = any(p.get("phase") not in ("Running", "Succeeded") for p in pod_payloads)
+                any_restarting = any(
+                    any(int(c.get("restart_count", 0)) > 3 for c in p.get("containers", []))
+                    for p in pod_payloads
+                )
+                live_status = "hot" if any_failed else ("recovering" if any_restarting else "high")
+
+                svc_id = f"svc:{runtime_service}"
+                nodes[svc_id] = TopologyNode(
+                    id=svc_id,
+                    label=runtime_service,
+                    kind="service",
+                    status=live_status,
+                    cpu_mcores=service_resource["cpu_mcores"],
+                    cpu_request_mcores=service_resource["cpu_request_mcores"],
+                    cpu_limit_mcores=service_resource["cpu_limit_mcores"],
+                    cpu_utilization_pct=service_resource["cpu_utilization_pct"],
+                    memory_mib=service_resource["memory_mib"],
+                    memory_request_mib=service_resource["memory_request_mib"],
+                    memory_limit_mib=service_resource["memory_limit_mib"],
+                    memory_utilization_pct=service_resource["memory_utilization_pct"],
+                )
+
+                for pod in pod_payloads:
+                    pod_node = build_pod_topology_node(pod)
+                    nodes[pod_node.id] = pod_node
+                    edges[(svc_id, pod_node.id, "runs")] = TopologyEdge(
+                        source=svc_id,
+                        target=pod_node.id,
+                        label="runs",
+                    )
+
+                state = namespace_status.setdefault(selected_ns, {"high": 0, "recovering": 0, "hot": 0, "services": 0, "status": "high"})
+                state["services"] = int(state.get("services", 0)) + 1
+                state[live_status] = int(state.get(live_status, 0)) + 1
+                if int(state.get("hot", 0)) > 0:
+                    state["status"] = "hot"
+                elif int(state.get("recovering", 0)) > 0:
+                    state["status"] = "recovering"
+                else:
+                    state["status"] = "high"
+
+                pod_source_ok = True
+                filtered_service_count += 1
+
+    except Exception as exc:
+        _log.warning("topology/live AKS call failed (DB-seeded nodes still returned): %s", exc)
+
+    if len(selected_namespaces) == 1 and not visible_svc_rows and not os.getenv("PYTEST_CURRENT_TEST"):
+        selected_ns = selected_namespaces[0]
+        live_pod_names = _kubectl_live_pod_names(selected_ns)
+        if live_pod_names:
+            live_pod_node_ids = {
+                node_id
+                for node_id, node in nodes.items()
+                if node.kind == "pod"
+                and str(node.namespace or "").strip() == selected_ns
+                and str(node.label or "").strip() in live_pod_names
+            }
+
+            # Only reconcile if we found matching pod nodes
+            if live_pod_node_ids:
+                keep_node_ids = {
+                    node_id
+                    for node_id, node in nodes.items()
+                    if node.kind != "pod"
+                }
+                keep_node_ids.update(live_pod_node_ids)
+
+                services_with_live_pods = {
+                    edge.source
+                    for edge in edges.values()
+                    if edge.target in live_pod_node_ids
+                }
+                for node_id, node in list(nodes.items()):
+                    if node.kind == "service" and node_id.startswith("svc:") and node_id not in services_with_live_pods:
+                        keep_node_ids.discard(node_id)
+
+                nodes = {
+                    node_id: node
+                    for node_id, node in nodes.items()
+                    if node_id in keep_node_ids
+                }
+                edges = {
+                    key: edge
+                    for key, edge in edges.items()
+                    if edge.source in nodes and edge.target in nodes
+                }
+
+                pod_source_ok = any(node.kind == "pod" for node in nodes.values())
+                filtered_service_count = sum(1 for node in nodes.values() if node.kind == "service")
+
+    catalog_service_count = len(
+        [svc for svc in visible_svc_rows if str(svc.service_name or "").strip()]
+    )
+
+    topology = ServiceTopology(nodes=list(nodes.values()), edges=list(edges.values())).model_dump()
+    effective_available_namespaces = set(available_namespaces)
+    if selected_clusters:
+        narrowed_namespaces: set[str] = set()
+        for cluster_name in selected_clusters:
+            narrowed_namespaces.update(cluster_namespaces.get(cluster_name, set()))
+        if narrowed_namespaces:
+            effective_available_namespaces = narrowed_namespaces
+
+    topology["metadata"] = {
+        "available_clusters": sorted(available_clusters),
+        "available_namespaces": sorted(effective_available_namespaces),
+        "cluster_namespaces": {k: sorted(v) for k, v in sorted(cluster_namespaces.items())},
+        "namespace_source": "runtime_aks_discovery_with_db_fallback",
+        "selected_clusters": selected_clusters,
+        "selected_namespaces": selected_namespaces,
+        "namespace_status": namespace_status,
+        "metrics_source_ok": metrics_source_ok,
+        "pod_source_ok": pod_source_ok,
+        "filtered_service_count": filtered_service_count,
+        "catalog_service_count": catalog_service_count,
+        "runtime_unmapped_pods_only": bool(selected_namespaces and catalog_service_count == 0),
+    }
+    return topology
 
 
 @router.get("/score", response_model=dict)
 def get_service_score(
     service_name: str = Query(..., description="Service name to score"),
-    environment: str = Query(default="dev", description="Target environment"),
+    environment: str = Query(..., description="Target environment (e.g. production, staging, dev)"),
     repo: InvestigationRepository = Depends(get_repository),
 ) -> dict:
     """Return the Corvin Score (0–100) for a specific service/environment.
@@ -693,9 +1565,13 @@ def update_runbook(
         f"Be specific. Max 200 words. Start with ## Resolution: <short title>."
     )
 
+    _runbook_model = llm_cfg.get("fallback_model") or llm_cfg.get("model")
+    if not _runbook_model:
+        raise ValueError("models/llm.yaml must define 'model' or 'fallback_model'")
+
     try:
         response = litellm.completion(
-            model=llm_cfg.get("model", "azure/responses/gpt-5.1"),
+            model=_runbook_model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=400,
         )
@@ -721,7 +1597,7 @@ def update_runbook(
     }
 
 
-@router.get("/{request_id}", response_model=InvestigationResult)
+@router.get("/{request_id:investigation_id}", response_model=InvestigationResult)
 def get_investigation(
     request_id: str,
     repo: InvestigationRepository = Depends(get_repository),
@@ -1098,6 +1974,324 @@ def stream_execute_all(
     )
 
 
+@router.post("/{request_id}/create-github-issue", status_code=200)
+def create_github_issue(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Create a GitHub Issue from this investigation's fix strategy.
+
+    Pulls git_repo_url, git_token (encrypted), and git_assignee from the
+    ApplicationService record matched by service_name.  The issue body
+    includes RCA summary, root cause, fix strategy, and acceptance criteria
+    so a Copilot agent (or human) has full context to implement the fix.
+
+    Returns the created issue URL and number, and persists them on the
+    fix_strategy row for display in the UI.
+    """
+    import re
+    import httpx
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    if result.fix_strategy is None:
+        raise HTTPException(status_code=409, detail="No fix strategy generated yet for this investigation.")
+
+    if result.fix_strategy.github_issue_url:
+        return {
+            "request_id": request_id,
+            "github_issue_url": result.fix_strategy.github_issue_url,
+            "github_issue_number": result.fix_strategy.github_issue_number,
+            "message": "GitHub issue already created.",
+        }
+
+    # ── Resolve service git config ────────────────────────────────────────────
+    from corvin.storage.models import ApplicationRow, ApplicationServiceRow
+    from corvin.connectors.crypto import decrypt
+
+    with repo._session_factory() as session:
+        svc_rows = (
+            session.query(ApplicationServiceRow)
+            .filter_by(service_name=result.request.service_name)
+            .order_by(ApplicationServiceRow.id.desc())
+            .all()
+        )
+
+        app_ids = {row.application_id for row in svc_rows if row.application_id}
+        app_rows: dict[str, ApplicationRow] = {}
+        if app_ids:
+            app_rows = {
+                app.id: app
+                for app in session.query(ApplicationRow).filter(ApplicationRow.id.in_(app_ids)).all()
+            }
+
+    candidates: list[dict] = []
+    for row in svc_rows:
+        app_row = app_rows.get(row.application_id)
+        effective_provider = row.git_provider or (app_row.git_provider if app_row else None)
+        effective_repo_url = row.git_repo_url or (app_row.git_repo_url if app_row else None)
+        effective_token = row.git_token_encrypted or (app_row.git_token_encrypted if app_row else None)
+
+        if effective_provider == "github" and effective_repo_url and effective_token:
+            candidates.append(
+                {
+                    "service_row": row,
+                    "repo_url": effective_repo_url,
+                    "token_encrypted": effective_token,
+                    "provider_scope": "service" if row.git_provider == "github" and row.git_repo_url else "application",
+                }
+            )
+
+    if not candidates:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "No GitHub repository configured for this service. "
+                "Go to Applications → Services (or Application Git config) and set provider=github, repo URL, and a PAT."
+            ),
+        )
+
+    if len(candidates) > 1:
+        options = ", ".join(
+            f"service_id={c['service_row'].id} app_id={c['service_row'].application_id} repo={c['repo_url']}"
+            for c in candidates[:5]
+        )
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Multiple GitHub configs match this service_name. "
+                "Corvin cannot safely decide which repository to use. "
+                f"Matches: {options}. "
+                "Use unique service names per application or align Git config so only one match is valid."
+            ),
+        )
+
+    selected = candidates[0]
+    svc_row = selected["service_row"]
+    token = decrypt(selected["token_encrypted"])
+
+    # Parse owner/repo from URL.
+    # Accepts: https://github.com/owner/repo[.git], git@github.com:owner/repo[.git], owner/repo
+    def _parse_github_coords(raw: str) -> tuple[str, str] | None:
+        s = raw.strip().rstrip("/")
+        # Full URL (https or SSH)
+        m = re.search(r"github\.com[:/]([^/\s]+)/([^/\s]+?)(?:\.git)?$", s)
+        if m:
+            return m.group(1), m.group(2)
+        # Bare owner/repo shorthand
+        m = re.match(r"^([A-Za-z0-9_.\-]+)/([A-Za-z0-9_.\-]+)$", s)
+        if m:
+            return m.group(1), m.group(2)
+        return None
+
+    url = selected["repo_url"]
+    coords = _parse_github_coords(url)
+    if coords is None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Cannot parse GitHub owner/repo from the stored URL: {url!r}. "
+                "Accepted formats: 'https://github.com/owner/repo', 'git@github.com:owner/repo.git', or 'owner/repo'."
+            ),
+        )
+    owner, repo_name = coords
+
+    # ── Build issue body ──────────────────────────────────────────────────────
+    fix = result.fix_strategy
+    rca = result.rca
+    svc = result.request.service_name
+    env = result.request.environment
+
+    action_lines = "\n".join(
+        f"- **{a.title}** (`{getattr(a, 'action_type', 'manual')}`): {a.description}"
+        for a in fix.actions
+    )
+    acceptance_criteria = "\n".join(
+        f"- [ ] {a.title} has been applied and verified"
+        for a in fix.actions
+    )
+
+    body = f"""## Investigation Summary
+
+**Service:** `{svc}` | **Environment:** `{env}`
+**Investigation ID:** `{request_id}`
+
+---
+
+## Root Cause
+
+{rca.root_cause if rca else '_Not available_'}
+
+**RCA Summary:** {rca.summary if rca else '_Not available_'}
+
+**Confidence:** {rca.confidence if rca else 'unknown'}
+
+---
+
+## Fix Strategy
+
+{fix.summary}
+
+**Justification:** {fix.justification}
+
+### Recommended Actions
+
+{action_lines}
+
+---
+
+## Acceptance Criteria
+
+{acceptance_criteria}
+- [ ] No regression in dependent services after the fix
+- [ ] Monitoring confirms the symptom is resolved
+
+---
+
+_Created automatically by [Corvin](https://github.com/corvin-ai) from investigation `{request_id}`._
+"""
+
+    title = f"[Corvin] Fix: {svc} — {fix.summary[:80]}"
+
+    # ── Call GitHub Issues API ────────────────────────────────────────────────
+    # Custom .github/agents/ agents (e.g. ChAD Agency) have no public REST API
+    # for programmatic assignment — the "Assign to Agent" UI dialog uses an
+    # undocumented internal endpoint.  We create the issue with full context;
+    # the user assigns the custom agent in one click from the GitHub UI.
+    # Plain GitHub usernames work fine through the standard assignees field.
+    payload: dict = {"title": title, "body": body, "labels": ["corvin", "bug"]}
+    if svc_row.git_assignee:
+        payload["assignees"] = [svc_row.git_assignee]
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    # ── Preflight: validate token, then repo access, then issues enabled ─────
+    try:
+        user_resp = httpx.get("https://api.github.com/user", headers=headers, timeout=10)
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not reach GitHub API: {exc}")
+
+    if user_resp.status_code == 401:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "GitHub token is invalid or expired. "
+                "Generate a new PAT at GitHub → Settings → Developer Settings → Personal Access Tokens, "
+                "then update it under Applications → Services → Git configuration."
+            ),
+        )
+    if user_resp.status_code == 403:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "GitHub token is valid but lacks the required scope. "
+                "Classic PATs need the 'repo' scope (or 'public_repo' for public repos). "
+                "Fine-grained PATs need 'Issues: Read and Write' + 'Contents: Read' access."
+            ),
+        )
+
+    token_user: str = user_resp.json().get("login", "unknown") if user_resp.status_code == 200 else "unknown"
+
+    try:
+        repo_resp = httpx.get(
+            f"https://api.github.com/repos/{owner}/{repo_name}",
+            headers=headers,
+            timeout=15,
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not reach GitHub API while checking repo: {exc}")
+
+    if repo_resp.status_code == 401:
+        raise HTTPException(
+            status_code=409,
+            detail="GitHub token was rejected when accessing the repository. The token may have been revoked.",
+        )
+    if repo_resp.status_code == 403:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Token (owner: '{token_user}') does not have permission to access '{owner}/{repo_name}'. "
+                "For organization repos: the org may require SSO authorization — visit "
+                f"https://github.com/settings/tokens and authorize the PAT for the '{owner}' org. "
+                "For fine-grained PATs: ensure this repo is explicitly selected in the token's repository access."
+            ),
+        )
+    if repo_resp.status_code == 404:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Repository '{owner}/{repo_name}' not found for token owner '{token_user}'. "
+                "Check: (1) the repo URL is correct and the repo exists, "
+                "(2) for private or org repos the PAT has the 'repo' scope, "
+                "(3) for fine-grained PATs the repo is explicitly listed in the token's repository access settings."
+            ),
+        )
+    if repo_resp.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail=f"GitHub repo access check failed ({repo_resp.status_code}): {repo_resp.text[:300]}",
+        )
+
+    repo_meta = repo_resp.json()
+    if not repo_meta.get("has_issues", True):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Issues are disabled on '{owner}/{repo_name}'. "
+                "Enable them under the repository Settings → General → Features → Issues."
+            ),
+        )
+
+    try:
+        resp = httpx.post(
+            f"https://api.github.com/repos/{owner}/{repo_name}/issues",
+            json=payload,
+            headers=headers,
+            timeout=15,
+        )
+        resp.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        _log.error("GitHub API error creating issue: %s — %s", exc.response.status_code, exc.response.text)
+        raise HTTPException(
+            status_code=502,
+            detail=f"GitHub API returned {exc.response.status_code}: {exc.response.text[:300]}",
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not reach GitHub API: {exc}")
+
+    data = resp.json()
+    issue_url: str = data["html_url"]
+    issue_number: int = data["number"]
+
+    repo.save_github_issue(request_id, issue_url, issue_number)
+
+    _log.info("Created GitHub issue #%d for investigation %s: %s", issue_number, request_id, issue_url)
+
+    # If a custom Copilot agent is configured, GitHub has no public API to assign it.
+    # Surface instructions so the user can do it in one click from the GitHub UI.
+    agent_note: str | None = None
+    if svc_row.git_copilot_agent:
+        agent_note = (
+            f"Issue #{issue_number} created. To start ChAD Agency: open the issue on GitHub → "
+            f"click ‘Assign to Agent’ (top-right of the issue) → "
+            f"select ‘{svc_row.git_copilot_agent}’ under Custom agents → click Assign."
+        )
+
+    return {
+        "request_id": request_id,
+        "github_issue_url": issue_url,
+        "github_issue_number": issue_number,
+        "message": f"GitHub issue #{issue_number} created successfully.",
+        "agent_note": agent_note,
+    }
+
+
 @router.get("/{request_id}/logs")
 def get_service_logs(
     request_id: str,
@@ -1230,7 +2424,12 @@ def sync_azure_boards(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
 
-    config = load_config("integrations/azure_devops", get_env())
+    config = resolve_ado_boards_config_for_service(result.request.service_name)
+    if not config:
+        raise HTTPException(
+            status_code=400,
+            detail="Azure Boards connector is not configured for this service.",
+        )
     adapter = AzureDevOpsAdapter(config)
     
     work_item_id = adapter.create_incident(result)
@@ -1256,17 +2455,88 @@ def sync_servicenow(
     request_id: str,
     repo: InvestigationRepository = Depends(get_repository),
 ) -> SyncResponse:
-    """Mocked export to ServiceNow INC (for hackathon demo purposes)."""
-    import time
+    """Export investigation to ServiceNow. Requires a configured ServiceNow outbound connector."""
+    import httpx
+    from corvin.storage.database import get_session
+    from corvin.storage.models import OutboundConnectorRow, InvestigationRequestRow
+
     # Verify investigation exists
     result = repo.get_investigation_result(request_id)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
 
-    mock_inc = f"INC{int(time.time()) % 1000000:06d}"
+    # Look up ServiceNow connector config
+    with get_session() as session:
+        inv = session.query(InvestigationRequestRow).filter_by(id=request_id).first()
+        app_id = inv.application_id if inv else None
+
+        if app_id is None:
+            raise HTTPException(status_code=422, detail="Investigation has no application context.")
+
+        connector = session.query(OutboundConnectorRow).filter(
+            OutboundConnectorRow.application_id == app_id,
+            OutboundConnectorRow.connector_type == "servicenow",
+            OutboundConnectorRow.is_active == True,  # noqa: E712
+        ).first()
+
+    if connector is None:
+        raise HTTPException(
+            status_code=422,
+            detail="ServiceNow connector not configured. Add an outbound connector with type='servicenow' in Settings.",
+        )
+
+    config = connector.config_json or {}
+    instance_url = config.get("instance_url", "").rstrip("/")
+    username = config.get("username")
+    password = config.get("password")
+
+    if not instance_url or not username or not password:
+        raise HTTPException(
+            status_code=422,
+            detail="ServiceNow connector misconfigured: instance_url, username, and password are required.",
+        )
+
+    # Build incident payload from investigation
+    short_desc = f"[Corvin] {result.rca.root_cause}" if result.rca else f"[Corvin] Investigation {request_id}"
+    description_parts = []
+    if result.rca:
+        description_parts.append(f"Root Cause: {result.rca.root_cause}")
+        if result.rca.contributing_factors:
+            description_parts.append(f"Contributing Factors: {', '.join(result.rca.contributing_factors)}")
+    if result.fix_strategy:
+        description_parts.append(f"Fix Strategy: {result.fix_strategy.summary}")
+
+    payload = {
+        "short_description": short_desc[:160],
+        "description": "\n".join(description_parts)[:4000],
+        "urgency": "2",
+        "impact": "2",
+        "category": "Software",
+        "caller_id": config.get("caller_id", ""),
+        "assignment_group": config.get("assignment_group", ""),
+    }
+
+    try:
+        resp = httpx.post(
+            f"{instance_url}/api/now/table/incident",
+            json=payload,
+            auth=(username, password),
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        data = resp.json().get("result", {})
+        inc_number = data.get("number", "UNKNOWN")
+        inc_url = f"{instance_url}/nav_to.do?uri=incident.do?sys_id={data.get('sys_id', '')}"
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"ServiceNow API error: {e.response.status_code} {e.response.text[:200]}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"ServiceNow connection failed: {str(e)[:200]}")
+
     return SyncResponse(
-        ticket_id=mock_inc,
-        message=f"Created ServiceNow Incident {mock_inc} and assigned to SRE team."
+        ticket_id=inc_number,
+        url=inc_url,
+        message=f"Created ServiceNow Incident {inc_number} and assigned to SRE team."
     )
 
 class ChatMessageOut(BaseModel):
@@ -1377,4 +2647,740 @@ def chat_with_investigation(
             "X-Accel-Buffering": "no",
             "Cache-Control": "no-cache",
         },
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# V5.0 — Agentic AI Features
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ── F4: Causal Reasoning Graph ────────────────────────────────────────────────
+
+@router.get("/{request_id}/causal-chain")
+def get_causal_chain(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Generate a directed causal chain from the investigation's RCA.
+
+    Returns a DAG with nodes (trigger → failure → cascade → impact) and edges,
+    suitable for rendering as a Mermaid flowchart on the frontend.
+    """
+    from corvin.strategy.causal_chain import CausalChainGenerator
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    generator = CausalChainGenerator()
+    return generator.generate(result)
+
+
+# ── F7: Incident Communication Drafts ────────────────────────────────────────
+
+class CommsDraftRequest(BaseModel):
+    audience: str = Field(default="internal", description="One of: executive, internal, public")
+
+
+@router.post("/{request_id}/comms-draft")
+def generate_comms_draft(
+    request_id: str,
+    body: CommsDraftRequest = Body(default=CommsDraftRequest()),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Generate an audience-appropriate incident communication draft.
+
+    Supports three audience levels:
+    - executive: C-suite business impact summary
+    - internal: Engineering status update
+    - public: Customer-facing status page update
+    """
+    from corvin.strategy.comms_draft import CommsDraftGenerator
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    if body.audience not in ("executive", "internal", "public"):
+        raise HTTPException(status_code=400, detail=f"Invalid audience: {body.audience}. Must be executive, internal, or public.")
+
+    generator = CommsDraftGenerator()
+    return generator.generate(result, body.audience)
+
+
+@router.get("/{request_id}/comms-draft/all")
+def generate_all_comms_drafts(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> list[dict]:
+    """Generate communication drafts for all audience levels at once."""
+    from corvin.strategy.comms_draft import CommsDraftGenerator
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    generator = CommsDraftGenerator()
+    return generator.generate_all(result)
+
+
+# ── F6: Natural Language → KQL ────────────────────────────────────────────────
+
+class NLToKQLRequest(BaseModel):
+    question: str = Field(..., description="Natural language question to translate to KQL")
+    time_range: str | None = Field(default=None, description="Optional time range (e.g. 'last 2 hours')")
+
+
+@router.post("/kql/translate")
+def translate_nl_to_kql(body: NLToKQLRequest) -> dict:
+    """Translate a natural language question into a KQL query.
+
+    Includes safety guardrails that block destructive management commands.
+    Returns the KQL query, safety status, and original question.
+    """
+    from corvin.strategy.nl_to_kql import NLToKQLService
+
+    service = NLToKQLService()
+    return service.translate(body.question, body.time_range)
+
+
+# ── F9: Multi-Agent Investigation ─────────────────────────────────────────────
+
+class MultiAgentRequest(BaseModel):
+    service_name: str
+    environment: str
+    description: str
+    priority: str = "P2"
+
+
+@router.post("/multi-agent", status_code=202)
+def start_multi_agent_investigation(
+    body: MultiAgentRequest,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Launch a multi-agent investigation using the SelectorGroupChat pattern.
+
+    Specialist agents (EvidenceCollector, RCAAnalyst, FixStrategist) are
+    dynamically coordinated by an LLM-based orchestrator.
+    Returns the investigation result + agent trace for observability.
+    """
+    from corvin.strategy.multi_agent import MultiAgentOrchestrator
+
+    request = InvestigationRequest(
+        trigger_source=TriggerSource.MANUAL_API,
+        service_name=body.service_name,
+        environment=body.environment,
+        description=body.description,
+        raw_payload={"priority": body.priority, "mode": "multi_agent"},
+    )
+
+    orchestrator = MultiAgentOrchestrator()
+    result, trace = orchestrator.run(request)
+    repo.save_investigation_result(result)
+
+    return {
+        "request_id": result.request_id,
+        "status": "completed",
+        "mode": "multi_agent",
+        "trace": trace.to_dict(),
+        "confidence": result.rca.confidence.value,
+        "root_cause": result.rca.root_cause,
+    }
+
+
+@router.get("/{request_id}/multi-agent/trace")
+def get_multi_agent_trace(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Re-run multi-agent orchestration and return the trace (for replay/debugging)."""
+    from corvin.strategy.multi_agent import MultiAgentOrchestrator
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    orchestrator = MultiAgentOrchestrator()
+    _, trace = orchestrator.run(result.request)
+    return trace.to_dict()
+
+
+# ── F10: Chaos Experiment Generator ───────────────────────────────────────────
+
+@router.get("/{request_id}/chaos-experiments")
+def get_chaos_experiments(
+    request_id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Generate chaos experiment recommendations based on investigation findings.
+
+    Analyzes the RCA and produces targeted chaos experiments that would
+    validate the system's resilience against similar failures.
+    """
+    from corvin.strategy.chaos_engine import ChaosExperimentGenerator
+
+    result = repo.get_investigation_result(request_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
+
+    generator = ChaosExperimentGenerator()
+    plan = generator.generate(result)
+    return plan.to_dict()
+
+
+# ── F11: IDE Integration Context ─────────────────────────────────────────────
+
+@router.get("/ide/context/{service_name}")
+def get_ide_context(
+    service_name: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Get IDE-optimized context for a service.
+
+    Returns active investigations, recent incidents, deployment safety signals,
+    and relevant knowledge snippets — designed for VS Code extension consumption.
+    """
+    from corvin.strategy.ide_integration import IDEIntegrationService
+
+    service = IDEIntegrationService(repository=repo)
+    context = service.get_context(service_name, repo=repo)
+    return context.to_dict()
+
+
+class IDEFixSuggestionRequest(BaseModel):
+    service_name: str
+    file_path: str
+    error_context: str
+
+
+@router.post("/ide/fix-suggestion")
+def get_ide_fix_suggestion(
+    body: IDEFixSuggestionRequest,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Get a context-aware fix suggestion for a specific file/error.
+
+    Cross-references with past investigations to provide informed suggestions
+    optimized for inline display in VS Code.
+    """
+    from corvin.strategy.ide_integration import IDEIntegrationService
+
+    service = IDEIntegrationService(repository=repo)
+    suggestion = service.get_fix_suggestion(
+        body.service_name, body.file_path, body.error_context, repo=repo
+    )
+    return suggestion.to_dict()
+
+
+@router.get("/ide/deploy-safety/{service_name}")
+def get_deploy_safety(
+    service_name: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Pre-deployment safety check for CI/CD integration.
+
+    Returns whether it's safe to deploy to the given service based on
+    active incidents and recent failure patterns.
+    """
+    from corvin.strategy.ide_integration import IDEIntegrationService
+
+    service = IDEIntegrationService(repository=repo)
+    signal = service.get_deploy_safety(service_name, repo=repo)
+    return signal.to_dict()
+
+
+# ── F12: Voice Incident Reporter ─────────────────────────────────────────────
+
+@router.post("/voice/report")
+async def voice_incident_report(
+    audio: UploadFile = File(...),
+) -> dict:
+    """Process voice audio into a structured incident report.
+
+    Accepts audio file upload, transcribes via Azure Speech STT,
+    then extracts structured incident fields using LLM.
+
+    Content-Type: multipart/form-data with 'audio' file field.
+    """
+    from corvin.strategy.voice_incident import VoiceIncidentService
+
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio file.")
+
+    content_type = audio.content_type or "audio/wav"
+    supported = {"audio/wav", "audio/ogg", "audio/webm", "audio/mpeg"}
+    if content_type not in supported:
+        raise HTTPException(status_code=415, detail=f"Unsupported audio format: {content_type}. Supported: {sorted(supported)}")
+
+    service = VoiceIncidentService()
+    report = service.process_audio(audio_bytes, content_type=content_type)
+    return report.to_dict()
+
+
+@router.post("/voice/transcribe-and-report")
+async def voice_transcribe_and_report(
+    audio: bytes = Body(..., media_type="application/octet-stream"),
+) -> dict:
+    """Full voice pipeline: audio bytes → transcription → structured incident.
+
+    Send raw audio bytes in the request body.
+    Returns transcription + extracted incident fields.
+    """
+    from corvin.strategy.voice_incident import VoiceIncidentService
+
+    service = VoiceIncidentService()
+    report = service.process_audio(audio, content_type="audio/wav")
+    return report.to_dict()
+
+
+# ── Feature 8: Root Cause Debate Mode ────────────────────────────────────────
+
+
+class SelectHypothesisRequest(BaseModel):
+    hypothesis_id: str = Field(..., min_length=1, max_length=10)
+
+
+def _to_float(value: object, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _build_debate_meta(hypotheses: list[dict], selected_id: str | None) -> dict:
+    """Build compact decision-support metadata for the debate panel."""
+    if not hypotheses:
+        return {
+            "leader_id": None,
+            "leader_score": 0.0,
+            "runner_up_id": None,
+            "runner_up_score": 0.0,
+            "score_gap": 0.0,
+            "is_ambiguous": False,
+            "recommendation": "No hypotheses available yet.",
+            "pairwise": [],
+            "selected_id": selected_id,
+        }
+
+    ranked = sorted(
+        hypotheses,
+        key=lambda h: _to_float(h.get("confidence_score"), 0.0),
+        reverse=True,
+    )
+    leader = ranked[0]
+    runner = ranked[1] if len(ranked) > 1 else leader
+    leader_score = _to_float(leader.get("confidence_score"), 0.0)
+    runner_score = _to_float(runner.get("confidence_score"), 0.0)
+    gap = max(0.0, round(leader_score - runner_score, 3))
+    is_ambiguous = len(ranked) > 1 and gap < 0.12
+
+    if selected_id:
+        recommendation = "Root cause selected. Verify action outcomes and close loop with post-fix validation."
+    elif is_ambiguous:
+        recommendation = (
+            "Top hypotheses are close. Run one targeted disproof check before selecting a winner."
+        )
+    else:
+        recommendation = "Confidence gap is clear enough to proceed with a primary root-cause candidate."
+
+    pairwise: list[dict] = []
+    for i in range(len(ranked)):
+        for j in range(i + 1, len(ranked)):
+            left = ranked[i]
+            right = ranked[j]
+            left_score = _to_float(left.get("confidence_score"), 0.0)
+            right_score = _to_float(right.get("confidence_score"), 0.0)
+            winner = left if left_score >= right_score else right
+            loser = right if winner is left else left
+            pairwise.append(
+                {
+                    "left_id": left.get("id"),
+                    "right_id": right.get("id"),
+                    "winner_id": winner.get("id"),
+                    "score_gap": round(abs(left_score - right_score), 3),
+                    "reason": (
+                        f"{winner.get('id')} leads on confidence "
+                        f"({_to_float(winner.get('confidence_score'), 0.0):.2f} vs "
+                        f"{_to_float(loser.get('confidence_score'), 0.0):.2f})"
+                    ),
+                }
+            )
+
+    return {
+        "leader_id": leader.get("id"),
+        "leader_score": round(leader_score, 3),
+        "runner_up_id": runner.get("id") if len(ranked) > 1 else None,
+        "runner_up_score": round(runner_score, 3) if len(ranked) > 1 else None,
+        "score_gap": gap,
+        "is_ambiguous": is_ambiguous,
+        "recommendation": recommendation,
+        "pairwise": pairwise,
+        "selected_id": selected_id,
+    }
+
+
+@router.post("/{id}/hypotheses", response_model=dict)
+def generate_hypotheses(
+    id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Generate competing root-cause hypotheses for an existing investigation.
+
+    Reads the investigation result from DB, calls HypothesisService, persists
+    the generated hypotheses, and returns them.
+
+    Returns 404 when the investigation is not found.
+    Returns 422 when debate_mode.enabled=false in investigation.yaml.
+    """
+    from corvin.strategy.hypothesis_service import HypothesisService
+
+    result = repo.get_investigation_result(id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {id!r} not found.")
+
+    svc = HypothesisService()
+    if not svc.is_enabled():
+        raise HTTPException(
+            status_code=422,
+            detail="Debate mode is disabled (debate_mode.enabled=false in investigation.yaml).",
+        )
+
+    hypotheses = svc.generate(result)
+    repo.save_hypotheses(id, hypotheses)
+
+    hypotheses_payload = [h.model_dump(mode="json") for h in hypotheses]
+
+    return {
+        "request_id": id,
+        "hypotheses": hypotheses_payload,
+        "selected_hypothesis_id": None,
+        "debate_meta": _build_debate_meta(hypotheses_payload, None),
+    }
+
+
+@router.get("/{id}/hypotheses", response_model=dict)
+def get_hypotheses(
+    id: str,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return stored hypotheses for an investigation.
+
+    Returns 404 when the investigation is not found.
+    Returns an empty hypotheses list when the investigation pre-dates Feature 8.
+    """
+    # Confirm investigation exists
+    with repo._session_factory() as session:
+        from corvin.storage.models import InvestigationRequestRow
+        req_row = session.get(InvestigationRequestRow, id)
+        if req_row is None:
+            raise HTTPException(status_code=404, detail=f"Investigation {id!r} not found.")
+        selected = getattr(req_row, "selected_hypothesis_id", None)
+
+    stored = repo.get_hypotheses(id)
+
+    hypotheses_payload = stored or []
+
+    return {
+        "request_id": id,
+        "hypotheses": hypotheses_payload,
+        "selected_hypothesis_id": selected,
+        "debate_meta": _build_debate_meta(hypotheses_payload, selected),
+    }
+
+
+@router.post("/{id}/select-hypothesis", response_model=dict)
+def select_hypothesis(
+    id: str,
+    body: SelectHypothesisRequest,
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Set the winning hypothesis and regenerate fix strategy.
+
+    Sets selected_hypothesis_id on the investigation row.
+    Then regenerates the fix strategy based on the winning hypothesis's root_cause.
+    Returns the updated InvestigationResult.
+
+    Returns 404 when the investigation is not found.
+    Returns 400 when the hypothesis_id is not in the stored list.
+    """
+    from corvin.strategy.fix_strategy_generator import FixStrategyGenerator
+    from corvin.core.contracts import RCAOutput, RCAConfidence
+
+    result = repo.get_investigation_result(id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {id!r} not found.")
+
+    stored = repo.get_hypotheses(id) or []
+    hypothesis_map = {h["id"]: h for h in stored if isinstance(h, dict)}
+
+    if body.hypothesis_id not in hypothesis_map:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Hypothesis {body.hypothesis_id!r} not found. Available: {list(hypothesis_map.keys())}",
+        )
+
+    selected = hypothesis_map[body.hypothesis_id]
+    repo.set_selected_hypothesis(id, body.hypothesis_id)
+
+    # Regenerate fix strategy using the selected hypothesis root_cause.
+    # We synthesise an RCAOutput that substitutes the hypothesis fields.
+    patched_rca = RCAOutput(
+        request_id=id,
+        summary=selected.get("title", result.rca.summary),
+        root_cause=selected.get("root_cause", result.rca.root_cause),
+        contributing_factors=selected.get("supporting_signals", result.rca.contributing_factors),
+        confidence=RCAConfidence.MEDIUM,
+        confidence_reasoning=f"Selected hypothesis: {selected.get('title', '')}",
+        evidence_references=selected.get("evidence_ids", result.rca.evidence_references),
+    )
+
+    try:
+        fix_gen = FixStrategyGenerator()
+        new_fix = fix_gen.generate(result.request, patched_rca)
+        new_fix = new_fix.model_copy(update={"request_id": id})
+    except Exception as exc:
+        _log.warning("select-hypothesis: fix strategy regeneration failed: %s", exc)
+        new_fix = result.fix_strategy
+
+    # Persist via upsert directly
+    from corvin.storage.models import FixStrategyOutputRow
+    with repo._session_factory() as session:
+        existing = session.execute(
+            __import__("sqlalchemy").select(FixStrategyOutputRow).where(
+                FixStrategyOutputRow.request_id == id
+            )
+        ).scalar_one_or_none()
+        if existing:
+            existing.summary = new_fix.summary
+            existing.actions = [a.model_dump(mode="json") for a in new_fix.actions]
+            existing.justification = new_fix.justification
+        else:
+            session.add(FixStrategyOutputRow(
+                request_id=id,
+                summary=new_fix.summary,
+                actions=[a.model_dump(mode="json") for a in new_fix.actions],
+                justification=new_fix.justification,
+            ))
+        session.commit()
+
+    # Return updated result
+    updated = repo.get_investigation_result(id)
+    if updated is None:
+        raise HTTPException(status_code=500, detail="Failed to reload investigation after update.")
+
+    return {
+        **updated.model_dump(mode="json"),
+        "selected_hypothesis_id": body.hypothesis_id,
+        "hypotheses": stored,
+        "debate_meta": _build_debate_meta(stored, body.hypothesis_id),
+    }
+
+
+# ── Feature 9: Incident Heatmap Calendar ─────────────────────────────────────
+
+
+@router.get("/heatmap", response_model=dict)
+def get_incident_heatmap(
+    days: int = Query(default=90, ge=1, le=365),
+    service_name: Optional[str] = Query(default=None),
+    environment: Optional[str] = Query(default=None),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Return daily investigation counts for the GitHub-style heatmap calendar.
+
+    days: lookback window — capped by heatmap.max_days in investigation.yaml.
+    Severity thresholds are loaded from investigation.yaml and returned
+    alongside the data so the frontend never needs to hardcode them.
+
+    Returns:
+        days: list of {date, count, severity}
+        max_count: the highest single-day count in the window
+        total_incidents: total investigations in the window
+        date_range: {start, end}
+        severity_thresholds: {low, medium, high, critical}
+    """
+    from datetime import date, timedelta
+
+    policy = load_config("policies/investigation", get_env())
+    heatmap_cfg = policy.get("heatmap", {})
+
+    # Honour max_days cap from config
+    max_days = int(heatmap_cfg.get("max_days", 365))
+    days = min(days, max_days)
+
+    thresholds = heatmap_cfg.get("severity_thresholds", {
+        "low": 1, "medium": 3, "high": 5, "critical": 10
+    })
+
+    # Build a complete zero-filled date index for the window
+    today = date.today()
+    start_date = today - timedelta(days=days - 1)
+    all_dates = {
+        (start_date + timedelta(days=i)).isoformat(): 0
+        for i in range(days)
+    }
+
+    # Fetch DB data and merge
+    db_rows = repo.get_heatmap_data(days=days, service_name=service_name, environment=environment)
+    for row in db_rows:
+        if row["date"] in all_dates:
+            all_dates[row["date"]] = row["count"]
+
+    def _severity(count: int) -> str:
+        if count == 0:
+            return "none"
+        if count >= int(thresholds.get("critical", 10)):
+            return "critical"
+        if count >= int(thresholds.get("high", 5)):
+            return "high"
+        if count >= int(thresholds.get("medium", 3)):
+            return "medium"
+        return "low"
+
+    # Build service lookup from DB rows
+    services_by_date = {row["date"]: row.get("services", {}) for row in db_rows}
+
+    days_list = [
+        {
+            "date": d,
+            "count": c,
+            "severity": _severity(c),
+            "services": services_by_date.get(d, {}),
+        }
+        for d, c in sorted(all_dates.items())
+    ]
+
+    total = sum(d["count"] for d in days_list)
+    max_count = max((d["count"] for d in days_list), default=0)
+
+    return {
+        "days": days_list,
+        "max_count": max_count,
+        "total_incidents": total,
+        "date_range": {"start": start_date.isoformat(), "end": today.isoformat()},
+        "severity_thresholds": thresholds,
+    }
+
+
+# ── Feature 10: Compliance Evidence Pack ─────────────────────────────────────
+
+
+@router.get("/{id}/compliance-pack")
+def download_compliance_pack(
+    id: str,
+    format: str = Query(default="zip", pattern="^(zip|pdf)$"),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> Response:
+    """Generate and download a tamper-evident compliance evidence bundle.
+
+    format=zip — returns a ZIP archive with all evidence files + SHA-256 manifest.
+    format=pdf — returns a single PDF document with all sections.
+
+    The SHA-256 hash of the manifest.json is included as integrity.sha256.
+    Watermark text and supported frameworks are configurable via investigation.yaml.
+
+    Returns 404 when the investigation is not found.
+    Returns 422 when compliance_pack.enabled=false in investigation.yaml.
+    """
+    from corvin.strategy.compliance_pack import CompliancePackBuilder
+    from corvin.storage.db import get_session
+    from corvin.storage.models import InvestigationRequestRow
+
+    policy = load_config("policies/investigation", get_env())
+    pack_cfg = policy.get("compliance_pack", {})
+    if not pack_cfg.get("enabled", True):
+        raise HTTPException(
+            status_code=422,
+            detail="Compliance pack is disabled (compliance_pack.enabled=false in investigation.yaml).",
+        )
+
+    result = repo.get_investigation_result(id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Investigation {id!r} not found.")
+
+    # Load approved_at from the DB row — not exposed on the contract model.
+    approved_at = None
+    with get_session() as session:
+        req_row = session.get(InvestigationRequestRow, id)
+        if req_row is not None:
+            approved_at = req_row.approved_at
+
+    # Include post-mortem in the pack when already generated (optional)
+    pm = None
+    try:
+        pm = repo.get_post_mortem(id)
+    except Exception:
+        pass  # post-mortem is optional
+
+    builder = CompliancePackBuilder(config=pack_cfg)
+
+    if format == "pdf":
+        content = builder.build_pdf(result, pm, approved_at=approved_at)
+        # When reportlab is absent, build_pdf falls back to plain text.
+        if CompliancePackBuilder.reportlab_available():
+            media_type = "application/pdf"
+            ext = "pdf"
+        else:
+            media_type = "text/plain; charset=utf-8"
+            ext = "txt"
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="corvin-evidence-pack-{id}.{ext}"'
+            },
+        )
+    else:
+        zip_bytes = builder.build_zip(result, pm, approved_at=approved_at)
+        return Response(
+            content=zip_bytes,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="corvin-evidence-pack-{id}.zip"'
+            },
+        )
+
+
+# ── Feature 11: Similarity Network ───────────────────────────────────────────
+
+
+@router.get("/similarity-network", response_model=dict)
+def get_similarity_network(
+    focus_id: Optional[str] = Query(default=None, description="Highlight edges from/to this investigation ID"),
+    limit: int = Query(default=50, ge=5, le=200, description="Max investigations to include as nodes"),
+    min_similarity: float = Query(default=0.20, ge=0.05, le=0.95, description="Minimum similarity score to draw an edge"),
+    service_name: Optional[str] = Query(default=None, description="Filter nodes to a specific service"),
+    environment: Optional[str] = Query(default=None, description="Filter nodes to a specific environment"),
+    repo: InvestigationRepository = Depends(get_repository),
+) -> dict:
+    """Build an investigation similarity graph for the Similarity Network view.
+
+    Each node is a completed investigation. Edges connect pairs whose
+    RCA text, service match, and time proximity exceed ``min_similarity``.
+
+    Similarity is computed using:
+      - Service + environment overlap (40 %)
+      - RCA Jaccard text similarity  (40 %)
+      - Time proximity               (20 %)
+
+    When ``focus_id`` is supplied only edges that touch the focus node are
+    returned, reducing graph density for single-investigation drill-down.
+    """
+    from corvin.strategy.similarity_network import SimilarityNetworkEngine
+
+    policy = load_config("policies/investigation", get_env())
+    engine = SimilarityNetworkEngine(config=policy)
+
+    investigations = repo.list_investigations_for_similarity(
+        limit=limit,
+        service_name=service_name,
+        environment=environment,
+    )
+
+    return engine.build(
+        investigations=investigations,
+        focus_id=focus_id,
+        min_similarity=min_similarity,
     )

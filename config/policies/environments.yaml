@@ -1,0 +1,55 @@
+# Environment → priority tier mapping.
+#
+# These are the platform-wide defaults. Any ApplicationRow.environment_config_json
+# stored in the DB overrides these per application, so different teams can treat
+# the same environment name differently (e.g. a "staging" environment in a
+# financial app may be P1; in a dev tool it may be P3).
+#
+# priority_tier: P1 | P2 | P3
+#   P1 — Critical. War room triggered, immediate notification.
+#   P2 — High.    Standard approval flow, Teams card.
+#   P3 — Low.     Informational, no immediate escalation.
+#
+# lookback_minutes: how far back evidence adapters look for this environment.
+
+environments:
+  - name: production
+    display_name: Production
+    priority_tier: P1
+    lookback_minutes: 15
+  - name: prod
+    display_name: Production (alias)
+    priority_tier: P1
+    lookback_minutes: 15
+  - name: uat
+    display_name: UAT
+    priority_tier: P2
+    lookback_minutes: 30
+  - name: staging
+    display_name: Staging
+    priority_tier: P2
+    lookback_minutes: 30
+  - name: preprod
+    display_name: Pre-production
+    priority_tier: P2
+    lookback_minutes: 30
+  - name: qa
+    display_name: QA
+    priority_tier: P3
+    lookback_minutes: 60
+  - name: dev
+    display_name: Development
+    priority_tier: P3
+    lookback_minutes: 60
+  - name: development
+    display_name: Development (alias)
+    priority_tier: P3
+    lookback_minutes: 60
+  - name: test
+    display_name: Test
+    priority_tier: P3
+    lookback_minutes: 60
+
+# Fallback used when the environment name is not in this list and no DB override exists.
+default_priority_tier: P3
+default_lookback_minutes: 60

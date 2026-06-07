@@ -1,13 +1,16 @@
 import httpx
 import logging
 import base64
-import random
+import itertools
 from typing import Optional, Dict, Any
 from corvin.core.contracts import InvestigationResult
 
 logger = logging.getLogger(__name__)
 
 _CONFIDENCE_PRIORITY = {"high": 1, "medium": 2, "low": 3}
+
+# Module-level round-robin counters per category
+_round_robin_counters: dict[str, int] = {}
 
 
 def _classify_incident(root_cause: str | None, routing: dict) -> str:
@@ -33,8 +36,11 @@ def _pick_assignee(category: str, routing: dict) -> Optional[str]:
     assignees = cfg.get("assignees", [])
     if not assignees:
         return routing.get("default_assignee")
-    # Random pick for load distribution (no persistent state needed for now)
-    return random.choice(assignees)
+    # Deterministic round-robin using module-level counter
+    idx = _round_robin_counters.get(category, 0)
+    pick = assignees[idx % len(assignees)]
+    _round_robin_counters[category] = idx + 1
+    return pick
 
 
 class AzureDevOpsAdapter:

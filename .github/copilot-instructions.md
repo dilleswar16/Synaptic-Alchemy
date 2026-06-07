@@ -25,6 +25,61 @@ For V3.5, implement the hackathon demo core: Alert Simulator, Teams Adaptive Car
 For V3.7, implement intelligence layer: Predictive Detection, SLA Countdown, Cross-Service Dependency Visualizer, Remediation Preview.
 For V3.9, implement enterprise polish: Voice Morning Briefing, ROI Dashboard, 3AM Mode, Runbook Auto-Update, War Room Channel, Confidence Routing.
 For V4, implement Semantic Search / Vector RAG using pgvector on Azure Postgres.
+For V5.0, implement Agentic AI P0: AutonomousAgent (16-tool function-calling loop), CausalChainGenerator (DAG from RCA), NLToKQLService (natural language to KQL with guardrails), CommsDraftGenerator (audience-targeted comms).
+For V5.1, implement Agentic AI P1: MultiAgentOrchestrator (SelectorGroupChat pattern), ChaosExperimentGenerator (post-RCA resilience tests), IDEIntegrationService (VS Code context + deploy safety), VoiceIncidentService (Azure Speech STT → structured report).
+For V5.2, implement UX Maturity: Plus Jakarta Sans font (replacing DM Sans, base 15.5px), CHAD-only demo seed, full outbound connector builder (variables, auth types, payload templates, OAuth 2.0).
+
+## Current State (V5.2 complete)
+
+### Design System — Font
+- **Font:** Plus Jakarta Sans (Google Fonts, weights 200–800 + italic 400)
+- Base `font-size: 15.5px` on `html`, `letter-spacing: -0.01em`
+- `--font-display` and `--font-body` CSS vars in `apps/web/src/index.css`
+- JetBrains Mono unchanged for `--font-mono`
+
+### Application Onboarding — Tabs
+`ApplicationsPage` has 4 tabs: Services | Connectors | Notifications | SLO
+
+Connectors tab is split:
+- **Inbound connectors** — webhook/API inbound (existing)
+- **Outbound connectors** — destinations Corvin pushes alerts to (new)
+
+Supported outbound connector types: `teams_webhook`, `servicenow`, `email`, `pagerduty`, `generic_http`
+
+### Outbound Connector `config_json` Schema
+```typescript
+interface ConnectorConfig {
+  endpoint?: string
+  endpoint_fields?: {
+    table?: string        // ServiceNow table name
+    port?: string         // SMTP port (email)
+    from?: string         // sender address (email)
+    http_method?: string  // GET/POST/PUT/PATCH (generic_http)
+  }
+  auth?: {
+    type: 'none' | 'bearer' | 'api_key' | 'basic' | 'oauth2'
+    bearer_token?: string
+    api_key?: string
+    api_key_header?: string   // default: 'X-API-Key'
+    username?: string
+    password?: string
+    token_url?: string        // oauth2
+    client_id?: string        // oauth2
+    client_secret?: string    // oauth2
+    scopes?: string           // oauth2, space-separated
+  }
+  variables?: Array<{ key: string; default_value: string }>
+  payload_template?: string   // JSON string with {{key}} interpolation
+  webhook_url?: string        // legacy — kept for backward compat
+}
+```
+
+Built-in interpolation variables for `payload_template` and `default_value`:
+`{{service_name}}`, `{{rca_summary}}`, `{{confidence}}`, `{{environment}}`, `{{request_id}}`
+
+### Demo Seed
+- `apps/api/seed_demo.py` seeds a single "CHAD" app with 3 services: `fundapis`, `fundsso`, `partnerapis`
+- Idempotent: checks `filter_by(name="CHAD")` before inserting
 
 ## Delivery Rules
 

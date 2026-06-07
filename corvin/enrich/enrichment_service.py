@@ -15,7 +15,6 @@ import time
 from collections.abc import Callable, Generator
 from typing import Any
 
-from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import EvidenceBundle, InvestigationRequest
 from corvin.evidence.aks_adapter import AKSAdapter
 from corvin.evidence.container_logs_adapter import ContainerLogsAdapter
@@ -65,8 +64,7 @@ class EnrichmentService:
         aks: AKSAdapter | None = None,
         container_logs: ContainerLogsAdapter | None = None,
     ) -> None:
-        elastic_cfg = load_config("integrations/elastic", get_env())
-        self._elastic = elastic if elastic is not None else (ElasticAdapter() if elastic_cfg.get("enabled", True) else None)
+        self._elastic = elastic if elastic is not None else ElasticAdapter()
         self._log_analytics = log_analytics or LogAnalyticsAdapter()
         self._aks = aks or AKSAdapter()
         self._container_logs = container_logs or ContainerLogsAdapter()
@@ -242,7 +240,7 @@ class EnrichmentService:
 
         if not b.elastic_logs:
             b.elastic_logs = (yield from _timed_step(
-                "container_logs", "ContainerLog · chad",
+                "container_logs", "ContainerLog",
                 lambda: self._container_logs.get_container_logs(
                     request.service_name, time_range_minutes=request.lookback_minutes
                 ),

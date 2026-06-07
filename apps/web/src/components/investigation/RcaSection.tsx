@@ -66,6 +66,7 @@ export function RcaSection({ data, requestId }: RcaSectionProps) {
   return (
     <Section
       title="Root Cause Analysis"
+      info="AI-synthesised causal analysis built from application logs, API gateway telemetry, and Kubernetes cluster state. Includes a confidence score calibrated against the volume and consistency of corroborating evidence."
       headerRight={
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <button className="btn-ghost" style={{ fontSize: '0.65rem', padding: '3px 8px' }} onClick={() => syncAdoMutation.mutate()} disabled={syncAdoMutation.isPending}>

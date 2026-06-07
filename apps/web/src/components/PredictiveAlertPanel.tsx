@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { fetchPredictiveAlerts, investigatePredictiveAlert, type PredictiveAlert } from '../api/client'
@@ -72,6 +73,7 @@ function formatAlertTitle(alert: PredictiveAlert, state: AlertState): string {
 export function PredictiveAlertPanel() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [openingAlertId, setOpeningAlertId] = useState<string | null>(null)
   const { data, isLoading } = useQuery({
     queryKey: ['predictive-alerts'],
     queryFn: () => fetchPredictiveAlerts(true),
@@ -137,6 +139,16 @@ export function PredictiveAlertPanel() {
   })
   const actionableCount = enrichedAlerts.filter((a) => a.state === 'breached' || a.state === 'near').length
   const watchCount = enrichedAlerts.length - actionableCount
+
+  function handlePrimaryAction(alertId: string, state: AlertState) {
+    if (state === 'breached' || state === 'near') {
+      mutation.mutate(alertId)
+      return
+    }
+
+    setOpeningAlertId(alertId)
+    navigate('/predictive-analytics')
+  }
 
   return (
     <div className="panel animate-fade-up" style={{ padding: '18px 20px', overflow: 'hidden', position: 'relative' }}>
@@ -205,10 +217,13 @@ export function PredictiveAlertPanel() {
           const accent = SEVERITY_COLOR[alert.severity] ?? 'var(--c-signal)'
           const meta = stateMeta(state)
           const dynamicTitle = formatAlertTitle(alert, state)
+          const isPremortem = state === 'watch' || state === 'early'
           const ctaLabel = state === 'breached' || state === 'near' ? 'Investigate' : 'Pre-Mortem'
           const ctaBg = state === 'breached' || state === 'near' ? 'var(--c-signal)' : 'var(--c-surface)'
           const ctaText = state === 'breached' || state === 'near' ? '#fff' : 'var(--c-text)'
           const ctaBorder = state === 'breached' || state === 'near' ? '1px solid transparent' : '1px solid var(--c-border-hi)'
+          const isOpening = openingAlertId === alert.id
+          const isDisabled = mutation.isPending || isOpening
 
           return (
             <div key={alert.id} className="scan-sweep" style={{
@@ -289,8 +304,8 @@ export function PredictiveAlertPanel() {
               </div>
 
               <button
-                disabled={mutation.isPending}
-                onClick={() => mutation.mutate(alert.id)}
+                disabled={isDisabled}
+                onClick={() => handlePrimaryAction(alert.id, state)}
                 style={{
                   width: '100%',
                   justifyContent: 'center',
@@ -306,10 +321,11 @@ export function PredictiveAlertPanel() {
                   color: ctaText,
                   border: ctaBorder,
                   transition: 'all 0.15s ease',
-                  cursor: mutation.isPending ? 'not-allowed' : 'pointer',
+                  cursor: isDisabled ? 'not-allowed' : 'pointer',
+                  opacity: isDisabled ? 0.7 : 1,
                 }}
               >
-                {mutation.isPending ? 'Starting...' : ctaLabel}
+                {isPremortem && isOpening ? 'Opening Pre-Mortem…' : mutation.isPending ? 'Starting...' : ctaLabel}
               </button>
             </div>
           )

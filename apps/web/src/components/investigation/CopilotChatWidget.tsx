@@ -310,7 +310,7 @@ export function CopilotChatWidget({ requestId }: Props) {
           {messages.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--c-text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', marginTop: 40, lineHeight: 1.8 }}>
               I have the full context of this incident.<br />
-              <span style={{ color: 'var(--c-text-faint)', fontSize: '0.72rem' }}>RCA · Evidence · Fix Strategy · CHAD Knowledge</span><br />
+              <span style={{ color: 'var(--c-text-faint)', fontSize: '0.72rem' }}>RCA · Evidence · Fix Strategy · Site Knowledge</span><br />
               Ask me anything.
             </div>
           )}

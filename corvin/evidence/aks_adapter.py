@@ -4,26 +4,142 @@ AKS context evidence adapter.
 Collects pod state, deployment status, and recent events for a named service
 in an AKS cluster using the kubernetes Python client.
 
-Config is loaded from config/integrations/aks.yaml with an optional environment
-overlay. Supports both local kubeconfig (kube_config_path) and in-cluster mode
-(in_cluster: true). API clients are built once in __init__ and reused across
-calls.
+Runtime config is env/bootstrap-driven by default. Supports both local
+kubeconfig (kube_config_path) and in-cluster mode (in_cluster: true).
+API clients are built once in __init__ and reused across calls. Runtime config
+is DB-first via source_type=aks connector resolution.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from pathlib import Path
+import subprocess
 from typing import Any
 
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
 from kubernetes.client.exceptions import ApiException
 
-from corvin.core.config_loader import get_env, load_config
+from corvin.connectors.config_resolver import resolve_log_source_config, resolve_service_namespace
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_namespaces(value: Any, fallback: str | None = None) -> list[str]:
+    """Normalize namespace config values into a de-duplicated list.
+
+    Returns an empty list when no namespace is configured and no fallback is
+    provided. Callers that need a namespace must handle an empty list explicitly —
+    silently falling back to "default" would query the wrong namespace in a
+    multi-tenant deployment.
+    """
+    items: list[str] = []
+    if isinstance(value, list):
+        items = [str(v).strip() for v in value if str(v).strip()]
+    elif isinstance(value, str):
+        items = [part.strip() for part in value.split(",") if part.strip()]
+
+    if not items and fallback:
+        fb = str(fallback).strip()
+        if fb:
+            items = [fb]
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for ns in items:
+        key = ns.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(ns)
+    return deduped
+
+
+def _cluster_entries(cfg: dict[str, Any], namespace_override: str | None = None) -> list[dict[str, Any]]:
+    """Build normalized cluster entries from either root fields or clusters[]."""
+    entries: list[dict[str, Any]] = []
+    clusters = cfg.get("clusters") if isinstance(cfg.get("clusters"), list) else []
+
+    if clusters:
+        for item in clusters:
+            if not isinstance(item, dict):
+                continue
+            cluster_name = str(item.get("cluster_name") or "").strip() or str(cfg.get("cluster_name") or "").strip() or "unknown"
+            entry = {
+                "cluster_name": cluster_name,
+                "resource_group": str(item.get("resource_group") or cfg.get("resource_group") or "").strip(),
+                "subscription_id": str(item.get("subscription_id") or cfg.get("subscription_id") or "").strip(),
+                "tenant_id": str(item.get("tenant_id") or cfg.get("tenant_id") or "").strip(),
+                "in_cluster": bool(item.get("in_cluster", cfg.get("in_cluster", False))),
+                "kube_config_path": str(item.get("kube_config_path") or cfg.get("kube_config_path") or "~/.kube/config"),
+            }
+            if namespace_override:
+                entry["namespaces"] = [namespace_override]
+            else:
+                fallback_ns = str(item.get("default_namespace") or cfg.get("default_namespace") or "").strip() or None
+                entry["namespaces"] = _normalize_namespaces(item.get("namespaces"), fallback_ns)
+            entries.append(entry)
+    else:
+        cluster_name = str(cfg.get("cluster_name") or "").strip() or "unknown"
+        fallback_ns = str(cfg.get("default_namespace") or "").strip() or None
+        entry = {
+            "cluster_name": cluster_name,
+            "resource_group": str(cfg.get("resource_group") or "").strip(),
+            "subscription_id": str(cfg.get("subscription_id") or "").strip(),
+            "tenant_id": str(cfg.get("tenant_id") or "").strip(),
+            "in_cluster": bool(cfg.get("in_cluster", False)),
+            "kube_config_path": str(cfg.get("kube_config_path") or "~/.kube/config"),
+            "namespaces": [namespace_override] if namespace_override else _normalize_namespaces(cfg.get("namespaces"), fallback_ns),
+        }
+        entries.append(entry)
+
+    return entries
+
+
+def _kubectl_get_pods(namespace: str) -> list[dict[str, Any]]:
+    """Best-effort kubectl fallback for pod listing in local/dev contexts."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", namespace, "-o", "json"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=20,
+        )
+        if result.returncode != 0 or not result.stdout:
+            return []
+        data = json.loads(result.stdout)
+        return data.get("items", []) if isinstance(data, dict) else []
+    except Exception:
+        return []
+
+
+def _kubectl_list_namespaces() -> list[str]:
+    """Best-effort kubectl fallback for namespace discovery in local/dev contexts."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "namespaces", "-o", "json"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=20,
+        )
+        if result.returncode != 0 or not result.stdout:
+            return []
+        data = json.loads(result.stdout)
+        items = data.get("items", []) if isinstance(data, dict) else []
+        return sorted(
+            {
+                str(item.get("metadata", {}).get("name") or "").strip()
+                for item in items
+                if isinstance(item, dict)
+            }
+        )
+    except Exception:
+        return []
 
 
 def _pod_to_dict(pod: Any) -> dict[str, Any]:
@@ -94,26 +210,58 @@ class AKSAdapter:
     """Adapter for collecting AKS workload context for a named service."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        self._config = (
-            config if config is not None else load_config("integrations/aks", get_env())
-        )
-        # Build API clients once so the connection is reused across calls.
-        # Guard construction so that missing kubeconfig in CI/dev doesn't raise.
+        self._config = config if config is not None else _default_config()
+        # Build API clients lazily and refresh when runtime mode changes.
         self._core_v1: k8s_client.CoreV1Api | None = None
         self._apps_v1: k8s_client.AppsV1Api | None = None
+        self._client_mode: tuple[bool, str] | None = None
+        self._ensure_clients(self._config)
+
+    def _ensure_clients(self, cfg: dict[str, Any]) -> None:
+        """Ensure Kubernetes clients are initialized for the selected runtime mode."""
+        in_cluster = bool(cfg.get("in_cluster", False))
+        raw_path = str(cfg.get("kube_config_path", "~/.kube/config") or "~/.kube/config")
+        mode = (in_cluster, raw_path)
+        if self._client_mode == mode and self._core_v1 is not None and self._apps_v1 is not None:
+            return
+
         try:
-            if self._config.get("in_cluster", False):
+            if in_cluster:
                 k8s_config.load_incluster_config()
             else:
-                raw_path = self._config.get("kube_config_path", "~/.kube/config")
                 kube_path = str(Path(os.path.expanduser(raw_path)))
                 k8s_config.load_kube_config(config_file=kube_path)
             self._core_v1 = k8s_client.CoreV1Api()
             self._apps_v1 = k8s_client.AppsV1Api()
+            self._client_mode = mode
         except Exception as exc:  # noqa: BLE001
+            self._core_v1 = None
+            self._apps_v1 = None
+            self._client_mode = None
             logger.warning(
                 "AKSAdapter: could not load kubernetes config (will return empty results): %s", exc
             )
+
+    def _resolved_runtime(self, service_name: str | None, namespace: str | None) -> tuple[dict[str, Any], str]:
+        cfg = dict(self._config)
+        if service_name:
+            cfg = resolve_log_source_config(
+                service_name,
+                source_type="aks",
+                role=None,
+                fallback=cfg,
+            )
+        ns = namespace or str(cfg.get("default_namespace") or "").strip()
+        if not ns:
+            # DB-first namespace resolution: look up the service's registered namespace
+            db_ns = resolve_service_namespace(service_name)
+            if db_ns:
+                ns = db_ns
+        if not ns and cfg.get("namespaces"):
+            candidates = _normalize_namespaces(cfg.get("namespaces"))
+            if candidates:
+                ns = candidates[0]
+        return cfg, ns
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -224,6 +372,9 @@ class AKSAdapter:
             Dict with keys ``pods`` (list), ``events`` (list), ``deployment`` (dict or None).
             Returns ``{}`` on any error.
         """
+        cfg, ns = self._resolved_runtime(service_name, namespace)
+        self._ensure_clients(cfg)
+
         if self._core_v1 is None or self._apps_v1 is None:
             logger.warning(
                 "AKSAdapter.get_pod_context skipped: clients not configured (service=%s)",
@@ -231,7 +382,6 @@ class AKSAdapter:
             )
             return {}
 
-        ns = namespace or self._config.get("default_namespace", "default")
         dep_name = self._resolve_deployment_name(service_name, ns)
         prefixed_name = f"{ns}-{service_name}"
 
@@ -292,6 +442,9 @@ class AKSAdapter:
         Returns a list of restarted workload/pod names on success.
         Returns an empty list if clients are not configured or on error.
         """
+        cfg, ns = self._resolved_runtime(service_name, namespace)
+        self._ensure_clients(cfg)
+
         if self._core_v1 is None or self._apps_v1 is None:
             logger.warning(
                 "AKSAdapter.restart_pods skipped: clients not configured (service=%s)",
@@ -299,7 +452,6 @@ class AKSAdapter:
             )
             return []
 
-        ns = namespace or self._config.get("default_namespace", "default")
         workload_name, workload_kind = self._resolve_workload(service_name, ns)
 
         # ── Primary: rollout restart via workload patch ───────────────────
@@ -375,7 +527,13 @@ class AKSAdapter:
 
         return deleted
 
-    def list_all_pods(self, namespace: str | None = None) -> dict[str, Any]:
+    def list_all_pods(
+        self,
+        namespace: str | None = None,
+        service_name: str | None = None,
+        cluster_names: list[str] | None = None,
+        discover_namespaces: bool = False,
+    ) -> dict[str, Any]:
         """List ALL pods in the namespace, grouped by service (via the `app` label).
 
         Returns a dict with key ``services``: a list of dicts, each with:
@@ -386,30 +544,164 @@ class AKSAdapter:
 
         Returns ``{"services": []}`` if clients are not configured or on error.
         """
-        if self._core_v1 is None:
-            logger.warning("AKSAdapter.list_all_pods skipped: clients not configured")
-            return {"services": []}
+        cfg, ns = self._resolved_runtime(service_name, namespace)
+        clusters = _cluster_entries(cfg, namespace_override=namespace)
+        selected_clusters = {c.lower() for c in (cluster_names or []) if str(c).strip()}
 
-        ns = namespace or self._config.get("default_namespace", "default")
-        try:
-            pod_list = self._core_v1.list_namespaced_pod(namespace=ns)
-        except Exception as exc:
-            logger.warning("AKSAdapter.list_all_pods failed: %s", exc)
-            return {"services": []}
+        # Group pods by logical service across one or many namespaces.
+        by_service: dict[str, dict[str, Any]] = {}
+        for cluster in clusters:
+            cluster_name = str(cluster.get("cluster_name") or "default")
+            if selected_clusters and cluster_name.lower() not in selected_clusters:
+                continue
 
-        # Group pods by their `app` label (fall back to deployment prefix)
-        by_service: dict[str, list[dict[str, Any]]] = {}
-        for pod in pod_list.items:
-            labels = pod.metadata.labels or {}
-            svc = labels.get("app") or labels.get("app.kubernetes.io/name") or ""
-            if not svc:
-                # Derive from pod name: strip last two hash segments
-                parts = (pod.metadata.name or "").split("-")
-                svc = "-".join(parts[:-2]) if len(parts) > 2 else pod.metadata.name
-            by_service.setdefault(svc, []).append(_pod_to_dict(pod))
+            self._ensure_clients(cluster)
+            if self._core_v1 is None:
+                logger.warning("AKSAdapter.list_all_pods skipped: clients not configured for cluster=%s", cluster_name)
+                continue
+
+            target_namespaces = list(cluster.get("namespaces", []))
+            if discover_namespaces and namespace is None:
+                pods_all_ns = None
+                try:
+                    # Preferred runtime discovery path: list pods across all namespaces.
+                    pods_all_ns = self._core_v1.list_pod_for_all_namespaces()
+                    target_namespaces = sorted(
+                        {
+                            str(p.metadata.namespace)
+                            for p in pods_all_ns.items
+                            if getattr(p, "metadata", None) and getattr(p.metadata, "namespace", None)
+                        }
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "AKSAdapter.list_all_pods all-namespace pod listing failed for cluster=%s: %s",
+                        cluster_name,
+                        exc,
+                    )
+                try:
+                    discovered = self.list_namespaces(cluster_names=[cluster_name]).get(cluster_name, [])
+                    if discovered:
+                        target_namespaces = discovered
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "AKSAdapter.list_all_pods namespace discovery failed for cluster=%s: %s",
+                        cluster_name,
+                        exc,
+                    )
+
+            if pods_all_ns is not None and namespace is None:
+                pod_iter = pods_all_ns.items
+                for pod in pod_iter:
+                    target_ns = str(getattr(getattr(pod, "metadata", None), "namespace", "") or "")
+                    if not target_ns:
+                        continue
+                    labels = pod.metadata.labels or {}
+                    svc = labels.get("app") or labels.get("app.kubernetes.io/name") or ""
+                    if not svc:
+                        parts = (pod.metadata.name or "").split("-")
+                        svc = "-".join(parts[:-2]) if len(parts) > 2 else pod.metadata.name
+
+                    bucket = by_service.setdefault(
+                        svc,
+                        {
+                            "namespaces": set(),
+                            "clusters": set(),
+                            "pods": [],
+                        },
+                    )
+                    bucket["namespaces"].add(target_ns)
+                    bucket["clusters"].add(cluster_name)
+                    pod_payload = _pod_to_dict(pod)
+                    pod_payload["cluster_name"] = cluster_name
+                    bucket["pods"].append(pod_payload)
+                continue
+
+            for target_ns in target_namespaces:
+                try:
+                    pod_list = self._core_v1.list_namespaced_pod(namespace=target_ns)
+                except Exception as exc:
+                    logger.warning(
+                        "AKSAdapter.list_all_pods failed for cluster=%s namespace=%s: %s",
+                        cluster_name,
+                        target_ns,
+                        exc,
+                    )
+                    kubectl_items = _kubectl_get_pods(target_ns)
+                    if not kubectl_items:
+                        continue
+
+                    for item in kubectl_items:
+                        metadata = item.get("metadata", {}) if isinstance(item, dict) else {}
+                        status = item.get("status", {}) if isinstance(item, dict) else {}
+                        labels = metadata.get("labels", {}) if isinstance(metadata, dict) else {}
+                        pod_name = str(metadata.get("name") or "")
+                        svc = labels.get("app") or labels.get("app.kubernetes.io/name") or ""
+                        if not svc:
+                            parts = pod_name.split("-")
+                            svc = "-".join(parts[:-2]) if len(parts) > 2 else pod_name
+
+                        container_statuses = status.get("containerStatuses", []) if isinstance(status, dict) else []
+                        containers = []
+                        for cs in container_statuses if isinstance(container_statuses, list) else []:
+                            if not isinstance(cs, dict):
+                                continue
+                            containers.append(
+                                {
+                                    "name": str(cs.get("name") or "main"),
+                                    "ready": bool(cs.get("ready", False)),
+                                    "restart_count": int(cs.get("restartCount") or 0),
+                                    "state": {},
+                                }
+                            )
+
+                        bucket = by_service.setdefault(
+                            svc,
+                            {
+                                "namespaces": set(),
+                                "clusters": set(),
+                                "pods": [],
+                            },
+                        )
+                        bucket["namespaces"].add(target_ns)
+                        bucket["clusters"].add(cluster_name)
+                        bucket["pods"].append(
+                            {
+                                "name": pod_name,
+                                "namespace": target_ns,
+                                "phase": status.get("phase"),
+                                "containers": containers,
+                                "cluster_name": cluster_name,
+                            }
+                        )
+                    continue
+
+                for pod in pod_list.items:
+                    labels = pod.metadata.labels or {}
+                    svc = labels.get("app") or labels.get("app.kubernetes.io/name") or ""
+                    if not svc:
+                        # Derive from pod name: strip last two hash segments
+                        parts = (pod.metadata.name or "").split("-")
+                        svc = "-".join(parts[:-2]) if len(parts) > 2 else pod.metadata.name
+
+                    bucket = by_service.setdefault(
+                        svc,
+                        {
+                            "namespaces": set(),
+                            "clusters": set(),
+                            "pods": [],
+                        },
+                    )
+                    bucket["namespaces"].add(target_ns)
+                    bucket["clusters"].add(cluster_name)
+                    pod_payload = _pod_to_dict(pod)
+                    pod_payload["cluster_name"] = cluster_name
+                    bucket["pods"].append(pod_payload)
 
         services = []
-        for svc_name, pods in by_service.items():
+        for svc_name, bucket in by_service.items():
+            pods = bucket.get("pods", [])
+            namespace_list = sorted(bucket.get("namespaces", set()))
             # Determine service status from pod health
             any_failed = any(
                 p.get("phase") not in ("Running", "Succeeded") or
@@ -423,12 +715,68 @@ class AKSAdapter:
             status = "hot" if any_failed else ("recovering" if any_restarting else "high")
             services.append({
                 "name": svc_name,
-                "namespace": ns,
+                "namespace": ",".join(namespace_list),
+                "namespaces": namespace_list,
+                "clusters": sorted(bucket.get("clusters", set())),
                 "pods": pods,
                 "status": status,
             })
 
         return {"services": services}
+
+    def list_namespaces(
+        self,
+        service_name: str | None = None,
+        cluster_names: list[str] | None = None,
+    ) -> dict[str, list[str]]:
+        """Discover namespaces from AKS at runtime, grouped by cluster name."""
+        cfg, _ = self._resolved_runtime(service_name, namespace=None)
+        clusters = _cluster_entries(cfg, namespace_override=None)
+        selected_clusters = {c.lower() for c in (cluster_names or []) if str(c).strip()}
+        discovered: dict[str, list[str]] = {}
+
+        for cluster in clusters:
+            cluster_name = str(cluster.get("cluster_name") or "default")
+            if selected_clusters and cluster_name.lower() not in selected_clusters:
+                continue
+
+            self._ensure_clients(cluster)
+            if self._core_v1 is None:
+                continue
+
+            try:
+                rows = self._core_v1.list_namespace()
+                names = sorted({str(ns.metadata.name) for ns in rows.items if getattr(ns, "metadata", None) and getattr(ns.metadata, "name", None)})
+                discovered[cluster_name] = names
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "AKSAdapter.list_namespaces failed for cluster=%s: %s",
+                    cluster_name,
+                    exc,
+                )
+                try:
+                    pods = self._core_v1.list_pod_for_all_namespaces()
+                    names = sorted(
+                        {
+                            str(p.metadata.namespace)
+                            for p in pods.items
+                            if getattr(p, "metadata", None) and getattr(p.metadata, "namespace", None)
+                        }
+                    )
+                    if names:
+                        discovered[cluster_name] = names
+                        continue
+                except Exception:
+                    pass
+                kubectl_names = _kubectl_list_namespaces()
+                if kubectl_names:
+                    discovered[cluster_name] = kubectl_names
+                    continue
+                fallback = [str(ns).strip() for ns in cluster.get("namespaces", []) if str(ns).strip()]
+                if fallback:
+                    discovered[cluster_name] = sorted(set(fallback))
+
+        return discovered
 
     def rollback_deployment(
         self,
@@ -444,6 +792,9 @@ class AKSAdapter:
 
         Returns ``True`` on success, ``False`` on any error.
         """
+        cfg, ns = self._resolved_runtime(service_name, namespace)
+        self._ensure_clients(cfg)
+
         if self._apps_v1 is None:
             logger.warning(
                 "AKSAdapter.rollback_deployment skipped: clients not configured (service=%s)",
@@ -451,7 +802,6 @@ class AKSAdapter:
             )
             return False
 
-        ns = namespace or self._config.get("default_namespace", "default")
         dep_name = self._resolve_deployment_name(service_name, ns)
 
         try:
@@ -494,6 +844,9 @@ class AKSAdapter:
 
         Returns ``True`` on success, ``False`` on any error.
         """
+        cfg, ns = self._resolved_runtime(service_name, namespace)
+        self._ensure_clients(cfg)
+
         if self._apps_v1 is None:
             logger.warning(
                 "AKSAdapter.scale_deployment skipped: clients not configured (service=%s)",
@@ -501,7 +854,6 @@ class AKSAdapter:
             )
             return False
 
-        ns = namespace or self._config.get("default_namespace", "default")
         dep_name = self._resolve_deployment_name(service_name, ns)
 
         try:
@@ -539,6 +891,9 @@ class AKSAdapter:
         Returns a list of ``{"pod": "<name>", "logs": "<text>"}`` dicts.
         Returns an empty list if clients are not configured or on error.
         """
+        cfg, ns = self._resolved_runtime(service_name, namespace)
+        self._ensure_clients(cfg)
+
         if self._core_v1 is None:
             logger.warning(
                 "AKSAdapter.get_pod_logs skipped: clients not configured (service=%s)",
@@ -546,7 +901,6 @@ class AKSAdapter:
             )
             return []
 
-        ns = namespace or self._config.get("default_namespace", "default")
         prefixed_name = f"{ns}-{service_name}"
         results: list[dict[str, str]] = []
 
@@ -580,3 +934,15 @@ class AKSAdapter:
             )
 
         return results
+
+
+def _default_config() -> dict[str, Any]:
+    in_cluster_raw = str(os.environ.get("AKS_IN_CLUSTER", "")).strip().lower()
+    in_cluster = in_cluster_raw in {"1", "true", "yes", "on"}
+    return {
+        "in_cluster": in_cluster,
+        "kube_config_path": os.environ.get("KUBE_CONFIG_PATH", "~/.kube/config"),
+        "default_namespace": os.environ.get("AKS_NAMESPACE", ""),
+        "cluster_name": os.environ.get("AKS_CLUSTER_NAME", ""),
+        "resource_group": os.environ.get("AKS_RESOURCE_GROUP", ""),
+    }

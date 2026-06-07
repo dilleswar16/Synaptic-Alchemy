@@ -15,7 +15,7 @@ export function SimilarIncidentsSection({ incidents }: { incidents: SimilarIncid
   if (incidents.length === 0) return null
 
   return (
-    <Section title={`Similar Past Incidents · ${incidents.length} found`}>
+    <Section title={`Similar Past Incidents · ${incidents.length} found`} info="Previous Corvin investigations resolved for the same service and environment, surfaced to reveal recurring failure modes and reduce repeated diagnostic effort across your team.">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {incidents.map((inc) => {
           const date   = inc.completed_at.slice(0, 10)
