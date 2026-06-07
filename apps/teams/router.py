@@ -49,6 +49,10 @@ from corvin.core.config_loader import get_env, load_config
 router = APIRouter()
 _log = logging.getLogger(__name__)
 
+_BOT_RUNTIME_CACHE_KEY: tuple[str, str, str] | None = None
+_BOT_ADAPTER: CloudAdapter | None = None
+_BOT_INSTANCE: CorvinBot | None = None
+
 
 # ── Config helpers ────────────────────────────────────────────────────────────
 
@@ -76,13 +80,57 @@ def _resolve_env(value: str) -> str:
 
 def get_corvin_bot() -> CorvinBot:
     """Return a configured CorvinBot instance.  Override in tests."""
-    return CorvinBot()
+    global _BOT_INSTANCE
+    if _BOT_INSTANCE is None:
+        _BOT_INSTANCE = CorvinBot()
+    return _BOT_INSTANCE
+
+
+def _get_bot_runtime(cfg: dict[str, Any]) -> tuple[CloudAdapter, CorvinBot]:
+    """Build or reuse the Bot Framework adapter and bot instance.
+
+    The deployed branch was recreating the adapter on every request and also
+    forcing a managed-identity config even though the integration settings are
+    secret-based. Reusing the runtime trims latency and avoids auth mismatches.
+    """
+    global _BOT_RUNTIME_CACHE_KEY, _BOT_ADAPTER, _BOT_INSTANCE
+
+    app_id = _resolve_env(str(cfg.get("app_id", "")))
+    app_password = _resolve_env(str(cfg.get("app_password", "")))
+    tenant_id = _resolve_env(str(cfg.get("tenant_id", "")))
+    cache_key = (app_id, app_password, tenant_id)
+
+    if _BOT_RUNTIME_CACHE_KEY == cache_key and _BOT_ADAPTER is not None and _BOT_INSTANCE is not None:
+        return _BOT_ADAPTER, _BOT_INSTANCE
+
+    class _BotConfig:  # simple config bag read by ConfigurationServiceClientCredentialFactory
+        if app_password:
+            # Secret-based Azure Bot registration (current deployed config).
+            APP_TYPE = "SingleTenant" if tenant_id else "MultiTenant"
+            APP_PASSWORD = app_password
+            APP_TENANTID = tenant_id
+        else:
+            # Managed identity fallback for future deployments.
+            APP_TYPE = "UserAssignedMsi"
+            APP_PASSWORD = ""
+            APP_TENANTID = tenant_id
+
+        APP_ID = app_id
+
+    credentials_factory = ConfigurationServiceClientCredentialFactory(_BotConfig())
+    bot_auth = ConfigurationBotFrameworkAuthentication(
+        _BotConfig(), credentials_factory=credentials_factory
+    )
+    _BOT_ADAPTER = CloudAdapter(bot_auth)
+    _BOT_INSTANCE = CorvinBot(adapter=_BOT_ADAPTER, app_id=app_id)
+    _BOT_RUNTIME_CACHE_KEY = cache_key
+    return _BOT_ADAPTER, _BOT_INSTANCE
 
 
 # ── Route ─────────────────────────────────────────────────────────────────────
 
 
-@router.post("/messages", status_code=201)
+@router.post("/messages", status_code=200)
 async def messages(
     request: Request,
 ) -> Response:
@@ -115,21 +163,8 @@ async def messages(
             media_type="text/plain",
         )
 
-    # ── Build adapter from config (CloudAdapter with User-Assigned Managed Identity) ──────
-    app_id = _resolve_env(str(cfg.get("app_id", "")))
-    tenant_id = _resolve_env(str(cfg.get("tenant_id", "")))
-
-    class _BotConfig:  # simple config bag read by ConfigurationServiceClientCredentialFactory
-        APP_TYPE = "UserAssignedMsi"
-        APP_ID = app_id
-        APP_TENANTID = tenant_id
-        APP_PASSWORD = ""
-
-    credentials_factory = ConfigurationServiceClientCredentialFactory(_BotConfig())
-    bot_auth = ConfigurationBotFrameworkAuthentication(
-        _BotConfig(), credentials_factory=credentials_factory
-    )
-    adapter = CloudAdapter(bot_auth)
+    # Build or reuse the adapter + bot instance.
+    adapter, bot_instance = _get_bot_runtime(cfg)
 
     # ── Parse body ────────────────────────────────────────────────────────────
     try:
@@ -142,11 +177,32 @@ async def messages(
     activity = Activity().deserialize(body)
     auth_header = request.headers.get("Authorization", "")
 
+    if not auth_header:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Authorization header required for Teams bot messages."},
+        )
+
     # ── Dispatch to bot ───────────────────────────────────────────────────────
     # Pass adapter + app_id so the bot can use continue_conversation for agentic replies.
-    bot_instance = CorvinBot(adapter=adapter, app_id=app_id)
     # CloudAdapter.process_activity has auth_header first, activity second (opposite of BotFrameworkAdapter)
-    invoke_response = await adapter.process_activity(auth_header, activity, bot_instance.on_turn)
+    try:
+        invoke_response = await adapter.process_activity(auth_header, activity, bot_instance.on_turn)
+    except Exception as exc:
+        # Invalid/expired auth tokens should fail clearly instead of surfacing as
+        # a generic gateway timeout or unhandled server error.
+        message = str(exc).lower()
+        if "auth" in message or "token" in message or "unauthor" in message:
+            _log.warning("Teams auth failed: %s", exc)
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Teams bot authorization failed."},
+            )
+        _log.exception("Teams bot dispatch failed: %s", exc)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Teams bot dispatch failed."},
+        )
 
     if invoke_response:
         return JSONResponse(
