@@ -28,6 +28,7 @@ jobs:
       cd apps/web
       npm ci
       npm run build
+      rm -rf node_modules
     displayName: 'Build Vite app'
     env:
       VITE_API_URL: https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net
