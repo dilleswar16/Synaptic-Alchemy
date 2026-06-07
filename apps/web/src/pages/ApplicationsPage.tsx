@@ -3039,7 +3039,7 @@ function SimulatorPresetsTab({ appId, services }: { appId: string; services: App
 
 // ── Application Detail Panel ──────────────────────────────────────────────────
 
-type Tab = 'services' | 'connectors' | 'notifications' | 'slo' | 'simulator_presets' | 'knowledge' | 'runbooks'
+type Tab = 'services' | 'connectors' | 'notifications' | 'slo' | 'simulator_presets' | 'knowledge' | 'runbooks' | 'environments'
 
 function AppDetail({ appId }: { appId: string }) {
   const navigate = useNavigate()
@@ -3078,6 +3078,7 @@ function AppDetail({ appId }: { appId: string }) {
     { key: 'knowledge',         label: 'Knowledge Base' },
     { key: 'runbooks',          label: 'Runbook Library' },
     { key: 'simulator_presets', label: 'Simulator Presets' },
+    { key: 'environments',      label: 'Environments' },
   ]
 
   return (
@@ -3184,6 +3185,7 @@ function AppDetail({ appId }: { appId: string }) {
           {tab === 'knowledge' && <KnowledgeBaseTab appId={app.id} />}
           {tab === 'runbooks' && <RunbookLibraryTab appId={app.id} services={app.services ?? []} />}
           {tab === 'simulator_presets' && <SimulatorPresetsTab appId={app.id} services={app.services ?? []} />}
+          {tab === 'environments' && <EnvironmentsTab appId={app.id} />}
         </div>
       </div>
     </div>
