@@ -25,27 +25,28 @@ incident replay). All automated actions enforce human-approval gates.
 
 **V5.3 "AI INTELLIGENCE SUITE" complete (2026-06-01).** Alert correlation, capacity forecasting, conversational runbook builder, War Games page, War Room banner shipped.  
 **V5.4 "AI RUNBOOK MANAGEMENT" complete (2026-06-05).** Full-lifecycle runbook system with DB-backed library, self-updating GitOps loop, predictive alert enrichment, and UI scaffold guide. See [What Changed in V5.4](#what-changed-in-v54-2026-06-05) below.  
-**Now building:** Further refinement / evaluation / next feature iteration.
+**Now building:** Phase 1 — Productization & Genericization. Stripping MetLife/CHAD-specific content and making the platform deployable for any customer through configuration only.
 
-Read the active version scope BEFORE writing any code:
-- `docs/copilot-context/versions/hackathon-roadmap.md` ← historical reference
+## Active Phase — Productization & Genericization
 
-## Enterprise Refinement Track
+**Phase:** 1 of 6  
+**Goal:** Transform Corvin from a MetLife/CHAD-specific hackathon solution into a reusable product platform.  
+**Entry Score:** 28% productized (core engine is generic; assets, config, knowledge base, branding are not).  
+**Exit Criteria:** A different customer can deploy and onboard through configuration only — no source-code changes.
 
-The active productization work now lives under:
-- `docs/copilot-context/versions/enterprise-refinement/README.md`
-- `docs/copilot-context/versions/enterprise-refinement/plan.md`
-- `docs/copilot-context/versions/enterprise-refinement/ev1_connector_identity/`
+**Do NOT work on authentication, RBAC, billing, or multi-tenancy. Those are Phase 3–5.**
 
-Current slice:
-- EV1 — Connector Onboarding And Identity Model
+Read before starting any Phase 1 work:
+- `docs/PRODUCTIZATION_BACKLOG.md` ← 30-item prioritized backlog
+- `docs/PRODUCTIZATION_ASSESSMENT.md` ← full audit findings and strategy
+- `PROJECT_STATUS.md` ← current phase state and active milestones
 
-What EV1 decides:
-- where connector config lives
-- how credentials are resolved at runtime
-- which identity model is default in Azure
-- how RBAC should be shaped around the connector model
-- how onboarding is exposed through the admin surface
+**Next actions (in order):**
+1. **PB-004** — Remove Azure tenant URL from `.env.example` line 78
+2. **PB-001** — Delete `apps/web/public/metlife-logo.svg`
+3. **PB-002** — Remove `knowledge/runbooks/chad-*.md` and `fundapis.md`
+4. **PB-003** — Rebuild `knowledge/runbooks/catalog.json` (generic keywords only)
+5. **PB-006** — Replace MetLife email addresses in test fixtures
 
 ---
 
@@ -482,13 +483,13 @@ API docs available at: `http://localhost:8000/docs`
 # Activate venv first
 C:\venv\corvin\Scripts\Activate.ps1
 
-pytest tests/ -v                         # Run all 155+ tests
+pytest tests/ -v                         # Run all tests (437+ at V5.4)
 pytest tests/slices/ -v                  # Run slice tests only
 pytest -k "test_approval" -v             # Run a specific test by name
 pytest tests/ -v --tb=short              # Short traceback on failures
 ```
 
-**All 155+ existing tests must remain GREEN after every change.**
+**All existing tests must remain GREEN after every change.**
 If a change breaks an existing test, fix the test OR fix the code — never skip or delete the test.
 
 ---
@@ -553,7 +554,7 @@ apps/
                   #              RunbookBuilderChat, WarRoomBanner, NavBar, BlastRadiusCard, …
                   #   public/metlife-logo.svg — MetLife wordmark (served at /metlife-logo.svg)
 
-alembic/          # Alembic migration scripts (0001 → 0021)
+alembic/          # Alembic migration scripts (0001 → 0024+)
 config/           # YAML config per integration and environment
 knowledge/
   site.md         # Real infra facts injected into every LLM prompt — keep accurate
@@ -619,13 +620,12 @@ state in Postgres. The gate is enforced at the API route level, not inside the s
 All `config/integrations/*.yaml` files use `${ENV_VAR}` placeholders.
 The `_expand()` helper in each adapter resolves them at runtime via `os.environ`.
 
-### 6. Dynamic Context Windows (To be implemented in V2 Slice 1)
-`InvestigationRequest` does NOT yet have a `lookback_minutes` field.  
-This field must be added as part of V2 Slice 1.  
-Once added, the rule is:
+### 6. Dynamic Context Windows
+`InvestigationRequest.lookback_minutes` controls the evidence look-back window:
 - Manual triggers (CLI/Teams/API): default `60` minutes
-- Automated Azure Monitor alerts: extract `firedDateTime`, compute delta, cap at `15` minutes
-- Never hardcode `60` in adapter calls after Slice 1 is merged.
+- Automated Azure Monitor alerts: extracted from `firedDateTime`, capped at `15` minutes
+- Per-application/environment overrides stored in `ApplicationEnvironmentRow.lookback_minutes`
+- Do not hardcode `60` in adapter calls — always use `request.lookback_minutes`.
 
 ---
 
@@ -635,10 +635,18 @@ Once added, the rule is:
 - ❌ Do not call `ExecutionService` without checking `ApprovalStatus.approved`.
 - ❌ Do not modify `corvin/core/contracts.py` without a matching Alembic migration.
 - ❌ Do not use `json_schema` strict mode with LiteLLM + Azure OpenAI.
-- ❌ Do not start V2.5 features (memory, briefings, confidence meter) until V2 exit criteria are met.
 - ❌ Do not mock adapters using `unittest.mock.patch` — use Fake subclasses instead.
 - ❌ Do not invent new environment variable names — always check `.env.example` first.
 - ❌ Do not add new env variable names without updating `.env.example` and `setup/04_env_file.md`.
+
+**Phase 1 — Productization-specific rules:**
+- ❌ Do not add any MetLife, CHAD, fundapis, fundsso, or partnerapis references to any file.
+- ❌ Do not hardcode GBP, en-GB, or en-GB-RyanNeural — use the configuration resolution hierarchy.
+- ❌ Do not write business metrics (users/pod, revenue/user, SLA targets) as hardcoded constants — they belong in ApplicationEnvironmentRow or SloConfigRow.
+- ❌ Do not commit binary assets (logos, fonts, images) to the repository root or public/ without a runtime loading mechanism.
+- ❌ Do not add customer-specific runbooks to knowledge/runbooks/ — they belong in the database (RunbookRow) scoped by application_id.
+- ❌ Do not start authentication, RBAC, multi-tenancy, or billing work — those are Phase 3–5.
+- ❌ Do not use MetLife employee email addresses in test fixtures — use sre@example.com.
 
 ---
 
@@ -676,39 +684,32 @@ keywords: [oom, heap, memory, java, gc]
 
 ---
 
-## V2 Starting Point — Slice 1: Approval State Model
+## Phase Sequence & Current Focus
 
-**Files to create/modify:**
+All V1–V5.4 hackathon features are complete. The platform is now on the productization and enterprise hardening track.
 
-1. `corvin/core/contracts.py`
-   - Add `ApprovalStatus` enum: `pending | approved | rejected | executed`
-   - Add `lookback_minutes: int = 60` field to `InvestigationRequest`
-   - Add `approval_status: ApprovalStatus` field to `InvestigationResult`
+| Phase | Name | Status |
+|-------|------|--------|
+| Phase 0 | Knowledge & Governance | Complete |
+| **Phase 1** | **Productization & Genericization** | **Active** |
+| Phase 2 | Architecture Modernization | Planned |
+| Phase 3 | Enterprise Foundation | Planned |
+| Phase 4 | Multi-Tenant Foundation | Planned |
+| Phase 5 | SaaS Scale | Planned |
+| Phase 6 | Product Expansion | Planned |
 
-2. `corvin/storage/models.py` (SQLAlchemy)
-   - Add `approval_status` column (String, default `"pending"`)
+**Before writing any code:**
+1. Read `PROJECT_STATUS.md` — current phase, active milestones, known blockers
+2. Read `docs/PRODUCTIZATION_BACKLOG.md` — prioritized Phase 1 work items
+3. Read `docs/TECH_DEBT.md` — know what debt exists before adding to it
+4. Read `docs/ROADMAP.md` — full phase sequence
 
-3. `alembic/versions/` — new revision
-   - `alembic revision --autogenerate -m "add approval_status"`
-   - Verify with `alembic upgrade head`
+**Phase 1 focus areas (in order):**
+- Brand & asset genericization — MetLife logo, branding API
+- Knowledge base genericization — remove CHAD runbooks, scope by application_id
+- Demo data genericization — Acme Retail replaces CHAD topology
+- Configuration externalization — currency, locale, voice, business metrics
+- Connector onboarding hardening — connection test, evidence preview, toolset profiles
+- Prompt registry — migrate prompts from Python to versioned YAML files
 
-4. `tests/slices/test_slice_v2_s1_approval_state.py`
-   - Test that `ApprovalStatus` enum has all 4 values
-   - Test that `InvestigationRequest` accepts `lookback_minutes`
-   - Test that `InvestigationResult` persists and retrieves `approval_status` correctly
-
-**Do not move to Slice 2 until Slice 1 tests are green and `alembic upgrade head` succeeds.**
-
----
-
-## V2 Required Environment Variables (Teams Bot — Slices 3-5)
-
-When building Teams bot functionality, these env vars are needed.
-Add them to `.env.example` when creating the Teams bot slice:
-
-```env
-# Teams Bot (V2 Slice 5)
-TEAMS_APP_ID=<Azure Bot Framework App ID>
-TEAMS_APP_PASSWORD=<Azure Bot Framework App Password>
-TEAMS_WEBHOOK_URL=<already in .env.example — outbound webhook>
-```
+**For context on what CHAD is:** CHAD was the original customer development application (MetLife Australia digital channels platform). All CHAD-specific content is being removed from the product in Phase 1. The demo application is now "Acme Retail Platform". See `docs/DEMO_SETUP.md` (to be created in Phase 1).

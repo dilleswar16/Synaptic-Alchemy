@@ -81,12 +81,19 @@ Built-in interpolation variables for `payload_template` and `default_value`:
 - `apps/api/seed_demo.py` seeds a single "CHAD" app with 3 services: `fundapis`, `fundsso`, `partnerapis`
 - Idempotent: checks `filter_by(name="CHAD")` before inserting
 
+## Current State
+
+**Version:** V5.4 complete. All hackathon feature versions (V1–V5.4) are done.  
+**Active track:** Enterprise Refinement — EV1 Connector Onboarding & Identity Model.  
+**Next:** EV2 Trust Foundation (Authentication, RBAC, Audit trail).
+
 ## Delivery Rules
 
-- Work version by version: V1 → V1.5 → V2 → V2.5 → V3 → V3.5 → V3.7 → V3.9 → V4.
-- Do NOT start a new version until the previous version's exit criteria are fully met.
-- Within each version, build testable slices instead of one large end-to-end flow.
-- Keep `progress.md` updated whenever a major doc set, prompt, or implementation slice is completed.
+- The hackathon build sequence (V1 → V5.4) is complete. Do not revisit it.
+- All new work follows the Enterprise Refinement sequence: EV1 → EV2 → EV3 → EV4 → EV5.
+- Within each EV slice, build testable vertical slices instead of broad scaffolding.
+- See `docs/ROADMAP.md` for the full enterprise build sequence.
+- The `progress.md` file is deprecated — roadmap and status live in `docs/ROADMAP.md` and `AGENTS.md`.
 
 ## Architecture Rules
 
@@ -103,15 +110,30 @@ Built-in interpolation variables for `payload_template` and `default_value`:
 
 ## Context Usage
 
-- Use `progress.md` as the first resumption file.
-- Use `docs/copilot-context/shared/` for A-to-Z product context.
-- Use `docs/copilot-context/versions/` for version scope and sequencing.
+- Use `AGENTS.md` as the primary resumption file (version state, current focus, conventions).
+- Use `ARCHITECTURE.md` for system architecture and module map.
+- Use `CONTRIBUTING.md` for code conventions and testing patterns.
+- Use `docs/ROADMAP.md` for build sequence and enterprise plan.
+- Use `docs/TECH_DEBT.md` before any refactor (know what debt exists).
+- Use `docs/ENTERPRISE_READINESS.md` for enterprise gap details.
+- Use `docs/copilot-context/shared/` for deep product context.
+- Use `docs/copilot-context/versions/enterprise-refinement/` for active EV slice specs.
 - Use `docs/copilot-context/config-blueprints/` for configuration layout decisions.
 
 ## Technology Constraints
 
 - Azure, not AWS.
-- Elastic is the primary store for logs and application or AKS metrics.
-- Log Analytics is the primary source for APIM evidence.
-- Azure alerts are the primary automation trigger source.
-- No authentication is required for V1, but the system should leave room for future auth.
+- Elasticsearch is the primary store for application logs and AKS metrics.
+- Azure Log Analytics is the primary source for APIM evidence.
+- Azure Monitor alerts are the primary automation trigger source.
+- Authentication is **required** — all routes must be protected via OIDC/JWT (EV2). This is the highest-priority enterprise gap.
+- LiteLLM is the unified LLM gateway — never call Azure OpenAI or OpenAI directly.
+- PostgreSQL is the production database — SQLite is for local dev and testing only.
+
+## Enterprise Architecture Rules
+
+- Authentication must be added before any external customer deployment (TD-C1).
+- `approved_by` identity must come from JWT claims, never from request parameters (TD-C2).
+- No hardcoded customer-specific values (currency, locale, org names) in code or config (TD-M5).
+- All automated actions require human approval — the gate is API-enforced, not UI-enforced.
+- See `docs/TECH_DEBT.md` for the full debt register with remediation guidance.
