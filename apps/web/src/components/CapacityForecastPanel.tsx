@@ -338,7 +338,7 @@ export default function CapacityForecastPanel() {
             }}
           >
             <option value="default">default</option>
-            <option value="chad">chad</option>
+            <option value="acme-retail">acme-retail</option>
             <option value="ingestion">ingestion</option>
             <option value="kube-system">kube-system</option>
           </select>

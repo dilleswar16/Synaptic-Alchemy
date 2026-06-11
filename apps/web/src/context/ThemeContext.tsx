@@ -21,7 +21,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       return 'dark'
     }
 
-    // 3. Default to light (MetLife brand is light-first)
+    // 3. Default to light
     return 'light'
   })
 

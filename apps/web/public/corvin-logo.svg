@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44" fill="none">
+  <!-- Icon: indigo rounded square -->
+  <rect x="2" y="2" width="40" height="40" rx="10" fill="#6366f1"/>
+  <!-- Stylised C arc (path, not text) — represents investigation loop / SRE co-pilot -->
+  <path d="M30 15.5a10.5 10.5 0 1 0 0 13" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <!-- Signal pulse dot at arc terminus -->
+  <circle cx="30" cy="28.5" r="2.5" fill="#a5b4fc"/>
+  <!-- Wordmark -->
+  <text x="52" y="29"
+    font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"
+    font-size="20" font-weight="700" fill="currentColor" letter-spacing="-0.5">Corvin</text>
+</svg>

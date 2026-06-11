@@ -369,9 +369,9 @@ function AddServiceModal({ appId, onClose }: { appId: string; onClose: () => voi
               <input style={INPUT_STYLE} value={gitAssignee} onChange={e => setGitAssignee(e.target.value)} placeholder="e.g. octocat — a real GitHub user account" />
             </Field>
             <Field label="Custom Copilot Agent">
-              <input style={INPUT_STYLE} value={gitCopilotAgent} onChange={e => setGitCopilotAgent(e.target.value)} placeholder="e.g. chad_agency — file stem from .github/agents/" />
+              <input style={INPUT_STYLE} value={gitCopilotAgent} onChange={e => setGitCopilotAgent(e.target.value)} placeholder="e.g. my_agent — file stem from .github/agents/" />
               <span style={{ fontSize: '0.7rem', color: 'var(--c-muted)', marginTop: 3, display: 'block' }}>
-                If set, issues are assigned to GitHub Copilot using this custom agent. Use the filename without extension (e.g. <code>chad_agency</code> for <code>.github/agents/chad_agency.agents.md</code>). Overrides the username field above.
+                If set, issues are assigned to GitHub Copilot using this custom agent. Use the filename without extension (e.g. <code>my_agent</code> for <code>.github/agents/my_agent.agents.md</code>). Overrides the username field above.
               </span>
             </Field>
           </div>
@@ -891,9 +891,9 @@ function ServiceCard({ svc, appId }: { svc: ApplicationService; appId: string })
             <input style={INPUT_STYLE} value={gitAssignee} onChange={e => setGitAssignee(e.target.value)} placeholder="e.g. octocat — a real GitHub user account" />
           </Field>
           <Field label="Custom Copilot Agent">
-            <input style={INPUT_STYLE} value={gitCopilotAgent} onChange={e => setGitCopilotAgent(e.target.value)} placeholder="e.g. chad_agency" />
+            <input style={INPUT_STYLE} value={gitCopilotAgent} onChange={e => setGitCopilotAgent(e.target.value)} placeholder="e.g. my_agent" />
             <span style={{ fontSize: '0.7rem', color: 'var(--c-muted)', marginTop: 3, display: 'block' }}>
-              File stem from <code>.github/agents/</code> — e.g. <code>chad_agency</code> for <code>chad_agency.agents.md</code>. When set, issues are routed to GitHub Copilot with this custom agent.
+              File stem from <code>.github/agents/</code> — e.g. <code>my_agent</code> for <code>my_agent.agents.md</code>. When set, issues are routed to GitHub Copilot with this custom agent.
             </span>
           </Field>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>

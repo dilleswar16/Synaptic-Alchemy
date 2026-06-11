@@ -1,0 +1,68 @@
+repos:
+  # ── Secret detection ──────────────────────────────────────────────────────
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: |
+          (?x)^(
+            .env.example|
+            corvin\.db.*|
+            \.secrets\.baseline
+          )$
+
+  # ── Customer contamination guard ─────────────────────────────────────────
+  # Blocks commits that (re)introduce MetLife or CHAD-specific strings into
+  # production code, config, and knowledge files. Reference/example content
+  # under knowledge/examples/chad/ is explicitly excluded.
+  - repo: local
+    hooks:
+      - id: no-metlife-refs
+        name: Block MetLife references in production files
+        language: pygrep
+        entry: '(?i)metlife\.com|@metlife\.|MetLife\s+(Australia|Global|Inc)|MetLife\s*·'
+        files: \.(py|ts|tsx|yaml|yml|json|md)$
+        exclude: |
+          (?x)^(
+            knowledge/examples/.*|
+            docs/.*|
+            AGENTS\.md|
+            README\.md|
+            \.pre-commit-config\.yaml
+          )$
+
+      - id: no-chad-hardcoded
+        name: Block hardcoded CHAD service names in production code
+        language: pygrep
+        entry: '(?i)(fundapis|fundsso|partnerapis|chad-fundapis|chad-fundsso|namespace["\s:=]+["\x27]chad["\x27])'
+        files: \.(py|ts|tsx|yaml|yml|json)$
+        exclude: |
+          (?x)^(
+            knowledge/examples/.*|
+            tests/.*
+          )$
+
+      - id: no-azure-tenant-ids
+        name: Block Azure tenant/subscription IDs in committed files
+        language: pygrep
+        entry: 'portal\.azure\.com/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+        files: \.(py|ts|tsx|yaml|yml|json|env|example|md)$
+        exclude: |
+          (?x)^(
+            docs/.*
+          )$
+
+  # ── Basic hygiene ─────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+        exclude: \.svg$
+      - id: check-yaml
+        exclude: ^config/prompts/
+      - id: check-json
+      - id: check-merge-conflict
+      - id: debug-statements

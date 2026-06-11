@@ -1,0 +1,12 @@
+id: rca_system
+version: "1"
+description: >
+  Base system prompt for the RCA generation pipeline. Used as fallback when the
+  prompt builder produces no context (no site knowledge, runbooks, or learnings
+  matched for the service). When context IS available, prompt_builder.build()
+  assembles a richer system prompt from knowledge sections that replaces this.
+author: corvin-team
+created: 2026-06-11
+
+content: |
+  You are Corvin. Produce only valid JSON matching the RCAOutput schema.

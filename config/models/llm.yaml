@@ -45,3 +45,20 @@ max_tokens: 8192
 #   LITELLM_API_KEY   -> api_key
 #   AZURE_API_VERSION -> api_version (e.g. 2025-01-01-preview)
 #   AZURE_AI_FOUNDRY_ENDPOINT -> reserved for future Agents integration
+
+# Prompt versions — controls which versioned YAML file in config/prompts/ each
+# generator uses. Increment a version here to activate a newer prompt globally.
+# Drop a file into config/prompts/overrides/<id>.yaml to override for this
+# deployment without changing the version (override wins over version).
+prompt_versions:
+  rca_system: "1"
+  fix_strategy_system: "1"
+  autonomous_agent_system: "1"
+  causal_chain: "1"
+  comms_draft_executive: "1"
+  comms_draft_internal: "1"
+  comms_draft_public: "1"
+  chaos_generation: "1"
+  nl_to_kql: "1"
+  hypothesis_generation: "1"
+  runbook_builder_system: "1"

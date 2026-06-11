@@ -22,42 +22,11 @@ litellm.drop_params = True
 
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import InvestigationResult
+from corvin.core.prompt_registry import get_prompt_registry
 
 _log = logging.getLogger(__name__)
 
 AudienceLevel = Literal["executive", "internal", "public"]
-
-_SYSTEM_PROMPTS: dict[AudienceLevel, str] = {
-    "executive": """\
-You are writing an executive incident summary for VP/C-suite stakeholders.
-Rules:
-- Lead with business impact (revenue, users affected, SLA breach risk)
-- Use plain language — no jargon, no stack traces
-- Include: status (investigating/mitigated/resolved), ETA if known, next update time
-- 3-5 sentences max. Bullet points preferred.
-- Professional, calm, factual tone
-Output ONLY the communication text. No fences or meta-commentary.""",
-
-    "internal": """\
-You are writing a technical status update for engineering teams.
-Rules:
-- Include affected service, environment, root cause hypothesis
-- Mention evidence sources consulted and key findings
-- Include recommended actions / ongoing remediation
-- Reference relevant metrics (error rate, latency, pod health)
-- 5-10 sentences. Can use technical terminology.
-Output ONLY the communication text. No fences or meta-commentary.""",
-
-    "public": """\
-You are writing a customer-facing status page update.
-Rules:
-- Acknowledge the issue without exposing internal details
-- State what users may experience (degraded performance, errors, etc.)
-- Provide current status and expected resolution timeline
-- Empathetic, transparent, professional tone
-- 2-4 sentences max. No technical jargon.
-Output ONLY the communication text. No fences or meta-commentary.""",
-}
 
 
 class CommsDraftGenerator:
@@ -81,7 +50,7 @@ class CommsDraftGenerator:
             response = litellm.completion(
                 model=model,
                 messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPTS[audience]},
+                    {"role": "system", "content": get_prompt_registry().get(f"comms_draft_{audience}")},
                     {"role": "user", "content": context},
                 ],
                 temperature=0.3,

@@ -1,6 +1,6 @@
 # Corvin — Product Roadmap
 
-**Last Updated:** 2026-06-10  
+**Last Updated:** 2026-06-11 (Sprint 3 complete)  
 **Status:** Authoritative — consolidates `progress.md`, `productization-plan.md`, `hackathon-roadmap.md`, prior EV1–EV5 plan  
 **Current Phase:** Phase 1 — Productization & Genericization
 
@@ -62,22 +62,40 @@ Phase 1 does not include authentication, RBAC, SSO, SCIM, billing, or multi-tena
 | Milestone | Description | Backlog Items | Status |
 |-----------|-------------|---------------|--------|
 | P1.A | Audit complete, backlog defined | — | **Done** |
-| P1.B | Brand & asset genericization | PB-001, PB-017, PB-019 | Planned |
-| P1.C | Knowledge base genericization | PB-002, PB-003, PB-007, PB-008 | Planned |
-| P1.D | Demo data & test fixture genericization | PB-005, PB-006, PB-016 | Planned |
-| P1.E | Configuration externalization | PB-009, PB-010, PB-011, PB-012 | Planned |
-| P1.F | Connector onboarding hardening | PB-013, PB-014, PB-015 | Planned |
-| P1.G | Prompt registry | PB-021 | Planned |
-| P1.H | Documentation genericization | PB-022, PB-025 | Planned |
-| P1.I | Developer experience improvements | PB-020, PB-023, PB-024 | Planned |
+| P1.A2 | CHAD classification + template library | PB-031, PB-032 | **Done** |
+| P1.B | Brand & asset genericization | PB-001, PB-017, PB-019 | **Done** — 2026-06-11 |
+| P1.C | Knowledge base genericization | PB-002, PB-003, PB-007, PB-008 | **Done** |
+| P1.D | Demo data & test fixture genericization | PB-005, PB-006, PB-016 | **Done** — 2026-06-11 |
+| P1.E | Configuration externalization | PB-009, PB-010, PB-011, PB-012 | **Done** — 2026-06-11 |
+| P1.F | Connector onboarding hardening | PB-013, PB-014, PB-015 | **Done** — 2026-06-11 |
+| P1.G | Prompt registry | PB-021 | **Done** — 2026-06-11 |
+| P1.H | Documentation genericization | PB-022, PB-025 | **In Progress** — PB-022 done; PB-025 remaining |
+| P1.I | Developer experience improvements | PB-020, PB-023, PB-024 | **Done** — 2026-06-11 |
 
-### Quick-Win Items (begin immediately)
+### Sprint 1 — Complete (2026-06-10 / 2026-06-11)
 
-1. **PB-004** — Remove Azure tenant URL from `.env.example` (TD-C3) — 1 line deletion
-2. **PB-001** — Delete MetLife logo from `apps/web/public/` — file deletion
-3. **PB-002** — Remove CHAD runbooks from `knowledge/runbooks/` — file deletions
-4. **PB-003** — Rebuild `catalog.json` with generic keywords only — 1 hour
-5. **PB-006** — Replace MetLife emails in test fixtures — 30 minutes
+All Sprint 1 P0 items delivered. Platform no longer contains MetLife branding, CHAD service names, or hardcoded Azure identifiers in the demo/test/asset layers.
+
+**Completed:** PB-004, PB-006, PB-002, PB-003, PB-032, PB-005, PB-017, PB-001
+
+### Sprint 2 — Complete (2026-06-11)
+
+All Sprint 2 configuration and connector items delivered. TD-H3 confirmed not blocking (0013 was already a proper merge migration, single head at 0027).
+
+**Completed:** TD-H3 (no code change needed), PB-009, PB-012, PB-013 (confirmed V5.4), PB-014, PB-010, PB-011, PB-015  
+**New Alembic migrations:** 0025 (locale/currency/voice), 0026 (blast radius metrics), 0027 (toolset profile)
+
+### Sprint 3 — Complete (2026-06-11)
+
+All Sprint 3 items delivered. Phase 1 productization is complete (one P3 polish item remaining).
+
+**Completed:** PB-016 (no-op), PB-021, PB-019, PB-020, PB-022, PB-023, PB-024  
+**New files:** `corvin/core/prompt_registry.py`, `config/prompts/*.v1.yaml` (11 files), `config/prompts/overrides/`, `.pre-commit-config.yaml`  
+**Test count after Sprint 3:** 83 pass across core test suites
+
+### Phase 1 — Effectively Complete
+
+Phase 1 exit criteria met: a new customer can deploy Corvin and onboard their applications through configuration only — no source-code modifications required. Only P3 polish item remaining: PB-025 (DEMO_SETUP.md documentation).
 
 **Reference:** `docs/PRODUCTIZATION_ASSESSMENT.md`, `docs/PRODUCTIZATION_BACKLOG.md`, `docs/PROMPT_ARCHITECTURE.md`
 

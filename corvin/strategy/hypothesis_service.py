@@ -30,44 +30,9 @@ litellm.drop_params = True
 
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import EvidenceBundle, InvestigationResult, RCAHypothesis
+from corvin.core.prompt_registry import get_prompt_registry
 
 _log = logging.getLogger(__name__)
-
-
-_SYSTEM_PROMPT = """\
-You are Corvin's hypothesis generation engine.
-
-Given an incident investigation result (service, evidence, initial RCA), produce
-EXACTLY {count} distinct, competing root-cause hypotheses.
-
-Rules:
-- Each hypothesis MUST take a genuinely different angle:
-  * h1: infrastructure angle (CPU/memory pressure, node failure, OOM, resource limits)
-  * h2: code/config change angle (recent deployment, env variable change, schema migration)
-  * h3: upstream/dependency angle (downstream service outage, 3rd-party API, DNS, network)
-- Do NOT converge hypotheses. If the evidence strongly favours one angle, still
-  generate plausible alternatives for the others.
-- confidence_score: float 0.0–1.0 reflecting how much the evidence supports this hypothesis
-- evidence_strength_pct: int 0–100 for UI progress bar (may differ from confidence_score)
-- supporting_signals: 2–5 concise bullet strings each ≤80 chars
-- refuting_signals: 1–3 concise bullet strings each ≤80 chars
-
-Output ONLY valid JSON matching this schema (no fences, no commentary):
-{
-  "hypotheses": [
-    {
-      "id": "h1",
-      "title": "Short label ≤60 chars",
-      "root_cause": "Full technical explanation of this hypothesis",
-      "evidence_ids": ["log_analytics_apim", "aks_context"],
-      "confidence_score": 0.75,
-      "evidence_strength_pct": 75,
-      "supporting_signals": ["Signal 1", "Signal 2"],
-      "refuting_signals": ["Counter-signal 1"]
-    }
-  ]
-}
-"""
 
 
 class HypothesisService:
@@ -102,9 +67,7 @@ class HypothesisService:
         min_signals: int = int(self._policy.get("debate_mode", {}).get("min_evidence_signals", 2))
 
         context = self._build_context(result)
-        # Use simple token replacement so JSON braces in the prompt body are not
-        # interpreted by str.format (which would raise KeyError on schema keys).
-        system = _SYSTEM_PROMPT.replace("{count}", str(count))
+        system = get_prompt_registry().get("hypothesis_generation", count=count)
         model = self._llm_config.get("fallback_model") or self._llm_config.get("model")
         if not model:
             raise ValueError(

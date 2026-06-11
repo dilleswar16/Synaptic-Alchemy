@@ -262,7 +262,7 @@ class EmailAdapter:
         <span style="font-family:monospace;color:#64748b;">{result.request_id[:8]}…</span>
       </td>
       <td align="right" style="font-size:11px;color:#cbd5e1;font-weight:600;">
-        MetLife · Australia
+        Corvin SRE Co-Pilot
       </td>
     </tr></table>
   </td></tr>

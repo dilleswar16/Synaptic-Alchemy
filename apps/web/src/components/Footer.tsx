@@ -89,7 +89,7 @@ export default function Footer() {
         alignItems: 'center',
       }}>
         <span style={{ color: 'rgba(255,255,255,0.40)', fontSize: '0.75rem' }}>
-          © {new Date().getFullYear()} MetLife. Internal use only.
+          © {new Date().getFullYear()} Corvin SRE Co-Pilot
         </span>
         <span style={{ color: 'rgba(255,255,255,0.40)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
           ◈ Operator UI

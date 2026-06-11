@@ -19,29 +19,9 @@ litellm.drop_params = True
 
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import InvestigationResult
+from corvin.core.prompt_registry import get_prompt_registry
 
 _log = logging.getLogger(__name__)
-
-_SYSTEM_PROMPT = """\
-You are Corvin's causal reasoning engine. Given an incident investigation result,
-produce a directed causal chain showing the sequence of events from root cause
-to customer-visible impact.
-
-Rules:
-- Output ONLY valid JSON matching the schema below. No fences, no commentary.
-- Each node has: id (string), label (short ≤60 chars), category (one of: trigger, failure, cascade, impact)
-- Each edge has: from_id, to_id, label (optional short description of causal link)
-- The chain should be 4-8 nodes (not too granular, not too abstract)
-- Start from the root cause and flow toward business/user impact
-- Use evidence references where possible
-
-Output schema:
-{
-  "nodes": [{"id": "n1", "label": "...", "category": "trigger|failure|cascade|impact"}],
-  "edges": [{"from_id": "n1", "to_id": "n2", "label": "..."}],
-  "summary": "One-line narrative of the causal chain"
-}
-"""
 
 
 class CausalChainGenerator:
@@ -63,7 +43,7 @@ class CausalChainGenerator:
                 response = litellm.completion(
                     model=attempt_model,
                     messages=[
-                        {"role": "system", "content": _SYSTEM_PROMPT},
+                        {"role": "system", "content": get_prompt_registry().get("causal_chain")},
                         {"role": "user", "content": context},
                     ],
                     temperature=0.1,

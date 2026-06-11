@@ -22,38 +22,9 @@ import litellm
 litellm.drop_params = True
 
 from corvin.core.config_loader import get_env, load_config
+from corvin.core.prompt_registry import get_prompt_registry
 
 _log = logging.getLogger(__name__)
-
-_SYSTEM_PROMPT = """\
-You are a KQL (Kusto Query Language) expert for Azure Log Analytics.
-Convert the user's natural language question into a valid KQL query.
-
-Available tables (use ONLY these):
-- ApiManagementGatewayLogs: APIM request logs (BackendId, ResponseCode, TotalTime, Url, CallerIpAddress, ApiId, OperationId)
-- ContainerLogV2: Kubernetes container stdout/stderr (ContainerName, PodName, LogMessage, TimeGenerated)
-- KubePodInventory: Pod status (Name, Namespace, PodStatus, ContainerCount, RestartCount)
-- KubeNodeInventory: Node status (Computer, Status, KubeletVersion)
-- Perf: Performance counters (ObjectName, CounterName, CounterValue, Computer, InstanceName)
-- AzureMetrics: Azure resource metrics (MetricName, Average, Maximum, ResourceId)
-- AppExceptions: Application Insights exceptions (ExceptionType, OuterMessage, InnermostMessage)
-
-Rules:
-- Output ONLY the KQL query. No explanation, no markdown fences.
-- Always include a time filter: | where TimeGenerated > ago(1h) (or user-specified range)
-- Limit results: add | take 50 unless user requests aggregation
-- NEVER use .drop, .set, .delete, .purge or any management commands
-- Use summarize for aggregation questions
-- Use project to select relevant columns
-- Use render for visualization hints when appropriate
-
-Examples:
-Q: "Show me 503 errors in the last hour"
-A: ApiManagementGatewayLogs | where TimeGenerated > ago(1h) | where ResponseCode == 503 | project TimeGenerated, BackendId, Url, TotalTime | take 50
-
-Q: "Which pods restarted the most today?"
-A: KubePodInventory | where TimeGenerated > ago(24h) | summarize TotalRestarts=max(RestartCount) by Name, Namespace | top 10 by TotalRestarts desc
-"""
 
 # Patterns that indicate destructive/management commands
 _BLOCKED_PATTERNS = re.compile(
@@ -85,7 +56,7 @@ class NLToKQLService:
             response = litellm.completion(
                 model=model,
                 messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "system", "content": get_prompt_registry().get("nl_to_kql")},
                     {"role": "user", "content": user_msg},
                 ],
                 temperature=0.0,

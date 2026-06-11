@@ -35,7 +35,8 @@ def build_roi_stats(
     Each dict must have at least ``created_at`` and ``completed_at`` ISO strings.
     """
     baseline_mttr = float(policy.get("baseline_mttr_minutes", 45))
-    hourly_rate   = float(policy.get("engineer_hourly_rate_gbp", 120))
+    # Read new key; fall back to deprecated engineer_hourly_rate_gbp for existing deployments
+    hourly_rate   = float(policy.get("engineer_hourly_rate", policy.get("engineer_hourly_rate_gbp", 120)))
     currency      = str(policy.get("roi_currency", "GBP"))
     period_months = 1
 

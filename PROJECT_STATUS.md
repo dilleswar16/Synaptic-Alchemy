@@ -1,6 +1,6 @@
 # Corvin — Project Status
 
-**Last Updated:** 2026-06-10  
+**Last Updated:** 2026-06-11  
 **Current Phase:** Phase 1 — Productization & Genericization  
 **Product Version:** V5.4 (feature-complete hackathon build)  
 **Roadmap Authority:** [docs/ROADMAP.md](docs/ROADMAP.md)
@@ -37,32 +37,86 @@ Transform Corvin from a MetLife/CHAD-specific hackathon solution into a reusable
 |-----------|-------------|--------|--------|
 | P1.A | Audit complete, backlog defined | **Done** | 2026-06-10 |
 | P1.A2 | CHAD classification + template library created (PB-031, PB-032) | **Done** | 2026-06-10 |
-| P1.B | Brand & asset genericization (PB-001, PB-017, PB-019) | Planned | — |
-| P1.C | Knowledge base genericization (PB-002, PB-003, PB-007, PB-008) | Planned | — |
-| P1.D | Demo data & test fixtures genericization (PB-005, PB-006, PB-016) | Planned | — |
-| P1.E | Configuration externalization (PB-009 through PB-012) | Planned | — |
-| P1.F | Connector onboarding hardening (PB-013, PB-014, PB-015) | Planned | — |
-| P1.G | Prompt registry implementation (PB-021) | Planned | — |
-| P1.H | Documentation genericization (PB-022, PB-025) | Planned | — |
-| P1.I | Developer experience (PB-020, PB-023, PB-024) | Planned | — |
+| P1.B | Brand & asset genericization (PB-001, PB-017, PB-019) | **Done** | 2026-06-11 |
+| P1.C | Knowledge base genericization (PB-002, PB-003, PB-007, PB-008) | **Done** | 2026-06-10 (PB-007/008 were already complete in schema) |
+| P1.D | Demo data & test fixtures genericization (PB-005, PB-006, PB-016) | **Done** | 2026-06-11 — PB-016 confirmed no-op |
+| P1.E | Configuration externalization (PB-009 through PB-012) | **Done** | 2026-06-11 |
+| P1.F | Connector onboarding hardening (PB-013, PB-014, PB-015) | **Done** | 2026-06-11 (PB-013 was already in V5.4) |
+| P1.G | Prompt registry implementation (PB-021) | **Done** | 2026-06-11 |
+| P1.H | Documentation genericization (PB-022, PB-025) | **In Progress** | PB-022 done; PB-025 (DEMO_SETUP.md) remaining |
+| P1.I | Developer experience (PB-020, PB-023, PB-024) | **Done** | 2026-06-11 |
 
-### Active Backlog Item
-CONDITIONAL GO — Execution Readiness Review complete. Six corrections applied to backlog. Sprint 1 is cleared for implementation. See `docs/EXECUTION_READINESS_REVIEW.md`.
+### Sprint 1 — Complete (2026-06-11)
 
-### Sprint 1 Execution Order (confirmed safe to begin)
-1. **PB-004** — Remove Azure URL from `.env.example` (1 line, zero risk)
-2. **PB-006** — Replace MetLife emails in test fixtures
-3. **PB-002 + PB-003 + PB-032** — ATOMIC commit: relocate CHAD runbooks, rebuild catalog.json, finalize `knowledge/examples/chad/`
-4. **PB-005 + test co-change** — ATOMIC commit: rename seed data + update `test_slice_ev1_connectors.py` assertions
-5. **PB-017 + PB-001** — SAME PR: branding API endpoint + MetLife logo removal
+All Sprint 1 items implemented and tested. 28 tests pass across affected test files.
+
+| Item | Description | Status |
+|------|-------------|--------|
+| PB-004 | Remove Azure tenant URL from `.env.example` | Completed 2026-06-10 |
+| PB-006 | Replace MetLife emails + org names in test fixtures | Completed 2026-06-10 |
+| PB-002 | Relocate CHAD runbooks to `knowledge/examples/chad/runbooks/` | Completed 2026-06-10 |
+| PB-003 | Rebuild `catalog.json` with 2 generic entries (aks-crashloop, apim-5xx) | Completed 2026-06-10 |
+| PB-032 | Finalize `knowledge/examples/chad/` worked example directory | Completed 2026-06-10 |
+| PB-005 | Rename CHAD → Acme Retail in seed_data.yaml + test co-change | Completed 2026-06-10 |
+| PB-017 | `GET /config/branding` API endpoint, env-var driven | Completed 2026-06-11 |
+| PB-001 | Remove MetLife logo, add corvin-logo.svg, generic footer | Completed 2026-06-11 |
+
+**New tech debt found during sprint:** TD-M11 (ServiceNow broken import), TD-M12 (knowledge injection test interface drift) — both documented in `docs/TECH_DEBT.md`.
+
+**Sprint 1/2 review (2026-06-11) — 4 additional contamination items found and fixed:**
+- `corvin/delivery/email_adapter.py:265` — `MetLife · Australia` in email template footer → `Corvin SRE Co-Pilot`
+- `apps/api/routes/chaos.py:93-99` — `"chad"` hardcoded as fallback k8s namespace/label → `"default"` / `service_name`
+- `apps/web/src/components/CapacityForecastPanel.tsx:341` — `<option value="chad">` in namespace dropdown → `acme-retail`
+- `apps/web/src/pages/ApplicationsPage.tsx` — `chad_agency` in Copilot agent help text → `my_agent` (4 occurrences)
+
+Post-review test count: 60 pass (excluding pre-existing TD-M11 failure).
 
 ### CHAD Classification Decision (2026-06-10)
 CHAD assets fall into three categories: Customer Contamination (remove), Reference Example (relocate to `knowledge/examples/chad/`), Reusable Template (extracted to `knowledge/templates/`). No CHAD content is deleted — it is relocated or generalized. See `docs/CHAD_ASSET_CLASSIFICATION.md`.
 
-### Known Blockers
-- **TD-H3** (duplicate 0012_* Alembic migrations) blocks PB-010, PB-011, PB-015. Must be resolved before Sprint 2.
-- PB-001 cannot merge without PB-017 in the same PR.
-- PB-005 requires co-change with `test_slice_ev1_connectors.py`.
+### Sprint 2 — Complete (2026-06-11)
+
+All Sprint 2 items implemented. TD-H3 confirmed not actually blocking (0013 was already a proper merge migration — single head `0027`). 73 tests pass across affected suites.
+
+| Item | Description | Status |
+|------|-------------|--------|
+| TD-H3 | Confirmed not blocking — 0013 already merges all 0012 branches | Resolved 2026-06-11 |
+| PB-009 | Rename `engineer_hourly_rate_gbp` → `engineer_hourly_rate` | Completed 2026-06-11 |
+| PB-012 | SLA countdown reads from `SloConfigRow.target_pct` | Completed 2026-06-11 |
+| PB-013 | Connector test endpoint (already implemented in V5.4) | Confirmed 2026-06-11 |
+| PB-014 | `GET /applications/{id}/connectors/{id}/evidence/preview` added | Completed 2026-06-11 |
+| PB-010 | `currency_code`, `locale`, `tts_voice_name` on `ApplicationEnvironmentRow` (migration 0025) | Completed 2026-06-11 |
+| PB-011 | `blast_radius_users_per_replica`, `blast_radius_revenue_per_user_per_min` on `ApplicationEnvironmentRow` (migration 0026) | Completed 2026-06-11 |
+| PB-015 | `toolset_profile JSONB` on `ApplicationRow` + `merge_toolset_profile()` utility (migration 0027) | Completed 2026-06-11 |
+
+### Sprint 3 — Complete (2026-06-11)
+
+All Sprint 3 items delivered. Phase 1 is effectively complete (only PB-025 DEMO_SETUP.md documentation remaining).
+
+| Item | Description | Status |
+|------|-------------|--------|
+| PB-016 | Verify `demoAlerts.ts` — confirmed no-op (fully parameterized) | Completed 2026-06-11 |
+| PB-021 | Prompt registry: 11 prompts migrated to `config/prompts/*.v1.yaml` | Completed 2026-06-11 |
+| PB-019 | Corvin logo SVG — proper path-drawn icon (replaces text placeholder) | Completed 2026-06-11 |
+| PB-020 | `.pre-commit-config.yaml` — detect-secrets + contamination pattern guards | Completed 2026-06-11 |
+| PB-022 | AGENTS.md catalog examples, logo path, Phase 1 checklist updated | Completed 2026-06-11 |
+| PB-023 | Startup env var validation in `apps/api/main.py` | Completed 2026-06-11 |
+| PB-024 | `docker-compose.yml` updated with `api` + `frontend` services | Completed 2026-06-11 |
+
+**Also fixed in Sprint 3 review:** 4 additional contamination items found and fixed (see Sprint 1 review note above).
+
+### Phase 4 — Next
+
+Phase 1 is complete (one P3 item remaining: PB-025 DEMO_SETUP.md documentation). Next phase is Phase 2 — Architecture Modernization:
+- Async investigation pipeline (TD-H2) — offload `engine.run()` to background queue
+- `get_session()` context manager fix (TD-H1)
+- OpenTelemetry instrumentation
+- API versioning (`/v1/` prefix)
+- Circuit breakers on adapters
+
+### Known Ongoing Issues
+- **TD-M11** (ServiceNow broken import in `investigations.py`) — `test_sync_endpoints_exist` always fails.
+- **TD-M12** (knowledge injection test interface drift) — 13 tests in `test_slice5_knowledge_injection.py` always fail.
 
 ---
 
@@ -167,6 +221,8 @@ If you are an AI agent resuming work on Corvin, start here:
 5. **Read [docs/TECH_DEBT.md](docs/TECH_DEBT.md)** — known debt before modifying any existing code
 
 **Do not** start authentication, multi-tenancy, billing, or SCIM work. Those are Phase 3–5.  
-**Do** focus on the P0 and P1 items in `docs/PRODUCTIZATION_BACKLOG.md`.
+**Do** focus on Sprint 2 items in `docs/PRODUCTIZATION_BACKLOG.md`.
 
-The next action item is: **PB-001** (remove MetLife logo) → **PB-002** (remove CHAD runbooks) → **PB-003** (rebuild catalog.json) → **PB-004** (remove Azure tenant URL from .env.example).
+**Sprint 1 is complete.** All P0 items and key P1 items are done. The platform no longer contains MetLife-specific branding, service names, or hardcoded identifiers in the demo layer.
+
+**Sprint 2 is complete.** Sprint 3 starting point: PB-016 (XS — verify demoAlerts.ts), then PB-021 (prompt registry — L), PB-019 (Corvin logo — S), PB-020 (pre-commit hooks — S), PB-022 (docs — S), PB-023 (startup validation — S), PB-024 (docker-compose — S).

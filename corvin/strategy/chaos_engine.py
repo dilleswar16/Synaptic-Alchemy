@@ -28,6 +28,7 @@ import litellm
 
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import InvestigationResult, RCAOutput
+from corvin.core.prompt_registry import get_prompt_registry
 
 _log = logging.getLogger(__name__)
 
@@ -131,31 +132,7 @@ class ChaosExperimentGenerator:
             return self._deterministic_fallback(result)
 
     def _system_prompt(self) -> str:
-        return """You are a chaos engineering expert. Given an incident root cause analysis,
-generate targeted chaos experiments that would validate system resilience against similar failures.
-
-Reply in JSON with this structure:
-{
-  "rationale": "Why these experiments matter given the RCA",
-  "risk_assessment": "Overall risk level and considerations",
-  "experiments": [
-    {
-      "name": "Short experiment name",
-      "experiment_type": "pod-kill|network-delay|resource-exhaust|dependency-failure|dns-failure",
-      "description": "What this experiment does",
-      "hypothesis": "We expect the system to...",
-      "steady_state": "How to verify normal behavior before/after",
-      "blast_radius": "limited|moderate|wide",
-      "duration_seconds": 60,
-      "parameters": {"key": "value"},
-      "rollback_steps": ["Step 1", "Step 2"],
-      "prerequisites": ["Prerequisite 1"]
-    }
-  ]
-}
-
-Generate 2-4 experiments ranked by relevance to the root cause. Focus on
-experiments that would have DETECTED or PREVENTED the original incident."""
+        return get_prompt_registry().get("chaos_generation")
 
     def _build_prompt(self, result: InvestigationResult) -> str:
         rca = result.rca

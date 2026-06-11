@@ -573,6 +573,57 @@ def test_connector(app_id: str, src_id: str, db: Session = Depends(_db)):
     return {"ok": result.ok, "message": result.message, "latency_ms": result.latency_ms}
 
 
+@router.get("/{app_id}/connectors/{src_id}/evidence/preview", summary="Preview evidence sample from a connector")
+def preview_connector_evidence(
+    app_id: str,
+    src_id: str,
+    service_name: str,
+    lookback_minutes: int = 60,
+    db: Session = Depends(_db),
+):
+    """Fetch a small evidence sample from a connector without triggering a full investigation.
+
+    Returns up to 5 items per adapter, each truncated to 500 characters. Useful for
+    verifying that the connector is collecting the right data before the first real incident.
+    """
+    _get_or_404(db, app_id)
+    row = db.get(LogSourceRow, src_id)
+    if not row or row.application_id != app_id:
+        raise HTTPException(status_code=404, detail="Connector not found")
+    connector = _registry.get_connector(row)
+    if connector is None:
+        raise HTTPException(status_code=400, detail=f"Unknown source_type: {row.source_type!r}")
+
+    _PREVIEW_LIMIT = 5
+    _TRUNCATE_CHARS = 500
+
+    def _truncate(items: list[Any]) -> list[Any]:
+        result: list[Any] = []
+        for item in items[:_PREVIEW_LIMIT]:
+            if isinstance(item, dict):
+                truncated = {k: (str(v)[:_TRUNCATE_CHARS] if len(str(v)) > _TRUNCATE_CHARS else v) for k, v in item.items()}
+                result.append(truncated)
+            elif isinstance(item, str):
+                result.append(item[:_TRUNCATE_CHARS])
+            else:
+                result.append(item)
+        return result
+
+    try:
+        logs = connector.fetch_logs(service_name=service_name, time_range_minutes=lookback_minutes)
+        metrics = connector.fetch_metrics(service_name=service_name, time_range_minutes=lookback_minutes)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Evidence fetch failed: {exc}") from exc
+
+    return {
+        "service_name": service_name,
+        "lookback_minutes": lookback_minutes,
+        "connector_type": row.source_type,
+        "logs": {"count": len(logs), "sample": _truncate(logs)},
+        "metrics": {"count": len(metrics), "sample": _truncate(metrics)},
+    }
+
+
 # ── SLO Configs ───────────────────────────────────────────────────────────────
 
 @router.get("/{app_id}/slo-configs", summary="List SLO configurations")

@@ -1,5 +1,15 @@
 version: "3.9"
 
+# Full-stack Corvin deployment: postgres + API + frontend
+# Usage:
+#   docker compose up                  # start all services
+#   docker compose up postgres api     # backend only (no frontend)
+#   docker compose --profile dev up    # with hot-reload (requires local source mount)
+#
+# Required env vars for a real deployment — create a .env file or export them:
+#   LITELLM_ENDPOINT, LITELLM_API_KEY, AZURE_API_VERSION
+#   (see .env.example for the full list)
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -16,6 +26,44 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://corvin:changeme@postgres:5432/corvin
+      CORVIN_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:3000"
+      # Override in .env or as environment variables:
+      # LITELLM_ENDPOINT: ...
+      # LITELLM_API_KEY: ...
+      # AZURE_API_VERSION: ...
+      # CORVIN_PRODUCT_NAME: Corvin
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:8000"
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   pg_data:

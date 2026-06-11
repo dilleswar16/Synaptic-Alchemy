@@ -396,14 +396,14 @@ def test_bootstrap_outbound_connectors_is_idempotent_and_app_scoped(monkeypatch)
     _override_session(sf)
     app_id = _create_app_row(sf)
 
-    monkeypatch.setenv("AZURE_DEVOPS_ORG", "MetLife-Global")
-    monkeypatch.setenv("AZURE_DEVOPS_PROJECT", "Australia IT_AMS")
+    monkeypatch.setenv("AZURE_DEVOPS_ORG", "acme-org")
+    monkeypatch.setenv("AZURE_DEVOPS_PROJECT", "platform-team")
     monkeypatch.setenv("AZURE_DEVOPS_PAT", "pat-token")
     monkeypatch.setenv("TEAMS_WEBHOOK_URL", "https://outlook.office.com")
     monkeypatch.setenv("CORVIN_SMTP_HOST", "smtp.office365.com")
     monkeypatch.setenv("CORVIN_EMAIL_FROM", "corvin@example.com")
     monkeypatch.setenv("CORVIN_EMAIL_TO", "ops@example.com")
-    monkeypatch.setenv("SHAREPOINT_SITE_ID", "my.metlife.com,site-guid,web-guid")
+    monkeypatch.setenv("SHAREPOINT_SITE_ID", "my.acme.com,site-guid,web-guid")
 
     client = TestClient(app)
     try:
@@ -801,13 +801,13 @@ def test_azure_adapters_do_not_require_yaml_runtime_fallback(monkeypatch):
     assert minutes == 60
 
 
-def test_demo_seed_reconciles_missing_chad_services_and_slos():
+def test_demo_seed_reconciles_missing_acme_services_and_slos():
     sf = _session_factory()
     with sf() as s:
-        app_id = "app-chad"
+        app_id = "app-acme-retail"
         s.add(ApplicationRow(
             id=app_id,
-            name="CHAD",
+            name="Acme Retail",
             description="partial seed",
             team_name="Platform",
             environment_default="dev",
@@ -817,21 +817,21 @@ def test_demo_seed_reconciles_missing_chad_services_and_slos():
         ))
         s.add(ApplicationServiceRow(
             application_id=app_id,
-            service_name="partnerapis",
-            display_name="Partner APIs",
-            namespace="chad",
+            service_name="partner-api",
+            display_name="Partner API",
+            namespace="acme-retail",
             tier="api",
-            k8s_app_label="chad-partnerapis",
+            k8s_app_label="acme-partner-api",
             dependencies=[],
-            metadata_json={"apim_routes_through_gateway": True, "apim_api_id": "partnerapis"},
+            metadata_json={"apim_routes_through_gateway": True, "apim_api_id": "partner-api"},
         ))
         s.add(ApplicationServiceRow(
             application_id=app_id,
-            service_name="fundsso",
-            display_name="Fund SSO",
-            namespace="chad",
+            service_name="auth-service",
+            display_name="Auth Service",
+            namespace="acme-retail",
             tier="api",
-            k8s_app_label="chad-fundsso",
+            k8s_app_label="acme-auth-service",
             dependencies=[],
             metadata_json={"is_sso_direct": True},
         ))
@@ -844,14 +844,14 @@ def test_demo_seed_reconciles_missing_chad_services_and_slos():
             row.service_name: row
             for row in s.query(ApplicationServiceRow).filter_by(application_id=app_id).all()
         }
-        assert set(services) == {"fundapis", "fundsso", "partnerapis"}
-        assert services["fundapis"].k8s_app_label == "chad-fundapis"
-        assert services["fundapis"].metadata_json["apim_routes_through_gateway"] is True
-        assert services["fundsso"].metadata_json["is_sso_direct"] is True
+        assert set(services) == {"checkout-api", "auth-service", "partner-api"}
+        assert services["checkout-api"].k8s_app_label == "acme-checkout-api"
+        assert services["checkout-api"].metadata_json["apim_routes_through_gateway"] is True
+        assert services["auth-service"].metadata_json["is_sso_direct"] is True
 
         slo_keys = {
             (row.service_name, row.sli_type)
             for row in s.query(SloConfigRow).filter_by(application_id=app_id).all()
         }
-        assert ("fundapis", "availability") in slo_keys
-        assert ("fundapis", "latency") in slo_keys
+        assert ("checkout-api", "availability") in slo_keys
+        assert ("checkout-api", "latency") in slo_keys

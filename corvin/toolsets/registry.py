@@ -41,6 +41,32 @@ def get_registered_toolsets() -> dict[str, type[Toolset]]:
     return dict(_REGISTRY)
 
 
+def merge_toolset_profile(global_config: dict[str, Any], app_profile: dict[str, Any] | None) -> dict[str, Any]:
+    """Merge an application-level toolset_profile into the global toolsets config.
+
+    app_profile schema: {"enabled": ["log_analytics", "aks"], "disabled": ["elastic"]}
+    Application values take precedence over global defaults.
+    """
+    if not app_profile:
+        return global_config
+
+    merged = dict(global_config)
+    toolset_flags: dict[str, Any] = dict(merged.get("toolsets", {}))
+
+    for name in app_profile.get("enabled", []):
+        entry = dict(toolset_flags.get(name, {}))
+        entry["enabled"] = True
+        toolset_flags[name] = entry
+
+    for name in app_profile.get("disabled", []):
+        entry = dict(toolset_flags.get(name, {}))
+        entry["enabled"] = False
+        toolset_flags[name] = entry
+
+    merged["toolsets"] = toolset_flags
+    return merged
+
+
 def get_enabled_toolsets(config: dict[str, Any]) -> list[Toolset]:
     """
     Instantiate and return all toolsets that are:

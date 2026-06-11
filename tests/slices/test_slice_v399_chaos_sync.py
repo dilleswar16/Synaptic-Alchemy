@@ -74,13 +74,13 @@ def test_sync_endpoints_exist():
 _ROUTING = {
     "code": {
         "keywords": ["exception", "database", "timeout", "heap"],
-        "assignees": ["dilleswar.dilleswararao@metlife.com"],
+        "assignees": ["sre@example.com"],
     },
     "devops": {
         "keywords": ["pod", "aks", "kubernetes", "container", "cpu"],
-        "assignees": ["chaitanyakumar.pendyala@metlife.com"],
+        "assignees": ["devops@example.com"],
     },
-    "default_assignee": "priya.kinker@metlife.com",
+    "default_assignee": "lead@example.com",
 }
 
 def test_classify_incident_code():
@@ -93,13 +93,13 @@ def test_classify_incident_default():
     assert _classify_incident("Something unusual happened", _ROUTING) == "default"
 
 def test_pick_assignee_code():
-    assert _pick_assignee("code", _ROUTING) == "dilleswar.dilleswararao@metlife.com"
+    assert _pick_assignee("code", _ROUTING) == "sre@example.com"
 
 def test_pick_assignee_devops():
-    assert _pick_assignee("devops", _ROUTING) == "chaitanyakumar.pendyala@metlife.com"
+    assert _pick_assignee("devops", _ROUTING) == "devops@example.com"
 
 def test_pick_assignee_default():
-    assert _pick_assignee("default", _ROUTING) == "priya.kinker@metlife.com"
+    assert _pick_assignee("default", _ROUTING) == "lead@example.com"
 
 def test_create_incident_sets_assignee(mock_result):
     """create_incident should include System.AssignedTo when routing is configured."""
@@ -130,7 +130,7 @@ def test_create_incident_sets_assignee(mock_result):
     assert wi_id == "42"
     assigned = [op for op in captured_payload if op.get("path") == "/fields/System.AssignedTo"]
     assert len(assigned) == 1
-    assert assigned[0]["value"] == "dilleswar.dilleswararao@metlife.com"
+    assert assigned[0]["value"] == "sre@example.com"
 
 
 # ── DORA endpoint test ────────────────────────────────────────────────────

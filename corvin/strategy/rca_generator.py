@@ -31,6 +31,7 @@ litellm.reasoning_auto_summary = True
 
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import EvidenceBundle, InvestigationRequest, RCAOutput
+from corvin.core.prompt_registry import get_prompt_registry
 
 
 class RCAGenerator:
@@ -252,8 +253,7 @@ class RCAGenerator:
         return [
             {
                 "role": "system",
-                "content": system_prompt
-                or "You are Corvin. Produce only valid JSON matching the RCAOutput schema.",
+                "content": system_prompt or get_prompt_registry().get("rca_system"),
             },
             {"role": "user", "content": user_message},
         ]

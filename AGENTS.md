@@ -407,10 +407,10 @@ Runbook matching now operates across **two tiers** — DB-first, disk fallback. 
 
 ```json
 {
-  "keyword": "chad-known-errors",
-  "title": "CHAD Known Application Errors",
-  "file": "runbooks/chad-known-errors.md",
-  "match_patterns": ["exception", "error", "stacktrace", "hikari", "cosmos"]
+  "keyword": "aks-crashloop",
+  "title": "AKS Pod CrashLoopBackOff Investigation",
+  "file": "runbooks/aks-crashloop.md",
+  "match_patterns": ["crashloop", "crashloopbackoff", "pod", "oomkilled", "restart", "crash"]
 }
 ```
 
@@ -552,7 +552,7 @@ apps/
                   #          PredictiveAnalyticsPage, CorvinCommandPage, WarGamesPage
                   #   components: AlertCorrelationPanel, CapacityForecastPanel,
                   #              RunbookBuilderChat, WarRoomBanner, NavBar, BlastRadiusCard, …
-                  #   public/metlife-logo.svg — MetLife wordmark (served at /metlife-logo.svg)
+                  #   public/corvin-logo.svg — Corvin product logo (served at /corvin-logo.svg)
 
 alembic/          # Alembic migration scripts (0001 → 0024+)
 config/           # YAML config per integration and environment
@@ -660,10 +660,10 @@ When adding a new runbook, you MUST add an entry here:
 
 ```json
 {
-  "keyword": "chad-known-errors",
-  "title": "CHAD Known Application Errors",
-  "file": "runbooks/chad-known-errors.md",
-  "match_patterns": ["exception", "error", "stacktrace", "hikari", "cosmos"]
+  "keyword": "apim-5xx",
+  "title": "APIM 5xx Spike Investigation",
+  "file": "runbooks/apim-5xx.md",
+  "match_patterns": ["apim", "5xx", "gateway", "apimanagement", "api management"]
 }
 ```
 
@@ -704,12 +704,14 @@ All V1–V5.4 hackathon features are complete. The platform is now on the produc
 3. Read `docs/TECH_DEBT.md` — know what debt exists before adding to it
 4. Read `docs/ROADMAP.md` — full phase sequence
 
-**Phase 1 focus areas (in order):**
-- Brand & asset genericization — MetLife logo, branding API
-- Knowledge base genericization — remove CHAD runbooks, scope by application_id
-- Demo data genericization — Acme Retail replaces CHAD topology
-- Configuration externalization — currency, locale, voice, business metrics
-- Connector onboarding hardening — connection test, evidence preview, toolset profiles
-- Prompt registry — migrate prompts from Python to versioned YAML files
+**Phase 1 focus areas (Sprint 1–3 complete):**
+- ✅ Brand & asset genericization — MetLife logo removed; `GET /config/branding` API; Corvin logo SVG
+- ✅ Knowledge base genericization — CHAD runbooks relocated; generic catalog (apim-5xx, aks-crashloop)
+- ✅ Demo data genericization — Acme Retail topology in seed_data.yaml and test fixtures
+- ✅ Configuration externalization — currency, locale, voice, SLA targets, blast radius (per ApplicationEnvironmentRow)
+- ✅ Connector onboarding hardening — connection test (V5.4), evidence preview, toolset profiles
+- ✅ Prompt registry — 11 prompts migrated to `config/prompts/*.v1.yaml`; `PromptRegistry` class in `corvin/core/prompt_registry.py`
+- ✅ Developer experience — `.pre-commit-config.yaml`; startup env var validation; full-stack docker-compose
+- ✅ Documentation genericization — AGENTS.md, catalog examples updated to generic entries
 
 **For context on what CHAD is:** CHAD was the original customer development application (MetLife Australia digital channels platform). All CHAD-specific content is being removed from the product in Phase 1. The demo application is now "Acme Retail Platform". See `docs/DEMO_SETUP.md` (to be created in Phase 1).

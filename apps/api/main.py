@@ -42,6 +42,7 @@ from apps.api.routes import investigations, triggers
 from apps.api.routes.ai_features import router as ai_features_router
 from apps.api.routes.applications import router as applications_router
 from apps.api.routes.chaos import router as chaos_router
+from apps.api.routes.config import router as config_router
 from apps.api.routes.corvin_agent import router as corvin_router
 from apps.api.routes.slo import router as slo_router
 from apps.api.routes.validations import router as validations_router
@@ -54,10 +55,38 @@ from corvin.triggers.predictive import PredictiveMonitor
 
 _log = logging.getLogger("corvin.main")
 
+# ── Startup env var validation ────────────────────────────────────────────────
+# Required for production; warnings only in dev so the server still starts.
+_REQUIRED_ENV_VARS: list[tuple[str, str]] = [
+    ("AZURE_OPENAI_API_KEY",   "LLM API key — investigations will fail without this"),
+    ("LITELLM_ENDPOINT",       "LiteLLM / Azure AI Foundry endpoint for the LLM backend"),
+    ("DATABASE_URL",           "Postgres connection string — only required when not using SQLite"),
+]
+_OPTIONAL_ENV_VARS: list[tuple[str, str]] = [
+    ("CORVIN_PRODUCT_NAME",    "Branding: product display name (default: Corvin)"),
+    ("CORVIN_LOGO_URL",        "Branding: logo URL served to the frontend"),
+    ("CORVIN_PRIMARY_COLOR",   "Branding: primary accent colour (default: #6366f1)"),
+    ("CORVIN_ALLOWED_ORIGINS", "CORS: comma-separated allowed origins (default: localhost ports)"),
+]
+
+
+def _validate_env() -> None:
+    """Log warnings for missing env vars at startup. Never raises."""
+    is_sqlite_mode = os.environ.get("DATABASE_URL", "").startswith("sqlite") or not os.environ.get("DATABASE_URL")
+    for var, description in _REQUIRED_ENV_VARS:
+        if var == "DATABASE_URL" and is_sqlite_mode:
+            continue  # SQLite path — DATABASE_URL not required
+        if not os.environ.get(var, "").strip():
+            _log.warning("Missing env var %s: %s", var, description)
+    for var, description in _OPTIONAL_ENV_VARS:
+        if not os.environ.get(var, "").strip():
+            _log.debug("Optional env var not set — using default: %s (%s)", var, description)
+
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     """Auto-create all tables when running in SQLite mode (no Alembic required)."""
+    _validate_env()
     predictive_task: asyncio.Task | None = None
     if is_sqlite():
         Base.metadata.create_all(get_engine())
@@ -125,6 +154,7 @@ app.add_middleware(
     allow_headers=["*"] if _allow_all_origins else ["Content-Type", "Authorization"],
 )
 
+app.include_router(config_router, prefix="/config", tags=["config"])
 app.include_router(investigations.router, prefix="/investigations", tags=["investigations"])
 app.include_router(triggers.router, prefix="/triggers", tags=["triggers"])
 app.include_router(teams_router, prefix="/teams", tags=["teams"])

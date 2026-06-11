@@ -31,6 +31,7 @@ litellm.reasoning_auto_summary = True
 
 from corvin.core.config_loader import get_env, load_config
 from corvin.core.contracts import FixStrategyOutput, InvestigationRequest, RCAOutput
+from corvin.core.prompt_registry import get_prompt_registry
 
 
 class FixStrategyGenerator:
@@ -108,10 +109,7 @@ class FixStrategyGenerator:
         return [
             {
                 "role": "system",
-                "content": (
-                    "You are Corvin. Produce only valid JSON matching the FixStrategyOutput "
-                    "schema for a review-only remediation strategy."
-                ),
+                "content": get_prompt_registry().get("fix_strategy_system"),
             },
             {"role": "user", "content": user_message},
         ]

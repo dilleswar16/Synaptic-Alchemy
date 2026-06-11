@@ -1494,7 +1494,12 @@ def get_blast_radius(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
 
-    policy = load_config("policies/investigation", get_env())
+    policy = dict(load_config("policies/investigation", get_env()))
+    # PB-010/011: merge per-environment overrides (currency, blast radius metrics)
+    policy.update(repo.get_env_policy_overrides(
+        service_name=result.request.service_name,
+        environment=result.request.environment,
+    ))
     estimate = estimate_blast_radius(
         service_name=result.request.service_name,
         environment=result.request.environment,
@@ -1513,7 +1518,11 @@ def get_sla_countdown(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Investigation {request_id!r} not found.")
 
-    policy = load_config("policies/investigation", get_env())
+    policy = dict(load_config("policies/investigation", get_env()))
+    # Override global SLA target with per-application value from SloConfigRow if present
+    db_target = repo.get_slo_target_pct(service_name=result.request.service_name)
+    if db_target is not None:
+        policy["sla_target_percent"] = db_target
     countdown = build_sla_countdown(
         result,
         monthly_downtime_seconds=repo.get_monthly_downtime_seconds(

@@ -28,7 +28,7 @@ from corvin.strategy.roi import RoiStats, build_roi_stats
 def _policy(baseline: float = 45.0, rate: float = 120.0, currency: str = "GBP") -> dict:
     return {
         "baseline_mttr_minutes": baseline,
-        "engineer_hourly_rate_gbp": rate,
+        "engineer_hourly_rate": rate,
         "roi_currency": currency,
         "voice_briefing_enabled": True,
         "war_room_enabled": False,

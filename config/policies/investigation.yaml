@@ -40,9 +40,9 @@ blast_radius_currency: GBP
 # ── V3.9: ROI Dashboard ────────────────────────────────────────────────────────
 # Baseline MTTR (minutes) before Corvin — used to calculate time saved.
 baseline_mttr_minutes: 45
-# Loaded engineer cost per hour (salary + oncall premium).
-engineer_hourly_rate_gbp: 120
-# Currency label shown in the UI.
+# Loaded engineer cost per hour (salary + oncall premium). Currency is set by roi_currency.
+engineer_hourly_rate: 120
+# Currency label shown in the UI (ISO 4217 code, e.g. USD, GBP, EUR, AUD).
 roi_currency: GBP
 
 # ── V3.9: Voice Briefing (Azure TTS) ─────────────────────────────────────────

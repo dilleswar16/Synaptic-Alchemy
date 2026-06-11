@@ -21,6 +21,18 @@ export default function NavBar() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 960)
   const { active: threeAm, toggle: toggleThreeAm } = useThreeAmMode()
   const { theme } = useTheme()
+  const [logoUrl, setLogoUrl] = useState('/corvin-logo.svg')
+  const [productName, setProductName] = useState('Corvin')
+
+  useEffect(() => {
+    fetch('/api/config/branding')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.logo_url) setLogoUrl(data.logo_url)
+        if (data?.product_name) setProductName(data.product_name)
+      })
+      .catch(() => {/* use defaults */})
+  }, [])
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 960)
@@ -64,8 +76,8 @@ export default function NavBar() {
           {/* Wrap img to neutralise any inherited line-height */}
           <span style={{ display: 'flex', alignItems: 'center', lineHeight: 0, flexShrink: 0 }}>
             <img
-              src="/metlife-logo.svg"
-              alt="MetLife"
+              src={logoUrl}
+              alt={productName}
               style={{
                 height: 20,
                 width: 'auto',

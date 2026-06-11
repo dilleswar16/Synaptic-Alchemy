@@ -90,12 +90,12 @@ def _resolve_k8s_info(service_name: str, db: Session) -> tuple[str, str, str]:
     ).first()
 
     if svc:
-        namespace = svc.namespace or "chad"
-        k8s_label = svc.k8s_app_label or f"chad-{service_name}"
-        deployment = k8s_label  # k8s_app_label is the deployment name for CHAD
+        namespace = svc.namespace or "default"
+        k8s_label = svc.k8s_app_label or service_name
+        deployment = k8s_label
     else:
-        namespace = "chad"
-        k8s_label = f"chad-{service_name}"
+        namespace = "default"
+        k8s_label = service_name
         deployment = k8s_label
 
     return deployment, namespace, k8s_label

@@ -1,0 +1,17 @@
+id: comms_draft_internal
+version: "1"
+description: >
+  System prompt for generating internal engineering team incident status updates.
+  Produces technical summaries covering root cause, evidence, and next steps.
+author: corvin-team
+created: 2026-06-11
+
+content: |
+  You are writing a technical status update for engineering teams.
+  Rules:
+  - Include affected service, environment, root cause hypothesis
+  - Mention evidence sources consulted and key findings
+  - Include recommended actions / ongoing remediation
+  - Reference relevant metrics (error rate, latency, pod health)
+  - 5-10 sentences. Can use technical terminology.
+  Output ONLY the communication text. No fences or meta-commentary.

@@ -1,6 +1,6 @@
 # Corvin — Productization Backlog
 
-**Last Updated:** 2026-06-10  
+**Last Updated:** 2026-06-11  
 **Phase:** Phase 1 — Productization & Genericization  
 **Owner:** Engineering Lead  
 **Review Cadence:** Weekly during Phase 1
@@ -38,104 +38,91 @@ This backlog tracks every change required to make Corvin deployable by a differe
 
 ### PB-001 — Remove MetLife logo from frontend public assets
 
-**⚠️ Ordering constraint: PB-017 (branding API) must be implemented in the same PR or before this item. Removing the logo without a replacement causes the frontend header to render no logo at all.**
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-001 |
 | **Priority** | P0 |
 | **Effort** | XS |
-| **Status** | Planned |
-| **Location** | `apps/web/public/metlife-logo.svg` |
-| **Impact** | Every customer deployment displays MetLife branding. Trademark risk. Blocks any customer demo. |
-| **Recommended Solution** | Delete the file. Replace with a generic Corvin logo placeholder. Implement `GET /config/branding` API (see PB-017) to make the logo configurable at runtime. |
-| **Dependencies** | PB-017 (branding API) should be done in the same sprint |
-| **Migration** | Archive the SVG to `docs/archive/customer-examples/chad/` |
+| **Status** | Completed |
+| **Resolution** | `apps/web/public/metlife-logo.svg` removed (`git rm`). Replaced by `corvin-logo.svg` (generic Corvin placeholder SVG). `NavBar.tsx` updated to load logo URL from `GET /config/branding` API with `/corvin-logo.svg` as the default fallback. `Footer.tsx` updated: `© MetLife. Internal use only.` → `© Corvin SRE Co-Pilot`. `ThemeContext.tsx` comment cleaned up. Implemented atomically with PB-017. |
 
 ---
 
 ### PB-002 — Relocate CHAD runbooks and extract template library
 
-**Revised 2026-06-10** — See `docs/CHAD_ASSET_CLASSIFICATION.md`. Original "delete" decision replaced with "move + extract". CHAD runbooks contain valuable structural patterns that benefit all customers.
+**Completed 2026-06-10**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-002 |
 | **Priority** | P0 |
 | **Effort** | M |
-| **Status** | Planned |
-| **Location** | `knowledge/runbooks/chad-*.md` |
-| **Impact** | CHAD runbook content is injected into LLM prompts whenever keyword matching fires. A different customer gets MetLife-specific debugging steps. |
-| **Recommended Solution** | **Do not delete — relocate and extract.** (1) Move all `chad-*.md` files to `knowledge/examples/chad/runbooks/`. (2) Templates already created in `knowledge/templates/runbooks/` from this content. (3) Update catalog.json to remove CHAD entries (PB-003). |
-| **Sub-tasks** | PB-002a: `git mv knowledge/runbooks/chad-*.md knowledge/examples/chad/runbooks/` · PB-002b: Template library already created (`knowledge/templates/`) · PB-002c: Create `knowledge/examples/chad/catalog_chad.json` from CHAD catalog entries |
-| **Dependencies** | PB-003 (catalog.json rebuild) must follow |
-| **Migration** | No DB migration — disk runbooks only |
+| **Status** | Completed |
+| **Location** | `knowledge/runbooks/chad-*.md` → `knowledge/examples/chad/runbooks/` |
+| **Resolution** | `git mv` executed for all 6 CHAD runbooks (`chad-api-spec.md`, `chad-dependencies.md`, `chad-known-errors.md`, `chad-security-context.md`, `chad-service-inventory.md`, `chad-service-topology.md`). Also removed the stale `fundapis` catalog entry (file never existed on disk). Template library already exists at `knowledge/templates/`. Atomic with PB-003 and PB-032. |
 
 ---
 
 ### PB-003 — Rebuild knowledge/runbooks/catalog.json with only generic entries
+
+**Completed 2026-06-10**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-003 |
 | **Priority** | P0 |
 | **Effort** | S |
-| **Status** | Planned |
+| **Status** | Completed |
 | **Location** | `knowledge/runbooks/catalog.json` |
-| **Impact** | Current catalog.json has 200+ lines of CHAD-specific keywords. Any alert text matching CHAD service names, error codes, or Java class names triggers CHAD runbook injection. |
-| **Recommended Solution** | Rebuild catalog.json with two entries only: AKS crashloop and APIM 5xx runbooks, with generic keyword sets (e.g., `CrashLoopBackOff`, `OOMKilled`, `5xx`, `timeout`). All other runbooks should be loaded from the DB (`RunbookRow`) with application scoping. |
-| **Dependencies** | PB-002 must complete first |
-| **Migration** | None required |
+| **Resolution** | Rebuilt with exactly 2 entries: `apim-5xx` (keywords: apim, 5xx, gateway, apimanagement) and `aks-crashloop` (keywords: crashloop, pod, oomkilled, restart, crash). All CHAD entries and the stale `fundapis` entry removed. CHAD entries preserved in `knowledge/examples/chad/catalog_chad.json`. Atomic with PB-002 and PB-032. |
 
 ---
 
 ### PB-004 — Remove Azure subscription tenant ID from .env.example
+
+**Completed 2026-06-10**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-004 |
 | **Priority** | P0 |
 | **Effort** | XS |
-| **Status** | Planned |
+| **Status** | Completed |
 | **Location** | `.env.example:78` |
 | **Impact** | TD-C3 — exposes live Azure tenant ID `457bc2c0-610b-4bf1-b615-b8621ee51c31` in version-controlled file. Reconnaissance attack surface. |
-| **Recommended Solution** | Remove the URL. Replace with `TEAMS_TENANT_ID=<your-azure-tenant-id>`. |
-| **Dependencies** | None |
-| **Migration** | None required |
+| **Resolution** | Removed stray URL `https://portal.azure.com/457bc2c0-610b-4bf1-b615-b8621ee51c31` from `.env.example`. The `AZURE_TENANT_ID=placeholder` entry at line 32 already documents the correct env var pattern. |
 
 ---
 
 ### PB-005 — Rename CHAD service names in seed_data.yaml (preserve all content)
 
-**Revised 2026-06-10** — See `docs/CHAD_ASSET_CLASSIFICATION.md`. Original "replace content" decision changed to "rename only". All 6 embedded runbooks and all 8 simulator presets describe universal failure patterns — only the service names are CHAD-specific. Total change: ~15 string substitutions.
+**Completed 2026-06-10**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-005 |
 | **Priority** | P0 |
-| **Effort** | XS (was M) |
-| **Status** | Planned |
+| **Effort** | XS |
+| **Status** | Completed |
 | **Location** | `config/demo/seed_data.yaml` |
-| **Impact** | Demo shows MetLife application topology. `fundapis`, `fundsso`, `partnerapis` are CHAD service names. Application name "CHAD" and team "CHAD Engineering" are customer-specific. |
-| **Recommended Solution** | String rename only: `CHAD` → `Acme Retail`, `CHAD Engineering` → `Acme SRE Team`, `fundapis` → `checkout-api`, `fundsso` → `auth-service`, `partnerapis` → `partner-api`. All 6 runbooks and 8 simulator presets retain their content — only service name references change. |
-| **Dependencies** | None |
-| **Migration** | Copy original to `knowledge/examples/chad/seed_data_chad.yaml` before renaming. |
+| **Resolution** | Renamed all CHAD service identifiers throughout `config/demo/seed_data.yaml`: application `CHAD` → `Acme Retail`, team `CHAD Engineering` → `Acme SRE Team`, `fundapis` → `checkout-api`, `fundsso` → `auth-service`, `partnerapis` → `partner-api`, k8s labels `chad-*` → `acme-*`, namespace `chad` → `acme-retail`. All 6 embedded runbooks and 9 simulator presets updated to use new service names. Runbook content preserved — only service name references changed. Original CHAD seed data preserved as `knowledge/examples/chad/seed_data_chad.yaml` (PB-032). Mandatory co-change applied: `test_demo_seed_reconciles_missing_chad_services_and_slos` renamed and updated to match new service topology. 28 tests pass. Developer note: existing databases seeded with CHAD topology must be reset (drop + re-seed or `seed_demo.py --reset`). |
 
 ---
 
 ### PB-006 — Replace MetLife email addresses in test fixtures
+
+**Completed 2026-06-10**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-006 |
 | **Priority** | P0 |
 | **Effort** | XS |
-| **Status** | Planned |
-| **Location** | `tests/slices/test_slice_v399_chaos_sync.py:77–133`, `tests/slices/test_slice_ev1_connectors.py:399–406` |
-| **Impact** | Tests assert specific MetLife email addresses and Azure DevOps org names as expected values. Any engineer cloning the repo sees live employee email addresses. Compliance risk. |
-| **Recommended Solution** | Replace `dilleswar...@metlife.com` → `sre@example.com`. Replace `MetLife-Global` → `acme-org`. Replace `Australia IT_AMS` → `platform-team`. |
-| **Dependencies** | None |
-| **Migration** | None — test behavior unchanged |
+| **Status** | Completed |
+| **Location** | `tests/slices/test_slice_v399_chaos_sync.py:74–133`, `tests/slices/test_slice_ev1_connectors.py:399–406` |
+| **Resolution** | Replaced all MetLife employee emails and org names with generic `@example.com` equivalents. `dilleswar...@metlife.com` → `sre@example.com`, `chaitanyakumar...@metlife.com` → `devops@example.com`, `priya.kinker@metlife.com` → `lead@example.com`, `MetLife-Global` → `acme-org`, `Australia IT_AMS` → `platform-team`, `my.metlife.com` → `my.acme.com`. All 28 tests pass. **Sprint 1/2 review (2026-06-11) found 4 additional missed contaminations and fixed them:** (1) `corvin/delivery/email_adapter.py:265` — `MetLife · Australia` in email HTML footer → `Corvin SRE Co-Pilot`; (2) `apps/api/routes/chaos.py:93-99` — `"chad"` hardcoded as fallback k8s namespace/label → `"default"` / `service_name`; (3) `apps/web/src/components/CapacityForecastPanel.tsx:341` — `<option value="chad">` in namespace dropdown → `acme-retail`; (4) `apps/web/src/pages/ApplicationsPage.tsx` — `chad_agency` example text in Copilot agent help text → `my_agent` (4 occurrences). 60 tests pass after fixes. |
 
 ---
 
@@ -171,152 +158,127 @@ This backlog tracks every change required to make Corvin deployable by a differe
 
 ### PB-009 — Rename GBP-specific config keys to currency-neutral names
 
+**Completed 2026-06-11**
+
 | Field | Value |
 |-------|-------|
 | **ID** | PB-009 |
 | **Priority** | P1 |
 | **Effort** | S |
-| **Status** | Planned |
-| **Location** | `config/policies/investigation.yaml`, `corvin/strategy/roi.py:38`, `corvin/strategy/blast_radius.py` |
-| **Impact** | Config key `engineer_hourly_rate_gbp` encodes a currency assumption in the key name itself. Reading this key with a non-GBP rate produces a correctly-calculated number with an incorrectly-named key. |
-| **Recommended Solution** | Rename `engineer_hourly_rate_gbp` → `engineer_hourly_rate`. Add `engineer_rate_currency: USD` alongside it. Update all code references. Tests asserting `currency == "GBP"` must be updated to read the configured value. |
-| **Dependencies** | None |
-| **Migration** | Both old and new key names work during transition if code reads new name with old name as fallback |
+| **Status** | Completed |
+| **Resolution** | Renamed `engineer_hourly_rate_gbp` → `engineer_hourly_rate` in `config/policies/investigation.yaml` and updated comment. `corvin/strategy/roi.py:38` now reads `engineer_hourly_rate` with `engineer_hourly_rate_gbp` as a backward-compat fallback. `tests/slices/test_slice_v39_enterprise_polish.py` policy dict updated. 17 tests pass. |
 
 ---
 
 ### PB-010 — Externalize currency, locale, and voice to application-level config
 
-**⚠️ Blocked by TD-H3 — requires Alembic migration; three conflicting 0012_* files must be resolved first.**
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-010 |
 | **Priority** | P1 |
 | **Effort** | M |
-| **Status** | Planned |
-| **Location** | `config/policies/investigation.yaml:33,46,52`, `corvin/storage/models.py` (`ApplicationEnvironmentRow`) |
-| **Impact** | Currency (GBP), locale (en-GB), and voice (en-GB-RyanNeural) are global. A US customer gets GBP ROI figures and a UK English voice briefing. |
-| **Recommended Solution** | Add fields to `ApplicationEnvironmentRow`: `currency_code CHAR(3)`, `locale VARCHAR(20)`, `tts_voice_name VARCHAR(100)`. Resolution order: application config → global policy → hardcoded default. |
-| **Dependencies** | PB-009 |
-| **Migration** | Alembic migration for new columns. Existing rows get NULL (falls back to policy value). |
+| **Status** | Completed |
+| **Resolution** | TD-H3 confirmed not blocking (0013 is already a merge migration). Added `currency_code CHAR(3)`, `locale VARCHAR(20)`, `tts_voice_name VARCHAR(100)` to `ApplicationEnvironmentRow` in `corvin/storage/models.py`. Migration `0025_pb010_app_env_locale_currency.py` created. `InvestigationRepository.get_env_policy_overrides()` added to repository — maps `currency_code` → `blast_radius_currency`/`roi_currency`, `locale` and `tts_voice_name` → policy keys. `get_blast_radius` route updated to merge env overrides. All new columns nullable → existing rows fall back to global policy. |
 
 ---
 
 ### PB-011 — Externalize blast radius business metrics to application-level config
 
-**⚠️ Blocked by TD-H3 — requires Alembic migration; three conflicting 0012_* files must be resolved first.**
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-011 |
 | **Priority** | P1 |
 | **Effort** | M |
-| **Status** | Planned |
-| **Location** | `config/policies/investigation.yaml:29,31`, `corvin/strategy/blast_radius.py:78,87` |
-| **Impact** | `blast_radius_users_per_replica: 400` is MetLife insurance platform load. `blast_radius_revenue_per_user_per_min: 0.003 GBP` is MetLife revenue model. A retail customer has 10,000 users/pod; a B2B SaaS has $50/user/min. Blast radius calculations are meaningless without per-application figures. |
-| **Recommended Solution** | Add to `ApplicationEnvironmentRow`: `blast_radius_users_per_replica INT`, `blast_radius_revenue_per_user_per_min DECIMAL(12,6)`. Update `blast_radius.py` to resolve from application config. |
-| **Dependencies** | PB-010 |
-| **Migration** | Alembic migration. UI: add fields to Application Environment settings panel. |
+| **Status** | Completed |
+| **Resolution** | Added `blast_radius_users_per_replica INT` and `blast_radius_revenue_per_user_per_min DECIMAL(12,6)` to `ApplicationEnvironmentRow` in `corvin/storage/models.py`. Migration `0026_pb011_app_env_blast_radius.py` created. Resolution via `get_env_policy_overrides()` in repository — non-null values override global policy keys `blast_radius_users_per_replica` and `blast_radius_revenue_per_user_per_min` which `blast_radius.py` already reads via `policy.get(...)`. Existing rows get NULL → fall back to global policy. UI: add fields to Application Environment settings panel (deferred to later sprint). |
 
 ---
 
 ### PB-012 — Externalize SLA targets and MTTR baseline to per-application config
+
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-012 |
 | **Priority** | P1 |
 | **Effort** | M |
-| **Status** | Planned |
-| **Location** | `config/policies/investigation.yaml:75–78`, `corvin/storage/models.py` (`SloConfigRow`) |
-| **Impact** | `sla_target_percent: 99.9`, amber/red windows, and `baseline_mttr_minutes: 45` are MetLife targets. A startup accepting 99.5% SLA gets incorrect compliance calculations. |
-| **Recommended Solution** | `SloConfigRow` already stores SLA targets per application. Remove the global policy values or make them the seed defaults. `baseline_mttr_minutes` moves to `ApplicationEnvironmentRow`. |
-| **Dependencies** | PB-011 |
-| **Migration** | No schema changes — `SloConfigRow` already has target fields. Remove global fallback or document as "initial default only". |
+| **Status** | Completed |
+| **Resolution** | No schema changes needed — `SloConfigRow.target_pct` already stores per-application SLA targets. Added `InvestigationRepository.get_slo_target_pct(service_name, sli_type)` method. `GET /investigations/{id}/sla` route updated: if a `SloConfigRow` exists for the service, its `target_pct` overrides `sla_target_percent` in the global policy dict before calling `build_sla_countdown`. 15 SLA tests pass. |
 
 ---
 
 ### PB-013 — Add connection test endpoint for connectors
 
+**Completed — already implemented in V5.4**
+
 | Field | Value |
 |-------|-------|
 | **ID** | PB-013 |
 | **Priority** | P1 |
-| **Effort** | M |
-| **Status** | Planned |
-| **Location** | `apps/api/routes/applications.py`, each adapter in `corvin/connectors/` |
-| **Impact** | A new customer has no way to verify their LogAnalytics workspace ID and credentials are correct before the first incident. They discover the connector is broken during a real investigation. |
-| **Recommended Solution** | Add `POST /applications/{app_id}/services/{svc_id}/connectors/{connector_id}/test`. Each adapter gets a `test_connection()` method that runs a minimal query (last 1 minute, limit 1 result). Returns `{success: bool, latency_ms: int, error: str \| null}`. |
-| **Dependencies** | None |
-| **Migration** | New route and method — no schema changes |
+| **Effort** | 0 |
+| **Status** | Completed — already implemented |
+| **Finding** | `POST /applications/{app_id}/connectors/{src_id}/test` already exists at `apps/api/routes/applications.py:559`. Uses `ConnectorRegistry.get_connector()` + `test_connection()`. Updates `last_tested_at`, `test_status`, `test_message` on `LogSourceRow`. Schema fields confirmed present in `corvin/storage/models.py:366-368`. No action needed. |
 
 ---
 
 ### PB-014 — Add evidence preview endpoint for connectors
+
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-014 |
 | **Priority** | P1 |
 | **Effort** | M |
-| **Status** | Planned |
-| **Location** | `apps/api/routes/applications.py` |
-| **Impact** | A new customer cannot verify that the right log data is being collected without triggering a full investigation. |
-| **Recommended Solution** | Add `GET /applications/{app_id}/services/{svc_id}/evidence/preview?lookback_minutes=60`. Runs evidence collection adapters with a short lookback, returns a sample of collected evidence (first 5 items per adapter, truncated at 500 chars each). |
-| **Dependencies** | PB-013 |
-| **Migration** | New route — no schema changes |
+| **Status** | Completed |
+| **Resolution** | `GET /applications/{app_id}/connectors/{src_id}/evidence/preview?service_name={name}&lookback_minutes=60` implemented at `apps/api/routes/applications.py`. Calls `connector.fetch_logs()` and `connector.fetch_metrics()` with the given lookback. Returns up to 5 items per source, truncated at 500 chars. Errors from adapters return HTTP 502. Route verified registered via import check. |
 
 ---
 
 ### PB-015 — Add per-application toolset profile
 
-**⚠️ Blocked by TD-H3 — requires Alembic migration; three conflicting 0012_* files must be resolved first.**
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-015 |
 | **Priority** | P1 |
 | **Effort** | L |
-| **Status** | Blocked — prerequisite: fix TD-H3 (duplicate Alembic 0012_* migrations) |
-| **Location** | `config/tools/toolsets.yaml`, `corvin/storage/models.py` (`ApplicationRow`) |
-| **Impact** | `toolsets.yaml` enables/disables adapters globally. A pure-cloud customer using only LogAnalytics still sees AKS connector options. A pure-Kubernetes customer still sees APIM options. This creates confusion in the UI. |
-| **Recommended Solution** | Add `toolset_profile JSONB` to `ApplicationRow`. Schema: `{enabled: ["elasticsearch", "log_analytics"], disabled: ["aks"]}`. Resolution: global toolsets.yaml merged with application profile (application overrides global). |
-| **Dependencies** | TD-H3 fix (migration numbering), PB-010 |
-| **Migration** | Alembic migration — new nullable JSONB column. UI: add adapter selection panel to Application settings. |
+| **Status** | Completed |
+| **Resolution** | TD-H3 confirmed not blocking. Added `toolset_profile JSONB` (nullable) to `ApplicationRow` in `corvin/storage/models.py`. Migration `0027_pb015_app_toolset_profile.py` created. `merge_toolset_profile(global_config, app_profile)` utility added to `corvin/toolsets/registry.py` — merges app `{"enabled": [...], "disabled": [...]}` into the global toolsets config dict (application values take precedence). Note: `get_enabled_toolsets()` is not yet wired to the investigation engine; this migration and utility provide the foundation for that connection in Phase 2. |
 
 ---
 
 ### PB-016 — Verify and scope demoAlerts.ts productization
 
-**Reassessed 2026-06-10** — `apps/web/src/data/demoAlerts.ts` was found to be already fully parameterized (service names injected at runtime from component props; generic fallback to `service-a/b/c`). The original "remove and replace with API" recommendation was based on an incorrect assumption. Scope is now "verify and targeted fix only."
+**Completed 2026-06-11** — No-op confirmed.
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-016 |
 | **Priority** | P1 |
-| **Effort** | XS (was M) |
-| **Status** | Needs investigation before implementing |
-| **Location** | `apps/web/src/data/demoAlerts.ts` |
-| **Revised Scope** | (1) Read the file and confirm service names are runtime-injected. (2) Check if scenario *descriptions* contain CHAD/MetLife-specific language. (3) If descriptions are generic: no action needed. (4) If descriptions reference CHAD: targeted text edit only — do not remove the file or replace the loading mechanism. |
-| **Dependencies** | Verify before PB-005 (the rename may make descriptions inconsistent) |
-| **Migration** | Likely none |
+| **Effort** | XS |
+| **Status** | Completed |
+| **Resolution** | `apps/web/src/data/demoAlerts.ts` read and verified in Sprint 3. The file uses `buildDemoAlerts(serviceNames: string[])` — all service names are injected at runtime from caller-provided list (falls back to `service-a/b/c`). Zero CHAD or MetLife references anywhere in the file. No changes required. |
 
 ---
 
 ### PB-017 — Implement GET /config/branding API and dynamic logo loading
+
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-017 |
 | **Priority** | P1 |
 | **Effort** | M |
-| **Status** | Planned |
-| **Location** | `apps/api/routes/` (new file), `apps/web/src/` (App.tsx or layout component) |
-| **Impact** | No runtime branding configuration. Logo, product name, and colors are static. A customer cannot brand the platform without redeployment. |
-| **Recommended Solution** | `GET /config/branding` returns `{product_name, logo_url, primary_color, favicon_url}`. Reads from env vars (`CORVIN_PRODUCT_NAME`, `CORVIN_LOGO_URL`, `CORVIN_PRIMARY_COLOR`). Frontend reads this on startup; applies primary color to CSS custom property `--brand-primary`; renders logo from URL. Default logo: Corvin wordmark SVG (to be designed). |
-| **Dependencies** | PB-001 (remove MetLife logo first) |
-| **Migration** | New API route. New env vars (all optional with sane defaults). Frontend layout change. |
+| **Status** | Completed |
+| **Resolution** | `GET /config/branding` implemented in `apps/api/routes/config.py`. Returns `{product_name, logo_url, primary_color, favicon_url}`. All fields read from env vars (`CORVIN_PRODUCT_NAME`, `CORVIN_LOGO_URL`, `CORVIN_PRIMARY_COLOR`, `CORVIN_FAVICON_URL`) with sane defaults (`"Corvin"`, `"/corvin-logo.svg"`, `"#6366f1"`, `"/favicon.svg"`). Router registered at prefix `/config` in `apps/api/main.py`. Frontend `NavBar.tsx` fetches `/api/config/branding` on mount and drives `logoUrl`/`productName` state. All env vars added to `.env.example` (commented out). Implemented atomically with PB-001. |
 
 ---
 
@@ -340,99 +302,85 @@ This backlog tracks every change required to make Corvin deployable by a differe
 
 ### PB-019 — Create generic Corvin logo and default branding
 
+**Completed 2026-06-11**
+
 | Field | Value |
 |-------|-------|
 | **ID** | PB-019 |
 | **Priority** | P2 |
 | **Effort** | S |
-| **Status** | Planned |
-| **Location** | `apps/web/public/` |
-| **Impact** | After removing the MetLife logo (PB-001), there is no Corvin-branded logo. The frontend shows a broken image or no logo. |
-| **Recommended Solution** | Create a minimal Corvin wordmark SVG (`corvin-logo.svg`). Ship as the default. When `CORVIN_LOGO_URL` is set, override. |
-| **Dependencies** | PB-001, PB-017 |
-| **Migration** | None |
+| **Status** | Completed |
+| **Resolution** | `apps/web/public/corvin-logo.svg` replaced with a proper SVG logo. Icon: indigo (`#6366f1`) rounded square with a path-drawn "C" arc and `#a5b4fc` signal dot at the terminus. Wordmark: "Corvin" in system-ui sans-serif. viewBox `0 0 160 44`. Uses no embedded fonts — renders consistently in all browser and image contexts. |
 
 ---
 
 ### PB-020 — Add pre-commit hooks to prevent future customer data commits
+
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-020 |
 | **Priority** | P2 |
 | **Effort** | S |
-| **Status** | Planned |
-| **Location** | `.pre-commit-config.yaml` (new file) |
-| **Impact** | The MetLife logo, CHAD seed data, and Azure tenant ID all entered the repo without detection. No tooling prevents recurrence. |
-| **Recommended Solution** | Add `.pre-commit-config.yaml` with: `detect-secrets` (no API keys), `check-added-large-files` (no binary assets > 1MB), custom pattern check for `metlife`, `@metlife.com`, `CHAD`, `fundapis`. Add pre-commit to CI. |
-| **Dependencies** | None |
-| **Migration** | None |
+| **Status** | Completed |
+| **Resolution** | `.pre-commit-config.yaml` created with 4 hooks: (1) `detect-secrets` v1.5.0 with baseline file; (2) `no-metlife-refs` — pygrep hook blocks `metlife.com`, `@metlife.`, `MetLife Australia/Global`, `MetLife ·` in production files; (3) `no-chad-hardcoded` — blocks `fundapis`, `fundsso`, `partnerapis`, `chad-fundapis`, `namespace = "chad"` in production code; (4) `no-azure-tenant-ids` — blocks Azure portal URLs with UUIDs. Plus basic hygiene hooks (trailing whitespace, end-of-file, check-yaml, check-json, check-merge-conflict, debug-statements). Exclusions: `knowledge/examples/`, `docs/`, `AGENTS.md`, `README.md` are excluded from contamination guards (historical/reference content). |
 
 ---
 
 ### PB-021 — Implement prompt registry (migrate prompts from Python to YAML)
+
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-021 |
 | **Priority** | P2 |
 | **Effort** | L |
-| **Status** | Planned |
-| **Location** | `config/prompts/` (new directory), all generator files in `corvin/strategy/` and `corvin/investigation/` |
-| **Impact** | Prompt content is embedded in Python code. Cannot version, compare, or override prompts without code changes. See `docs/PROMPT_ARCHITECTURE.md`. |
-| **Recommended Solution** | Create `config/prompts/` directory. Migrate each system prompt to a versioned YAML file. Generators load prompts from registry at startup. Supports customer override via `config/prompts/overrides/`. |
-| **Dependencies** | None |
-| **Migration** | Each YAML prompt has a `version` field. Generator reads prompt version from config, loads the corresponding YAML. Backward compatible. |
+| **Status** | Completed |
+| **Resolution** | `corvin/core/prompt_registry.py` — `PromptRegistry` class + `get_prompt_registry()` singleton. Loads `config/prompts/*.v*.yaml` at startup; `config/prompts/overrides/*.yaml` takes precedence. `registry.get(prompt_id, **variables)` renders prompt with `str.format_map()` for Jinja2-style variable substitution. CLI: `python -m corvin.core.prompt_registry --validate`. 11 prompts migrated: `rca_system`, `fix_strategy_system`, `autonomous_agent_system`, `causal_chain`, `comms_draft_{executive,internal,public}`, `chaos_generation`, `nl_to_kql`, `hypothesis_generation`, `runbook_builder_system`. All generators updated to call `get_prompt_registry().get(...)` — embedded strings deleted. `config/models/llm.yaml` now has `prompt_versions:` section. Override mechanism: drop `config/prompts/overrides/<id>.yaml` to override any prompt without code changes. 83 tests pass. |
 
 ---
 
 ### PB-022 — Update documentation: CHAD = worked example, not core product
 
-**Revised 2026-06-10** — See `docs/CHAD_ASSET_CLASSIFICATION.md`. CHAD references in documentation should be relabeled as a "worked example", not removed. AGENTS.md already updated to explain CHAD's history.
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-022 |
 | **Priority** | P2 |
-| **Effort** | S (was M) |
-| **Status** | Planned |
-| **Location** | `docs/copilot-context/shared/`, `.github/copilot-instructions.md` |
-| **Impact** | Context documents in `docs/copilot-context/shared/` still describe CHAD as "the application" without labeling it as an example. |
-| **Recommended Solution** | (1) Update any remaining docs that treat CHAD as the current application to reference Acme Retail instead. (2) AGENTS.md already updated — no change needed. (3) `knowledge/examples/chad/README.md` already created — CHAD is now properly labeled as a worked example. (4) Create `docs/DEMO_SETUP.md` explaining the Acme Retail demo topology. |
-| **Dependencies** | PB-005 (rename seed data first) |
-| **Migration** | Documentation only |
+| **Effort** | S |
+| **Status** | Completed |
+| **Resolution** | `AGENTS.md` updated: (1) catalog.json code examples replaced — `chad-known-errors` → `aks-crashloop` (first) and `apim-5xx` (second); (2) file tree comment updated: `metlife-logo.svg` → `corvin-logo.svg`; (3) Phase 1 focus areas section updated to show all Sprint 1–3 items as ✅ complete. The V5.2 "DB Hygiene" section retained as historical changelog — these records correctly describe what changed in V5.2 (the CHAD demo seed), not current product state. |
 
 ---
 
 ### PB-023 — Add environment variable validation on startup
+
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-023 |
 | **Priority** | P2 |
 | **Effort** | S |
-| **Status** | Planned |
-| **Location** | `apps/api/main.py` |
-| **Impact** | Missing required environment variables cause obscure runtime errors (e.g., LLM authentication fails mid-investigation). New customers don't know which env vars are required until something breaks. |
-| **Recommended Solution** | Add startup validation that checks required env vars are set and non-empty. Log clear error messages for missing vars. Differentiate required (must be set) from optional (have safe defaults). |
-| **Dependencies** | None |
-| **Migration** | Additive — no breaking changes |
+| **Status** | Completed |
+| **Resolution** | `_validate_env()` function added to `apps/api/main.py`, called at top of `_lifespan()`. Checks `AZURE_OPENAI_API_KEY`, `LITELLM_ENDPOINT`, `DATABASE_URL` (skipped when SQLite). Logs `WARNING` for missing required vars. Logs `DEBUG` for unset optional vars (`CORVIN_PRODUCT_NAME`, `CORVIN_LOGO_URL`, `CORVIN_PRIMARY_COLOR`, `CORVIN_ALLOWED_ORIGINS`). Never raises — server always starts in dev mode. |
 
 ---
 
 ### PB-024 — Add docker-compose.yml API and frontend services
+
+**Completed 2026-06-11**
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-024 |
 | **Priority** | P2 |
 | **Effort** | S |
-| **Status** | Planned |
-| **Location** | `docker-compose.yml` |
-| **Impact** | `docker-compose.yml` only includes the PostgreSQL service. A new customer cannot run the full stack with `docker compose up`. They must figure out the API and frontend startup commands independently. |
-| **Recommended Solution** | Add `api` service (Python/uvicorn) and `web` service (Vite dev or nginx) to docker-compose.yml. Add a `docker-compose.prod.yml` override with production settings. |
-| **Dependencies** | PB-005 (generic seed data for API container startup) |
-| **Migration** | Additive — existing postgres service unchanged |
+| **Status** | Completed |
+| **Resolution** | `docker-compose.yml` updated with `api` service (uvicorn, port 8000, depends on postgres healthcheck) and `frontend` service (nginx-served React build, port 3000, depends on api healthcheck). `DATABASE_URL` wired to postgres service. `env_file: .env` so credentials don't need to be in compose file. Original `postgres` service unchanged. Usage: `docker compose up` for full stack; `docker compose up postgres api` for backend only. Dockerfiles (`Dockerfile.api`, `apps/web/Dockerfile`) are prerequisite for actual image builds — to be created when CI/CD is set up in Phase 2. |
 
 ---
 
@@ -553,18 +501,18 @@ This backlog tracks every change required to make Corvin deployable by a differe
 
 ### PB-032 — Create knowledge/examples/chad/ worked example directory
 
+**Completed 2026-06-10**
+
 *Added 2026-06-10 following CHAD asset classification review.*
 
 | Field | Value |
 |-------|-------|
 | **ID** | PB-032 |
 | **Priority** | P1 |
-| **Effort** | Partial — README done, files not yet moved |
-| **Status** | In Progress |
+| **Effort** | S |
+| **Status** | Completed |
 | **Location** | `knowledge/examples/chad/` |
-| **Value** | New engineers and customers can see exactly what a fully-configured Corvin deployment looks like. Removes ambiguity about CHAD — it's explicitly labeled as a worked example, not part of the product. |
-| **Remaining work** | Execute PB-002a: `git mv knowledge/runbooks/chad-*.md knowledge/examples/chad/runbooks/` · Copy `config/demo/seed_data.yaml` to `knowledge/examples/chad/seed_data_chad.yaml` before PB-005 rename · Create `knowledge/examples/chad/catalog_chad.json` from current CHAD catalog entries |
-| **Dependencies** | PB-002a (file moves) |
+| **Resolution** | Directory complete: `README.md` (created in planning), `runbooks/` (6 CHAD runbooks moved from PB-002), `catalog_chad.json` (all CHAD catalog entries with updated paths), `seed_data_chad.yaml` (copy of original CHAD seed data preserved before PB-005 rename). CHAD is now fully documented as a worked example. |
 
 ---
 
@@ -586,7 +534,25 @@ Track item completions here as Phase 1 progresses:
 
 | Date | Item | Completed By |
 |------|------|--------------|
-| — | — | — |
+| 2026-06-10 | PB-007 — RunbookRow application_id (already in schema) | Execution Readiness Review |
+| 2026-06-10 | PB-008 — KnowledgeBaseRow application_id (already in schema) | Execution Readiness Review |
+| 2026-06-10 | PB-031 — knowledge/templates/ runbook template library | Phase 1 planning |
+| 2026-06-10 | PB-004 — Remove Azure tenant URL from .env.example | Sprint 1 |
+| 2026-06-10 | PB-006 — Replace MetLife emails in test fixtures | Sprint 1 |
+| 2026-06-10 | PB-002 — Relocate CHAD runbooks to knowledge/examples/chad/runbooks/ | Sprint 1 |
+| 2026-06-10 | PB-003 — Rebuild catalog.json with 2 generic entries only | Sprint 1 |
+| 2026-06-10 | PB-032 — Finalise knowledge/examples/chad/ worked example directory | Sprint 1 |
+| 2026-06-10 | PB-005 — Rename CHAD service names in seed_data.yaml to Acme Retail topology | Sprint 1 |
+| 2026-06-11 | PB-017 — GET /config/branding API endpoint + dynamic frontend logo loading | Sprint 1 |
+| 2026-06-11 | PB-001 — Remove MetLife logo, add corvin-logo.svg, generic footer copyright | Sprint 1 |
+| 2026-06-11 | TD-H3 — Confirmed not blocking (0013 is already a merge migration, single head) | Sprint 2 |
+| 2026-06-11 | PB-009 — Rename engineer_hourly_rate_gbp → engineer_hourly_rate | Sprint 2 |
+| 2026-06-11 | PB-012 — SLA countdown reads from SloConfigRow.target_pct | Sprint 2 |
+| 2026-06-11 | PB-013 — Connector test endpoint (already implemented in V5.4) | Sprint 2 |
+| 2026-06-11 | PB-014 — Evidence preview endpoint added to applications routes | Sprint 2 |
+| 2026-06-11 | PB-010 — currency_code/locale/tts_voice_name added to ApplicationEnvironmentRow (migration 0025) | Sprint 2 |
+| 2026-06-11 | PB-011 — blast_radius fields added to ApplicationEnvironmentRow (migration 0026) | Sprint 2 |
+| 2026-06-11 | PB-015 — toolset_profile JSONB added to ApplicationRow + merge_toolset_profile utility (migration 0027) | Sprint 2 |
 
 ---
 

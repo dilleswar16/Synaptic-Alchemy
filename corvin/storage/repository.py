@@ -49,6 +49,7 @@ from corvin.core.contracts import (
 )
 from corvin.storage.db import get_session
 from corvin.storage.models import (
+    ApplicationEnvironmentRow,
     ApplicationServiceRow,
     EvidenceBundleRow,
     FixStrategyOutputRow,
@@ -56,6 +57,7 @@ from corvin.storage.models import (
     PostMortemRow,
     PredictiveAlertRow,
     RCAOutputRow,
+    SloConfigRow,
 )
 
 
@@ -886,6 +888,76 @@ class InvestigationRepository:
             ).scalars().all()
 
         return len(rows) * ESTIMATED_MTTR_SECONDS
+
+    def get_slo_target_pct(
+        self,
+        service_name: str,
+        sli_type: str = "availability",
+        application_id: str | None = None,
+    ) -> float | None:
+        """Return the configured SLA target % for a service from SloConfigRow.
+
+        Returns None if no SloConfigRow exists, allowing callers to fall back
+        to the global policy default.
+        """
+        with self._session_factory() as session:
+            q = (
+                session.query(SloConfigRow)
+                .filter(
+                    SloConfigRow.service_name == service_name,
+                    SloConfigRow.sli_type == sli_type,
+                    SloConfigRow.enabled == True,  # noqa: E712
+                )
+            )
+            if application_id is not None:
+                q = q.filter(SloConfigRow.application_id == application_id)
+            row: SloConfigRow | None = q.first()
+            return float(row.target_pct) if row is not None else None
+
+    def get_env_policy_overrides(
+        self,
+        service_name: str,
+        environment: str,
+    ) -> dict:
+        """Return per-environment policy overrides from ApplicationEnvironmentRow.
+
+        Finds the application that owns the service, then returns a dict of
+        non-null override fields that callers can merge into the global policy dict.
+        Resolution: returned values override global policy; absent (None) values
+        fall back to the global policy default.
+        """
+        with self._session_factory() as session:
+            svc: ApplicationServiceRow | None = (
+                session.query(ApplicationServiceRow)
+                .filter(ApplicationServiceRow.service_name == service_name)
+                .first()
+            )
+            if svc is None:
+                return {}
+            env_row: ApplicationEnvironmentRow | None = (
+                session.query(ApplicationEnvironmentRow)
+                .filter(
+                    ApplicationEnvironmentRow.application_id == svc.application_id,
+                    ApplicationEnvironmentRow.name == environment,
+                )
+                .first()
+            )
+            if env_row is None:
+                return {}
+
+            overrides: dict = {}
+            if env_row.currency_code is not None:
+                overrides["blast_radius_currency"] = env_row.currency_code
+                overrides["roi_currency"] = env_row.currency_code
+            if env_row.locale is not None:
+                overrides["locale"] = env_row.locale
+            if env_row.tts_voice_name is not None:
+                overrides["voice_name"] = env_row.tts_voice_name
+            if env_row.blast_radius_users_per_replica is not None:
+                overrides["blast_radius_users_per_replica"] = env_row.blast_radius_users_per_replica
+            if env_row.blast_radius_revenue_per_user_per_min is not None:
+                overrides["blast_radius_revenue_per_user_per_min"] = float(env_row.blast_radius_revenue_per_user_per_min)
+            return overrides
 
     def replace_predictive_alerts(self, alerts: list[dict[str, Any]]) -> None:
         """Replace current predictive alerts with the latest refresh output."""

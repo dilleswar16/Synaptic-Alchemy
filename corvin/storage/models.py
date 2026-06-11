@@ -294,6 +294,10 @@ class ApplicationRow(Base):
     # Schema: {"environments": [{"name": "production", "priority_tier": "P1", "lookback_minutes": 15}, ...]}
     # Falls back to config/policies/environments.yaml when absent.
     environment_config_json: Mapped[dict | None] = mapped_column(JSONB_COMPAT, nullable=True, default=None)
+    # PB-015: per-application connector toolset profile.
+    # Schema: {"enabled": ["log_analytics", "aks"], "disabled": ["elastic"]}
+    # Merged with global config/tools/toolsets.yaml; application values take precedence.
+    toolset_profile: Mapped[dict | None] = mapped_column(JSONB_COMPAT, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
@@ -596,6 +600,13 @@ class ApplicationEnvironmentRow(Base):
     lookback_minutes: Mapped[int] = mapped_column(nullable=False, default=60)
     is_default: Mapped[bool] = mapped_column(nullable=False, default=False)
     display_order: Mapped[int] = mapped_column(nullable=False, default=0)
+    # PB-010: per-application locale/currency/voice overrides (nullable → fall back to global policy)
+    currency_code: Mapped[str | None] = mapped_column(String(3), nullable=True, default=None)   # ISO 4217, e.g. USD, GBP, EUR
+    locale: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)          # BCP-47, e.g. en-US, en-GB
+    tts_voice_name: Mapped[str | None] = mapped_column(String(100), nullable=True, default=None) # Azure TTS voice name
+    # PB-011: per-application blast radius business metrics (nullable → fall back to global policy)
+    blast_radius_users_per_replica: Mapped[int | None] = mapped_column(nullable=True, default=None)
+    blast_radius_revenue_per_user_per_min: Mapped[float | None] = mapped_column(nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
 

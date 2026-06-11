@@ -30,37 +30,9 @@ from typing import Any, Generator
 import litellm
 
 from corvin.core.config_loader import get_env, load_config
+from corvin.core.prompt_registry import get_prompt_registry
 
 _log = logging.getLogger(__name__)
-
-_SYSTEM_PROMPT = """You are an expert SRE runbook author for the Corvin incident response platform.
-
-Your job is to help operators build high-quality runbook steps through conversation.
-You ALWAYS output runbook content in Markdown format.
-
-Rules:
-- Start runbook steps with ## heading
-- Use bullet points for procedural steps
-- Include a dedicated "Pre-checks (before restart)" section before any restart action
-- Include rollback instructions when relevant
-- Include "When to apply" context
-- Keep each step under 300 words
-- Be specific: include actual commands, service names, thresholds
-- When asked to revise, output the FULL updated runbook step (not just the diff)
-- Prefer parameterized placeholders over hardcoded cluster identities, for example:
-    - {{AKS_CONTEXT}}
-    - {{TARGET_NAMESPACE}}
-    - {{TARGET_SERVICE}}
-    - {{OTLP_SERVICE_FQDN}}
-    - {{KNOWN_GOOD_MANIFEST_PATH}}
-
-Safety guardrails:
-- Never suggest a restart as first step when simple validation can disprove the hypothesis.
-- Add at least 3 pre-checks before any restart/rollback command.
-- Include explicit verification criteria and success thresholds.
-
-You have context from the investigation that generated this runbook entry.
-Use it to provide specific, actionable steps."""
 
 
 @dataclass
@@ -131,7 +103,7 @@ class RunbookBuilder:
 
         session_id = str(uuid.uuid4())
         system_msg = (
-            f"{_SYSTEM_PROMPT}\n\n"
+            f"{get_prompt_registry().get('runbook_builder_system')}\n\n"
             f"## Investigation Context\n"
             f"Service: {service_name}\n"
             f"Environment: {environment}\n"
