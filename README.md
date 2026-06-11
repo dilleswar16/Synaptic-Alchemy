@@ -1,4 +1,4 @@
-# Corvin Copilot Pack
+# Corvin Copilot Pack  
 
 This folder is an exportable VS Code Copilot context pack for building Corvin from scratch.
 
