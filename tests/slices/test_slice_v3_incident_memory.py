@@ -209,10 +209,12 @@ def test_get_similar_incidents_default_n_is_3(repo):
 
 
 class FakeKnowledgeLoader:
-    def load_site_knowledge(self) -> str:
+    """Signature mirrors corvin.core.knowledge_loader.KnowledgeLoader."""
+
+    def load_site_knowledge(self, service_name: str | None = None) -> str:
         return ""
 
-    def load_matching_runbooks(self, alert_text: str) -> list[str]:
+    def load_matching_runbooks(self, alert_text: str, service_name: str | None = None) -> list[str]:
         return []
 
     def load_learnings(self) -> str:

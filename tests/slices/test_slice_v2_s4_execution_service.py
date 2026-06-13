@@ -261,29 +261,35 @@ def test_fake_aks_scale_returns_bool():
     assert adapter.scale_deployment("order-service", replicas=3) is True
 
 
-def test_aks_adapter_restart_pods_unconfigured_returns_empty():
-    """When clients are None, restart_pods returns [] without raising."""
+def _make_unconfigured_adapter() -> AKSAdapter:
+    """Build an AKSAdapter with no Kubernetes clients, bypassing __init__.
+
+    _ensure_clients is stubbed out so the execution methods see the
+    clients-are-None state without attempting a real kubeconfig load.
+    """
     adapter = AKSAdapter.__new__(AKSAdapter)
     adapter._core_v1 = None
     adapter._apps_v1 = None
+    adapter._client_mode = None
     adapter._config = {"default_namespace": "default"}
+    adapter._ensure_clients = lambda cfg: None
+    return adapter
+
+
+def test_aks_adapter_restart_pods_unconfigured_returns_empty():
+    """When clients are None, restart_pods returns [] without raising."""
+    adapter = _make_unconfigured_adapter()
     result = adapter.restart_pods("svc")
     assert result == []
 
 
 def test_aks_adapter_rollback_unconfigured_returns_false():
-    adapter = AKSAdapter.__new__(AKSAdapter)
-    adapter._core_v1 = None
-    adapter._apps_v1 = None
-    adapter._config = {"default_namespace": "default"}
+    adapter = _make_unconfigured_adapter()
     assert adapter.rollback_deployment("svc") is False
 
 
 def test_aks_adapter_scale_unconfigured_returns_false():
-    adapter = AKSAdapter.__new__(AKSAdapter)
-    adapter._core_v1 = None
-    adapter._apps_v1 = None
-    adapter._config = {"default_namespace": "default"}
+    adapter = _make_unconfigured_adapter()
     assert adapter.scale_deployment("svc", replicas=2) is False
 
 

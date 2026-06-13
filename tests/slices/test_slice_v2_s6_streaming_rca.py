@@ -365,7 +365,7 @@ def _make_test_client_with_fake_streamer(repo=None):
 def test_stream_route_returns_200():
     client, _ = _make_test_client_with_fake_streamer()
     try:
-        resp = client.get("/investigations/stream?service_name=test-svc")
+        resp = client.get("/investigations/stream?service_name=test-svc&environment=production")
         assert resp.status_code == 200
     finally:
         app.dependency_overrides.pop(get_streamer, None)
@@ -374,7 +374,7 @@ def test_stream_route_returns_200():
 def test_stream_route_content_type_is_sse():
     client, _ = _make_test_client_with_fake_streamer()
     try:
-        resp = client.get("/investigations/stream?service_name=test-svc")
+        resp = client.get("/investigations/stream?service_name=test-svc&environment=production")
         assert "text/event-stream" in resp.headers["content-type"]
     finally:
         app.dependency_overrides.pop(get_streamer, None)
@@ -383,7 +383,7 @@ def test_stream_route_content_type_is_sse():
 def test_stream_route_body_contains_sse_events():
     client, _ = _make_test_client_with_fake_streamer()
     try:
-        resp = client.get("/investigations/stream?service_name=test-svc")
+        resp = client.get("/investigations/stream?service_name=test-svc&environment=production")
         # Every line that starts with "data: " must be valid JSON.
         lines = resp.text.splitlines()
         data_lines = [l[len("data: "):] for l in lines if l.startswith("data: ")]
@@ -398,7 +398,7 @@ def test_stream_route_body_contains_sse_events():
 def test_stream_route_contains_complete_event():
     client, _ = _make_test_client_with_fake_streamer()
     try:
-        resp = client.get("/investigations/stream?service_name=test-svc")
+        resp = client.get("/investigations/stream?service_name=test-svc&environment=production")
         lines = resp.text.splitlines()
         events = [json.loads(l[len("data: "):]) for l in lines if l.startswith("data: ")]
         complete_events = [e for e in events if e["stage"] == "complete"]
@@ -410,7 +410,7 @@ def test_stream_route_contains_complete_event():
 def test_stream_route_stage_order():
     client, _ = _make_test_client_with_fake_streamer()
     try:
-        resp = client.get("/investigations/stream?service_name=test-svc")
+        resp = client.get("/investigations/stream?service_name=test-svc&environment=production")
         lines = resp.text.splitlines()
         events = [json.loads(l[len("data: "):]) for l in lines if l.startswith("data: ")]
         seen: list[str] = []

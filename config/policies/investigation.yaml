@@ -72,6 +72,12 @@ predictive_error_rate_critical_pct: 30
 predictive_error_count_threshold: 5
 # Total restart count threshold for restart acceleration alerts.
 predictive_restart_threshold: 3
+# Predictive penalty feedback loop: when enabled, every completed investigation
+# that the predictive engine did not forecast records a "penalty" (DB row +
+# knowledge/learnings file) which is then injected into future RCA prompts.
+# Disabled by default: it fires on nearly every investigation, appends one
+# file per incident with no deduplication, and pollutes prompts with noise.
+prediction_penalty_enabled: false
 sla_target_percent: 99.9
 sla_month_minutes: 43200
 sla_amber_seconds: 7200

@@ -1,7 +1,7 @@
 # Corvin — Project Status
 
-**Last Updated:** 2026-06-11  
-**Current Phase:** Phase 1 — Productization & Genericization  
+**Last Updated:** 2026-06-12  
+**Current Phase:** Phase 2 — Architecture Modernization (Phase 2-lite pass delivered 2026-06-12)  
 **Product Version:** V5.4 (feature-complete hackathon build)  
 **Roadmap Authority:** [docs/ROADMAP.md](docs/ROADMAP.md)
 
@@ -14,8 +14,8 @@ This document is the persistent status tracker. Update it when any phase milesto
 | Phase | Name | Status | Notes |
 |-------|------|--------|-------|
 | Phase 0 | Knowledge & Governance | Complete | Canonical docs created, debt registered, governance gaps identified |
-| **Phase 1** | **Productization & Genericization** | **Active** | Audit complete; backlog defined; implementation not yet started |
-| Phase 2 | Architecture Modernization | Planned | Async pipeline, OpenTelemetry, circuit breakers, API versioning |
+| Phase 1 | Productization & Genericization | Complete (PB-025 doc polish open) | Sprints 1–3 delivered; Teams manifest + prompts reviewed 2026-06-12 |
+| **Phase 2** | **Architecture Modernization** | **Active — Phase 2-lite delivered** | Done: TD-H1, structured JSON logging, RFC 7807, /v1 versioning, guard warnings, test isolation. Deferred by decision: TD-H2, TD-H7, TD-H6 full fix, rate limiting (→ APIM), circuit breakers |
 | Phase 3 | Enterprise Foundation | Planned | Authentication (OIDC), RBAC, audit trail, secret management |
 | Phase 4 | Multi-Tenant Foundation | Planned | `tenant_id`, RLS policies, per-tenant config/LLM/encryption |
 | Phase 5 | SaaS Scale | Planned | Billing, tenant admin, usage metering, white-labeling |
@@ -105,18 +105,36 @@ All Sprint 3 items delivered. Phase 1 is effectively complete (only PB-025 DEMO_
 
 **Also fixed in Sprint 3 review:** 4 additional contamination items found and fixed (see Sprint 1 review note above).
 
-### Phase 4 — Next
+### Phase 1 Review (2026-06-12)
 
-Phase 1 is complete (one P3 item remaining: PB-025 DEMO_SETUP.md documentation). Next phase is Phase 2 — Architecture Modernization:
-- Async investigation pipeline (TD-H2) — offload `engine.run()` to background queue
-- `get_session()` context manager fix (TD-H1)
-- OpenTelemetry instrumentation
-- API versioning (`/v1/` prefix)
-- Circuit breakers on adapters
+Full audit confirmed Phase 1 exit criteria. Additional finding fixed: `apps/teams/manifest/manifest.json` still carried "MetLife Australia" / "CHAD platform" / hardcoded Azure deployment URLs — genericized. All 11 prompt YAML files reviewed; registry design matches industry practice (versioned files, override layer, variable substitution). Gap noted for Phase 3: automated prompt eval regression.
+
+### Phase 2-lite — Complete (2026-06-12)
+
+Scoped Phase 2 pass agreed with owner: low-risk, high-value items only. Deferred by explicit decision: TD-H2 (async pipeline), TD-H7 (leader election — single-worker constraint documented + startup warning), TD-H6 full hardening (warning shipped), rate limiting (delegated to APIM gateway), circuit breakers.
+
+| Item | Description | Status |
+|------|-------------|--------|
+| TD-H1 | `with get_session() as db:` in seed block — old `next(get_session())` raised TypeError, demo seeding was silently broken | Completed 2026-06-12 |
+| Structured logging | `corvin/core/logging_config.py` + `request_context.py` — one JSON object per line with `request_id`; `CORVIN_LOG_FORMAT=text` for dev | Completed 2026-06-12 |
+| TD-M9 | RFC 7807 `application/problem+json` via `apps/api/errors.py`; `detail` string preserved for existing clients | Completed 2026-06-12 |
+| TD-M3 | `/v1/` prefix via `ApiVersionMiddleware` (pure ASGI); root paths kept for backward compat; `X-API-Version: 1` header | Completed 2026-06-12 |
+| Guards | Startup warnings: CORS wildcard (TD-H6), multi-worker (TD-H7) | Completed 2026-06-12 |
+| Test isolation | `tests/conftest.py`: email kill-switch, throwaway SQLite DB, no disk learnings writes (TD-M14) | Completed 2026-06-12 |
+| Bug fixes | Circular import (engine→connectors), 34 drifted tests repaired, TD-M12 + TD-M13 resolved | Completed 2026-06-12 |
+| New tests | `tests/api/test_observability_and_versioning.py` — 18 tests for request-ID, /v1, problem+json, JSON formatter | Completed 2026-06-12 |
+
+### Prediction Penalty Feature — Disabled (2026-06-12)
+
+Owner decision: the predictive penalty feedback loop fired on nearly every investigation, appended one learnings file per incident with no deduplication, and polluted RCA prompts. Disabled via `prediction_penalty_enabled: false` in `config/policies/investigation.yaml` — gates both `penalize_prediction()` (write) and prompt injection (read). Re-enable by flipping the flag once the feature gains deduplication/aggregation. Tests: `tests/triggers/test_prediction_penalty_flag.py`. Residual fixture rows in `corvin.db` are inert.
+
+### Next
+
+1. **PB-025** — `docs/DEMO_SETUP.md` (P3 polish, last open Phase 1 item)
+2. Remaining Phase 2 scope when prioritized: TD-H2 async pipeline, TD-H7 leader election, OpenTelemetry, TD-H6 full hardening, business-logic extraction (TD-M1/M2)
 
 ### Known Ongoing Issues
-- **TD-M11** (ServiceNow broken import in `investigations.py`) — `test_sync_endpoints_exist` always fails.
-- **TD-M12** (knowledge injection test interface drift) — 13 tests in `test_slice5_knowledge_injection.py` always fail.
+- **TD-M11** (ServiceNow broken import in `investigations.py`) — `test_sync_endpoints_exist` always fails. Only permanently failing test in the suite.
 
 ---
 
@@ -221,8 +239,9 @@ If you are an AI agent resuming work on Corvin, start here:
 5. **Read [docs/TECH_DEBT.md](docs/TECH_DEBT.md)** — known debt before modifying any existing code
 
 **Do not** start authentication, multi-tenancy, billing, or SCIM work. Those are Phase 3–5.  
-**Do** focus on Sprint 2 items in `docs/PRODUCTIZATION_BACKLOG.md`.
+**Do not** start TD-H2 (async pipeline), TD-H7 (leader election), full TD-H6, rate limiting, or circuit breakers without owner sign-off — these were explicitly deferred on 2026-06-12.
 
-**Sprint 1 is complete.** All P0 items and key P1 items are done. The platform no longer contains MetLife-specific branding, service names, or hardcoded identifiers in the demo layer.
+**Phase 1 (Sprints 1–3) is complete** — only PB-025 (DEMO_SETUP.md, P3 doc polish) remains.  
+**Phase 2-lite is complete (2026-06-12)** — structured JSON logging, RFC 7807 errors, /v1 API versioning, TD-H1 fix, startup guards, and full test-suite isolation (`tests/conftest.py`). Run the suite with plain `python -m pytest tests/` — no `--ignore` flags needed; only `test_sync_endpoints_exist` fails (TD-M11).
 
-**Sprint 2 is complete.** Sprint 3 starting point: PB-016 (XS — verify demoAlerts.ts), then PB-021 (prompt registry — L), PB-019 (Corvin logo — S), PB-020 (pre-commit hooks — S), PB-022 (docs — S), PB-023 (startup validation — S), PB-024 (docker-compose — S).
+**Conventions added in Phase 2-lite:** every log line is structured JSON with `request_id` (use `extra={...}` for fields); new endpoints automatically serve under `/v1/`; error responses are RFC 7807 — raise `HTTPException(status, detail="string")` as before, the handler does the rest.

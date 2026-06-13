@@ -81,10 +81,15 @@ def _make_result() -> InvestigationResult:
 
 
 def _card_content(result: InvestigationResult | None = None, adapter: TeamsAdapter | None = None) -> dict:
-    """Return the Adaptive Card content dict from _build_card."""
+    """Return the Adaptive Card content dict from _build_card.
+
+    web_base_url is resolved from adapter config exactly the way
+    TeamsAdapter.send_result does before delegating to _build_card.
+    """
     r = result or _make_result()
     a = adapter or _make_adapter()
-    payload = a._build_card(r)
+    web_base_url = str(a._config.get("web_base_url", "http://localhost:5173")).rstrip("/")
+    payload = a._build_card(r, web_base_url=web_base_url)
     return payload["attachments"][0]["content"]
 
 

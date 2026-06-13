@@ -26,14 +26,20 @@ def test_investigation_request_default_lookback_manual():
 
 
 def test_investigation_request_default_lookback_alert():
-    """Azure Alert triggers should default to 15 minutes."""
+    """All triggers share the flat 60-minute constructor default.
+
+    Per-priority lookback (P1/P2/P3) is applied after construction by
+    corvin.core.priority.classify_priority(), not by the contract model —
+    the old per-trigger 15-minute rule was superseded by V4.1 priority
+    classification.
+    """
     req = InvestigationRequest(
         trigger_source=TriggerSource.AZURE_ALERT,
         service_name="test",
         environment="dev",
         description="test",
     )
-    assert req.lookback_minutes == 15
+    assert req.lookback_minutes == 60
     assert req.approval_status == ApprovalStatus.PENDING
 
 

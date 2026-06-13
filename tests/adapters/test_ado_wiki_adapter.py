@@ -282,8 +282,8 @@ def test_publish_wiki_page_if_enabled_returns_none_when_disabled() -> None:
 
     result = _make_result()
     with patch(
-        "corvin.delivery.rca_notification.load_config",
-        return_value={"wiki_enabled": False},
+        "corvin.delivery.rca_notification.resolve_ado_wiki_config_for_service",
+        return_value=None,
     ):
         url = publish_wiki_page_if_enabled(result)
 
@@ -295,14 +295,16 @@ def test_publish_wiki_page_if_enabled_calls_adapter() -> None:
 
     result = _make_result()
     fake_cfg = {
-        "wiki_enabled": True,
         "org_name": "Org",
         "project_name": "Proj",
         "pat": "pat",
         "wiki_id": "wid",
     }
     with (
-        patch("corvin.delivery.rca_notification.load_config", return_value=fake_cfg),
+        patch(
+            "corvin.delivery.rca_notification.resolve_ado_wiki_config_for_service",
+            return_value=fake_cfg,
+        ),
         patch(
             "corvin.delivery.ado_wiki_adapter.ADOWikiAdapter.publish_investigation",
             return_value="https://fake-wiki-url",

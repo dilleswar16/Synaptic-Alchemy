@@ -6,7 +6,6 @@ import time
 from typing import Any
 
 from corvin.connectors.base import BaseConnector, TestResult
-from corvin.evidence.aks_adapter import AKSAdapter
 
 _log = logging.getLogger(__name__)
 
@@ -36,6 +35,11 @@ class AKSConnector(BaseConnector):
             return TestResult(ok=False, message="resource_group is empty")
         if not subscription_id:
             return TestResult(ok=False, message="subscription_id is empty")
+
+        # Imported lazily: aks_adapter imports corvin.connectors.config_resolver,
+        # so a module-level import here forms a circular chain when the
+        # investigation engine is imported before the connectors package.
+        from corvin.evidence.aks_adapter import AKSAdapter
 
         t0 = time.monotonic()
         try:

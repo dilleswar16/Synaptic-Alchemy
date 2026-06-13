@@ -18,7 +18,7 @@ def _result_for(*, description: str, action_type: ActionType = ActionType.SCALE_
     request = InvestigationRequest(
         id="11111111-1111-1111-1111-111111111111",
         trigger_source=TriggerSource.MANUAL_API,
-        service_name="fundapis",
+        service_name="checkout-api",
         environment="dev",
         description="Preview test",
     )
@@ -26,8 +26,8 @@ def _result_for(*, description: str, action_type: ActionType = ActionType.SCALE_
         request_id=request.id,
         aks_context={
             "pods": [
-                {"name": "fundapis-0", "restart_count": 2},
-                {"name": "fundapis-1", "restart_count": 1},
+                {"name": "checkout-api-0", "restart_count": 2},
+                {"name": "checkout-api-1", "restart_count": 1},
             ],
             "events": [
                 {"reason": "CPUThrottlingHigh", "message": "CPU throttling above threshold"},
@@ -51,6 +51,7 @@ def _result_for(*, description: str, action_type: ActionType = ActionType.SCALE_
                 action_type=action_type,
                 risk_level=RiskLevel.MEDIUM,
                 estimated_impact="Should restore headroom.",
+                target_namespace="acme-retail",
             )
         ],
     )
@@ -64,12 +65,12 @@ def _result_for(*, description: str, action_type: ActionType = ActionType.SCALE_
 
 
 def test_scale_preview_extracts_command_and_after_state():
-    preview = build_remediation_preview(_result_for(description="Scale fundapis to 5 replicas=5 immediately"))
+    preview = build_remediation_preview(_result_for(description="Scale checkout-api to 5 replicas=5 immediately"))
 
     assert preview.current_replica_count == 2
     assert preview.cpu_throttle_events_per_min == 2
     assert preview.restart_count == 3
-    assert preview.items[0].proposed_command == "kubectl scale deployment/fundapis --replicas=5 -n chad"
+    assert preview.items[0].proposed_command == "kubectl scale deployment/checkout-api --replicas=5 -n acme-retail"
     assert "5 replicas" in preview.items[0].predicted_after_state
 
 
@@ -78,7 +79,7 @@ def test_restart_preview_uses_rollout_restart_command():
         _result_for(description="Restart the unhealthy pods", action_type=ActionType.RESTART_POD)
     )
 
-    assert preview.items[0].proposed_command == "kubectl rollout restart deployment/fundapis -n chad"
+    assert preview.items[0].proposed_command == "kubectl rollout restart deployment/checkout-api -n acme-retail"
     assert "pods recycled" in preview.items[0].predicted_after_state
 
 

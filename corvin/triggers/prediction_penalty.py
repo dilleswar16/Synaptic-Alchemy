@@ -119,11 +119,26 @@ def _suggest_threshold_adjustment(penalty_type: str, related_alert: dict | None)
     return None
 
 
+def is_penalty_feature_enabled() -> bool:
+    """Read the prediction_penalty_enabled policy flag (default: disabled)."""
+    try:
+        from corvin.core.config_loader import get_env, load_config
+        policy = load_config("policies/investigation", get_env())
+        return bool(policy.get("prediction_penalty_enabled", False))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def penalize_prediction(result: InvestigationResult) -> PredictivePenaltyRow | None:
     """Evaluate an investigation result and create a penalty record if warranted.
 
-    Called after every investigation completes. Returns the penalty row if created.
+    Called after every investigation completes. Returns the penalty row if
+    created, or None when the feature is disabled via the
+    ``prediction_penalty_enabled`` policy flag.
     """
+    if not is_penalty_feature_enabled():
+        return None
+
     service_name = result.request.service_name
     environment = result.request.environment
     incident_time = result.completed_at or datetime.now(timezone.utc)

@@ -111,8 +111,15 @@ class PromptBuilder:
 
         # ── Predictive penalties (feedback loop) ──────────────────────────────
         try:
-            from corvin.triggers.prediction_penalty import load_penalties_for_service
-            penalties = load_penalties_for_service(request.service_name, limit=5)
+            from corvin.triggers.prediction_penalty import (
+                is_penalty_feature_enabled,
+                load_penalties_for_service,
+            )
+            penalties = (
+                load_penalties_for_service(request.service_name, limit=5)
+                if is_penalty_feature_enabled()
+                else []
+            )
             if penalties:
                 penalty_lines: list[str] = []
                 for p in penalties:

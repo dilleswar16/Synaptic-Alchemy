@@ -1,8 +1,8 @@
 # Corvin — Product Roadmap
 
-**Last Updated:** 2026-06-11 (Sprint 3 complete)  
+**Last Updated:** 2026-06-12 (Phase 2-lite complete)  
 **Status:** Authoritative — consolidates `progress.md`, `productization-plan.md`, `hackathon-roadmap.md`, prior EV1–EV5 plan  
-**Current Phase:** Phase 1 — Productization & Genericization
+**Current Phase:** Phase 2 — Architecture Modernization (lite pass delivered; remainder deferred by decision)
 
 ---
 
@@ -103,27 +103,42 @@ Phase 1 exit criteria met: a new customer can deploy Corvin and onboard their ap
 
 ## Phase 2 — Architecture Modernization
 
-**Status: Planned**  
+**Status: Active — "Phase 2-lite" pass complete (2026-06-12)**  
 **Prerequisites:** Phase 1 complete.  
 **Exit Criteria:** Platform is horizontally scalable, observable, and operationally maintainable.
 
-### Scope
+### Phase 2-lite — Complete (2026-06-12)
+
+Scoped low-risk pass agreed with the owner. Big-ticket items deferred (see below).
+
+| Item | Tech Debt Ref | Status |
+|------|---------------|--------|
+| `get_session()` fix | TD-H1 | **Done** — also fixed silently broken demo seeding (`next()` on a context manager raised TypeError) |
+| Structured JSON logging | — | **Done** — `corvin/core/logging_config.py` + `request_context.py`; `request_id` on every line; `X-Request-ID` header via `RequestContextMiddleware` |
+| API versioning (`/v1/` prefix) | TD-M3 | **Done** — `ApiVersionMiddleware` (pure ASGI); root paths kept for backward compat; `X-API-Version: 1` |
+| RFC 7807 error responses | TD-M9 | **Done** — `apps/api/errors.py`; `detail` string preserved for existing clients; error code enum still open |
+| CORS / multi-worker guards | TD-H6, TD-H7 | **Done (mitigation)** — loud startup warnings for wildcard CORS and >1 worker |
+| Test suite isolation | TD-M14 | **Done** — `tests/conftest.py`: email kill-switch, throwaway SQLite DB, no disk learnings writes |
+| Drift repair | TD-M12, TD-M13 | **Done** — 34 stale tests updated to current contracts; circular import (engine→connectors) fixed |
+
+### Deferred (owner decision 2026-06-12 — do not start without sign-off)
+
+| Item | Tech Debt Ref | Decision |
+|------|---------------|----------|
+| Async investigation pipeline | TD-H2 | Deferred — synchronous acceptable at current scale; revisit before concurrent-load deployments |
+| Background task leader election | TD-H7 | Deferred — pairs with TD-H2 worker design; run single API worker meanwhile (startup warns) |
+| Rate limiting | TD-M4 | Not planned in code — delegated to APIM gateway; backend network access must be restricted to APIM |
+| Circuit breakers on adapters | — | Deferred — adapters already degrade gracefully via try/except fallbacks |
+| CORS hardening (full) | TD-H6 | Deferred — startup warning shipped; enforce allowlist before non-local deployment |
+
+### Remaining Phase 2 scope (not yet scheduled)
 
 | Item | Tech Debt Ref | Description |
 |------|---------------|-------------|
-| Async investigation pipeline | TD-H2 | `engine.run()` offloaded to Celery/ARQ. API returns 202 + request_id. |
-| Background task leader election | TD-H7 | PredictiveMonitor and SLO monitor run in dedicated worker, not per-API-worker |
-| Circuit breakers on adapters | — | `pybreaker` on each evidence adapter; open/half-open/closed state tracking |
-| OpenTelemetry instrumentation | — | Trace IDs on all LLM calls, DB queries, adapter calls → Azure Monitor |
-| Structured JSON logging | — | `request_id`, `trace_id`, `tenant_id` on every log line |
-| API versioning (`/v1/` prefix) | TD-M3 | All routes moved to `/v1/`; versioned router pattern |
-| Rate limiting | TD-M4 | `slowapi` middleware; per-IP and per-service limits |
-| `get_session()` fix | TD-H1 | Replace `next(get_session())` with context manager across all call sites |
-| Duplicate Alembic migration fix | TD-H3 | Renumber `0012_*` conflicts; add `alembic check` to CI |
+| OpenTelemetry instrumentation | — | Trace IDs on all LLM calls, DB queries, adapter calls → Azure Monitor (builds on structured logging) |
 | Business logic extraction | TD-M1, TD-M2 | `AnalyticsService`, `TopologyService`; route handlers < 30 lines |
-| RFC 7807 error responses | TD-M9 | Structured error envelope with error code enum |
-| CORS hardening | TD-H6 | Explicit origin allowlist; no wildcard in any environment |
 | Readiness probe | — | `GET /health/ready` checks DB connectivity + critical dependencies |
+| Error code enum | TD-M9 follow-up | Stable machine-readable codes in problem+json `type` field |
 
 **Reference:** `docs/TECH_DEBT.md` (High and Medium sections)
 

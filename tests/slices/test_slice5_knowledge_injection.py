@@ -43,10 +43,10 @@ class FakeKnowledgeLoader:
         # Track what alert_text was passed to load_matching_runbooks
         self.last_alert_text: str = ""
 
-    def load_site_knowledge(self) -> str:
+    def load_site_knowledge(self, service_name: str | None = None) -> str:
         return self._site_knowledge
 
-    def load_matching_runbooks(self, alert_text: str) -> list[str]:
+    def load_matching_runbooks(self, alert_text: str, service_name: str | None = None) -> list[str]:
         self.last_alert_text = alert_text
         return self._matching_runbooks
 
@@ -177,8 +177,15 @@ def test_prompt_skips_learnings_section_when_empty():
     assert "## Learnings from Past Incidents" not in prompt
 
 
-def test_prompt_is_empty_string_when_all_sources_empty():
+def test_prompt_is_empty_string_when_all_sources_empty(monkeypatch):
     """With no content in any source and a default description, build() returns an empty string."""
+    # PromptBuilder also injects DB-backed predictive penalties; other tests in
+    # the same run may have written penalty rows for this fixture service, so
+    # pin that source to empty too.
+    monkeypatch.setattr(
+        "corvin.triggers.prediction_penalty.load_penalties_for_service",
+        lambda service_name, limit=10: [],
+    )
     builder = _builder_with(site="", runbooks=[], learnings="")
     # Use a blank/default description so no Operator Context section is injected either.
     request = _make_request(description="manual investigation")

@@ -316,21 +316,58 @@ def test_topology_endpoint_global_scope_filters_to_catalog_services():
 
 
 def test_topology_live_endpoint_marks_unhealthy_pod_hot(monkeypatch):
+    # Self-contained DB: the route resolves services from the application
+    # catalog, so seed one app + service instead of relying on live data.
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    with Session() as s:
+        s.add(ApplicationRow(
+            id="app-hot-1",
+            name="Acme Retail",
+            description="Acme Retail demo app",
+            team_name="Platform",
+            environment_default="dev",
+            topology_json={},
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        ))
+        s.add(ApplicationServiceRow(
+            application_id="app-hot-1",
+            service_name="checkout-api",
+            display_name="checkout-api",
+            namespace="acme-retail",
+            tier="api",
+            dependencies=[],
+            metadata_json={},
+        ))
+        s.commit()
+
+    @contextmanager
+    def fake_get_db_session():
+        with Session() as session:
+            yield session
+
     class _FakeAksAdapter:
-        def list_all_pods(self):
+        def list_all_pods(self, namespace=None, service_name=None, cluster_names=None):
             return {
                 "services": [
                     {
-                        "name": "chad-fundapis",
+                        "name": "checkout-api",
                         "status": "high",
                         "pods": [
                             {
-                                "name": "fundapis-good-12345-abcde",
+                                "name": "checkout-api-good-12345-abcde",
                                 "phase": "Running",
                                 "containers": [{"name": "main", "ready": True, "restart_count": 0}],
                             },
                             {
-                                "name": "fundapis-bad-12345-zzzzz",
+                                "name": "checkout-api-bad-12345-zzzzz",
                                 "phase": "Pending",
                                 "containers": [{"name": "main", "ready": False, "restart_count": 4}],
                             },
@@ -340,20 +377,19 @@ def test_topology_live_endpoint_marks_unhealthy_pod_hot(monkeypatch):
             }
 
     class _FakeContainerLogsAdapter:
-        def get_resource_metrics(self, service_name: str):
-            if service_name == "fundapis":
-                return [
-                    {"Name": "fundapis-good-12345-abcde", "CounterName": "cpuUsageNanoCores", "AvgValue": 250_000_000},
-                    {"Name": "fundapis-good-12345-abcde", "CounterName": "cpuLimitNanoCores", "AvgValue": 500_000_000},
-                    {"Name": "fundapis-good-12345-abcde", "CounterName": "memoryWorkingSetBytes", "AvgValue": 320 * 1024 * 1024},
-                    {"Name": "fundapis-good-12345-abcde", "CounterName": "memoryLimitBytes", "AvgValue": 512 * 1024 * 1024},
-                    {"Name": "fundapis-bad-12345-zzzzz", "CounterName": "cpuUsageNanoCores", "AvgValue": 90_000_000},
-                    {"Name": "fundapis-bad-12345-zzzzz", "CounterName": "cpuLimitNanoCores", "AvgValue": 250_000_000},
-                    {"Name": "fundapis-bad-12345-zzzzz", "CounterName": "memoryWorkingSetBytes", "AvgValue": 140 * 1024 * 1024},
-                    {"Name": "fundapis-bad-12345-zzzzz", "CounterName": "memoryLimitBytes", "AvgValue": 256 * 1024 * 1024},
-                ]
-            return []
+        def get_resource_metrics(self, service_name: str, namespace=None):
+            return [
+                {"Name": "checkout-api-good-12345-abcde", "CounterName": "cpuUsageNanoCores", "AvgValue": 250_000_000},
+                {"Name": "checkout-api-good-12345-abcde", "CounterName": "cpuLimitNanoCores", "AvgValue": 500_000_000},
+                {"Name": "checkout-api-good-12345-abcde", "CounterName": "memoryWorkingSetBytes", "AvgValue": 320 * 1024 * 1024},
+                {"Name": "checkout-api-good-12345-abcde", "CounterName": "memoryLimitBytes", "AvgValue": 512 * 1024 * 1024},
+                {"Name": "checkout-api-bad-12345-zzzzz", "CounterName": "cpuUsageNanoCores", "AvgValue": 90_000_000},
+                {"Name": "checkout-api-bad-12345-zzzzz", "CounterName": "cpuLimitNanoCores", "AvgValue": 250_000_000},
+                {"Name": "checkout-api-bad-12345-zzzzz", "CounterName": "memoryWorkingSetBytes", "AvgValue": 140 * 1024 * 1024},
+                {"Name": "checkout-api-bad-12345-zzzzz", "CounterName": "memoryLimitBytes", "AvgValue": 256 * 1024 * 1024},
+            ]
 
+    monkeypatch.setattr("corvin.storage.db.get_session", fake_get_db_session)
     monkeypatch.setattr("corvin.evidence.aks_adapter.AKSAdapter", _FakeAksAdapter)
     monkeypatch.setattr("corvin.evidence.container_logs_adapter.ContainerLogsAdapter", _FakeContainerLogsAdapter)
 

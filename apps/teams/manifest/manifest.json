@@ -1,27 +1,27 @@
-﻿{
+{
   "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
   "manifestVersion": "1.17",
   "version": "1.0.0",
   "id": "32c35866-8d7e-4a5b-becd-4da55e95f699",
   "developer": {
-    "name": "MetLife Australia",
-    "websiteUrl": "https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net",
-    "privacyUrl": "https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net",
-    "termsOfUseUrl": "https://corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net"
+    "name": "Corvin",
+    "websiteUrl": "https://your-corvin-deployment.example.com",
+    "privacyUrl": "https://your-corvin-deployment.example.com/privacy",
+    "termsOfUseUrl": "https://your-corvin-deployment.example.com/terms"
   },
   "name": {
     "short": "Corvin",
-    "full": "Corvin â€” AI SRE Co-Pilot"
+    "full": "Corvin — AI SRE Co-Pilot"
   },
   "description": {
-    "short": "AI-powered SRE co-pilot for the CHAD platform",
+    "short": "AI-powered SRE co-pilot",
     "full": "Corvin is your AI SRE co-pilot. @mention it to investigate incidents, get blast radius analysis, check AKS pod health, query APIM analytics, approve fix strategies, and have a full agentic conversation about your platform."
   },
   "icons": {
     "color": "color.png",
     "outline": "outline.png"
   },
-  "accentColor": "#0078D4",
+  "accentColor": "#6366f1",
   "bots": [
     {
       "botId": "32c35866-8d7e-4a5b-becd-4da55e95f699",
@@ -36,11 +36,11 @@
           "commands": [
             {
               "title": "investigate",
-              "description": "Investigate a service â€” e.g. investigate order-service production"
+              "description": "Investigate a service — e.g. investigate order-service production"
             },
             {
               "title": "approve",
-              "description": "Approve a pending fix strategy â€” e.g. approve <request_id>"
+              "description": "Approve a pending fix strategy — e.g. approve <request_id>"
             },
             {
               "title": "help",
@@ -53,10 +53,6 @@
   ],
   "permissions": ["identity", "messageTeamMembers"],
   "validDomains": [
-    "corvin-api-akhyb9aaa8hpbxg9.australiaeast-01.azurewebsites.net",
-    "mango-hill-0639bd600.7.azurestaticapps.net"
+    "your-corvin-deployment.example.com"
   ]
 }
-
-
-

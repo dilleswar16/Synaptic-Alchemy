@@ -488,16 +488,18 @@ async def test_bot_investigate_background_task_sends_result():
 
 
 @pytest.mark.asyncio
-async def test_bot_investigate_environment_defaults_to_production():
-    """When environment arg is omitted, default is 'production'."""
+async def test_bot_investigate_without_environment_prompts_for_one():
+    """When the environment arg is omitted, the bot asks for it instead of
+    assuming production — no investigation task is started."""
     engine = _FakeEngine()
     bot = CorvinBot(engine=engine, teams_adapter=_FakeTeamsAdapter())
     ctx = _FakeTurnContext("investigate order-service")
 
     await bot.on_message_activity(ctx)
-    await bot._last_investigation_task
 
-    assert engine.calls[0].environment == "production"
+    assert bot._last_investigation_task is None
+    assert engine.calls == []
+    assert any("environment" in msg.lower() for msg in ctx.sent)
 
 
 @pytest.mark.asyncio
@@ -556,7 +558,7 @@ def test_teams_messages_route_is_registered():
 
 
 def test_teams_messages_route_501_body_explains_how_to_enable():
-    """The 501 body should explain that bot_enabled must be set to true."""
+    """The 501 body should explain how to enable the bot (TEAMS_BOT_ENABLED)."""
     from unittest.mock import patch
 
     from apps.api.main import app
@@ -564,7 +566,7 @@ def test_teams_messages_route_501_body_explains_how_to_enable():
     with patch("apps.teams.router._load_teams_config", return_value={"bot_enabled": False}):
         client = TestClient(app)
         resp = client.post("/teams/messages", json={"type": "message", "text": "help"})
-        assert "bot_enabled" in resp.text
+        assert "TEAMS_BOT_ENABLED" in resp.text
 
 
 # -------------------------------------------------------------------------------

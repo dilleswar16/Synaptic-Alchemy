@@ -292,6 +292,12 @@ def test_action_truncation_to_fix_strategy_max_actions(monkeypatch):
 
 
 def test_requires_approval_forced_true_in_review_only_mode(monkeypatch):
+    """Non-trivial (non-low-risk) actions must be forced to require approval.
+
+    Since the acknowledgment-option change, purely informational all-low-risk
+    strategies are exempt so the UI can offer "Acknowledge & Close" — the
+    forcing applies as soon as any action is medium/high risk.
+    """
     request = _make_request()
     rca = RCAOutput(
         request_id=request.id,
@@ -307,10 +313,57 @@ def test_requires_approval_forced_true_in_review_only_mode(monkeypatch):
                 "justification": "V1 requires human approval.",
                 "actions": [
                     {
+                        "title": "Restart deployment",
+                        "description": "Rolling restart of the latest rollout.",
+                        "risk_level": "medium",
+                        "estimated_impact": "Brief pod churn",
+                        "requires_approval": False,
+                    },
+                    {
                         "title": "Investigate deployment",
                         "description": "Check the latest rollout.",
                         "risk_level": "low",
                         "estimated_impact": "Low impact",
+                        "requires_approval": False,
+                    },
+                ],
+            }
+        )
+
+    monkeypatch.setattr(
+        "corvin.strategy.fix_strategy_generator.litellm.completion", fake_completion
+    )
+
+    generator = FixStrategyGenerator(
+        model_config={"model": "primary-model", "temperature": 0.1, "max_tokens": 512},
+        policy_config={"fix_strategy_max_actions": 5, "fix_execution_mode": "review_only"},
+    )
+    result = generator.generate(request, rca)
+
+    assert all(action.requires_approval for action in result.actions)
+
+
+def test_requires_approval_not_forced_for_all_informational_actions(monkeypatch):
+    """All-low-risk strategies keep requires_approval=False (Acknowledge & Close path)."""
+    request = _make_request()
+    rca = RCAOutput(
+        request_id=request.id,
+        summary="Backend errors detected",
+        root_cause="Transient upstream blip — no action needed",
+    )
+
+    def fake_completion(**kwargs):
+        return _completion_response(
+            {
+                "request_id": request.id,
+                "summary": "Informational only.",
+                "justification": "No cluster changes required.",
+                "actions": [
+                    {
+                        "title": "Monitor error rate",
+                        "description": "Watch dashboards for 30 minutes.",
+                        "risk_level": "low",
+                        "estimated_impact": "None",
                         "requires_approval": False,
                     }
                 ],
@@ -327,7 +380,7 @@ def test_requires_approval_forced_true_in_review_only_mode(monkeypatch):
     )
     result = generator.generate(request, rca)
 
-    assert all(action.requires_approval for action in result.actions)
+    assert all(not action.requires_approval for action in result.actions)
 
 
 def test_engine_passes_built_system_prompt_into_rca_generation():
@@ -578,8 +631,8 @@ def test_fix_strategy_handles_parsed_structured_response(monkeypatch):
             {
                 "title": "Parsed action",
                 "description": "Action from parsed path.",
-                "risk_level": "low",
-                "estimated_impact": "Minimal impact.",
+                "risk_level": "medium",
+                "estimated_impact": "Moderate impact.",
                 "requires_approval": False,
             }
         ],
