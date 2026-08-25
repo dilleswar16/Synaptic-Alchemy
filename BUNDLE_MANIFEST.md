@@ -5,6 +5,7 @@
 This file describes what is inside the Corvin Copilot pack and how to use it in a fresh repository.
 
 ## Copy Strategy
+;
 
 When starting the new Corvin repository:
 
