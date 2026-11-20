@@ -46,6 +46,18 @@ export function AlertSourcesSection({ applicationId, canEdit, onChanged }: { app
         <CountWithInfo count={rules.totalRuleCount} label={t("sources.rulesFound", { sending: rules.sendingToKeiganCount })} title={t("sources.rulesTitle")}
           items={rules.rules.map((rule) => ({ key: rule.ruleName, label: rule.ruleName, secondary: rule.sendsToKeigan ? t("sources.sendsToKeigan") : t("sources.doesNotSend") }))} maximumItems={8} />
       ) : null}
+      {rules && rules.unreadableResourceGroups.length > 0 ? (
+        <Banner tone="warning" title={t("sources.unreadableRules.title")}>
+          <p>{t("sources.unreadableRules.body")}</p>
+          <ul className="mt-2 list-disc pl-5">
+            {rules.unreadableResourceGroups.map((group) => (
+              <li key={`${group.subscriptionId}/${group.resourceGroupName}`}>
+                {t("sources.unreadableRules.item", { group: group.resourceGroupName, subscription: group.subscriptionId, reason: t(`sources.unreadableRules.reasons.${group.reasonCode}`) })}
+              </li>
+            ))}
+          </ul>
+        </Banner>
+      ) : null}
       {rules?.isSimulated ? <p className="text-caption text-muted">{t("sources.simulatedRules")}</p> : null}
       {sourcesQuery.isLoading ? <Skeleton className="h-24 w-full" /> : null}
       {sourcesQuery.isError ? <ErrorState size="sm" error={sourcesQuery.error} onRetry={() => sourcesQuery.refetch()} /> : null}

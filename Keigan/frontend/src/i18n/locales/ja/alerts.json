@@ -57,6 +57,7 @@
     "add": "アラートソースを追加", "emptyTitle": "アラートソースはまだありません", "emptyDescription": "Azure Monitor、Elastic、または JSON Webhook を送信できる任意のツールを追加してください。",
     "rulesFound": "件のアラートルールがスコープ内で見つかりました（{{sending}} 件が Keigan に送信）", "rulesTitle": "検出されたアラートルール", "sendsToKeigan": "Keigan に送信", "doesNotSend": "送信しない",
     "simulatedRules": "シミュレーション用コンポーネントの例のルールです。Azure から読み取ったものではありません。",
+    "unreadableRules": {"title":"一部のアラートルールを読み取れませんでした","body":"Keigan はこれらのリソースグループのアラートルールを読み取れないため、上の一覧に含まれていません。","item":"{{group}} ({{subscription}}): {{reason}}","reasons":{"forbidden":"Keigan の ID はこのリソースグループを読み取れません。閲覧者ロールが必要です。","not_found":"このサブスクリプションでリソースグループが見つかりません。オンボーディングの設定を確認してください。","throttled":"Azure が要求を制限しています。数分後にもう一度お試しください。","failed":"Azure からルールが返されませんでした。詳細はサーバーログを確認してください。"}},
     "status": { "waiting_for_first_alert": "最初のアラートを待機中", "receiving": "受信中、最終アラート", "authentication_failures": "認証失敗", "paused": "一時停止" },
     "counts": "7 日間でアラート {{alerts}} 件、グループ {{groups}} 件、調査 {{investigated}} 件", "authFailures_other": "誤ったトークンによる拒否リクエスト {{count}} 件。",
     "test": "テスト", "testSent": "テストアラートを送信しました", "rotate": "シークレットをローテーション", "pause": "一時停止", "resume": "再開", "remove": "削除",

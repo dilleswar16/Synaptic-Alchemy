@@ -57,6 +57,7 @@
     "add": "添加告警源", "emptyTitle": "暂无告警源", "emptyDescription": "添加 Azure Monitor、Elastic 或任何可发送 JSON Webhook 的工具。",
     "rulesFound": "条告警规则在您的范围内被发现（{{sending}} 条会发送给 Keigan）", "rulesTitle": "已发现的告警规则", "sendsToKeigan": "发送给 Keigan", "doesNotSend": "不发送",
     "simulatedRules": "模拟组件的示例规则，并非从 Azure 读取。",
+    "unreadableRules": {"title":"部分告警规则无法读取","body":"Keigan 无法读取以下资源组的告警规则，因此上方列表中缺少这些规则。","item":"{{group}} ({{subscription}}): {{reason}}","reasons":{"forbidden":"Keigan 的身份无法读取此资源组，需要该资源组的“读取者”角色。","not_found":"在此订阅中找不到该资源组，请检查接入设置。","throttled":"Azure 正在限制请求，请几分钟后再试。","failed":"Azure 未返回规则，详情请查看服务器日志。"}},
     "status": { "waiting_for_first_alert": "等待首条告警", "receiving": "接收中，最近告警", "authentication_failures": "认证失败", "paused": "已暂停" },
     "counts": "7 天内 {{alerts}} 条告警、{{groups}} 个告警组、{{investigated}} 个已调查", "authFailures_other": "{{count}} 个请求因令牌错误被拒绝。",
     "test": "测试", "testSent": "测试告警已发送", "rotate": "轮换密钥", "pause": "暂停", "resume": "恢复", "remove": "移除",

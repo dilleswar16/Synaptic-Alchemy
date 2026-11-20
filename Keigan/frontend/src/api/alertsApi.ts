@@ -92,7 +92,9 @@ export interface AzureAlertRule {
   sendsToKeigan: boolean;
   actionGroupNames: string[];
 }
-export interface AzureAlertRules { isSimulated: boolean; totalRuleCount: number; sendingToKeiganCount: number; rules: AzureAlertRule[] }
+/** A resource group whose alert rules Keigan could not read. The rules are missing from the list. */
+export interface UnreadableResourceGroup { resourceGroupName: string; subscriptionId: string; reasonCode: "forbidden" | "not_found" | "throttled" | "failed" }
+export interface AzureAlertRules { isSimulated: boolean; totalRuleCount: number; sendingToKeiganCount: number; rules: AzureAlertRule[]; unreadableResourceGroups: UnreadableResourceGroup[] }
 
 export interface NoisePolicySettings {
   minSeverity: number;
