@@ -9,10 +9,11 @@ as rule-outs. The AI never decides *what was found*; it only interprets this evi
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import string
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Any
@@ -31,7 +32,7 @@ from keigan.exceptions.keigan_exceptions import ReaderNotAvailableException
 from keigan.integrations.telemetry_gateway import ChangeEvent, LogQueryResult, TelemetryQuery, TelemetryTarget
 from keigan.utils.log_condenser import LEVEL_SEVERITY_ORDER, LogPattern, condense_log_records
 from keigan.utils.pii_masker import MaskingContext, PiiMasker
-from keigan.utils.query_safety import QueryRejectedError, validate_generated_query
+from keigan.utils.query_safety import QueryRejectedError, describe_query_limits, validate_generated_query
 from keigan.utils.statistics_utils import robust_baseline
 from keigan.utils.text_utils import truncate_text
 
@@ -218,15 +219,17 @@ class EvidenceService:
     async def _fill_log_evidence(
         self, draft: EvidenceDraft, target: TelemetryTarget, template: dict[str, Any], query_text: str,
         window_start: datetime, window_end: datetime, baseline_start: datetime, baseline_end: datetime, masking_context: MaskingContext,
+        baseline_query_text: str | None = None,
     ) -> None:
+        """``baseline_query_text`` is for queries that carry their own time filter: the baseline must be filtered to the baseline window."""
         signal_kind = template["signal_kind"]
 
-        def build_query(range_start: datetime, range_end: datetime) -> TelemetryQuery:
-            return TelemetryQuery(template["query_language"], query_text, range_start, range_end, query_purpose=template["template_key"], purpose_parameters={"signal_kind": signal_kind})
+        def build_query(range_start: datetime, range_end: datetime, text: str) -> TelemetryQuery:
+            return TelemetryQuery(template["query_language"], text, range_start, range_end, query_purpose=template["template_key"], purpose_parameters={"signal_kind": signal_kind})
 
         window_result, baseline_result = await asyncio.gather(
-            self.telemetry_gateway.query_logs(target, build_query(window_start, window_end)),
-            self.telemetry_gateway.query_logs(target, build_query(baseline_start, baseline_end)),
+            self.telemetry_gateway.query_logs(target, build_query(window_start, window_end, query_text)),
+            self.telemetry_gateway.query_logs(target, build_query(baseline_start, baseline_end, baseline_query_text or query_text)),
         )
         draft.deep_link_url = window_result.deep_link_url or self._portal_link(target)
         masker = PiiMasker(masking_context)
@@ -415,7 +418,8 @@ class EvidenceService:
         draft.is_rule_out = failure_count == 0
 
     # ── Changes ────────────────────────────────────────────────────────────────
-    async def collect_change_evidence(self, application_id: str, service_contexts: list[ServiceTelemetryContext], start: datetime, end: datetime) -> tuple[list[ChangeEvent], EvidenceDraft | None]:
+    async def collect_change_evidence(self, application_id: str, service_contexts: list[ServiceTelemetryContext], start: datetime, end: datetime, masking_context: MaskingContext | None = None) -> tuple[list[ChangeEvent], EvidenceDraft | None]:
+        """Returned events are already masked: Activity Log callers are people (UPNs, emails) and descriptions can quote them."""
         component = next((context.component for context in service_contexts if context.component), None)
         change_events: list[ChangeEvent] = []
         try:
@@ -428,6 +432,11 @@ class EvidenceService:
             )
         except Exception as change_error:  # noqa: BLE001
             logger.warning("Could not read activity log changes: %s", change_error)
+        masker = PiiMasker(masking_context)
+        change_events = [
+            replace(change_event, description=masker.mask_text(change_event.description), caller=masker.mask_text(change_event.caller) if change_event.caller else None)
+            for change_event in change_events
+        ]
         if not change_events:
             return [], EvidenceDraft(None, "Azure Activity Log", "activity_log", "change_event", "Recent changes: none found", "Rule-out: no deployments or configuration changes in the window or the 24 hours before.", is_rule_out=True)
         draft = EvidenceDraft(
@@ -464,7 +473,9 @@ class EvidenceService:
             if matching_source is None:
                 continue
             try:
-                hardened_query = validate_generated_query(language, planned_query.query_text, window_start, window_end)
+                # The planner's raw text is hardened once per window, so the baseline is filtered to the baseline window (not the incident window).
+                hardened_query = validate_generated_query(language, planned_query.query_text, window_start, window_end, query_scope=matching_source.query_scope_json)
+                hardened_baseline_query = validate_generated_query(language, planned_query.query_text, baseline_start, baseline_end, query_scope=matching_source.query_scope_json)
             except QueryRejectedError as rejection:
                 logger.info("Planner query rejected: %s", rejection.detail)
                 continue
@@ -479,7 +490,7 @@ class EvidenceService:
             )
             masked_count_before = masking_context.masked_value_count
             try:
-                await self._fill_log_evidence(draft, service_context.target_for(matching_source), template, hardened_query.query_text, window_start, window_end, baseline_start, baseline_end, masking_context)
+                await self._fill_log_evidence(draft, service_context.target_for(matching_source), template, hardened_query.query_text, window_start, window_end, baseline_start, baseline_end, masking_context, hardened_baseline_query.query_text)
             except Exception as query_error:  # noqa: BLE001
                 logger.info("Planner query failed: %s", query_error)
                 continue
@@ -488,11 +499,31 @@ class EvidenceService:
         return drafts
 
     @staticmethod
-    def _source_supports_language(log_source: ServiceLogSource, service_context: ServiceTelemetryContext, language: str) -> bool:
+    def _query_language_of(log_source: ServiceLogSource, service_context: ServiceTelemetryContext) -> str | None:
+        """The language the planner may write for this log source, or None when Keigan cannot run generated queries on it."""
         if log_source.source_kind in ("log_analytics", "application_insights"):
-            return language == "kql"
+            return "kql"
         connection = service_context.log_tool_connections_by_id.get(log_source.log_tool_connection_id or "")
-        return bool(connection) and {"elastic": "elastic_dsl", "splunk": "spl"}.get(connection.tool_type) == language
+        return {"elastic": "elastic_dsl", "splunk": "spl"}.get(connection.tool_type) if connection else None
+
+    @staticmethod
+    def _source_supports_language(log_source: ServiceLogSource, service_context: ServiceTelemetryContext, language: str) -> bool:
+        return EvidenceService._query_language_of(log_source, service_context) == language
+
+    @staticmethod
+    def describe_query_limits_for_planner(service_contexts: list[ServiceTelemetryContext]) -> str:
+        """JSON for the planner prompt: per service, each log source the planner can query, its language and what a query may use."""
+        services: list[dict[str, Any]] = []
+        for service_context in service_contexts:
+            log_sources: list[dict[str, Any]] = []
+            for log_source in service_context.log_sources:
+                language = EvidenceService._query_language_of(log_source, service_context)
+                if language is None:
+                    continue
+                connection = service_context.log_tool_connections_by_id.get(log_source.log_tool_connection_id or "")
+                log_sources.append({"sourceKind": log_source.source_kind, **describe_query_limits(language, log_source.query_scope_json, connection.connection_configuration_json if connection else None)})
+            services.append({"serviceName": service_context.service.service_name, "serviceType": service_context.service.service_type, "logSources": log_sources})
+        return json.dumps(services)
 
     # ── Ranking and persistence ────────────────────────────────────────────────
     @staticmethod

@@ -25,7 +25,8 @@ from keigan.security.current_user import CurrentUser
 from keigan.services import alert_rules
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
-from keigan.services.sli_measurement_reader import SliMeasurementReader, SliSample
+from keigan.services.sli_measurement_reader import SliMeasurementReader, SliSample, validate_custom_sli_query
+from keigan.utils.query_safety import QueryRejectedError
 from keigan.utils.statistics_utils import burn_rate, error_budget_minutes
 from keigan.utils.time_utils import floor_to_interval
 
@@ -55,7 +56,11 @@ class SloService:
             return {"inserted": 0}
         days = SUPPORTING_SIGNAL_BACKFILL_DAYS if sli.sli_kind == "supporting_signal" else BACKFILL_DAYS
         end = floor_to_interval(alert_rules.utc_now(), SAMPLE_INTERVAL_MINUTES)
-        inserted = await self._collect(sli, end - timedelta(days=days), end)
+        try:
+            inserted = await self._collect(sli, end - timedelta(days=days), end)
+        except QueryRejectedError as rejection:
+            logger.warning("Backfill of SLI %s failed: its stored query was rejected (%s)", sli.sli_id, rejection.detail)
+            return {"inserted": 0, "days": days, "rejected": rejection.detail}
         return {"inserted": inserted, "days": days}
 
     async def collect_due_measurements(self, application_id: str) -> dict[str, Any] | None:
@@ -70,6 +75,8 @@ class SloService:
                 continue
             try:
                 total_inserted += await self._collect(sli, start, end)
+            except QueryRejectedError as rejection:
+                logger.warning("Collection failed for SLI %s: its stored query was rejected (%s)", sli.sli_id, rejection.detail)
             except Exception:  # noqa: BLE001
                 logger.warning("Collection failed for SLI %s", sli.sli_id, exc_info=True)
         return {"inserted": total_inserted}
@@ -305,9 +312,25 @@ class SloService:
         return SloResponse(slo_id=slo.slo_id, sli_id=slo.sli_id, application_id=slo.application_id, target_percentage=slo.target_percentage, rolling_window_days=slo.rolling_window_days,
                            error_budget_minutes=round(error_budget_minutes(slo.target_percentage, slo.rolling_window_days), 1), burn_rate_policy=slo.burn_rate_policy_json)
 
+    @staticmethod
+    def _check_custom_query(query_definition: dict[str, Any] | None) -> None:
+        """A custom SLI query runs on a schedule with Keigan's identity: refuse it on save when it reads anything but the configured SLI tables."""
+        if not query_definition or "kql" not in query_definition:
+            return
+        now = alert_rules.utc_now()
+        try:
+            validate_custom_sli_query(str(query_definition["kql"]), now - timedelta(hours=1), now)
+        except QueryRejectedError as rejection:
+            raise BusinessValidationException(
+                f"The log query was not accepted. {rejection.detail} Fix the query and save again.", field_errors=[{"field": "queryDefinition", "message": rejection.detail}]
+            ) from rejection
+
     async def _sli_response(self, sli: ServiceLevelIndicator) -> SliResponse:
         slo = await self.session.scalar(select(ServiceLevelObjective).where(ServiceLevelObjective.sli_id == sli.sli_id).limit(1))
         service = await self.session.get(MonitoredService, sli.service_id) if sli.service_id else None
+        return self._build_sli_response(sli, slo, service)
+
+    def _build_sli_response(self, sli: ServiceLevelIndicator, slo: ServiceLevelObjective | None, service: MonitoredService | None) -> SliResponse:
         return SliResponse(
             sli_id=sli.sli_id, application_id=sli.application_id, service_id=sli.service_id, service_name=service.service_name if service else None, catalog_entry_key=sli.catalog_entry_key, sli_name=sli.sli_name, sli_kind=sli.sli_kind,
             data_source_kind=sli.data_source_kind, query_definition=sli.query_definition_json, latency_threshold_milliseconds=sli.latency_threshold_milliseconds, is_approximate=sli.is_approximate, is_enabled=sli.is_enabled,
@@ -316,7 +339,11 @@ class SloService:
 
     async def list_slis(self, application_id: str) -> list[SliResponse]:
         slis = (await self.session.scalars(select(ServiceLevelIndicator).where(ServiceLevelIndicator.application_id == application_id).order_by(ServiceLevelIndicator.sli_name))).all()
-        return [await self._sli_response(sli) for sli in slis]
+        slos_by_sli_id: dict[str, ServiceLevelObjective] = {}
+        for slo in (await self.session.scalars(select(ServiceLevelObjective).where(ServiceLevelObjective.application_id == application_id))).all():
+            slos_by_sli_id.setdefault(slo.sli_id, slo)
+        services_by_id = {service.service_id: service for service in (await self.session.scalars(select(MonitoredService).where(MonitoredService.application_id == application_id))).all()}
+        return [self._build_sli_response(sli, slos_by_sli_id.get(sli.sli_id), services_by_id.get(sli.service_id or "")) for sli in slis]
 
     async def create_sli(self, current_user: CurrentUser, application_id: str, request: SliCreateRequest) -> SliResponse:
         if request.service_id:
@@ -325,6 +352,7 @@ class SloService:
                 raise BusinessValidationException("The service does not belong to this application.", field_errors=[{"field": "serviceId", "message": "Unknown service."}])
         if request.data_source_kind == "log_query" and not str(request.query_definition.get("kql", "")).strip():
             raise BusinessValidationException("A log query SLI needs a KQL query returning good, total and window_start.", field_errors=[{"field": "queryDefinition", "message": "kql is required."}])
+        self._check_custom_query(request.query_definition)
         sli = ServiceLevelIndicator(
             application_id=application_id, service_id=request.service_id, catalog_entry_key="custom", sli_name=request.sli_name.strip(), sli_kind=request.sli_kind, data_source_kind=request.data_source_kind,
             query_definition_json=request.query_definition, latency_threshold_milliseconds=request.latency_threshold_milliseconds, created_by_user_principal_name=current_user.user_principal_name, updated_by_user_principal_name=current_user.user_principal_name,
@@ -357,6 +385,7 @@ class SloService:
         if request.latency_threshold_milliseconds is not None:
             sli.latency_threshold_milliseconds = request.latency_threshold_milliseconds
         if request.query_definition is not None:
+            self._check_custom_query(request.query_definition)
             sli.query_definition_json = request.query_definition
         if request.is_headline is not None:
             if request.is_headline:
