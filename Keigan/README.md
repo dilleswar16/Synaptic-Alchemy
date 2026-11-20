@@ -67,6 +67,12 @@ extra headers in `LLM_EXTRA_HEADERS_JSON`. Nothing outside `backend/keigan/ai/ll
 
 Switch each integration from `simulated` to `live` in `backend/.env` (`TELEMETRY_MODE`, `SERVICENOW_MODE`, `TEAMS_MODE`, `EMAIL_MODE`),
 set `AUTH_MODE=entra` with the Entra IDs, and follow `My Plans/10_DEPLOYMENT_AKS.md` and `deploy/teams/README.md`.
+`AUTH_MODE=local` and the default development secrets only start when `ENVIRONMENT` is `local` or `test`; every other
+environment needs Entra and real secrets. The infra checklist (forwarded-header CIDR, egress ranges, Key Vault secrets) is in
+`My Plans/16_HARDENING_PLAN.md` under "Go-live prerequisites".
+
+The Docker image installs third-party packages only from `backend/requirements.lock` (pinned, hashed). After changing the
+dependencies in `backend/pyproject.toml`, regenerate the lock with the command at the top of that file.
 
 ## Useful checks
 

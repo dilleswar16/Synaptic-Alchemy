@@ -50,17 +50,17 @@ Status: ⬜ open · 🔄 in progress · ✅ fixed and tested · ➖ not doing (r
 | H3 | Duplicate alerts across pods: dedup relies on an in-process lock; fingerprint index not unique | `services/alert_pipeline_service.py:30,89`, `entities/alert_entities.py:48` | ⬜ |
 | H4 | Job deduplication is check-then-insert with no unique constraint | `workers/job_queue.py:44-58` | ⬜ |
 | H5 | Job lease (10 min) is never renewed; a long investigation can be run twice | `workers/job_queue.py:25` | ⬜ |
-| H6 | Local auth (passwordless, any user incl. admin) is only blocked when `ENVIRONMENT=prod`; default signing secret is accepted | `config/settings.py:96,213-227` | ⬜ |
+| H6 | Local auth (passwordless, any user incl. admin) is only blocked when `ENVIRONMENT=prod`; default signing secret is accepted | `config/settings.py:96,213-227` | ✅ (stream C, tracked as V15) |
 | H7 | App roles also match Entra group display names (not unique, mutable) | `services/authorization_service.py:61-71` | ⬜ |
-| H8 | Entra token accepted when `tid` is absent | `services/authentication_service.py:168` | ⬜ |
-| H9 | Uvicorn trusts forwarded headers from any IP | `deploy/docker/backend.Dockerfile:34` | ⬜ (restrict to APIM / ingress) |
+| H8 | Entra token accepted when `tid` is absent | `services/authentication_service.py:168` | ✅ (stream C): `tid` must equal `ENTRA_TENANT_ID`; tests in `tests/unit/services/test_authentication_service.py` |
+| H9 | Uvicorn trusts forwarded headers from any IP | `deploy/docker/backend.Dockerfile:34` | ✅ (stream C): uvicorn reads `FORWARDED_ALLOW_IPS` (image default `127.0.0.1`); Helm `api.forwardedAllowIps` sets it and refuses `*`. Not rendered with helm yet (see go-live prerequisites) |
 | H10 | Retention never removes incidents, investigations or evidence although `INCIDENT_RETENTION_DAYS` exists | `services/administration_service.py:219-237` | ⬜ |
 | H11 | Many-to-many links stored as JSON id lists (incident, investigation and alert-group services; conversation applications; maintenance windows) | `entities/incident_entities.py:53,82,208`, `entities/alert_entities.py:103,133` | ⬜ |
 | H12 | `application_id` without a foreign key on alert, SLO and intelligence tables (orphans on delete) | `entities/alert_entities.py`, `entities/slo_entities.py` | ⬜ |
 | H13 | No CHECK constraints on status columns | all entities | ⬜ |
 | H14 | Two-way soft links between alert group, investigation and incident can disagree | `entities/alert_entities.py:108-109`, `entities/incident_entities.py:71-72` | ⬜ |
 | H15 | SLI list runs two queries per SLI | `services/slo_service.py:308-319` | ⬜ |
-| H16 | Backend has no dependency lock file; Docker builds from version ranges | `backend/pyproject.toml` | ⬜ |
+| H16 | Backend has no dependency lock file; Docker builds from version ranges | `backend/pyproject.toml` | ✅ (stream C): `backend/requirements.lock` (pinned, sha256 hashes, includes `azuresql` extra); the image installs only from it with `--require-hashes --only-binary=:all:`. Regenerate with the command in the lock file header after changing `pyproject.toml`. Docker build not run yet |
 | H17 | Contrast below WCAG AA: `text-subtle` 3.25:1, success text on success background 4.17:1 | `frontend/src/styles/tokens.css:47,65-67` | ⬜ |
 | H18 | Horizontal scroll at phone width; raw enum labels; plural bug | frontend shell and pages | ⬜ |
 | H19 | Dead or leftover files: `app/PlaceholderPage.tsx`, `frontend/FOUNDATION_READY.md` | frontend | ⬜ |
@@ -83,7 +83,7 @@ Where a V-item covers an H-item above, the V-item is the one tracked (noted in t
 | V5 | High | SPL: no index restriction, deny-list instead of allow-list, `tstats` unbounded, no API time bounds | ⬜ |
 | V7 | High | Uploaded knowledge, runbooks, prior RCAs and the chat agent are treated as trusted prompt input | ⬜ |
 | V14 | Medium | Custom SLI KQL runs without validation | ⬜ (= H1) |
-| V15 | Medium | Default signing secret accepted outside prod; local auth allowed in dev/test | ⬜ (= H6) |
+| V15 | Medium | Default signing secret accepted outside prod; local auth allowed in dev/test | ✅ fixed (stream C, covers H6): `AUTH_MODE=local` and default or short secrets are refused unless `ENVIRONMENT` is `local` or `test`; the secret store no longer derives its key from the signing secret outside local/test. Tests in `tests/unit/config/test_settings.py`, `tests/unit/integrations/test_secret_store.py` |
 | V13 | Medium | Teams bot answers (and runs log queries for) anyone in the chat; tenant not checked | ⬜ |
 | V8 | Medium | Link filter bypassable and missing on many AI outputs; markdown images render | ⬜ |
 | V11 | Medium | PII masker gaps (full-width text, JP numbers without separators, tokens, snake_case keys) | ✅ fixed (stream F): NFKC normalisation, new catalog patterns (JP/international phones, IPv6, GitHub/Slack/sk- tokens, Basic auth, URL credentials, password assignments), normalised JSON keys, My Number check digit; 47 tests in `tests/unit/utils/test_pii_masker.py`. Accepted residuals: masking errs on the safe side (e.g. `password: required` is masked); header rule expects one space after `Authorization:` |
@@ -98,6 +98,8 @@ Where a V-item covers an H-item above, the V-item is the one tracked (noted in t
 | V20 | Low | Citation validation inconsistent with prompts (`K#` stripped or unchecked) | ⬜ |
 | V21 | Low | Webhook `?token=` ends up in access logs; needs APIM / ingress log redaction | ⬜ (infra) |
 | V22 | Low | Request bodies can set arbitrary secret-name pointers | ⬜ |
+| S1 | Medium | Teams bot: the token's `serviceurl` claim was not bound to the activity, so a valid token could send Keigan's bot token to any host | ✅ fixed (stream C): inbound `serviceurl` must equal the activity `serviceUrl` and be https on `BOT_FRAMEWORK_SERVICE_URL_HOST_PATTERNS`; outbound `send_activity` re-checks every URL. Tests in `tests/unit/integrations/test_bot_framework_client.py`, `tests/integration/controllers/test_teams_bot_controller.py` |
+| S5 | Medium | Entra tokens without Keigan's delegated scope (or app-only tokens) were accepted as users | ✅ fixed (stream C): `scp` must contain `ENTRA_REQUIRED_DELEGATED_SCOPE` (default: last part of `ENTRA_API_SCOPE`), or `roles` must contain one of `ENTRA_ALLOWED_APP_ROLES` (empty by default); otherwise 403 with a plain message |
 
 Prompt-quality notes per prompt are in doc 17 ("Prompt quality") and are handled with V7 and V20.
 
@@ -129,6 +131,28 @@ into `keigan-hardening` by the lead after review. Only the lead edits `My Plans/
 **Wave 2** (after wave 1 is merged): data model H11-H14 (join tables, foreign keys, CHECK constraints, soft links),
 an error-handling sweep across the remaining services, wiring any cross-stream follow-ups the wave-1 reports list,
 then an independent review of the combined change and a full smoke run (seed, all screens, test suite).
+
+**Wave 1 progress**
+
+| Stream | Status |
+|---|---|
+| A | 🔄 running |
+| B | 🔄 running |
+| C | ✅ merged (166 passed, 3 xfailed after merge) |
+| D | 🔄 running |
+| E | 🔄 running |
+| F | ✅ merged |
+| G | 🔄 running |
+
+### Go-live prerequisites created by the hardening (infra checklist)
+
+These are safe-by-default settings that need real values before the first Azure deployment.
+
+- `api.forwardedAllowIps` (Helm): the ingress controller pod CIDR. Left as the placeholder, no proxy is trusted and the API logs the ingress address as the client.
+- `egress.destinations.*.cidrs`, `egress.logTools`, `egress.additional` (Helm): the egress NetworkPolicy is on by default and denies everything except DNS and the listed CIDRs. Fill every range (Azure SQL, Key Vault, Entra and Graph, Azure Monitor, LLM gateway, Bot Framework, ServiceNow, each log tool) or outbound calls fail.
+- Key Vault secret `keigan-local-token-signing-secret` (48 random bytes, base64): prod refuses to start on the default signing secret even in Entra mode.
+- `ENTRA_API_SCOPE` or `ENTRA_REQUIRED_DELEGATED_SCOPE`: Entra mode refuses to start without the delegated scope name.
+- Run `helm lint` and `helm template` on the chart, and build the backend image once, before relying on the stream C changes (neither could run in the build sandbox).
 
 ## After hardening: roadmap
 
