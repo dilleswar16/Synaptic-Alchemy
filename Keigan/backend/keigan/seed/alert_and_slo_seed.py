@@ -50,10 +50,12 @@ async def _seed_alert_configuration(session: AsyncSession, seed_context: SeedCon
     if clmjp_id and not await session.scalar(select(func.count()).select_from(MaintenanceWindow).where(MaintenanceWindow.application_id == clmjp_id)):
         days_since_friday = (now.weekday() - 4) % 7
         window_start = (now - timedelta(days=days_since_friday)).replace(hour=13, minute=0, second=0, microsecond=0)
-        session.add(MaintenanceWindow(
-            application_id=clmjp_id, window_name="Friday release", applies_to_service_ids_json=[seed_context.service_id("CLMJP", "claims-nightly-etl")], applies_to_environments_json=["prod"],
+        friday_release = MaintenanceWindow(
+            application_id=clmjp_id, window_name="Friday release", applies_to_environments_json=["prod"],
             starts_at=window_start, ends_at=window_start + timedelta(minutes=90), repeats_weekly=True, created_by_user_principal_name=SYSTEM_ACTOR, updated_by_user_principal_name=SYSTEM_ACTOR,
-        ))
+        )
+        friday_release.replace_linked_ids("service_links", [seed_context.service_id("CLMJP", "claims-nightly-etl")])
+        session.add(friday_release)
     chad_id = seed_context.application_ids_by_code.get("CHAD")
     if chad_id and not await session.scalar(select(func.count()).select_from(AlertMuteRule).where(AlertMuteRule.application_id == chad_id)):
         session.add(AlertMuteRule(

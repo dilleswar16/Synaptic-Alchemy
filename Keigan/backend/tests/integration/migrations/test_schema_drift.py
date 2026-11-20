@@ -13,14 +13,18 @@ from pathlib import Path
 
 import pytest
 from alembic.autogenerate import compare_metadata
+from alembic.config import Config
 from alembic.migration import MigrationContext
-from sqlalchemy import create_engine, text
+from alembic.script import ScriptDirectory
+from sqlalchemy import CheckConstraint, create_engine, text
 
 from keigan.entities import all_entities  # noqa: F401  (registers every table)
 from keigan.entities.base_entity import EntityBase
 
 BACKEND_DIRECTORY = Path(__file__).resolve().parents[3]
 AZURE_SQL_DIRECTORY = BACKEND_DIRECTORY.parent / "database" / "azure_sql"
+FOREIGN_KEY_REVISION = "c9e4f1b8d3a7"
+CHECK_REVISION = "d2a6b0c5e8f9"
 GENERATED_SCRIPT_NAMES = ("01_create_schema.sql", "02_create_tables.sql", "03_create_foreign_keys.sql", "04_create_indexes.sql", "05_reference_data.sql", "06_grant_keigan_identity.sql", "run_all.sql")
 
 
@@ -35,12 +39,49 @@ def migrated_database(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return database_file
 
 
+def revision_module(revision: str):  # noqa: ANN201
+    configuration = Config(str(BACKEND_DIRECTORY / "alembic.ini"))
+    configuration.set_main_option("script_location", str(BACKEND_DIRECTORY / "migrations"))
+    configuration.set_main_option("path_separator", "os")  # no prepend_sys_path splitting warning
+    return ScriptDirectory.from_config(configuration).get_revision(revision).module
+
+
+def foreign_keys_added_by_the_foreign_key_revision() -> list:
+    """The keys revision c9e4f1b8d3a7 adds on SQL Server. SQLite cannot add a key to an existing table without a rebuild that cascade-deletes rows,
+    so a SQLite database built by ``alembic upgrade head`` lacks exactly these (a fresh ``create_all`` database has them)."""
+    return list(revision_module(FOREIGN_KEY_REVISION).FOREIGN_KEYS)
+
+
 def test_migrations_produce_the_schema_the_entities_describe(migrated_database: Path) -> None:
     engine = create_engine(f"sqlite:///{migrated_database.as_posix()}")
     with engine.connect() as connection:
         differences = compare_metadata(MigrationContext.configure(connection, opts={"compare_type": True}), EntityBase.metadata)
     engine.dispose()
+    sqlite_cannot_add = {(foreign_key.table, foreign_key.column) for foreign_key in foreign_keys_added_by_the_foreign_key_revision()}
+    differences = [difference for difference in differences if not (difference[0] == "add_fk" and (difference[1].table.name, difference[1].column_keys[0]) in sqlite_cannot_add)]
     assert differences == [], f"Entities and Alembic migrations disagree; add a migration for: {differences}"
+
+
+def test_the_foreign_keys_the_revision_adds_are_the_ones_the_entities_declare() -> None:
+    """The revision's list (table, column, target, ON DELETE) is typed once in the migration; it must match what the entities say, or SQL Server and fresh databases would differ."""
+    for foreign_key in foreign_keys_added_by_the_foreign_key_revision():
+        constraints = [
+            constraint for constraint in EntityBase.metadata.tables[foreign_key.table].foreign_key_constraints
+            if list(constraint.column_keys) == [foreign_key.column] and constraint.referred_table.name == foreign_key.referred_table
+        ]
+        assert len(constraints) == 1, f"{foreign_key.table}.{foreign_key.column} has no matching foreign key in the entities"
+        assert constraints[0].ondelete == foreign_key.ondelete, f"{foreign_key.table}.{foreign_key.column}: ON DELETE differs between the migration and the entity"
+
+
+def test_the_check_constraints_the_revision_adds_are_the_ones_the_entities_declare() -> None:
+    """The revision freezes which columns it covers (the values come from the entities); a new CHECK on an entity needs its own revision."""
+    declared = {
+        (table.name, constraint.name.removeprefix(f"ck_{table.name}_").removesuffix("_values"))
+        for table in EntityBase.metadata.sorted_tables
+        for constraint in table.constraints
+        if isinstance(constraint, CheckConstraint) and constraint.name and constraint.name.endswith("_values")
+    }
+    assert set(revision_module(CHECK_REVISION).CONSTRAINED_COLUMNS) == declared
 
 
 def test_partial_unique_indexes_keep_their_filter_in_the_migrated_database(migrated_database: Path) -> None:

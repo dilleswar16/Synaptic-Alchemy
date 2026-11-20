@@ -9,11 +9,16 @@ from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String, Text,
 from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, identifier_column, utc_now
+from keigan.entities.linked_ids import LinkedIdsMixin, OrderedLinkColumns, linked_ids_property, ordered_links_relationship
+from keigan.entities.status_values import AnalysisPerspective, AssignmentGroupVerificationStatus, CommunicationStatus, ConversationScope, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStage, InvestigationStatus, InvestigationTrigger, MessageAuthorRole, PostmortemStatus, Priority, RiskLevel, values_check
 
 
 class ServiceNowAssignmentGroup(EntityBase):
     __tablename__ = "servicenow_assignment_group"
-    __table_args__ = (UniqueConstraint("application_id", "group_name", name="uq_servicenow_group_per_application"),)
+    __table_args__ = (
+        UniqueConstraint("application_id", "group_name", name="uq_servicenow_group_per_application"),
+        values_check("verification_status", AssignmentGroupVerificationStatus),
+    )
 
     assignment_group_id: Mapped[str] = identifier_column()
     application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id", ondelete="CASCADE"), index=True)
@@ -23,7 +28,9 @@ class ServiceNowAssignmentGroup(EntityBase):
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
 
-class Incident(AuditColumnsMixin, EntityBase):
+class Incident(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
+    link_relationship_names = ("affected_service_links",)
+
     __tablename__ = "incident"
     __table_args__ = (
         # Filtered: manual and alert-born incidents may have no ticket number (SQL Server unique constraints allow only one NULL).
@@ -34,6 +41,9 @@ class Incident(AuditColumnsMixin, EntityBase):
             sqlite_where=text("external_incident_number IS NOT NULL"),
         ),
         Index("ix_incident_application_status_opened", "application_id", "incident_status", "opened_at"),
+        values_check("incident_source", IncidentSource),
+        values_check("incident_status", IncidentStatus),
+        values_check("keigan_priority", Priority),
     )
 
     incident_id: Mapped[str] = identifier_column()
@@ -50,7 +60,8 @@ class Incident(AuditColumnsMixin, EntityBase):
     priority_rationale: Mapped[str | None] = mapped_column(Text)
     incident_category: Mapped[str | None] = mapped_column(String(40))
     incident_status: Mapped[str] = mapped_column(String(20), default="new")
-    affected_service_ids_json: Mapped[list[str] | None] = mapped_column()
+    affected_service_links: Mapped[list[IncidentAffectedService]] = ordered_links_relationship("IncidentAffectedService")
+    affected_service_ids = linked_ids_property("affected_service_links")
     assignment_group_name: Mapped[str | None] = mapped_column(String(200))
     external_state: Mapped[str | None] = mapped_column(String(40))
     opened_at: Mapped[datetime] = mapped_column(default=utc_now)
@@ -61,15 +72,33 @@ class Incident(AuditColumnsMixin, EntityBase):
     external_last_updated_at: Mapped[datetime | None] = mapped_column()
 
 
-class Investigation(AuditColumnsMixin, EntityBase):
+class IncidentAffectedService(OrderedLinkColumns, EntityBase):
+    """A service an incident affects. The first one is the incident's primary service."""
+
+    __tablename__ = "incident_affected_service"
+    linked_id_attribute = "service_id"
+
+    incident_id: Mapped[str] = mapped_column(ForeignKey("incident.incident_id", ondelete="CASCADE"), primary_key=True)
+    # NO ACTION: the incident already cascades from its application, and SQL Server allows one cascade path; deleting a service releases its rows.
+    service_id: Mapped[str] = mapped_column(ForeignKey("monitored_service.service_id"), primary_key=True, index=True)
+
+
+class Investigation(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
+    link_relationship_names = ("investigated_service_links", "matched_runbook_links")
+
     __tablename__ = "investigation"
-    __table_args__ = (Index("ix_investigation_application_created", "application_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_investigation_application_created", "application_id", "created_at"),
+        values_check("investigation_trigger", InvestigationTrigger),
+        values_check("investigation_status", InvestigationStatus),
+        values_check("current_stage_name", InvestigationStage),
+        values_check("user_feedback_verdict", InvestigationFeedbackVerdict),
+    )
 
     investigation_id: Mapped[str] = identifier_column()
     application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id", ondelete="CASCADE"))
     # NO ACTION: investigations already cascade from application; SQL Server allows one path (application deletion removes them first).
     incident_id: Mapped[str | None] = mapped_column(ForeignKey("incident.incident_id"), index=True)
-    alert_group_id: Mapped[str | None] = mapped_column(String(36), index=True)
     investigation_trigger: Mapped[str] = mapped_column(String(20), default="incident")
     investigation_status: Mapped[str] = mapped_column(String(30), default="queued")
     current_stage_name: Mapped[str] = mapped_column(String(30), default="triage")
@@ -79,7 +108,8 @@ class Investigation(AuditColumnsMixin, EntityBase):
     investigation_window_end: Mapped[datetime | None] = mapped_column()
     baseline_window_start: Mapped[datetime | None] = mapped_column()
     baseline_window_end: Mapped[datetime | None] = mapped_column()
-    investigated_service_ids_json: Mapped[list[str] | None] = mapped_column()
+    investigated_service_links: Mapped[list[InvestigationInvestigatedService]] = ordered_links_relationship("InvestigationInvestigatedService")
+    investigated_service_ids = linked_ids_property("investigated_service_links")
     triage_result_json: Mapped[dict[str, Any] | None] = mapped_column()
     executive_summary: Mapped[str | None] = mapped_column(Text)
     what_went_wrong_markdown: Mapped[str | None] = mapped_column(Text)
@@ -89,7 +119,8 @@ class Investigation(AuditColumnsMixin, EntityBase):
     overall_confidence_score: Mapped[float | None] = mapped_column(Float)
     leading_hypothesis_id: Mapped[str | None] = mapped_column(String(36))
     blast_radius_json: Mapped[dict[str, Any] | None] = mapped_column()
-    matched_runbook_ids_json: Mapped[list[str] | None] = mapped_column()
+    matched_runbook_links: Mapped[list[InvestigationMatchedRunbook]] = ordered_links_relationship("InvestigationMatchedRunbook")
+    matched_runbook_ids = linked_ids_property("matched_runbook_links")
     knowledge_references_json: Mapped[list[Any] | None] = mapped_column()
     user_feedback_verdict: Mapped[str | None] = mapped_column(String(20))
     user_feedback_comment: Mapped[str | None] = mapped_column(Text)
@@ -103,8 +134,34 @@ class Investigation(AuditColumnsMixin, EntityBase):
     completed_at: Mapped[datetime | None] = mapped_column()
 
 
+class InvestigationInvestigatedService(OrderedLinkColumns, EntityBase):
+    """A service an investigation examined, in the order triage found them."""
+
+    __tablename__ = "investigation_investigated_service"
+    linked_id_attribute = "service_id"
+
+    investigation_id: Mapped[str] = mapped_column(ForeignKey("investigation.investigation_id", ondelete="CASCADE"), primary_key=True)
+    # NO ACTION: the investigation already cascades from its application, and SQL Server allows one cascade path; deleting a service releases its rows.
+    service_id: Mapped[str] = mapped_column(ForeignKey("monitored_service.service_id"), primary_key=True, index=True)
+
+
+class InvestigationMatchedRunbook(OrderedLinkColumns, EntityBase):
+    """A runbook the investigation matched, best match first."""
+
+    __tablename__ = "investigation_matched_runbook"
+    linked_id_attribute = "runbook_id"
+
+    investigation_id: Mapped[str] = mapped_column(ForeignKey("investigation.investigation_id", ondelete="CASCADE"), primary_key=True)
+    # NO ACTION: the investigation already cascades from its application, and SQL Server allows one cascade path; deleting a runbook releases its rows.
+    runbook_id: Mapped[str] = mapped_column(ForeignKey("runbook.runbook_id"), primary_key=True, index=True)
+
+
 class InvestigationHypothesis(EntityBase):
     __tablename__ = "investigation_hypothesis"
+    __table_args__ = (
+        values_check("analysis_perspective", AnalysisPerspective),
+        values_check("fix_risk_level", RiskLevel),
+    )
 
     hypothesis_id: Mapped[str] = identifier_column()
     investigation_id: Mapped[str] = mapped_column(ForeignKey("investigation.investigation_id", ondelete="CASCADE"), index=True)
@@ -125,12 +182,15 @@ class InvestigationHypothesis(EntityBase):
 
 class InvestigationEvidence(EntityBase):
     __tablename__ = "investigation_evidence"
-    __table_args__ = (UniqueConstraint("investigation_id", "evidence_code", name="uq_evidence_code_per_investigation"),)
+    __table_args__ = (
+        UniqueConstraint("investigation_id", "evidence_code", name="uq_evidence_code_per_investigation"),
+        values_check("signal_strength", RiskLevel),
+    )
 
     evidence_id: Mapped[str] = identifier_column()
     investigation_id: Mapped[str] = mapped_column(ForeignKey("investigation.investigation_id", ondelete="CASCADE"), index=True)
     evidence_code: Mapped[str] = mapped_column(String(10))
-    service_id: Mapped[str | None] = mapped_column(String(36))
+    service_id: Mapped[str | None] = mapped_column(ForeignKey("monitored_service.service_id"))
     evidence_source_kind: Mapped[str] = mapped_column(String(40))
     evidence_category: Mapped[str] = mapped_column(String(40))
     evidence_title: Mapped[str] = mapped_column(String(300))
@@ -154,8 +214,9 @@ class InvestigationTimelineEvent(EntityBase):
     __tablename__ = "investigation_timeline_event"
 
     timeline_event_id: Mapped[str] = identifier_column()
-    incident_id: Mapped[str | None] = mapped_column(String(36), index=True)
-    investigation_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    # The incident owns its timeline (CASCADE); NO ACTION on the investigation: SQL Server allows one cascade path and an investigation cascades from the application too.
+    incident_id: Mapped[str | None] = mapped_column(ForeignKey("incident.incident_id", ondelete="CASCADE"), index=True)
+    investigation_id: Mapped[str | None] = mapped_column(ForeignKey("investigation.investigation_id"), index=True)
     event_occurred_at: Mapped[datetime] = mapped_column(default=utc_now)
     event_type: Mapped[str] = mapped_column(String(40))
     event_title: Mapped[str] = mapped_column(String(400))
@@ -168,10 +229,14 @@ class InvestigationTimelineEvent(EntityBase):
 
 class IncidentCommunication(AuditColumnsMixin, EntityBase):
     __tablename__ = "incident_communication"
+    __table_args__ = (
+        values_check("communication_status", CommunicationStatus),
+    )
 
     communication_id: Mapped[str] = identifier_column()
-    incident_id: Mapped[str | None] = mapped_column(String(36), index=True)
-    investigation_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    # Same rule as the timeline: the incident cascades, the investigation is NO ACTION.
+    incident_id: Mapped[str | None] = mapped_column(ForeignKey("incident.incident_id", ondelete="CASCADE"), index=True)
+    investigation_id: Mapped[str | None] = mapped_column(ForeignKey("investigation.investigation_id"), index=True)
     communication_type: Mapped[str] = mapped_column(String(30))
     audience_type: Mapped[str] = mapped_column(String(20), default="stakeholders")
     language_code: Mapped[str] = mapped_column(String(10), default="en")
@@ -185,10 +250,14 @@ class IncidentCommunication(AuditColumnsMixin, EntityBase):
 
 class PostmortemReport(AuditColumnsMixin, EntityBase):
     __tablename__ = "postmortem_report"
+    __table_args__ = (
+        values_check("report_status", PostmortemStatus),
+    )
 
     postmortem_id: Mapped[str] = identifier_column()
-    incident_id: Mapped[str] = mapped_column(String(36), index=True)
-    investigation_id: Mapped[str | None] = mapped_column(String(36))
+    # Same rule as the timeline: the incident cascades, the investigation is NO ACTION.
+    incident_id: Mapped[str] = mapped_column(ForeignKey("incident.incident_id", ondelete="CASCADE"), index=True)
+    investigation_id: Mapped[str | None] = mapped_column(ForeignKey("investigation.investigation_id"))
     report_title: Mapped[str] = mapped_column(String(400))
     report_markdown: Mapped[str | None] = mapped_column(Text)
     report_sections_json: Mapped[dict[str, Any] | None] = mapped_column()
@@ -200,20 +269,40 @@ class PostmortemReport(AuditColumnsMixin, EntityBase):
     sent_at: Mapped[datetime | None] = mapped_column()
 
 
-class Conversation(AuditColumnsMixin, EntityBase):
+class Conversation(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
+    link_relationship_names = ("application_links",)
+
     __tablename__ = "conversation"
+    __table_args__ = (
+        values_check("conversation_scope", ConversationScope),
+    )
 
     conversation_id: Mapped[str] = identifier_column()
     conversation_scope: Mapped[str] = mapped_column(String(30))
-    application_ids_json: Mapped[list[str] | None] = mapped_column()
-    investigation_id: Mapped[str | None] = mapped_column(String(36), index=True)
-    incident_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    application_links: Mapped[list[ConversationApplication]] = ordered_links_relationship("ConversationApplication")
+    application_ids = linked_ids_property("application_links")
+    # NO ACTION on both: a conversation is scoped to applications through conversation_application (cascade), so it must not also cascade from an incident.
+    investigation_id: Mapped[str | None] = mapped_column(ForeignKey("investigation.investigation_id"), index=True)
+    incident_id: Mapped[str | None] = mapped_column(ForeignKey("incident.incident_id"), index=True)
     owner_user_principal_name: Mapped[str | None] = mapped_column(String(320), index=True)
     conversation_title: Mapped[str] = mapped_column(String(300), default="New conversation")
 
 
+class ConversationApplication(OrderedLinkColumns, EntityBase):
+    """An application a conversation is scoped to (an empty list means every application the user can read)."""
+
+    __tablename__ = "conversation_application"
+    linked_id_attribute = "application_id"
+
+    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversation.conversation_id", ondelete="CASCADE"), primary_key=True)
+    application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id", ondelete="CASCADE"), primary_key=True, index=True)
+
+
 class ConversationMessage(EntityBase):
     __tablename__ = "conversation_message"
+    __table_args__ = (
+        values_check("author_role", MessageAuthorRole),
+    )
 
     message_id: Mapped[str] = identifier_column()
     conversation_id: Mapped[str] = mapped_column(ForeignKey("conversation.conversation_id", ondelete="CASCADE"), index=True)
@@ -230,12 +319,16 @@ class ConversationMessage(EntityBase):
 
 __all__ = [
     "Conversation",
+    "ConversationApplication",
     "ConversationMessage",
     "Incident",
+    "IncidentAffectedService",
     "IncidentCommunication",
     "Investigation",
     "InvestigationEvidence",
     "InvestigationHypothesis",
+    "InvestigationInvestigatedService",
+    "InvestigationMatchedRunbook",
     "InvestigationTimelineEvent",
     "PostmortemReport",
     "ServiceNowAssignmentGroup",

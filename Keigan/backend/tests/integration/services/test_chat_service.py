@@ -117,9 +117,12 @@ async def test_stored_messages_of_an_investigation_conversation_are_masked_in_th
 
     monkeypatch.setattr(ChatService, "answer_investigation_question", fake_answer)
     async with open_session() as session:
-        from keigan.entities.all_entities import Conversation
+        from keigan.entities.all_entities import Conversation, Investigation
 
-        conversation = Conversation(conversation_scope="investigation", investigation_id="inv-x", application_ids_json=[], owner_user_principal_name="owner@keigan.local", conversation_title="Investigation chat")
+        investigation = Investigation(application_id=seed_context.application_ids_by_code["CLMJP"])
+        session.add(investigation)
+        await session.flush()
+        conversation = Conversation(conversation_scope="investigation", investigation_id=investigation.investigation_id, owner_user_principal_name="owner@keigan.local", conversation_title="Investigation chat")
         session.add(conversation)
         await session.flush()
         session.add(ConversationMessage(conversation_id=conversation.conversation_id, author_role="user", message_text=f"Old unmasked message from {EMAIL}"))

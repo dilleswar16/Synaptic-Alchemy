@@ -24,6 +24,7 @@ from keigan.dtos.alert_dtos import (
 from keigan.dtos.common_dtos import ApiModel
 from keigan.entities.alert_entities import Alert, AlertEvent, AlertGroup, AlertSource
 from keigan.entities.application_entities import Application, ApplicationComponent, MonitoredService
+from keigan.entities.status_values import AlertSourceTool
 from keigan.exceptions.keigan_exceptions import AuthenticationException, BusinessValidationException, NotFoundException
 from keigan.integrations.secret_store import build_secret_name
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
@@ -38,7 +39,7 @@ from keigan.workers.job_queue import JobQueue
 
 SECRET_PREFIX = "kgn_"
 SECRET_ROTATION_OVERLAP = timedelta(hours=24)
-INTERNAL_SOURCE_TOOL = "keigan_slo"
+INTERNAL_SOURCE_TOOL = AlertSourceTool.KEIGAN_SLO.value
 FIELD_NAME_HINTS = {
     "ruleName": ["rulename", "rule_name", "alertname", "alert_name", "title", "check", "name"], "ruleId": ["ruleid", "rule_id", "rule"],
     "externalId": ["alertid", "alert_id", "incidentid", "uuid", "fingerprint", "id"], "status": ["status", "state", "condition"], "severity": ["severity", "priority", "level"],

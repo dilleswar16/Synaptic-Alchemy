@@ -82,10 +82,10 @@ async def _seed_runbooks(session: AsyncSession, seed_context: SeedContext) -> No
             runbook_title=title,
             trigger_symptoms_text=symptoms,
             runbook_steps_markdown=steps_markdown,
-            applies_to_service_ids_json=[seed_context.service_ids_by_key[key] for name in service_names if (key := f"{application_code}/{name}") in seed_context.service_ids_by_key],
             created_by_user_principal_name=SEED_ACTOR,
             updated_by_user_principal_name=SEED_ACTOR,
         )
+        runbook.replace_linked_ids("service_links", [seed_context.service_ids_by_key[key] for name in service_names if (key := f"{application_code}/{name}") in seed_context.service_ids_by_key])
         RunbookService._refresh_search_terms(runbook)
         session.add(runbook)
     await session.flush()

@@ -64,9 +64,10 @@ async def _seed_historical_incident(session: AsyncSession, window: dict[str, Any
         incident_description=masker.mask_text(scenario.servicenow_description.format(started_at_local=started_at.strftime("%H:%M UTC"))),
         servicenow_priority=scenario.servicenow_priority, servicenow_impact="2", servicenow_urgency="1" if scenario.servicenow_priority in ("1", "2") else "2",
         keigan_priority=f"P{min(int(scenario.servicenow_priority), 4)}", incident_category=scenario.incident_category, incident_status="resolved", external_state="resolved",
-        affected_service_ids_json=window["primary_service_ids"], assignment_group_name=assignment_group, opened_at=opened_at, detected_by_keigan_at=opened_at + timedelta(minutes=1),
+        assignment_group_name=assignment_group, opened_at=opened_at, detected_by_keigan_at=opened_at + timedelta(minutes=1),
         resolved_at=ended_at, external_last_updated_at=ended_at, created_by_user_principal_name=SEED_ACTOR,
     )
+    incident.replace_linked_ids("affected_service_links", window["primary_service_ids"])
     session.add(incident)
     await session.flush()
     window_start = opened_at - timedelta(minutes=60)

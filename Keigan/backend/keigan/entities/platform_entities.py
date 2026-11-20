@@ -9,6 +9,7 @@ from sqlalchemy import Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, UtcDateTime, identifier_column, utc_now
+from keigan.entities.status_values import JobStatus, values_check
 
 
 class PlatformUser(AuditColumnsMixin, EntityBase):
@@ -83,7 +84,7 @@ class LlmUsageRecord(EntityBase):
 
 
 # A job in one of these states "owns" its deduplication key; the database allows only one such job per key.
-ACTIVE_JOB_STATUSES = ("queued", "running")
+ACTIVE_JOB_STATUSES = (JobStatus.QUEUED.value, JobStatus.RUNNING.value)
 _ACTIVE_JOB_FILTER = text("deduplication_key IS NOT NULL AND job_status IN ({})".format(", ".join(f"'{status}'" for status in ACTIVE_JOB_STATUSES)))
 
 
@@ -96,6 +97,7 @@ class BackgroundJob(EntityBase):
             "uq_background_job_active_deduplication_key", "deduplication_key", unique=True,
             mssql_where=_ACTIVE_JOB_FILTER, postgresql_where=_ACTIVE_JOB_FILTER, sqlite_where=_ACTIVE_JOB_FILTER,
         ),
+        values_check("job_status", JobStatus),
     )
 
     background_job_id: Mapped[str] = identifier_column()

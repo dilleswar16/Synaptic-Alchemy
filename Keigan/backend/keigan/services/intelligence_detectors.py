@@ -243,7 +243,7 @@ class PredictiveDetectors:
         incidents = (await self.session.scalars(select(Incident).where(Incident.application_id == application_id, Incident.opened_at >= since).order_by(Incident.opened_at))).all()
         groups: dict[tuple[str, str], list[Incident]] = defaultdict(list)
         for incident in incidents:
-            primary_service_id = (incident.affected_service_ids_json or [""])[0]
+            primary_service_id = (incident.affected_service_ids or [""])[0]
             groups[(incident.incident_category or "unclassified", primary_service_id)].append(incident)
         service_names = await self._service_names(application_id)
         signals: list[DetectedSignal] = []

@@ -1,7 +1,7 @@
 # Keigan — Azure SQL database scripts
 
 Run these once on an empty Azure SQL database **before** the first Helm install of Keigan.
-They create the `keigan` schema, 47 tables, 32 foreign keys, 64 indexes, the migration baseline and a
+They create the `keigan` schema, 56 tables, 85 foreign keys, 72 indexes, 47 CHECK constraints on status columns, the migration baseline and a
 database user for Keigan's managed identity. Keigan stores no demo data in Azure: applications, users' access
 and everything else are created through the Keigan UI.
 Optional demo data for non-production databases is kept apart in `demo_data/` (see its README); `run_all.sql` never runs it.
@@ -9,10 +9,10 @@ Optional demo data for non-production databases is kept apart in `demo_data/` (s
 | Order | File | What it does |
 |---|---|---|
 | 1 | `01_create_schema.sql` | Creates schema `keigan` |
-| 2 | `02_create_tables.sql` | Creates every table with its primary key and unique constraints |
+| 2 | `02_create_tables.sql` | Creates every table with its primary key, unique and CHECK constraints (status and kind columns accept only the values in `keigan/entities/status_values.py`) |
 | 3 | `03_create_foreign_keys.sql` | Adds foreign keys (after all tables exist, so order never matters) |
 | 4 | `04_create_indexes.sql` | Adds indexes, including the filtered unique indexes (ServiceNow incident numbers, one open alert per fingerprint, one active job per deduplication key) |
-| 5 | `05_reference_data.sql` | Creates `keigan.alembic_version` = `3be32fbc3e37` (so later releases apply only newer migrations) and a schema marker row |
+| 5 | `05_reference_data.sql` | Creates `keigan.alembic_version` = `d2a6b0c5e8f9` (so later releases apply only newer migrations) and a schema marker row |
 | 6 | `06_grant_keigan_identity.sql` | Creates the database user for Keigan's managed identity and grants read/write on schema `keigan` |
 | — | `run_all.sql` | Runs 1–6 in order with `sqlcmd` |
 
@@ -44,8 +44,8 @@ sqlcmd -S <server>.database.windows.net -d <database> \
 ## Check the result
 
 ```sql
-SELECT COUNT(*) AS table_count FROM sys.tables WHERE schema_id = SCHEMA_ID(N'keigan');   -- 48 (47 + alembic_version)
-SELECT version_num FROM keigan.alembic_version;                                          -- 3be32fbc3e37
+SELECT COUNT(*) AS table_count FROM sys.tables WHERE schema_id = SCHEMA_ID(N'keigan');   -- 57 (56 + alembic_version)
+SELECT version_num FROM keigan.alembic_version;                                          -- d2a6b0c5e8f9
 SELECT name, type_desc FROM sys.database_principals WHERE name = N'id-keigan-prod';     -- EXTERNAL_USER
 ```
 
@@ -98,3 +98,11 @@ scripts disagree, so a forgotten migration or a forgotten regeneration is caught
   unique index (`WHERE external_incident_number IS NOT NULL`).
 - Constraint and index names follow one convention (`pk_`, `fk_`, `uq_`, `ix_` + table + columns), so migrations can
   find and change them by name.
+- Association tables (`incident_affected_service`, `runbook_applies_to_service`, ...) replaced the JSON id lists. They cascade from
+  their owner and are `NO ACTION` towards the service, runbook or document, which Keigan releases before deleting it.
+- Status and kind columns have `CHECK (column IN (...))` constraints built from `keigan/entities/status_values.py`. The delta
+  script stops with a message that names the column when existing rows hold another value; fix those rows and run it again.
+- The delta scripts repair existing orphans (rows that name an application, incident, investigation, SLI or service that no longer
+  exists) before the foreign keys are added: rows that belong to the missing parent are deleted, optional references are set to NULL.
+- SQLite cannot add keys or constraints to existing tables without a rebuild that cascade-deletes rows, so recreate local SQLite
+  demo databases after these revisions; databases created from the entities already have them.

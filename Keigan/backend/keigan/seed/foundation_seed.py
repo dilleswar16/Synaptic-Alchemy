@@ -427,7 +427,6 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
                     email_address=email_address,
                     user_principal_name=email_address,
                     stakeholder_role=stakeholder_role,
-                    subscribed_service_ids_json=[],
                     notification_channels_json=channels,
                     minimum_priority=minimum_priority,
                     subscribed_notification_types_json=[

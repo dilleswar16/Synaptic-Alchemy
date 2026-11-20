@@ -22,7 +22,7 @@ async def prepare(application_id: str) -> tuple[str, str, str, str]:
         session.add(incident)
         await session.flush()
         session.add(Investigation(
-            application_id=application_id, incident_id=incident.incident_id, investigation_trigger="servicenow", investigation_status="completed", current_stage_name="completed", progress_percent=100,
+            application_id=application_id, incident_id=incident.incident_id, investigation_trigger="incident", investigation_status="completed", current_stage_name="completed", progress_percent=100,
             executive_summary="Claims are slow.", what_went_wrong_markdown="Slow [details](https://evil.example/login) ![p](https://evil.example/p.png).", why_it_happened_markdown="Pool exhausted.",
             how_to_fix_markdown=FIX_WITH_COMMAND, overall_confidence_score=0.7,
         ))

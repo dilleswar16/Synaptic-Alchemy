@@ -137,12 +137,14 @@ class ChatService:
             if existing is not None:
                 return await self._to_detail(existing)
             conversation = Conversation(conversation_scope=INVESTIGATION_SCOPE, investigation_id=request.investigation_id, incident_id=investigation.incident_id,
-                                        application_ids_json=[investigation.application_id], owner_user_principal_name=current_user.user_principal_name, conversation_title="Investigation chat",
+                                        owner_user_principal_name=current_user.user_principal_name, conversation_title="Investigation chat",
                                         created_by_user_principal_name=current_user.user_principal_name)
+            conversation.replace_linked_ids("application_links", [investigation.application_id])
         elif request.conversation_scope == KEIGAN_SCOPE:
             application_ids = await authorization.scoped_application_ids(current_user, request.application_ids) if request.application_ids else []
-            conversation = Conversation(conversation_scope=KEIGAN_SCOPE, application_ids_json=application_ids, owner_user_principal_name=current_user.user_principal_name,
+            conversation = Conversation(conversation_scope=KEIGAN_SCOPE, owner_user_principal_name=current_user.user_principal_name,
                                         conversation_title=DEFAULT_TITLE, created_by_user_principal_name=current_user.user_principal_name)
+            conversation.replace_linked_ids("application_links", application_ids)
         else:
             raise BusinessValidationException("conversationScope must be keigan_ai_chat or investigation.")
         self.session.add(conversation)
@@ -157,7 +159,7 @@ class ChatService:
         if request.conversation_title is not None:
             conversation.conversation_title = PiiMasker().mask_text(request.conversation_title).strip() or DEFAULT_TITLE
         if request.application_ids is not None and conversation.conversation_scope == KEIGAN_SCOPE:
-            conversation.application_ids_json = await AuthorizationService(self.session).scoped_application_ids(current_user, request.application_ids) if request.application_ids else []
+            conversation.replace_linked_ids("application_links", await AuthorizationService(self.session).scoped_application_ids(current_user, request.application_ids) if request.application_ids else [])
         conversation.updated_by_user_principal_name = current_user.user_principal_name
         return self._to_response(conversation, 0)
 
@@ -221,7 +223,7 @@ class ChatService:
     async def _answer_keigan_question(self, current_user: CurrentUser, conversation: Conversation, request: SendMessageRequest, history: list[ConversationMessage]) -> AssistantAnswer:
         authorization = AuthorizationService(self.session)
         readable_ids = await authorization.readable_application_ids(current_user)
-        scope_ids = [identifier for identifier in (conversation.application_ids_json or []) if identifier in readable_ids] or sorted(readable_ids)
+        scope_ids = [identifier for identifier in conversation.application_ids if identifier in readable_ids] or sorted(readable_ids)
         applications = list((await self.session.scalars(select(Application).where(Application.application_id.in_(scope_ids)))).all()) if scope_ids else []
         if not applications:
             return AssistantAnswer("You don't have access to any applications yet, so there is nothing for me to look at.", message_payload={"answerKind": "text"})
@@ -387,7 +389,7 @@ class ChatService:
     @staticmethod
     def _to_response(conversation: Conversation, message_count: int) -> ConversationResponse:
         return ConversationResponse(
-            conversation_id=conversation.conversation_id, conversation_scope=conversation.conversation_scope, application_ids=conversation.application_ids_json or [],
+            conversation_id=conversation.conversation_id, conversation_scope=conversation.conversation_scope, application_ids=conversation.application_ids,
             investigation_id=conversation.investigation_id, conversation_title=conversation.conversation_title, message_count=message_count,
             created_at=conversation.created_at, updated_at=conversation.updated_at)
 

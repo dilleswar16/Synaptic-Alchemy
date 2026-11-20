@@ -250,7 +250,7 @@ def maintenance_window_is_active(window_start: datetime, window_end: datetime, r
 def maintenance_window_applies(window: Any, service_id: str | None, environment_name: str | None, reference_time: datetime) -> bool:
     if not maintenance_window_is_active(window.starts_at, window.ends_at, window.repeats_weekly, reference_time):
         return False
-    service_ids = window.applies_to_service_ids_json or []
+    service_ids = window.applies_to_service_ids
     environments = [value.lower() for value in (window.applies_to_environments_json or [])]
     return (not service_ids or (service_id in service_ids)) and (not environments or (environment_name or "prod").lower() in environments)
 

@@ -35,6 +35,7 @@ from keigan.services.application_readiness_service import ApplicationReadinessSe
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.onboarding_service import GUID_PATTERN
+from keigan.services.reference_release import release_references
 
 logger = logging.getLogger(__name__)
 
@@ -212,32 +213,27 @@ class ApplicationService:
         await self.application_repository.delete(application)
 
     async def _delete_rows_outside_the_cascade_path(self, application_id: str) -> None:
-        """Removes the application's rows that the database cannot cascade: rows reachable through a second parent (SQL Server
-        allows one cascade path per table) and rows that keep only an application_id. Components, knowledge, alert sources,
-        SLOs, stakeholders and incidents cascade from the application row. Audit events and AI usage records are kept as history."""
+        """Removes the application's rows the database cannot cascade: rows reachable through a second parent (SQL Server allows one
+        cascade path per table, so those keys are NO ACTION) and the references to the application's services. Everything else
+        (components, knowledge, alert sources, alerts, SLIs with their measurements, SLOs, signals, reports, stakeholders, incidents)
+        cascades from the application row. Audit events and AI usage records are kept as history."""
         from sqlalchemy import delete, or_
 
-        from keigan.entities.alert_entities import Alert, AlertGroup
-        from keigan.entities.application_entities import ExternalIntegration, ServiceDependency, ServiceLogSource
+        from keigan.entities.alert_entities import AlertGroup
         from keigan.entities.incident_entities import Conversation, Incident, IncidentCommunication, Investigation, InvestigationTimelineEvent, PostmortemReport
         from keigan.entities.notification_entities import NotificationDelivery, TeamsIncidentChat
-        from keigan.entities.slo_entities import IntelligenceReport, PredictiveSignal, ServiceLevelIndicator, SliMeasurement
 
-        application_service_ids = select(MonitoredService.service_id).where(MonitoredService.application_id == application_id)
-        application_sli_ids = select(ServiceLevelIndicator.sli_id).where(ServiceLevelIndicator.application_id == application_id)
+        application_service_ids = list((await self.session.scalars(select(MonitoredService.service_id).where(MonitoredService.application_id == application_id))).all())
+        await release_references(self.session, MonitoredService.service_id, application_service_ids)
         application_incident_ids = select(Incident.incident_id).where(Incident.application_id == application_id)
         application_investigation_ids = select(Investigation.investigation_id).where(Investigation.application_id == application_id)
         for delete_statement in (
-            delete(SliMeasurement).where(SliMeasurement.sli_id.in_(application_sli_ids)),
-            delete(ServiceDependency).where(ServiceDependency.application_id == application_id),
-            delete(ServiceLogSource).where(ServiceLogSource.service_id.in_(application_service_ids)),
             delete(MonitoredService).where(MonitoredService.application_id == application_id),
             *(delete(entity).where(or_(entity.incident_id.in_(application_incident_ids), entity.investigation_id.in_(application_investigation_ids)))
               for entity in (InvestigationTimelineEvent, IncidentCommunication, PostmortemReport, Conversation)),
+            # Children first: these name the incident or investigation that is deleted next.
+            *(delete(entity).where(entity.application_id == application_id) for entity in (NotificationDelivery, TeamsIncidentChat, AlertGroup)),
             delete(Investigation).where(Investigation.application_id == application_id),
-            *(delete(entity).where(entity.application_id == application_id) for entity in (
-                Alert, AlertGroup, NotificationDelivery, TeamsIncidentChat, PredictiveSignal, IntelligenceReport, ExternalIntegration,
-            )),
         ):
             await self.session.execute(delete_statement)
 

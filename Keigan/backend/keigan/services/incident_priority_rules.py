@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-PRIORITY_NAMES = ("P1", "P2", "P3", "P4")
+from keigan.entities.status_values import Priority
+
+PRIORITY_NAMES = tuple(priority.value for priority in Priority)
 PRIORITY_RANK = {name: index for index, name in enumerate(PRIORITY_NAMES)}  # lower index = more severe
 # ServiceNow impact x urgency matrix (1 = high, 2 = medium, 3 = low) -> ServiceNow priority 1..5
 _IMPACT_URGENCY_MATRIX = {(1, 1): 1, (1, 2): 2, (2, 1): 2, (2, 2): 3, (1, 3): 3, (3, 1): 3, (2, 3): 4, (3, 2): 4, (3, 3): 5}

@@ -74,7 +74,7 @@ class TeamsChatService:
     async def _chat_stakeholders(self, incident: Incident) -> list[Stakeholder]:
         from keigan.services.notification_service import NotificationService
 
-        return await NotificationService(self.session).matching_stakeholders(incident.application_id, "incident_detected", "teams_incident_chat", priority=incident.keigan_priority or "P3", service_ids=incident.affected_service_ids_json)
+        return await NotificationService(self.session).matching_stakeholders(incident.application_id, "incident_detected", "teams_incident_chat", priority=incident.keigan_priority or "P3", service_ids=incident.affected_service_ids)
 
     # ── Creation ───────────────────────────────────────────────────────────────
     async def create_incident_chat(self, incident_id: str) -> dict[str, Any] | None:
@@ -96,7 +96,7 @@ class TeamsChatService:
             chat_identifier = f"simulated:{uuid.uuid4()}"
         investigation = await self._latest_investigation(incident_id)
         conversation = Conversation(
-            conversation_scope=CHAT_SCOPE, application_ids_json=[incident.application_id], incident_id=incident_id, investigation_id=investigation.investigation_id if investigation else None,
+            conversation_scope=CHAT_SCOPE, incident_id=incident_id, investigation_id=investigation.investigation_id if investigation else None,
             owner_user_principal_name=None, conversation_title=topic[:300], created_by_user_principal_name="system:worker", updated_by_user_principal_name="system:worker",
         )
         self.session.add(conversation)

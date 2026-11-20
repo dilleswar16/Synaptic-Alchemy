@@ -63,12 +63,13 @@ async def test_database_rejects_a_second_open_alert_with_the_same_fingerprint(al
     raise AssertionError("a second open alert with the same fingerprint was stored")
 
 
-async def test_database_allows_a_new_open_alert_once_the_earlier_one_is_resolved() -> None:
+async def test_database_allows_a_new_open_alert_once_the_earlier_one_is_resolved(seed_context) -> None:
     fingerprint = uuid.uuid4().hex
+    application_id = seed_context.application_ids_by_code["CLMJP"]
     async with open_session() as session:
-        session.add(Alert(application_id="app-for-history", alert_fingerprint=fingerprint, rule_name="history", alert_status="resolved"))
+        session.add(Alert(application_id=application_id, alert_fingerprint=fingerprint, rule_name="history", alert_status="resolved"))
     async with open_session() as session:
-        session.add(Alert(application_id="app-for-history", alert_fingerprint=fingerprint, rule_name="history", alert_status="firing"))
+        session.add(Alert(application_id=application_id, alert_fingerprint=fingerprint, rule_name="history", alert_status="firing"))
 
 
 async def test_pod_that_loses_the_insert_race_counts_a_repeat_on_the_winning_alert(client: httpx.AsyncClient, alert_source: AlertSourceFixture, monkeypatch: pytest.MonkeyPatch) -> None:
