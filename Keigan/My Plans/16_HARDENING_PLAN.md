@@ -39,7 +39,7 @@ Status: ⬜ open · 🔄 in progress · ✅ fixed and tested · ➖ not doing (r
 | # | Finding | Where | Status |
 |---|---|---|---|
 | H1 | Custom SLI KQL runs without query validation | `services/sli_measurement_reader.py:88-89` | ⬜ |
-| H2 | KQL validator checks only tables before the first pipe; `union` / `find` later in the query are not checked | `utils/query_safety.py:79-89` | ⬜ |
+| H2 | KQL validator checks only tables before the first pipe, plus `join`/`lookup`; a later `| union <table>` is not checked (`find` is already rejected by the allowlist, verified by test) | `utils/query_safety.py:79-89` | ⬜ |
 | H3 | Duplicate alerts across pods: dedup relies on an in-process lock; fingerprint index not unique | `services/alert_pipeline_service.py:30,89`, `entities/alert_entities.py:48` | ⬜ |
 | H4 | Job deduplication is check-then-insert with no unique constraint | `workers/job_queue.py:44-58` | ⬜ |
 | H5 | Job lease (10 min) is never renewed; a long investigation can be run twice | `workers/job_queue.py:25` | ⬜ |

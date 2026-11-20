@@ -35,6 +35,16 @@ dependencies = [
 anthropic = ["langchain-anthropic>=0.2"]
 # Azure SQL / SQL Server (DATABASE_URL=mssql+aioodbc://...); also needs the Microsoft ODBC Driver 18 on the host.
 azuresql = ["aioodbc>=0.5"]
+# Test suite: pip install -e ".[dev]" then python -m pytest
+dev = ["pytest>=8.3", "pytest-asyncio>=1.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+addopts = "-ra --import-mode=importlib"
 
 [tool.setuptools.packages.find]
 include = ["keigan*"]

@@ -71,6 +71,7 @@ set `AUTH_MODE=entra` with the Entra IDs, and follow `My Plans/10_DEPLOYMENT_AKS
 ## Useful checks
 
 ```powershell
+cd backend; .\.venv\Scripts\python.exe -m pip install -e ".[dev]"; .\.venv\Scripts\python.exe -m pytest   # backend tests (see backend/tests/README.md)
 cd frontend; npm run build                                   # type check + production build
 node scripts/capture-screens.mjs --web http://localhost:5173 --api http://localhost:8000 --out screens   # opens every screen in Edge, reports errors
 node scripts/check-locales.mjs                               # translation completeness
