@@ -65,7 +65,7 @@ class SliProposalService:
             document = {"status": "ready", "stage": "Calculating baselines", "started_at": started_at.isoformat(), "finished_at": alert_rules.utc_now().isoformat(), "groups": groups}
         except Exception:  # noqa: BLE001
             logger.exception("SLI measurement failed for %s", application_id)
-            document = {"status": "failed", "error": "Keigan could not measure the last 30 days. Try again in a few minutes, or contact a Keigan admin and quote the correlation id.", "started_at": started_at.isoformat(), "groups": []}
+            document = {"status": "failed", "error": "Keigan could not measure the last 30 days. Try again in a few minutes. If it keeps failing, ask a Keigan admin to check the worker logs for this application.", "started_at": started_at.isoformat(), "groups": []}
         await self._save(application_id, document)
         return {"status": document["status"], "services": len(document["groups"])}
 
