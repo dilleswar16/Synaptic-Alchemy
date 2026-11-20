@@ -8,6 +8,7 @@ from fastapi import APIRouter
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from keigan.ai.ai_safety_settings import get_ai_safety_settings
 from keigan.config.database_config import DatabaseSession
 from keigan.config.settings import AuthenticationMode, get_settings
 from keigan.dtos.authentication_dtos import ClientConfigurationResponse, EntraClientConfiguration, HealthResponse
@@ -42,6 +43,7 @@ async def get_client_configuration() -> ClientConfigurationResponse:
             "llmMock": str(settings.llm_provider) == "mock",
         },
         product_version=settings.product_version,
+        allowed_link_hosts=sorted(get_ai_safety_settings().allowed_link_hosts),
     )
 
 

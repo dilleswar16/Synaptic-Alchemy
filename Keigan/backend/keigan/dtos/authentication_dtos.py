@@ -22,6 +22,8 @@ class ClientConfigurationResponse(ApiModel):
     default_locale: str
     feature_flags: dict[str, bool]
     product_version: str
+    # Hosts that links in AI-written text may point to (exact host, or "*.suffix" for subdomains): the browser applies the same rule as the server.
+    allowed_link_hosts: list[str]
 
 
 class LocalUserResponse(ApiModel):

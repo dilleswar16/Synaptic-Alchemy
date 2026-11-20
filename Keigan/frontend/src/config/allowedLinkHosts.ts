@@ -1,13 +1,6 @@
 /**
- * Hosts a link inside AI-written or user-supplied Markdown may point to (security review V8). Any other link is shown as
- * plain text. Matches the host itself and its sub-domains. This mirrors the backend list `DEFAULT_ALLOWED_LINK_HOSTS`;
- * once the backend publishes `allowedLinkHosts` in `/api/public/client-configuration` that value replaces this one.
+ * Fallback for the hosts a link inside AI-written or user-supplied Markdown may point to (security review V8), used only when the
+ * backend does not publish `allowedLinkHosts` in `/api/public/client-configuration`. An entry is an exact host, or `*.suffix`
+ * for sub-domains. It mirrors the backend default of `AI_OUTPUT_ALLOWED_LINK_HOSTS`; the backend value is the one that counts.
  */
-export const defaultAllowedLinkHosts: readonly string[] = [
-  "portal.azure.com",
-  "service-now.com",
-  "dev.azure.com",
-  "github.com",
-  "metlife.com",
-  "learn.microsoft.com",
-];
+export const defaultAllowedLinkHosts: readonly string[] = ["portal.azure.com", "learn.microsoft.com"];

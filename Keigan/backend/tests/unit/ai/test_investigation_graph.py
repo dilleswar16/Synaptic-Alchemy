@@ -107,3 +107,67 @@ class TestSanitizedSynthesisText:
     def test_the_allowed_hosts_come_from_settings(self, runner: InvestigationGraphRunner, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(get_ai_safety_settings(), "ai_output_allowed_link_hosts", "docs.example.org")
         assert "[d](https://docs.example.org/a)" in runner._clean_synthesis_text("[d](https://docs.example.org/a)", {})
+
+
+class TestEvidenceStageWiring:
+    """The planner prompt and the change evidence share what the validators and the masking context know (V10, V12)."""
+
+    @staticmethod
+    def _runner_with_stubs() -> tuple[InvestigationGraphRunner, dict[str, object]]:
+        from datetime import UTC, datetime, timedelta
+
+        from keigan.services.evidence_service import EvidenceService
+        from keigan.utils.pii_masker import MaskingContext
+
+        seen: dict[str, object] = {}
+        window_end = datetime(2026, 11, 20, 12, 0, tzinfo=UTC)
+
+        class EvidenceServiceStub:
+            describe_query_limits_for_planner = staticmethod(EvidenceService.describe_query_limits_for_planner)
+
+            async def collect_evidence(self, *_arguments: object) -> list[object]:
+                return []
+
+            async def collect_change_evidence(self, *arguments: object, **keyword_arguments: object) -> tuple[list[object], None]:
+                seen["change_evidence_arguments"] = (arguments, keyword_arguments)
+                return [], None
+
+            async def run_planned_queries(self, *_arguments: object) -> list[object]:
+                return []
+
+        async def ask(feature_name: str, prompt_sections: list[object], output_schema: type) -> object:
+            seen["prompt_section_titles"] = [section.title for section in prompt_sections]  # type: ignore[attr-defined]
+            return output_schema(queries=[])
+
+        async def update_progress(*_arguments: object) -> None:
+            return None
+
+        graph_runner = InvestigationGraphRunner(None, SimpleNamespace(), offline_ai=True)  # type: ignore[arg-type]
+        graph_runner.investigation = SimpleNamespace(  # type: ignore[assignment]
+            investigation_window_start=window_end - timedelta(hours=1), investigation_window_end=window_end,
+            baseline_window_start=window_end - timedelta(days=1), baseline_window_end=window_end - timedelta(hours=23),
+        )
+        graph_runner.application = SimpleNamespace(application_id="application-1")  # type: ignore[assignment]
+        graph_runner.services, graph_runner.service_contexts, graph_runner.evidence_drafts = [], [], []
+        graph_runner.incident_text = "checkout failing"
+        graph_runner.masking_context = MaskingContext()
+        graph_runner.evidence_service = EvidenceServiceStub()  # type: ignore[assignment]
+        graph_runner._ask = ask  # type: ignore[method-assign]
+        graph_runner._update_progress = update_progress  # type: ignore[method-assign]
+        graph_runner._describe_services = lambda _services: "none"  # type: ignore[method-assign]
+        return graph_runner, seen
+
+    async def test_planner_is_told_what_each_log_source_allows(self) -> None:
+        graph_runner, seen = self._runner_with_stubs()
+
+        await graph_runner.planner_node({})  # type: ignore[arg-type]
+
+        assert "Query limits per service" in seen["prompt_section_titles"]  # type: ignore[operator]
+
+    async def test_change_evidence_shares_the_masking_context_of_the_investigation(self) -> None:
+        graph_runner, seen = self._runner_with_stubs()
+
+        await graph_runner.evidence_node({})  # type: ignore[arg-type]
+
+        _arguments, keyword_arguments = seen["change_evidence_arguments"]  # type: ignore[misc]
+        assert keyword_arguments["masking_context"] is graph_runner.masking_context

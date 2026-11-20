@@ -309,7 +309,8 @@ class InvestigationGraphRunner:
             self.service_contexts, investigation.investigation_window_start, investigation.investigation_window_end, investigation.baseline_window_start, investigation.baseline_window_end, self.masking_context
         )
         change_events, change_draft = await self.evidence_service.collect_change_evidence(
-            self.application.application_id, self.service_contexts, investigation.investigation_window_start - timedelta(hours=24), investigation.investigation_window_end
+            self.application.application_id, self.service_contexts, investigation.investigation_window_start - timedelta(hours=24), investigation.investigation_window_end,
+            masking_context=self.masking_context,
         )
         if change_draft:
             self.evidence_drafts.append(change_draft)
@@ -328,6 +329,7 @@ class InvestigationGraphRunner:
         await self._update_progress("evidence", "Few strong signals found; asking the planner for up to three extra read-only queries", 54)
         sections = [
             PromptSection("Service catalogue", self._describe_services(self.services)),
+            PromptSection("Query limits per service", self.evidence_service.describe_query_limits_for_planner(self.service_contexts)),
             PromptSection("Incident", self.incident_text, is_untrusted=True, source_label="incident"),
             PromptSection("Evidence already collected", "\n".join(f"- {draft.evidence_title}: {truncate_text(draft.evidence_summary, 160)}" for draft in self.evidence_drafts), is_untrusted=True, source_label="evidence"),
         ]

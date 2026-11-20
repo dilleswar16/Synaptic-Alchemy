@@ -23,3 +23,16 @@ async def test_client_configuration_asks_the_browser_for_the_scope_the_api_requi
     monkeypatch.setattr(public_controller, "get_settings", lambda: entra_settings)
     response = await client.get("/api/public/client-configuration")
     assert response.json()["entra"]["apiScope"] == "api://22222222-2222-2222-2222-222222222222/keigan.use"
+
+
+async def test_client_configuration_publishes_the_hosts_links_in_ai_text_may_point_to(client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The browser applies the same allow-list as the server-side output filter, so the two cannot drift apart."""
+    from keigan.ai import ai_safety_settings
+
+    ai_safety_settings.get_ai_safety_settings.cache_clear()
+    monkeypatch.setenv("AI_OUTPUT_ALLOWED_LINK_HOSTS", "portal.azure.com,*.corp.example.com")
+    try:
+        response = await client.get("/api/public/client-configuration")
+    finally:
+        ai_safety_settings.get_ai_safety_settings.cache_clear()
+    assert {"portal.azure.com", "*.corp.example.com"} <= set(response.json()["allowedLinkHosts"])

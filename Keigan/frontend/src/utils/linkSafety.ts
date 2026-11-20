@@ -17,6 +17,15 @@ export function allowedLinkUrl(href: string | undefined, allowedHosts: readonly 
     return null;
   }
   const hostName = url.hostname.toLowerCase();
-  const isAllowed = allowedHosts.some((allowedHost) => hostName === allowedHost || hostName.endsWith(`.${allowedHost}`));
-  return isAllowed ? url.href : null;
+  return allowedHosts.some((allowedHost) => hostMatches(hostName, allowedHost)) ? url.href : null;
+}
+
+/** Same rule as the backend output filter: an exact host, or `*.suffix` for sub-domains of the suffix (not the suffix itself). */
+function hostMatches(hostName: string, allowedHost: string): boolean {
+  const pattern = allowedHost.toLowerCase();
+  if (pattern.startsWith("*.")) {
+    const suffix = pattern.slice(1);
+    return hostName.endsWith(suffix) && hostName.length > suffix.length;
+  }
+  return hostName === pattern;
 }
