@@ -77,6 +77,47 @@ class TestSecrets:
         assert build_masker().mask_text(sas_url) == "https://acct.blob.core.windows.net/c?sv=2020&<SECRET>"
 
 
+class TestCredentialsInUrls:
+    @pytest.mark.parametrize(
+        ("url_text", "expected_text"),
+        [
+            pytest.param("postgres://admin:SuperSecret123@db.internal:5432/x", "postgres://<SECRET>@db.internal:5432/x", id="postgres"),
+            pytest.param("mysql://app:Hunter2pw@mysql.internal/shop", "mysql://<SECRET>@mysql.internal/shop", id="mysql"),
+            pytest.param("mongodb+srv://svc:Mong0Pass@cluster0.example.net/db", "mongodb+srv://<SECRET>@cluster0.example.net/db", id="mongodb-srv"),
+            pytest.param("amqp://bus:Rabb1tPw@mq.internal:5672", "amqp://<SECRET>@mq.internal:5672", id="amqp"),
+            pytest.param("redis://:Redis5ecret@cache.internal:6379/0", "redis://<SECRET>@cache.internal:6379/0", id="redis-no-username"),
+        ],
+    )
+    def test_userinfo_in_url_is_replaced_without_relying_on_the_email_pattern(self, url_text: str, expected_text: str) -> None:
+        assert build_masker().mask_text(url_text) == expected_text
+
+    @pytest.mark.parametrize(
+        "url_text",
+        [
+            pytest.param("https://user@host", id="username-without-password"),
+            pytest.param("https://example.com/path?x=1", id="plain-url"),
+            pytest.param("postgres://db.internal:5432/x", id="host-and-port-without-userinfo"),
+        ],
+    )
+    def test_url_without_a_password_is_unchanged(self, url_text: str) -> None:
+        assert build_masker().mask_text(url_text) == url_text
+
+
+class TestAuthorizationBasicHeader:
+    def test_basic_credential_in_authorization_header_is_replaced_even_without_digits(self) -> None:
+        assert build_masker().mask_text("Authorization: Basic abcdefghijklmnop") == "Authorization: <SECRET>"
+
+    @pytest.mark.parametrize(
+        "prose_text",
+        [
+            pytest.param("Basic setup complete", id="basic-setup"),
+            pytest.param("Set Basic configuration for the team", id="basic-configuration"),
+        ],
+    )
+    def test_basic_word_in_prose_is_unchanged(self, prose_text: str) -> None:
+        assert build_masker().mask_text(prose_text) == prose_text
+
+
 class TestIdentifiers:
     def test_email_address_is_replaced(self) -> None:
         assert build_masker().mask_text("Contact taro@example.com today") == "Contact <EMAIL_1> today"

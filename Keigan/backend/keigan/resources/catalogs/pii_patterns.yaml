@@ -20,6 +20,13 @@ patterns:
     placeholder: SECRET
     numbered: false
     regex: '(?i)\b(password|pwd|accountkey|sharedaccesskey|sharedaccesssignature|client_secret|clientsecret)\s*=\s*[^;\s"'']+'
+  # Userinfo of any scheme URL (postgres://user:pass@host, redis://:pass@host). The username is masked too: for service
+  # accounts and UPNs it identifies a person or system just as an email address does. Anchored after "://" with a
+  # fixed-width lookbehind so the match cannot wander, and a URL without a colon-separated password is left alone.
+  - name: url_userinfo_credentials
+    placeholder: SECRET
+    numbered: false
+    regex: '(?<=://)[^\s/@:]*:[^\s/@]+(?=@)'
   # Key names may carry prefixes and suffixes in snake or kebab case (aws_secret_access_key, x-api-key, db_password_v2).
   - name: key_value_secret
     placeholder: SECRET
@@ -50,7 +57,13 @@ patterns:
     placeholder: SECRET
     numbered: false
     regex: '\bsk-[A-Za-z0-9_-]{20,}'
-  # Basic credentials are base64 and always contain a digit, '+', '/' or '=', which keeps prose like "Basic authentication" unmasked.
+  # Basic credentials in an Authorization header, in any base64 form. Only the header context counts, so prose such as
+  # "Basic setup" is not matched. Fixed-width lookbehinds cover "Authorization: ", the JSON form and "Authorization=".
+  - name: authorization_header_basic_credentials
+    placeholder: SECRET
+    numbered: false
+    regex: '(?i)(?:(?<=authorization: )|(?<=authorization": ")|(?<=authorization=))basic\s+[A-Za-z0-9+/]{4,}={0,2}'
+  # Bare "Basic <base64>" outside a header is only masked when the base64 has a digit, '+', '/' or '=', which keeps prose unmasked.
   - name: basic_authorization
     placeholder: SECRET
     numbered: false
