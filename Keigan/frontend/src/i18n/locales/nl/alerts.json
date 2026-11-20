@@ -8,7 +8,7 @@
   "verdict": { "useful": "Nuttig", "noise": "Dit was ruis" },
   "filters": { "period": "Periode", "last24h": "24 uur", "last7d": "7 dagen", "last30d": "30 dagen" },
   "observe": {
-    "title": "Observatiemodus: nog {{count}} dagen",
+    "title_one": "Observatiemodus: nog {{count}} dag", "title_other": "Observatiemodus: nog {{count}} dagen",
     "body": "Keigan legt vast wat het zou reduceren en groeperen, maar onderzoekt nog steeds elke melding boven de minimale ernst. Er verandert niets totdat u overschakelt naar Actief.",
     "effect": "Tot nu toe gemeten effect: {{sentence}}"
   },
@@ -19,8 +19,8 @@
     "emptyDescription": "Koppel een meldingsbron in de stap Incidenten en meldingen van de applicatie om de trechter te zien.",
     "steps": { "received": "Ontvangen meldingen", "deduplicated": "Na ontdubbeling", "filtered": "Na onderdrukking en afwachten", "groups": "Meldingsgroepen", "investigations": "Onderzoeken" },
     "reasons": {
-      "repeats": "{{count}} herhalingen", "maintenance": "{{count}} tijdens onderhoud", "muted": "{{count}} gedempt", "environment": "{{count}} uit andere omgevingen",
-      "severity": "{{count}} onder de minimale ernst", "resolved_before_settle": "{{count}} vanzelf opgelost", "flapping": "{{count}} flapperend"
+      "repeats_one": "{{count}} herhaling", "repeats_other": "{{count}} herhalingen", "maintenance": "{{count}} tijdens onderhoud", "muted": "{{count}} gedempt", "environment_one": "{{count}} uit een andere omgeving", "environment_other": "{{count}} uit andere omgevingen",
+      "severity": "{{count}} onder de minimale ernst", "resolved_before_settle_one": "{{count}} vanzelf opgelost", "resolved_before_settle_other": "{{count}} vanzelf opgelost", "flapping": "{{count}} flapperend"
     },
     "reasonHelp": {
       "repeats": "Dezelfde melding ging opnieuw af en is meegeteld bij de bestaande melding.", "maintenance": "Binnengekomen tijdens een onderhoudsvenster: vastgelegd, niet onderzocht.", "muted": "Kwam overeen met een dempregel.",
@@ -30,7 +30,7 @@
   "groups": {
     "title": "Meldingsgroepen",
     "columns": { "group": "Groep", "services": "Services", "severity": "Ernst", "alerts": "Meldingen", "status": "Status", "score": "Score", "reason": "Beslissing", "lastActivity": "Laatste activiteit", "feedback": "Feedback" },
-    "occurrences": "{{count}} keer voorgekomen",
+    "occurrences_one": "{{count}} keer voorgekomen", "occurrences_other": "{{count}} keer voorgekomen",
     "applicationLevel": "Applicatieniveau",
     "emptyTitle": "Geen meldingsgroepen",
     "emptyDescription": "Wanneer meldingen binnenkomen, worden ze hier gegroepeerd, met de reden voor elke beslissing."
@@ -58,7 +58,7 @@
     "rulesFound": "meldingsregels gevonden binnen uw bereik ({{sending}} sturen naar Keigan)", "rulesTitle": "Gevonden meldingsregels", "sendsToKeigan": "Stuurt naar Keigan", "doesNotSend": "Stuurt niet",
     "simulatedRules": "Voorbeeldregels voor gesimuleerde componenten, niet uit Azure gelezen.",
     "status": { "waiting_for_first_alert": "Wachten op eerste melding", "receiving": "Ontvangt, laatste melding", "authentication_failures": "Authenticatiefouten", "paused": "Gepauzeerd" },
-    "counts": "{{alerts}} meldingen in 7 dagen, {{groups}} groepen, {{investigated}} onderzocht", "authFailures": "{{count}} verzoeken geweigerd vanwege een onjuist token.",
+    "counts": "{{alerts}} meldingen in 7 dagen, {{groups}} groepen, {{investigated}} onderzocht", "authFailures_one": "{{count}} verzoek geweigerd vanwege een onjuist token.", "authFailures_other": "{{count}} verzoeken geweigerd vanwege een onjuist token.",
     "test": "Testen", "testSent": "Testmelding verzonden", "rotate": "Geheim vernieuwen", "pause": "Pauzeren", "resume": "Hervatten", "remove": "Verwijderen",
     "removeTitle": "Meldingsbron verwijderen", "removeBody": "Keigan accepteert geen meldingen meer op de URL van {{name}}. Opgeslagen meldingen blijven bewaard.", "removeConfirm": "Bron verwijderen",
     "rotatedTitle": "Nieuw geheim", "rotatedBody": "Kopieer het nu: het wordt één keer getoond. Het oude geheim blijft 24 uur werken."

@@ -101,15 +101,15 @@
     "slo": "Al menos un SLO ({{count}})"
   },
   "goodToKnow": {
-    "diagnostic_settings": "{{count}} servicios aún no tienen configuración de diagnóstico",
+    "diagnostic_settings_one": "{{count}} servicio aún no tiene configuración de diagnóstico", "diagnostic_settings_other": "{{count}} servicios aún no tienen configuración de diagnóstico",
     "diagnostic_settings_done": "Todos los servicios descubiertos envían registros a un espacio de trabajo",
     "knowledge_documents": "Aún no se han subido documentos de conocimiento",
-    "knowledge_documents_done": "{{count}} documentos de conocimiento subidos",
+    "knowledge_documents_done_one": "{{count}} documento de conocimiento subido", "knowledge_documents_done_other": "{{count}} documentos de conocimiento subidos",
     "topology_reviewed": "La topología aún no se ha revisado",
     "topology_reviewed_done": "La topología se ha revisado",
     "runbooks": "Aún no se han añadido runbooks",
-    "runbooks_done": "{{count}} runbooks añadidos",
-    "placeholder_integrations": "{{count}} herramientas de registros están guardadas, pero su lector aún no está disponible",
+    "runbooks_done_one": "{{count}} runbook añadido", "runbooks_done_other": "{{count}} runbooks añadidos",
+    "placeholder_integrations_one": "{{count}} herramienta de registros está guardada, pero su lector aún no está disponible", "placeholder_integrations_other": "{{count}} herramientas de registros están guardadas, pero su lector aún no está disponible",
     "placeholder_integrations_done": "Todas las herramientas de registros se pueden leer",
     "observe_mode": "La reducción de ruido de alertas está en modo Observar",
     "observe_mode_done": "La reducción de ruido de alertas está activa"

@@ -13,6 +13,7 @@
     "ariaLabel": "Trend van de gezondheidsscore over de afgelopen 30 dagen"
   },
   "signals": {
+    "status": { "open": "Open", "acknowledged": "Bevestigd", "dismissed": "Genegeerd", "expired": "Verlopen" },
     "title": "Voorspellende signalen",
     "description": "Keigan houdt trends en patronen in de gaten die meestal aan een incident voorafgaan.",
     "emptyTitle": "Geen open signalen",
@@ -57,7 +58,7 @@
     "generateFailed": "Het rapport kon niet worden gestart",
     "weekly_digest": "Wekelijks overzicht",
     "proactive_alert": "Proactieve melding",
-    "sentTo": "Verstuurd naar {{count}} ontvangers",
+    "sentTo_one": "Verstuurd naar {{count}} ontvanger", "sentTo_other": "Verstuurd naar {{count}} ontvangers",
     "notSent": "Niet gemaild",
     "healthScore": "Gezondheid {{score}}",
     "reader": "Rapport",

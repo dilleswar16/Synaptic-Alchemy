@@ -8,7 +8,7 @@
   "verdict": { "useful": "Utile", "noise": "C'était du bruit" },
   "filters": { "period": "Période", "last24h": "24 heures", "last7d": "7 jours", "last30d": "30 jours" },
   "observe": {
-    "title": "Mode Observation : {{count}} jours restants",
+    "title_one": "Mode Observation : {{count}} jour restant", "title_other": "Mode Observation : {{count}} jours restants",
     "body": "Keigan enregistre ce qu'il réduirait et regrouperait, mais continue d'investiguer chaque alerte au-dessus de la gravité minimale. Rien ne change tant que vous n'êtes pas passé en mode Actif.",
     "effect": "Effet mesuré jusqu'ici : {{sentence}}"
   },
@@ -19,8 +19,8 @@
     "emptyDescription": "Connectez une source d'alertes à l'étape Incidents et alertes de l'application pour voir l'entonnoir.",
     "steps": { "received": "Alertes reçues", "deduplicated": "Après dédoublonnage", "filtered": "Après suppression et temporisation", "groups": "Groupes d'alertes", "investigations": "Investigations" },
     "reasons": {
-      "repeats": "{{count}} répétitions", "maintenance": "{{count}} en maintenance", "muted": "{{count}} mises en sourdine", "environment": "{{count}} d'autres environnements",
-      "severity": "{{count}} sous la gravité minimale", "resolved_before_settle": "{{count}} résolues d'elles-mêmes", "flapping": "{{count}} instables"
+      "repeats_one": "{{count}} répétition", "repeats_other": "{{count}} répétitions", "maintenance": "{{count}} en maintenance", "muted": "{{count}} mises en sourdine", "environment_one": "{{count}} d'un autre environnement", "environment_other": "{{count}} d'autres environnements",
+      "severity": "{{count}} sous la gravité minimale", "resolved_before_settle_one": "{{count}} résolue d'elle-même", "resolved_before_settle_other": "{{count}} résolues d'elles-mêmes", "flapping": "{{count}} instables"
     },
     "reasonHelp": {
       "repeats": "La même alerte s'est redéclenchée et a été comptabilisée sur l'alerte existante.", "maintenance": "Reçue pendant une fenêtre de maintenance : enregistrée, non investiguée.", "muted": "Correspond à une règle de sourdine.",
@@ -30,7 +30,7 @@
   "groups": {
     "title": "Groupes d'alertes",
     "columns": { "group": "Groupe", "services": "Services", "severity": "Gravité", "alerts": "Alertes", "status": "État", "score": "Score", "reason": "Décision", "lastActivity": "Dernière activité", "feedback": "Retour" },
-    "occurrences": "{{count}} occurrences",
+    "occurrences_one": "{{count}} occurrence", "occurrences_other": "{{count}} occurrences",
     "applicationLevel": "Niveau application",
     "emptyTitle": "Aucun groupe d'alertes",
     "emptyDescription": "Lorsque des alertes arrivent, elles sont regroupées ici, avec la raison de chaque décision."
@@ -58,7 +58,7 @@
     "rulesFound": "règles d'alerte trouvées dans vos périmètres ({{sending}} envoient à Keigan)", "rulesTitle": "Règles d'alerte découvertes", "sendsToKeigan": "Envoie à Keigan", "doesNotSend": "N'envoie pas",
     "simulatedRules": "Exemples de règles pour des composants simulés, non lues depuis Azure.",
     "status": { "waiting_for_first_alert": "En attente de la première alerte", "receiving": "Réception en cours, dernière alerte", "authentication_failures": "Échecs d'authentification", "paused": "En pause" },
-    "counts": "{{alerts}} alertes en 7 jours, {{groups}} groupes, {{investigated}} investigués", "authFailures": "{{count}} requêtes rejetées avec un jeton incorrect.",
+    "counts": "{{alerts}} alertes en 7 jours, {{groups}} groupes, {{investigated}} investigués", "authFailures_one": "{{count}} requête rejetée avec un jeton incorrect.", "authFailures_other": "{{count}} requêtes rejetées avec un jeton incorrect.",
     "test": "Tester", "testSent": "Alerte de test envoyée", "rotate": "Renouveler le secret", "pause": "Mettre en pause", "resume": "Reprendre", "remove": "Retirer",
     "removeTitle": "Retirer la source d'alertes", "removeBody": "Keigan cesse d'accepter les alertes à l'URL de {{name}}. Les alertes enregistrées sont conservées.", "removeConfirm": "Retirer la source",
     "rotatedTitle": "Nouveau secret", "rotatedBody": "Copiez-le maintenant : il n'est affiché qu'une fois. L'ancien secret reste valable 24 heures."

@@ -42,7 +42,7 @@ export function ApplicationHealthCardView({ card }: { card: ApplicationHealthCar
           <h3 className="truncate text-body font-semibold text-default">{card.applicationName}</h3>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <span className="rounded-sm bg-surface-sunken px-1.5 py-0.5 font-mono text-caption text-muted">{card.applicationCode}</span>
-            <span className="text-caption text-muted">{t("health.tier", { tier: card.criticalityTier })}</span>
+            <span className="text-caption text-muted">{translateApplications(`tiers.${card.criticalityTier}`)}</span>
           </div>
         </div>
         {card.openIncidentCount > 0 ? <Badge tone="danger">{t("health.openIncidents", { count: card.openIncidentCount })}</Badge> : null}

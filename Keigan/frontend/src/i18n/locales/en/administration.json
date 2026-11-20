@@ -75,6 +75,7 @@
     "columns": { "time": "When", "actor": "Who", "action": "Action", "target": "Target", "details": "Details" }
   },
   "jobs": {
+    "status": { "queued": "Queued", "running": "Running", "succeeded": "Succeeded", "failed": "Failed", "dead_lettered": "Dead-lettered" },
     "deadLetters": "Dead letters",
     "deadLettersDescription": "Jobs that failed every attempt. Retry after fixing the cause.",
     "noDeadLetters": "No failed jobs. The queue is healthy.",
@@ -83,6 +84,7 @@
     "columns": { "type": "Job", "status": "Status", "attempts": "Attempts", "created": "Created", "error": "Last error" }
   },
   "outbox": {
+    "status": { "pending": "Pending", "sent": "Sent", "simulated": "Simulated", "failed": "Failed", "skipped": "Skipped" },
     "pageTitle": "Outbox",
     "pageDescription": "Emails and Teams messages Keigan sent or simulated.",
     "emptyTitle": "Nothing sent yet",

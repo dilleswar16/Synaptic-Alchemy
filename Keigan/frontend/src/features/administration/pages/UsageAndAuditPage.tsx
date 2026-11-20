@@ -103,7 +103,7 @@ function JobsTab() {
   if (jobs.isError) return <ErrorState error={jobs.error} onRetry={() => void jobs.refetch()} />;
   const columns = (canRetry: boolean): DataTableColumn<BackgroundJobSummary>[] => [
     { key: "type", header: t("jobs.columns.type"), cell: (row) => <span className="font-mono text-caption">{row.jobType}</span> },
-    { key: "status", header: t("jobs.columns.status"), cell: (row) => <StatusChip size="sm" tone={row.jobStatus === "succeeded" ? "success" : row.jobStatus === "dead_lettered" || row.jobStatus === "failed" ? "danger" : "info"}>{row.jobStatus.replaceAll("_", " ")}</StatusChip> },
+    { key: "status", header: t("jobs.columns.status"), cell: (row) => <StatusChip size="sm" tone={row.jobStatus === "succeeded" ? "success" : row.jobStatus === "dead_lettered" || row.jobStatus === "failed" ? "danger" : "info"}>{t(`jobs.status.${row.jobStatus}`, { defaultValue: row.jobStatus })}</StatusChip> },
     { key: "attempts", header: t("jobs.columns.attempts"), align: "end", cell: (row) => `${row.attemptCount}/${row.maximumAttemptCount}` },
     { key: "created", header: t("jobs.columns.created"), cell: (row) => formatDateTime(row.createdAt, { dateStyle: "short", timeStyle: "medium" }) },
     { key: "error", header: t("jobs.columns.error"), cell: (row) => <span className="block max-w-96 truncate text-caption text-muted" title={row.lastErrorMessage ?? undefined}>{row.lastErrorMessage ?? "—"}</span> },
@@ -112,7 +112,7 @@ function JobsTab() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap gap-2">
-        {Object.entries(jobs.data?.countsByStatus ?? {}).map(([status, count]) => <StatusChip key={status} tone={status === "dead_lettered" ? "danger" : status === "succeeded" ? "success" : "info"}>{`${status.replaceAll("_", " ")}: ${count}`}</StatusChip>)}
+        {Object.entries(jobs.data?.countsByStatus ?? {}).map(([status, count]) => <StatusChip key={status} tone={status === "dead_lettered" ? "danger" : status === "succeeded" ? "success" : "info"}>{`${t(`jobs.status.${status}`, { defaultValue: status })}: ${count}`}</StatusChip>)}
       </div>
       <Card>
         <CardHeader title={t("jobs.deadLetters")} description={t("jobs.deadLettersDescription")} />

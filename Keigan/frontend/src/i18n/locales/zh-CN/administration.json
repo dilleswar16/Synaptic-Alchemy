@@ -75,6 +75,7 @@
     "columns": { "time": "时间", "actor": "操作人", "action": "操作", "target": "对象", "details": "详情" }
   },
   "jobs": {
+    "status": { "queued": "排队中", "running": "运行中", "succeeded": "成功", "failed": "失败", "dead_lettered": "死信" },
     "deadLetters": "死信",
     "deadLettersDescription": "所有重试均失败的作业。请在修复原因后重试。",
     "noDeadLetters": "没有失败的作业，队列运行正常。",
@@ -83,6 +84,7 @@
     "columns": { "type": "作业", "status": "状态", "attempts": "尝试次数", "created": "创建时间", "error": "最近错误" }
   },
   "outbox": {
+    "status": { "pending": "待发送", "sent": "已发送", "simulated": "模拟", "failed": "失败", "skipped": "已跳过" },
     "pageTitle": "发件箱",
     "pageDescription": "Keigan 已发送或模拟发送的邮件和 Teams 消息。",
     "emptyTitle": "尚未发送任何内容",

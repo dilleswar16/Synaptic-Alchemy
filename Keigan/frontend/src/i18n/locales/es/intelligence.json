@@ -13,6 +13,7 @@
     "ariaLabel": "Tendencia de la puntuación de salud en los últimos 30 días"
   },
   "signals": {
+    "status": { "open": "Abierta", "acknowledged": "Reconocida", "dismissed": "Descartada", "expired": "Caducada" },
     "title": "Señales predictivas",
     "description": "Keigan vigila las tendencias y los patrones que suelen preceder a un incidente.",
     "emptyTitle": "No hay señales abiertas",
@@ -57,7 +58,7 @@
     "generateFailed": "No se pudo iniciar el informe",
     "weekly_digest": "Resumen semanal",
     "proactive_alert": "Alerta proactiva",
-    "sentTo": "Enviado a {{count}} destinatarios",
+    "sentTo_one": "Enviado a {{count}} destinatario", "sentTo_other": "Enviado a {{count}} destinatarios",
     "notSent": "No enviado por correo",
     "healthScore": "Salud {{score}}",
     "reader": "Informe",

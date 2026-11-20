@@ -23,6 +23,8 @@ import { Textarea } from "@/components/ui/Textarea";
 import { formatDateTime } from "@/utils/formatters";
 import { useFunnelStepLabel } from "./AlertBadges";
 
+/** Environment sets an admin can pick for "only investigate alerts from"; the empty selection means all. */
+const environmentGroups = [["prod"], ["prod", "uat"], ["prod", "uat", "test", "dev"]];
 const severityOptions = (label: (level: number) => string) => [0, 1, 2, 3, 4].map((level) => ({ value: String(level), label: label(level) }));
 const toLocalInputValue = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 
@@ -33,6 +35,8 @@ function InlineNumber({ value, onChange, disabled, label, suffix }: { value: num
 /** Step 7c: the noise policy as editable sentences, maintenance windows, mute rules and the 7-day preview funnel. */
 export function NoisePolicySection({ applicationId, canEdit, onChanged }: { applicationId: string; canEdit: boolean; onChanged?: () => void }) {
   const { t } = useTranslation("alerts");
+  const { t: translateCommon } = useTranslation("common");
+  const minutesSuffix = translateCommon("units.minutesShort");
   const policyQuery = useNoisePolicy(applicationId);
   const updatePolicy = useUpdateNoisePolicy(applicationId);
   const previewPolicy = usePreviewNoisePolicy(applicationId);
@@ -58,12 +62,12 @@ export function NoisePolicySection({ applicationId, canEdit, onChanged }: { appl
   const sentences: Array<{ key: string; content: ReactNode }> = [
     { key: "severity", content: <>{t("policy.minSeverityA")} <Select size="sm" aria-label={t("policy.minSeverityA")} disabled={disabled} value={String(settings.minSeverity)} onValueChange={(value) => change({ minSeverity: Number(value) })} options={severityOptions(sevLabel)} className="inline-flex w-28 align-middle" /> {t("policy.minSeverityB")}</> },
     { key: "environments", content: <>{t("policy.environmentsA")} <Select size="sm" aria-label={t("policy.environmentsA")} disabled={disabled} value={settings.investigateEnvironments.join(",") || "all"} onValueChange={(value) => change({ investigateEnvironments: value === "all" ? [] : value.split(",") })}
-      options={[{ value: "prod", label: "prod" }, { value: "prod,uat", label: "prod, uat" }, { value: "prod,uat,test,dev", label: "prod, uat, test, dev" }, { value: "all", label: t("policy.allEnvironments") }]} className="inline-flex w-44 align-middle" /> {t("policy.environmentsB")}</> },
-    { key: "settle", content: <>{t("policy.settleA")} <InlineNumber label={t("policy.settleA")} value={settings.settleDelayMinutes} disabled={disabled} onChange={(value) => change({ settleDelayMinutes: value })} suffix="min" /> {t("policy.settleB")}{" "}
+      options={[...environmentGroups.map((group) => ({ value: group.join(","), label: group.map((environment) => translateCommon(`environment.${environment}`)).join(", ") })), { value: "all", label: t("policy.allEnvironments") }]} className="inline-flex w-44 align-middle" /> {t("policy.environmentsB")}</> },
+    { key: "settle", content: <>{t("policy.settleA")} <InlineNumber label={t("policy.settleA")} value={settings.settleDelayMinutes} disabled={disabled} onChange={(value) => change({ settleDelayMinutes: value })} suffix={minutesSuffix} /> {t("policy.settleB")}{" "}
       {[0, 1, 2].map((level) => <Button key={level} variant={settings.noDelaySeverities.includes(level) ? "primary" : "secondary"} size="sm" disabled={disabled} onClick={() => toggleSeverity(level)} className="mx-0.5">{sevLabel(level)}</Button>)}</> },
-    { key: "reopen", content: <>{t("policy.reopenA")} <InlineNumber label={t("policy.reopenA")} value={settings.reopenWindowMinutes} disabled={disabled} onChange={(value) => change({ reopenWindowMinutes: value })} suffix="min" /> {t("policy.reopenB")}</> },
-    { key: "group", content: <>{t("policy.groupA")} <InlineNumber label={t("policy.groupA")} value={settings.groupWindowMinutes} disabled={disabled} onChange={(value) => change({ groupWindowMinutes: Math.max(1, value) })} suffix="min" /> {t("policy.groupB")}</> },
-    { key: "flap", content: <>{t("policy.flapA")} <InlineNumber label={t("policy.flapA")} value={settings.flapCount} disabled={disabled} onChange={(value) => change({ flapCount: Math.max(2, value) })} /> {t("policy.flapB")} <InlineNumber label={t("policy.flapB")} value={settings.flapWindowMinutes} disabled={disabled} onChange={(value) => change({ flapWindowMinutes: Math.max(1, value) })} suffix="min" /> {t("policy.flapC")}</> },
+    { key: "reopen", content: <>{t("policy.reopenA")} <InlineNumber label={t("policy.reopenA")} value={settings.reopenWindowMinutes} disabled={disabled} onChange={(value) => change({ reopenWindowMinutes: value })} suffix={minutesSuffix} /> {t("policy.reopenB")}</> },
+    { key: "group", content: <>{t("policy.groupA")} <InlineNumber label={t("policy.groupA")} value={settings.groupWindowMinutes} disabled={disabled} onChange={(value) => change({ groupWindowMinutes: Math.max(1, value) })} suffix={minutesSuffix} /> {t("policy.groupB")}</> },
+    { key: "flap", content: <>{t("policy.flapA")} <InlineNumber label={t("policy.flapA")} value={settings.flapCount} disabled={disabled} onChange={(value) => change({ flapCount: Math.max(2, value) })} /> {t("policy.flapB")} <InlineNumber label={t("policy.flapB")} value={settings.flapWindowMinutes} disabled={disabled} onChange={(value) => change({ flapWindowMinutes: Math.max(1, value) })} suffix={minutesSuffix} /> {t("policy.flapC")}</> },
     { key: "rate", content: <>{t("policy.rateA")} <InlineNumber label={t("policy.rateA")} value={settings.maxInvestigationsPerHour} disabled={disabled} onChange={(value) => change({ maxInvestigationsPerHour: Math.max(1, value) })} /> {t("policy.rateB")}</> },
     { key: "threshold", content: <>{t("policy.thresholdA")} <InlineNumber label={t("policy.thresholdA")} value={settings.investigateScoreThreshold} disabled={disabled} onChange={(value) => change({ investigateScoreThreshold: value })} /> {t("policy.thresholdB")}</> },
   ];

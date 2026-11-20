@@ -171,6 +171,7 @@
     "empty": "イベントはまだありません"
   },
   "units": {
+    "minutesShort": "分",
     "tokens_one": "{{formattedCount}} トークン",
     "tokens_other": "{{formattedCount}} トークン"
   },
@@ -191,6 +192,7 @@
     "noValue": "データなし"
   },
   "topology": {
+    "relationships": { "calls": "呼び出し", "reads_from": "読み取り元", "writes_to": "書き込み先", "publishes_to": "発行先", "hosts": "ホスト", "hosted_on": "ホスト先", "depends_on": "依存" },
     "label": "トポロジーグラフ",
     "legend": "凡例",
     "impactDirect": "直接影響あり",
@@ -217,6 +219,7 @@
     }
   },
   "environment": {
+    "uat": "UAT",
     "local": "ローカル",
     "dev": "開発",
     "test": "テスト",

@@ -27,6 +27,7 @@ const measuringStages = ["Reading metric definitions", "Reading 30 days of data"
 /** Step 8: Keigan measures 30 days, proposes SLIs and targets, and one click accepts them (sample plan 7.3). */
 export function SloStep({ applicationId, canEdit, onStatusChange }: StepProps) {
   const { t } = useTranslation("slo");
+  const { t: translateOnboarding } = useTranslation("onboarding");
   const { showToast } = useToast();
   const proposalsQuery = useSloProposals(applicationId);
   const measure = useMeasureSloProposals(applicationId);
@@ -83,7 +84,7 @@ export function SloStep({ applicationId, canEdit, onStatusChange }: StepProps) {
           ) : null}
           {proposals.groups.map((group) => (
             <details key={group.serviceId} open className="rounded-md border border-hairline">
-              <summary className="cursor-pointer px-4 py-3 font-semibold">{group.serviceName} <span className="text-caption font-normal text-muted">{group.serviceType.replace(/_/g, " ")}</span></summary>
+              <summary className="cursor-pointer px-4 py-3 font-semibold">{group.serviceName} <span className="text-caption font-normal text-muted">{translateOnboarding(`serviceTypes.${group.serviceType}`, { defaultValue: group.serviceType })}</span></summary>
               <div className="overflow-x-auto">
                 <table className="w-full text-body-sm">
                   <thead><tr className="text-left text-caption text-muted"><th className="px-4 py-2" /><th>{t("proposals.columns.sli")}</th><th>{t("proposals.columns.source")}</th><th>{t("proposals.columns.measured")}</th><th>{t("proposals.columns.target")}</th><th>{t("proposals.columns.window")}</th><th>{t("proposals.columns.budget")}</th></tr></thead>

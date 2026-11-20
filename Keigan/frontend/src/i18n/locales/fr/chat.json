@@ -36,7 +36,7 @@
   },
   "message": {
     "howIGotThis": "Comment j'y suis arrivé",
-    "queryMeta": "{{service}} · {{source}} · {{language}} · {{count}} lignes",
+    "queryMeta_one": "{{service}} · {{source}} · {{language}} · {{count}} ligne", "queryMeta_other": "{{service}} · {{source}} · {{language}} · {{count}} lignes",
     "simulated": "données simulées",
     "sources": "Sources",
     "noData": "Aucune donnée sur cette période.",

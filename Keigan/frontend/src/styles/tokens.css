@@ -44,24 +44,24 @@
   /* ── Text ────────────────────────────────────────────────────────────── */
   --color-text: #333333;
   --color-text-muted: #6e6e6e;
-  --color-text-subtle: #8c8f93;
+  --color-text-subtle: #696d72;
   --color-text-inverse: #ffffff;
   --color-text-on-code: #e7edf3;
   --color-heading-accent: #0061a0;
 
   /* ── Action (Blue 2) ─────────────────────────────────────────────────── */
-  --color-action: #007abc;
+  --color-action: #0072b0;
   --color-action-hover: #0061a0;
   --color-action-pressed: #00527f;
   --color-action-subtle: #e6f2f8;
   --color-action-subtle-hover: #d5eaf5;
   --color-action-subtle-text: #0061a0;
   --color-action-text: #ffffff;
-  --color-focus-ring-color: rgba(0, 122, 188, 0.35);
-  --color-focus-ring: 0 0 0 3px rgba(0, 122, 188, 0.35);
+  --color-focus-ring-color: rgba(0, 114, 176, 0.8);
+  --color-focus-ring: 0 0 0 3px rgba(0, 114, 176, 0.8);
 
   /* ── Status tones: text · fill · bg ──────────────────────────────────── */
-  --color-success-text: #528320;
+  --color-success-text: #4b7a1d;
   --color-success-fill: #a4ce4e;
   --color-success-bg: #f1f8e6;
   --color-warning-text: #7a5a00;
@@ -201,7 +201,7 @@
 
   --color-text: #e7edf3;
   --color-text-muted: #a3b3c2;
-  --color-text-subtle: #7d8fa1;
+  --color-text-subtle: #8799ab;
   --color-text-inverse: #0a1420;
   --color-text-on-code: #e7edf3;
   --color-heading-accent: #62bcef;
@@ -213,8 +213,8 @@
   --color-action-subtle-hover: #173b5a;
   --color-action-subtle-text: #8fd0f5;
   --color-action-text: #06121d;
-  --color-focus-ring-color: rgba(58, 169, 232, 0.45);
-  --color-focus-ring: 0 0 0 3px rgba(58, 169, 232, 0.45);
+  --color-focus-ring-color: rgba(58, 169, 232, 0.8);
+  --color-focus-ring: 0 0 0 3px rgba(58, 169, 232, 0.8);
 
   --color-success-text: #b6da6e;
   --color-success-fill: #a4ce4e;

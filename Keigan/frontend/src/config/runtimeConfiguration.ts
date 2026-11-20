@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import { defaultAllowedLinkHosts } from "./allowedLinkHosts";
 
 /**
  * Runtime configuration served by the backend (doc 05 §2) so one frontend build serves every environment
@@ -22,6 +23,8 @@ export interface RuntimeConfiguration {
   defaultLocale: string;
   featureFlags: Record<string, boolean>;
   productVersion: string;
+  /** Hosts that links in Markdown may point to; the backend value when it publishes one, otherwise `defaultAllowedLinkHosts`. */
+  allowedLinkHosts: readonly string[];
   /** True when the API was unreachable in a development build and a local fallback is in use. */
   isFallback?: boolean;
 }
@@ -42,6 +45,7 @@ const developmentFallbackConfiguration: RuntimeConfiguration = {
   defaultLocale: "en",
   featureFlags: {},
   productVersion: "0.0.0-dev",
+  allowedLinkHosts: defaultAllowedLinkHosts,
   isFallback: true,
 };
 
@@ -59,6 +63,7 @@ function normaliseConfiguration(rawConfiguration: Partial<RuntimeConfiguration>)
     defaultLocale: rawConfiguration.defaultLocale ?? "en",
     featureFlags: rawConfiguration.featureFlags ?? {},
     productVersion: rawConfiguration.productVersion ?? "",
+    allowedLinkHosts: rawConfiguration.allowedLinkHosts?.length ? rawConfiguration.allowedLinkHosts : defaultAllowedLinkHosts,
   };
 }
 

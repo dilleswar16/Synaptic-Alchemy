@@ -48,6 +48,7 @@ function LiveIncidentRow({ incident }: { incident: LiveIncidentItem }) {
 /** The first screen everyone sees: greeting and status, KPIs, application health, live incidents and the intelligence feed (doc 04 §6.2). */
 export default function HomePage() {
   const { t } = useTranslation("home");
+  const { t: translateIntelligence } = useTranslation("intelligence");
   const navigate = useNavigate();
   const scope = useApplicationScope();
   const currentUser = useCurrentUser();
@@ -67,7 +68,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="-mx-4 -mt-4 bg-gradient-brand-soft px-4 pt-8 pb-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8" aria-labelledby="home-greeting">
+      <section className="-mx-4 -mt-4 bg-gradient-brand-soft px-4 pt-8 pb-6 sm:-mx-5 sm:px-5 md:-mx-8 md:px-8" aria-labelledby="home-greeting">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 id="home-greeting" className="text-h1 font-semibold text-default">{t(`greeting.${greetingKey(new Date())}`, { name })}</h1>
@@ -124,7 +125,7 @@ export default function HomePage() {
                 <ul className="flex flex-col gap-3">
                   {data.intelligenceFeed.map((item) => (
                     <li key={item.signalId} className="flex items-start gap-2.5">
-                      <StatusChip tone={severityTones[item.signalSeverity] ?? "info"} size="sm">{item.signalSeverity}</StatusChip>
+                      <StatusChip tone={severityTones[item.signalSeverity] ?? "info"} size="sm">{translateIntelligence(`severity.${item.signalSeverity}`)}</StatusChip>
                       <div className="min-w-0">
                         <p className="text-body-sm font-medium text-default">{item.signalTitle}</p>
                         <p className="text-caption text-muted">{item.applicationName}{item.forecastBreachAt ? ` · ${t("feed.forecast", { time: formatDateTime(item.forecastBreachAt, { dateStyle: "medium", timeStyle: "short" }) })}` : ""}</p>

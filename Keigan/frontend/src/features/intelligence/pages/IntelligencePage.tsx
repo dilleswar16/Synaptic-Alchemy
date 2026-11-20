@@ -174,7 +174,7 @@ function SignalCard({ signal }: { signal: PredictiveSignal }) {
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip size="sm" tone={severityTone[signal.signalSeverity]}>{t(`severity.${signal.signalSeverity}`)}</StatusChip>
             <StatusChip size="sm" tone="neutral" icon={false}>{t(`detectors.${signal.detectorName}`)}</StatusChip>
-            {signal.signalStatus !== "open" ? <StatusChip size="sm" tone="info" icon={false}>{signal.signalStatus.replace(/_/g, " ")}</StatusChip> : null}
+            {signal.signalStatus !== "open" ? <StatusChip size="sm" tone="info" icon={false}>{t(`signals.status.${signal.signalStatus}`, { defaultValue: signal.signalStatus })}</StatusChip> : null}
             <RelativeTime value={signal.detectedAt} className="text-caption text-muted" />
           </div>
           {signal.explanationMarkdown ? <MarkdownView content={signal.explanationMarkdown} /> : null}
@@ -183,7 +183,7 @@ function SignalCard({ signal }: { signal: PredictiveSignal }) {
             {signal.expectedValue !== null ? <span><span className="text-muted">{t("signals.expected")}: </span><strong>{signal.expectedValue}</strong></span> : null}
             {signal.forecastBreachAt ? <span className="text-muted">{t("signals.forecast", { when: formatDateTime(signal.forecastBreachAt) })}</span> : null}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {values.length > 1 ? <Sparkline values={values} width={220} height={44} showArea showEndDot /> : null}
             <ConfidenceMeter percentage={Math.round(signal.confidenceScore * 100)} size="sm" />
           </div>

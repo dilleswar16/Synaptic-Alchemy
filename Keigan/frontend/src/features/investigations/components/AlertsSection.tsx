@@ -5,18 +5,21 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { useOutcomeLabel } from "@/features/alerts/components/AlertBadges";
 import { formatDateTime } from "@/utils/formatters";
 
 /** The alert group behind the investigation: member alerts and the noise-reduction decision trail. */
 export function AlertsSection({ detail }: { detail: InvestigationDetail }) {
   const { t } = useTranslation("investigations");
+  const { t: translateAlerts } = useTranslation("alerts");
+  const outcomeLabel = useOutcomeLabel();
   const group = detail.alertGroup;
   if (!group) return <EmptyState icon={BellRing} title={t("alerts.emptyTitle")} description={t("alerts.emptyDescription")} isBordered />;
   const alertNameById = new Map(group.alerts.map((alert) => [alert.alertId, alert.ruleName]));
   return (
     <div className="flex flex-col gap-5">
       <Card>
-        <CardHeader icon={BellRing} iconTone="alert" title={group.groupTitle} description={group.groupSummary ?? undefined} actions={<StatusChip tone={group.groupStatus === "open" ? "alert" : "neutral"} size="sm">{group.groupStatus}</StatusChip>} />
+        <CardHeader icon={BellRing} iconTone="alert" title={group.groupTitle} description={group.groupSummary ?? undefined} actions={<StatusChip tone={group.groupStatus === "open" ? "alert" : "neutral"} size="sm">{translateAlerts(`groupStatus.${group.groupStatus}`)}</StatusChip>} />
         <CardBody className="flex flex-wrap gap-x-8 gap-y-2 text-body-sm text-muted">
           <span>{t("alerts.memberCount", { count: group.memberAlertCount })}</span>
           <span>{t("alerts.startedAt", { time: formatDateTime(group.startedAt) })}</span>
@@ -50,8 +53,8 @@ export function AlertsSection({ detail }: { detail: InvestigationDetail }) {
             <ol className="flex flex-col gap-2">
               {group.decisions.map((decision, decisionIndex) => (
                 <li key={decisionIndex} className="flex flex-wrap items-baseline gap-2 text-body-sm">
-                  <Badge tone="info">{decision.pipelineStage}</Badge>
-                  <span className="font-medium text-default">{decision.decisionOutcome}</span>
+                  <Badge tone="info">{translateAlerts(`stage.${decision.pipelineStage}`)}</Badge>
+                  <span className="font-medium text-default">{outcomeLabel(decision.decisionOutcome)}</span>
                   <span className="text-muted">{alertNameById.get(decision.alertId) ?? ""}: {decision.decisionReason}</span>
                 </li>
               ))}

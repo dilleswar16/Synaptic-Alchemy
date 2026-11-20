@@ -177,7 +177,7 @@
     "injectionTitle": "Injection de prompt possible",
     "injectionDescription": "Une partie du texte des journaux ressemblait à des instructions destinées à une IA. Elle a été citée comme donnée et jamais suivie.",
     "query": "Afficher la requête {{language}}",
-    "queryTitle": "Requête ({{count}} enregistrements correspondants)",
+    "queryTitle_one": "Requête ({{count}} enregistrement correspondant)", "queryTitle_other": "Requête ({{count}} enregistrements correspondants)",
     "window": "Période du {{start}} au {{end}}",
     "metricPeak": "Pic de {{peak}} {{unit}} (référence {{baseline}})",
     "baselineLabel": "Référence",

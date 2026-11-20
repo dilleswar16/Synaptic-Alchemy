@@ -75,6 +75,7 @@
     "columns": { "time": "Quand", "actor": "Qui", "action": "Action", "target": "Cible", "details": "Détails" }
   },
   "jobs": {
+    "status": { "queued": "En file d'attente", "running": "En cours", "succeeded": "Réussi", "failed": "Échoué", "dead_lettered": "En file des échecs" },
     "deadLetters": "Messages en échec",
     "deadLettersDescription": "Tâches ayant échoué à chaque tentative. Réessayez après avoir corrigé la cause.",
     "noDeadLetters": "Aucune tâche en échec. La file est saine.",
@@ -83,6 +84,7 @@
     "columns": { "type": "Tâche", "status": "Statut", "attempts": "Tentatives", "created": "Créée", "error": "Dernière erreur" }
   },
   "outbox": {
+    "status": { "pending": "En attente", "sent": "Envoyé", "simulated": "Simulé", "failed": "Échec", "skipped": "Ignoré" },
     "pageTitle": "Boîte d'envoi",
     "pageDescription": "E-mails et messages Teams que Keigan a envoyés ou simulés.",
     "emptyTitle": "Rien d'envoyé pour l'instant",

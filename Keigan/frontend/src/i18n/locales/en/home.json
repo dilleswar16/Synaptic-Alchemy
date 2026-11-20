@@ -28,7 +28,6 @@
     "emptyDescription": "Applications you can access will appear here once they are onboarded.",
     "ringLabel": "Health {{percentage}} percent, {{status}}",
     "status": { "healthy": "healthy", "watch": "watch", "degraded": "degraded", "critical": "critical" },
-    "tier": "Tier {{tier}}",
     "openIncidents_one": "{{count}} incident",
     "openIncidents_other": "{{count}} incidents",
     "worstBudget": "Worst error budget left",

@@ -28,7 +28,6 @@
     "emptyDescription": "您有权访问的应用完成接入后将显示在此处。",
     "ringLabel": "健康度 {{percentage}}%，{{status}}",
     "status": { "healthy": "健康", "watch": "关注", "degraded": "降级", "critical": "严重" },
-    "tier": "{{tier}} 级",
     "openIncidents_one": "{{count}} 个事件",
     "openIncidents_other": "{{count}} 个事件",
     "worstBudget": "剩余错误预算最低",

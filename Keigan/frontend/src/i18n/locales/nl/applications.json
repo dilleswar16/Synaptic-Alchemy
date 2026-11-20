@@ -101,15 +101,15 @@
     "slo": "Minstens één SLO ({{count}})"
   },
   "goodToKnow": {
-    "diagnostic_settings": "{{count}} services hebben nog geen diagnostische instelling",
+    "diagnostic_settings_one": "{{count}} service heeft nog geen diagnostische instelling", "diagnostic_settings_other": "{{count}} services hebben nog geen diagnostische instelling",
     "diagnostic_settings_done": "Alle gevonden services sturen logs naar een werkruimte",
     "knowledge_documents": "Nog geen kennisdocumenten geüpload",
-    "knowledge_documents_done": "{{count}} kennisdocumenten geüpload",
+    "knowledge_documents_done_one": "{{count}} kennisdocument geüpload", "knowledge_documents_done_other": "{{count}} kennisdocumenten geüpload",
     "topology_reviewed": "De topologie is nog niet beoordeeld",
     "topology_reviewed_done": "De topologie is beoordeeld",
     "runbooks": "Nog geen runbooks toegevoegd",
-    "runbooks_done": "{{count}} runbooks toegevoegd",
-    "placeholder_integrations": "{{count}} logtools zijn opgeslagen, maar hun reader is nog niet beschikbaar",
+    "runbooks_done_one": "{{count}} runbook toegevoegd", "runbooks_done_other": "{{count}} runbooks toegevoegd",
+    "placeholder_integrations_one": "{{count}} logtool is opgeslagen, maar de reader is nog niet beschikbaar", "placeholder_integrations_other": "{{count}} logtools zijn opgeslagen, maar hun reader is nog niet beschikbaar",
     "placeholder_integrations_done": "Alle logtools kunnen worden gelezen",
     "observe_mode": "Meldingsruisreductie staat in de observatiemodus",
     "observe_mode_done": "Meldingsruisreductie is actief"

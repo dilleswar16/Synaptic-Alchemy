@@ -101,15 +101,15 @@
     "slo": "Au moins un SLO ({{count}})"
   },
   "goodToKnow": {
-    "diagnostic_settings": "{{count}} services n'ont pas encore de paramètre de diagnostic",
+    "diagnostic_settings_one": "{{count}} service n'a pas encore de paramètre de diagnostic", "diagnostic_settings_other": "{{count}} services n'ont pas encore de paramètre de diagnostic",
     "diagnostic_settings_done": "Tous les services découverts envoient leurs journaux vers un espace de travail",
     "knowledge_documents": "Aucun document de connaissances téléversé pour l'instant",
-    "knowledge_documents_done": "{{count}} documents de connaissances téléversés",
+    "knowledge_documents_done_one": "{{count}} document de connaissances téléversé", "knowledge_documents_done_other": "{{count}} documents de connaissances téléversés",
     "topology_reviewed": "La topologie n'a pas encore été relue",
     "topology_reviewed_done": "La topologie a été relue",
     "runbooks": "Aucun runbook ajouté pour l'instant",
-    "runbooks_done": "{{count}} runbooks ajoutés",
-    "placeholder_integrations": "{{count}} outils de journalisation sont enregistrés, mais leur lecteur n'est pas encore disponible",
+    "runbooks_done_one": "{{count}} runbook ajouté", "runbooks_done_other": "{{count}} runbooks ajoutés",
+    "placeholder_integrations_one": "{{count}} outil de journalisation est enregistré, mais son lecteur n'est pas encore disponible", "placeholder_integrations_other": "{{count}} outils de journalisation sont enregistrés, mais leur lecteur n'est pas encore disponible",
     "placeholder_integrations_done": "Tous les outils de journalisation sont lisibles",
     "observe_mode": "La réduction du bruit des alertes est en mode Observation",
     "observe_mode_done": "La réduction du bruit des alertes est active"

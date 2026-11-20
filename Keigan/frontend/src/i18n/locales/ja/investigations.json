@@ -177,7 +177,7 @@
     "injectionTitle": "プロンプトインジェクションの可能性",
     "injectionDescription": "一部のログテキストが AI への指示のように見えました。データとして引用し、指示としては扱っていません。",
     "query": "{{language}}クエリを表示",
-    "queryTitle": "クエリ（一致レコード {{count}} 件）",
+    "queryTitle_other": "クエリ（一致レコード {{count}} 件）",
     "window": "期間 {{start}} ～ {{end}}",
     "metricPeak": "ピーク {{peak}} {{unit}}（ベースライン {{baseline}}）",
     "baselineLabel": "ベースライン",

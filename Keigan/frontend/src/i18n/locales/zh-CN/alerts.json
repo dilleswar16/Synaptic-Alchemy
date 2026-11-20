@@ -8,7 +8,7 @@
   "verdict": { "useful": "有用", "noise": "这是噪音" },
   "filters": { "period": "周期", "last24h": "24 小时", "last7d": "7 天", "last30d": "30 天" },
   "observe": {
-    "title": "观察模式：剩余 {{count}} 天",
+    "title_other": "观察模式：剩余 {{count}} 天",
     "body": "Keigan 会记录它将会降噪和分组的内容，但仍会调查所有高于最低严重程度的告警。切换到“生效”之前，不会有任何变化。",
     "effect": "目前测得的效果：{{sentence}}"
   },
@@ -19,8 +19,8 @@
     "emptyDescription": "在应用的“事件与告警”步骤中接入告警源，即可查看漏斗。",
     "steps": { "received": "收到的告警", "deduplicated": "去重后", "filtered": "抑制和静默等待后", "groups": "告警组", "investigations": "调查" },
     "reasons": {
-      "repeats": "{{count}} 条重复", "maintenance": "{{count}} 条处于维护期", "muted": "{{count}} 条已静音", "environment": "{{count}} 条来自其他环境",
-      "severity": "{{count}} 条低于最低严重程度", "resolved_before_settle": "{{count}} 条自行恢复", "flapping": "{{count}} 条抖动"
+      "repeats_other": "{{count}} 条重复", "maintenance": "{{count}} 条处于维护期", "muted": "{{count}} 条已静音", "environment_other": "{{count}} 条来自其他环境",
+      "severity": "{{count}} 条低于最低严重程度", "resolved_before_settle_other": "{{count}} 条自行恢复", "flapping": "{{count}} 条抖动"
     },
     "reasonHelp": {
       "repeats": "同一告警再次触发，并计入已有告警。", "maintenance": "在维护窗口内到达：仅记录，不调查。", "muted": "匹配了静音规则。",
@@ -30,7 +30,7 @@
   "groups": {
     "title": "告警组",
     "columns": { "group": "组", "services": "服务", "severity": "严重程度", "alerts": "告警", "status": "状态", "score": "评分", "reason": "决策", "lastActivity": "最近活动", "feedback": "反馈" },
-    "occurrences": "发生 {{count}} 次",
+    "occurrences_other": "发生 {{count}} 次",
     "applicationLevel": "应用级",
     "emptyTitle": "暂无告警组",
     "emptyDescription": "告警到达后会在此处分组，并说明每个决策的原因。"
@@ -58,7 +58,7 @@
     "rulesFound": "条告警规则在您的范围内被发现（{{sending}} 条会发送给 Keigan）", "rulesTitle": "已发现的告警规则", "sendsToKeigan": "发送给 Keigan", "doesNotSend": "不发送",
     "simulatedRules": "模拟组件的示例规则，并非从 Azure 读取。",
     "status": { "waiting_for_first_alert": "等待首条告警", "receiving": "接收中，最近告警", "authentication_failures": "认证失败", "paused": "已暂停" },
-    "counts": "7 天内 {{alerts}} 条告警、{{groups}} 个告警组、{{investigated}} 个已调查", "authFailures": "{{count}} 个请求因令牌错误被拒绝。",
+    "counts": "7 天内 {{alerts}} 条告警、{{groups}} 个告警组、{{investigated}} 个已调查", "authFailures_other": "{{count}} 个请求因令牌错误被拒绝。",
     "test": "测试", "testSent": "测试告警已发送", "rotate": "轮换密钥", "pause": "暂停", "resume": "恢复", "remove": "移除",
     "removeTitle": "移除告警源", "removeBody": "Keigan 将停止接收发送到{{name}} URL 的告警。已保存的告警会保留。", "removeConfirm": "移除告警源",
     "rotatedTitle": "新密钥", "rotatedBody": "请立即复制：它只显示一次。旧密钥在 24 小时内仍然有效。"

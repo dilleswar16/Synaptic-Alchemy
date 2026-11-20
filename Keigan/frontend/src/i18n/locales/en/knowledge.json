@@ -52,7 +52,7 @@
   "digest": {
     "title": "AI digest",
     "headings": "Headings found ({{count}})",
-    "chunks": "{{count}} searchable sections, about {{tokens}} tokens.",
+    "chunks_one": "{{count}} searchable section, about {{tokens}} tokens.", "chunks_other": "{{count}} searchable sections, about {{tokens}} tokens.",
     "injectionTitle": "This document contains instruction-like text",
     "injectionBody": "Keigan treats documents as data and ignores instructions inside them, but a person should check this file.",
     "status": {

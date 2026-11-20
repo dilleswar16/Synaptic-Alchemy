@@ -177,7 +177,7 @@
     "injectionTitle": "Mogelijke promptinjectie",
     "injectionDescription": "Een deel van de logtekst leek op instructies aan een AI. Het is als gegevens geciteerd en nooit opgevolgd.",
     "query": "De {{language}}-query tonen",
-    "queryTitle": "Query ({{count}} overeenkomende records)",
+    "queryTitle_one": "Query ({{count}} overeenkomend record)", "queryTitle_other": "Query ({{count}} overeenkomende records)",
     "window": "Venster {{start}} tot {{end}}",
     "metricPeak": "Piek {{peak}} {{unit}} (basislijn {{baseline}})",
     "baselineLabel": "Basislijn",
