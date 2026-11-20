@@ -265,7 +265,7 @@ class IntegrationResponse(ApiModel):
     reader_available: bool
     fields: list[dict[str, Any]]
     integration_configuration: dict[str, Any] = {}
-    credential_secret_name: str | None = None
+    has_credential: bool = False
     integration_status: str
     integration_notes: str | None = None
     updated_at: datetime | None = None

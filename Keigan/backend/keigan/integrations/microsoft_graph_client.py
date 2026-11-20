@@ -13,7 +13,7 @@ from typing import Any
 import httpx
 
 from keigan.config.settings import get_settings
-from keigan.exceptions.keigan_exceptions import IntegrationException
+from keigan.exceptions.keigan_exceptions import AmbiguousGroupNameException, IntegrationException
 from keigan.integrations.azure_identity_provider import AzureCredentialProvider
 
 GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
@@ -48,7 +48,9 @@ class MicrosoftGraphClient:
 
     # ── Groups (application access) ────────────────────────────────────────────
     async def find_group(self, display_name: str | None, object_id: str | None) -> dict[str, Any] | None:
-        """The Entra group by object ID when known, otherwise by exact display name. Needs GroupMember.Read.All (or Group.Read.All)."""
+        """The Entra group by object ID when known, otherwise by exact display name. Needs GroupMember.Read.All (or Group.Read.All).
+
+        Raises ``AmbiguousGroupNameException`` when several groups share the name: access must never be granted to a guessed group."""
         try:
             if object_id:
                 return (await self._request("GET", f"/groups/{object_id}", params={"$select": "id,displayName"})).json()
@@ -58,6 +60,8 @@ class MicrosoftGraphClient:
             if "returned 404" in lookup_error.detail:
                 return None
             raise
+        if len(matching_groups) > 1:
+            raise AmbiguousGroupNameException(f"Two or more Entra groups are named '{display_name}'. An admin must link the right group by its object ID in 'Check in Entra'.")
         return matching_groups[0] if matching_groups else None
 
     async def describe_group_members(self, group_id: str, maximum_names: int = 5) -> tuple[int, list[str]]:

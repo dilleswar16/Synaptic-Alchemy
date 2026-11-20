@@ -1,7 +1,7 @@
 # Field schemas for generic external integrations (table `external_integration`).
 # The onboarding UI renders each integration card from this file, so a field can be added or refined without
-# a schema or UI change. Field types: text, url, select, secret_reference, key_value_list, textarea.
-# `credential_secret_name` is special: it is stored in its own column and holds a Key Vault secret *name*, never a value.
+# a schema or UI change. Field types: text, url, select, secret, key_value_list, textarea.
+# A `secret` field is write-only: the UI sends its value as `credentialValue` (never inside the configuration), Keigan stores it in the secret store under a name it generates, and the API only says whether one is saved.
 # Labels are English defaults; the UI translates them with the key `integrations.fields.<field key>` when available.
 
 integration_kinds:
@@ -26,11 +26,10 @@ integration_kinds:
           - [oauth_client_credentials, OAuth client credentials]
           - [api_key, API key]
           - [basic, Basic authentication]
-      - key: credential_secret_name
-        label: Credential reference
-        field_type: secret_reference
-        placeholder: cmdb-reader-credential
-        help_text: Name of the Key Vault secret that holds the credential. Keigan never stores the value itself.
+      - key: credential_value
+        label: Credential
+        field_type: secret
+        help_text: The secret, key or token Keigan uses to sign in. Stored in the secret store and never shown again; leave empty to keep the saved one.
       - key: configuration_item_class
         label: Configuration item class
         field_type: text
@@ -64,11 +63,10 @@ integration_kinds:
           - [managed_identity, Managed identity]
           - [oauth_client_credentials, OAuth client credentials]
           - [api_key, API key]
-      - key: credential_secret_name
-        label: Credential reference
-        field_type: secret_reference
-        placeholder: ei-portal-reader
-        help_text: Name of the Key Vault secret that holds the credential. Keigan never stores the value itself.
+      - key: credential_value
+        label: Credential
+        field_type: secret
+        help_text: The secret, key or token Keigan uses to sign in. Stored in the secret store and never shown again; leave empty to keep the saved one.
       - key: eai_lookup_path
         label: EAI lookup path
         field_type: text
@@ -97,11 +95,10 @@ integration_kinds:
           - [managed_identity, Managed identity]
           - [oauth_client_credentials, OAuth client credentials]
           - [api_key, API key]
-      - key: credential_secret_name
-        label: Credential reference
-        field_type: secret_reference
-        placeholder: knowledge-api-reader
-        help_text: Name of the Key Vault secret that holds the credential. Keigan never stores the value itself.
+      - key: credential_value
+        label: Credential
+        field_type: secret
+        help_text: The secret, key or token Keigan uses to sign in. Stored in the secret store and never shown again; leave empty to keep the saved one.
       - key: space_or_collection
         label: Space or collection
         field_type: text

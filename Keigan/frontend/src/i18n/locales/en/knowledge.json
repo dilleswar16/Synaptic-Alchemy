@@ -84,7 +84,11 @@
     "notes": "Notes",
     "save": "Save details",
     "saveFailed": "The details could not be saved. Try again.",
-    "fields": {}
+    "credentialSaved": "A credential is saved. Leave this empty to keep it, or type a new one to replace it.",
+    "credentialSavedPlaceholder": "•••••••• saved",
+    "fields": {
+      "credential_value": "Credential"
+    }
   },
   "topology": {
     "build": "Build topology",

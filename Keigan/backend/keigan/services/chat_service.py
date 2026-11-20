@@ -34,7 +34,7 @@ from keigan.security.current_user import CurrentUser
 from keigan.security.security_middleware import rate_limiter
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
-from keigan.services.chat_data_query_service import ChatDataQueryService, DataQueryOutcome
+from keigan.services.chat_data_query_service import ChatDataQueryService, DataQueryOutcome, QueryNotAnswerableError
 from keigan.services.investigation_chat_service import InvestigationChatService
 from keigan.services.knowledge_service import KnowledgeService
 from keigan.utils.pii_masker import PiiMasker
@@ -334,6 +334,8 @@ class ChatService:
             outcome = await ChatDataQueryService(self.session).run(
                 service=service, question_text=question, wants_failures=wants_failures, wants_pattern=wants_pattern, time_range_start=start, time_range_end=end,
                 requested_by=current_user.user_principal_name, usage_context=usage_context)
+        except QueryNotAnswerableError as cannot_answer:
+            return AssistantAnswer(cannot_answer.detail, message_payload={"answerKind": "text"})
         except KeiganException as query_error:
             return AssistantAnswer(f"I couldn't query {service.service_name}. {describe_failure_for_user(query_error)}", message_payload={"answerKind": "text", "failed": True})
         return await self._compose_data_answer(service, outcome, wants_pattern, wants_failures, lookback_minutes, usage_context, question)

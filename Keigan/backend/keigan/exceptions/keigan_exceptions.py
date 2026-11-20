@@ -74,6 +74,14 @@ class IntegrationException(KeiganException):
     title = "An external system did not respond as expected"
 
 
+class AmbiguousGroupNameException(IntegrationException):
+    """Two or more Entra groups share a display name, so Keigan cannot tell which one the application means."""
+
+    status_code = 409
+    error_code = "entra_group_name_ambiguous"
+    title = "More than one Entra group has this name"
+
+
 class ReaderNotAvailableException(IntegrationException):
     status_code = 501
     error_code = "reader_not_available"

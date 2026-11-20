@@ -84,7 +84,11 @@
     "notes": "Notities",
     "save": "Gegevens opslaan",
     "saveFailed": "De gegevens konden niet worden opgeslagen. Probeer het opnieuw.",
-    "fields": {}
+    "credentialSaved": "Er is een referentie opgeslagen. Laat dit veld leeg om die te behouden of typ een nieuwe om te vervangen.",
+    "credentialSavedPlaceholder": "•••••••• opgeslagen",
+    "fields": {
+      "credential_value": "Referentie"
+    }
   },
   "topology": {
     "build": "Topologie bouwen",
