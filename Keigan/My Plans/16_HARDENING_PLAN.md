@@ -81,21 +81,21 @@ Where a V-item covers an H-item above, the V-item is the one tracked (noted in t
 | V2 | High | A `requested` app's creator is its admin and can point log sources at another team's workspace (confused deputy) | ✅ fixed (stream B): telemetry is read only for approved applications and only from resources inside the application's verified components (`services/telemetry_access_policy.py`, enforced in the gateway, in chat and at save time) |
 | V4 | High | KQL validator bypasses: later `union`/`join`/`lookup`/`toscalar`; a `"//"` string hides the rest of the line from all checks | ✅ fixed (stream A, covers H2): see H2 |
 | V5 | High | SPL: no index restriction, deny-list instead of allow-list, `tstats` unbounded, no API time bounds | ✅ fixed (stream A): SPL allow-list from `catalogs/query_safety.yaml`, one index per log source, bounded `tstats`, API time bounds |
-| V7 | High | Uploaded knowledge, runbooks, prior RCAs and the chat agent are treated as trusted prompt input | ⬜ |
+| V7 | High | Uploaded knowledge, runbooks, prior RCAs and the chat agent are treated as trusted prompt input | ✅ fixed (stream D): uploaded knowledge, runbooks, recurring issues and Teams digests are untrusted prompt sections; forged tags neutralised; flagged documents follow `AI_FLAGGED_DOCUMENT_POLICY`; marking an investigation correct needs application admin |
 | V14 | Medium | Custom SLI KQL runs without validation | ✅ (stream A, = H1) |
 | V15 | Medium | Default signing secret accepted outside prod; local auth allowed in dev/test | ✅ fixed (stream C, covers H6): `AUTH_MODE=local` and default or short secrets are refused unless `ENVIRONMENT` is `local` or `test`; the secret store no longer derives its key from the signing secret outside local/test. Tests in `tests/unit/config/test_settings.py`, `tests/unit/integrations/test_secret_store.py` |
-| V13 | Medium | Teams bot answers (and runs log queries for) anyone in the chat; tenant not checked | ⬜ |
-| V8 | Medium | Link filter bypassable and missing on many AI outputs; markdown images render | ⬜ |
+| V13 | Medium | Teams bot answers (and runs log queries for) anyone in the chat; tenant not checked | ✅ fixed (stream D): `teams_sender_authorizer.py` resolves the sender's groups (fail closed); non-readers get a refusal and are not stored; other tenants get 403; log queries from Teams only for application admins |
+| V8 | Medium | Link filter bypassable and missing on many AI outputs; markdown images render | ✅ fixed (D + G): `ai/output_sanitizer.py` rewrites links and images from the markdown parse tree on every AI output and again before every email and Teams post; the UI applies the same allow-list, published in client configuration (`allowedLinkHosts`) |
 | V11 | Medium | PII masker gaps (full-width text, JP numbers without separators, tokens, snake_case keys) | ✅ fixed (stream F): NFKC normalisation, new catalog patterns (JP/international phones, IPv6, GitHub/Slack/sk- tokens, Basic auth, URL credentials, password assignments), normalised JSON keys, My Number check digit; 47 tests in `tests/unit/utils/test_pii_masker.py`. Accepted residuals: masking errs on the safe side (e.g. `password: required` is masked); header rule expects one space after `Authorization:` |
-| V12 | Medium | Chat history, activity-log callers, Teams names and alert rule names reach storage or the LLM unmasked | 🔄 done: activity-log callers and descriptions (A), alert rule names (E). Open: chat history and Teams names (stream D). Not masked on purpose: `rule_id`, `resource_ref`, `service_hint`, `link` (fingerprints, mute rules and URLs need them verbatim) |
+| V12 | Medium | Chat history, activity-log callers, Teams names and alert rule names reach storage or the LLM unmasked | ✅ fixed: activity-log callers and descriptions (A), alert rule names (E), chat messages, titles, history and Teams author names (D). Not masked on purpose: `rule_id`, `resource_ref`, `service_hint`, `link` (fingerprints, mute rules and URLs need them verbatim) |
 | V16 | Medium | SSRF and credential redirect: changing a connection's endpoint keeps its stored credential; no egress policy | ✅ fixed (stream B): outbound URL policy (https only, no private or internal addresses after DNS, allow and deny lists from `OUTBOUND_*`); changing an endpoint or sign-in method deletes the stored credential. Egress NetworkPolicy from stream C |
 | V6 | Medium | Elastic script check bypassable with JSON unicode escapes; size not validated | ✅ fixed (stream A): Elastic query is checked as parsed JSON (forbidden keys, size clamp, depth limit) |
-| V9 | Medium | Command risk classifier misses `kubectl -n x delete`, `terraform destroy`, SQL `DELETE` | ⬜ |
+| V9 | Medium | Command risk classifier misses `kubectl -n x delete`, `terraform destroy`, SQL `DELETE` | ✅ fixed (stream D): `command_risk_classifier.py` tokenises commands; rules in `catalogs/command_risk_rules.yaml`; 95 test cases |
 | V10 | Medium | Planner queries reuse the investigation window for the baseline, so they always look "new" | ✅ fixed (stream A): the baseline query is hardened against the baseline window |
-| V17 | Low | Token budget skipped in the chat agent and multi-app chat; manual investigation window not clamped | ⬜ |
-| V18 | Low | Sanitizer misses Unicode tag characters; injection detector easy to evade (advisory only) | ⬜ |
-| V19 | Low | Upstream error bodies shown to users | 🔄 done: log tool clients and SLI proposals (A). Open: other callers (stream D) |
-| V20 | Low | Citation validation inconsistent with prompts (`K#` stripped or unchecked) | ⬜ |
+| V17 | Low | Token budget skipped in the chat agent and multi-app chat; manual investigation window not clamped | ✅ fixed (stream D): token budget before the chat agent runs; per-user daily budget `LLM_DAILY_TOKEN_BUDGET_PER_USER`; manual window over `INVESTIGATION_MAX_WINDOW_MINUTES` gets a 422 |
+| V18 | Low | Sanitizer misses Unicode tag characters; injection detector easy to evade (advisory only) | ✅ fixed (stream D): invisible and tag characters stripped; detector folds look-alikes and spaced letters (still advisory); indicators in `catalogs/prompt_injection_indicators.yaml` |
+| V19 | Low | Upstream error bodies shown to users | ✅ fixed: log tool clients and SLI proposals (A); LLM gateway, chat and investigation failures now say what to do and quote the correlation id (D) |
+| V20 | Low | Citation validation inconsistent with prompts (`K#` stripped or unchecked) | ✅ fixed (stream D): `[K#]` and code-change file paths are checked against the real grounding |
 | V21 | Low | Webhook `?token=` ends up in access logs; needs APIM / ingress log redaction | ⬜ (infra) |
 | V22 | Low | Request bodies can set arbitrary secret-name pointers | ✅ fixed (stream B): clients can no longer set secret-name pointers; credentials are write-only (`credentialValue`) and stored under a generated name |
 | S1 | Medium | Teams bot: the token's `serviceurl` claim was not bound to the activity, so a valid token could send Keigan's bot token to any host | ✅ fixed (stream C): inbound `serviceurl` must equal the activity `serviceUrl` and be https on `BOT_FRAMEWORK_SERVICE_URL_HOST_PATTERNS`; outbound `send_activity` re-checks every URL. Tests in `tests/unit/integrations/test_bot_framework_client.py`, `tests/integration/controllers/test_teams_bot_controller.py` |
@@ -139,7 +139,7 @@ then an independent review of the combined change and a full smoke run (seed, al
 | A | ✅ merged |
 | B | ✅ merged |
 | C | ✅ merged (166 passed, 3 xfailed after merge) |
-| D | 🔄 running |
+| D | ✅ merged (857 passed after merge and lead fixes) |
 | E | ✅ merged (556 passed after merge, no xfails left) |
 | F | ✅ merged |
 | G | ✅ merged (build, locales, contrast re-run by the lead: clean) |
@@ -149,7 +149,7 @@ then an independent review of the combined change and a full smoke run (seed, al
 | From | Follow-up | Owner / status |
 |---|---|---|
 | A | Chat passes the log source scope to the validator and shows the model a "Query limits" section; offline mock no longer writes `index=*` | ✅ done by the lead after merge |
-| A | `investigation_graph.planner_node` must add `PromptSection("Query limits per service", EvidenceService.describe_query_limits_for_planner(...))` and pass its `masking_context` to `collect_change_evidence` | ⬜ after stream D merges (D owns the file) |
+| A | `investigation_graph.planner_node` must add `PromptSection("Query limits per service", EvidenceService.describe_query_limits_for_planner(...))` and pass its `masking_context` to `collect_change_evidence` | ✅ done by the lead after merging D (test in `tests/unit/ai/test_investigation_graph.py`) |
 | A | Chat cannot-answer path: `ChatQueryResult` allows an empty `query_text` with an `explanation`, and chat shows it instead of "The query is empty or too long." | ⬜ wave 2 |
 | A | Review the SLI table list in `catalogs/query_safety.yaml` (`kql.sli_allowed_tables`) | ⬜ owner review |
 | B | Frontend `IntegrationCard.tsx` still shows a `credential_secret_name` field; replace it with a write-only `credentialValue` password field | ⬜ frontend task after stream G merges |
@@ -161,10 +161,16 @@ then an independent review of the combined change and a full smoke run (seed, al
 | E | SQL Server leasing and the H3 race were verified by compiling for mssql and on SQLite only | ⬜ infra go-live check against real Azure SQL |
 | user | Seed data changes must be traceable as SQL the DBA can run. Today only the schema, the migration baseline and delta scripts exist as SQL; demo seed data is Python only and is not in Azure by design (`database/azure_sql/README.md`). Add a generated, optional demo-data script (kept out of `run_all.sql`) with a test that it matches the seed | ⬜ wave 2 |
 | lead | Frontend hardcodes the sidebar structure and admin-only flags (`navigationItems.ts`), the log source kinds (`LogSourceEditor.tsx`) and the reader-supported tool types (`LogToolsStep.tsx`, duplicates `READABLE_TOOL_TYPES` in the backend). Serve option lists and menu visibility from the API so the two cannot drift | ⬜ feature audit (phase 2), checked per feature |
-| G | Backend must publish `allowedLinkHosts` in `/api/public/client-configuration` (same source as `DEFAULT_ALLOWED_LINK_HOSTS`, ideally a setting). Until then the frontend uses a constant that mirrors it (`src/config/allowedLinkHosts.ts`) | ⬜ with stream D's V8 work |
+| G | Backend must publish `allowedLinkHosts` in `/api/public/client-configuration` (same source as `DEFAULT_ALLOWED_LINK_HOSTS`, ideally a setting). Until then the frontend uses a constant that mirrors it (`src/config/allowedLinkHosts.ts`) | ✅ done by the lead: published as `allowedLinkHosts`, frontend uses the same exact-or-`*.suffix` rule and no longer lists github.com |
 | G | The backend still builds some user-visible text in English (timeline text, signal titles); the frontend cannot translate it | ⬜ feature audit, labelling |
 | G | Hard-coded hex colours remain in `CommandBlock.tsx`, `ConfidenceMeter.tsx`, `CopyButton.tsx`, `useTheme.ts`; no frontend unit tests yet, so `linkSafety.ts` was checked with a throwaway script only | ⬜ phase 5 (frontend tests) and UI polish |
 | G | `07_BUILD_PHASES_AND_AGENTS.md` and `agent-briefs/*` still mention the deleted `FOUNDATION_READY.md`; new-language strings are machine-written and need native review | ⬜ docs pass; owner review |
+| D | New settings `AI_OUTPUT_ALLOWED_LINK_HOSTS`, `ORGANIZATION_NAME`, `AI_FLAGGED_DOCUMENT_POLICY`, `LLM_DAILY_TOKEN_BUDGET_PER_USER`, `CHAT_HISTORY_TURN_LIMIT`, `CHAT_HISTORY_TURN_CHARACTERS` (in `.env.example`); `markdown-it-py` added to `pyproject.toml` and the lock. `tests/unit/test_dependency_lock.py` now fails when the backend imports a package the lock does not hold | ✅ documented |
+| D | `06_AI_ENGINE_AND_PROMPT_SAFETY.md` still describes the old link filter and classifier | ⬜ docs pass |
+| D | Index on `llm_usage_record(requested_by_user_principal_name, created_at)` for the per-user budget query | ⬜ wave 2, only if measured to matter (schema owner) |
+| D | Bare domains without a scheme (`evil.example/x`) are not defanged; Teams unfurl of allow-listed links unverified (S4); the sanitiser normalises markdown (for example bullets), not yet seen in every UI shape | ⬜ smoke run and live Teams check |
+| D | Old stored AI text is not migrated; it is sanitised again when emailed or posted | ⬜ accepted |
+| D | `create_react_agent` is deprecated in LangGraph 1.x; the agent path cannot cap tokens mid-run | ⬜ later, with the LangGraph upgrade |
 | all | New settings: `OUTBOUND_ALLOWED_HOSTS`, `OUTBOUND_DENIED_HOST_SUFFIXES`, `WORKSPACE_IDENTITY_CACHE_SECONDS`, `JOB_LEASE_DURATION_SECONDS`, `JOB_LEASE_RENEWAL_INTERVAL_SECONDS`, `WORKER_HEARTBEAT_INTERVAL_SECONDS`, `RETENTION_DELETE_BATCH_SIZE` (all in `backend/.env.example`); query limits live in `keigan/resources/catalogs/query_safety.yaml` | ✅ documented |
 
 Schema: three Alembic revisions on top of `94692c828bd3` (`89afa8e088ba`, `1fa7018ae4d6`, `3be32fbc3e37`), Azure SQL scripts 02-04 regenerated,
