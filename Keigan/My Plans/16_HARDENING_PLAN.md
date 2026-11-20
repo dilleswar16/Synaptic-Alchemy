@@ -108,3 +108,24 @@ Prompt-quality notes per prompt are in doc 17 ("Prompt quality") and are handled
 3. V8, V11, V12, V16, V6, V9, V10, H7, H8, H9, H10
 4. Data model H11-H14, H21 drift check, H15, H16
 5. Remaining low items, then features, then UI (H17-H20)
+
+## Execution (parallel, by file ownership)
+
+Started 2026-11-20. Each workstream runs in its own git worktree with a fixed set of files, works test-first, and is merged
+into `keigan-hardening` by the lead after review. Only the lead edits `My Plans/`. Only workstream E changes the schema.
+
+**Wave 1**
+
+| Stream | Scope | Findings |
+|---|---|---|
+| A | Query safety: validators, SLI queries, evidence planner, log tool clients | V4/H2, V14/H1, V5, V6, V10, S2, H15, parts of V12 and V19 |
+| B | Tenancy and access: approved-apps-only telemetry, log-source ownership, outbound URL policy | V2, H7, V16, V22 |
+| C | Authentication, configuration, deployment | V15/H6, H8, S1, S5, H9, H16, egress NetworkPolicy |
+| D | Prompt and AI-output safety, Teams bot access | V7, V8, V9, V12, V13, V17, V18, V19, V20, prompt quality |
+| E | Job queue, alert pipeline, all schema changes (Alembic + Azure SQL scripts + drift test) | H3, H4, H5, H10, H21, V1b, part of V12 |
+| F | PII masking patterns | V11 |
+| G | Frontend: phone width, labels and plurals, contrast, safe markdown, locales, dead files | H17, H18, H19, H20, V8 (UI) |
+
+**Wave 2** (after wave 1 is merged): data model H11-H14 (join tables, foreign keys, CHECK constraints, soft links),
+an error-handling sweep across the remaining services, wiring any cross-stream follow-ups the wave-1 reports list,
+then an independent review of the combined change and a full smoke run (seed, all screens, test suite).
