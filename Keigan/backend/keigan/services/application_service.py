@@ -142,6 +142,13 @@ class ApplicationService:
         )
         await self._link_groups_in_entra(application)
         await self.application_repository.add(application)
+        if request.team_members:
+            from keigan.services.stakeholder_service import StakeholderService
+
+            # A requested application is not approved yet, so its team is listed but nobody is emailed about a workspace that may be turned down.
+            await StakeholderService(self.session).add_team_members(
+                current_user, application.application_id, request.team_members, send_invitations=lifecycle_status != ApplicationLifecycleStatus.REQUESTED
+            )
         await self.audit_service.record(
             current_user,
             "application.request" if lifecycle_status == ApplicationLifecycleStatus.REQUESTED else "application.create",

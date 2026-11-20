@@ -301,11 +301,11 @@ ALTER TABLE keigan.stakeholder ADD CONSTRAINT ck_stakeholder_recipient_type_valu
 
 GO
 
-IF EXISTS (SELECT 1 FROM keigan.stakeholder WHERE stakeholder_role IS NOT NULL AND NOT (stakeholder_role IN ('sre', 'developer', 'manager', 'executive', 'business_owner', 'vendor_contact'))) THROW 50000, N'Keigan migration d2a6b0c5e8f9 stopped: keigan.stakeholder.stakeholder_role holds a value that is not one of the allowed values. Run SELECT DISTINCT stakeholder_role FROM keigan.stakeholder to see them, correct those rows, then run this script again. Nothing was changed.', 1;
+IF EXISTS (SELECT 1 FROM keigan.stakeholder WHERE stakeholder_role IS NOT NULL AND NOT (stakeholder_role IN ('sre', 'developer', 'manager', 'executive', 'business_owner', 'vendor_contact', 'lead', 'infra', 'devops', 'tester'))) THROW 50000, N'Keigan migration d2a6b0c5e8f9 stopped: keigan.stakeholder.stakeholder_role holds a value that is not one of the allowed values. Run SELECT DISTINCT stakeholder_role FROM keigan.stakeholder to see them, correct those rows, then run this script again. Nothing was changed.', 1;
 
 GO
 
-ALTER TABLE keigan.stakeholder ADD CONSTRAINT ck_stakeholder_stakeholder_role_values CHECK (stakeholder_role IN ('sre', 'developer', 'manager', 'executive', 'business_owner', 'vendor_contact'));
+ALTER TABLE keigan.stakeholder ADD CONSTRAINT ck_stakeholder_stakeholder_role_values CHECK (stakeholder_role IN ('sre', 'developer', 'manager', 'executive', 'business_owner', 'vendor_contact', 'lead', 'infra', 'devops', 'tester'));
 
 GO
 

@@ -186,6 +186,11 @@ class Settings(BaseSettings):
     investigation_knowledge_token_budget: int = 6_000
     auto_send_preliminary_report: bool = True
 
+    # ── Application teams ──────────────────────────────────────────────────────
+    team_members_maximum_per_application: int = Field(default=100, ge=1)
+    team_invitation_resend_cooldown_minutes: int = Field(default=15, ge=1)  # one invitation email per person per this many minutes
+    team_invitation_stale_after_days: int = Field(default=14, ge=1)  # an invitation this old with no sign-in is shown as stale
+
     # ── SLO and intelligence ───────────────────────────────────────────────────
     sli_collection_interval_minutes: int = 5
     slo_backfill_days: int = 30

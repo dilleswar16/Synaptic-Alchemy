@@ -1,20 +1,21 @@
-"""Stakeholders of an application (who is told what, when and where), test sends and the people directory search."""
+"""The team and recipients of an application: who is told what, when and where, who was invited, test sends and the people directory search."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config import application_context
 from keigan.config.settings import AuthenticationMode, get_settings
 from keigan.dtos.notification_dtos import (
-    NOTIFICATION_CHANNEL_VALUES, NOTIFICATION_TYPE_VALUES, DirectoryUserResponse, StakeholderCreateRequest, StakeholderResponse, StakeholderTestResponse, StakeholderUpdateRequest,
+    NOTIFICATION_CHANNEL_VALUES, NOTIFICATION_TYPE_VALUES, DirectoryUserResponse, StakeholderCreateRequest, StakeholderInvitationResponse, StakeholderResponse, StakeholderTestResponse,
+    StakeholderUpdateRequest, TeamMemberRequest,
 )
 from keigan.entities.application_entities import Application
 from keigan.entities.notification_entities import Stakeholder
-from keigan.entities.status_values import StakeholderRecipientType
+from keigan.entities.status_values import StakeholderRecipientType, StakeholderRole
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
 from keigan.security.current_user import CurrentUser
@@ -22,6 +23,8 @@ from keigan.services.audit_service import AuditService
 from keigan.services.notification_renderer import translate
 from keigan.services.notification_service import NotificationService
 from keigan.services.service_scope import unknown_service_ids
+from keigan.services.team_invitation_service import TeamInvitationService, describe_invitation
+from keigan.utils.time_utils import utc_now
 
 FIELD_NAMES_WITH_JSON_LISTS = {"notification_channels": "notification_channels_json", "subscribed_notification_types": "subscribed_notification_types_json"}
 
@@ -36,20 +39,41 @@ class StakeholderService:
         return [self._to_response(row) for row in rows]
 
     async def create_stakeholder(self, current_user: CurrentUser, application_id: str, request: StakeholderCreateRequest) -> StakeholderResponse:
-        await self._ensure_application(application_id)
-        values = request.model_dump()
+        application = await self._ensure_application(application_id)
+        values = request.model_dump(exclude={"send_invitation"})
         await self._validate(application_id, values)
         stakeholder = Stakeholder(application_id=application_id, created_by_user_principal_name=current_user.user_principal_name, updated_by_user_principal_name=current_user.user_principal_name)
         self._apply(stakeholder, values)
+        invitation_service = TeamInvitationService(self.session)
+        if request.send_invitation:
+            invitation_service.ensure_can_invite(stakeholder, utc_now())  # before anything is saved: a refused invitation must not leave the member half added
         self.session.add(stakeholder)
         await self.session.flush()
-        await AuditService(self.session).record(current_user, "stakeholder.create", target_entity_type="stakeholder", target_entity_id=stakeholder.stakeholder_id, application_id=application_id, action_details={"displayName": stakeholder.display_name})
+        if request.send_invitation:
+            await invitation_service.queue_invitation(current_user, stakeholder, application)
+        await AuditService(self.session).record(current_user, "stakeholder.create", target_entity_type="stakeholder", target_entity_id=stakeholder.stakeholder_id, application_id=application_id, action_details={"displayName": stakeholder.display_name, "invited": request.send_invitation})
         return self._to_response(stakeholder)
+
+    async def add_team_members(self, current_user: CurrentUser, application_id: str, team_members: list[TeamMemberRequest], *, send_invitations: bool) -> None:
+        """The people entered while an application is created. All or nothing: one refused person fails the whole request, so no half-built team is saved."""
+        for team_member in team_members:
+            await self.create_stakeholder(
+                current_user, application_id,
+                StakeholderCreateRequest(display_name=team_member.display_name, email_address=team_member.email_address, stakeholder_role=team_member.stakeholder_role, send_invitation=send_invitations),
+            )
+
+    async def send_invitation(self, current_user: CurrentUser, application_id: str, stakeholder_id: str) -> StakeholderInvitationResponse:
+        stakeholder = await self._load(application_id, stakeholder_id)
+        application = await self._ensure_application(application_id)
+        delivery_id, message = await TeamInvitationService(self.session).queue_invitation(current_user, stakeholder, application)
+        return StakeholderInvitationResponse(team_member=self._to_response(stakeholder), delivery_id=delivery_id, message=message)
 
     async def update_stakeholder(self, current_user: CurrentUser, application_id: str, stakeholder_id: str, request: StakeholderUpdateRequest) -> StakeholderResponse:
         stakeholder = await self._load(application_id, stakeholder_id)
         values = request.model_dump(exclude_unset=True)
-        await self._validate(application_id, values, partial=True)
+        await self._validate(application_id, values, partial=True, existing=stakeholder)
+        if values.get("stakeholder_role", stakeholder.stakeholder_role) != StakeholderRole.LEAD or values.get("is_active") is False:
+            await self._ensure_not_the_only_lead(stakeholder)
         self._apply(stakeholder, values)
         stakeholder.updated_by_user_principal_name = current_user.user_principal_name
         await self.session.flush()
@@ -58,6 +82,7 @@ class StakeholderService:
 
     async def delete_stakeholder(self, current_user: CurrentUser, application_id: str, stakeholder_id: str) -> None:
         stakeholder = await self._load(application_id, stakeholder_id)
+        await self._ensure_not_the_only_lead(stakeholder)
         await self.session.delete(stakeholder)
         await AuditService(self.session).record(current_user, "stakeholder.delete", target_entity_type="stakeholder", target_entity_id=stakeholder_id, application_id=application_id, action_details={"displayName": stakeholder.display_name})
 
@@ -118,8 +143,40 @@ class StakeholderService:
             raise NotFoundException("Stakeholder not found.")
         return stakeholder
 
-    async def _validate(self, application_id: str, values: dict[str, Any], partial: bool = False) -> None:
+    async def _ensure_not_the_only_lead(self, stakeholder: Stakeholder) -> None:
+        """An application whose team has a lead keeps one: the last active lead cannot be removed, switched off or given another role.
+        An application with no lead is not affected, so teams that never named one are not blocked."""
+        if stakeholder.stakeholder_role != StakeholderRole.LEAD or not stakeholder.is_active or stakeholder.recipient_type != StakeholderRecipientType.PERSON:
+            return
+        other_active_leads = await self.session.scalar(
+            select(func.count()).select_from(Stakeholder).where(
+                Stakeholder.application_id == stakeholder.application_id, Stakeholder.stakeholder_id != stakeholder.stakeholder_id, Stakeholder.stakeholder_role == StakeholderRole.LEAD,
+                Stakeholder.recipient_type == StakeholderRecipientType.PERSON, Stakeholder.is_active.is_(True),
+            )
+        )
+        if not other_active_leads:
+            raise BusinessValidationException(f"{stakeholder.display_name} is the only team lead. Add another lead before removing or changing them.")
+
+    async def _validate_team_membership(self, application_id: str, values: dict[str, Any], existing: Stakeholder | None, errors: list[dict[str, str]]) -> None:
+        """One person per address per application, and a limit on the size of the team."""
+        recipient_type = values.get("recipient_type") or (existing.recipient_type if existing else StakeholderRecipientType.PERSON)
+        email_address = values.get("email_address") if "email_address" in values else (existing.email_address if existing else None)
+        if recipient_type != StakeholderRecipientType.PERSON:
+            return
+        people = select(func.count()).select_from(Stakeholder).where(Stakeholder.application_id == application_id, Stakeholder.recipient_type == StakeholderRecipientType.PERSON)
+        if email_address:
+            same_address = people.where(func.lower(Stakeholder.email_address) == email_address.lower())
+            if existing is not None:
+                same_address = same_address.where(Stakeholder.stakeholder_id != existing.stakeholder_id)
+            if await self.session.scalar(same_address):
+                errors.append({"field": "emailAddress", "message": f"{email_address} is already on this team."})
+        maximum_people = get_settings().team_members_maximum_per_application
+        if existing is None and (await self.session.scalar(people) or 0) >= maximum_people:
+            errors.append({"field": "emailAddress", "message": f"A team can have at most {maximum_people} people."})
+
+    async def _validate(self, application_id: str, values: dict[str, Any], partial: bool = False, existing: Stakeholder | None = None) -> None:
         errors: list[dict[str, str]] = []
+        await self._validate_team_membership(application_id, values, existing, errors)
         for channel in values.get("notification_channels") or []:
             if channel not in NOTIFICATION_CHANNEL_VALUES:
                 errors.append({"field": "notificationChannels", "message": f"Unknown channel {channel}."})
@@ -134,7 +191,7 @@ class StakeholderService:
         if not partial and recipient_type == StakeholderRecipientType.TEAMS_CHANNEL and not (values.get("teams_team_id") and values.get("teams_channel_id")):
             errors.append({"field": "teamsChannelId", "message": "A Teams team id and channel id are required for channel destinations."})
         if errors:
-            raise BusinessValidationException("The stakeholder is not valid.", field_errors=errors)
+            raise BusinessValidationException("The team member is not valid.", field_errors=errors)
 
     @staticmethod
     def _apply(stakeholder: Stakeholder, values: dict[str, Any]) -> None:
@@ -149,6 +206,7 @@ class StakeholderService:
     @staticmethod
     def _to_response(stakeholder: Stakeholder) -> StakeholderResponse:
         return StakeholderResponse(
+            **describe_invitation(stakeholder, utc_now()),
             stakeholder_id=stakeholder.stakeholder_id, application_id=stakeholder.application_id, recipient_type=stakeholder.recipient_type, display_name=stakeholder.display_name,
             email_address=stakeholder.email_address, user_principal_name=stakeholder.user_principal_name, entra_object_id=stakeholder.entra_object_id, teams_team_id=stakeholder.teams_team_id,
             teams_channel_id=stakeholder.teams_channel_id, stakeholder_role=stakeholder.stakeholder_role, subscribed_service_ids=stakeholder.subscribed_service_ids,

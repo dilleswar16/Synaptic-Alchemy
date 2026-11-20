@@ -90,7 +90,7 @@ def test_partial_unique_indexes_keep_their_filter_in_the_migrated_database(migra
     with engine.connect() as connection:
         index_sql = dict(connection.execute(text("SELECT name, sql FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL")).all())
     engine.dispose()
-    for index_name in ("uq_incident_external_number", "uq_alert_open_fingerprint", "uq_background_job_active_deduplication_key"):
+    for index_name in ("uq_incident_external_number", "uq_alert_open_fingerprint", "uq_background_job_active_deduplication_key", "uq_stakeholder_application_email"):
         assert index_name in index_sql, f"{index_name} is missing from the migrated database"
         assert "UNIQUE" in index_sql[index_name].upper() and " WHERE " in index_sql[index_name].upper(), index_sql[index_name]
 

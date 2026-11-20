@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.ai_safety_settings import get_ai_safety_settings
 from keigan.config.database_config import DatabaseSession
-from keigan.config.settings import AuthenticationMode, get_settings
+from keigan.config.settings import AuthenticationMode, EmailMode, get_settings
 from keigan.dtos.authentication_dtos import ClientConfigurationResponse, EntraClientConfiguration, HealthResponse
 from keigan.entities.platform_entities import PlatformSetting
 from keigan.workers.job_queue import WORKER_HEARTBEAT_SETTING_KEY
@@ -40,6 +40,7 @@ async def get_client_configuration() -> ClientConfigurationResponse:
         feature_flags={
             "simulationControls": settings.is_local_environment,
             "teamsSimulated": str(settings.teams_mode) == "simulated",
+            "emailSimulated": settings.email_mode == EmailMode.SIMULATED,
             "llmMock": str(settings.llm_provider) == "mock",
         },
         product_version=settings.product_version,

@@ -262,6 +262,19 @@ class StakeholderRole(StrEnum):
     EXECUTIVE = "executive"
     BUSINESS_OWNER = "business_owner"
     VENDOR_CONTACT = "vendor_contact"
+    LEAD = "lead"
+    INFRA = "infra"
+    DEVOPS = "devops"
+    TESTER = "tester"
+
+
+class TeamMemberStatus(StrEnum):
+    """Where a team member stands, worked out from facts on the stakeholder row (never stored, so it cannot disagree with them)."""
+
+    LISTED = "listed"  # only a notification recipient: nobody was invited
+    INVITED = "invited"  # an invitation was sent and the person has not signed in yet
+    ACTIVE = "active"  # the person has signed in to Keigan
+    INACTIVE = "inactive"  # switched off: receives nothing
 
 
 class DeliveryChannel(StrEnum):

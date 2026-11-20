@@ -19,7 +19,21 @@
     "period": "Period",
     "severity": "Severity",
     "slo": "SLO",
-    "burn_rate": "Burn rate"
+    "burn_rate": "Burn rate",
+    "role": "Your role",
+    "invited_by": "Invited by"
+  },
+  "roles": {
+    "sre": "SRE",
+    "developer": "Developer",
+    "manager": "Manager",
+    "executive": "Executive",
+    "business_owner": "Business owner",
+    "vendor_contact": "Vendor contact",
+    "lead": "Team lead",
+    "infra": "Infrastructure",
+    "devops": "DevOps",
+    "tester": "Tester"
   },
   "types": {
     "incident_detected": {"subject": "[{priority}] Incident detected: {title}", "headline": "Incident detected", "intro": "Keigan detected a new incident in {application_name} and has started investigating."},
@@ -30,7 +44,8 @@
     "postmortem": {"subject": "Postmortem: {title}", "headline": "Postmortem report", "intro": "The postmortem for the incident in {application_name} is ready."},
     "intelligence_report": {"subject": "Keigan Intelligence Report: {title}", "headline": "Keigan Intelligence Report", "intro": "Keigan analysed the reliability of {application_name}."},
     "slo_burn_alert": {"subject": "[{severity}] SLO burn alert: {title}", "headline": "SLO error budget is burning fast", "intro": "The error budget of an SLO in {application_name} is being consumed faster than planned."},
-    "test": {"subject": "Keigan test notification for {application_name}", "headline": "Test notification", "intro": "This is a test message so you can confirm that Keigan notifications reach you."}
+    "test": {"subject": "Keigan test notification for {application_name}", "headline": "Test notification", "intro": "This is a test message so you can confirm that Keigan notifications reach you."},
+    "team_invitation": {"subject": "You were added to {application_name} in Keigan", "headline": "You are on the team", "intro": "You were added to the team of {application_name} in Keigan, which gathers evidence and explains incidents for the application.", "access_note": "To open the application you need access through the group {reader_group}. If you cannot open it, request that group (or {admin_group} to change settings) in SailPoint. Keigan does not grant access itself."}
   },
   "cards": {
     "incident_detected": "Incident detected",

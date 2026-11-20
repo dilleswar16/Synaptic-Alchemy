@@ -18,7 +18,7 @@
         "service_dependency": 14,
         "service_log_source": 34
       },
-      "sha256": "e2704911058dc3221ac794080eb53ecd2ca7386e42d6f110c5498fd2a19d032e"
+      "sha256": "7789c97af4f64ce0f4f8b5444fc9c0653055093d201440840b8d22dc28c928a7"
     },
     "02_knowledge.sql": {
       "committed": true,

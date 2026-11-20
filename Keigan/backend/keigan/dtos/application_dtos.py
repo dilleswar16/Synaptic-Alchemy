@@ -9,6 +9,7 @@ from typing import Any, Literal
 from pydantic import Field, field_validator
 
 from keigan.dtos.common_dtos import ApiModel
+from keigan.dtos.notification_dtos import TeamMemberRequest
 
 CriticalityTier = Literal["tier_1", "tier_2", "tier_3"]
 APPLICATION_CODE_PATTERN = re.compile(r"^[A-Z0-9]{2,10}$")
@@ -30,6 +31,17 @@ class ApplicationCreateRequest(ApiModel):
     time_zone_name: str | None = None
     criticality_tier: CriticalityTier = "tier_2"
     lifecycle_status: Literal["draft", "requested"] | None = None
+    team_members: list[TeamMemberRequest] = Field(default_factory=list, description="People to add to the application's team when it is created.")
+
+    @field_validator("team_members")
+    @classmethod
+    def validate_team_members_are_distinct(cls, team_members: list[TeamMemberRequest]) -> list[TeamMemberRequest]:
+        seen_addresses: set[str] = set()
+        for team_member in team_members:
+            if team_member.email_address in seen_addresses:
+                raise ValueError(f"{team_member.email_address} is listed twice.")
+            seen_addresses.add(team_member.email_address)
+        return team_members
 
     @field_validator("application_code")
     @classmethod

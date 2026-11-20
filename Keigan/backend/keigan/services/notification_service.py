@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 PRIORITY_RANK = {priority.value: rank for rank, priority in enumerate(Priority, start=1)}
 COMMUNICATION_TO_NOTIFICATION_TYPE = {"preliminary_report": "preliminary_report", "initial_update": "incident_detected"}
 EXECUTIVE_ROLES = {StakeholderRole.MANAGER, StakeholderRole.EXECUTIVE, StakeholderRole.BUSINESS_OWNER}
-TECHNICAL_ROLES = {StakeholderRole.SRE, StakeholderRole.DEVELOPER, StakeholderRole.VENDOR_CONTACT}
+TECHNICAL_ROLES = {StakeholderRole.SRE, StakeholderRole.DEVELOPER, StakeholderRole.VENDOR_CONTACT, StakeholderRole.LEAD, StakeholderRole.INFRA, StakeholderRole.DEVOPS, StakeholderRole.TESTER}
 MAXIMUM_DELIVERY_ATTEMPTS = 3
 
 

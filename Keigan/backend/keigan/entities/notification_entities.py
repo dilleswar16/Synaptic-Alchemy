@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, identifier_column, utc_now
@@ -13,11 +13,19 @@ from keigan.entities.linked_ids import LinkedIdsMixin, OrderedLinkColumns, linke
 from keigan.entities.status_values import DeliveryChannel, DeliveryStatus, Priority, StakeholderRecipientType, StakeholderRole, TeamsChatStatus, values_check
 
 
+# One person per application per address. Filtered, like the other business-rule indexes, so lists and channels (which share the column) are not affected.
+_PERSON_WITH_EMAIL_FILTER = text(f"email_address IS NOT NULL AND recipient_type = '{StakeholderRecipientType.PERSON.value}'")
+
+
 class Stakeholder(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
     link_relationship_names = ("subscribed_service_links",)
 
     __tablename__ = "stakeholder"
     __table_args__ = (
+        Index(
+            "uq_stakeholder_application_email", "application_id", "email_address", unique=True,
+            mssql_where=_PERSON_WITH_EMAIL_FILTER, postgresql_where=_PERSON_WITH_EMAIL_FILTER, sqlite_where=_PERSON_WITH_EMAIL_FILTER,
+        ),
         values_check("recipient_type", StakeholderRecipientType),
         values_check("stakeholder_role", StakeholderRole),
         values_check("minimum_priority", Priority),
@@ -41,6 +49,11 @@ class Stakeholder(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
     preferred_language_code: Mapped[str] = mapped_column(String(10), default="en")
     quiet_hours_json: Mapped[dict[str, Any] | None] = mapped_column()
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Team invitation facts (see My Plans/20_TEAM_MEMBERS_DESIGN.md); the member's status is derived from them.
+    invited_at: Mapped[datetime | None] = mapped_column()
+    invited_by_user_principal_name: Mapped[str | None] = mapped_column(String(320))
+    last_invitation_sent_at: Mapped[datetime | None] = mapped_column()
+    joined_at: Mapped[datetime | None] = mapped_column()
 
 
 class StakeholderSubscribedService(OrderedLinkColumns, EntityBase):

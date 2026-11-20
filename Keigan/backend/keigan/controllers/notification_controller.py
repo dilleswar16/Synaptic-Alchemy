@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from keigan.config.database_config import provide
 from keigan.dtos.common_dtos import PagedResult
 from keigan.dtos.notification_dtos import (
-    DirectoryUserResponse, NotificationDeliveryDetail, NotificationDeliverySummary, StakeholderCreateRequest, StakeholderResponse, StakeholderTestResponse, StakeholderUpdateRequest, TeamsChatPostRequest,
-    TeamsChatResponse,
+    DirectoryUserResponse, NotificationDeliveryDetail, NotificationDeliverySummary, StakeholderCreateRequest, StakeholderInvitationResponse, StakeholderResponse, StakeholderTestResponse,
+    StakeholderUpdateRequest, TeamsChatPostRequest, TeamsChatResponse,
 )
 from keigan.entities.incident_entities import Incident
 from keigan.exceptions.keigan_exceptions import NotFoundException
@@ -44,6 +44,11 @@ async def delete_stakeholder(application_id: str, stakeholder_id: str, current_u
 @router.post("/applications/{application_id}/stakeholders/{stakeholder_id}/test", response_model=StakeholderTestResponse)
 async def send_stakeholder_test(application_id: str, stakeholder_id: str, current_user: CurrentUser = Depends(require_application_admin), service: StakeholderService = Depends(provide(StakeholderService))) -> StakeholderTestResponse:
     return await service.send_test(current_user, application_id, stakeholder_id)
+
+
+@router.post("/applications/{application_id}/stakeholders/{stakeholder_id}/invitation", response_model=StakeholderInvitationResponse)
+async def send_team_invitation(application_id: str, stakeholder_id: str, current_user: CurrentUser = Depends(require_application_admin), service: StakeholderService = Depends(provide(StakeholderService))) -> StakeholderInvitationResponse:
+    return await service.send_invitation(current_user, application_id, stakeholder_id)
 
 
 @router.get("/directory/users/search", response_model=list[DirectoryUserResponse])

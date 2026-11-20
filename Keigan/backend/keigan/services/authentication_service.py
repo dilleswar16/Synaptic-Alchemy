@@ -293,9 +293,12 @@ class AuthenticationService:
 
     # ── Profile ────────────────────────────────────────────────────────────────
     async def record_sign_in(self, current_user: CurrentUser) -> PlatformUser:
+        from keigan.services.team_invitation_service import TeamInvitationService
+
         platform_user = await self.get_or_create_profile(current_user)
         platform_user.last_sign_in_at = datetime.now(UTC)
         platform_user.last_known_group_names_json = sorted(current_user.group_names)
+        await TeamInvitationService(self.session).record_sign_in(current_user)  # an invited team member's first sign-in makes them active
         return platform_user
 
     async def get_or_create_profile(self, current_user: CurrentUser) -> PlatformUser:

@@ -36,3 +36,11 @@ async def test_client_configuration_publishes_the_hosts_links_in_ai_text_may_poi
     finally:
         ai_safety_settings.get_ai_safety_settings.cache_clear()
     assert {"portal.azure.com", "*.corp.example.com"} <= set(response.json()["allowedLinkHosts"])
+
+
+async def test_client_configuration_tells_the_screen_whether_email_is_simulated(client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The team screen must not imply a real invitation left Keigan when email is simulated."""
+    for email_mode, expected in (("simulated", True), ("graph", False), ("smtp", False), ("disabled", False)):
+        monkeypatch.setattr(public_controller, "get_settings", lambda email_mode=email_mode: Settings(_env_file=None, environment="test", auth_mode="local", email_mode=email_mode))
+        response = await client.get("/api/public/client-configuration")
+        assert response.json()["featureFlags"]["emailSimulated"] is expected, email_mode

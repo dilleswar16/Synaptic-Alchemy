@@ -5,15 +5,21 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from keigan.dtos.common_dtos import ApiModel
+from keigan.utils.email_address import normalize_email_address
 
 RecipientType = Literal["person", "teams_channel", "distribution_list"]
-StakeholderRole = Literal["sre", "developer", "manager", "executive", "business_owner", "vendor_contact"]
+StakeholderRole = Literal["sre", "developer", "manager", "executive", "business_owner", "vendor_contact", "lead", "infra", "devops", "tester"]
 PriorityCode = Literal["P1", "P2", "P3", "P4"]
 NOTIFICATION_TYPE_VALUES = ("incident_detected", "preliminary_report", "progress_update", "postmortem", "intelligence_report", "slo_burn_alert", "alert_group")
 NOTIFICATION_CHANNEL_VALUES = ("email", "teams_incident_chat", "teams_channel")
+
+
+def _normalized_address_or_none(typed_address: str | None) -> str | None:
+    """Empty means "no address" (a Teams channel has none); anything else must be a real address, stored trimmed and in lower case."""
+    return normalize_email_address(typed_address) if typed_address and typed_address.strip() else None
 
 
 class StakeholderRequestBase(ApiModel):
@@ -32,9 +38,14 @@ class StakeholderRequestBase(ApiModel):
     preferred_language_code: str = Field(default="en", max_length=10)
     is_active: bool = True
 
+    @field_validator("email_address")
+    @classmethod
+    def validate_email_address(cls, typed_address: str | None) -> str | None:
+        return _normalized_address_or_none(typed_address)
+
 
 class StakeholderCreateRequest(StakeholderRequestBase):
-    pass
+    send_invitation: bool = Field(default=False, description="Email the person an invitation (people only).")
 
 
 class StakeholderUpdateRequest(ApiModel):
@@ -52,6 +63,24 @@ class StakeholderUpdateRequest(ApiModel):
     subscribed_notification_types: list[str] | None = None
     preferred_language_code: str | None = None
     is_active: bool | None = None
+
+    @field_validator("email_address")
+    @classmethod
+    def validate_email_address(cls, typed_address: str | None) -> str | None:
+        return _normalized_address_or_none(typed_address)
+
+
+class TeamMemberRequest(ApiModel):
+    """One person entered while an application is created: the rest (channels, priority, language) takes the stakeholder defaults."""
+
+    display_name: str = Field(min_length=1, max_length=200)
+    email_address: str = Field(max_length=320)
+    stakeholder_role: StakeholderRole = "developer"
+
+    @field_validator("email_address")
+    @classmethod
+    def validate_email_address(cls, typed_address: str) -> str:
+        return normalize_email_address(typed_address)
 
 
 class StakeholderResponse(ApiModel):
@@ -72,6 +101,20 @@ class StakeholderResponse(ApiModel):
     preferred_language_code: str
     is_active: bool
     updated_at: datetime | None = None
+    team_member_status: Literal["listed", "invited", "active", "inactive"] = "listed"
+    invited_at: datetime | None = None
+    invited_by_user_principal_name: str | None = None
+    last_invitation_sent_at: datetime | None = None
+    joined_at: datetime | None = None
+    invitation_is_stale: bool = False
+    can_send_invitation: bool = False
+    next_invitation_allowed_at: datetime | None = None
+
+
+class StakeholderInvitationResponse(ApiModel):
+    team_member: StakeholderResponse
+    delivery_id: str | None = None
+    message: str
 
 
 class StakeholderTestResponse(ApiModel):

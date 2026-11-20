@@ -19,7 +19,21 @@
     "period": "期間",
     "severity": "重大度",
     "slo": "SLO",
-    "burn_rate": "バーンレート"
+    "burn_rate": "バーンレート",
+    "role": "あなたの役割",
+    "invited_by": "招待者"
+  },
+  "roles": {
+    "sre": "SRE",
+    "developer": "開発者",
+    "manager": "マネージャー",
+    "executive": "経営層",
+    "business_owner": "ビジネスオーナー",
+    "vendor_contact": "ベンダー窓口",
+    "lead": "チームリード",
+    "infra": "インフラ",
+    "devops": "DevOps",
+    "tester": "テスター"
   },
   "types": {
     "incident_detected": {"subject": "[{priority}] インシデント検知: {title}", "headline": "インシデントを検知しました", "intro": "Keigan が {application_name} の新しいインシデントを検知し、調査を開始しました。"},
@@ -30,7 +44,8 @@
     "postmortem": {"subject": "ポストモーテム: {title}", "headline": "ポストモーテムレポート", "intro": "{application_name} のインシデントのポストモーテムが完成しました。"},
     "intelligence_report": {"subject": "Keigan インテリジェンスレポート: {title}", "headline": "Keigan インテリジェンスレポート", "intro": "Keigan が {application_name} の信頼性を分析しました。"},
     "slo_burn_alert": {"subject": "[{severity}] SLO バーンアラート: {title}", "headline": "SLO エラーバジェットの消費が加速しています", "intro": "{application_name} の SLO のエラーバジェットが想定より速く消費されています。"},
-    "test": {"subject": "{application_name} の Keigan テスト通知", "headline": "テスト通知", "intro": "Keigan の通知が届くことを確認するためのテストメッセージです。"}
+    "test": {"subject": "{application_name} の Keigan テスト通知", "headline": "テスト通知", "intro": "Keigan の通知が届くことを確認するためのテストメッセージです。"},
+    "team_invitation": {"subject": "{application_name} のチームに追加されました（Keigan）", "headline": "チームに追加されました", "intro": "Keigan の {application_name} のチームに追加されました。Keigan はこのアプリケーションの証拠収集とインシデントの説明を行います。", "access_note": "アプリケーションを開くには、グループ {reader_group} によるアクセスが必要です。開けない場合は、SailPoint でこのグループ（設定を変更する場合は {admin_group}）を申請してください。Keigan 自体はアクセスを付与しません。"}
   },
   "cards": {
     "incident_detected": "インシデント検知",
