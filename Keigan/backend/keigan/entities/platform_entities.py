@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Index, Integer, String, Text
+from sqlalchemy import Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, UtcDateTime, identifier_column, utc_now
@@ -82,9 +82,21 @@ class LlmUsageRecord(EntityBase):
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
 
+# A job in one of these states "owns" its deduplication key; the database allows only one such job per key.
+ACTIVE_JOB_STATUSES = ("queued", "running")
+_ACTIVE_JOB_FILTER = text("deduplication_key IS NOT NULL AND job_status IN ({})".format(", ".join(f"'{status}'" for status in ACTIVE_JOB_STATUSES)))
+
+
 class BackgroundJob(EntityBase):
     __tablename__ = "background_job"
-    __table_args__ = (Index("ix_background_job_status_available", "job_status", "available_at", "priority_number"),)
+    __table_args__ = (
+        Index("ix_background_job_status_available", "job_status", "available_at", "priority_number"),
+        # Filtered unique index (portable like uq_incident_external_number): finished jobs keep their key for history, an active one is unique.
+        Index(
+            "uq_background_job_active_deduplication_key", "deduplication_key", unique=True,
+            mssql_where=_ACTIVE_JOB_FILTER, postgresql_where=_ACTIVE_JOB_FILTER, sqlite_where=_ACTIVE_JOB_FILTER,
+        ),
+    )
 
     background_job_id: Mapped[str] = identifier_column()
     job_type: Mapped[str] = mapped_column(String(80), index=True)
@@ -104,4 +116,4 @@ class BackgroundJob(EntityBase):
     finished_at: Mapped[datetime | None] = mapped_column()
 
 
-__all__ = ["AuditEvent", "BackgroundJob", "LlmUsageRecord", "PlatformSetting", "PlatformUser", "StoredSecret", "UtcDateTime"]
+__all__ = ["ACTIVE_JOB_STATUSES", "AuditEvent", "BackgroundJob", "LlmUsageRecord", "PlatformSetting", "PlatformUser", "StoredSecret", "UtcDateTime"]

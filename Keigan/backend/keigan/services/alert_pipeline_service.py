@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.alert_ai_schemas import AlertGroupTitleResult, deterministic_group_title
@@ -82,7 +83,11 @@ class AlertPipelineService:
 
     # ── Entry points ───────────────────────────────────────────────────────────
     async def process_event(self, alert_event_id: str) -> dict[str, Any]:
-        """Events of one application are processed one at a time (and committed) so concurrent repeats cannot create duplicate alerts."""
+        """Process one event and commit.
+
+        The database (unique index on open alerts, see ``_create_alert_or_merge_into_winner``) is what prevents duplicate alerts across pods.
+        The per-application lock below is kept only as a local optimisation: inside one process it avoids pointless insert collisions.
+        """
         event = await self.session.get(AlertEvent, alert_event_id)
         if event is None:
             return {"skipped": True, "reason": "event not found"}
@@ -123,7 +128,9 @@ class AlertPipelineService:
         if existing_alert is not None:
             await self._apply_repeat(context, existing_alert, event, reference_time)
             return {"outcome": "repeat", "alertId": existing_alert.alert_id, "occurrenceCount": existing_alert.occurrence_count}
-        alert = await self._create_alert(context, source, canonical, service, fingerprint, event, reference_time)
+        alert, was_created = await self._create_alert_or_merge_into_winner(context, source, canonical, service, fingerprint, event, reference_time)
+        if not was_created:  # another pod stored the same alert first; this event counted as a repeat on it
+            return {"outcome": "repeat", "alertId": alert.alert_id, "occurrenceCount": alert.occurrence_count}
         await self._run_stages_after_creation(context, alert, canonical, service, reference_time)
         return {"outcome": "new_alert", "alertId": alert.alert_id, "disposition": alert.final_disposition, "groupId": alert.alert_group_id}
 
@@ -198,6 +205,23 @@ class AlertPipelineService:
             return latest_alert
         return None
 
+    async def _create_alert_or_merge_into_winner(
+        self, context: ApplicationAlertContext, source: AlertSource, canonical: CanonicalAlert, service: MonitoredService | None, fingerprint: str, event: AlertEvent, reference_time: datetime
+    ) -> tuple[Alert, bool]:
+        """Insert the alert; if the unique index on open alerts rejects it, another pod won the race, so count a repeat on the winner instead.
+
+        The insert runs in a SAVEPOINT so only it is undone. Returns the alert and whether this call created it.
+        """
+        try:
+            return await self._create_alert(context, source, canonical, service, fingerprint, event, reference_time), True
+        except IntegrityError as insert_error:
+            winner = await self._find_alert(context, fingerprint, only_open=False, reopen_reference=reference_time)
+            if winner is None:
+                raise insert_error  # not the fingerprint index (or the winner is not visible): let the job retry in a fresh transaction
+            logger.info("Alert %s was created by another worker at the same moment; merging this event into it", fingerprint[:12])
+        await self._apply_repeat(context, winner, event, reference_time)
+        return winner, False
+
     async def _create_alert(self, context: ApplicationAlertContext, source: AlertSource, canonical: CanonicalAlert, service: MonitoredService | None, fingerprint: str, event: AlertEvent, reference_time: datetime) -> Alert:
         environment_name = (canonical.environment or (service.environment_name if service else None) or "prod").lower()
         alert = Alert(
@@ -207,8 +231,9 @@ class AlertPipelineService:
             alert_link_url=canonical.link, alert_labels_json=canonical.labels, occurrence_count=1, state_change_count=1, first_seen_at=reference_time, last_seen_at=reference_time,
             latest_alert_event_id=event.alert_event_id,
         )
-        self.session.add(alert)
-        await self.session.flush()
+        async with self.session.begin_nested():
+            self.session.add(alert)
+            await self.session.flush()
         where_text = f"service {service.service_name}" if service else "no service (application-level)"
         await self._record(alert, "normalise", "normalised", f"Parsed {source.source_tool.replace('_', ' ')} alert '{canonical.rule_name}': Sev {canonical.severity}, {environment_name}, mapped to {where_text}.", reference_time)
         await self._record(alert, "deduplicate", "new_alert", "First time this alert has been seen, so it starts a new alert.", reference_time)
@@ -436,7 +461,7 @@ class AlertPipelineService:
                 f"(x{alert_rules.CRITICALITY_WEIGHTS.get(tier, 2)}) times {alert.environment_name} (x{alert_rules.ENVIRONMENT_WEIGHTS.get(alert.environment_name or 'prod', 1)}), with boosts for burning SLOs or rare rules when they apply.")
 
     async def _create_group(self, context: ApplicationAlertContext, alert: Alert, service: MonitoredService | None, score: float, grouping_reason: str, reference_time: datetime) -> AlertGroup:
-        title, summary = await self._generate_title(context, [service.service_name] if service else [], [alert.rule_name], 1)
+        title, summary = await self._generate_title(context, [service.service_name] if service else [], [alert.rule_name], 1, alert.severity_level)
         group = AlertGroup(
             application_id=alert.application_id, group_title=title, group_summary=summary, group_status="open", priority_score=score, grouping_reason=grouping_reason[:400], member_alert_count=1,
             primary_service_id=alert.service_id, affected_service_ids_json=[alert.service_id] if alert.service_id else [], highest_severity_level=alert.severity_level, started_at=reference_time, last_activity_at=reference_time,
@@ -457,7 +482,7 @@ class AlertPipelineService:
             group.affected_service_ids_json = affected
         alert.alert_group_id = group.alert_group_id
 
-    async def _generate_title(self, context: ApplicationAlertContext, service_names: list[str], rule_names: list[str], alert_count: int) -> tuple[str, str]:
+    async def _generate_title(self, context: ApplicationAlertContext, service_names: list[str], rule_names: list[str], alert_count: int, highest_severity_level: int) -> tuple[str, str]:
         fallback_title, fallback_summary = deterministic_group_title(service_names, rule_names, alert_count)
         if self.replay_mode:
             return fallback_title, fallback_summary
@@ -468,6 +493,7 @@ class AlertPipelineService:
                 system_prompt=application_context.prompt_library().render("alert_group_title", application_name=context.application.application_name),
                 prompt_sections=[
                     PromptSection("Services", "Services: " + ", ".join(service_names or ["application-level"])),
+                    PromptSection("Severity", f"Severity: Sev {highest_severity_level} (Sev 0 is the most severe, Sev 4 the least)"),
                     PromptSection("Alert group facts", "Rules: " + "; ".join(masker.mask_text(name) for name in rule_names), is_untrusted=True, source_label="alert rule names"),
                     PromptSection("Task", "Write the group title and one-sentence summary."),
                 ],
