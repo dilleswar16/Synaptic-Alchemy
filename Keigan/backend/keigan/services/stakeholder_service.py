@@ -14,6 +14,7 @@ from keigan.dtos.notification_dtos import (
 )
 from keigan.entities.application_entities import Application
 from keigan.entities.notification_entities import Stakeholder
+from keigan.entities.status_values import StakeholderRecipientType
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
 from keigan.security.current_user import CurrentUser
@@ -21,7 +22,6 @@ from keigan.services.audit_service import AuditService
 from keigan.services.notification_renderer import translate
 from keigan.services.notification_service import NotificationService
 from keigan.services.service_scope import unknown_service_ids
-from keigan.entities.status_values import StakeholderRecipientType
 
 FIELD_NAMES_WITH_JSON_LISTS = {"notification_channels": "notification_channels_json", "subscribed_notification_types": "subscribed_notification_types_json"}
 

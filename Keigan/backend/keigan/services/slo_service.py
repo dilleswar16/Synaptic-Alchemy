@@ -181,8 +181,8 @@ class SloService:
 
             async with self.session.begin_nested():
                 await NotificationService(self.session).notify_slo_burn_alert(burn_alert.slo_burn_alert_id)
-        except Exception:  # noqa: BLE001 - notifications are optional until S4 lands
-            logger.debug("SLO burn notification skipped", exc_info=True)
+        except Exception:  # noqa: BLE001 - a failed notification must not undo the burn alert
+            logger.warning("SLO burn notification for %s failed; the burn alert itself is kept", burn_alert.slo_burn_alert_id, exc_info=True)
 
     # ── Summaries (aggregated in SQL) ──────────────────────────────────────────
     def _day_bucket(self, column: Any) -> Any:

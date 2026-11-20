@@ -17,8 +17,8 @@ from keigan.entities.application_entities import Application
 from keigan.entities.incident_entities import ServiceNowAssignmentGroup
 from keigan.entities.notification_entities import TeamsIncidentChat
 from keigan.entities.slo_entities import ServiceLevelIndicator
-from keigan.workers.job_queue import JobQueue
 from keigan.entities.status_values import ApplicationLifecycleStatus, IntelligenceReportType, TeamsChatStatus
+from keigan.workers.job_queue import JobQueue
 
 logger = logging.getLogger(__name__)
 

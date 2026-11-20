@@ -17,11 +17,11 @@ from keigan.entities.all_entities import (
     Alert, AlertGroup, Application, ApplicationComponent, Incident, IntelligenceReport, Investigation, MaintenanceWindow, PostmortemReport, PredictiveSignal,
     ServiceLevelIndicator, SliMeasurement,
 )
+from keigan.entities.status_values import AlertGroupStatus, IncidentStatus, Priority, SignalStatus
 from keigan.security.current_user import CurrentUser
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.slo_service import SloService
 from keigan.utils.time_utils import utc_now
-from keigan.entities.status_values import AlertGroupStatus, IncidentStatus, Priority, SignalStatus
 
 logger = logging.getLogger(__name__)
 OPEN_INCIDENT_STATUSES = (IncidentStatus.NEW, IncidentStatus.INVESTIGATING, IncidentStatus.IDENTIFIED, IncidentStatus.MONITORING)

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.entities.alert_entities import Alert, AlertMuteRule, AlertSource, MaintenanceWindow, NoiseReductionPolicy
 from keigan.entities.slo_entities import ServiceLevelIndicator, SliMeasurement
+from keigan.entities.status_values import NoisePolicyMode
 from keigan.seed.foundation_seed import SeedContext
 from keigan.services import alert_rules
 from keigan.services.alert_service import AlertService
@@ -20,7 +21,6 @@ from keigan.services.sli_measurement_reader import SliMeasurementReader
 from keigan.services.sli_proposal_service import SliProposalService
 from keigan.services.slo_service import SloService
 from keigan.utils.time_utils import floor_to_interval
-from keigan.entities.status_values import NoisePolicyMode
 
 SEED_ORDER = 20
 logger = logging.getLogger(__name__)

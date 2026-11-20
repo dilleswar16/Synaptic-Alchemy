@@ -19,9 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from keigan.config import application_context
 from keigan.config.settings import RESOURCES_DIRECTORY, IntegrationMode, get_settings
 from keigan.entities.application_entities import Application, ApplicationComponent, DiscoveredResource, MonitoredService, ServiceLogSource
+from keigan.entities.status_values import CriticalityTier, ReadTestStatus
 from keigan.exceptions.keigan_exceptions import IntegrationException
 from keigan.utils.time_utils import utc_now
-from keigan.entities.status_values import CriticalityTier, ReadTestStatus
 
 CATALOG_PATH = RESOURCES_DIRECTORY / "catalogs" / "monitored_resource_types.yaml"
 MONITORED_SERVICE = "monitored_service"

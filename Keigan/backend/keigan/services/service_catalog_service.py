@@ -29,6 +29,7 @@ from keigan.entities.application_entities import (
     ServiceDependency,
     ServiceLogSource,
 )
+from keigan.entities.status_values import ReadTestStatus
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.integrations.telemetry_gateway import TelemetryTarget
 from keigan.repositories.base_repository import BaseRepository
@@ -38,7 +39,6 @@ from keigan.services.component_discovery_service import load_resource_catalog
 from keigan.services.reference_release import release_references
 from keigan.services.telemetry_access_policy import TelemetryAccessRules, raise_if_field_problems
 from keigan.utils.time_utils import utc_now
-from keigan.entities.status_values import ReadTestStatus
 
 NON_AZURE_SERVICE_TYPES = {"network_appliance", "mainframe_subsystem", "batch_job_stream", "saas_service"}
 

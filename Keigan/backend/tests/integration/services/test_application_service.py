@@ -154,3 +154,20 @@ async def test_check_in_entra_tells_the_admin_to_link_by_object_id_when_two_grou
         ("admin", None, AMBIGUOUS_GROUP_MESSAGE), ("reader", None, AMBIGUOUS_GROUP_MESSAGE),
     ]
     assert (stored.admin_group_object_id, stored.reader_group_object_id) == (None, None)
+
+
+class TestSloDataFailureIsLoggedAndTheListStillLoads:
+    async def test_a_failed_slo_summary_gives_no_compliance_and_logs_a_warning_that_names_the_applications(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+        from types import SimpleNamespace
+
+        from keigan.services.application_service import ApplicationService
+        from keigan.services.slo_service import SloService
+
+        async def unavailable(self: SloService, application_ids: list[str]) -> list[dict[str, object]]:
+            raise RuntimeError("slo store unavailable")
+
+        monkeypatch.setattr(SloService, "summarize_slos", unavailable)
+        compliance = await ApplicationService._slo_compliance_by_application(SimpleNamespace(session=None), ["application-9"])  # type: ignore[arg-type]
+        assert compliance == {}
+        assert any(record.levelno == logging.WARNING and "1 application" in record.getMessage() for record in caplog.records)

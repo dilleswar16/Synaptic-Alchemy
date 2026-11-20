@@ -28,6 +28,7 @@ from keigan.dtos.application_dtos import (
 )
 from keigan.entities.application_entities import Application, ApplicationComponent, MonitoredService
 from keigan.entities.incident_entities import Incident
+from keigan.entities.status_values import ApplicationLifecycleStatus
 from keigan.exceptions.keigan_exceptions import AmbiguousGroupNameException, BusinessValidationException, ConflictException, ForbiddenException, IntegrationException, NotFoundException
 from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
@@ -36,7 +37,6 @@ from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.onboarding_service import GUID_PATTERN
 from keigan.services.reference_release import release_references
-from keigan.entities.status_values import ApplicationLifecycleStatus
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +99,7 @@ class ApplicationService:
         except NotImplementedError:
             return {}
         except Exception:  # noqa: BLE001  (SLO data must never break the applications list)
+            logger.warning("SLO compliance for %s application(s) could not be read; the list shows none", len(application_ids), exc_info=True)
             return {}
         statuses_by_application: dict[str, list[str]] = defaultdict(list)
         for slo_row in slo_rows:

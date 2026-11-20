@@ -89,3 +89,37 @@ async def test_setup_instructions_of_a_source_without_a_signing_secret_say_to_ro
     response = await client.get(f"/api/applications/{created['applicationId']}/alert-sources/{source_id}/setup-instructions", headers=await auth_headers(users.CLMJP_ADMIN_CHAD_READER))
     signature_tab = next(tab for tab in response.json()["tabs"] if tab["tabKey"] == "signature")
     assert "rotate the secret" in " ".join(signature_tab["steps"]).lower()
+
+
+class TestAzureRuleDiscoveryNamesTheResourceGroupsItCannotRead:
+    async def test_a_resource_group_that_cannot_be_read_is_named_in_the_response_and_logged(self, seed_context, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from keigan.entities.application_entities import ApplicationComponent
+        from keigan.exceptions.keigan_exceptions import IntegrationException
+        from keigan.entities.status_values import ComponentType
+        from keigan.services.alert_source_service import AlertSourceService
+
+        application_id = seed_context.application_ids_by_code["CLMJP"]
+        async with open_session() as session:
+            resource_group_names = (await session.scalars(select(ApplicationComponent.azure_resource_group_name).where(
+                ApplicationComponent.application_id == application_id, ApplicationComponent.component_type == ComponentType.AZURE_RESOURCE_GROUP, ApplicationComponent.azure_resource_group_name.is_not(None),
+            ))).all()
+        unreadable_group = resource_group_names[0]
+
+        class LiveGateway:
+            def is_simulated(self) -> bool:
+                return False
+
+        class PartlyReadableClient:
+            async def list_alert_rules(self, tenant_id: str | None, subscription_id: str, resource_group_name: str) -> dict[str, list[dict[str, object]]]:
+                if resource_group_name == unreadable_group:
+                    raise IntegrationException("Azure refused the read")
+                return {}
+
+        monkeypatch.setattr(application_context, "telemetry_gateway", lambda: LiveGateway())
+        monkeypatch.setattr(application_context, "azure_client", lambda: PartlyReadableClient())
+        async with open_session() as session:
+            response = await AlertSourceService(session).discover_azure_rules(application_id)
+        assert response.unreadable_resource_groups == [unreadable_group]
+        assert any(record.levelno == logging.WARNING and unreadable_group in record.getMessage() for record in caplog.records)

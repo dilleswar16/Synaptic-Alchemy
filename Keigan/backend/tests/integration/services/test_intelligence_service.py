@@ -42,3 +42,40 @@ async def test_a_report_summary_and_recommendations_have_no_links_or_images(seed
         summary, recommendations = await IntelligenceService(session)._narrate_report(application, "weekly_digest", "- Health score 90")
     assert "](https://evil.example" not in summary and "![" not in summary
     assert not any("evil.example" in item and "`" not in item for item in recommendations)
+
+
+class TestNarrativeFallbacksAreLoggedNotHidden:
+    async def test_a_failed_signal_narrative_uses_the_numbers_and_logs_a_warning_that_names_the_application(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+        from types import SimpleNamespace
+
+        from keigan.config import application_context
+        from keigan.services.intelligence_service import IntelligenceService
+
+        class RefusingGateway:
+            async def generate_structured(self, **arguments: object) -> None:
+                raise RuntimeError("model quota exhausted")
+
+        monkeypatch.setattr(application_context, "llm_gateway", lambda: RefusingGateway())
+        application = SimpleNamespace(application_id="application-7", application_name="Claims")
+        detection = SimpleNamespace(facts_text="- error ratio rose to 4%")
+        text = await IntelligenceService._narrate(SimpleNamespace(), application, detection)  # type: ignore[arg-type]
+        assert text == detection.facts_text
+        assert any(record.levelno == logging.WARNING and "application-7" in record.getMessage() for record in caplog.records)
+
+    async def test_a_failed_report_summary_uses_the_facts_and_logs_a_warning_that_names_the_application(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+        from types import SimpleNamespace
+
+        from keigan.config import application_context
+        from keigan.services.intelligence_service import IntelligenceService
+
+        class RefusingGateway:
+            async def generate_structured(self, **arguments: object) -> None:
+                raise RuntimeError("model quota exhausted")
+
+        monkeypatch.setattr(application_context, "llm_gateway", lambda: RefusingGateway())
+        application = SimpleNamespace(application_id="application-8", application_name="Payments")
+        summary, recommendations = await IntelligenceService._narrate_report(SimpleNamespace(), application, "weekly_digest", "- Health 80")  # type: ignore[arg-type]
+        assert summary == "Health 80" and recommendations
+        assert any(record.levelno == logging.WARNING and "application-8" in record.getMessage() for record in caplog.records)

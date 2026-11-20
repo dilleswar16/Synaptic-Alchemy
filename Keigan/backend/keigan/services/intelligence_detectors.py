@@ -18,11 +18,11 @@ from keigan.config import application_context
 from keigan.entities.application_entities import ApplicationComponent, MonitoredService
 from keigan.entities.incident_entities import Incident
 from keigan.entities.slo_entities import ServiceLevelIndicator, SliMeasurement
+from keigan.entities.status_values import SignalSeverity
 from keigan.exceptions.keigan_exceptions import KeiganException
 from keigan.services.sli_measurement_reader import LATENCY_METRIC_NAMES, SliMeasurementReader
 from keigan.utils.statistics_utils import linear_trend, robust_baseline
 from keigan.utils.time_utils import hour_of_week, utc_now
-from keigan.entities.status_values import SignalSeverity
 
 logger = logging.getLogger(__name__)
 ROBUST_Z_THRESHOLD = 3.5

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from keigan.config import application_context
 from keigan.entities.application_entities import ApplicationRecordLink, ExternalIntegration
 from keigan.entities.knowledge_entities import ApplicationTopology, KnowledgeDocument, Runbook, TopologyReviewComment
+from keigan.entities.status_values import DocumentDigestStatus, IntegrationStatus, TopologyReviewStatus, TopologyReviewVerdict
 from keigan.integrations.file_storage import build_storage_path
 from keigan.seed.foundation_seed import SeedContext
 from keigan.seed.knowledge_seed_content import DEMO_DOCUMENTS, DEMO_RECORD_LINKS, DEMO_RUNBOOKS
@@ -19,7 +20,6 @@ from keigan.services.knowledge_service import KnowledgeService
 from keigan.services.runbook_service import RunbookService
 from keigan.services.topology_service import TopologyService
 from keigan.utils.time_utils import utc_now
-from keigan.entities.status_values import DocumentDigestStatus, IntegrationStatus, TopologyReviewStatus, TopologyReviewVerdict
 
 SEED_ORDER = 10
 SEED_ACTOR = "system:seed"

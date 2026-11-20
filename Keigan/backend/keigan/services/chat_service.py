@@ -27,6 +27,7 @@ from keigan.dtos.chat_dtos import (
     ChatMessageResponse, ConversationCreateRequest, ConversationDetailResponse, ConversationResponse, ConversationUpdateRequest, SendMessageRequest, SuggestedPromptResponse,
 )
 from keigan.entities.all_entities import Application, Conversation, ConversationMessage, Investigation, MonitoredService
+from keigan.entities.status_values import MessageAuthorRole
 from keigan.exceptions.keigan_exceptions import (
     BusinessValidationException, ForbiddenException, IntegrationException, KeiganException, LlmOutputValidationException, NotFoundException,
 )
@@ -40,7 +41,6 @@ from keigan.services.knowledge_service import KnowledgeService
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import utc_now
-from keigan.entities.status_values import MessageAuthorRole
 
 logger = logging.getLogger(__name__)
 

@@ -22,12 +22,12 @@ from keigan.config import application_context
 from keigan.entities.alert_entities import Alert, AlertDecision, AlertEvent, AlertGroup, AlertMuteRule, AlertSource, MaintenanceWindow, NoiseReductionPolicy
 from keigan.entities.application_entities import Application, MonitoredService, ServiceDependency
 from keigan.entities.incident_entities import Incident, Investigation
+from keigan.entities.status_values import AlertEventProcessingStatus, AlertFinalDisposition, AlertGroupStatus, AlertPipelineStage, AlertSourceStatus, AlertStatus, IncidentStatus, NoisePolicyMode
 from keigan.services import alert_rules
 from keigan.services.alert_group_link_service import AlertGroupLinkService
 from keigan.services.alert_rules import CanonicalAlert
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.json_path_utils import read_json_path
-from keigan.entities.status_values import AlertEventProcessingStatus, AlertFinalDisposition, AlertGroupStatus, AlertPipelineStage, AlertSourceStatus, AlertStatus, IncidentStatus, NoisePolicyMode
 
 logger = logging.getLogger(__name__)
 _application_locks: dict[str, asyncio.Lock] = {}
@@ -449,8 +449,8 @@ class AlertPipelineService:
                 from keigan.services.slo_service import SloService
 
                 slo_is_burning = await SloService(self.session).is_service_burning_budget(service.service_id, 2.0)
-            except Exception:  # noqa: BLE001
-                logger.debug("SLO burn lookup skipped", exc_info=True)
+            except Exception:  # noqa: BLE001 — the score counts the service as not burning
+                logger.warning("SLO burn state of service %s could not be read; the priority score does not count it", service.service_id, exc_info=True)
         firing_count = await self.session.scalar(
             select(func.count()).select_from(Alert).where(Alert.application_id == alert.application_id, Alert.rule_identifier == alert.rule_identifier, Alert.first_seen_at >= reference_time - timedelta(days=30), Alert.first_seen_at <= reference_time)
         )

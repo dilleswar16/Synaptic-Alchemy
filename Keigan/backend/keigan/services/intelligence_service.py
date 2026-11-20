@@ -21,6 +21,7 @@ from keigan.entities.alert_entities import Alert
 from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.incident_entities import Incident
 from keigan.entities.slo_entities import IntelligenceReport, PredictiveSignal, ServiceLevelIndicator, ServiceLevelObjective, SliMeasurement
+from keigan.entities.status_values import IntelligenceReportType, Priority, SignalSeverity, SignalStatus
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
@@ -28,7 +29,6 @@ from keigan.services.authorization_service import AuthorizationService
 from keigan.services.intelligence_detectors import DetectedSignal, PredictiveDetectors
 from keigan.services.notification_renderer import translate
 from keigan.utils.time_utils import utc_now
-from keigan.entities.status_values import IntelligenceReportType, Priority, SignalSeverity, SignalStatus
 
 logger = logging.getLogger(__name__)
 SEVERITY_ORDER = {SignalSeverity.CRITICAL: 0, SignalSeverity.WARNING: 1, SignalSeverity.INFO: 2}
@@ -103,6 +103,7 @@ class IntelligenceService:
             )
             return sanitize_ai_markdown(result.narrative_markdown)
         except Exception:  # noqa: BLE001 - the numbers alone are a valid explanation
+            logger.warning("Signal narrative for application %s failed; the facts are shown instead", application.application_id, exc_info=True)
             return detection.facts_text
 
     # ── Signals API ────────────────────────────────────────────────────────────
@@ -271,6 +272,7 @@ class IntelligenceService:
             )
             return sanitize_ai_markdown(result.executive_summary), [sanitize_ai_line(recommendation, maximum_characters=500) for recommendation in result.recommendations[:4]]
         except Exception:  # noqa: BLE001
+            logger.warning("Report summary for application %s failed; the facts are shown instead", application.application_id, exc_info=True)
             return facts_text.replace("- ", "", 2), ["Review the open predictive signals with the owning teams."]
 
     @staticmethod

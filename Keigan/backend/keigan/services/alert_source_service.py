@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import re
 import secrets
 import uuid
@@ -37,6 +38,7 @@ from keigan.utils.json_path_utils import list_json_paths, read_json_path
 from keigan.utils.pii_masker import PiiMasker
 from keigan.workers.job_queue import JobQueue
 
+logger = logging.getLogger(__name__)
 SECRET_PREFIX = "kgn_"
 SECRET_ROTATION_OVERLAP = timedelta(hours=24)
 INTERNAL_SOURCE_TOOL = AlertSourceTool.KEIGAN_SLO.value
@@ -429,6 +431,7 @@ class AlertSourceService:
         components = list((await self.session.scalars(select(ApplicationComponent).where(ApplicationComponent.application_id == application_id, ApplicationComponent.component_type == ComponentType.AZURE_RESOURCE_GROUP))).all())
         is_simulated = gateway.is_simulated()
         rules: list[AzureAlertRuleResponse] = []
+        unreadable_resource_groups: list[str] = []
         if is_simulated:
             rules = self._simulated_rules(services, seen_rule_names)
         else:
@@ -437,10 +440,12 @@ class AlertSourceService:
                     continue
                 try:
                     discovered = await application_context.azure_client().list_alert_rules(component.azure_tenant_id, component.azure_subscription_id, component.azure_resource_group_name)
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001 - reported in the response, so the admin sees which rules are missing and why
+                    logger.warning("Alert rules of resource group %s in subscription %s (application %s) could not be read; they are missing from the list", component.azure_resource_group_name, component.azure_subscription_id, application_id, exc_info=True)
+                    unreadable_resource_groups.append(component.azure_resource_group_name)
                     continue
                 rules.extend(self._parse_azure_rules(discovered))
-        return AzureAlertRulesResponse(is_simulated=is_simulated, total_rule_count=len(rules), sending_to_keigan_count=sum(1 for rule in rules if rule.sends_to_keigan), rules=rules)
+        return AzureAlertRulesResponse(is_simulated=is_simulated, total_rule_count=len(rules), sending_to_keigan_count=sum(1 for rule in rules if rule.sends_to_keigan), rules=rules, unreadable_resource_groups=unreadable_resource_groups)
 
     @staticmethod
     def _simulated_rules(services: list[MonitoredService], seen_rule_names: set[str]) -> list[AzureAlertRuleResponse]:

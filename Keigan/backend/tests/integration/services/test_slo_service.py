@@ -191,3 +191,19 @@ class TestProposalFailureDoesNotShowInternalDetail:
         assert "internal-host-9" not in (proposals.error_message or "")
         assert proposals.error_message
         assert "internal-host-9" in caplog.text
+
+
+class TestFailedNotificationIsLoggedNotHidden:
+    async def test_a_failed_burn_notification_is_a_warning_that_names_the_burn_alert(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+        from types import SimpleNamespace
+
+        from keigan.services.notification_service import NotificationService
+
+        async def refuse(self: NotificationService, burn_alert_id: str) -> None:
+            raise RuntimeError("mail relay refused")
+
+        monkeypatch.setattr(NotificationService, "notify_slo_burn_alert", refuse)
+        async with open_session() as session:
+            await SloService(session)._notify(SimpleNamespace(slo_burn_alert_id="burn-alert-7"))  # type: ignore[arg-type]
+        assert any(record.levelno == logging.WARNING and "burn-alert-7" in record.getMessage() for record in caplog.records)

@@ -171,3 +171,59 @@ class TestEvidenceStageWiring:
 
         _arguments, keyword_arguments = seen["change_evidence_arguments"]  # type: ignore[misc]
         assert keyword_arguments["masking_context"] is graph_runner.masking_context
+
+
+class TestFailedSloGuardrailIsLogged:
+    async def test_a_tier_one_guardrail_that_cannot_read_slos_is_a_warning_that_names_the_application(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from keigan.entities.status_values import CriticalityTier
+        from keigan.services.slo_service import SloService
+
+        async def unavailable(self: SloService, application_ids: list[str]) -> list[dict[str, object]]:
+            raise RuntimeError("slo store unavailable")
+
+        monkeypatch.setattr(SloService, "summarize_slos", unavailable)
+        graph_runner = InvestigationGraphRunner(None, SimpleNamespace(), offline_ai=True)  # type: ignore[arg-type]
+        graph_runner.application = SimpleNamespace(application_id="application-42", criticality_tier=CriticalityTier.TIER_1)  # type: ignore[assignment]
+        assert await graph_runner._guardrail_priority() is None
+        assert any(record.levelno == logging.WARNING and "application-42" in record.getMessage() for record in caplog.records)
+
+
+class TestFailedImpactedSloLookupIsLoggedAndTheBlastRadiusStillBuilds:
+    async def test_the_blast_radius_is_built_without_slos_and_the_failure_is_a_warning_that_names_the_application(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from keigan.entities.status_values import CriticalityTier
+        from keigan.services.slo_service import SloService
+
+        async def unavailable(self: SloService, application_ids: list[str]) -> list[dict[str, object]]:
+            raise RuntimeError("slo store unavailable")
+
+        class NoStakeholdersSession:
+            async def scalars(self, statement: object) -> SimpleNamespace:
+                return SimpleNamespace(all=lambda: [])
+
+            async def commit(self) -> None:
+                return None
+
+            async def flush(self) -> None:
+                return None
+
+        monkeypatch.setattr(SloService, "summarize_slos", unavailable)
+        graph_runner = InvestigationGraphRunner(None, SimpleNamespace(), offline_ai=True)  # type: ignore[arg-type]
+        graph_runner.session = NoStakeholdersSession()  # type: ignore[assignment]
+        from keigan.entities.application_entities import Application
+
+        graph_runner.application = Application(application_id="application-43", application_name="Claims", application_code="CLM", criticality_tier=CriticalityTier.TIER_2, region_code="eu")  # type: ignore[assignment]
+        graph_runner.all_services = []
+        graph_runner.services = []
+        graph_runner.dependencies = []
+        graph_runner.evidence_rows = []
+        graph_runner.evidence_only = True  # no narrative model call in this test
+        from keigan.entities.incident_entities import Investigation
+
+        graph_runner.investigation = Investigation(investigation_id="investigation-44", application_id="application-43")  # type: ignore[assignment]
+        await graph_runner.blast_radius_node({})  # type: ignore[arg-type]
+        assert graph_runner.investigation.blast_radius_json["impactedSlos"] == []  # the blast radius is still written, without SLOs
+        assert any(record.levelno == logging.WARNING and "application-43" in record.getMessage() for record in caplog.records)

@@ -21,8 +21,8 @@ from keigan.ai.investigation_ai_schemas import (
 )
 from keigan.ai.llm_gateway import PromptSection, register_mock_response
 from keigan.ai.prompt_safety import assess_prompt_injection
-from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.entities.status_values import Priority, RiskLevel
+from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 
 
 @dataclass

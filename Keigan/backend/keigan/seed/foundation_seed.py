@@ -24,10 +24,10 @@ from keigan.entities.application_entities import (
 )
 from keigan.entities.incident_entities import ServiceNowAssignmentGroup
 from keigan.entities.notification_entities import Stakeholder
+from keigan.entities.status_values import AccessVerificationStatus, ApplicationLifecycleStatus, AssignmentGroupVerificationStatus, ComponentType, CriticalityTier, LogToolConnectionStatus, Priority, ReadTestStatus, StakeholderRecipientType
 from keigan.integrations.simulation.telemetry_simulator import ScenarioWindow
 from keigan.services.component_discovery_service import simulated_workspace_customer_id
 from keigan.services.simulation_service import SimulationService
-from keigan.entities.status_values import AccessVerificationStatus, ApplicationLifecycleStatus, AssignmentGroupVerificationStatus, ComponentType, CriticalityTier, LogToolConnectionStatus, Priority, ReadTestStatus, StakeholderRecipientType
 
 SEED_ACTOR = "system:seed"
 

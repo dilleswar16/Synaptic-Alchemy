@@ -28,6 +28,7 @@ from keigan.config import application_context
 from keigan.config.settings import RESOURCES_DIRECTORY, get_settings
 from keigan.entities.application_entities import ApplicationComponent, LogToolConnection, MonitoredService, ServiceLogSource
 from keigan.entities.incident_entities import InvestigationEvidence
+from keigan.entities.status_values import CriticalityTier, RiskLevel
 from keigan.exceptions.keigan_exceptions import ReaderNotAvailableException
 from keigan.integrations.telemetry_gateway import ChangeEvent, LogQueryResult, TelemetryQuery, TelemetryTarget
 from keigan.utils.log_condenser import LEVEL_SEVERITY_ORDER, LogPattern, condense_log_records
@@ -35,7 +36,6 @@ from keigan.utils.pii_masker import MaskingContext, PiiMasker
 from keigan.utils.query_safety import QueryRejectedError, describe_query_limits, validate_generated_query
 from keigan.utils.statistics_utils import robust_baseline
 from keigan.utils.text_utils import truncate_text
-from keigan.entities.status_values import CriticalityTier, RiskLevel
 
 logger = logging.getLogger(__name__)
 
@@ -496,7 +496,7 @@ class EvidenceService:
             try:
                 await self._fill_log_evidence(draft, service_context.target_for(matching_source), template, hardened_query.query_text, window_start, window_end, baseline_start, baseline_end, masking_context, hardened_baseline_query.query_text)
             except Exception as query_error:  # noqa: BLE001
-                logger.info("Planner query failed: %s", query_error)
+                logger.warning("Planned query for service %s (%s) failed and was skipped: %s", service_context.service.service_id, service_context.service.service_name, query_error)
                 continue
             drafts.append(draft)
         return drafts

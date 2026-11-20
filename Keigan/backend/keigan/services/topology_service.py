@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from sqlalchemy import select, update
@@ -24,13 +25,15 @@ from keigan.dtos.knowledge_dtos import (
 )
 from keigan.entities.application_entities import Application, DiscoveredResource, MonitoredService, ServiceDependency
 from keigan.entities.knowledge_entities import ApplicationTopology, KnowledgeDocument, TopologyReviewComment
+from keigan.entities.status_values import DocumentDigestStatus, TopologyGenerationStatus, TopologyReviewStatus, TopologyReviewVerdict
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.utils.text_utils import slugify, truncate_text
 from keigan.workers.job_queue import JobQueue
-from keigan.entities.status_values import DocumentDigestStatus, TopologyGenerationStatus, TopologyReviewStatus, TopologyReviewVerdict
+
+logger = logging.getLogger(__name__)
 
 NODE_TYPE_BY_SERVICE_TYPE = {
     "network_appliance": "hardware",
@@ -104,6 +107,7 @@ class TopologyService:
                 result = await self._build_with_ai(application, services, dependencies, documents, corrections, requested_by_user_principal_name)
                 generated_by_model_name = gateway.model_name_for(ModelTier.DEEP)
             except Exception:  # noqa: BLE001  (AI problems fall back to the deterministic graph so the step always works)
+                logger.warning("AI topology build for application %s failed; the deterministic graph is used instead", application_id, exc_info=True)
                 result = None
         if result is None:
             result = self._build_deterministic(services, dependencies, documents)

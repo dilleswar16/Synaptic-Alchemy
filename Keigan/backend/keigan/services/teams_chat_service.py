@@ -25,6 +25,7 @@ from keigan.dtos.notification_dtos import TeamsChatFactResponse, TeamsChatMessag
 from keigan.entities.application_entities import Application
 from keigan.entities.incident_entities import Conversation, ConversationMessage, Incident, Investigation, InvestigationTimelineEvent
 from keigan.entities.notification_entities import Stakeholder, TeamsIncidentChat
+from keigan.entities.status_values import DeliveryStatus, IncidentStatus, MessageAuthorRole, Priority, TeamsChatStatus
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, IntegrationException, KeiganException, NotFoundException
 from keigan.integrations.bot_framework_client import BotFrameworkClient
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
@@ -33,7 +34,6 @@ from keigan.services.notification_renderer import NotificationRenderer, translat
 from keigan.services.teams_sender_authorizer import TeamsSenderAuthorizer
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
-from keigan.entities.status_values import DeliveryStatus, IncidentStatus, MessageAuthorRole, Priority, TeamsChatStatus
 
 logger = logging.getLogger(__name__)
 CHAT_SCOPE = "teams_incident_chat"

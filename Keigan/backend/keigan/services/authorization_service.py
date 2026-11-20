@@ -10,9 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config.settings import AuthenticationMode, get_settings
 from keigan.entities.application_entities import Application
+from keigan.entities.status_values import ApplicationLifecycleStatus
 from keigan.exceptions.keigan_exceptions import ForbiddenException, NotFoundException
 from keigan.security.current_user import CurrentUser
-from keigan.entities.status_values import ApplicationLifecycleStatus
 
 ROLE_ADMIN = "admin"
 ROLE_READER = "reader"

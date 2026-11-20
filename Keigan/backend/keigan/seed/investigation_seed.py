@@ -16,12 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.incident_entities import Incident, IncidentCommunication, Investigation, InvestigationTimelineEvent, PostmortemReport, ServiceNowAssignmentGroup
+from keigan.entities.status_values import CommunicationStatus, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStatus, InvestigationTrigger, PostmortemStatus
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.seed.foundation_seed import SeedContext
 from keigan.services.communication_service import CommunicationService
 from keigan.services.investigation_service import InvestigationService
 from keigan.utils.pii_masker import PiiMasker
-from keigan.entities.status_values import CommunicationStatus, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStatus, InvestigationTrigger, PostmortemStatus
 
 SEED_ORDER = 30
 SEED_ACTOR = "system:seed"

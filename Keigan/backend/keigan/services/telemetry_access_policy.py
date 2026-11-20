@@ -29,10 +29,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config.settings import IntegrationMode, Settings
 from keigan.entities.application_entities import Application, ApplicationComponent, DiscoveredResource
+from keigan.entities.status_values import AccessVerificationStatus, ComponentType
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, IntegrationException, NotFoundException
 from keigan.services.authorization_service import UNAPPROVED_LIFECYCLE_STATUSES
 from keigan.services.component_discovery_service import classify_resource, simulated_workspace_customer_id
-from keigan.entities.status_values import AccessVerificationStatus, ComponentType
 
 if TYPE_CHECKING:
     from keigan.entities.application_entities import LogToolConnection

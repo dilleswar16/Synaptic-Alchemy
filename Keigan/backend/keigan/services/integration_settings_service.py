@@ -28,6 +28,7 @@ from keigan.dtos.onboarding_dtos import (
 from keigan.entities.application_entities import ApplicationRecordLink, ExternalIntegration, LogToolConnection, MonitoredService, ServiceLogSource
 from keigan.entities.incident_entities import ServiceNowAssignmentGroup
 from keigan.entities.platform_entities import StoredSecret
+from keigan.entities.status_values import AssignmentGroupVerificationStatus, IntegrationStatus, LogToolConnectionStatus
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, ConflictException, NotFoundException
 from keigan.integrations.log_tool_clients import PLACEHOLDER_TOOL_TYPES
 from keigan.integrations.log_tool_endpoints import log_tool_endpoint_signature, log_tool_endpoint_urls
@@ -36,7 +37,6 @@ from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.utils.time_utils import utc_now
-from keigan.entities.status_values import AssignmentGroupVerificationStatus, IntegrationStatus, LogToolConnectionStatus
 
 FIELD_SCHEMA_PATH = RESOURCES_DIRECTORY / "catalogs" / "integration_field_schemas.yaml"
 # The field types the onboarding form knows how to draw; a catalog entry with another type is a mistake caught at load time.

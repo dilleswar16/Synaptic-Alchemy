@@ -179,3 +179,23 @@ class TestMaskedValueCountBelongsToItsOwnEvidence:
         assert slow_draft.masked_value_count == 2  # the window query and the baseline query each return the one address
         assert fast_draft.masked_value_count == 10
         assert masking_context.masked_value_count == 12
+
+
+class TestFailedPlannerQueryIsLoggedAndSkipped:
+    async def test_a_planned_query_that_fails_is_skipped_and_logged_as_a_warning_that_names_the_service(self, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+        from types import SimpleNamespace
+
+        async def workspace_throttled(*arguments: object, **keyword_arguments: object) -> None:
+            raise RuntimeError("workspace throttled")
+
+        service = SimpleNamespace(service_name="claims-api", service_id="service-1", criticality_tier="tier_1")
+        log_source = SimpleNamespace(source_kind="log_analytics", query_scope_json={"workspaceId": "workspace-1"}, log_tool_connection_id="connection-1")
+        service_context = SimpleNamespace(service=service, log_sources=[log_source], target_for=lambda source: None)
+        planned_query = SimpleNamespace(service_name="claims-api", query_language="kql", query_text="AppRequests | where Success == false | summarize count()", justification="failed requests")
+        window_start = datetime(2026, 11, 20, 11, 0, tzinfo=UTC)
+        window_end = datetime(2026, 11, 20, 12, 0, tzinfo=UTC)
+        fake_self = SimpleNamespace(_source_supports_language=EvidenceService._source_supports_language, _fill_log_evidence=workspace_throttled)
+        drafts = await EvidenceService.run_planned_queries(fake_self, [planned_query], [service_context], window_start, window_end, window_start - timedelta(days=1), window_start, None)  # type: ignore[arg-type]
+        assert drafts == []
+        assert any(record.levelno == logging.WARNING and "claims-api" in record.getMessage() for record in caplog.records)

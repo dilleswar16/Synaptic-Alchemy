@@ -12,9 +12,9 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from keigan.entities.status_values import AlertSourceTool, AlertStatus, CriticalityTier
 from keigan.utils.json_path_utils import read_json_path
 from keigan.utils.pii_masker import PiiMasker
-from keigan.entities.status_values import AlertSourceTool, AlertStatus, CriticalityTier
 
 DEFAULT_NOISE_POLICY: dict[str, Any] = {
     "min_severity": 2,

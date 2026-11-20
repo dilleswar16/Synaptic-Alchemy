@@ -26,6 +26,7 @@ from keigan.entities.incident_entities import (
     ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationEvidence, InvestigationTimelineEvent, PostmortemReport,
 )
 from keigan.entities.notification_entities import Stakeholder, TeamsIncidentChat
+from keigan.entities.status_values import CommunicationStatus, PostmortemStatus, Priority
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, KeiganException, NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
@@ -33,7 +34,6 @@ from keigan.services.authorization_service import AuthorizationService
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
-from keigan.entities.status_values import CommunicationStatus, PostmortemStatus, Priority
 
 logger = logging.getLogger(__name__)
 

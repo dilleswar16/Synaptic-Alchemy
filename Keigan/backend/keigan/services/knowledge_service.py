@@ -36,6 +36,7 @@ from keigan.dtos.knowledge_dtos import (
 )
 from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.knowledge_entities import ApplicationTopology, KnowledgeChunk, KnowledgeDocument, Runbook
+from keigan.entities.status_values import DocumentDigestStatus, TopologyGenerationStatus
 from keigan.exceptions.keigan_exceptions import (
     BusinessValidationException,
     ConflictException,
@@ -51,7 +52,6 @@ from keigan.utils.pii_masker import MaskingContext, PiiMasker
 from keigan.utils.text_utils import chunk_markdown, extract_markdown_headings, rank_with_bm25, term_frequencies, truncate_text
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
-from keigan.entities.status_values import DocumentDigestStatus, TopologyGenerationStatus
 
 logger = logging.getLogger(__name__)
 STALE_AFTER_DAYS = 90

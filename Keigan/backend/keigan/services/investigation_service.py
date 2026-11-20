@@ -25,6 +25,7 @@ from keigan.entities.alert_entities import Alert, AlertDecision, AlertGroup
 from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.incident_entities import Incident, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent
 from keigan.entities.knowledge_entities import Runbook
+from keigan.entities.status_values import InvestigationStage, InvestigationStatus
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.alert_group_link_service import AlertGroupLinkService
@@ -34,7 +35,6 @@ from keigan.services.service_scope import unknown_service_ids
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
-from keigan.entities.status_values import InvestigationStage, InvestigationStatus
 
 logger = logging.getLogger(__name__)
 

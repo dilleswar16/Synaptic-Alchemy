@@ -135,6 +135,8 @@ class AzureAlertRulesResponse(ApiModel):
     total_rule_count: int
     sending_to_keigan_count: int
     rules: list[AzureAlertRuleResponse] = Field(default_factory=list)
+    # Resource groups whose rules Azure would not return, so the list above is incomplete for them.
+    unreadable_resource_groups: list[str] = Field(default_factory=list)
 
 
 # ── Noise policy ───────────────────────────────────────────────────────────────

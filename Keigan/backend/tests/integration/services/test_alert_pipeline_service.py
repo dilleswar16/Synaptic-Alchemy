@@ -111,3 +111,32 @@ async def test_group_title_prompt_tells_the_model_the_severity_of_the_alerts(ale
         context = await pipeline.load_context(alert_source.application_id)
         await pipeline._generate_title(context, ["claims-api"], ["Error rate high"], 1, highest_severity_level=1)  # noqa: SLF001
     assert any("Severity: Sev 1" in content for content in captured_sections), captured_sections
+
+
+class TestFailedSloBurnLookupIsLoggedAndScoreStillComputed:
+    async def test_the_score_is_still_returned_and_the_failed_lookup_is_a_warning_that_names_the_service(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+        from datetime import UTC, datetime
+        from types import SimpleNamespace
+
+        from keigan.services.alert_pipeline_service import AlertPipelineService
+        from keigan.services.slo_service import SloService
+
+        class EmptyCountSession:
+            async def scalar(self, statement: object) -> int:
+                return 0
+
+        async def unavailable(self: SloService, service_id: str, target_percentage: float) -> bool:
+            raise RuntimeError("burn store unavailable")
+
+        monkeypatch.setattr(SloService, "is_service_burning_budget", unavailable)
+        pipeline = AlertPipelineService.__new__(AlertPipelineService)
+        pipeline.session = EmptyCountSession()  # type: ignore[assignment]
+        score = await pipeline._calculate_score(
+            SimpleNamespace(application=SimpleNamespace(criticality_tier="tier_2")),  # type: ignore[arg-type]
+            SimpleNamespace(application_id="application-1", rule_identifier="rule-1", severity_level=2, environment_name="prod"),  # type: ignore[arg-type]
+            SimpleNamespace(service_id="service-9", criticality_tier=None),  # type: ignore[arg-type]
+            datetime(2026, 11, 20, 12, 0, tzinfo=UTC),
+        )
+        assert isinstance(score, float)
+        assert any(record.levelno == logging.WARNING and "service-9" in record.getMessage() for record in caplog.records)

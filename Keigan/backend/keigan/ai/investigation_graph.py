@@ -34,6 +34,7 @@ from keigan.entities.application_entities import Application, MonitoredService, 
 from keigan.entities.incident_entities import Incident, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent
 from keigan.entities.notification_entities import Stakeholder
 from keigan.entities.platform_entities import LlmUsageRecord
+from keigan.entities.status_values import AnalysisPerspective, CriticalityTier, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStage, InvestigationStatus, Priority, RiskLevel
 from keigan.exceptions.keigan_exceptions import KeiganException, LlmUnavailableException, TokenBudgetExceededException
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.services.evidence_service import EvidenceDraft, EvidenceService, ServiceTelemetryContext
@@ -41,7 +42,6 @@ from keigan.services.incident_priority_rules import map_servicenow_priority, mos
 from keigan.utils.pii_masker import MaskingContext, PiiMasker
 from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import utc_now
-from keigan.entities.status_values import AnalysisPerspective, CriticalityTier, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStage, InvestigationStatus, Priority, RiskLevel
 
 logger = logging.getLogger(__name__)
 
@@ -246,8 +246,8 @@ class InvestigationGraphRunner:
             from keigan.services.slo_service import SloService
 
             summaries = await SloService(self.session).summarize_slos([self.application.application_id])
-        except Exception as slo_error:  # noqa: BLE001 — S3 may not be implemented yet
-            logger.debug("SLO guardrail skipped: %s", slo_error)
+        except Exception as slo_error:  # noqa: BLE001 — the tier-one guardrail cannot read SLOs; the investigation continues without it
+            logger.warning("SLO guardrail for application %s could not be read, so the guardrail was not applied: %s", self.application.application_id, slo_error)
             return None
         return Priority.P2 if any((summary.get("burnRateOneHour") or 0) > 6 for summary in summaries) else None
 
@@ -561,8 +561,8 @@ class InvestigationGraphRunner:
 
             all_slos = await SloService(self.session).summarize_slos([self.application.application_id])
             slo_summaries = [summary for summary in all_slos if summary.get("serviceId") in impacted_ids or summary.get("status") in ("at_risk", "breached")][:10]
-        except Exception as slo_error:  # noqa: BLE001
-            logger.debug("Impacted SLOs skipped: %s", slo_error)
+        except Exception as slo_error:  # noqa: BLE001 — the blast radius is still built, without SLOs
+            logger.warning("Impacted SLOs for application %s could not be read: %s", self.application.application_id, slo_error)
         stakeholders = list(
             (await self.session.scalars(select(Stakeholder).where(Stakeholder.application_id == self.application.application_id, Stakeholder.is_active.is_(True)))).all()
         )

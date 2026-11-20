@@ -24,8 +24,8 @@ from keigan.config.database_config import open_session
 from keigan.config.logging_config import set_correlation_id
 from keigan.config.settings import get_settings
 from keigan.entities.platform_entities import ACTIVE_JOB_STATUSES, BackgroundJob, PlatformSetting
-from keigan.workers.worker_settings import WorkerSettings, get_worker_settings
 from keigan.entities.status_values import JobStatus
+from keigan.workers.worker_settings import WorkerSettings, get_worker_settings
 
 logger = logging.getLogger(__name__)
 
