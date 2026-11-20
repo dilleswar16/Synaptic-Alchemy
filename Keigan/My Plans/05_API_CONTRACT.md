@@ -21,10 +21,10 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/public/client-configuration` | `{ authMode, entra: { tenantId, spaClientId, apiScope, authority }, environmentName, supportedLocales, defaultLocale, featureFlags, productVersion }` |
+| GET | `/public/client-configuration` | `{ authMode, entra: { tenantId, spaClientId, apiScope, authority }, environmentName, supportedLocales, defaultLocale, featureFlags, productVersion, allowedLinkHosts }` (`allowedLinkHosts`: hosts that links in AI-written text may point to; an exact host or `*.suffix`) |
 | GET | `/public/health` | liveness `{ status: "ok" }` |
 | GET | `/public/readiness` | database reachable, worker heartbeat age |
-| POST | `/alerts/in/{alertSourceId}` | webhook intake (token in `X-Keigan-Token` header or `?token=`; optional `X-Keigan-Signature` HMAC-SHA256) → 202 |
+| POST | `/alerts/in/{alertSourceId}` | webhook intake (token in `X-Keigan-Token` header or `?token=`; optional `X-Keigan-Signature` HMAC-SHA256 whose key is the webhook secret itself, stored in the secret store; sources created before 2026-11-20 accept the token only until their secret is rotated) → 202 |
 | POST | `/teams/messages` | Bot Framework activities (JWT validated) |
 
 ## 3. Authentication

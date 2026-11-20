@@ -307,7 +307,7 @@ retries with exponential back-off (max attempts per type); dead-letter status vi
 1. **Authentication:** Entra access tokens (RS256 via JWKS, issuer, audience, `exp`, `nbf`, tenant) or local HS256 tokens (local mode only). Tokens are kept in memory by MSAL (session storage cache), never in local storage.
 2. **Authorization:** `AuthorizationService` computes `readable_application_ids` and `editable_application_ids` from groups once per request (cached by token hash for 5 min).
    Every query filters by these ids. Keigan admin bypass is explicit.
-3. **Public endpoints:** only `/api/public/*`, `/api/alerts/in/{source_id}` (token or HMAC, constant-time compare, 256 KB, rate limit) and `/api/teams/messages` (Bot Framework JWT). Ingress exposes nothing else publicly.
+3. **Public endpoints:** only `/api/public/*`, `/api/alerts/in/{source_id}` (token or HMAC, constant-time compare; request size and rate limits are enforced by Azure APIM in front of the ingress, not by the application) and `/api/teams/messages` (Bot Framework JWT). Ingress exposes nothing else publicly.
 4. **Secrets:** Key Vault in Azure (`SecretStore` interface), Fernet-encrypted local store for development. Database stores secret *names* only. API never returns secret values.
 5. **PII:** `PiiMasker` on every telemetry result, alert payload summary, ServiceNow description and chat input before persistence (evidence) and before every LLM call. Stable placeholders (`<EMAIL_3>`) keep correlation.
 6. **Prompt injection:** see `06_AI_ENGINE_AND_PROMPT_SAFETY.md`. Untrusted content is spotlighted, tools are read-only and allowlisted, outputs are schema-validated and citation-checked.

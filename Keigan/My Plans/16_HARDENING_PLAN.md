@@ -166,7 +166,7 @@ then an independent review of the combined change and a full smoke run (seed, al
 | G | Hard-coded hex colours remain in `CommandBlock.tsx`, `ConfidenceMeter.tsx`, `CopyButton.tsx`, `useTheme.ts`; no frontend unit tests yet, so `linkSafety.ts` was checked with a throwaway script only | ⬜ phase 5 (frontend tests) and UI polish |
 | G | `07_BUILD_PHASES_AND_AGENTS.md` and `agent-briefs/*` still mention the deleted `FOUNDATION_READY.md`; new-language strings are machine-written and need native review | ⬜ docs pass; owner review |
 | D | New settings `AI_OUTPUT_ALLOWED_LINK_HOSTS`, `ORGANIZATION_NAME`, `AI_FLAGGED_DOCUMENT_POLICY`, `LLM_DAILY_TOKEN_BUDGET_PER_USER`, `CHAT_HISTORY_TURN_LIMIT`, `CHAT_HISTORY_TURN_CHARACTERS` (in `.env.example`); `markdown-it-py` added to `pyproject.toml` and the lock. `tests/unit/test_dependency_lock.py` now fails when the backend imports a package the lock does not hold | ✅ documented |
-| D | `06_AI_ENGINE_AND_PROMPT_SAFETY.md` still describes the old link filter and classifier | ⬜ docs pass |
+| D | `06_AI_ENGINE_AND_PROMPT_SAFETY.md` described the old link filter, classifier and query rules | ✅ docs 02, 05 and 06 updated by the lead; 03 and 15 wait for the data model work |
 | D | Index on `llm_usage_record(requested_by_user_principal_name, created_at)` for the per-user budget query | ⬜ wave 2, only if measured to matter (schema owner) |
 | D | Bare domains without a scheme (`evil.example/x`) are not defanged; Teams unfurl of allow-listed links unverified (S4); the sanitiser normalises markdown (for example bullets), not yet seen in every UI shape | ⬜ smoke run and live Teams check |
 | D | Old stored AI text is not migrated; it is sanitised again when emailed or posted | ⬜ accepted |
