@@ -1,0 +1,121 @@
+# Risk rules for commands that the AI proposes (see keigan/ai/command_risk_classifier.py).
+# Principle: a command is low only when it is on a read-only list here. Anything unknown is at least medium.
+# Risk levels: low (read-only), medium (changes state), high (destructive, broad or hard to undo).
+
+# Executable names that wrap another command; the wrapped command is classified instead.
+wrapper_executables: [sudo, time, nohup, watch, env, command, nice, stdbuf, timeout, xargs, exec, doas]
+# Executables that run a command string given as an argument; the string is classified and the result is at least medium.
+shell_executables: [sh, bash, zsh, dash, ksh, pwsh, powershell, cmd]
+# Piping into one of these runs whatever was downloaded or generated, so the command is high risk.
+pipe_into_interpreters: [sh, bash, zsh, dash, ksh, pwsh, powershell, python, python3, perl, ruby, node, iex]
+
+# Executables that only read. Arguments can still escalate (for example find -delete, sed -i).
+read_only_executables:
+  [cat, ls, dir, grep, egrep, fgrep, rg, head, tail, less, more, wc, sort, uniq, cut, awk, sed, echo, printf, date, df, du, free, ps, top, htop, uptime,
+   whoami, id, hostname, uname, nslookup, dig, host, ping, traceroute, tracert, netstat, ss, lsof, printenv, journalctl, jq, yq, find, tr, stat, file, which, whereis,
+   pwd, nproc, vmstat, iostat, lscpu, lsblk, mount, ip, ifconfig, ipconfig, curl, wget, openssl, base64, md5sum, sha256sum, true, test, tree, column, diff, zcat, tar]
+# Read-only executables that change state when one of these tokens appears.
+state_changing_arguments:
+  sed: ["-i", "--in-place"]
+  find: ["-delete", "-exec", "-execdir", "-ok"]
+  curl: ["-X", "--request", "-d", "--data", "--data-raw", "--data-binary", "-F", "--form", "-T", "--upload-file", "-o", "-O", "--output"]
+  wget: ["-O", "--post-data", "--post-file", "--method"]
+  tar: ["-x", "-xf", "-xzf", "-xvf", "-c", "-cf", "-czf"]
+  mount: ["-o", "--bind"]
+  ip: ["add", "del", "delete", "set", "flush", "replace"]
+  ifconfig: ["up", "down"]
+
+# Executables that are destructive on their own.
+high_risk_executables: [rm, rmdir, del, rd, mkfs, dd, shred, shutdown, reboot, halt, poweroff, fdisk, parted, wipefs, userdel, truncate, format, iex, invoke-expression, remove-item]
+# Executable prefixes: PowerShell verbs.
+read_only_executable_prefixes: [get-, test-, show-, find-, select-, where-, format-, measure-, sort-, convertto-, convertfrom-, out-, write-host, write-output, resolve-, compare-, group-]
+high_risk_executable_prefixes: [remove-, uninstall-, clear-, stop-computer, restart-computer, disable-, revoke-]
+
+# Words that raise any non-read-only command to high when they appear as arguments.
+high_risk_arguments: ["--force", "-force", "--all", "--all-namespaces", "--grace-period=0", "--replicas=0", "--no-preserve-root", "--hard", "-auto-approve", "--auto-approve", "--yes-i-really-mean-it"]
+high_risk_argument_pairs: [["--replicas", "0"], ["--grace-period", "0"]]
+
+# Tool families. verb_risk keys are lower-case verbs; a nested map gives sub-verbs (``default`` for the rest).
+# verb_position: first_positional (tool VERB ...) or last_positional_before_flags (az group subgroup VERB --flags).
+families:
+  kubectl:
+    executables: [kubectl, oc, k, microk8s.kubectl]
+    verb_position: first_positional
+    value_flags: [-n, --namespace, --context, --cluster, --user, --kubeconfig, -s, --server, -l, --selector, -o, --output, -f, --filename, --token, --as, --as-group, -c, --container,
+                  --field-selector, --sort-by, --since, --since-time, --tail, -L, --label-columns, --template, --timeout, --request-timeout, -R, --recursive, -p, --patch, --type, --certificate-authority]
+    default_risk: medium
+    verb_risk:
+      get: low
+      describe: low
+      logs: low
+      top: low
+      explain: low
+      api-resources: low
+      api-versions: low
+      version: low
+      cluster-info: low
+      events: low
+      diff: low
+      wait: low
+      auth: low
+      config: {default: low, set: medium, use-context: medium, set-context: medium, set-credentials: medium, delete-context: medium, delete-cluster: medium, delete-user: medium}
+      rollout: {default: medium, status: low, history: low}
+      delete: high
+      drain: high
+      replace: medium
+      taint: high
+      cordon: medium
+      uncordon: medium
+      scale: medium
+      exec: medium
+      cp: medium
+      port-forward: medium
+      attach: medium
+      debug: medium
+  helm:
+    executables: [helm]
+    verb_position: first_positional
+    value_flags: [-n, --namespace, --kube-context, --kubeconfig, -f, --values, --set, --version, -o, --output, --repo]
+    default_risk: medium
+    verb_risk: {list: low, ls: low, status: low, get: low, history: low, show: low, search: low, template: low, lint: low, version: low, env: low, repo: {default: medium, list: low}, uninstall: high, delete: high, del: high, rollback: high, upgrade: medium, install: medium}
+  terraform:
+    executables: [terraform, tofu, terragrunt]
+    verb_position: first_positional
+    value_flags: [-chdir, -var, -var-file, -target, -out, -state]
+    default_risk: medium
+    verb_risk: {plan: low, show: low, validate: low, fmt: low, output: low, version: low, providers: low, graph: low, init: medium, destroy: high, apply: high, import: medium, taint: medium, untaint: medium, state: {default: medium, list: low, show: low, rm: high, mv: high}}
+  az:
+    executables: [az]
+    verb_position: last_positional_before_flags
+    value_flags: [--subscription, -o, --output, --query, --only-show-errors, --debug, --verbose]
+    default_risk: medium
+    verb_risk: {show: low, list: low, version: low, exists: low, query: low, check-name-availability: low, delete: high, purge: high, deallocate: high, stop: medium, restart: medium, start: medium}
+    verb_prefix_risk: {show-: low, list-: low, get-: low, check-: low, delete-: high, remove-: high}
+  docker:
+    executables: [docker, podman, nerdctl]
+    verb_position: first_positional
+    value_flags: [-H, --host, --context, -f, --filter, --format, -n, --last, --tail, --since]
+    default_risk: medium
+    verb_risk: {ps: low, logs: low, inspect: low, images: low, stats: low, top: low, version: low, info: low, events: low, diff: low, port: low, history: low, rm: high, rmi: high, kill: high, system: {default: medium, df: low, info: low, prune: high}, volume: {default: medium, ls: low, inspect: low, rm: high, prune: high}, network: {default: medium, ls: low, inspect: low, rm: high}, container: {default: medium, ls: low, inspect: low, logs: low, rm: high}, image: {default: medium, ls: low, inspect: low, rm: high, prune: high}}
+  systemctl:
+    executables: [systemctl, service]
+    verb_position: first_positional
+    value_flags: [-H, --host, -p, --property, -n, --lines, -t, --type]
+    default_risk: medium
+    verb_risk: {status: low, is-active: low, is-enabled: low, is-failed: low, show: low, cat: low, list-units: low, list-unit-files: low, list-timers: low, list-dependencies: low, mask: high, poweroff: high, reboot: high, halt: high, restart: medium, stop: medium, start: medium, reload: medium, enable: medium, disable: medium}
+  git:
+    executables: [git]
+    verb_position: first_positional
+    value_flags: [-C, -c, --git-dir, --work-tree]
+    default_risk: medium
+    verb_risk: {status: low, log: low, diff: low, show: low, blame: low, ls-files: low, rev-parse: low, describe: low, grep: low, remote: {default: medium, show: low, get-url: low}, branch: medium, reset: medium, clean: high, push: medium, checkout: medium}
+
+# SQL statements. The first keyword decides; DELETE and UPDATE without a real WHERE condition are high.
+sql:
+  # Keywords that cannot be mistaken for a shell command; they switch the whole text into SQL mode.
+  mode_keywords: [select, with, delete, update, insert, drop, truncate, alter, create, merge, grant, revoke, show, describe, explain, upsert]
+  read_only: [select, with, show, describe, desc, explain, use, begin, commit, rollback]
+  high: [drop, truncate, grant, revoke, exec, execute]
+  # Executables that take SQL on the command line (the quoted argument is classified as SQL).
+  client_executables: [sqlcmd, psql, mysql, mariadb, sqlplus, mongosh, bcp]
+  tautology_pattern: '(?is)\bwhere\s+(1\s*=\s*1|true|''[^'']*''\s*=\s*''[^'']*''|\d+\s*=\s*\d+|not\s+false)\s*(;|$|--)'
