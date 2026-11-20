@@ -73,6 +73,26 @@ Done in one pass over the code, so the files were read once. Each item had a fai
 
 Not in this pass: the error-handling sweep across the remaining services. It is still its own job.
 
+## Error-handling sweep (follow-up pass)
+
+57 broad `except` blocks were checked. Most are deliberate fallbacks that keep a page or job working, and they stay. Nine failures were hidden at DEBUG or INFO level, or dropped with no log, where they affect users or safety. Each now logs a WARNING that names the object that failed, and keeps its fallback behaviour:
+
+| Place | Before | Now |
+|---|---|---|
+| Tier-one priority guardrail (`investigation_graph`) | DEBUG, stale comment "S3 may not be implemented yet" | WARNING with application id |
+| Impacted SLOs in blast radius | DEBUG | WARNING with application id |
+| SLO burn notification (`slo_service`) | DEBUG, stale comment "until S4 lands" | WARNING with burn alert id; the alert is kept |
+| SLO burn state in alert score (`alert_pipeline`) | DEBUG | WARNING with service id; the score does not count it |
+| AI topology build (`topology_service`) | silent | WARNING with application id; deterministic graph used |
+| Signal narrative and report summary (`intelligence_service`) | silent | WARNING with application id; facts shown |
+| SLO compliance on the applications list | silent | WARNING with the count; the list shows none |
+| Planned AI query (`evidence_service`) | INFO | WARNING with service id; query skipped |
+| Azure alert-rule discovery per resource group | silent skip | WARNING with resource group, subscription and application; the group is named in the new response field `unreadableResourceGroups` |
+
+Proof: each row has a test that makes the dependency fail and checks the fallback result and the WARNING. Full backend suite: 1108 passed.
+
+Found by the Haiku review, not yet done: the admin UI does not show `unreadableResourceGroups` yet (frontend type and panel). That is a feature change for a follow-up.
+
 ## Follow-ups noted during wave 2
 
 | Item | Detail |
