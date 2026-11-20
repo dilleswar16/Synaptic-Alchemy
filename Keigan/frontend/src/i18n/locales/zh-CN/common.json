@@ -138,6 +138,8 @@
     "selectedCount_one": "已选择 {{count}} 项",
     "selectedCount_other": "已选择 {{count}} 项",
     "sortBy": "按{{column}}排序",
+    "sortLabel": "排序方式",
+    "sortNone": "默认顺序",
     "pageSummary": "第 {{start}}–{{end}} 条，共 {{total}} 条",
     "previousPage": "上一页",
     "nextPage": "下一页",

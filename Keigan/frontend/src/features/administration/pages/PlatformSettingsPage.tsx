@@ -29,20 +29,20 @@ function displaySettingValue(value: unknown): string {
 
 /** The backend already replaces values of fields named like a secret with "•••• set" / "not set"; these are shown as they are. */
 const backendMaskedValues = new Set(["•••• set", "not set"]);
-const secretNamePattern = /secret|password|passphrase|token|credential|private_key|api_key|extra_headers/;
-const connectionStringNamePattern = /database_url|connection_string|connection/;
-const connectionStringValuePattern = /^[a-z][a-z0-9+.-]*:\/\/[^\s/]*@|(?:^|;)\s*(?:server|data source|host|user id|uid|pwd|password|accountkey|sharedaccesskey)\s*=/i;
+const secretNamePattern = /secret|password|passphrase|token|credential|private_key|api_key|headers|dsn|sas_|_key$/;
+/** A value that still carries a password or key (the server redacts known ones; this catches anything it missed) is hidden for good, with no way to reveal it. */
+const credentialInValuePattern = /^[a-z][a-z0-9+.-]*:\/\/[^\s/@]*:[^\s/@]+@|(?:^|;)\s*(?:pwd|password|accountkey|sharedaccesskey)\s*=\s*(?!••••)/i;
 const pathNamePattern = /_(?:directory|dir|path)$/;
 const pathValuePattern = /^(?:[A-Za-z]:[\\/]|\\\\|\/(?:[^\s/]+\/)+|~\/|file:)/;
 
 /**
- * Secret-like values are hidden for good; connection strings and file paths are hidden until someone asks to see them.
+ * Secret-like values are hidden for good; file paths are hidden until someone asks to see them (connection strings arrive from the server with the password already removed).
  * Only text is considered: numbers and flags are never sensitive.
  */
 function sensitivityOf(name: string, value: unknown): "secret" | "sensitive" | null {
   if (typeof value !== "string" || value.trim() === "" || ["{}", "[]"].includes(value.trim()) || backendMaskedValues.has(value)) return null;
-  if (secretNamePattern.test(name)) return "secret";
-  if (connectionStringNamePattern.test(name) || connectionStringValuePattern.test(value) || pathNamePattern.test(name) || pathValuePattern.test(value)) return "sensitive";
+  if (secretNamePattern.test(name) || credentialInValuePattern.test(value)) return "secret";
+  if (pathNamePattern.test(name) || pathValuePattern.test(value)) return "sensitive";
   return null;
 }
 
@@ -80,8 +80,9 @@ function SettingsGroupCard({ group, entries, isOpenByDefault, isFiltering }: { g
         <button
           type="button"
           aria-expanded={isOpen}
-          aria-controls={bodyId}
-          onClick={() => setIsOpenState(!isOpenState)}
+          aria-controls={isOpen ? bodyId : undefined}
+          aria-disabled={isFiltering || undefined}
+          onClick={() => !isFiltering && setIsOpenState(!isOpenState)}
           className="flex w-full items-center gap-3 rounded-md px-[var(--card-padding)] py-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-action"
         >
           <ChevronRight aria-hidden="true" size={18} className={cn("shrink-0 text-muted transition-transform", isOpen && "rotate-90")} />

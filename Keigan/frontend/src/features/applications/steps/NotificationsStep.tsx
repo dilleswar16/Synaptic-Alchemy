@@ -106,7 +106,7 @@ function draftFromStakeholder(stakeholder: Stakeholder): StakeholderDraft {
 /** Where a person stands (listed, invited, signed in, paused) and when; channels and lists have no sign-in, so they show a dash. */
 function MemberStatusCell({ row }: { row: Stakeholder }) {
   const { t } = useTranslation("notifications");
-  if (row.recipientType !== "person") return <span className="text-muted" aria-label={t("stakeholders.status.notApplicable")}>–</span>;
+  if (row.recipientType !== "person") return <span className="text-muted"><span aria-hidden="true">–</span><span className="sr-only">{t("stakeholders.status.notApplicable")}</span></span>;
   return (
     <div className="flex flex-col items-start gap-0.5">
       <StatusChip size="sm" tone={row.invitationIsStale ? "warning" : statusTones[row.teamMemberStatus]} icon={false}>{t(`stakeholders.status.${row.teamMemberStatus}`)}</StatusChip>

@@ -91,7 +91,6 @@ export default function AlertsPage() {
 
   const funnel = funnelQuery.data;
   const policy = policyQuery.data;
-  const orderedGroups = useMemo(() => [...(groupsQuery.data?.items ?? [])].sort((first, second) => Number(second.groupStatus === "open") - Number(first.groupStatus === "open") || second.priorityScore - first.priorityScore || Date.parse(second.lastActivityAt) - Date.parse(first.lastActivityAt)), [groupsQuery.data]);
   const openGroup = groupsQuery.data?.items.find((group) => group.alertGroupId === openGroupId);
 
   return (
@@ -131,7 +130,7 @@ export default function AlertsPage() {
         {groupsQuery.isError ? <ErrorState error={groupsQuery.error} onRetry={() => groupsQuery.refetch()} /> : (
           <DataTable
             columns={columns}
-            rows={orderedGroups}
+            rows={groupsQuery.data?.items ?? []}
             getRowId={(group) => group.alertGroupId}
             caption={t("groups.title")}
             isLoading={groupsQuery.isLoading}

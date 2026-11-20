@@ -229,17 +229,48 @@ export function DataTable<Row>({
   const stickyCellClasses = "sticky left-0 z-[1] bg-surface group-hover:bg-surface-hover";
   const columnCount = columns.length + (isSelectable ? 1 : 0);
   const isStacked = mobileLayout === "cards";
+  /** Columns a phone can sort by: sortable and with a text header to name the option. */
+  const sortableColumns = columns.filter((column) => typeof column.header === "string" && (Boolean(column.sortValue) || (isManualSorting && column.isSortable)));
   const containerStyle: CSSProperties | undefined = maximumHeight ? { maxHeight: maximumHeight } : undefined;
   const pageStart = totalCount === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1;
   const pageEnd = Math.min(currentPage * effectivePageSize, totalCount);
 
   return (
     <div className={cn("flex min-w-0 flex-col overflow-hidden bg-surface", !isFlush && "rounded-md border border-hairline shadow-xs", className)}>
+      {isStacked && !isLoading && (isSelectable || sortableColumns.length > 0) ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-surface-sunken px-4 py-2 sm:hidden">
+          {isSelectable ? (
+            <Checkbox label={t("dataTable.selectAllRows")} checked={headerCheckboxState} onCheckedChange={(checkedState) => toggleAllRows(checkedState === true)} disabled={selectableRows.length === 0} />
+          ) : <span />}
+          {sortableColumns.length > 0 ? (
+            <label className="flex items-center gap-2 text-caption text-muted">
+              {t("dataTable.sortLabel")}
+              <select
+                value={activeSort ? `${activeSort.columnKey}:${activeSort.direction}` : ""}
+                onChange={(changeEvent) => {
+                  const [columnKey, direction] = changeEvent.target.value.split(":");
+                  const nextSort = columnKey ? { columnKey, direction: direction as SortDirection } : null;
+                  if (sort === undefined) setInternalSort(nextSort);
+                  onSortChange?.(nextSort);
+                  setClientPage(1);
+                }}
+                className="rounded-sm border border-control bg-surface px-2 py-1 text-body-sm text-default"
+              >
+                <option value="">{t("dataTable.sortNone")}</option>
+                {sortableColumns.flatMap((column) => [
+                  <option key={`${column.key}:ascending`} value={`${column.key}:ascending`}>{column.header as string} ↑</option>,
+                  <option key={`${column.key}:descending`} value={`${column.key}:descending`}>{column.header as string} ↓</option>,
+                ])}
+              </select>
+            </label>
+          ) : null}
+        </div>
+      ) : null}
       {/* A scrolling area must be reachable by keyboard, and says when it is loading. */}
       <div className="min-w-0 overflow-auto" style={containerStyle} tabIndex={0} role="region" aria-label={caption} aria-busy={isLoading || undefined}>
         <table className={cn("w-full border-separate border-spacing-0 text-body-sm", isStacked && "max-sm:block")}>
           <caption className="sr-only">{caption}</caption>
-          <thead className={cn(isStacked && "max-sm:sr-only")}>
+          <thead className={cn(isStacked && "max-sm:hidden")}>
             <tr>
               {isSelectable ? (
                 <th scope="col" className="sticky top-0 z-[2] h-10 w-11 border-b border-hairline bg-surface-sunken px-4">

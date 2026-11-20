@@ -138,6 +138,8 @@
     "selectedCount_one": "{{count}} geselecteerd",
     "selectedCount_other": "{{count}} geselecteerd",
     "sortBy": "Sorteren op {{column}}",
+    "sortLabel": "Sorteren op",
+    "sortNone": "Standaardvolgorde",
     "pageSummary": "{{start}}–{{end}} van {{total}}",
     "previousPage": "Vorige pagina",
     "nextPage": "Volgende pagina",

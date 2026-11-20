@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import type { IncidentSummary } from "@/api/incidentsApi";
@@ -10,7 +9,7 @@ import { RelativeTime } from "@/components/ui/RelativeTime";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { formatDuration } from "@/utils/formatters";
 import { cn } from "@/utils/cn";
-import { incidentStatusTone, isOpenIncident, orderOpenFirst } from "./incidentPresentation";
+import { incidentStatusTone, isOpenIncident } from "./incidentPresentation";
 
 interface IncidentTableProps {
   incidents: IncidentSummary[];
@@ -42,7 +41,6 @@ export function IncidentPriority({ incident }: { incident: IncidentSummary }) {
 export function IncidentTable({ incidents, isLoading, totalCount, page, pageSize, onPageChange }: IncidentTableProps) {
   const { t } = useTranslation("incidents");
   const navigate = useNavigate();
-  const orderedIncidents = useMemo(() => orderOpenFirst(incidents), [incidents]);
   const columns: DataTableColumn<IncidentSummary>[] = [
     { key: "priority", header: t("columns.priority"), width: "5.5rem", cell: (incident) => <IncidentPriority incident={incident} />, sortValue: (incident) => incident.keiganPriority ?? "P9" },
     { key: "number", header: t("columns.number"), width: "8.5rem", cell: (incident) => <span className={cn("whitespace-nowrap font-mono text-body-sm", !isOpenIncident(incident.incidentStatus) && "text-muted")}>{incident.externalIncidentNumber ?? t("noNumber")}</span>, sortValue: (incident) => incident.externalIncidentNumber },
@@ -96,7 +94,7 @@ export function IncidentTable({ incidents, isLoading, totalCount, page, pageSize
     <DataTable
       caption={t("tableCaption")}
       columns={columns}
-      rows={orderedIncidents}
+      rows={incidents}
       getRowId={(incident) => incident.incidentId}
       isLoading={isLoading}
       density="dense"

@@ -7,6 +7,7 @@ Every value is read from environment variables or ``backend/.env``. Nothing else
 from __future__ import annotations
 
 import json
+import re
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
@@ -332,14 +333,26 @@ def get_settings() -> Settings:
     return Settings()
 
 
+_URL_USER_INFORMATION = re.compile(r"(?P<scheme>[a-z][a-z0-9+.\-]*://)[^/\s@]+@", re.IGNORECASE)
+_KEY_VALUE_CREDENTIAL = re.compile(r"(?P<name>\b(?:password|pwd|accountkey|sharedaccesskey|sharedaccesssignature)\s*=\s*)[^;\s]+", re.IGNORECASE)
+
+
+def redact_credentials(text: str) -> str:
+    """A connection string or URL with its password removed; the host and database stay, because an administrator needs them."""
+    without_user_information = _URL_USER_INFORMATION.sub(lambda match: f"{match.group('scheme')}••••@", text)
+    return _KEY_VALUE_CREDENTIAL.sub(lambda match: f"{match.group('name')}••••", without_user_information)
+
+
 def safe_settings_for_display(settings: Settings) -> dict[str, object]:
     """Effective settings with secret values redacted (used by the administration page)."""
-    secret_field_markers = ("secret", "api_key", "password", "signing", "encryption_key")
+    secret_field_markers = ("secret", "api_key", "password", "signing", "encryption_key", "token", "credential", "headers")
     displayed_settings: dict[str, object] = {}
     for field_name in Settings.model_fields:
         field_value = getattr(settings, field_name)
         if any(marker in field_name for marker in secret_field_markers):
             displayed_settings[field_name] = "•••• set" if field_value else "not set"
+        elif isinstance(field_value, str):
+            displayed_settings[field_name] = redact_credentials(field_value)
         else:
             displayed_settings[field_name] = str(field_value) if isinstance(field_value, Path) else field_value
     return displayed_settings
@@ -357,5 +370,6 @@ __all__ = [
     "RESOURCES_DIRECTORY",
     "Settings",
     "get_settings",
+    "redact_credentials",
     "safe_settings_for_display",
 ]

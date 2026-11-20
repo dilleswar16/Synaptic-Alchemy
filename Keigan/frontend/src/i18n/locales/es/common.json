@@ -138,6 +138,8 @@
     "selectedCount_one": "{{count}} seleccionado",
     "selectedCount_other": "{{count}} seleccionados",
     "sortBy": "Ordenar por {{column}}",
+    "sortLabel": "Ordenar por",
+    "sortNone": "Orden predeterminado",
     "pageSummary": "{{start}}–{{end}} de {{total}}",
     "previousPage": "Página anterior",
     "nextPage": "Página siguiente",

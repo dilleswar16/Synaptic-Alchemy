@@ -22,7 +22,7 @@ export default function SloMonitoringPage() {
   const slos = dashboardQuery.data ?? [];
   const needsAttention = (slo: SloSummary) => slo.status === "breached" || slo.status === "at_risk";
   const attention = slos
-    .filter((slo) => needsAttention(slo) && slo.sliKind !== "supporting_signal")
+    .filter((slo) => needsAttention(slo) && (slo.sliKind !== "supporting_signal" || slo.isHeadline))
     .sort((first, second) => Number(second.status === "breached") - Number(first.status === "breached") || (first.errorBudgetRemainingPercentage ?? 0) - (second.errorBudgetRemainingPercentage ?? 0));
   const headlines = slos.filter((slo) => slo.isHeadline && !needsAttention(slo));
   const others = slos.filter((slo) => !slo.isHeadline && !needsAttention(slo) && slo.sliKind !== "supporting_signal");

@@ -37,7 +37,7 @@ function GroupCard({ title, groupName, objectId, canEditNames, canEdit, onSave }
         <div className="grid gap-3 sm:grid-cols-2">
           <Input label={t("access.groupName")} disabled={!canEditNames} value={name} onChange={(event) => setName(event.target.value)} />
           <Input label={t("access.objectId")} isOptional helperText={t("access.objectIdHelp")} value={identifier} onChange={(event) => setIdentifier(event.target.value)} />
-          {hasChanges ? <Button className="justify-self-start sm:col-span-2" size="sm" onClick={() => onSave({ name, objectId: identifier })}>{t("access.save")}</Button> : null}
+          <Button className="justify-self-start sm:col-span-2" size="sm" disabled={!hasChanges} onClick={() => onSave({ name, objectId: identifier })}>{t("access.save")}</Button>
         </div>
       ) : objectId ? (
         <div className="text-body-sm text-muted">{t("access.objectId")}: <span className="font-mono">{objectId}</span></div>

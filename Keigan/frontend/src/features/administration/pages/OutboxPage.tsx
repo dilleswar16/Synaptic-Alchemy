@@ -80,7 +80,7 @@ export default function OutboxPage() {
         <EmptyState icon={MailX} title={t("outbox.unavailableTitle")} description={t("outbox.unavailableDescription")} isBordered />
       ) : (
         <DataTable caption={t("outbox.pageTitle")} columns={columns} rows={rows} getRowId={(row) => row.notificationDeliveryId} isLoading={outbox.isLoading} onRowClick={(row) => setSelectedId(row.notificationDeliveryId)}
-          serverPagination={{ page, pageSize: 25, totalCount: outbox.data?.totalCount ?? 0, onPageChange: setPage }} emptyState={<EmptyState icon={MailX} title={isFiltered ? t("outbox.noMatchTitle") : t("outbox.emptyTitle")} description={isFiltered ? t("outbox.noMatchDescription") : t("outbox.emptyDescription")} size="sm" />} />
+          serverPagination={{ page, pageSize: 25, totalCount: needle ? rows.length : outbox.data?.totalCount ?? 0, onPageChange: setPage }} emptyState={<EmptyState icon={MailX} title={isFiltered ? t("outbox.noMatchTitle") : t("outbox.emptyTitle")} description={isFiltered ? t("outbox.noMatchDescription") : t("outbox.emptyDescription")} size="sm" />} />
       )}
       <Drawer open={selectedId !== null} onOpenChange={(open) => !open && setSelectedId(null)} title={delivery.data?.subjectLine ?? t("outbox.previewTitle")} description={delivery.data ? `${delivery.data.recipientAddress} · ${translateNotifications(`channels.${delivery.data.deliveryChannel}`, { defaultValue: delivery.data.deliveryChannel })}` : undefined} size="lg">
         {delivery.isLoading ? <Skeleton className="h-96" /> : delivery.data?.bodyHtml ? (

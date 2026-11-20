@@ -120,3 +120,34 @@ def test_prompt_text_logging_is_only_allowed_on_a_developer_machine() -> None:
         overrides = {"auth_mode": "local"} if environment_name == "test" else {}
         with pytest.raises(ValidationError, match="LOG_PROMPTS_FOR_DEBUGGING"):
             build_settings(environment=environment_name, log_prompts_for_debugging=True, **overrides)
+
+
+# ── The settings shown to administrators never carry a credential ────────────────────────────────
+
+
+def test_a_password_inside_a_connection_url_is_not_shown() -> None:
+    from keigan.config.settings import safe_settings_for_display
+
+    displayed = safe_settings_for_display(build_settings(database_url="mssql+aioodbc://keigan_user:S3cret!pass@sql.example.net:1433/keigan?driver=ODBC+Driver+18+for+SQL+Server"))
+    assert "S3cret" not in str(displayed["database_url"]) and "keigan_user" not in str(displayed["database_url"])
+    assert "sql.example.net:1433/keigan" in str(displayed["database_url"]), "the host and database stay visible: an admin needs them"
+
+
+def test_a_password_written_as_a_key_value_pair_is_not_shown() -> None:
+    from keigan.config.settings import redact_credentials
+
+    assert redact_credentials("Server=tcp:sql.example.net;Database=keigan;User Id=app;Password=Hunter2;Encrypt=yes") == "Server=tcp:sql.example.net;Database=keigan;User Id=app;Password=••••;Encrypt=yes"
+    assert redact_credentials("DefaultEndpointsProtocol=https;AccountName=a;AccountKey=abc123==;EndpointSuffix=core.windows.net").count("abc123") == 0
+
+
+def test_headers_and_tokens_are_masked_by_name() -> None:
+    from keigan.config.settings import safe_settings_for_display
+
+    displayed = safe_settings_for_display(build_settings(llm_extra_headers_json='{"Ocp-Apim-Subscription-Key":"abc"}'))
+    assert displayed["llm_extra_headers_json"] == "•••• set"
+
+
+def test_a_plain_value_is_shown_as_it_is() -> None:
+    from keigan.config.settings import redact_credentials
+
+    assert redact_credentials("https://login.microsoftonline.com/tenant") == "https://login.microsoftonline.com/tenant"
