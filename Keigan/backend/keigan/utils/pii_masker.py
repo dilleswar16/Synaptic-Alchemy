@@ -9,6 +9,8 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
+import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
@@ -18,7 +20,9 @@ import yaml
 from keigan.config.settings import RESOURCES_DIRECTORY, get_settings
 
 _IPV4_PATTERN = re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b")
-_IPV6_PATTERN = re.compile(r"\b(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}\b")
+# Candidates only: every match is confirmed with ipaddress, so clock times such as 10:00:00 are left alone.
+_IPV6_CANDIDATE_PATTERN = re.compile(r"(?<![\w:])(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4}(?![\w:])")
+_JSON_KEY_SEPARATOR_PATTERN = re.compile(r"[\s_-]")
 
 
 @dataclass(frozen=True)
@@ -27,29 +31,39 @@ class MaskingPattern:
     placeholder_name: str
     compiled_regex: re.Pattern[str]
     is_numbered: bool
-    validator_name: str | None
+    check_validator: Callable[[str], bool] | None
+
+
+def normalize_json_key(json_key: Any) -> str:
+    """Canonical form of a key so client_secret, Client-Secret and full-width variants match one catalog entry."""
+    return _JSON_KEY_SEPARATOR_PATTERN.sub("", unicodedata.normalize("NFKC", str(json_key)).lower())
 
 
 @lru_cache
 def _load_masking_configuration() -> tuple[tuple[MaskingPattern, ...], dict[str, str]]:
     configuration = yaml.safe_load((RESOURCES_DIRECTORY / "catalogs" / "pii_patterns.yaml").read_text(encoding="utf-8"))
     masking_patterns = tuple(
-        MaskingPattern(
-            pattern_name=pattern_entry["name"],
-            placeholder_name=pattern_entry["placeholder"],
-            compiled_regex=re.compile(pattern_entry["regex"]),
-            is_numbered=pattern_entry.get("numbered", True),
-            validator_name=pattern_entry.get("validator"),
-        )
-        for pattern_entry in configuration["patterns"]
-        if pattern_entry.get("enabled", True)
+        _build_masking_pattern(pattern_entry) for pattern_entry in configuration["patterns"] if pattern_entry.get("enabled", True)
     )
     placeholder_by_json_key = {
-        json_key.lower(): placeholder_name
+        normalize_json_key(json_key): placeholder_name
         for placeholder_name, json_keys in (configuration.get("sensitive_json_keys") or {}).items()
         for json_key in json_keys
     }
     return masking_patterns, placeholder_by_json_key
+
+
+def _build_masking_pattern(pattern_entry: dict[str, Any]) -> MaskingPattern:
+    validator_name = pattern_entry.get("validator")
+    if validator_name is not None and validator_name not in _CHECK_VALIDATORS:
+        raise ValueError(f"pii_patterns.yaml pattern '{pattern_entry['name']}' names unknown validator '{validator_name}'.")
+    return MaskingPattern(
+        pattern_name=pattern_entry["name"],
+        placeholder_name=pattern_entry["placeholder"],
+        compiled_regex=re.compile(pattern_entry["regex"]),
+        is_numbered=pattern_entry.get("numbered", True),
+        check_validator=_CHECK_VALIDATORS[validator_name] if validator_name else None,
+    )
 
 
 def _passes_luhn_check(candidate_text: str) -> bool:
@@ -64,6 +78,26 @@ def _passes_luhn_check(candidate_text: str) -> bool:
                 digit -= 9
         checksum += digit
     return checksum % 10 == 0
+
+
+def _passes_japan_my_number_check_digit(candidate_text: str) -> bool:
+    """Official My Number check digit: weights 2..7 then 2..6 from the right, remainder mod 11 (0 or 1 gives check digit 0)."""
+    digits = [int(character) for character in candidate_text if character.isdigit()]
+    if len(digits) != 12:
+        return False
+    weighted_sum = 0
+    for position_from_right, digit in enumerate(reversed(digits[:11]), start=1):
+        weight = position_from_right + 1 if position_from_right <= 6 else position_from_right - 5
+        weighted_sum += digit * weight
+    remainder = weighted_sum % 11
+    expected_check_digit = 0 if remainder <= 1 else 11 - remainder
+    return digits[11] == expected_check_digit
+
+
+_CHECK_VALIDATORS: dict[str, Callable[[str], bool]] = {
+    "luhn": _passes_luhn_check,
+    "japan_my_number_check_digit": _passes_japan_my_number_check_digit,
+}
 
 
 @dataclass
@@ -104,7 +138,8 @@ class PiiMasker:
     def mask_text(self, text: str | None) -> str:
         if not text or not self.enabled:
             return text or ""
-        masked_text = self._mask_embedded_json(text)
+        # Full-width and other compatibility forms are folded first, so patterns see the same characters the LLM would.
+        masked_text = self._mask_embedded_json(unicodedata.normalize("NFKC", text))
         for masking_pattern in self.masking_patterns:
             masked_text = masking_pattern.compiled_regex.sub(lambda match, pattern=masking_pattern: self._replace_match(match, pattern), masked_text)
         return self._mask_ip_addresses(masked_text)
@@ -120,8 +155,7 @@ class PiiMasker:
         if isinstance(value, dict):
             masked_dictionary: dict[Any, Any] = {}
             for dictionary_key, dictionary_value in value.items():
-                normalized_key = str(dictionary_key).lower().replace("-", "").replace(" ", "")
-                sensitive_placeholder = self.placeholder_by_json_key.get(normalized_key)
+                sensitive_placeholder = self.placeholder_by_json_key.get(normalize_json_key(dictionary_key))
                 if sensitive_placeholder and dictionary_value not in (None, "", [], {}):
                     masked_dictionary[dictionary_key] = self.masking_context.placeholder_for(
                         sensitive_placeholder, json.dumps(dictionary_value, default=str), sensitive_placeholder not in ("SECRET", "DOB")
@@ -138,7 +172,7 @@ class PiiMasker:
         matched_text = match.group(0)
         if matched_text.startswith("<") and matched_text.endswith(">"):
             return matched_text
-        if masking_pattern.validator_name == "luhn" and not _passes_luhn_check(matched_text):
+        if masking_pattern.check_validator and not masking_pattern.check_validator(matched_text):
             return matched_text
         return self.masking_context.placeholder_for(masking_pattern.placeholder_name, matched_text, masking_pattern.is_numbered)
 
@@ -170,6 +204,17 @@ class PiiMasker:
             return self.masking_context.placeholder_for("IP", address_text)
 
         masked_text = _IPV4_PATTERN.sub(replace_ipv4, text)
-        if self.ip_address_mode == "full":
-            masked_text = _IPV6_PATTERN.sub(lambda match: self.masking_context.placeholder_for("IP", match.group(0)), masked_text)
-        return masked_text
+        return _IPV6_CANDIDATE_PATTERN.sub(self._replace_ipv6_candidate, masked_text)
+
+    def _replace_ipv6_candidate(self, match: re.Match[str]) -> str:
+        address_text = match.group(0)
+        try:
+            parsed_address = ipaddress.IPv6Address(address_text)
+        except ValueError:
+            return address_text
+        if parsed_address.is_loopback or parsed_address.is_unspecified:
+            return address_text
+        if self.ip_address_mode == "partial":
+            leading_groups = parsed_address.exploded.split(":")[:2]
+            return f"{leading_groups[0]}:{leading_groups[1]}:x:x"
+        return self.masking_context.placeholder_for("IP", address_text)
