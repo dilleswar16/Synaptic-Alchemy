@@ -91,7 +91,23 @@ Not in this pass: the error-handling sweep across the remaining services. It is 
 
 Proof: each row has a test that makes the dependency fail and checks the fallback result and the WARNING. Full backend suite: 1108 passed.
 
-Found by the Haiku review, not yet done: the admin UI does not show `unreadableResourceGroups` yet (frontend type and panel). That is a feature change for a follow-up.
+Follow-up fixed in the same session:
+
+- **Hidden failure in the Azure client.** `list_alert_rules` caught a refused rule collection (for example 403) and returned an empty list, so the sweep's warning never fired. It now returns the failed collections and their Azure error code. 404 and throttling (429/503) have their own codes.
+- **Reason per group.** `unreadableResourceGroups` lists each affected group with `reasonCode` (`forbidden`, `not_found`, `throttled` or `failed`). When several collections fail, the most useful reason wins. Partly readable groups keep the rules that were read.
+- **Admin screen.** The alerts page shows a warning banner with each group, its subscription and a plain reason in all seven locales.
+- **Messages with exception names.** Four user-visible texts showed Python exception names (for example `ValueError`). They now read in plain words. The exception stays in the server log. Job errors still show the class name, on purpose, for admins in the Jobs view.
+
+Still open on the backend (not changed in this pass, each needs its own test):
+
+| Place | What happens now | What it should do |
+|---|---|---|
+| Component discovery: diagnostic settings and metric definitions per resource (`component_discovery_service`) | A failed read is returned as an empty list, so the admin sees "no diagnostic setting" for a resource Keigan could not read | Log a warning with the resource id, and report the group as unreadable |
+| Component discovery: workspace customer id (`component_discovery_service`) | A failed read returns `None`, which looks like "not configured" | Log a warning with the workspace id, and report it |
+| Graph user lookup (`microsoft_graph_client.get_user_by_principal_name`) | Any error returns `None`, the same as "user not found" | Return `None` only for 404; log and raise other errors |
+| Connection test (`administration_service`) | Shows raw exception text to admins | Keep for admins (they need detail), but add the correlation id |
+
+Infra checks still needed: a real Azure tenant, to confirm the 403, 404 and throttling codes against Azure's real responses.
 
 ## Follow-ups noted during wave 2
 

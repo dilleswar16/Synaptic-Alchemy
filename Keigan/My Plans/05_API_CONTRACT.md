@@ -143,7 +143,7 @@ Chart specification (shared with frontend `ChartMessage`):
 | GET | `/applications/{id}/alert-sources/{sourceId}/setup-instructions` | Azure / Elastic / generic instructions with real values |
 | POST | `/applications/{id}/alert-sources/mapping-preview` | S3 addition: parse a sample payload with a candidate mapping, suggestions and matched service |
 | POST | `/alert-groups/{alertGroupId}/create-servicenow-incident` | S3 addition: 501 when ServiceNow creation is unavailable |
-| GET | `/applications/{id}/azure-alert-rules` | discovered rules and whether they target Keigan; `unreadableResourceGroups` lists the resource groups whose rules could not be read (their rules are missing from the list) |
+| GET | `/applications/{id}/azure-alert-rules` | discovered rules and whether they target Keigan; `unreadableResourceGroups` lists each resource group whose rules could not be fully read, with `resourceGroupName`, `subscriptionId` and `reasonCode` (`forbidden`, `not_found`, `throttled` or `failed`; the UI shows the message) |
 | GET/PUT | `/applications/{id}/noise-policy` | |
 | POST | `/applications/{id}/noise-policy/preview` | `{ policySettings, days: 7 }` → funnel |
 | GET/POST/PATCH/DELETE | `/applications/{id}/maintenance-windows[/{windowId}]` | |
