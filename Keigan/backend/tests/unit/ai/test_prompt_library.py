@@ -59,6 +59,14 @@ def test_a_prompt_without_a_model_cannot_be_used_for_a_model_call() -> None:
         LIBRARY.model_tier_for_call("knowledge_capture_prompt")
 
 
+@pytest.mark.parametrize("prompt_path", sorted(PROMPTS_DIRECTORY.glob("[a-z]*.md")), ids=lambda path: path.stem)
+def test_every_prompt_renders_with_the_variables_the_code_passes(prompt_path) -> None:
+    rendered = LIBRARY.render(
+        prompt_path.stem, application_name="Claims", application_code="CLM", criticality_tier="tier_1", report_type_label="weekly digest", scope_description="the application", file_slug="claims",
+    )
+    assert rendered.strip() and "{{" not in rendered and "{%" not in rendered
+
+
 def test_fragments_are_not_loadable_as_prompts() -> None:
     fragment_names = [path.stem for path in PROMPTS_DIRECTORY.glob("_*.md")]
     assert fragment_names, "the shared hypothesis body must live in a fragment"
