@@ -21,6 +21,7 @@ from keigan.config.settings import RESOURCES_DIRECTORY
 from keigan.entities.application_entities import ApplicationComponent, LogToolConnection, MonitoredService, ServiceLogSource
 from keigan.exceptions.keigan_exceptions import ReaderNotAvailableException
 from keigan.integrations.telemetry_gateway import TelemetryQuery, TelemetryTarget
+from keigan.utils.query_safety import HardenedQuery, sli_allowed_kql_tables, validate_kql
 from keigan.utils.time_utils import ensure_utc
 
 LATENCY_METRIC_NAMES = {"api_management": "Duration", "app_service": "HttpResponseTime", "function_app": "FunctionExecutionUnits", "logic_app": "RunLatency"}
@@ -42,6 +43,11 @@ def catalog_entries_for_service(service: MonitoredService, has_application_insig
         entries = list(catalog["application_insights_entries"]) + entries
         supporting = list(catalog["application_insights_supporting_signals"]) + supporting
     return entries, supporting
+
+
+def validate_custom_sli_query(kql_text: str, start: datetime, end: datetime) -> HardenedQuery:
+    """Custom SLI queries are written by application admins and run with Keigan's identity, so only the configured SLI tables may be read."""
+    return validate_kql(kql_text, start, end, allowed_tables=sli_allowed_kql_tables())
 
 
 @dataclass
@@ -72,6 +78,7 @@ class SliMeasurementReader:
     async def read_samples(
         self, service_id: str, *, sli_kind: str, catalog_entry_key: str, start: datetime, end: datetime, interval_minutes: int, latency_threshold_milliseconds: int | None = None, query_definition: dict[str, Any] | None = None,
     ) -> list[SliSample]:
+        custom_query = validate_custom_sli_query(str(query_definition["kql"]), start, end) if query_definition and query_definition.get("kql") else None  # also checked on save; stored rows are re-checked
         memo_key = (service_id, sli_kind, catalog_entry_key, latency_threshold_milliseconds, start, end, interval_minutes, str(query_definition))
         if memo_key in self._memo:
             return self._memo[memo_key]
@@ -85,8 +92,8 @@ class SliMeasurementReader:
                 purpose_parameters={"signal_kind": "sli_counts", "sli_kind": simulator_kind, "interval_minutes": interval_minutes, "latency_threshold_milliseconds": latency_threshold_milliseconds},
             ))
             samples = [self._row_to_sample(row) for row in result.rows]
-        elif query_definition and query_definition.get("kql"):
-            result = await gateway.query_logs(target, TelemetryQuery(query_language="kql", query_text=str(query_definition["kql"]), time_range_start=start, time_range_end=end, query_purpose="custom_sli", purpose_parameters={"signal_kind": "generic"}))
+        elif custom_query is not None:
+            result = await gateway.query_logs(target, TelemetryQuery(query_language="kql", query_text=custom_query.query_text, time_range_start=start, time_range_end=end, query_purpose="custom_sli", purpose_parameters={"signal_kind": "generic"}))
             samples = [self._row_to_sample(row) for row in result.rows]
         elif target.source_kind in ("log_analytics", "application_insights") and catalog_entry_key.startswith("appinsights_"):
             result = await gateway.query_logs(target, TelemetryQuery(query_language="kql", query_text=self._application_insights_query(target, catalog_entry_key, latency_threshold_milliseconds, interval_minutes), time_range_start=start, time_range_end=end, query_purpose="sli_counts", purpose_parameters={"signal_kind": "generic"}))
