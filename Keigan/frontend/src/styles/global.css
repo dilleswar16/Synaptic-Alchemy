@@ -1,0 +1,666 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/*
+ * Dark mode follows `data-theme="dark"` on <html> (set by useTheme), not the media query.
+ * Prefer semantic token utilities (they switch automatically); use `dark:` only for rare exceptions.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Map design tokens to Tailwind utilities. Tailwind's default colour palette, type scale, radii, shadows
+ * and breakpoints are reset so every class used in Keigan comes from the MetLife design system.
+ */
+@theme inline {
+  --color-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --breakpoint-*: initial;
+  --font-*: initial;
+
+  /* Base */
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+
+  /* MetLife palette: bg-metlife-blue-1, text-metlife-dark-blue, … */
+  --color-metlife-blue-1: var(--metlife-blue-1);
+  --color-metlife-blue-2: var(--metlife-blue-2);
+  --color-metlife-dark-blue: var(--metlife-dark-blue);
+  --color-metlife-green: var(--metlife-green);
+  --color-metlife-green-dark: var(--metlife-green-dark);
+  --color-metlife-teal: var(--metlife-teal);
+  --color-metlife-purple: var(--metlife-purple);
+  --color-metlife-yellow: var(--metlife-yellow);
+  --color-metlife-berry: var(--metlife-berry);
+  --color-metlife-red: var(--metlife-red);
+  --color-metlife-light-gray: var(--metlife-light-gray);
+  --color-metlife-gray: var(--metlife-gray);
+  --color-metlife-medium-gray: var(--metlife-medium-gray);
+  --color-metlife-dark-gray: var(--metlife-dark-gray);
+  --color-metlife-darkest-gray: var(--metlife-darkest-gray);
+
+  /* Surfaces: bg-canvas, bg-surface, bg-surface-sunken, bg-surface-hover, bg-surface-selected, bg-overlay, bg-code-surface.
+     The code surface must not be named "code": `text-code` is the code font size, and a colour of the same name made code text invisible. */
+  --color-canvas: var(--color-canvas);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-surface-sunken: var(--color-surface-sunken);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-surface-selected: var(--color-surface-selected);
+  --color-overlay: var(--color-surface-overlay);
+  --color-code-surface: var(--color-surface-code);
+  --color-tooltip: var(--color-surface-tooltip);
+
+  /* Borders: border-hairline, border-strong */
+  --color-hairline: var(--color-border);
+  --color-strong: var(--color-border-strong);
+
+  /* Text: text-default, text-muted, text-subtle, text-inverse, text-on-code, text-heading-accent */
+  --color-default: var(--color-text);
+  --color-muted: var(--color-text-muted);
+  --color-subtle: var(--color-text-subtle);
+  --color-inverse: var(--color-text-inverse);
+  --color-on-code: var(--color-text-on-code);
+  --color-heading-accent: var(--color-heading-accent);
+
+  /* Action: bg-action, text-action, bg-action-hover, bg-action-subtle, text-action-subtle-text, text-on-action */
+  --color-action: var(--color-action);
+  --color-action-hover: var(--color-action-hover);
+  --color-action-pressed: var(--color-action-pressed);
+  --color-action-subtle: var(--color-action-subtle);
+  --color-action-subtle-hover: var(--color-action-subtle-hover);
+  --color-action-subtle-text: var(--color-action-subtle-text);
+  --color-on-action: var(--color-action-text);
+  --color-focus: var(--color-focus-ring-color);
+
+  /* Status tones: text-<tone>, bg-<tone>-fill, bg-<tone>-soft */
+  --color-success: var(--color-success-text);
+  --color-success-fill: var(--color-success-fill);
+  --color-success-soft: var(--color-success-bg);
+  --color-warning: var(--color-warning-text);
+  --color-warning-fill: var(--color-warning-fill);
+  --color-warning-soft: var(--color-warning-bg);
+  --color-danger: var(--color-danger-text);
+  --color-danger-fill: var(--color-danger-fill);
+  --color-danger-soft: var(--color-danger-bg);
+  --color-alert: var(--color-alert-text);
+  --color-alert-fill: var(--color-alert-fill);
+  --color-alert-soft: var(--color-alert-bg);
+  --color-info: var(--color-info-text);
+  --color-info-fill: var(--color-info-fill);
+  --color-info-soft: var(--color-info-bg);
+  --color-neutral: var(--color-neutral-text);
+  --color-neutral-fill: var(--color-neutral-fill);
+  --color-neutral-soft: var(--color-neutral-bg);
+  --color-ai: var(--color-ai-text);
+  --color-ai-fill: var(--color-ai-fill);
+  --color-ai-soft: var(--color-ai-bg);
+  --color-brand: var(--color-brand-text);
+  --color-brand-fill: var(--color-brand-fill);
+  --color-brand-soft: var(--color-brand-bg);
+  --color-teal: var(--color-teal-text);
+  --color-teal-soft: var(--color-teal-bg);
+
+  /* Charts: stroke-chart-1 … fill-chart-14 */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-9: var(--chart-9);
+  --color-chart-10: var(--chart-10);
+  --color-chart-11: var(--chart-11);
+  --color-chart-12: var(--chart-12);
+  --color-chart-13: var(--chart-13);
+  --color-chart-14: var(--chart-14);
+
+  /* Fonts: font-display, font-body, font-mono */
+  --font-display: var(--font-family-display);
+  --font-body: var(--font-family-body);
+  --font-mono: var(--font-family-mono);
+  --default-font-family: var(--font-family-body);
+  --default-mono-font-family: var(--font-family-mono);
+
+  /* Type scale: text-display, text-h1 … text-micro, text-kpi, text-kpi-sm, text-code */
+  --text-display: var(--text-display);
+  --text-display--line-height: var(--text-display-line-height);
+  --text-display--font-weight: 700;
+  --text-display--letter-spacing: -0.015em;
+  --text-h1: var(--text-h1);
+  --text-h1--line-height: var(--text-h1-line-height);
+  --text-h1--font-weight: 700;
+  --text-h1--letter-spacing: -0.01em;
+  --text-h2: var(--text-h2);
+  --text-h2--line-height: var(--text-h2-line-height);
+  --text-h2--font-weight: 650;
+  --text-h3: var(--text-h3);
+  --text-h3--line-height: var(--text-h3-line-height);
+  --text-h3--font-weight: 600;
+  --text-h4: var(--text-h4);
+  --text-h4--line-height: var(--text-h4-line-height);
+  --text-h4--font-weight: 600;
+  --text-body-lg: var(--text-body-lg);
+  --text-body-lg--line-height: var(--text-body-lg-line-height);
+  --text-body: var(--text-body);
+  --text-body--line-height: var(--text-body-line-height);
+  --text-body-sm: var(--text-body-sm);
+  --text-body-sm--line-height: var(--text-body-sm-line-height);
+  --text-caption: var(--text-caption);
+  --text-caption--line-height: var(--text-caption-line-height);
+  --text-micro: var(--text-micro);
+  --text-micro--line-height: var(--text-micro-line-height);
+  --text-micro--font-weight: 600;
+  --text-kpi: var(--text-kpi);
+  --text-kpi--line-height: var(--text-kpi-line-height);
+  --text-kpi--font-weight: 700;
+  --text-kpi-sm: var(--text-kpi-sm);
+  --text-kpi-sm--line-height: var(--text-kpi-sm-line-height);
+  --text-kpi-sm--font-weight: 700;
+  --text-code: var(--text-code);
+  --text-code--line-height: var(--text-code-line-height);
+
+  /* Radius: rounded-xs (6) · rounded-sm (8) · rounded-md (12) · rounded-lg (16) · rounded-xl (24) */
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  /* Shadows: shadow-xs · shadow-sm · shadow-md · shadow-lg */
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  /* Breakpoints (doc 04 §3): sm 640 · md 900 · lg 1200 · xl 1440 · 2xl 1680 */
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 56.25rem;
+  --breakpoint-lg: 75rem;
+  --breakpoint-xl: 90rem;
+  --breakpoint-2xl: 105rem;
+
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Animations: animate-page-enter, animate-shimmer, animate-fade-in, … */
+  --animate-page-enter: keigan-page-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-shimmer: keigan-shimmer 1.4s ease-in-out infinite;
+  --animate-fade-in: keigan-fade-in 180ms ease-out both;
+  --animate-fade-out: keigan-fade-out 140ms ease-in both;
+  --animate-pop-in: keigan-pop-in 140ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop-out: keigan-pop-out 120ms ease-in both;
+  --animate-dialog-in: keigan-dialog-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-dialog-out: keigan-dialog-out 140ms ease-in both;
+  --animate-drawer-in: keigan-drawer-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-drawer-out: keigan-drawer-out 180ms ease-in both;
+  --animate-drawer-left-in: keigan-drawer-left-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-drawer-left-out: keigan-drawer-left-out 180ms ease-in both;
+  --animate-toast-in: keigan-toast-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-toast-out: keigan-toast-out 160ms ease-in both;
+  --animate-live-pulse: keigan-live-pulse 2s ease-in-out infinite;
+  --animate-fade-up: keigan-fade-up 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-indeterminate: keigan-indeterminate 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-spin: spin 0.9s linear infinite;
+  --animate-typing-dot: keigan-typing-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes keigan-page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes keigan-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@keyframes keigan-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes keigan-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes keigan-fade-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes keigan-pop-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes keigan-pop-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.98); }
+}
+@keyframes keigan-dialog-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)) scale(0.985); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes keigan-dialog-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, calc(-50% + 4px)) scale(0.99); }
+}
+@keyframes keigan-drawer-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes keigan-drawer-out {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(24px); }
+}
+@keyframes keigan-drawer-left-in {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes keigan-drawer-left-out {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(-24px); }
+}
+@keyframes keigan-toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes keigan-toast-out {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(16px); }
+}
+@keyframes keigan-live-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent); }
+  70% { box-shadow: 0 0 0 6px color-mix(in srgb, currentColor 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }
+}
+@keyframes keigan-indeterminate {
+  0% { transform: translateX(-100%) scaleX(0.4); }
+  60% { transform: translateX(60%) scaleX(0.6); }
+  100% { transform: translateX(160%) scaleX(0.4); }
+}
+@keyframes keigan-typing-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+
+/* ── Custom utilities ─────────────────────────────────────────────────── */
+@utility bg-gradient-brand {
+  background-image: var(--gradient-brand);
+}
+@utility bg-gradient-brand-soft {
+  background-image: var(--gradient-brand-soft);
+}
+@utility bg-gradient-ai {
+  background-image: var(--gradient-ai);
+}
+@utility bg-hero-wash {
+  background-image: var(--gradient-hero-wash);
+}
+/* Frosted surface for the top bar and floating chrome (doc 04 §2 Glass). */
+@utility glass-surface {
+  background-color: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  backdrop-filter: saturate(160%) blur(14px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+}
+/* Gradient stroke for the secondary call-to-action and hero cards. */
+@utility gradient-border {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--gradient-border-fill, var(--color-surface)), var(--gradient-border-fill, var(--color-surface))) padding-box,
+    var(--gradient-brand) border-box;
+}
+/* Eyebrow labels such as "OPERATE" in the sidebar. */
+@utility eyebrow {
+  font-size: 0.71875rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+@utility tabular-numbers {
+  font-variant-numeric: tabular-nums;
+}
+@utility skeleton-shimmer {
+  background-color: var(--color-surface-sunken);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-surface) 55%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── Base element styles ──────────────────────────────────────────────── */
+@layer base {
+  html {
+    font-family: var(--font-family-body);
+    font-size: 100%;
+    color: var(--color-text);
+    background-color: var(--color-canvas);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scrollbar-color: var(--color-border-strong) transparent;
+    scrollbar-width: thin;
+  }
+
+  body {
+    min-height: 100dvh;
+    font-size: var(--text-body);
+    line-height: var(--text-body-line-height);
+    background-color: var(--color-canvas);
+    color: var(--color-text);
+  }
+
+  :root:lang(ja) body {
+    letter-spacing: 0.02em;
+    line-height: calc(var(--text-body-line-height) + 0.1em);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-family-display);
+    color: var(--color-text);
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: var(--text-h1);
+    line-height: var(--text-h1-line-height);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  h2 {
+    font-size: var(--text-h2);
+    line-height: var(--text-h2-line-height);
+    font-weight: 650;
+  }
+  h3 {
+    font-size: var(--text-h3);
+    line-height: var(--text-h3-line-height);
+    font-weight: 600;
+  }
+  h4 {
+    font-size: var(--text-h4);
+    line-height: var(--text-h4-line-height);
+    font-weight: 600;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-family-mono);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--metlife-blue-1) 24%, transparent);
+  }
+
+  /* Focus ring: visible for keyboard users only (doc 04 §5). */
+  :focus-visible {
+    outline: 3px solid var(--color-focus-ring-color);
+    outline-offset: 1px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-strong);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-text-subtle);
+  }
+
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-text-subtle);
+    opacity: 1;
+  }
+
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* ── Markdown prose (MarkdownView, postmortems, chat answers) ─────────── */
+.keigan-prose {
+  font-size: var(--text-body);
+  line-height: var(--text-body-line-height);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+.keigan-prose.keigan-prose-large {
+  font-size: var(--text-body-lg);
+  line-height: var(--text-body-lg-line-height);
+}
+.keigan-prose > :first-child {
+  margin-top: 0;
+}
+.keigan-prose > :last-child {
+  margin-bottom: 0;
+}
+.keigan-prose p,
+.keigan-prose ul,
+.keigan-prose ol,
+.keigan-prose blockquote,
+.keigan-prose table,
+.keigan-prose pre,
+.keigan-prose .keigan-prose-code-block {
+  margin: 0 0 0.85em;
+}
+.keigan-prose h2,
+.keigan-prose h3,
+.keigan-prose h4,
+.keigan-prose h5,
+.keigan-prose h6 {
+  margin: 1.4em 0 0.5em;
+  color: var(--color-text);
+}
+.keigan-prose h2 {
+  font-size: var(--text-h3);
+  line-height: var(--text-h3-line-height);
+  font-weight: 650;
+}
+.keigan-prose h3 {
+  font-size: var(--text-h4);
+  line-height: var(--text-h4-line-height);
+  font-weight: 600;
+}
+.keigan-prose h4,
+.keigan-prose h5,
+.keigan-prose h6 {
+  font-family: var(--font-family-body);
+  font-size: var(--text-body);
+  line-height: var(--text-body-line-height);
+  font-weight: 600;
+}
+.keigan-prose a {
+  color: var(--color-action);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.keigan-prose a:hover {
+  color: var(--color-action-hover);
+}
+.keigan-prose strong {
+  font-weight: 600;
+}
+.keigan-prose ul,
+.keigan-prose ol {
+  padding-left: 1.4em;
+}
+.keigan-prose ul {
+  list-style: disc;
+}
+.keigan-prose ol {
+  list-style: decimal;
+}
+.keigan-prose li {
+  margin: 0.25em 0;
+}
+.keigan-prose li::marker {
+  color: var(--color-text-subtle);
+}
+.keigan-prose blockquote {
+  border-left: 3px solid var(--color-border-strong);
+  padding: 0.1em 0 0.1em 1em;
+  color: var(--color-text-muted);
+}
+.keigan-prose hr {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5em 0;
+}
+.keigan-prose :not(pre) > code {
+  font-size: 0.9em;
+  padding: 0.12em 0.4em;
+  border-radius: var(--radius-xs);
+  background-color: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+}
+.keigan-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body-sm);
+  line-height: var(--text-body-sm-line-height);
+  display: block;
+  overflow-x: auto;
+}
+.keigan-prose th,
+.keigan-prose td {
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.55em 0.8em;
+  text-align: left;
+  vertical-align: top;
+}
+.keigan-prose th {
+  background-color: var(--color-surface-sunken);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.keigan-prose input[type="checkbox"] {
+  margin-right: 0.4em;
+  accent-color: var(--color-action);
+}
+.keigan-prose img {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
+:root:lang(ja) .keigan-prose {
+  line-height: calc(var(--text-body-line-height) + 0.1em);
+}
+
+/* ── React Flow (TopologyGraph) token alignment ──────────────────────── */
+.keigan-topology .react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: var(--color-text-subtle);
+  --xy-edge-stroke-selected: var(--color-action);
+  --xy-minimap-background-color: var(--color-surface);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--color-canvas) 70%, transparent);
+  --xy-controls-button-background-color: var(--color-surface);
+  --xy-controls-button-background-color-hover: var(--color-surface-hover);
+  --xy-controls-button-color: var(--color-text);
+  --xy-controls-button-border-color: var(--color-border);
+  --xy-attribution-background-color: transparent;
+}
+.keigan-topology .react-flow__controls {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+}
+.keigan-topology .react-flow__minimap {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+.keigan-topology .react-flow__edge-textbg {
+  fill: var(--color-surface);
+}
+.keigan-topology .react-flow__edge-text {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+}
+
+/* ── Recharts token alignment ─────────────────────────────────────────── */
+.keigan-chart .recharts-cartesian-grid line {
+  stroke: var(--chart-grid);
+}
+.keigan-chart .recharts-cartesian-axis-tick-value {
+  fill: var(--chart-axis);
+  font-size: 12.5px;
+}
+.keigan-chart .recharts-cartesian-axis-line,
+.keigan-chart .recharts-cartesian-axis-tick-line {
+  stroke: var(--chart-grid);
+}
+.keigan-chart .recharts-surface:focus,
+.keigan-chart .recharts-wrapper:focus,
+.keigan-chart svg:focus {
+  outline: none;
+}
+
+/* Theme switches apply instantly (no colour transitions across the whole page). */
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
+}
+
+/* ── Reduced motion (doc 04 §4): opacity only, effectively instant ───── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* A spinner that stops spinning reads as "stuck"; keep it, slowly. */
+  .keigan-spinner {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}

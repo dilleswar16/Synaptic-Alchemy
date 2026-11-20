@@ -1,0 +1,47 @@
+{
+  "layout": {
+    "brand": "Keigan",
+    "tagline": "AI Site Reliability Engineer",
+    "open_in_keigan": "Open in Keigan",
+    "footer": "You receive this message because you are a stakeholder of {application_name}. Manage your subscriptions with the application team in Keigan.",
+    "automated": "This message was generated automatically by Keigan. Please verify critical facts with the incident record."
+  },
+  "labels": {
+    "application": "Application",
+    "incident": "Incident",
+    "priority": "Priority",
+    "services": "Affected services",
+    "category": "Category",
+    "status": "Status",
+    "opened": "Opened",
+    "confidence": "Confidence",
+    "health_score": "Health score",
+    "period": "Period",
+    "severity": "Severity",
+    "slo": "SLO",
+    "burn_rate": "Burn rate"
+  },
+  "types": {
+    "incident_detected": {"subject": "[{priority}] Incident detected: {title}", "headline": "Incident detected", "intro": "Keigan detected a new incident in {application_name} and has started investigating."},
+    "preliminary_report": {"subject": "[{priority}] Preliminary report: {title}", "headline": "Preliminary investigation report", "intro": "Keigan finished its first investigation of this incident. The findings are preliminary and may change."},
+    "progress_update": {"subject": "[{priority}] Update: {title}", "headline": "Incident update", "intro": "An update on the incident in {application_name}."},
+    "resolution_update": {"subject": "[{priority}] Resolved: {title}", "headline": "Incident resolved", "intro": "The incident in {application_name} has been resolved."},
+    "executive_summary": {"subject": "[{priority}] Executive summary: {title}", "headline": "Executive summary", "intro": "A short summary for leadership about the incident in {application_name}."},
+    "postmortem": {"subject": "Postmortem: {title}", "headline": "Postmortem report", "intro": "The postmortem for the incident in {application_name} is ready."},
+    "intelligence_report": {"subject": "Keigan Intelligence Report: {title}", "headline": "Keigan Intelligence Report", "intro": "Keigan analysed the reliability of {application_name}."},
+    "slo_burn_alert": {"subject": "[{severity}] SLO burn alert: {title}", "headline": "SLO error budget is burning fast", "intro": "The error budget of an SLO in {application_name} is being consumed faster than planned."},
+    "test": {"subject": "Keigan test notification for {application_name}", "headline": "Test notification", "intro": "This is a test message so you can confirm that Keigan notifications reach you."}
+  },
+  "cards": {
+    "incident_detected": "Incident detected",
+    "preliminary_report": "Preliminary report",
+    "postmortem_ready": "Postmortem ready",
+    "intelligence_alert": "Predictive signal",
+    "open": "Open in Keigan"
+  },
+  "chat": {
+    "welcome": "I am Keigan. I will post investigation findings here and learn from your discussion. Ask me with \"Keigan, ...\". Say \"Keigan, this is finished\" when the incident is done and I will prepare the postmortem.",
+    "milestone_ack": "Understood. I am generating the postmortem draft now; it will appear in Keigan shortly.",
+    "no_answer": "I could not answer that right now. Open the investigation in Keigan for the full findings."
+  }
+}

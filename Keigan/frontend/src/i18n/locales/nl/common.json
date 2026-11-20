@@ -1,0 +1,227 @@
+{
+  "appName": "Keigan",
+  "tagline": "Het scherpe oog voor onze systemen.",
+  "actions": {
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "close": "Sluiten",
+    "copy": "Kopiëren",
+    "copied": "Gekopieerd",
+    "copyToClipboard": "Naar klembord kopiëren",
+    "retry": "Opnieuw proberen",
+    "search": "Zoeken",
+    "clear": "Wissen",
+    "clearAll": "Alles wissen",
+    "apply": "Toepassen",
+    "back": "Terug",
+    "next": "Volgende",
+    "continue": "Doorgaan",
+    "viewAll": "Alles bekijken",
+    "seeAll": "Alles tonen",
+    "showMore": "Meer tonen",
+    "showLess": "Minder tonen",
+    "edit": "Bewerken",
+    "delete": "Verwijderen",
+    "remove": "Verwijderen",
+    "confirm": "Bevestigen",
+    "refresh": "Vernieuwen",
+    "dismiss": "Negeren",
+    "learnMore": "Meer informatie",
+    "moreActions": "Meer acties",
+    "goHome": "Naar home",
+    "reloadPage": "Pagina herladen",
+    "removeItem": "{{label}} verwijderen",
+    "expand": "Uitklappen",
+    "collapse": "Inklappen",
+    "showDetails": "Details tonen"
+  },
+  "states": {
+    "loading": "Laden…",
+    "saving": "Opslaan…",
+    "noResults": "Geen resultaten",
+    "noResultsFor": "Geen resultaten voor “{{query}}”",
+    "empty": "Hier is nog niets",
+    "underConstructionTitle": "Deze pagina is in aanbouw",
+    "underConstructionDescription": "Het Keigan-team bouwt deze pagina op dit moment. Kom binnenkort terug.",
+    "optional": "Optioneel",
+    "required": "Verplicht"
+  },
+  "errors": {
+    "genericTitle": "Er is iets misgegaan",
+    "genericDescription": "Keigan kon dit verzoek niet voltooien. Probeer het over een moment opnieuw.",
+    "networkTitle": "Keigan is niet bereikbaar",
+    "networkDescription": "Controleer uw verbinding en probeer het opnieuw.",
+    "forbiddenTitle": "U hebt hier geen toegang toe",
+    "forbiddenDescription": "Vraag het aan een applicatiebeheerder of vraag de juiste groep aan in SailPoint.",
+    "notFoundTitle": "Niet gevonden",
+    "notFoundDescription": "Het item is mogelijk verwijderd of de link is verouderd.",
+    "conflictTitle": "Iemand anders heeft dit gewijzigd",
+    "conflictDescription": "Laad opnieuw om de nieuwste versie te zien en voer uw wijziging opnieuw door.",
+    "reference": "Referentie {{correlationId}}"
+  },
+  "theme": {
+    "label": "Thema",
+    "light": "Licht",
+    "dark": "Donker",
+    "system": "Systeem",
+    "change": "Thema wijzigen"
+  },
+  "language": {
+    "label": "Taal",
+    "change": "Taal wijzigen"
+  },
+  "priority": {
+    "ariaLabel": "Prioriteit {{priority}}"
+  },
+  "confidence": {
+    "label": "Betrouwbaarheid",
+    "low": "Laag",
+    "moderate": "Gemiddeld",
+    "high": "Hoog",
+    "veryHigh": "Zeer hoog",
+    "valueText": "Betrouwbaarheid {{percentage}}, {{level}}"
+  },
+  "risk": {
+    "low": "Laag risico",
+    "medium": "Gemiddeld risico",
+    "high": "Hoog risico — bevestig via het wijzigingsproces"
+  },
+  "commandBlock": {
+    "label": "Opdrachten",
+    "copyCommand": "Opdracht kopiëren"
+  },
+  "markdown": {
+    "copyCode": "Code kopiëren"
+  },
+  "ai": {
+    "keigan": "Keigan",
+    "generatedBy": "Gegenereerd door Keigan",
+    "aiGeneratedContent": "Door AI gegenereerde inhoud"
+  },
+  "saveIndicator": {
+    "saving": "Opslaan…",
+    "savedAt": "Opgeslagen {{time}}",
+    "saved": "Opgeslagen",
+    "failed": "Opslaan mislukt",
+    "retry": "Opnieuw"
+  },
+  "stepStatus": {
+    "not_started": "Niet gestart",
+    "in_progress": "Bezig",
+    "waiting": "Wachtend",
+    "blocked": "Geblokkeerd",
+    "done": "Klaar"
+  },
+  "readiness": {
+    "summary": "{{completedCount}} van {{requiredCount}} verplichte onderdelen klaar",
+    "next": "Volgende: {{stepLabel}}",
+    "allDone": "Alles wat verplicht is, is klaar",
+    "seeAll": "Alles tonen"
+  },
+  "fileDrop": {
+    "dropFiles": "Sleep bestanden hierheen, of",
+    "browse": "blader",
+    "dropToUpload": "Zet neer om te uploaden",
+    "acceptedTypes": "Toegestaan: {{types}}",
+    "maximumSize": "Maximaal {{size}} per bestand",
+    "rejectedType": "{{fileName}} is geen toegestaan bestandstype.",
+    "rejectedSize": "{{fileName}} is groter dan {{size}}.",
+    "pending": "Wachtend",
+    "uploading": "Uploaden {{percentage}}",
+    "uploaded": "Geüpload",
+    "failed": "Upload mislukt",
+    "removeFile": "{{fileName}} verwijderen"
+  },
+  "dataTable": {
+    "selectAllRows": "Alle rijen selecteren",
+    "selectRow": "Rij selecteren",
+    "selectedCount_one": "{{count}} geselecteerd",
+    "selectedCount_other": "{{count}} geselecteerd",
+    "sortBy": "Sorteren op {{column}}",
+    "pageSummary": "{{start}}–{{end}} van {{total}}",
+    "previousPage": "Vorige pagina",
+    "nextPage": "Volgende pagina",
+    "emptyTitle": "Niets om te tonen",
+    "emptyDescription": "Rijen verschijnen hier zodra er gegevens zijn.",
+    "loadingRows": "Rijen laden"
+  },
+  "select": {
+    "placeholder": "Selecteer een optie"
+  },
+  "combobox": {
+    "placeholder": "Selecteren…",
+    "searchPlaceholder": "Zoeken…",
+    "noMatches": "Geen overeenkomsten",
+    "clearSelection": "Selectie wissen"
+  },
+  "tokenInput": {
+    "placeholder": "Typ en druk op Enter",
+    "removeToken": "{{token}} verwijderen",
+    "duplicateToken": "{{token}} staat al in de lijst."
+  },
+  "toast": {
+    "regionLabel": "Meldingen",
+    "dismiss": "Melding sluiten"
+  },
+  "countWithInfo": {
+    "moreItems_one": "en nog {{count}}",
+    "moreItems_other": "en nog {{count}}"
+  },
+  "timeline": {
+    "empty": "Nog geen gebeurtenissen"
+  },
+  "units": {
+    "tokens_one": "{{formattedCount}} token",
+    "tokens_other": "{{formattedCount}} tokens"
+  },
+  "chart": {
+    "viewAsTable": "Als tabel weergeven",
+    "viewAsChart": "Als grafiek weergeven",
+    "target": "Doel",
+    "anomaly": "Afwijking",
+    "total": "Totaal",
+    "noData": "Geen gegevens voor deze periode",
+    "category": "Categorie",
+    "time": "Tijd",
+    "value": "Waarde",
+    "share": "Aandeel",
+    "stage": "Fase",
+    "count": "Aantal",
+    "ofFirstStage": "{{percentage}} van {{stage}}",
+    "noValue": "Geen gegevens"
+  },
+  "topology": {
+    "label": "Topologiegrafiek",
+    "legend": "Legenda",
+    "impactDirect": "Direct getroffen",
+    "impactIndirect": "Indirect getroffen",
+    "minimap": "Topologieoverzicht",
+    "emptyTitle": "Nog geen topologie",
+    "emptyDescription": "Bouw de topologie om te zien hoe de services van deze applicatie samenhangen.",
+    "nodeTypes": {
+      "aks": "AKS",
+      "functions": "Functions",
+      "app_service": "App Service",
+      "logic_apps": "Logic Apps",
+      "api_management": "API Management",
+      "data_factory": "Data Factory",
+      "service": "Service",
+      "database": "Database",
+      "storage": "Opslag",
+      "queue": "Wachtrij",
+      "external": "Externe afhankelijkheid",
+      "hardware": "Hardware en netwerk",
+      "mainframe": "Mainframe",
+      "saas": "SaaS-platform",
+      "users": "Gebruikers"
+    }
+  },
+  "environment": {
+    "local": "Lokaal",
+    "dev": "Dev",
+    "test": "Test",
+    "prod": "Prod",
+    "badgeLabel": "Omgeving: {{environment}}"
+  },
+  "version": "Versie {{version}}"
+}

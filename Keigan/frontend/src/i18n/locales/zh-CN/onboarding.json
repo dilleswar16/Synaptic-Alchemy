@@ -1,0 +1,452 @@
+{
+  "pageTitle": "接入",
+  "pageDescription": "在 Keigan 中连接、教学并上线一个应用。",
+  "environments": {
+    "dev": "开发",
+    "test": "测试",
+    "uat": "UAT",
+    "prod": "生产"
+  },
+  "tiers": {
+    "tier_1": "1 级",
+    "tier_2": "2 级",
+    "tier_3": "3 级"
+  },
+  "types": {
+    "azure_resource_group": {
+      "title": "Azure 资源组",
+      "description": "资源组中的 Functions、AKS、App Service、Logic Apps、API Management、Data Factory 和 SQL。"
+    },
+    "hardware": {
+      "title": "硬件和网络",
+      "description": "服务器、交换机、路由器、防火墙、负载均衡器和存储阵列。"
+    },
+    "mainframe": {
+      "title": "大型机",
+      "description": "IBM z/OS 子系统：CICS、IMS、DB2、MQ 和批处理。"
+    },
+    "saas_platform": {
+      "title": "SaaS 平台",
+      "description": "由供应商托管的服务，日志也由供应商托管。"
+    }
+  },
+  "empty": {
+    "title": "暂无组件",
+    "description": "添加应用的运行位置。Keigan 以只读权限读取。"
+  },
+  "status": {
+    "not_checked": "未检查",
+    "checking": "正在检查访问权限",
+    "verified": "访问权限已验证",
+    "missing_roles": "等待授予角色",
+    "failed": "检查失败",
+    "not_applicable": "详情已保存",
+    "simulated": "模拟"
+  },
+  "card": {
+    "verify": "验证",
+    "refresh": "刷新",
+    "remove": "移除",
+    "checked": "检查时间",
+    "resourcesFound": "个资源已发现",
+    "monitoredServices": "个作为服务被监控",
+    "telemetrySources": "个遥测源",
+    "services_one": "{{count}} 个服务",
+    "services_other": "{{count}} 个服务",
+    "showCommands": "显示角色授权命令",
+    "addComponent": "添加组件",
+    "removeTitle": "移除{{name}}？",
+    "removeDescription_one": "Keigan 将停止监控此组件下的 {{count}} 个服务。事件和历史记录会保留。",
+    "removeDescription_other": "Keigan 将停止监控此组件下的 {{count}} 个服务。事件和历史记录会保留。",
+    "removeConfirm": "移除组件"
+  },
+  "verify": {
+    "checklistLabel": "访问权限检查",
+    "checks": {
+      "list_resources": "列出资源",
+      "read_activity_log": "读取活动日志",
+      "read_metrics": "读取指标",
+      "query_workspace": "查询 Log Analytics 工作区"
+    },
+    "missingRole": "需要{{role}}角色",
+    "rolesCanTakeAWhile": "Azure 应用新角色可能需要几分钟。即使您离开此页面，Keigan 也会持续检查。",
+    "failed": "Keigan 无法检查访问权限，请重试。"
+  },
+  "roleGrant": {
+    "tenantId": "租户 ID",
+    "clientId": "托管标识客户端 ID",
+    "objectId": "托管标识对象 ID",
+    "displayName": "显示名称",
+    "rolesTitle": "需授予的只读角色",
+    "tabs": {
+      "cli": "Azure CLI",
+      "powershell": "PowerShell",
+      "terraform": "Terraform",
+      "portal": "门户"
+    },
+    "copyAll": "复制所有命令",
+    "sendToSomeone": "发送给有权限的人",
+    "shareIntro": "请使用以下命令，为 Keigan 授予资源组 {{resourceGroup}} 的只读访问权限。链接：",
+    "notConfigured": "未配置",
+    "displayNameUnknown": "按对象 ID 搜索",
+    "identityIncompleteTitle": "Keigan 的身份未完全配置",
+    "identityIncompleteBody": "Keigan 无法确定：{{values}}。授予角色前，请让 Keigan 管理员完成配置。",
+    "identityDiscovered": "这些 ID 是运行时从 Keigan 自身的 Azure 身份读取的。"
+  },
+  "explorer": {
+    "title": "{{name}}中的资源",
+    "description": "Azure 为此资源组返回的全部内容。只有部分资源会成为服务。",
+    "filter": "筛选资源",
+    "filters": {
+      "all": "全部",
+      "monitored_service": "服务",
+      "telemetry_source": "遥测源",
+      "not_monitored_type": "其他"
+    },
+    "name": "名称",
+    "type": "类型",
+    "classification": "用途",
+    "classifications": {
+      "monitored_service": "服务",
+      "telemetry_source": "遥测源",
+      "not_monitored_type": "不监控"
+    },
+    "diagnostics": "诊断设置",
+    "diagnosticSettingOn": "正在发送日志",
+    "noDiagnosticSetting": "无诊断设置",
+    "state": "状态",
+    "present": "存在",
+    "noLongerFound": "在 Azure 中已找不到"
+  },
+  "add": {
+    "chooseTypeTitle": "添加组件",
+    "chooseTypeDescription": "选择应用的这一部分运行在哪里。",
+    "titles": {
+      "azure_resource_group": "Azure 资源组",
+      "hardware": "硬件和网络",
+      "mainframe": "大型机",
+      "saas_platform": "SaaS 平台"
+    },
+    "descriptions": {
+      "azure_resource_group": "先确定范围，再授予只读访问权限，然后验证。",
+      "hardware": "一台设备对应一个 Keigan 可监控的服务。",
+      "mainframe": "每个子系统对应一个服务。",
+      "saas_platform": "Keigan 会探测该实例并读取供应商状态页。"
+    },
+    "accessDescription": "请授予以下只读角色，然后验证。Azure 应用这些角色可能需要几分钟。",
+    "azure": {
+      "tenantId": "租户 ID",
+      "tenantHelp": "已预填 Keigan 所在租户。仅在使用其他租户时才需更改。",
+      "subscriptionId": "订阅 ID",
+      "guidInvalid": "请输入 GUID，例如 00000000-0000-0000-0000-000000000000。",
+      "subscriptionName": "订阅名称",
+      "resourceGroup": "资源组名称",
+      "addSeveral": "批量添加",
+      "addSeveralHelp": "每行一个资源组：subscriptionId/resourceGroup。填写后将替代上方字段。"
+    },
+    "hardware": {
+      "name": "设备名称"
+    },
+    "mainframe": {
+      "name": "系统名称"
+    },
+    "saas_platform": {
+      "name": "组件名称"
+    },
+    "environment": "环境",
+    "choose": "请选择…",
+    "noLogTools": "请在步骤 3 中添加日志工具连接，以监控此组件。",
+    "back": "返回",
+    "cancel": "取消",
+    "continueToAccess": "继续配置访问权限",
+    "addComponent": "添加组件",
+    "verifyNow": "验证访问权限",
+    "verifyLater": "稍后验证",
+    "failed": "操作未成功，请检查详情后重试。"
+  },
+  "fields": {
+    "device_category": "设备类别",
+    "hostname": "主机名或 IP",
+    "location": "数据中心或位置",
+    "cmdb_ci": "CMDB 配置项 ID",
+    "owner_team": "负责团队",
+    "log_tool_connection_id": "监控方式",
+    "query_host": "工具中的主机名或节点 ID",
+    "notes": "备注",
+    "lpar": "LPAR 或 Sysplex",
+    "subsystems": "子系统",
+    "job_name_prefixes": "作业名前缀",
+    "query_index": "索引或来源类型",
+    "batch_window": "批处理窗口计划",
+    "vendor_name": "供应商名称",
+    "product_name": "产品",
+    "instance_url": "租户或实例 URL",
+    "status_page_url": "供应商状态页（JSON 或 RSS）",
+    "synthetic_probe_url": "合成探测 URL",
+    "vendor_api_endpoint": "供应商日志或审计 API 端点",
+    "support_contact": "供应商支持联系人",
+    "contractual_sla": "合同 SLA"
+  },
+  "options": {
+    "server": "服务器",
+    "network_switch": "网络交换机",
+    "router": "路由器",
+    "firewall": "防火墙",
+    "load_balancer": "负载均衡器",
+    "storage_array": "存储阵列",
+    "other": "其他"
+  },
+  "serviceTypes": {
+    "aks": "AKS 集群",
+    "function_app": "Function App",
+    "app_service": "App Service",
+    "logic_app": "Logic App",
+    "api_management": "API Management",
+    "data_factory": "Data Factory",
+    "sql_database": "SQL 数据库",
+    "network_appliance": "硬件和网络设备",
+    "mainframe_subsystem": "大型机子系统",
+    "batch_job_stream": "批处理作业流",
+    "saas_service": "SaaS 服务"
+  },
+  "services": {
+    "caption": "此应用的服务",
+    "addService": "添加服务",
+    "addTitle": "添加服务",
+    "addDescription": "用于添加自动发现未找到的内容。Azure 资源会自动显示在此处。",
+    "name": "服务名称",
+    "type": "类型",
+    "component": "组件",
+    "environment": "环境",
+    "criticality": "重要等级",
+    "emptyTitle": "暂无服务",
+    "emptyDescription": "验证 Azure 组件以发现服务，或手动添加。",
+    "columns": {
+      "monitor": "监控",
+      "service": "服务",
+      "environment": "环境",
+      "criticality": "重要等级",
+      "logs": "日志",
+      "metrics": "指标",
+      "dependsOn": "依赖",
+      "repository": "代码仓库",
+      "actions": "详情"
+    },
+    "noLongerFound": "在 Azure 中已找不到",
+    "noDiagnosticSetting": "无诊断设置",
+    "available": "可用",
+    "metricsTitle": "可用指标",
+    "dependsOnTitle": "依赖",
+    "openDetails": "打开服务详情",
+    "selected_one": "已选择 {{count}} 个服务",
+    "selected_other": "已选择 {{count}} 个服务",
+    "bulk": {
+      "setEnvironment": "设置环境",
+      "setCriticality": "设置重要等级",
+      "addLogSource": "添加日志源",
+      "addLogSourceTitle_one": "为 {{count}} 个服务添加日志源",
+      "addLogSourceTitle_other": "为 {{count}} 个服务添加日志源",
+      "monitoringOff": "关闭监控",
+      "clear": "清除选择"
+    }
+  },
+  "serviceDrawer": {
+    "basics": "基本信息",
+    "displayName": "显示名称",
+    "namespace": "Kubernetes 命名空间",
+    "namespaceHelp": "一个集群可以托管多个应用。Keigan 只读取此命名空间。",
+    "description": "描述",
+    "repository": "代码仓库",
+    "repositoryHelp": "有助于 Keigan 在建议修复方案时指向相应代码。",
+    "provider": "提供方",
+    "repositoryUrl": "仓库 URL",
+    "branch": "默认分支",
+    "path": "仓库中的路径",
+    "dependsOn": "依赖",
+    "dependsOnHelp": "此服务所调用的服务。用于生成拓扑和影响范围。",
+    "noOtherServices": "目前没有其他服务。",
+    "logSources": "日志源",
+    "noDiagnosticSetting": "尚无诊断设置。显示启用它的命令。",
+    "metrics_one": "{{count}} 个可用指标",
+    "metrics_other": "{{count}} 个可用指标"
+  },
+  "repositoryProviders": {
+    "azure_devops": "Azure DevOps",
+    "github": "GitHub",
+    "gitlab": "GitLab",
+    "bitbucket": "Bitbucket",
+    "other": "其他"
+  },
+  "logSource": {
+    "none": "尚无日志源。有指标可用时将使用指标。",
+    "kind": "来源",
+    "kinds": {
+      "log_analytics": "Log Analytics 工作区",
+      "application_insights": "Application Insights",
+      "azure_monitor_metrics": "Azure Monitor 指标",
+      "log_tool": "日志工具连接",
+      "synthetic_probe": "合成探测",
+      "vendor_status_page": "供应商状态页"
+    },
+    "chips": {
+      "log_analytics": "Log Analytics",
+      "application_insights": "App Insights",
+      "azure_monitor_metrics": "指标",
+      "log_tool": "日志工具",
+      "synthetic_probe": "探测",
+      "vendor_status_page": "状态页"
+    },
+    "workspaceResourceId": "工作区资源 ID",
+    "connection": "连接",
+    "chooseConnection": "选择连接",
+    "noConnections": "尚无日志工具连接。请在步骤 3 中添加。",
+    "scope": {
+      "index": "索引",
+      "namespace": "命名空间",
+      "host": "主机",
+      "labels": "标签",
+      "probeUrl": "探测 URL"
+    },
+    "primary": "主要",
+    "autoDetected": "自动检测",
+    "add": "添加此来源",
+    "addSource": "添加日志源",
+    "remove": "移除日志源",
+    "test": "测试读取",
+    "testPassed": "Keigan 可以读取此来源",
+    "testFailed": "Keigan 无法读取此来源",
+    "testStatus": {
+      "not_tested": "尚未测试",
+      "passed": "读取测试通过",
+      "failed": "读取测试失败"
+    }
+  },
+  "logTools": {
+    "tools": {
+      "elastic": {
+        "title": "Elastic",
+        "description": "在 Elasticsearch 或 Elastic Cloud 中搜索日志。"
+      },
+      "splunk": {
+        "title": "Splunk",
+        "description": "通过 Splunk REST API 搜索日志。"
+      },
+      "datadog": {
+        "title": "Datadog",
+        "description": "从 Datadog 读取日志和指标。"
+      },
+      "solarwinds": {
+        "title": "SolarWinds",
+        "description": "通过 Orion 或 Observability SaaS 监控网络和节点。"
+      },
+      "ibm_z_log_analytics": {
+        "title": "IBM Z 日志分析",
+        "description": "大型机日志和 SMF 记录。"
+      },
+      "vendor_api": {
+        "title": "供应商 API（SaaS）",
+        "description": "供应商的日志或审计 API。"
+      },
+      "other": {
+        "title": "其他工具",
+        "description": "仅作记录备查。"
+      }
+    },
+    "fields": {
+      "endpoint": "端点 URL",
+      "authenticationMethod": "身份验证",
+      "index_pattern": "索引模式",
+      "service_field": "服务字段名",
+      "namespace_field": "命名空间字段",
+      "time_field": "时间字段",
+      "indexes": "默认索引",
+      "source_types": "来源类型",
+      "host_field": "主机字段",
+      "site": "Datadog 站点",
+      "application_key_reference": "应用密钥引用",
+      "default_service_tag": "默认服务标签",
+      "env_tag": "环境标签",
+      "platform": "平台",
+      "node_ids": "节点 ID 或分组",
+      "product": "产品",
+      "index": "索引或来源类型",
+      "smf_record_types": "SMF 记录类型",
+      "vendor": "供应商",
+      "extra_settings": "额外设置（每行一个 key=value）",
+      "holds": "名称及其包含的内容"
+    },
+    "options": {
+      "api_key": "API 密钥",
+      "basic": "基本身份验证",
+      "oauth_client_credentials": "OAuth 客户端凭据",
+      "orion_swis": "Orion (SWIS)",
+      "observability_saas": "Observability SaaS"
+    },
+    "connectionName": "连接名称",
+    "credential": "密钥或 API 密钥",
+    "credentialHelp": "仅发送一次并安全存储。Keigan 不会再次显示。",
+    "credentialSet": "•••• 设置于 {{date}}",
+    "saveConnection": "保存连接",
+    "saveChanges": "保存更改",
+    "placeholderBanner": "此工具的读取器正在开发中。Keigan 现在先保存详情，待读取器发布后再使用。",
+    "readerInDevelopment": "读取器开发中",
+    "status": {
+      "not_tested": "未测试",
+      "connected": "已连接",
+      "failed": "失败",
+      "reader_not_available": "读取器开发中"
+    },
+    "test": "测试连接",
+    "testDisabled": "此工具的读取器正在开发中，暂时无法测试。",
+    "edit": "编辑",
+    "delete": "删除连接",
+    "deleteTitle": "删除{{name}}？",
+    "deleteDescription": "使用此连接的服务必须先停止使用它。已存储的密钥将被删除。",
+    "deleteConfirm": "删除连接",
+    "none": "暂无连接。请在上方选择一个工具进行添加。",
+    "newestLog": "最新日志",
+    "usedBy": "使用者：{{names}}",
+    "notUsed": "尚无服务使用"
+  },
+  "servicenow": {
+    "title": "ServiceNow 分派组",
+    "description": "Keigan 仅轮询这些组的事件。",
+    "groups": "分派组",
+    "groupsHelp": "输入每个名称后按 Enter。Keigan 无法检查的名称将保存为未验证。",
+    "placeholder": "添加组名称",
+    "search": "搜索 ServiceNow 组",
+    "searchPlaceholder": "输入以搜索…"
+  },
+  "access": {
+    "sailpointTitle": "通过 SailPoint 申请访问权限",
+    "adminGroup": "管理员组（编辑权限）",
+    "readerGroup": "阅读者组（只读）",
+    "copyGroup": "复制组名称",
+    "groupName": "组名称",
+    "objectId": "组对象 ID",
+    "objectIdHelp": "仅当 Entra 令牌携带组 ID 时才需要。",
+    "save": "保存",
+    "membersEntra": "成员来自 Entra ID，在 Keigan 能够读取时显示在此处。",
+    "membersLocal": "组成员关系读取自 Entra ID。在本地模式下，由演示用户决定谁拥有访问权限。",
+    "howItWorksTitle": "访问权限的工作方式",
+    "howItWorksBody": "Keigan 不维护自己的用户列表。每次登录时，它会读取用户在 Entra ID 中的组成员身份：管理员组成员可以修改此应用，读者组成员可以查看。请在 SailPoint 中按下列名称创建这两个组并在其中添加人员，无需在 Keigan 中添加任何人。",
+    "verify": {
+      "title": "在 Entra ID 中检查组",
+      "description": "在任何人登录之前，确认 SailPoint 已创建这两个组并查看成员。",
+      "button": "在 Entra 中检查",
+      "members_one": "{{count}} 名成员：{{names}}",
+      "members_other": "{{count}} 名成员，包括 {{names}}",
+      "objectIdSaved": "已保存对象 ID {{objectId}}，用于登录匹配。",
+      "sourceEntra": "已在 Microsoft Entra ID 中实时检查。",
+      "sourceLocal": "本地模式：已按演示用户检查。在 Azure 中将检查 Microsoft Entra ID。"
+    }
+  },
+  "stubs": {
+    "alertsTitle": "告警源与降噪",
+    "alertsDescription": "在此设置 Webhook 告警源、降噪策略以及由告警创建事件。",
+    "sloTitle": "SLO 建议",
+    "sloDescription": "Keigan 会根据可读取的数据提出 SLO 建议，在此处设置。",
+    "notificationsTitle": "相关方与通知",
+    "notificationsDescription": "在此设置谁会收到事件通知以及通知方式。"
+  }
+}

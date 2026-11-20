@@ -1,0 +1,69 @@
+# PII and secret masking patterns. Applied to every telemetry result, alert summary, ServiceNow description and
+# chat input before storage (evidence) and before any AI call. Order matters: secrets first, then identifiers.
+# placeholder: name used in <NAME_n>; numbered: false gives a fixed placeholder like <SECRET>.
+# validator: optional extra check (luhn).
+patterns:
+  - name: private_key_block
+    placeholder: PRIVATE_KEY
+    numbered: false
+    regex: '-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----'
+  - name: json_web_token
+    placeholder: JWT
+    numbered: false
+    regex: '\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b'
+  - name: bearer_token
+    placeholder: SECRET
+    numbered: false
+    regex: '(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{12,}'
+  - name: connection_string_secret
+    placeholder: SECRET
+    numbered: false
+    regex: '(?i)\b(password|pwd|accountkey|sharedaccesskey|sharedaccesssignature|client_secret|clientsecret)\s*=\s*[^;\s"'']+'
+  - name: key_value_secret
+    placeholder: SECRET
+    numbered: false
+    regex: '(?i)\b(api[_-]?key|secret|token|passwd|password|access[_-]?key|auth)\b\s*["'']?\s*[:=]\s*["'']?[A-Za-z0-9._~+/=-]{8,}'
+  - name: sas_signature
+    placeholder: SECRET
+    numbered: false
+    regex: '(?i)\bsig=[A-Za-z0-9%+/=]{16,}'
+  - name: aws_access_key
+    placeholder: SECRET
+    numbered: false
+    regex: '\bAKIA[0-9A-Z]{16}\b'
+  - name: email_address
+    placeholder: EMAIL
+    regex: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
+  - name: payment_card
+    placeholder: CARD
+    validator: luhn
+    regex: '\b(?:\d[ -]?){12,18}\d\b'
+  - name: us_social_security_number
+    placeholder: SSN
+    regex: '\b(?!000|666|9\d\d)\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b'
+  - name: international_bank_account_number
+    placeholder: BANK
+    regex: '\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b'
+  - name: japan_my_number
+    placeholder: MYNUMBER
+    regex: '(?<![\d-])\d{4}[ -]?\d{4}[ -]?\d{4}(?![\d-])'
+  - name: phone_number
+    placeholder: PHONE
+    regex: '(?<![\w.-])(?:\+\d{1,3}[ .-]?)?(?:\(\d{1,4}\)[ .-]?)?\d{2,4}[ .-]\d{3,4}[ .-]\d{3,4}(?![\w-]|\.\d)'
+  - name: australia_tax_file_number
+    placeholder: TAXID
+    regex: '(?i)\b(?:tfn|tax file number)\D{0,5}\d{3}[ -]?\d{3}[ -]?\d{3}\b'
+  # Organisation-specific identifiers (enable and adjust when the format is confirmed).
+  - name: policy_number
+    placeholder: POLICY
+    enabled: false
+    regex: '(?i)\bpolicy(?:\s*(?:no|number|#))?\s*[:#]?\s*[A-Z]{0,3}\d{6,12}\b'
+
+# JSON keys whose values are always masked regardless of content (case-insensitive, exact key match).
+sensitive_json_keys:
+  NAME: [firstname, lastname, fullname, givenname, surname, name_of_insured, customername, membername, beneficiaryname]
+  ADDRESS: [address, street, streetaddress, postcode, postalcode, zipcode, homeaddress]
+  DOB: [dob, dateofbirth, birthdate, date_of_birth]
+  EMAIL: [email, emailaddress, mail]
+  PHONE: [phone, phonenumber, mobile, telephone]
+  SECRET: [password, secret, apikey, api_key, token, accesstoken, refreshtoken, clientsecret, connectionstring]

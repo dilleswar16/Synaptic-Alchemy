@@ -1,0 +1,69 @@
+{
+  "pageTitle": "Incidentenkamer",
+  "pageDescription": "Openstaande en recente incidenten voor uw applicaties, live bijgewerkt.",
+  "filters": {
+    "searchLabel": "Incidenten zoeken",
+    "searchPlaceholder": "Zoek op nummer of titel",
+    "onlyMine": "Alleen van mij",
+    "viewLabel": "Weergave",
+    "viewTable": "Tabel",
+    "viewBoard": "Bord",
+    "priority": "Prioriteit",
+    "status": "Status",
+    "source": "Bron"
+  },
+  "status": {
+    "new": "Nieuw",
+    "investigating": "In onderzoek",
+    "identified": "Oorzaak gevonden",
+    "resolved": "Opgelost",
+    "closed": "Gesloten"
+  },
+  "source": {
+    "servicenow": "ServiceNow",
+    "alert": "Melding",
+    "manual": "Handmatig"
+  },
+  "servicenowPriority": "ServiceNow: {{priority}}",
+  "columns": {
+    "priority": "Prioriteit",
+    "number": "Nummer",
+    "title": "Incident",
+    "application": "Applicatie",
+    "status": "Status",
+    "confidence": "Betrouwbaarheid Keigan",
+    "detected": "Gedetecteerd",
+    "duration": "Duur",
+    "group": "Toewijzingsgroep"
+  },
+  "noNumber": "Geen nummer",
+  "noServices": "Nog geen services geïdentificeerd",
+  "analysing": "Analyseren",
+  "tableCaption": "Incidenten voor de geselecteerde applicaties",
+  "boardLabel": "Incidentenbord per status",
+  "board": {
+    "emptyColumn": "Niets hier"
+  },
+  "empty": {
+    "title": "Geen incidenten voldoen aan deze filters",
+    "description": "Wis een filter of verruim de zoekopdracht om meer incidenten te zien.",
+    "noIncidentsTitle": "Nog geen incidenten",
+    "noIncidentsDescription": "Incidenten uit ServiceNow verschijnen hier zodra Keigan ze detecteert. U kunt ook zelf een onderzoek starten."
+  },
+  "newInvestigation": {
+    "open": "Nieuw onderzoek",
+    "title": "Een onderzoek starten",
+    "description": "Keigan verzamelt bewijs van de geselecteerde services en stelt een hoofdoorzaak voor. Er wordt niets gewijzigd in uw systemen.",
+    "application": "Applicatie",
+    "services": "Te onderzoeken services",
+    "servicesHelp": "Laat alles uitgevinkt en Keigan kiest de services op basis van uw beschrijving en de applicatietopologie.",
+    "descriptionLabel": "Wat gaat er mis?",
+    "descriptionHelp": "Beschrijf de symptomen, wie erdoor wordt getroffen en wanneer het begon. Plak geen persoonsgegevens; Keigan maskeert ze vóór de analyse.",
+    "windowStart": "Begin van periode",
+    "windowEnd": "Einde van periode",
+    "cancel": "Annuleren",
+    "start": "Onderzoek starten",
+    "startedTitle": "Onderzoek gestart",
+    "startedDescription": "Keigan verzamelt bewijs. Dit duurt meestal een à twee minuten."
+  }
+}

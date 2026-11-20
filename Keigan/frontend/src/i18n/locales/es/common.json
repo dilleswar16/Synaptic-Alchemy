@@ -1,0 +1,227 @@
+{
+  "appName": "Keigan",
+  "tagline": "El ojo atento a nuestros sistemas.",
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "copyToClipboard": "Copiar al portapapeles",
+    "retry": "Reintentar",
+    "search": "Buscar",
+    "clear": "Borrar",
+    "clearAll": "Borrar todo",
+    "apply": "Aplicar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "continue": "Continuar",
+    "viewAll": "Ver todo",
+    "seeAll": "Ver todo",
+    "showMore": "Mostrar más",
+    "showLess": "Mostrar menos",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "remove": "Quitar",
+    "confirm": "Confirmar",
+    "refresh": "Actualizar",
+    "dismiss": "Descartar",
+    "learnMore": "Más información",
+    "moreActions": "Más acciones",
+    "goHome": "Ir al inicio",
+    "reloadPage": "Recargar página",
+    "removeItem": "Quitar {{label}}",
+    "expand": "Expandir",
+    "collapse": "Contraer",
+    "showDetails": "Mostrar detalles"
+  },
+  "states": {
+    "loading": "Cargando…",
+    "saving": "Guardando…",
+    "noResults": "Sin resultados",
+    "noResultsFor": "Sin resultados para “{{query}}”",
+    "empty": "Aún no hay nada aquí",
+    "underConstructionTitle": "Esta página está en construcción",
+    "underConstructionDescription": "El equipo de Keigan está creando esta página. Vuelva pronto.",
+    "optional": "Opcional",
+    "required": "Obligatorio"
+  },
+  "errors": {
+    "genericTitle": "Algo salió mal",
+    "genericDescription": "Keigan no pudo completar esta solicitud. Inténtelo de nuevo en un momento.",
+    "networkTitle": "No se puede conectar con Keigan",
+    "networkDescription": "Compruebe su conexión e inténtelo de nuevo.",
+    "forbiddenTitle": "No tiene acceso a esto",
+    "forbiddenDescription": "Consulte con un administrador de la aplicación o solicite el grupo correspondiente en SailPoint.",
+    "notFoundTitle": "No encontrado",
+    "notFoundDescription": "Puede que se haya eliminado o que el enlace esté desactualizado.",
+    "conflictTitle": "Otra persona modificó esto",
+    "conflictDescription": "Recargue para ver la versión más reciente y vuelva a hacer su cambio.",
+    "reference": "Referencia {{correlationId}}"
+  },
+  "theme": {
+    "label": "Tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema",
+    "change": "Cambiar tema"
+  },
+  "language": {
+    "label": "Idioma",
+    "change": "Cambiar idioma"
+  },
+  "priority": {
+    "ariaLabel": "Prioridad {{priority}}"
+  },
+  "confidence": {
+    "label": "Confianza",
+    "low": "Baja",
+    "moderate": "Moderada",
+    "high": "Alta",
+    "veryHigh": "Muy alta",
+    "valueText": "Confianza de {{percentage}}, {{level}}"
+  },
+  "risk": {
+    "low": "Riesgo bajo",
+    "medium": "Riesgo medio",
+    "high": "Riesgo alto — confirme con el proceso de cambios"
+  },
+  "commandBlock": {
+    "label": "Comandos",
+    "copyCommand": "Copiar comando"
+  },
+  "markdown": {
+    "copyCode": "Copiar código"
+  },
+  "ai": {
+    "keigan": "Keigan",
+    "generatedBy": "Generado por Keigan",
+    "aiGeneratedContent": "Contenido generado por IA"
+  },
+  "saveIndicator": {
+    "saving": "Guardando…",
+    "savedAt": "Guardado {{time}}",
+    "saved": "Guardado",
+    "failed": "No se pudo guardar",
+    "retry": "Reintentar"
+  },
+  "stepStatus": {
+    "not_started": "Sin iniciar",
+    "in_progress": "En curso",
+    "waiting": "En espera",
+    "blocked": "Bloqueado",
+    "done": "Hecho"
+  },
+  "readiness": {
+    "summary": "{{completedCount}} de {{requiredCount}} obligatorios hechos",
+    "next": "Siguiente: {{stepLabel}}",
+    "allDone": "Todo lo obligatorio está hecho",
+    "seeAll": "Ver todo"
+  },
+  "fileDrop": {
+    "dropFiles": "Arrastre y suelte archivos aquí, o",
+    "browse": "examine",
+    "dropToUpload": "Suelte para cargar",
+    "acceptedTypes": "Admitidos: {{types}}",
+    "maximumSize": "Hasta {{size}} cada uno",
+    "rejectedType": "{{fileName}} no es un tipo de archivo admitido.",
+    "rejectedSize": "{{fileName}} supera {{size}}.",
+    "pending": "En espera",
+    "uploading": "Cargando {{percentage}}",
+    "uploaded": "Cargado",
+    "failed": "Error al cargar",
+    "removeFile": "Quitar {{fileName}}"
+  },
+  "dataTable": {
+    "selectAllRows": "Seleccionar todas las filas",
+    "selectRow": "Seleccionar fila",
+    "selectedCount_one": "{{count}} seleccionado",
+    "selectedCount_other": "{{count}} seleccionados",
+    "sortBy": "Ordenar por {{column}}",
+    "pageSummary": "{{start}}–{{end}} de {{total}}",
+    "previousPage": "Página anterior",
+    "nextPage": "Página siguiente",
+    "emptyTitle": "Nada que mostrar",
+    "emptyDescription": "Las filas aparecerán aquí cuando haya datos.",
+    "loadingRows": "Cargando filas"
+  },
+  "select": {
+    "placeholder": "Seleccione una opción"
+  },
+  "combobox": {
+    "placeholder": "Seleccionar…",
+    "searchPlaceholder": "Buscar…",
+    "noMatches": "Sin coincidencias",
+    "clearSelection": "Borrar selección"
+  },
+  "tokenInput": {
+    "placeholder": "Escriba y pulse Enter",
+    "removeToken": "Quitar {{token}}",
+    "duplicateToken": "{{token}} ya está en la lista."
+  },
+  "toast": {
+    "regionLabel": "Notificaciones",
+    "dismiss": "Descartar notificación"
+  },
+  "countWithInfo": {
+    "moreItems_one": "y {{count}} más",
+    "moreItems_other": "y {{count}} más"
+  },
+  "timeline": {
+    "empty": "Aún no hay eventos"
+  },
+  "units": {
+    "tokens_one": "{{formattedCount}} token",
+    "tokens_other": "{{formattedCount}} tokens"
+  },
+  "chart": {
+    "viewAsTable": "Ver como tabla",
+    "viewAsChart": "Ver como gráfico",
+    "target": "Objetivo",
+    "anomaly": "Anomalía",
+    "total": "Total",
+    "noData": "Sin datos para este periodo",
+    "category": "Categoría",
+    "time": "Hora",
+    "value": "Valor",
+    "share": "Proporción",
+    "stage": "Etapa",
+    "count": "Cantidad",
+    "ofFirstStage": "{{percentage}} de {{stage}}",
+    "noValue": "Sin datos"
+  },
+  "topology": {
+    "label": "Gráfico de topología",
+    "legend": "Leyenda",
+    "impactDirect": "Impacto directo",
+    "impactIndirect": "Impacto indirecto",
+    "minimap": "Vista general de la topología",
+    "emptyTitle": "Aún no hay topología",
+    "emptyDescription": "Cree la topología para ver cómo se conectan los servicios de esta aplicación.",
+    "nodeTypes": {
+      "aks": "AKS",
+      "functions": "Functions",
+      "app_service": "App Service",
+      "logic_apps": "Logic Apps",
+      "api_management": "API Management",
+      "data_factory": "Data Factory",
+      "service": "Servicio",
+      "database": "Base de datos",
+      "storage": "Almacenamiento",
+      "queue": "Cola",
+      "external": "Dependencia externa",
+      "hardware": "Hardware y red",
+      "mainframe": "Mainframe",
+      "saas": "Plataforma SaaS",
+      "users": "Usuarios"
+    }
+  },
+  "environment": {
+    "local": "Local",
+    "dev": "Desarrollo",
+    "test": "Pruebas",
+    "prod": "Producción",
+    "badgeLabel": "Entorno: {{environment}}"
+  },
+  "version": "Versión {{version}}"
+}

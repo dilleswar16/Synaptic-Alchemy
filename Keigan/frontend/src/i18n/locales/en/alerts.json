@@ -1,0 +1,114 @@
+{
+  "pageTitle": "Alerts",
+  "pageDescription": "Alert noise reduced to the groups that matter. Nothing is dropped: every alert is stored and every decision has a reason.",
+  "severity": "Sev {{level}}",
+  "tools": { "azure_monitor": "Azure Monitor", "elastic": "Elastic", "generic": "Generic webhook" },
+  "groupStatus": { "open": "Open", "queued": "Queued", "resolved": "Resolved" },
+  "alertStatus": { "firing": "Firing", "resolved": "Resolved" },
+  "verdict": { "useful": "Useful", "noise": "This was noise" },
+  "filters": { "period": "Period", "last24h": "24 hours", "last7d": "7 days", "last30d": "30 days" },
+  "observe": {
+    "title": "Observe mode: {{count}} days left",
+    "body": "Keigan records what it would reduce and group, but still investigates every alert above the minimum severity. Nothing changes until you switch to Active.",
+    "effect": "Measured effect so far: {{sentence}}"
+  },
+  "funnel": {
+    "title": "Noise funnel",
+    "description": "Alerts received, reduced to the groups that were investigated.",
+    "emptyTitle": "No alerts in this period",
+    "emptyDescription": "Connect an alert source in the application's Incidents and alerts step to see the funnel.",
+    "steps": { "received": "Alerts received", "deduplicated": "After de-duplication", "filtered": "After suppression and settle", "groups": "Alert groups", "investigations": "Investigations" },
+    "reasons": {
+      "repeats": "{{count}} repeats", "maintenance": "{{count}} in maintenance", "muted": "{{count}} muted", "environment": "{{count}} other environments",
+      "severity": "{{count}} below minimum severity", "resolved_before_settle": "{{count}} resolved by themselves", "flapping": "{{count}} flapping"
+    },
+    "reasonHelp": {
+      "repeats": "The same alert fired again and was counted on the existing alert.", "maintenance": "Arrived during a maintenance window: recorded, not investigated.", "muted": "Matched a mute rule.",
+      "environment": "Not in an investigated environment.", "severity": "Less severe than the minimum severity.", "resolved_before_settle": "Cleared within the settle delay.", "flapping": "Changed state repeatedly and was kept as one alert."
+    }
+  },
+  "groups": {
+    "title": "Alert groups",
+    "columns": { "group": "Group", "services": "Services", "severity": "Severity", "alerts": "Alerts", "status": "State", "score": "Score", "reason": "Decision", "lastActivity": "Last activity", "feedback": "Feedback" },
+    "occurrences": "{{count}} occurrences",
+    "applicationLevel": "Application-level",
+    "emptyTitle": "No alert groups",
+    "emptyDescription": "When alerts arrive they are grouped here, with the reason for every decision."
+  },
+  "outcome": {
+    "investigation_started": "Investigation started", "investigation_replayed": "Would investigate", "queued": "Queued", "below_threshold": "Below threshold", "joined_group": "Joined group",
+    "joined_investigation": "Added to investigation", "servicenow_incident_suggested": "Incident suggested", "servicenow_incident_created": "Incident created", "suppressed_maintenance": "Maintenance window",
+    "suppressed_mute": "Muted", "suppressed_environment": "Other environment", "suppressed_severity": "Below severity", "resolved_before_settle": "Resolved by itself", "new_group": "New group",
+    "passed": "Passed", "waiting": "Waiting", "settled": "Settled", "skipped_wait": "No wait", "normalised": "Parsed", "new_alert": "New alert", "repeat": "Repeat", "resolved": "Resolved",
+    "reopened": "Re-opened", "flapping": "Flapping", "kept_open_flapping": "Kept open", "scored": "Scored", "notification_planned": "Notification planned", "thread_updated": "Thread updated"
+  },
+  "stage": { "normalise": "1 Normalise", "deduplicate": "2 De-duplicate", "lifecycle": "3 Lifecycle", "suppress": "4 Suppress", "settle": "5 Settle", "group": "6 Group", "prioritise": "7 Prioritise", "decide": "8 Decide", "notify": "9 Notify" },
+  "drawer": {
+    "loading": "Alert group", "rule": "Rule", "service": "Service", "severity": "Severity", "state": "State", "occurrences": "Times seen", "lastSeen": "Last seen", "flapping": "Flapping",
+    "applicationLevel": "Application-level (no service)", "members": "Member alerts ({{count}})", "decisionLog": "Decision log", "decisionLogHelp": "Every pipeline stage with the reason it decided what it did.",
+    "noDecisions": "No decisions recorded.", "wouldHave": "Active mode would have: {{outcome}}", "groupingReason": "Grouping: {{reason}}",
+    "observeTitle": "Observe mode", "observeBody": "These decisions were recorded but not applied. Lines marked 'Active mode would have' show what would change.",
+    "openInvestigation": "Open investigation", "openIncident": "Open incidents", "createIncident": "Create ServiceNow incident", "createIncidentSuggested": "Create suggested ServiceNow incident",
+    "incidentCreated": "ServiceNow incident created", "incidentFailed": "Could not create the incident",
+    "feedback": "Was this group useful?", "feedbackHelp": "Your feedback tunes the weekly noise report.", "feedbackCurrent": "Current feedback: {{verdict}}", "noiseReason": "Why was it noise?", "feedbackSaved": "Feedback saved"
+  },
+  "sources": {
+    "title": "Alert sources", "description": "Send alerts from your monitoring tools to Keigan so they are analysed the same way as ServiceNow incidents. Optional.",
+    "add": "Add alert source", "emptyTitle": "No alert sources yet", "emptyDescription": "Add Azure Monitor, Elastic or any tool that can send a JSON webhook.",
+    "rulesFound": "alert rules found in your scopes ({{sending}} send to Keigan)", "rulesTitle": "Discovered alert rules", "sendsToKeigan": "Sends to Keigan", "doesNotSend": "Does not send",
+    "simulatedRules": "Example rules for simulated components, not read from Azure.",
+    "status": { "waiting_for_first_alert": "Waiting for first alert", "receiving": "Receiving, last alert", "authentication_failures": "Authentication failures", "paused": "Paused" },
+    "counts": "{{alerts}} alerts in 7 days, {{groups}} groups, {{investigated}} investigated", "authFailures": "{{count}} rejected requests with a wrong token.",
+    "test": "Test", "testSent": "Test alert sent", "rotate": "Rotate secret", "pause": "Pause", "resume": "Resume", "remove": "Remove",
+    "removeTitle": "Remove alert source", "removeBody": "Keigan stops accepting alerts at the URL of {{name}}. Stored alerts stay.", "removeConfirm": "Remove source",
+    "rotatedTitle": "New secret", "rotatedBody": "Copy it now: it is shown once. The old secret keeps working for 24 hours."
+  },
+  "sheet": {
+    "title": "Add alert source", "cancel": "Cancel", "back": "Back", "next": "Next", "done": "Done", "createSource": "Create source", "saveContinue": "Save and continue",
+    "steps": { "tool": "Choose the tool and name the source.", "endpoint": "Keigan created a unique endpoint for this source.", "configure": "Configure your tool with the real values.", "mapping": "Map the fields of your payload.", "services": "Tell Keigan which service an alert is about.", "test": "Send a test alert or listen for a real one." },
+    "tool": "Tool", "toolHelp": { "azure_monitor": "Common alert schema, mapped automatically", "elastic": "Webhook connector with a ready body template", "generic": "Dynatrace, Datadog, Grafana, Alertmanager, SolarWinds and more" },
+    "name": "Source name", "namePlaceholder": "Azure Monitor production",
+    "secretOnceTitle": "Copy the secret now", "secretOnceBody": "Keigan stores only a hash. The secret is shown once; you can rotate it later.",
+    "webhookUrl": "Webhook URL", "webhookUrlHelp": "Includes the token for tools that cannot send headers (Azure Monitor).", "secret": "Secret", "secretHelp": "Send it as the X-Keigan-Token header or the token query parameter.",
+    "header": "Header", "headerHelp": "Optional: sign the body with X-Keigan-Signature (HMAC-SHA256, key is the SHA-256 hex of the secret).",
+    "samplePayload": "Sample payload (JSON)", "samplePayloadHelp": "Paste one alert from your tool, or leave empty to use the first one received.", "suggestMapping": "Suggest mapping and preview",
+    "fields": { "ruleName": "Rule name", "ruleId": "Rule id", "externalId": "Alert id", "status": "Status", "severity": "Severity", "resourceRef": "Resource", "serviceHint": "Service", "summary": "Summary", "startedAt": "Started at", "link": "Link" },
+    "severityMapping": "Severity mapping (tool value to Sev 0 to 4)", "toolValue": "Tool value", "severityLevel": "Severity", "removeRow": "Remove row", "addRow": "Add row",
+    "servicesHelp": "Azure alerts are matched by resource id automatically. For other tools choose the payload field that names the service; unmatched alerts become application-level.",
+    "serviceField": "Service field", "serviceFieldHelp": "JSONPath, for example $.service.name or $.kubernetes.namespace", "autoMatch": "Match by equal names", "autoMatchHelp": "A value equal to a service name is mapped to that service.",
+    "sendTest": "Send a test alert from Keigan", "listen": "Listen for a real alert", "stopListening": "Stop listening", "connected": "Connected: an alert was received and parsed",
+    "matchedService": "Matched service", "processing": "Processing", "rawPayload": "Raw payload", "waiting": "Waiting for the first alert...", "testHelp": "The source is marked connected once one alert has been received and parsed."
+  },
+  "policy": {
+    "title": "Noise reduction", "description": "Works on defaults. Edit the sentences to change how alerts are reduced.", "reset": "Reset to defaults", "save": "Save policy", "discard": "Discard changes",
+    "minSeverityA": "Investigate alerts of severity", "minSeverityB": "or more severe.",
+    "environmentsA": "Only investigate alerts from", "environmentsB": "environments. Others are recorded.", "allEnvironments": "all environments",
+    "settleA": "Wait", "settleB": "before investigating, in case the alert clears by itself. Skip the wait for",
+    "reopenA": "Treat a repeat of the same alert as one alert, and for", "reopenB": "after it clears.",
+    "groupA": "Treat alerts on the same or dependent services within", "groupB": "as one problem.",
+    "flapA": "If an alert changes state", "flapB": "times in", "flapC": "treat it as flapping and keep it as one open alert.",
+    "rateA": "Start at most", "rateB": "investigations per hour for this application.",
+    "thresholdA": "Investigate groups with a priority score of at least", "thresholdB": "(severity x criticality x environment).",
+    "modeA": "Mode:", "modeActive": "Active: decisions take effect", "modeObserve": "Observe: show what would be reduced without changing behaviour",
+    "beforeSwitch": "Measured effect before you switch to Active"
+  },
+  "windows": {
+    "title": "Maintenance windows", "description": "Alerts inside a window are recorded and labelled, not investigated.", "add": "Add window", "create": "Create window", "name": "Name", "scope": "Services",
+    "wholeApplication": "Whole application", "when": "When", "repeat": "Repeat", "weekly": "Repeats weekly", "once": "Once", "state": "State", "active": "Active now", "delete": "Delete window",
+    "starts": "Starts", "ends": "Ends", "empty": "No maintenance windows"
+  },
+  "mute": {
+    "title": "Mute rules", "description": "Expiry and reason are required. Expired rules are shown as expired, never deleted silently.", "add": "Add mute rule", "create": "Create mute rule", "name": "Name",
+    "matcher": "Matches", "reason": "Reason", "expires": "Expires", "expired": "Expired", "delete": "Delete mute rule", "ruleContains": "Rule name contains", "severity": "Severity", "anySeverity": "Any severity",
+    "expiresHelp": "Mute rules always end.", "empty": "No mute rules"
+  },
+  "preview": {
+    "title": "Preview on the last 7 days", "description": "Re-runs these settings over stored alerts in memory. Nothing changes.", "run": "Apply these settings to the last 7 days",
+    "illustration": "Example, not your data. Alerts will fill this in."
+  },
+  "incidentPolicy": {
+    "title": "Incident creation from alerts", "description": "What Keigan does when an investigated alert group is serious enough.",
+    "whenScore": "When an alert group scores at or above", "thenDo": "and the investigation confirms customer impact,", "suggest": "suggest a ServiceNow incident", "automatic": "automatically create a ServiceNow incident",
+    "inGroup": "in assignment group", "noGroup": "Default group", "threshold": "Score threshold", "mode": "Mode", "group": "Assignment group", "save": "Save policy"
+  }
+}

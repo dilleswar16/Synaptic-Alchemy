@@ -1,0 +1,96 @@
+{
+  "sections": {
+    "operate": "运维",
+    "reliability": "可靠性",
+    "assist": "辅助",
+    "prepare": "准备",
+    "administration": "管理"
+  },
+  "items": {
+    "home": "首页",
+    "incidents": "事件室",
+    "alerts": "告警",
+    "slo": "SLO 监控",
+    "intelligence": "智能洞察",
+    "chat": "Keigan AI 对话",
+    "applications": "应用",
+    "platformSettings": "平台设置",
+    "usageAndAudit": "用量与审计",
+    "outbox": "发件箱",
+    "designSystem": "设计系统"
+  },
+  "skipToContent": "跳到主要内容",
+  "mainNavigation": "主导航",
+  "breadcrumb": "面包屑导航",
+  "sidebar": {
+    "collapse": "折叠侧边栏",
+    "expand": "展开侧边栏",
+    "open": "打开导航",
+    "close": "关闭导航"
+  },
+  "applicationScope": {
+    "label": "应用",
+    "allMyApplications": "我的所有应用",
+    "selectedCount_one": "{{count}} 个应用",
+    "selectedCount_other": "{{count}} 个应用",
+    "searchPlaceholder": "搜索应用",
+    "noApplications": "您暂无任何应用的访问权限。",
+    "noMatches": "没有与“{{query}}”匹配的应用",
+    "showAll": "显示全部",
+    "triggerLabel": "应用范围：{{scope}}",
+    "roleAdmin": "管理员",
+    "roleReader": "阅读者",
+    "hint": "列表、统计数据和对话回答均遵循此范围。"
+  },
+  "commandPalette": {
+    "title": "搜索 Keigan",
+    "open": "搜索 Keigan",
+    "trigger": "搜索",
+    "placeholder": "跳转到页面或查找事件编号…",
+    "pages": "页面",
+    "incidents": "事件",
+    "searchIncident": "搜索与“{{query}}”相关的事件",
+    "noResults": "没有匹配的页面。按 Enter 搜索事件。",
+    "hintNavigate": "移动",
+    "hintOpen": "打开",
+    "hintClose": "关闭"
+  },
+  "notifications": {
+    "title": "通知",
+    "open": "打开通知",
+    "emptyTitle": "已全部处理",
+    "emptyDescription": "您所属应用的事件和 SLO 更新将显示在此处。"
+  },
+  "userMenu": {
+    "open": "打开用户菜单",
+    "preferences": "偏好设置",
+    "signOut": "退出登录",
+    "signedInAs": "当前登录"
+  },
+  "roles": {
+    "keiganAdmin": "Keigan 管理员",
+    "applicationAdmin": "应用管理员",
+    "reader": "阅读者",
+    "noAccess": "无权限"
+  },
+  "preferences": {
+    "title": "偏好设置",
+    "description": "您的语言和主题会保存到您的 Keigan 个人资料中。",
+    "language": "语言",
+    "theme": "主题",
+    "done": "完成"
+  },
+  "notFound": {
+    "title": "页面未找到",
+    "description": "您查找的页面不存在或已移动。",
+    "goHome": "返回首页"
+  },
+  "adminOnly": {
+    "title": "仅限 Keigan 管理员",
+    "description": "此区域仅限 Keigan 管理员组成员访问。"
+  },
+  "routeError": {
+    "title": "此页面出现问题",
+    "description": "请重新加载页面。如果问题持续出现，请将下方详情提供给 Keigan 团队。"
+  }
+}

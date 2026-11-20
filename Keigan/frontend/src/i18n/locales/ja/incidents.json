@@ -1,0 +1,69 @@
+{
+  "pageTitle": "インシデントルーム",
+  "pageDescription": "アプリケーションの未解決および最近のインシデントをリアルタイムで表示します。",
+  "filters": {
+    "searchLabel": "インシデントを検索",
+    "searchPlaceholder": "番号またはタイトルで検索",
+    "onlyMine": "自分のみ",
+    "viewLabel": "表示",
+    "viewTable": "テーブル",
+    "viewBoard": "ボード",
+    "priority": "優先度",
+    "status": "ステータス",
+    "source": "ソース"
+  },
+  "status": {
+    "new": "新規",
+    "investigating": "調査中",
+    "identified": "原因特定済み",
+    "resolved": "解決済み",
+    "closed": "クローズ"
+  },
+  "source": {
+    "servicenow": "ServiceNow",
+    "alert": "アラート",
+    "manual": "手動"
+  },
+  "servicenowPriority": "ServiceNow: {{priority}}",
+  "columns": {
+    "priority": "優先度",
+    "number": "番号",
+    "title": "インシデント",
+    "application": "アプリケーション",
+    "status": "ステータス",
+    "confidence": "Keigan の確信度",
+    "detected": "検知日時",
+    "duration": "経過時間",
+    "group": "担当グループ"
+  },
+  "noNumber": "番号なし",
+  "noServices": "特定されたサービスはまだありません",
+  "analysing": "分析中",
+  "tableCaption": "選択したアプリケーションのインシデント",
+  "boardLabel": "ステータス別インシデントボード",
+  "board": {
+    "emptyColumn": "なし"
+  },
+  "empty": {
+    "title": "条件に一致するインシデントはありません",
+    "description": "フィルターを解除するか、検索範囲を広げてください。",
+    "noIncidentsTitle": "インシデントはまだありません",
+    "noIncidentsDescription": "ServiceNow のインシデントは、Keigan が検知するとすぐにここに表示されます。自分で調査を開始することもできます。"
+  },
+  "newInvestigation": {
+    "open": "新規調査",
+    "title": "調査を開始",
+    "description": "Keigan は選択したサービスから証拠を収集し、根本原因を提案します。システムが変更されることはありません。",
+    "application": "アプリケーション",
+    "services": "調査対象のサービス",
+    "servicesHelp": "すべて未選択の場合、Keigan が説明とアプリケーションのトポロジーからサービスを選びます。",
+    "descriptionLabel": "どのような問題が発生していますか？",
+    "descriptionHelp": "症状、影響を受けているユーザー、発生時刻を記入してください。個人情報は貼り付けないでください。Keigan は分析前にマスクします。",
+    "windowStart": "開始時刻",
+    "windowEnd": "終了時刻",
+    "cancel": "キャンセル",
+    "start": "調査を開始",
+    "startedTitle": "調査を開始しました",
+    "startedDescription": "Keigan が証拠を収集しています。通常 1～2 分かかります。"
+  }
+}

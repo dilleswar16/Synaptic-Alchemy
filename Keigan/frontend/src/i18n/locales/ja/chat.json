@@ -1,0 +1,49 @@
+{
+  "pageTitle": "Keigan AI チャット",
+  "pageDescription": "アプリケーション、インシデント、テレメトリについて質問できます。",
+  "list": {
+    "title": "会話",
+    "newChat": "新しいチャット",
+    "search": "会話を検索",
+    "empty": "会話はまだありません。最初の質問をしてみましょう。",
+    "noMatches": "検索に一致する会話はありません。",
+    "actions": "会話の操作",
+    "rename": "名前を変更",
+    "renameTitle": "会話の名前を変更",
+    "nameLabel": "名前",
+    "save": "保存",
+    "delete": "削除",
+    "deleteTitle": "この会話を削除しますか？",
+    "deleteDescription": "この会話と回答はあなたの画面から削除されます。この操作は元に戻せません。"
+  },
+  "conversation": {
+    "title": "会話",
+    "newTitle": "新しい会話",
+    "scope": "対象",
+    "allApplications": "自分のすべてのアプリケーション",
+    "thinking": "Keigan が処理中です…"
+  },
+  "empty": {
+    "title": "何を知りたいですか？",
+    "description": "エラー件数、時系列のパターン、アーキテクチャ、ランブックについて質問できます。Keigan は読み取り専用で、システムを変更することはありません。",
+    "category": { "data": "ログから", "knowledge": "ナレッジベースから" }
+  },
+  "composer": {
+    "label": "Keigan にメッセージ",
+    "placeholder": "アプリケーションについて質問してください…",
+    "send": "送信",
+    "hint": "Enter で送信、Shift+Enter で改行。個人情報は AI に送られる前にマスクされます。"
+  },
+  "message": {
+    "howIGotThis": "回答の根拠",
+    "queryMeta": "{{service}} · {{source}} · {{language}} · {{count}} 行",
+    "simulated": "シミュレーションデータ",
+    "sources": "ソース",
+    "noData": "この期間のデータはありません。",
+    "clarificationLabel": "時間範囲を選択"
+  },
+  "errors": {
+    "rateLimited": "メッセージの送信が速すぎます。少し待ってからもう一度お試しください。",
+    "generic": "Keigan は現在回答できません。もう一度お試しください。"
+  }
+}

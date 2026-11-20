@@ -1,0 +1,195 @@
+# Which Azure resource types Keigan watches as services, which are telemetry sources, and how every other type is named.
+#
+# Rules in `monitored_types` are evaluated top to bottom. A rule matches when `arm_type` equals the resource type
+# (case-insensitive) and, if present, any token of `kind_tokens_any` appears in the comma-separated resource kind
+# (e.g. "functionapp,linux" has the tokens functionapp and linux). The first matching rule wins, so the more specific
+# Microsoft.Web/sites rules (Logic Apps Standard, Functions) come before App Service.
+# Add a type here and it is discovered, classified and listed without any code change.
+#
+# `metric_definitions` are only used by the discovery simulator (TELEMETRY_MODE=simulated); live discovery reads the real
+# metric definitions from Azure Monitor.
+
+monitored_types:
+  - service_type: aks
+    display_name: AKS cluster
+    arm_type: Microsoft.ContainerService/managedClusters
+    supports_namespace_filter: true
+    metric_definitions:
+      - [node_cpu_usage_percentage, CPU Usage Percentage, Percent, Average]
+      - [node_memory_working_set_percentage, Memory Working Set Percentage, Percent, Average]
+      - [node_memory_rss_percentage, Memory RSS Percentage, Percent, Average]
+      - [node_disk_usage_percentage, Disk Used Percentage, Percent, Average]
+      - [node_network_in_bytes, Network In Bytes, Bytes, Average]
+      - [node_network_out_bytes, Network Out Bytes, Bytes, Average]
+      - [kube_pod_status_ready, Number of pods in Ready state, Count, Average]
+      - [kube_pod_status_phase, Number of pods by phase, Count, Average]
+      - [kube_node_status_condition, Statuses for various node conditions, Count, Average]
+      - [kube_node_status_allocatable_cpu_cores, Total number of available cpu cores, Count, Average]
+      - [kube_node_status_allocatable_memory_bytes, Total amount of available memory, Bytes, Average]
+      - [apiserver_current_inflight_requests, Inflight Requests, Count, Average]
+      - [cluster_autoscaler_unschedulable_pods_count, Unschedulable Pods, Count, Average]
+
+  - service_type: logic_app
+    display_name: Logic App (Standard)
+    arm_type: Microsoft.Web/sites
+    kind_tokens_any: [workflowapp]
+    metric_definitions:
+      - [WorkflowRunsStarted, Workflow Runs Started Count, Count, Total]
+      - [WorkflowRunsCompleted, Workflow Runs Completed Count, Count, Total]
+      - [WorkflowRunsFailureRate, Workflow Runs Failure Rate, Percent, Total]
+      - [WorkflowActionsCompleted, Workflow Action Completed Count, Count, Total]
+      - [WorkflowActionsFailureRate, Workflow Actions Failure Rate, Percent, Total]
+      - [WorkflowJobExecutionDuration, Workflow Job Execution Duration, Seconds, Average]
+      - [WorkflowTriggersCompleted, Workflow Triggers Completed Count, Count, Total]
+      - [Http5xx, Http Server Errors, Count, Total]
+      - [MemoryWorkingSet, Memory working set, Bytes, Average]
+
+  - service_type: function_app
+    display_name: Function App
+    arm_type: Microsoft.Web/sites
+    kind_tokens_any: [functionapp]
+    metric_definitions:
+      - [FunctionExecutionCount, Function Execution Count, Count, Total]
+      - [FunctionExecutionUnits, Function Execution Units, MB / Milliseconds, Total]
+      - [Requests, Requests, Count, Total]
+      - [Http2xx, Http 2xx, Count, Total]
+      - [Http4xx, Http 4xx, Count, Total]
+      - [Http5xx, Http Server Errors, Count, Total]
+      - [HttpResponseTime, Response Time, Seconds, Average]
+      - [MemoryWorkingSet, Memory working set, Bytes, Average]
+      - [BytesReceived, Data In, Bytes, Total]
+      - [BytesSent, Data Out, Bytes, Total]
+      - [CurrentAssemblies, Current Assemblies, Count, Average]
+      - [Connections, Connections, Count, Average]
+
+  - service_type: app_service
+    display_name: App Service
+    arm_type: Microsoft.Web/sites
+    kind_tokens_any: [app, api]
+    metric_definitions:
+      - [Requests, Requests, Count, Total]
+      - [Http2xx, Http 2xx, Count, Total]
+      - [Http3xx, Http 3xx, Count, Total]
+      - [Http4xx, Http 4xx, Count, Total]
+      - [Http5xx, Http Server Errors, Count, Total]
+      - [HttpResponseTime, Response Time, Seconds, Average]
+      - [CpuTime, CPU Time, Seconds, Total]
+      - [MemoryWorkingSet, Memory working set, Bytes, Average]
+      - [AverageMemoryWorkingSet, Average memory working set, Bytes, Average]
+      - [HealthCheckStatus, Health check status, Count, Average]
+      - [RequestsInApplicationQueue, Requests In Application Queue, Count, Average]
+      - [AppConnections, Connections, Count, Average]
+      - [Handles, Handle Count, Count, Average]
+      - [Threads, Thread Count, Count, Average]
+      - [BytesReceived, Data In, Bytes, Total]
+      - [BytesSent, Data Out, Bytes, Total]
+
+  - service_type: logic_app
+    display_name: Logic App (Consumption)
+    arm_type: Microsoft.Logic/workflows
+    metric_definitions:
+      - [RunsStarted, Runs Started, Count, Total]
+      - [RunsCompleted, Runs Completed, Count, Total]
+      - [RunsSucceeded, Runs Succeeded, Count, Total]
+      - [RunsFailed, Runs Failed, Count, Total]
+      - [RunsCancelled, Runs Cancelled, Count, Total]
+      - [RunLatency, Run Latency, Seconds, Average]
+      - [RunSuccessLatency, Run Success Latency, Seconds, Average]
+      - [RunThrottledEvents, Run Throttled Events, Count, Total]
+      - [ActionsStarted, Actions Started, Count, Total]
+      - [ActionsCompleted, Actions Completed, Count, Total]
+      - [ActionsFailed, Actions Failed, Count, Total]
+      - [ActionLatency, Action Latency, Seconds, Average]
+      - [TriggersSucceeded, Triggers Succeeded, Count, Total]
+      - [TriggersFailed, Triggers Failed, Count, Total]
+      - [TriggerLatency, Trigger Latency, Seconds, Average]
+      - [BillableActionExecutions, Billable Action Executions, Count, Total]
+
+  - service_type: api_management
+    display_name: API Management
+    arm_type: Microsoft.ApiManagement/service
+    metric_definitions:
+      - [Requests, Requests, Count, Total]
+      - [Duration, Overall Duration of Gateway Requests, Milliseconds, Average]
+      - [BackendDuration, Duration of Backend Requests, Milliseconds, Average]
+      - [Capacity, Capacity, Percent, Average]
+      - [CpuPercent_Gateway, CPU Utilization of Gateway, Percent, Average]
+      - [MemoryPercent_Gateway, Memory Utilization of Gateway, Percent, Average]
+      - [NetworkConnectivity, Network Connectivity Status of Resources, Count, Average]
+      - [EventHubTotalEvents, Total EventHub Events, Count, Total]
+      - [EventHubSuccessfulEvents, Successful EventHub Events, Count, Total]
+
+  - service_type: data_factory
+    display_name: Data Factory
+    arm_type: Microsoft.DataFactory/factories
+    metric_definitions:
+      - [PipelineSucceededRuns, Succeeded pipeline runs metrics, Count, Total]
+      - [PipelineFailedRuns, Failed pipeline runs metrics, Count, Total]
+      - [PipelineCancelledRuns, Cancelled pipeline runs metrics, Count, Total]
+      - [PipelineElapsedTimeRuns, Elapsed Time Pipeline Runs Metrics, Count, Total]
+      - [ActivitySucceededRuns, Succeeded activity runs metrics, Count, Total]
+      - [ActivityFailedRuns, Failed activity runs metrics, Count, Total]
+      - [TriggerSucceededRuns, Succeeded trigger runs metrics, Count, Total]
+      - [TriggerFailedRuns, Failed trigger runs metrics, Count, Total]
+      - [IntegrationRuntimeCpuPercentage, Integration runtime CPU utilization, Percent, Average]
+      - [IntegrationRuntimeAvailableMemory, Integration runtime available memory, Bytes, Average]
+
+  - service_type: sql_database
+    display_name: SQL database
+    arm_type: Microsoft.Sql/servers/databases
+    excluded_name_suffixes: [/master]
+    metric_definitions:
+      - [cpu_percent, CPU percentage, Percent, Average]
+      - [physical_data_read_percent, Data IO percentage, Percent, Average]
+      - [log_write_percent, Log IO percentage, Percent, Average]
+      - [dtu_consumption_percent, DTU percentage, Percent, Average]
+      - [storage_percent, Data space used percent, Percent, Maximum]
+      - [workers_percent, Workers percentage, Percent, Average]
+      - [sessions_percent, Sessions percentage, Percent, Average]
+      - [sessions_count, Sessions count, Count, Average]
+      - [connection_successful, Successful Connections, Count, Total]
+      - [connection_failed, Failed Connections - System Errors, Count, Total]
+      - [connection_failed_user_error, Failed Connections - User Errors, Count, Total]
+      - [blocked_by_firewall, Blocked by Firewall, Count, Total]
+      - [deadlock, Deadlocks, Count, Total]
+      - [dtu_used, DTU used, Count, Average]
+      - [dtu_limit, DTU Limit, Count, Average]
+
+telemetry_sources:
+  - source_kind: application_insights
+    display_name: Application Insights
+    arm_type: Microsoft.Insights/components
+  - source_kind: log_analytics_workspace
+    display_name: Log Analytics workspace
+    arm_type: Microsoft.OperationalInsights/workspaces
+
+# Friendly names for resource types that are listed for transparency but not read.
+resource_type_display_names:
+  Microsoft.Storage/storageAccounts: Storage account
+  Microsoft.KeyVault/vaults: Key Vault
+  Microsoft.Network/networkSecurityGroups: Network security group
+  Microsoft.Network/virtualNetworks: Virtual network
+  Microsoft.Network/privateEndpoints: Private endpoint
+  Microsoft.Network/privateDnsZones: Private DNS zone
+  Microsoft.Network/publicIPAddresses: Public IP address
+  Microsoft.Network/networkInterfaces: Network interface
+  Microsoft.Network/applicationGateways: Application Gateway
+  Microsoft.Network/frontDoors: Front Door (classic)
+  Microsoft.Cdn/profiles: Front Door / CDN profile
+  Microsoft.ManagedIdentity/userAssignedIdentities: Managed identity
+  Microsoft.Web/serverFarms: App Service plan
+  Microsoft.Web/sites/slots: Deployment slot
+  Microsoft.ContainerRegistry/registries: Container registry
+  Microsoft.ServiceBus/namespaces: Service Bus namespace
+  Microsoft.EventHub/namespaces: Event Hubs namespace
+  Microsoft.Cache/Redis: Azure Cache for Redis
+  Microsoft.Sql/servers: SQL server
+  Microsoft.DocumentDB/databaseAccounts: Cosmos DB account
+  Microsoft.Insights/actionGroups: Action group
+  Microsoft.Insights/metricAlerts: Metric alert rule
+  Microsoft.Insights/scheduledQueryRules: Log alert rule
+  Microsoft.Insights/activityLogAlerts: Activity log alert rule
+  Microsoft.AlertsManagement/smartDetectorAlertRules: Smart detector alert rule
+  Microsoft.OperationsManagement/solutions: Monitoring solution
+  Microsoft.Compute/virtualMachines: Virtual machine
+  Microsoft.Compute/disks: Managed disk

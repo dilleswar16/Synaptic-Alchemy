@@ -1,0 +1,160 @@
+{
+  "pageTitle": "知识库",
+  "pageDescription": "支撑 Keigan 回答的文档和 AI 摘要。",
+  "categories": {
+    "code_context": "代码上下文",
+    "architecture": "架构",
+    "operations_guide": "运维指南",
+    "runbook_source": "运行手册来源",
+    "incident_history": "事件历史",
+    "other": "其他"
+  },
+  "capture": {
+    "title": "来自 Copilot 的代码上下文",
+    "description": "Copilot 读取代码仓库，并生成一份 Markdown 文件，让 Keigan 了解该服务的工作方式。",
+    "stages": {
+      "copy": {
+        "title": "复制提示词",
+        "body": "选择服务并复制下方的提示词。"
+      },
+      "run": {
+        "title": "在 VS Code 中运行",
+        "body": "在该服务的代码仓库中，将其粘贴到 Copilot Chat。"
+      },
+      "upload": {
+        "title": "上传文件",
+        "body": "将 Copilot 生成的 Markdown 文件拖放到下方区域。"
+      }
+    },
+    "scope": "希望 Copilot 描述什么？",
+    "wholeApplication": "整个应用",
+    "promptTitle": "知识采集提示词 · 版本 {{version}} · {{lines}} 行"
+  },
+  "upload": {
+    "category": "文档类别",
+    "accepted": "Markdown、文本、PDF、PNG、JPG、WebP（最大 15 MB）",
+    "failed": "上传失败，请重试。"
+  },
+  "documents": {
+    "title": "文档",
+    "emptyTitle": "暂无文档",
+    "emptyDescription": "上传 Copilot 生成的文件、架构图或指南，Keigan 会为每份文档生成摘要。",
+    "wholeApplication": "整个应用",
+    "headings_one": "{{count}} 个标题",
+    "headings_other": "{{count}} 个标题",
+    "stale": "超过 90 天",
+    "viewDigest": "查看摘要",
+    "delete": "删除文档",
+    "deleteTitle": "删除{{name}}？",
+    "deleteDescription": "文件、其摘要和搜索索引将被删除。已构建的拓扑不受影响。",
+    "deleteConfirm": "删除文档"
+  },
+  "digest": {
+    "title": "AI 摘要",
+    "headings": "发现的标题（{{count}}）",
+    "chunks": "{{count}} 个可搜索片段，约 {{tokens}} 个 token。",
+    "injectionTitle": "此文档包含类似指令的文本",
+    "injectionBody": "Keigan 将文档视为数据，并忽略其中的指令，但仍需人工检查此文件。",
+    "status": {
+      "pending": "等待生成摘要",
+      "running": "正在生成摘要",
+      "ready": "摘要已就绪",
+      "failed": "摘要生成失败"
+    }
+  },
+  "records": {
+    "title": "企业记录",
+    "description": "关联此应用的 EAI 和 CMDB 记录。读取器仍在开发中，因此 Keigan 仅保存这些详情。",
+    "systems": {
+      "eai": "EAI",
+      "cmdb": "CMDB"
+    },
+    "system": "记录系统",
+    "identifier": "记录标识",
+    "placeholder": "例如 EAI-21530",
+    "add": "关联记录",
+    "remove": "移除{{code}}"
+  },
+  "integrations": {
+    "savedReaderNotAvailable": "详情已保存 — 读取器暂不可用",
+    "configured": "已配置",
+    "notSetUp": "未设置",
+    "viewDetails": "查看详情",
+    "setUp": "设置",
+    "notes": "备注",
+    "save": "保存详情",
+    "saveFailed": "无法保存详情，请重试。",
+    "fields": {}
+  },
+  "topology": {
+    "build": "构建拓扑",
+    "rebuild": "重新构建拓扑",
+    "buildingTitle": "Keigan 正在构建拓扑",
+    "buildingBody": "正在读取服务、依赖关系和知识摘要…",
+    "emptyTitle": "暂无拓扑",
+    "emptyDescription": "根据您的服务、依赖关系和知识文档构建，之后审阅人可以对其进行修正。",
+    "reviewStatus": {
+      "awaiting_review": "待审阅",
+      "reviewed": "已审阅",
+      "needs_correction": "需要修正"
+    },
+    "version": "第 {{number}} 版，共 {{count}} 版",
+    "selectNodeHint": "在图中选择一个节点进行审阅。",
+    "wholeGraph": "整个图",
+    "looksRight": "没问题",
+    "needsCorrection": "需要修正",
+    "correctionLabel": "需要修改什么？",
+    "correctionPlaceholder": "需要修改什么？下次构建时会采用。",
+    "sendCorrection": "提交修正",
+    "cancel": "取消",
+    "verdicts": {
+      "looks_right": "没问题",
+      "needs_correction": "需要修正",
+      "comment": "评论"
+    },
+    "nodeTypes": {
+      "service": "服务",
+      "data_store": "数据存储",
+      "external": "外部系统",
+      "hardware": "硬件",
+      "queue": "队列",
+      "client": "客户端",
+      "mainframe": "大型机",
+      "saas": "SaaS"
+    },
+    "understanding": "Keigan 的理解",
+    "uncertainties": "Keigan 不确定的地方",
+    "relationships_one": "{{count}} 条关系",
+    "relationships_other": "{{count}} 条关系",
+    "correctRelationship": "修正：{{source}} 到 {{target}}"
+  },
+  "runbooks": {
+    "add": "添加运行手册",
+    "addTitle": "添加运行手册",
+    "editTitle": "编辑运行手册",
+    "edit": "编辑",
+    "delete": "删除运行手册",
+    "emptyTitle": "暂无运行手册",
+    "emptyDescription": "添加已知问题及团队的处置方式，Keigan 会在调查中引用它们。",
+    "titleLabel": "标题",
+    "symptoms": "适用场景",
+    "symptomsHelp": "症状、告警名称和错误特征。Keigan 会将事件与这段文本进行匹配。",
+    "steps": "步骤（Markdown）",
+    "write": "编写",
+    "preview": "预览",
+    "nothingToPreview": "暂无可预览的内容。",
+    "loadFile": "从 .md 文件加载",
+    "fileTooLarge": "该文件超过 512 KB。",
+    "sourceLink": "来源链接",
+    "appliesTo": "适用的服务",
+    "appliesToHelp": "如适用于整个应用，请保持全部未选中。",
+    "save": "保存运行手册",
+    "saveFailed": "无法保存运行手册，请重试。",
+    "wholeApplication": "整个应用",
+    "referenced_one": "被 {{count}} 次调查引用",
+    "referenced_other": "被 {{count}} 次调查引用",
+    "deleteTitle": "删除{{name}}？",
+    "deleteDescription": "已引用它的调查会保留其历史记录。",
+    "deleteConfirm": "删除运行手册"
+  }
+}

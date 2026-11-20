@@ -1,0 +1,452 @@
+{
+  "pageTitle": "Onboarding",
+  "pageDescription": "Connect, teach and launch an application in Keigan.",
+  "environments": {
+    "dev": "Dev",
+    "test": "Test",
+    "uat": "UAT",
+    "prod": "Prod"
+  },
+  "tiers": {
+    "tier_1": "Tier 1",
+    "tier_2": "Tier 2",
+    "tier_3": "Tier 3"
+  },
+  "types": {
+    "azure_resource_group": {
+      "title": "Azure resource group",
+      "description": "Functions, AKS, App Service, Logic Apps, API Management, Data Factory and SQL in a resource group."
+    },
+    "hardware": {
+      "title": "Hardware and network",
+      "description": "Servers, switches, routers, firewalls, load balancers and storage arrays."
+    },
+    "mainframe": {
+      "title": "Mainframe",
+      "description": "IBM z/OS subsystems: CICS, IMS, DB2, MQ and batch."
+    },
+    "saas_platform": {
+      "title": "SaaS platform",
+      "description": "A vendor-hosted service with vendor-hosted logging."
+    }
+  },
+  "empty": {
+    "title": "No components yet",
+    "description": "Add where the application runs. Keigan reads it with read-only access."
+  },
+  "status": {
+    "not_checked": "Not checked",
+    "checking": "Checking access",
+    "verified": "Access verified",
+    "missing_roles": "Waiting for roles",
+    "failed": "Check failed",
+    "not_applicable": "Details saved",
+    "simulated": "Simulated"
+  },
+  "card": {
+    "verify": "Verify",
+    "refresh": "Refresh",
+    "remove": "Remove",
+    "checked": "Checked",
+    "resourcesFound": "resources found",
+    "monitoredServices": "monitored as services",
+    "telemetrySources": "telemetry sources",
+    "services_one": "{{count}} service",
+    "services_other": "{{count}} services",
+    "showCommands": "Show role-grant commands",
+    "addComponent": "Add component",
+    "removeTitle": "Remove {{name}}?",
+    "removeDescription_one": "Keigan stops watching {{count}} service from this component. Incidents and history stay.",
+    "removeDescription_other": "Keigan stops watching {{count}} services from this component. Incidents and history stay.",
+    "removeConfirm": "Remove component"
+  },
+  "verify": {
+    "checklistLabel": "Access checks",
+    "checks": {
+      "list_resources": "List resources",
+      "read_activity_log": "Read the activity log",
+      "read_metrics": "Read metrics",
+      "query_workspace": "Query the Log Analytics workspace"
+    },
+    "missingRole": "Needs the {{role}} role",
+    "rolesCanTakeAWhile": "Azure can take a few minutes to apply a new role. Keigan keeps checking, even if you move on.",
+    "failed": "Keigan could not check access. Try again."
+  },
+  "roleGrant": {
+    "tenantId": "Tenant ID",
+    "clientId": "Managed identity client ID",
+    "objectId": "Managed identity object ID",
+    "displayName": "Display name",
+    "rolesTitle": "Read-only roles to grant",
+    "tabs": {
+      "cli": "Azure CLI",
+      "powershell": "PowerShell",
+      "terraform": "Terraform",
+      "portal": "Portal"
+    },
+    "copyAll": "Copy all commands",
+    "sendToSomeone": "Send to someone with access",
+    "shareIntro": "Please grant Keigan read-only access to resource group {{resourceGroup}} with the commands below. Link:",
+    "notConfigured": "Not configured",
+    "displayNameUnknown": "Search by object ID",
+    "identityIncompleteTitle": "Keigan's identity is not fully configured",
+    "identityIncompleteBody": "Keigan could not determine: {{values}}. Ask a Keigan admin to set them before granting roles, so access goes to the right principal.",
+    "identityDiscovered": "These IDs were read from Keigan's own Azure identity at runtime."
+  },
+  "explorer": {
+    "title": "Resources in {{name}}",
+    "description": "Everything Azure returned for this resource group. Only some resources become services.",
+    "filter": "Filter resources",
+    "filters": {
+      "all": "All",
+      "monitored_service": "Services",
+      "telemetry_source": "Telemetry sources",
+      "not_monitored_type": "Other"
+    },
+    "name": "Name",
+    "type": "Type",
+    "classification": "Used as",
+    "classifications": {
+      "monitored_service": "Service",
+      "telemetry_source": "Telemetry source",
+      "not_monitored_type": "Not monitored"
+    },
+    "diagnostics": "Diagnostic setting",
+    "diagnosticSettingOn": "Sends logs",
+    "noDiagnosticSetting": "No diagnostic setting",
+    "state": "State",
+    "present": "Present",
+    "noLongerFound": "No longer found in Azure"
+  },
+  "add": {
+    "chooseTypeTitle": "Add a component",
+    "chooseTypeDescription": "Choose where this part of the application runs.",
+    "titles": {
+      "azure_resource_group": "Azure resource group",
+      "hardware": "Hardware and network",
+      "mainframe": "Mainframe",
+      "saas_platform": "SaaS platform"
+    },
+    "descriptions": {
+      "azure_resource_group": "Scope first, then grant read-only access, then verify.",
+      "hardware": "One device becomes one service Keigan can monitor.",
+      "mainframe": "Each subsystem becomes a service.",
+      "saas_platform": "Keigan probes the instance and reads the vendor status page."
+    },
+    "accessDescription": "Grant these read-only roles, then verify. Azure can take a few minutes to apply them.",
+    "azure": {
+      "tenantId": "Tenant ID",
+      "tenantHelp": "Pre-filled with Keigan's tenant. Change it only for another tenant.",
+      "subscriptionId": "Subscription ID",
+      "guidInvalid": "Enter a GUID such as 00000000-0000-0000-0000-000000000000.",
+      "subscriptionName": "Subscription name",
+      "resourceGroup": "Resource group name",
+      "addSeveral": "Add several",
+      "addSeveralHelp": "One line per resource group: subscriptionId/resourceGroup. When filled, it replaces the fields above."
+    },
+    "hardware": {
+      "name": "Device name"
+    },
+    "mainframe": {
+      "name": "System name"
+    },
+    "saas_platform": {
+      "name": "Component name"
+    },
+    "environment": "Environment",
+    "choose": "Choose…",
+    "noLogTools": "Add a log tool connection in step 3 to monitor this component.",
+    "back": "Back",
+    "cancel": "Cancel",
+    "continueToAccess": "Continue to access",
+    "addComponent": "Add component",
+    "verifyNow": "Verify access",
+    "verifyLater": "Verify later",
+    "failed": "That did not work. Check the details and try again."
+  },
+  "fields": {
+    "device_category": "Device category",
+    "hostname": "Hostname or IP",
+    "location": "Data centre or location",
+    "cmdb_ci": "CMDB configuration item ID",
+    "owner_team": "Owner team",
+    "log_tool_connection_id": "How it is monitored",
+    "query_host": "Host name or node ID in the tool",
+    "notes": "Notes",
+    "lpar": "LPAR or sysplex",
+    "subsystems": "Subsystems",
+    "job_name_prefixes": "Job name prefixes",
+    "query_index": "Index or source types",
+    "batch_window": "Batch window schedule",
+    "vendor_name": "Vendor name",
+    "product_name": "Product",
+    "instance_url": "Tenant or instance URL",
+    "status_page_url": "Vendor status page (JSON or RSS)",
+    "synthetic_probe_url": "Synthetic probe URL",
+    "vendor_api_endpoint": "Vendor log or audit API endpoint",
+    "support_contact": "Vendor support contact",
+    "contractual_sla": "Contractual SLA"
+  },
+  "options": {
+    "server": "Server",
+    "network_switch": "Network switch",
+    "router": "Router",
+    "firewall": "Firewall",
+    "load_balancer": "Load balancer",
+    "storage_array": "Storage array",
+    "other": "Other"
+  },
+  "serviceTypes": {
+    "aks": "AKS cluster",
+    "function_app": "Function App",
+    "app_service": "App Service",
+    "logic_app": "Logic App",
+    "api_management": "API Management",
+    "data_factory": "Data Factory",
+    "sql_database": "SQL database",
+    "network_appliance": "Hardware and network device",
+    "mainframe_subsystem": "Mainframe subsystem",
+    "batch_job_stream": "Batch job stream",
+    "saas_service": "SaaS service"
+  },
+  "services": {
+    "caption": "Services of this application",
+    "addService": "Add service",
+    "addTitle": "Add a service",
+    "addDescription": "For anything discovery did not find. Azure resources appear here by themselves.",
+    "name": "Service name",
+    "type": "Type",
+    "component": "Component",
+    "environment": "Environment",
+    "criticality": "Criticality",
+    "emptyTitle": "No services yet",
+    "emptyDescription": "Verify an Azure component to discover services, or add one by hand.",
+    "columns": {
+      "monitor": "Monitor",
+      "service": "Service",
+      "environment": "Environment",
+      "criticality": "Criticality",
+      "logs": "Logs",
+      "metrics": "Metrics",
+      "dependsOn": "Depends on",
+      "repository": "Repository",
+      "actions": "Details"
+    },
+    "noLongerFound": "No longer found in Azure",
+    "noDiagnosticSetting": "No diagnostic setting",
+    "available": "available",
+    "metricsTitle": "Available metrics",
+    "dependsOnTitle": "Depends on",
+    "openDetails": "Open service details",
+    "selected_one": "{{count}} service selected",
+    "selected_other": "{{count}} services selected",
+    "bulk": {
+      "setEnvironment": "Set environment",
+      "setCriticality": "Set criticality",
+      "addLogSource": "Add log source",
+      "addLogSourceTitle_one": "Add a log source to {{count}} service",
+      "addLogSourceTitle_other": "Add a log source to {{count}} services",
+      "monitoringOff": "Turn monitoring off",
+      "clear": "Clear selection"
+    }
+  },
+  "serviceDrawer": {
+    "basics": "Basics",
+    "displayName": "Display name",
+    "namespace": "Kubernetes namespace",
+    "namespaceHelp": "One cluster can host many applications. Keigan reads only this namespace.",
+    "description": "Description",
+    "repository": "Repository",
+    "repositoryHelp": "Helps Keigan point at the code when it suggests a fix.",
+    "provider": "Provider",
+    "repositoryUrl": "Repository URL",
+    "branch": "Default branch",
+    "path": "Path in the repository",
+    "dependsOn": "Depends on",
+    "dependsOnHelp": "Services this one calls. Feeds the topology and blast radius.",
+    "noOtherServices": "There are no other services yet.",
+    "logSources": "Log sources",
+    "noDiagnosticSetting": "No diagnostic setting yet. Show the command to enable one.",
+    "metrics_one": "{{count}} metric available",
+    "metrics_other": "{{count}} metrics available"
+  },
+  "repositoryProviders": {
+    "azure_devops": "Azure DevOps",
+    "github": "GitHub",
+    "gitlab": "GitLab",
+    "bitbucket": "Bitbucket",
+    "other": "Other"
+  },
+  "logSource": {
+    "none": "No log source yet. Metrics are used when they are available.",
+    "kind": "Source",
+    "kinds": {
+      "log_analytics": "Log Analytics workspace",
+      "application_insights": "Application Insights",
+      "azure_monitor_metrics": "Azure Monitor metrics",
+      "log_tool": "Log tool connection",
+      "synthetic_probe": "Synthetic probe",
+      "vendor_status_page": "Vendor status page"
+    },
+    "chips": {
+      "log_analytics": "Log Analytics",
+      "application_insights": "App Insights",
+      "azure_monitor_metrics": "Metrics",
+      "log_tool": "Log tool",
+      "synthetic_probe": "Probe",
+      "vendor_status_page": "Status page"
+    },
+    "workspaceResourceId": "Workspace resource ID",
+    "connection": "Connection",
+    "chooseConnection": "Choose a connection",
+    "noConnections": "No log tool connections yet. Add one in step 3.",
+    "scope": {
+      "index": "Index",
+      "namespace": "Namespace",
+      "host": "Host",
+      "labels": "Labels or tags",
+      "probeUrl": "Probe URL"
+    },
+    "primary": "Primary",
+    "autoDetected": "Auto-detected",
+    "add": "Add this source",
+    "addSource": "Add log source",
+    "remove": "Remove log source",
+    "test": "Test read",
+    "testPassed": "Keigan can read this source",
+    "testFailed": "Keigan could not read this source",
+    "testStatus": {
+      "not_tested": "Not tested yet",
+      "passed": "Read test passed",
+      "failed": "Read test failed"
+    }
+  },
+  "logTools": {
+    "tools": {
+      "elastic": {
+        "title": "Elastic",
+        "description": "Search logs in Elasticsearch or Elastic Cloud."
+      },
+      "splunk": {
+        "title": "Splunk",
+        "description": "Search logs through the Splunk REST API."
+      },
+      "datadog": {
+        "title": "Datadog",
+        "description": "Read logs and metrics from Datadog."
+      },
+      "solarwinds": {
+        "title": "SolarWinds",
+        "description": "Network and node monitoring from Orion or the Observability SaaS."
+      },
+      "ibm_z_log_analytics": {
+        "title": "IBM Z log analytics",
+        "description": "Mainframe logs and SMF records."
+      },
+      "vendor_api": {
+        "title": "Vendor API (SaaS)",
+        "description": "A vendor's log or audit API."
+      },
+      "other": {
+        "title": "Another tool",
+        "description": "Recorded for reference only."
+      }
+    },
+    "fields": {
+      "endpoint": "Endpoint URL",
+      "authenticationMethod": "Authentication",
+      "index_pattern": "Index pattern(s)",
+      "service_field": "Service field name",
+      "namespace_field": "Namespace field",
+      "time_field": "Time field",
+      "indexes": "Default index(es)",
+      "source_types": "Source types",
+      "host_field": "Host field",
+      "site": "Datadog site",
+      "application_key_reference": "Application key reference",
+      "default_service_tag": "Default service tag",
+      "env_tag": "Environment tag",
+      "platform": "Platform",
+      "node_ids": "Node IDs or groups",
+      "product": "Product",
+      "index": "Index or source types",
+      "smf_record_types": "SMF record types",
+      "vendor": "Vendor",
+      "extra_settings": "Extra settings (key=value per line)",
+      "holds": "Name and what it holds"
+    },
+    "options": {
+      "api_key": "API key",
+      "basic": "Basic authentication",
+      "oauth_client_credentials": "OAuth client credentials",
+      "orion_swis": "Orion (SWIS)",
+      "observability_saas": "Observability SaaS"
+    },
+    "connectionName": "Connection name",
+    "credential": "Secret or API key",
+    "credentialHelp": "Sent once and stored securely. Keigan never shows it again.",
+    "credentialSet": "•••• set {{date}}",
+    "saveConnection": "Save connection",
+    "saveChanges": "Save changes",
+    "placeholderBanner": "The reader for this tool is in development. Keigan saves the details now and will use them when the reader ships.",
+    "readerInDevelopment": "Reader in development",
+    "status": {
+      "not_tested": "Not tested",
+      "connected": "Connected",
+      "failed": "Failed",
+      "reader_not_available": "Reader in development"
+    },
+    "test": "Test connection",
+    "testDisabled": "The reader for this tool is in development, so it cannot be tested yet.",
+    "edit": "Edit",
+    "delete": "Delete connection",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteDescription": "Services using this connection must stop using it first. The stored secret is removed.",
+    "deleteConfirm": "Delete connection",
+    "none": "No connections yet. Choose a tool above to add one.",
+    "newestLog": "newest log",
+    "usedBy": "Used by {{names}}",
+    "notUsed": "Not used by any service yet"
+  },
+  "servicenow": {
+    "title": "ServiceNow assignment groups",
+    "description": "Keigan polls incidents for these groups only.",
+    "groups": "Assignment groups",
+    "groupsHelp": "Press Enter after each name. Names Keigan could not check are saved as unverified.",
+    "placeholder": "Add a group name",
+    "search": "Search ServiceNow groups",
+    "searchPlaceholder": "Type to search…"
+  },
+  "access": {
+    "sailpointTitle": "Request access through SailPoint",
+    "adminGroup": "Admin group (edit access)",
+    "readerGroup": "Reader group (read-only)",
+    "copyGroup": "Copy group name",
+    "groupName": "Group name",
+    "objectId": "Group object ID",
+    "objectIdHelp": "Only needed when Entra tokens carry group IDs.",
+    "save": "Save",
+    "membersEntra": "Members come from Entra ID and appear here when Keigan can read them.",
+    "membersLocal": "Group membership is read from Entra ID. In local mode the demo users define who has access.",
+    "howItWorksTitle": "How access works",
+    "howItWorksBody": "Keigan does not keep its own user list. At every sign-in it reads the person's Entra ID group memberships: members of the admin group can change this application, members of the reader group can view it. Create both groups in SailPoint with the names below and add people there; nobody needs to be added in Keigan.",
+    "verify": {
+      "title": "Check the groups in Entra ID",
+      "description": "Confirm SailPoint has provisioned both groups and see who is in them, before anyone signs in.",
+      "button": "Check in Entra",
+      "members_one": "{{count}} member: {{names}}",
+      "members_other": "{{count}} members, including {{names}}",
+      "objectIdSaved": "Object ID {{objectId}} saved for sign-in matching.",
+      "sourceEntra": "Checked live in Microsoft Entra ID.",
+      "sourceLocal": "Local mode: checked against the demo users. In Azure this checks Microsoft Entra ID."
+    }
+  },
+  "stubs": {
+    "alertsTitle": "Alert sources and noise reduction",
+    "alertsDescription": "Webhook alert sources, the noise reduction policy and incident creation from alerts are set up here.",
+    "sloTitle": "SLO proposals",
+    "sloDescription": "Keigan proposes SLOs from the data it can read. They are set up here.",
+    "notificationsTitle": "Stakeholders and notifications",
+    "notificationsDescription": "Who is told about incidents, and how, is set up here."
+  }
+}

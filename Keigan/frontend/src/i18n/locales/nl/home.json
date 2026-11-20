@@ -1,0 +1,69 @@
+{
+  "pageTitle": "Home",
+  "pageDescription": "Alles wat uw aandacht nodig heeft, voor al uw applicaties.",
+  "greeting": {
+    "morning": "Goedemorgen, {{name}}",
+    "afternoon": "Goedemiddag, {{name}}",
+    "evening": "Goedenavond, {{name}}"
+  },
+  "syncedAt": "Bijgewerkt {{time}}",
+  "viewAll": "Alles bekijken",
+  "kpi": {
+    "sectionLabel": "Kerncijfers",
+    "openIncidents": "Openstaande incidenten",
+    "noneOpen": "Niets open",
+    "alertGroups": "Actieve meldingsgroepen",
+    "noAlerts": "Geen meldingen in 24 uur",
+    "noiseReduced": "{{percentage}} minder ruis in 24 u",
+    "slosAtRisk": "SLO's in gevaar",
+    "slosTotal_one": "van {{count}} doelstelling",
+    "slosTotal_other": "van {{count}} doelstellingen",
+    "investigations": "Onderzoeken, 24 u",
+    "firstUpdate": "Eerste update gemiddeld na {{duration}}",
+    "noFirstUpdate": "Nog geen eerste updates"
+  },
+  "health": {
+    "title": "Applicatiestatus",
+    "emptyTitle": "Nog geen applicaties",
+    "emptyDescription": "Applicaties waartoe u toegang hebt, verschijnen hier zodra ze zijn onboard.",
+    "ringLabel": "Status {{percentage}} procent, {{status}}",
+    "status": { "healthy": "gezond", "watch": "aandacht", "degraded": "verminderd", "critical": "kritiek" },
+    "tier": "Tier {{tier}}",
+    "openIncidents_one": "{{count}} incident",
+    "openIncidents_other": "{{count}} incidenten",
+    "worstBudget": "Laagste resterende foutbudget",
+    "noBudget": "Nog geen SLO's",
+    "noTrend": "Nog geen trend",
+    "sparklineLabel": "Beschikbaarheid van {{name}} in de afgelopen 24 uur"
+  },
+  "live": {
+    "title": "Live incidenten",
+    "description": "Openstaande incidenten en de voortgang van het onderzoek van Keigan.",
+    "empty": "Geen openstaande incidenten. Keigan blijft opletten.",
+    "investigating": "In onderzoek",
+    "status": { "new": "Nieuw", "investigating": "In onderzoek", "identified": "Oorzaak gevonden", "monitoring": "Monitoring" }
+  },
+  "ask": {
+    "title": "Vraag het Keigan",
+    "description": "Aantallen fouten, patronen, architectuur, runbooks.",
+    "label": "Vraag aan Keigan",
+    "placeholder": "Hoeveel verzoeken zijn er de laatste 24 uur mislukt?",
+    "submit": "Vragen"
+  },
+  "feed": {
+    "title": "Intelligence-feed",
+    "description": "Vroege waarschuwingen voordat het incidenten worden.",
+    "empty": "Geen open signalen. Alles ziet er normaal uit.",
+    "forecast": "verwachte schending {{time}}"
+  },
+  "maintenance": {
+    "title": "Onderhoudsvensters",
+    "description": "Komende 7 dagen.",
+    "empty": "Deze week is er geen onderhoud gepland."
+  },
+  "postmortems": {
+    "title": "Recente postmortems",
+    "empty": "Nog geen postmortems.",
+    "status": { "generating": "Genereren", "draft": "Concept", "final": "Definitief", "failed": "Mislukt" }
+  }
+}

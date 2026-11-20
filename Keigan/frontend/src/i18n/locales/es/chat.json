@@ -1,0 +1,49 @@
+{
+  "pageTitle": "Chat de IA de Keigan",
+  "pageDescription": "Pregunte sobre sus aplicaciones, incidentes y telemetría.",
+  "list": {
+    "title": "Conversaciones",
+    "newChat": "Nuevo chat",
+    "search": "Buscar conversaciones",
+    "empty": "Aún no hay conversaciones. Haga su primera pregunta.",
+    "noMatches": "Ninguna conversación coincide con su búsqueda.",
+    "actions": "Acciones de la conversación",
+    "rename": "Renombrar",
+    "renameTitle": "Renombrar conversación",
+    "nameLabel": "Nombre",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "deleteTitle": "¿Eliminar esta conversación?",
+    "deleteDescription": "La conversación y sus respuestas se eliminan para usted. Esta acción no se puede deshacer."
+  },
+  "conversation": {
+    "title": "Conversación",
+    "newTitle": "Nueva conversación",
+    "scope": "Consultando",
+    "allApplications": "Todas mis aplicaciones",
+    "thinking": "Keigan está trabajando en ello…"
+  },
+  "empty": {
+    "title": "¿Qué le gustaría saber?",
+    "description": "Pregunte por recuentos de errores, patrones en el tiempo, arquitectura o runbooks. Keigan solo lee; nunca modifica sus sistemas.",
+    "category": { "data": "De sus registros", "knowledge": "De su base de conocimiento" }
+  },
+  "composer": {
+    "label": "Mensaje para Keigan",
+    "placeholder": "Haga una pregunta sobre sus aplicaciones…",
+    "send": "Enviar",
+    "hint": "Enter para enviar, Shift+Enter para nueva línea. Los datos personales se enmascaran antes de llegar a la IA."
+  },
+  "message": {
+    "howIGotThis": "Cómo llegué a esto",
+    "queryMeta": "{{service}} · {{source}} · {{language}} · {{count}} filas",
+    "simulated": "datos simulados",
+    "sources": "Fuentes",
+    "noData": "Sin datos en este periodo.",
+    "clarificationLabel": "Elija un intervalo de tiempo"
+  },
+  "errors": {
+    "rateLimited": "Está enviando mensajes demasiado rápido. Espere un momento e inténtelo de nuevo.",
+    "generic": "Keigan no pudo responder en este momento. Inténtelo de nuevo."
+  }
+}

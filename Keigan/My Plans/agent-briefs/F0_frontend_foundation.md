@@ -1,0 +1,21 @@
+# F0 — Frontend foundation (finish)
+
+Read `00_COMMON_RULES.md` first. You own everything under `frontend/` except `frontend/src/features/**` (feature agents own those after you create the stubs).
+
+## Spec
+`My Plans/04_UI_UX_DESIGN_SYSTEM.md` (the whole document — tokens, fonts, type scale, components, layout, motion), `01_PRODUCT_SPECIFICATION.md` §2 (roles, auth modes), §4 (navigation), §14 (locales), `05_API_CONTRACT.md` §1–3.
+Stack: React 19, TypeScript strict, Vite 6.x (Node 21.6.1 here — Vite 7 needs newer Node), Tailwind v4 (`@tailwindcss/vite`), React Router 7, TanStack Query 5, i18next + react-i18next (namespaced JSON), `@azure/msal-browser` + `@azure/msal-react` 5.x, Radix primitives, lucide-react, recharts, `@xyflow/react`, react-markdown + remark-gfm, motion, clsx + tailwind-merge, react-hook-form + zod.
+
+## Already on disk (a previous run stopped mid-way) — verify and continue
+`package.json`, `node_modules`, `src/styles` (tokens/global), `src/components/ui` (≈48 files), `src/components/charts` (partial), `src/auth`, `src/api` (httpClient, queryClient, authApi, types), `src/i18n` (index + locales), `src/hooks`, `src/utils`, `src/config`. Check each against the spec; fix gaps rather than rewriting.
+
+## Still to build
+1. **Charts** (`src/components/charts/`): Sparkline, TimeSeriesChart (target line, anomaly dots), BarChart (stacked), DonutChart, FunnelChart, HeatmapGrid — MetLife data-viz colour order, token-styled tooltips, "View as table" toggle. Plus `src/components/topology/TopologyGraph.tsx` (React Flow; props `nodes`, `edges`, `highlightedNodeKeys` with impact level direct/indirect; type icons; legend; minimap; fit view; dark aware).
+2. **Layout** (`src/components/layout/`): `KeiganLogo` (SVG almond eye from two arcs with the brand gradient stroke, Dark Blue iris, green insight arc; variants full/mark; optional 慧眼), `AppShell` (sidebar 264/72, overlay below 900 px, glass top bar 64 px, max width 1440, skip link, page-enter motion), `Sidebar` (sections per spec §4, active item with 3 px gradient bar, admin section for Keigan admins only, environment badge + version + collapse), `TopBar` (menu, ApplicationScopeSwitcher multi-select, ⌘K/Ctrl+K command palette trigger, LanguageSwitcher, ThemeToggle, notifications placeholder, user menu with role badge + sign out), `CommandPalette`, `PageHeader`.
+3. **App + routes** (`src/app/App.tsx`, `routes.tsx`, `providers.tsx`, `NotFoundPage.tsx`, `src/main.tsx`): lazy routes behind `RequireAuthentication` (except `/sign-in`): `/` → `features/home/pages/HomePage.tsx`; `/incidents` → `features/incidents/pages/IncidentRoomPage.tsx`; `/investigations/:investigationId` → `features/investigations/pages/InvestigationPage.tsx`; `/alerts` → `features/alerts/pages/AlertsPage.tsx`; `/slo` → `features/slo/pages/SloMonitoringPage.tsx`; `/intelligence` → `features/intelligence/pages/IntelligencePage.tsx`; `/chat` and `/chat/:conversationId` → `features/chat/pages/KeiganChatPage.tsx`; `/applications` → `features/applications/pages/ApplicationsPage.tsx`; `/applications/:applicationId/*` → `features/applications/pages/ApplicationWorkspacePage.tsx`; `/administration/settings|usage|outbox` → `features/administration/pages/{PlatformSettingsPage,UsageAndAuditPage,OutboxPage}.tsx` (admin guard); `*` → NotFound. Create each feature page as a **stub** (PageHeader + EmptyState "being built") at exactly these paths with default exports.
+4. **Sign-in page** per doc 04 §6.1 and the `NoAccessState`, if not already complete.
+5. **Showcase** route `/design-system` (only when `environmentName` is local/dev) rendering every UI-kit component in all variants, both themes.
+6. **Vite dev proxy**: `/api` → `process.env.VITE_API_PROXY_TARGET || "http://localhost:8000"` so feature agents can point at their own backend ports.
+
+## Done
+`npm run build` passes with zero TS errors. Add a **"Frontend foundation guide"** section at the end of `04_UI_UX_DESIGN_SYSTEM.md` (each component's import path + key props, how to add a route/namespace, API client usage, access-control helpers). Last step: create `frontend/FOUNDATION_READY.md` (status, install/run commands, export index). Do not create it before the build passes — feature agents wait for it.

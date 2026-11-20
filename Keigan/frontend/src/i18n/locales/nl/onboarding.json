@@ -1,0 +1,452 @@
+{
+  "pageTitle": "Onboarding",
+  "pageDescription": "Verbind, train en lanceer een applicatie in Keigan.",
+  "environments": {
+    "dev": "Dev",
+    "test": "Test",
+    "uat": "UAT",
+    "prod": "Prod"
+  },
+  "tiers": {
+    "tier_1": "Tier 1",
+    "tier_2": "Tier 2",
+    "tier_3": "Tier 3"
+  },
+  "types": {
+    "azure_resource_group": {
+      "title": "Azure-resourcegroep",
+      "description": "Functions, AKS, App Service, Logic Apps, API Management, Data Factory en SQL in een resourcegroep."
+    },
+    "hardware": {
+      "title": "Hardware en netwerk",
+      "description": "Servers, switches, routers, firewalls, loadbalancers en opslagsystemen."
+    },
+    "mainframe": {
+      "title": "Mainframe",
+      "description": "IBM z/OS-subsystemen: CICS, IMS, DB2, MQ en batch."
+    },
+    "saas_platform": {
+      "title": "SaaS-platform",
+      "description": "Een door de leverancier gehoste service met door de leverancier gehoste logging."
+    }
+  },
+  "empty": {
+    "title": "Nog geen componenten",
+    "description": "Voeg toe waar de applicatie draait. Keigan leest deze met alleen-lezentoegang."
+  },
+  "status": {
+    "not_checked": "Niet gecontroleerd",
+    "checking": "Toegang controleren",
+    "verified": "Toegang geverifieerd",
+    "missing_roles": "Wachten op rollen",
+    "failed": "Controle mislukt",
+    "not_applicable": "Gegevens opgeslagen",
+    "simulated": "Gesimuleerd"
+  },
+  "card": {
+    "verify": "Verifiëren",
+    "refresh": "Vernieuwen",
+    "remove": "Verwijderen",
+    "checked": "Gecontroleerd",
+    "resourcesFound": "resources gevonden",
+    "monitoredServices": "gemonitord als services",
+    "telemetrySources": "telemetriebronnen",
+    "services_one": "{{count}} service",
+    "services_other": "{{count}} services",
+    "showCommands": "Opdrachten voor roltoewijzing tonen",
+    "addComponent": "Component toevoegen",
+    "removeTitle": "{{name}} verwijderen?",
+    "removeDescription_one": "Keigan stopt met het bewaken van {{count}} service van dit component. Incidenten en geschiedenis blijven bewaard.",
+    "removeDescription_other": "Keigan stopt met het bewaken van {{count}} services van dit component. Incidenten en geschiedenis blijven bewaard.",
+    "removeConfirm": "Component verwijderen"
+  },
+  "verify": {
+    "checklistLabel": "Toegangscontroles",
+    "checks": {
+      "list_resources": "Resources weergeven",
+      "read_activity_log": "Het activiteitenlogboek lezen",
+      "read_metrics": "Metrieken lezen",
+      "query_workspace": "De Log Analytics-werkruimte bevragen"
+    },
+    "missingRole": "Heeft de rol {{role}} nodig",
+    "rolesCanTakeAWhile": "Azure kan een paar minuten nodig hebben om een nieuwe rol toe te passen. Keigan blijft controleren, ook als u verdergaat.",
+    "failed": "Keigan kon de toegang niet controleren. Probeer het opnieuw."
+  },
+  "roleGrant": {
+    "tenantId": "Tenant-ID",
+    "clientId": "Client-ID van de beheerde identiteit",
+    "objectId": "Object-ID van de beheerde identiteit",
+    "displayName": "Weergavenaam",
+    "rolesTitle": "Alleen-lezenrollen om toe te wijzen",
+    "tabs": {
+      "cli": "Azure CLI",
+      "powershell": "PowerShell",
+      "terraform": "Terraform",
+      "portal": "Portal"
+    },
+    "copyAll": "Alle opdrachten kopiëren",
+    "sendToSomeone": "Versturen naar iemand met toegang",
+    "shareIntro": "Geef Keigan alleen-lezentoegang tot resourcegroep {{resourceGroup}} met de onderstaande opdrachten. Link:",
+    "notConfigured": "Niet geconfigureerd",
+    "displayNameUnknown": "Zoek op object-ID",
+    "identityIncompleteTitle": "De identiteit van Keigan is niet volledig geconfigureerd",
+    "identityIncompleteBody": "Keigan kon niet bepalen: {{values}}. Vraag een Keigan-beheerder deze in te stellen voordat u rollen toekent.",
+    "identityDiscovered": "Deze ID's zijn tijdens runtime gelezen uit de eigen Azure-identiteit van Keigan."
+  },
+  "explorer": {
+    "title": "Resources in {{name}}",
+    "description": "Alles wat Azure voor deze resourcegroep heeft teruggegeven. Slechts enkele resources worden services.",
+    "filter": "Resources filteren",
+    "filters": {
+      "all": "Alle",
+      "monitored_service": "Services",
+      "telemetry_source": "Telemetriebronnen",
+      "not_monitored_type": "Overig"
+    },
+    "name": "Naam",
+    "type": "Type",
+    "classification": "Gebruikt als",
+    "classifications": {
+      "monitored_service": "Service",
+      "telemetry_source": "Telemetriebron",
+      "not_monitored_type": "Niet gemonitord"
+    },
+    "diagnostics": "Diagnostische instelling",
+    "diagnosticSettingOn": "Verstuurt logs",
+    "noDiagnosticSetting": "Geen diagnostische instelling",
+    "state": "Status",
+    "present": "Aanwezig",
+    "noLongerFound": "Niet meer gevonden in Azure"
+  },
+  "add": {
+    "chooseTypeTitle": "Een component toevoegen",
+    "chooseTypeDescription": "Kies waar dit deel van de applicatie draait.",
+    "titles": {
+      "azure_resource_group": "Azure-resourcegroep",
+      "hardware": "Hardware en netwerk",
+      "mainframe": "Mainframe",
+      "saas_platform": "SaaS-platform"
+    },
+    "descriptions": {
+      "azure_resource_group": "Eerst het bereik, dan alleen-lezentoegang verlenen, en daarna verifiëren.",
+      "hardware": "Eén apparaat wordt één service die Keigan kan monitoren.",
+      "mainframe": "Elk subsysteem wordt een service.",
+      "saas_platform": "Keigan test de instantie en leest de statuspagina van de leverancier."
+    },
+    "accessDescription": "Wijs deze alleen-lezenrollen toe en verifieer daarna. Azure kan een paar minuten nodig hebben om ze toe te passen.",
+    "azure": {
+      "tenantId": "Tenant-ID",
+      "tenantHelp": "Vooraf ingevuld met de tenant van Keigan. Wijzig dit alleen voor een andere tenant.",
+      "subscriptionId": "Abonnements-ID",
+      "guidInvalid": "Voer een GUID in zoals 00000000-0000-0000-0000-000000000000.",
+      "subscriptionName": "Abonnementsnaam",
+      "resourceGroup": "Naam van resourcegroep",
+      "addSeveral": "Meerdere toevoegen",
+      "addSeveralHelp": "Eén regel per resourcegroep: subscriptionId/resourceGroup. Indien ingevuld, vervangt dit de velden hierboven."
+    },
+    "hardware": {
+      "name": "Apparaatnaam"
+    },
+    "mainframe": {
+      "name": "Systeemnaam"
+    },
+    "saas_platform": {
+      "name": "Componentnaam"
+    },
+    "environment": "Omgeving",
+    "choose": "Kiezen…",
+    "noLogTools": "Voeg in stap 3 een logtoolverbinding toe om dit component te monitoren.",
+    "back": "Terug",
+    "cancel": "Annuleren",
+    "continueToAccess": "Door naar toegang",
+    "addComponent": "Component toevoegen",
+    "verifyNow": "Toegang verifiëren",
+    "verifyLater": "Later verifiëren",
+    "failed": "Dat is niet gelukt. Controleer de gegevens en probeer het opnieuw."
+  },
+  "fields": {
+    "device_category": "Apparaatcategorie",
+    "hostname": "Hostnaam of IP",
+    "location": "Datacenter of locatie",
+    "cmdb_ci": "CMDB-configuratie-item-ID",
+    "owner_team": "Eigenaarsteam",
+    "log_tool_connection_id": "Hoe het wordt gemonitord",
+    "query_host": "Hostnaam of node-ID in de tool",
+    "notes": "Notities",
+    "lpar": "LPAR of sysplex",
+    "subsystems": "Subsystemen",
+    "job_name_prefixes": "Voorvoegsels van jobnamen",
+    "query_index": "Index of brontypen",
+    "batch_window": "Schema van het batchvenster",
+    "vendor_name": "Naam van leverancier",
+    "product_name": "Product",
+    "instance_url": "Tenant- of instantie-URL",
+    "status_page_url": "Statuspagina van leverancier (JSON of RSS)",
+    "synthetic_probe_url": "URL van synthetische probe",
+    "vendor_api_endpoint": "Log- of audit-API-endpoint van leverancier",
+    "support_contact": "Supportcontact van leverancier",
+    "contractual_sla": "Contractuele SLA"
+  },
+  "options": {
+    "server": "Server",
+    "network_switch": "Netwerkswitch",
+    "router": "Router",
+    "firewall": "Firewall",
+    "load_balancer": "Loadbalancer",
+    "storage_array": "Opslagsysteem",
+    "other": "Overig"
+  },
+  "serviceTypes": {
+    "aks": "AKS-cluster",
+    "function_app": "Function App",
+    "app_service": "App Service",
+    "logic_app": "Logic App",
+    "api_management": "API Management",
+    "data_factory": "Data Factory",
+    "sql_database": "SQL-database",
+    "network_appliance": "Hardware- en netwerkapparaat",
+    "mainframe_subsystem": "Mainframe-subsysteem",
+    "batch_job_stream": "Batchjobstroom",
+    "saas_service": "SaaS-service"
+  },
+  "services": {
+    "caption": "Services van deze applicatie",
+    "addService": "Service toevoegen",
+    "addTitle": "Een service toevoegen",
+    "addDescription": "Voor alles wat discovery niet heeft gevonden. Azure-resources verschijnen hier vanzelf.",
+    "name": "Servicenaam",
+    "type": "Type",
+    "component": "Component",
+    "environment": "Omgeving",
+    "criticality": "Kritiekheid",
+    "emptyTitle": "Nog geen services",
+    "emptyDescription": "Verifieer een Azure-component om services te ontdekken, of voeg er handmatig een toe.",
+    "columns": {
+      "monitor": "Monitoren",
+      "service": "Service",
+      "environment": "Omgeving",
+      "criticality": "Kritiekheid",
+      "logs": "Logs",
+      "metrics": "Metrieken",
+      "dependsOn": "Hangt af van",
+      "repository": "Repository",
+      "actions": "Details"
+    },
+    "noLongerFound": "Niet meer gevonden in Azure",
+    "noDiagnosticSetting": "Geen diagnostische instelling",
+    "available": "beschikbaar",
+    "metricsTitle": "Beschikbare metrieken",
+    "dependsOnTitle": "Hangt af van",
+    "openDetails": "Servicedetails openen",
+    "selected_one": "{{count}} service geselecteerd",
+    "selected_other": "{{count}} services geselecteerd",
+    "bulk": {
+      "setEnvironment": "Omgeving instellen",
+      "setCriticality": "Kritiekheid instellen",
+      "addLogSource": "Logbron toevoegen",
+      "addLogSourceTitle_one": "Een logbron toevoegen aan {{count}} service",
+      "addLogSourceTitle_other": "Een logbron toevoegen aan {{count}} services",
+      "monitoringOff": "Monitoring uitschakelen",
+      "clear": "Selectie wissen"
+    }
+  },
+  "serviceDrawer": {
+    "basics": "Basisgegevens",
+    "displayName": "Weergavenaam",
+    "namespace": "Kubernetes-namespace",
+    "namespaceHelp": "Eén cluster kan veel applicaties hosten. Keigan leest alleen deze namespace.",
+    "description": "Beschrijving",
+    "repository": "Repository",
+    "repositoryHelp": "Helpt Keigan naar de code te verwijzen wanneer het een oplossing voorstelt.",
+    "provider": "Provider",
+    "repositoryUrl": "Repository-URL",
+    "branch": "Standaardbranch",
+    "path": "Pad in de repository",
+    "dependsOn": "Hangt af van",
+    "dependsOnHelp": "Services die deze service aanroept. Voedt de topologie en impactradius.",
+    "noOtherServices": "Er zijn nog geen andere services.",
+    "logSources": "Logbronnen",
+    "noDiagnosticSetting": "Nog geen diagnostische instelling. Toon de opdracht om er een in te schakelen.",
+    "metrics_one": "{{count}} metriek beschikbaar",
+    "metrics_other": "{{count}} metrieken beschikbaar"
+  },
+  "repositoryProviders": {
+    "azure_devops": "Azure DevOps",
+    "github": "GitHub",
+    "gitlab": "GitLab",
+    "bitbucket": "Bitbucket",
+    "other": "Overig"
+  },
+  "logSource": {
+    "none": "Nog geen logbron. Metrieken worden gebruikt wanneer ze beschikbaar zijn.",
+    "kind": "Bron",
+    "kinds": {
+      "log_analytics": "Log Analytics-werkruimte",
+      "application_insights": "Application Insights",
+      "azure_monitor_metrics": "Azure Monitor-metrieken",
+      "log_tool": "Logtoolverbinding",
+      "synthetic_probe": "Synthetische probe",
+      "vendor_status_page": "Statuspagina van leverancier"
+    },
+    "chips": {
+      "log_analytics": "Log Analytics",
+      "application_insights": "App Insights",
+      "azure_monitor_metrics": "Metrieken",
+      "log_tool": "Logtool",
+      "synthetic_probe": "Probe",
+      "vendor_status_page": "Statuspagina"
+    },
+    "workspaceResourceId": "Resource-ID van werkruimte",
+    "connection": "Verbinding",
+    "chooseConnection": "Kies een verbinding",
+    "noConnections": "Nog geen logtoolverbindingen. Voeg er een toe in stap 3.",
+    "scope": {
+      "index": "Index",
+      "namespace": "Namespace",
+      "host": "Host",
+      "labels": "Labels of tags",
+      "probeUrl": "Probe-URL"
+    },
+    "primary": "Primair",
+    "autoDetected": "Automatisch gedetecteerd",
+    "add": "Deze bron toevoegen",
+    "addSource": "Logbron toevoegen",
+    "remove": "Logbron verwijderen",
+    "test": "Leestest",
+    "testPassed": "Keigan kan deze bron lezen",
+    "testFailed": "Keigan kon deze bron niet lezen",
+    "testStatus": {
+      "not_tested": "Nog niet getest",
+      "passed": "Leestest geslaagd",
+      "failed": "Leestest mislukt"
+    }
+  },
+  "logTools": {
+    "tools": {
+      "elastic": {
+        "title": "Elastic",
+        "description": "Zoek logs in Elasticsearch of Elastic Cloud."
+      },
+      "splunk": {
+        "title": "Splunk",
+        "description": "Zoek logs via de Splunk REST API."
+      },
+      "datadog": {
+        "title": "Datadog",
+        "description": "Lees logs en metrieken uit Datadog."
+      },
+      "solarwinds": {
+        "title": "SolarWinds",
+        "description": "Netwerk- en nodemonitoring via Orion of de Observability SaaS."
+      },
+      "ibm_z_log_analytics": {
+        "title": "IBM Z-loganalyse",
+        "description": "Mainframelogs en SMF-records."
+      },
+      "vendor_api": {
+        "title": "Leveranciers-API (SaaS)",
+        "description": "De log- of audit-API van een leverancier."
+      },
+      "other": {
+        "title": "Een andere tool",
+        "description": "Alleen ter referentie vastgelegd."
+      }
+    },
+    "fields": {
+      "endpoint": "Endpoint-URL",
+      "authenticationMethod": "Authenticatie",
+      "index_pattern": "Indexpatro(o)n(en)",
+      "service_field": "Naam van het servicveld",
+      "namespace_field": "Namespace-veld",
+      "time_field": "Tijdveld",
+      "indexes": "Standaardindex(en)",
+      "source_types": "Brontypen",
+      "host_field": "Hostveld",
+      "site": "Datadog-site",
+      "application_key_reference": "Verwijzing naar applicatiesleutel",
+      "default_service_tag": "Standaard servicetag",
+      "env_tag": "Omgevingstag",
+      "platform": "Platform",
+      "node_ids": "Node-ID's of groepen",
+      "product": "Product",
+      "index": "Index of brontypen",
+      "smf_record_types": "SMF-recordtypen",
+      "vendor": "Leverancier",
+      "extra_settings": "Extra instellingen (key=value per regel)",
+      "holds": "Naam en wat het bevat"
+    },
+    "options": {
+      "api_key": "API-sleutel",
+      "basic": "Basisauthenticatie",
+      "oauth_client_credentials": "OAuth-clientreferenties",
+      "orion_swis": "Orion (SWIS)",
+      "observability_saas": "Observability SaaS"
+    },
+    "connectionName": "Verbindingsnaam",
+    "credential": "Geheim of API-sleutel",
+    "credentialHelp": "Eenmalig verzonden en veilig opgeslagen. Keigan toont het nooit meer.",
+    "credentialSet": "•••• ingesteld {{date}}",
+    "saveConnection": "Verbinding opslaan",
+    "saveChanges": "Wijzigingen opslaan",
+    "placeholderBanner": "De reader voor deze tool is in ontwikkeling. Keigan slaat de gegevens nu op en gebruikt ze zodra de reader beschikbaar komt.",
+    "readerInDevelopment": "Reader in ontwikkeling",
+    "status": {
+      "not_tested": "Niet getest",
+      "connected": "Verbonden",
+      "failed": "Mislukt",
+      "reader_not_available": "Reader in ontwikkeling"
+    },
+    "test": "Verbinding testen",
+    "testDisabled": "De reader voor deze tool is in ontwikkeling, dus testen is nog niet mogelijk.",
+    "edit": "Bewerken",
+    "delete": "Verbinding verwijderen",
+    "deleteTitle": "{{name}} verwijderen?",
+    "deleteDescription": "Services die deze verbinding gebruiken, moeten die eerst niet meer gebruiken. Het opgeslagen geheim wordt verwijderd.",
+    "deleteConfirm": "Verbinding verwijderen",
+    "none": "Nog geen verbindingen. Kies hierboven een tool om er een toe te voegen.",
+    "newestLog": "nieuwste log",
+    "usedBy": "Gebruikt door {{names}}",
+    "notUsed": "Nog door geen enkele service gebruikt"
+  },
+  "servicenow": {
+    "title": "ServiceNow-toewijzingsgroepen",
+    "description": "Keigan haalt alleen incidenten op voor deze groepen.",
+    "groups": "Toewijzingsgroepen",
+    "groupsHelp": "Druk na elke naam op Enter. Namen die Keigan niet kon controleren, worden als niet-geverifieerd opgeslagen.",
+    "placeholder": "Een groepsnaam toevoegen",
+    "search": "ServiceNow-groepen zoeken",
+    "searchPlaceholder": "Typ om te zoeken…"
+  },
+  "access": {
+    "sailpointTitle": "Toegang aanvragen via SailPoint",
+    "adminGroup": "Beheerdersgroep (bewerktoegang)",
+    "readerGroup": "Lezersgroep (alleen lezen)",
+    "copyGroup": "Groepsnaam kopiëren",
+    "groupName": "Groepsnaam",
+    "objectId": "Object-ID van groep",
+    "objectIdHelp": "Alleen nodig wanneer Entra-tokens groeps-ID's bevatten.",
+    "save": "Opslaan",
+    "membersEntra": "Leden komen uit Entra ID en verschijnen hier wanneer Keigan ze kan lezen.",
+    "membersLocal": "Groepslidmaatschap wordt gelezen uit Entra ID. In de lokale modus bepalen de demogebruikers wie toegang heeft.",
+    "howItWorksTitle": "Hoe toegang werkt",
+    "howItWorksBody": "Keigan houdt geen eigen gebruikerslijst bij. Bij elke aanmelding leest Keigan de Entra ID-groepslidmaatschappen: leden van de beheerdersgroep kunnen deze applicatie wijzigen, leden van de lezersgroep kunnen haar bekijken. Maak beide groepen in SailPoint aan met de onderstaande namen en voeg daar mensen toe; in Keigan hoeft niemand te worden toegevoegd.",
+    "verify": {
+      "title": "Groepen controleren in Entra ID",
+      "description": "Controleer of SailPoint beide groepen heeft aangemaakt en wie erin zit, voordat iemand zich aanmeldt.",
+      "button": "Controleren in Entra",
+      "members_one": "{{count}} lid: {{names}}",
+      "members_other": "{{count}} leden, onder wie {{names}}",
+      "objectIdSaved": "Object-ID {{objectId}} opgeslagen voor aanmeldingskoppeling.",
+      "sourceEntra": "Live gecontroleerd in Microsoft Entra ID.",
+      "sourceLocal": "Lokale modus: gecontroleerd met de demogebruikers. In Azure wordt Microsoft Entra ID gecontroleerd."
+    }
+  },
+  "stubs": {
+    "alertsTitle": "Meldingsbronnen en ruisreductie",
+    "alertsDescription": "Webhook-meldingsbronnen, het beleid voor ruisreductie en het aanmaken van incidenten op basis van meldingen stelt u hier in.",
+    "sloTitle": "SLO-voorstellen",
+    "sloDescription": "Keigan stelt SLO's voor op basis van de gegevens die het kan lezen. Ze worden hier ingesteld.",
+    "notificationsTitle": "Belanghebbenden en notificaties",
+    "notificationsDescription": "Wie er over incidenten wordt geïnformeerd, en hoe, stelt u hier in."
+  }
+}

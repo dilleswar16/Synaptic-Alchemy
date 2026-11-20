@@ -1,0 +1,6 @@
+apiVersion: v2
+name: keigan
+description: Keigan (慧眼) — AI SRE platform. Frontend and backend in separate namespaces on AKS.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

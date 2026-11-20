@@ -1,0 +1,69 @@
+{
+  "pageTitle": "Salle des incidents",
+  "pageDescription": "Incidents ouverts et récents de vos applications, mis à jour en direct.",
+  "filters": {
+    "searchLabel": "Rechercher des incidents",
+    "searchPlaceholder": "Rechercher par numéro ou titre",
+    "onlyMine": "Les miens uniquement",
+    "viewLabel": "Affichage",
+    "viewTable": "Tableau",
+    "viewBoard": "Kanban",
+    "priority": "Priorité",
+    "status": "Statut",
+    "source": "Source"
+  },
+  "status": {
+    "new": "Nouveau",
+    "investigating": "Investigation en cours",
+    "identified": "Cause identifiée",
+    "resolved": "Résolu",
+    "closed": "Clos"
+  },
+  "source": {
+    "servicenow": "ServiceNow",
+    "alert": "Alerte",
+    "manual": "Manuel"
+  },
+  "servicenowPriority": "ServiceNow : {{priority}}",
+  "columns": {
+    "priority": "Priorité",
+    "number": "Numéro",
+    "title": "Incident",
+    "application": "Application",
+    "status": "Statut",
+    "confidence": "Confiance de Keigan",
+    "detected": "Détecté",
+    "duration": "Durée",
+    "group": "Groupe d'affectation"
+  },
+  "noNumber": "Sans numéro",
+  "noServices": "Aucun service identifié pour l'instant",
+  "analysing": "Analyse en cours",
+  "tableCaption": "Incidents des applications sélectionnées",
+  "boardLabel": "Tableau des incidents par statut",
+  "board": {
+    "emptyColumn": "Rien ici"
+  },
+  "empty": {
+    "title": "Aucun incident ne correspond à ces filtres",
+    "description": "Effacez un filtre ou élargissez la recherche pour voir plus d'incidents.",
+    "noIncidentsTitle": "Aucun incident pour l'instant",
+    "noIncidentsDescription": "Les incidents ServiceNow apparaissent ici dès que Keigan les détecte. Vous pouvez aussi lancer vous-même une investigation."
+  },
+  "newInvestigation": {
+    "open": "Nouvelle investigation",
+    "title": "Lancer une investigation",
+    "description": "Keigan collecte des preuves auprès des services sélectionnés et propose une cause racine. Rien n'est modifié dans vos systèmes.",
+    "application": "Application",
+    "services": "Services à examiner",
+    "servicesHelp": "Ne cochez rien et Keigan choisira les services à partir de votre description et de la topologie de l'application.",
+    "descriptionLabel": "Qu'est-ce qui ne fonctionne pas ?",
+    "descriptionHelp": "Décrivez les symptômes, les personnes touchées et l'heure de début. Ne collez pas de données personnelles ; Keigan les masque avant l'analyse.",
+    "windowStart": "Début de la période",
+    "windowEnd": "Fin de la période",
+    "cancel": "Annuler",
+    "start": "Lancer l'investigation",
+    "startedTitle": "Investigation lancée",
+    "startedDescription": "Keigan collecte des preuves. Cela prend généralement une à deux minutes."
+  }
+}

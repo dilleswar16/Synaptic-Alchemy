@@ -1,0 +1,49 @@
+{
+  "pageTitle": "Keigan AI-chat",
+  "pageDescription": "Stel vragen over uw applicaties, incidenten en telemetrie.",
+  "list": {
+    "title": "Gesprekken",
+    "newChat": "Nieuwe chat",
+    "search": "Gesprekken zoeken",
+    "empty": "Nog geen gesprekken. Stel uw eerste vraag.",
+    "noMatches": "Geen gesprek komt overeen met uw zoekopdracht.",
+    "actions": "Gespreksacties",
+    "rename": "Hernoemen",
+    "renameTitle": "Gesprek hernoemen",
+    "nameLabel": "Naam",
+    "save": "Opslaan",
+    "delete": "Verwijderen",
+    "deleteTitle": "Dit gesprek verwijderen?",
+    "deleteDescription": "Het gesprek en de antwoorden worden voor u verwijderd. Dit kan niet ongedaan worden gemaakt."
+  },
+  "conversation": {
+    "title": "Gesprek",
+    "newTitle": "Nieuw gesprek",
+    "scope": "Bekijkt",
+    "allApplications": "Al mijn applicaties",
+    "thinking": "Keigan is ermee bezig…"
+  },
+  "empty": {
+    "title": "Wat wilt u weten?",
+    "description": "Vraag naar aantallen fouten, patronen in de tijd, architectuur of runbooks. Keigan leest alleen en wijzigt nooit uw systemen.",
+    "category": { "data": "Uit uw logs", "knowledge": "Uit uw kennisbank" }
+  },
+  "composer": {
+    "label": "Bericht aan Keigan",
+    "placeholder": "Stel een vraag over uw applicaties…",
+    "send": "Verzenden",
+    "hint": "Enter om te verzenden, Shift+Enter voor een nieuwe regel. Persoonsgegevens worden gemaskeerd voordat ze de AI bereiken."
+  },
+  "message": {
+    "howIGotThis": "Hoe ik hieraan kwam",
+    "queryMeta": "{{service}} · {{source}} · {{language}} · {{count}} rijen",
+    "simulated": "gesimuleerde gegevens",
+    "sources": "Bronnen",
+    "noData": "Geen gegevens in deze periode.",
+    "clarificationLabel": "Kies een tijdsbereik"
+  },
+  "errors": {
+    "rateLimited": "U verstuurt berichten te snel. Wacht even en probeer het opnieuw.",
+    "generic": "Keigan kon nu niet antwoorden. Probeer het opnieuw."
+  }
+}

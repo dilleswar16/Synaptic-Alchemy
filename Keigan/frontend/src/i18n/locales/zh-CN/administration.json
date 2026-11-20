@@ -1,0 +1,96 @@
+{
+  "pageTitle": "管理",
+  "pageDescription": "面向 Keigan 管理员的平台设置、用量和投递记录。",
+  "tabs": { "usage": "AI 用量", "audit": "审计日志", "jobs": "后台作业" },
+  "settings": {
+    "pageTitle": "平台设置",
+    "pageDescription": "生效配置、身份和连接测试。",
+    "integrationsTitle": "集成",
+    "integrations": {
+      "telemetry": "遥测",
+      "servicenow": "ServiceNow",
+      "teams": "Microsoft Teams 和 Graph",
+      "email": "邮件",
+      "llm": "AI 提供方",
+      "azure": "Azure 访问",
+      "authentication": "登录"
+    },
+    "simulated": "模拟",
+    "configured": "已配置",
+    "notConfigured": "未配置",
+    "testConnection": "测试连接",
+    "testFailed": "无法启动测试。",
+    "identityTitle": "Keigan 身份",
+    "identityDescription": "请为此身份授予 Keigan 需监控的 Azure 资源的读取权限。",
+    "identity": { "name": "显示名称", "objectId": "对象 ID", "clientId": "客户端 ID", "multiTenant": "多租户应用客户端 ID" },
+    "groups": {
+      "general": "常规",
+      "authentication": "身份验证",
+      "integrations": "集成",
+      "ai": "AI",
+      "safety": "安全与限制",
+      "storage": "存储与监控"
+    }
+  },
+  "simulation": {
+    "title": "模拟控制",
+    "description": "在演示应用中启动一个逼真的事件。仅在 local、dev 和 test 环境中可用。",
+    "application": "应用",
+    "pickApplication": "选择应用",
+    "scenario": "场景",
+    "pickScenario": "选择场景",
+    "start": "启动场景",
+    "started": "场景已启动",
+    "startedDescription": "模拟的 ServiceNow 事件 {{number}} 正在发送给 Keigan。",
+    "failed": "无法启动场景"
+  },
+  "usage": {
+    "pageTitle": "用量与审计",
+    "pageDescription": "AI token 用量、成本估算、所有变更的审计日志以及作业队列。",
+    "range": "周期",
+    "days_one": "{{count}} 天",
+    "days_other": "{{count}} 天",
+    "tiles": {
+      "tokens": "已用 token",
+      "tokenSplit": "输入 {{input}}，输出 {{output}}",
+      "cost": "估算成本",
+      "costNote": "基于已配置的 token 单价",
+      "calls": "AI 调用",
+      "failedCalls_one": "{{count}} 次失败",
+      "failedCalls_other": "{{count}} 次失败",
+      "perInvestigation": "每次调查的 token",
+      "perInvestigationNote": "本周期平均值"
+    },
+    "chartTitle": "每日 token",
+    "chartDescription": "所有 AI 功能的输入和输出 token。",
+    "byApplication": "按应用",
+    "byFeature": "按功能",
+    "empty": "此周期内没有 AI 用量记录。",
+    "columns": { "name": "名称", "calls": "调用次数", "input": "输入 token", "output": "输出 token", "cost": "估算成本" }
+  },
+  "audit": {
+    "caption": "审计事件",
+    "empty": "没有符合筛选条件的审计事件。",
+    "filters": { "actor": "人员", "action": "操作包含" },
+    "columns": { "time": "时间", "actor": "操作人", "action": "操作", "target": "对象", "details": "详情" }
+  },
+  "jobs": {
+    "deadLetters": "死信",
+    "deadLettersDescription": "所有重试均失败的作业。请在修复原因后重试。",
+    "noDeadLetters": "没有失败的作业，队列运行正常。",
+    "recent": "近期作业",
+    "retry": "重试",
+    "columns": { "type": "作业", "status": "状态", "attempts": "尝试次数", "created": "创建时间", "error": "最近错误" }
+  },
+  "outbox": {
+    "pageTitle": "发件箱",
+    "pageDescription": "Keigan 已发送或模拟发送的邮件和 Teams 消息。",
+    "emptyTitle": "尚未发送任何内容",
+    "emptyDescription": "Keigan 发送或模拟发送通知后，将立即显示在此处。",
+    "unavailableTitle": "发件箱不可用",
+    "unavailableDescription": "无法加载投递记录。此环境可能未启用通知。",
+    "previewTitle": "消息预览",
+    "noBody": "此消息没有正文。",
+    "columns": { "created": "创建时间", "subject": "主题", "recipient": "收件人", "application": "应用", "channel": "渠道", "status": "状态" }
+  }
+}

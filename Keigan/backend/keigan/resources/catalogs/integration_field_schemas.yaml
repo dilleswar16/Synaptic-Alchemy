@@ -1,0 +1,112 @@
+# Field schemas for generic external integrations (table `external_integration`).
+# The onboarding UI renders each integration card from this file, so a field can be added or refined without
+# a schema or UI change. Field types: text, url, select, secret_reference, key_value_list, textarea.
+# `credential_secret_name` is special: it is stored in its own column and holds a Key Vault secret *name*, never a value.
+# Labels are English defaults; the UI translates them with the key `integrations.fields.<field key>` when available.
+
+integration_kinds:
+  cmdb:
+    display_name: CMDB
+    purpose: Keigan will read configuration items, owners and relationships for this application from the CMDB to enrich topology and blast radius.
+    reader_available: false
+    fields:
+      - key: base_url
+        label: Base URL
+        field_type: url
+        required: true
+        placeholder: https://metlife.service-now.com
+        help_text: The CMDB API root (for example the ServiceNow instance that hosts the CMDB).
+      - key: authentication_method
+        label: Authentication
+        field_type: select
+        required: true
+        default_value: oauth_client_credentials
+        options:
+          - [managed_identity, Managed identity]
+          - [oauth_client_credentials, OAuth client credentials]
+          - [api_key, API key]
+          - [basic, Basic authentication]
+      - key: credential_secret_name
+        label: Credential reference
+        field_type: secret_reference
+        placeholder: cmdb-reader-credential
+        help_text: Name of the Key Vault secret that holds the credential. Keigan never stores the value itself.
+      - key: configuration_item_class
+        label: Configuration item class
+        field_type: text
+        default_value: cmdb_ci_service
+        help_text: The CI class that represents applications or business services.
+      - key: application_ci_identifier
+        label: Application CI identifier
+        field_type: text
+        placeholder: CI0088123
+      - key: extra_settings
+        label: Extra settings
+        field_type: key_value_list
+        help_text: Any additional key–value settings the reader will need.
+
+  ei_portal:
+    display_name: EI portal
+    purpose: Keigan will read the application's Enterprise Inventory record (EAI) — owners, support model, criticality and linked systems.
+    reader_available: false
+    fields:
+      - key: base_url
+        label: Base URL
+        field_type: url
+        required: true
+        placeholder: https://eiportal.metlife.example/api
+      - key: authentication_method
+        label: Authentication
+        field_type: select
+        required: true
+        default_value: managed_identity
+        options:
+          - [managed_identity, Managed identity]
+          - [oauth_client_credentials, OAuth client credentials]
+          - [api_key, API key]
+      - key: credential_secret_name
+        label: Credential reference
+        field_type: secret_reference
+        placeholder: ei-portal-reader
+        help_text: Name of the Key Vault secret that holds the credential. Keigan never stores the value itself.
+      - key: eai_lookup_path
+        label: EAI lookup path
+        field_type: text
+        default_value: /applications/{eai_code}
+        help_text: Path template used to read one EAI record.
+      - key: extra_settings
+        label: Extra settings
+        field_type: key_value_list
+
+  knowledge_api:
+    display_name: Enterprise knowledge API
+    purpose: Keigan will search the enterprise knowledge base (wikis, design records, operating procedures) for this application during investigations.
+    reader_available: false
+    fields:
+      - key: base_url
+        label: Base URL
+        field_type: url
+        required: true
+        placeholder: https://knowledge.metlife.example/api/v1
+      - key: authentication_method
+        label: Authentication
+        field_type: select
+        required: true
+        default_value: oauth_client_credentials
+        options:
+          - [managed_identity, Managed identity]
+          - [oauth_client_credentials, OAuth client credentials]
+          - [api_key, API key]
+      - key: credential_secret_name
+        label: Credential reference
+        field_type: secret_reference
+        placeholder: knowledge-api-reader
+        help_text: Name of the Key Vault secret that holds the credential. Keigan never stores the value itself.
+      - key: space_or_collection
+        label: Space or collection
+        field_type: text
+        placeholder: CLAIMS-JP
+        help_text: Limits searches to this application's space.
+      - key: extra_settings
+        label: Extra settings
+        field_type: key_value_list

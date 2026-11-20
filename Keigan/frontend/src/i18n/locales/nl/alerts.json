@@ -1,0 +1,114 @@
+{
+  "pageTitle": "Meldingen",
+  "pageDescription": "Meldingsruis teruggebracht tot de groepen die ertoe doen. Er wordt niets weggegooid: elke melding wordt opgeslagen en elke beslissing heeft een reden.",
+  "severity": "Sev {{level}}",
+  "tools": { "azure_monitor": "Azure Monitor", "elastic": "Elastic", "generic": "Generieke webhook" },
+  "groupStatus": { "open": "Open", "queued": "In wachtrij", "resolved": "Opgelost" },
+  "alertStatus": { "firing": "Actief", "resolved": "Opgelost" },
+  "verdict": { "useful": "Nuttig", "noise": "Dit was ruis" },
+  "filters": { "period": "Periode", "last24h": "24 uur", "last7d": "7 dagen", "last30d": "30 dagen" },
+  "observe": {
+    "title": "Observatiemodus: nog {{count}} dagen",
+    "body": "Keigan legt vast wat het zou reduceren en groeperen, maar onderzoekt nog steeds elke melding boven de minimale ernst. Er verandert niets totdat u overschakelt naar Actief.",
+    "effect": "Tot nu toe gemeten effect: {{sentence}}"
+  },
+  "funnel": {
+    "title": "Ruistrechter",
+    "description": "Ontvangen meldingen, teruggebracht tot de groepen die zijn onderzocht.",
+    "emptyTitle": "Geen meldingen in deze periode",
+    "emptyDescription": "Koppel een meldingsbron in de stap Incidenten en meldingen van de applicatie om de trechter te zien.",
+    "steps": { "received": "Ontvangen meldingen", "deduplicated": "Na ontdubbeling", "filtered": "Na onderdrukking en afwachten", "groups": "Meldingsgroepen", "investigations": "Onderzoeken" },
+    "reasons": {
+      "repeats": "{{count}} herhalingen", "maintenance": "{{count}} tijdens onderhoud", "muted": "{{count}} gedempt", "environment": "{{count}} uit andere omgevingen",
+      "severity": "{{count}} onder de minimale ernst", "resolved_before_settle": "{{count}} vanzelf opgelost", "flapping": "{{count}} flapperend"
+    },
+    "reasonHelp": {
+      "repeats": "Dezelfde melding ging opnieuw af en is meegeteld bij de bestaande melding.", "maintenance": "Binnengekomen tijdens een onderhoudsvenster: vastgelegd, niet onderzocht.", "muted": "Kwam overeen met een dempregel.",
+      "environment": "Niet in een onderzochte omgeving.", "severity": "Minder ernstig dan de minimale ernst.", "resolved_before_settle": "Verdween binnen de wachttijd.", "flapping": "Wisselde herhaaldelijk van status en is als één melding bewaard."
+    }
+  },
+  "groups": {
+    "title": "Meldingsgroepen",
+    "columns": { "group": "Groep", "services": "Services", "severity": "Ernst", "alerts": "Meldingen", "status": "Status", "score": "Score", "reason": "Beslissing", "lastActivity": "Laatste activiteit", "feedback": "Feedback" },
+    "occurrences": "{{count}} keer voorgekomen",
+    "applicationLevel": "Applicatieniveau",
+    "emptyTitle": "Geen meldingsgroepen",
+    "emptyDescription": "Wanneer meldingen binnenkomen, worden ze hier gegroepeerd, met de reden voor elke beslissing."
+  },
+  "outcome": {
+    "investigation_started": "Onderzoek gestart", "investigation_replayed": "Zou worden onderzocht", "queued": "In wachtrij", "below_threshold": "Onder drempel", "joined_group": "Aan groep toegevoegd",
+    "joined_investigation": "Aan onderzoek toegevoegd", "servicenow_incident_suggested": "Incident voorgesteld", "servicenow_incident_created": "Incident aangemaakt", "suppressed_maintenance": "Onderhoudsvenster",
+    "suppressed_mute": "Gedempt", "suppressed_environment": "Andere omgeving", "suppressed_severity": "Onder ernstdrempel", "resolved_before_settle": "Vanzelf opgelost", "new_group": "Nieuwe groep",
+    "passed": "Geslaagd", "waiting": "Wachtend", "settled": "Gestabiliseerd", "skipped_wait": "Geen wachttijd", "normalised": "Geparseerd", "new_alert": "Nieuwe melding", "repeat": "Herhaling", "resolved": "Opgelost",
+    "reopened": "Heropend", "flapping": "Flapperend", "kept_open_flapping": "Open gehouden", "scored": "Gescoord", "notification_planned": "Notificatie gepland", "thread_updated": "Thread bijgewerkt"
+  },
+  "stage": { "normalise": "1 Normaliseren", "deduplicate": "2 Ontdubbelen", "lifecycle": "3 Levenscyclus", "suppress": "4 Onderdrukken", "settle": "5 Afwachten", "group": "6 Groeperen", "prioritise": "7 Prioriteren", "decide": "8 Beslissen", "notify": "9 Melden" },
+  "drawer": {
+    "loading": "Meldingsgroep", "rule": "Regel", "service": "Service", "severity": "Ernst", "state": "Status", "occurrences": "Aantal keer gezien", "lastSeen": "Laatst gezien", "flapping": "Flapperend",
+    "applicationLevel": "Applicatieniveau (geen service)", "members": "Bijbehorende meldingen ({{count}})", "decisionLog": "Beslissingslog", "decisionLogHelp": "Elke pijplijnfase met de reden voor haar beslissing.",
+    "noDecisions": "Geen beslissingen vastgelegd.", "wouldHave": "Actieve modus zou hebben: {{outcome}}", "groupingReason": "Groepering: {{reason}}",
+    "observeTitle": "Observatiemodus", "observeBody": "Deze beslissingen zijn vastgelegd maar niet toegepast. Regels met 'Actieve modus zou hebben' tonen wat er zou veranderen.",
+    "openInvestigation": "Onderzoek openen", "openIncident": "Open incidenten", "createIncident": "ServiceNow-incident aanmaken", "createIncidentSuggested": "Voorgesteld ServiceNow-incident aanmaken",
+    "incidentCreated": "ServiceNow-incident aangemaakt", "incidentFailed": "Het incident kon niet worden aangemaakt",
+    "feedback": "Was deze groep nuttig?", "feedbackHelp": "Uw feedback stemt het wekelijkse ruisrapport af.", "feedbackCurrent": "Huidige feedback: {{verdict}}", "noiseReason": "Waarom was het ruis?", "feedbackSaved": "Feedback opgeslagen"
+  },
+  "sources": {
+    "title": "Meldingsbronnen", "description": "Stuur meldingen van uw monitoringtools naar Keigan, zodat ze op dezelfde manier worden geanalyseerd als ServiceNow-incidenten. Optioneel.",
+    "add": "Meldingsbron toevoegen", "emptyTitle": "Nog geen meldingsbronnen", "emptyDescription": "Voeg Azure Monitor, Elastic of een andere tool toe die een JSON-webhook kan versturen.",
+    "rulesFound": "meldingsregels gevonden binnen uw bereik ({{sending}} sturen naar Keigan)", "rulesTitle": "Gevonden meldingsregels", "sendsToKeigan": "Stuurt naar Keigan", "doesNotSend": "Stuurt niet",
+    "simulatedRules": "Voorbeeldregels voor gesimuleerde componenten, niet uit Azure gelezen.",
+    "status": { "waiting_for_first_alert": "Wachten op eerste melding", "receiving": "Ontvangt, laatste melding", "authentication_failures": "Authenticatiefouten", "paused": "Gepauzeerd" },
+    "counts": "{{alerts}} meldingen in 7 dagen, {{groups}} groepen, {{investigated}} onderzocht", "authFailures": "{{count}} verzoeken geweigerd vanwege een onjuist token.",
+    "test": "Testen", "testSent": "Testmelding verzonden", "rotate": "Geheim vernieuwen", "pause": "Pauzeren", "resume": "Hervatten", "remove": "Verwijderen",
+    "removeTitle": "Meldingsbron verwijderen", "removeBody": "Keigan accepteert geen meldingen meer op de URL van {{name}}. Opgeslagen meldingen blijven bewaard.", "removeConfirm": "Bron verwijderen",
+    "rotatedTitle": "Nieuw geheim", "rotatedBody": "Kopieer het nu: het wordt één keer getoond. Het oude geheim blijft 24 uur werken."
+  },
+  "sheet": {
+    "title": "Meldingsbron toevoegen", "cancel": "Annuleren", "back": "Terug", "next": "Volgende", "done": "Klaar", "createSource": "Bron aanmaken", "saveContinue": "Opslaan en doorgaan",
+    "steps": { "tool": "Kies de tool en geef de bron een naam.", "endpoint": "Keigan heeft een uniek endpoint voor deze bron aangemaakt.", "configure": "Configureer uw tool met de echte waarden.", "mapping": "Koppel de velden van uw payload.", "services": "Vertel Keigan over welke service een melding gaat.", "test": "Verstuur een testmelding of wacht op een echte." },
+    "tool": "Tool", "toolHelp": { "azure_monitor": "Common alert schema, automatisch gekoppeld", "elastic": "Webhookconnector met een kant-en-klare bodysjabloon", "generic": "Dynatrace, Datadog, Grafana, Alertmanager, SolarWinds en meer" },
+    "name": "Bronnaam", "namePlaceholder": "Azure Monitor productie",
+    "secretOnceTitle": "Kopieer het geheim nu", "secretOnceBody": "Keigan slaat alleen een hash op. Het geheim wordt één keer getoond; u kunt het later vernieuwen.",
+    "webhookUrl": "Webhook-URL", "webhookUrlHelp": "Bevat het token voor tools die geen headers kunnen versturen (Azure Monitor).", "secret": "Geheim", "secretHelp": "Verstuur het als de header X-Keigan-Token of de queryparameter token.",
+    "header": "Header", "headerHelp": "Optioneel: onderteken de body met X-Keigan-Signature (HMAC-SHA256, sleutel is de SHA-256-hex van het geheim).",
+    "samplePayload": "Voorbeeldpayload (JSON)", "samplePayloadHelp": "Plak één melding uit uw tool, of laat leeg om de eerste ontvangen melding te gebruiken.", "suggestMapping": "Koppeling voorstellen en voorbeeld tonen",
+    "fields": { "ruleName": "Regelnaam", "ruleId": "Regel-ID", "externalId": "Melding-ID", "status": "Status", "severity": "Ernst", "resourceRef": "Resource", "serviceHint": "Service", "summary": "Samenvatting", "startedAt": "Gestart op", "link": "Link" },
+    "severityMapping": "Ernstkoppeling (toolwaarde naar Sev 0 tot 4)", "toolValue": "Toolwaarde", "severityLevel": "Ernst", "removeRow": "Rij verwijderen", "addRow": "Rij toevoegen",
+    "servicesHelp": "Azure-meldingen worden automatisch gekoppeld op resource-ID. Kies bij andere tools het payloadveld dat de service benoemt; niet-gekoppelde meldingen komen op applicatieniveau.",
+    "serviceField": "Serviceveld", "serviceFieldHelp": "JSONPath, bijvoorbeeld $.service.name of $.kubernetes.namespace", "autoMatch": "Koppelen op gelijke namen", "autoMatchHelp": "Een waarde die gelijk is aan een servicenaam wordt aan die service gekoppeld.",
+    "sendTest": "Een testmelding versturen vanuit Keigan", "listen": "Wachten op een echte melding", "stopListening": "Stoppen met wachten", "connected": "Verbonden: een melding is ontvangen en geparseerd",
+    "matchedService": "Gekoppelde service", "processing": "Verwerken", "rawPayload": "Ruwe payload", "waiting": "Wachten op de eerste melding...", "testHelp": "De bron wordt als verbonden gemarkeerd zodra één melding is ontvangen en geparseerd."
+  },
+  "policy": {
+    "title": "Ruisreductie", "description": "Werkt met standaardwaarden. Bewerk de zinnen om te wijzigen hoe meldingen worden gereduceerd.", "reset": "Standaardwaarden herstellen", "save": "Beleid opslaan", "discard": "Wijzigingen negeren",
+    "minSeverityA": "Onderzoek meldingen met ernst", "minSeverityB": "of hoger.",
+    "environmentsA": "Onderzoek alleen meldingen uit", "environmentsB": "omgevingen. Andere worden vastgelegd.", "allEnvironments": "alle omgevingen",
+    "settleA": "Wacht", "settleB": "voor het onderzoek, voor het geval de melding vanzelf verdwijnt. Sla het wachten over voor",
+    "reopenA": "Behandel een herhaling van dezelfde melding als één melding, en gedurende", "reopenB": "nadat deze is verdwenen.",
+    "groupA": "Behandel meldingen op dezelfde of afhankelijke services binnen", "groupB": "als één probleem.",
+    "flapA": "Als een melding", "flapB": "keer van status wisselt binnen", "flapC": "behandel deze dan als flapperend en bewaar hem als één open melding.",
+    "rateA": "Start maximaal", "rateB": "onderzoeken per uur voor deze applicatie.",
+    "thresholdA": "Onderzoek groepen met een prioriteitsscore van minstens", "thresholdB": "(ernst x kritiekheid x omgeving).",
+    "modeA": "Modus:", "modeActive": "Actief: beslissingen worden doorgevoerd", "modeObserve": "Observeren: toon wat zou worden gereduceerd zonder het gedrag te wijzigen",
+    "beforeSwitch": "Gemeten effect voordat u overschakelt naar Actief"
+  },
+  "windows": {
+    "title": "Onderhoudsvensters", "description": "Meldingen binnen een venster worden vastgelegd en gelabeld, niet onderzocht.", "add": "Venster toevoegen", "create": "Venster aanmaken", "name": "Naam", "scope": "Services",
+    "wholeApplication": "Hele applicatie", "when": "Wanneer", "repeat": "Herhalen", "weekly": "Herhaalt wekelijks", "once": "Eenmalig", "state": "Status", "active": "Nu actief", "delete": "Venster verwijderen",
+    "starts": "Begint", "ends": "Eindigt", "empty": "Geen onderhoudsvensters"
+  },
+  "mute": {
+    "title": "Dempregels", "description": "Vervaldatum en reden zijn verplicht. Verlopen regels worden als verlopen getoond en nooit stilzwijgend verwijderd.", "add": "Dempregel toevoegen", "create": "Dempregel aanmaken", "name": "Naam",
+    "matcher": "Komt overeen met", "reason": "Reden", "expires": "Verloopt", "expired": "Verlopen", "delete": "Dempregel verwijderen", "ruleContains": "Regelnaam bevat", "severity": "Ernst", "anySeverity": "Elke ernst",
+    "expiresHelp": "Dempregels eindigen altijd.", "empty": "Geen dempregels"
+  },
+  "preview": {
+    "title": "Voorbeeld over de laatste 7 dagen", "description": "Voert deze instellingen opnieuw uit op opgeslagen meldingen, in het geheugen. Er verandert niets.", "run": "Deze instellingen toepassen op de laatste 7 dagen",
+    "illustration": "Voorbeeld, niet uw gegevens. Meldingen vullen dit aan."
+  },
+  "incidentPolicy": {
+    "title": "Incidenten aanmaken op basis van meldingen", "description": "Wat Keigan doet wanneer een onderzochte meldingsgroep ernstig genoeg is.",
+    "whenScore": "Wanneer een meldingsgroep een score heeft van minstens", "thenDo": "en het onderzoek klantimpact bevestigt,", "suggest": "stel een ServiceNow-incident voor", "automatic": "maak automatisch een ServiceNow-incident aan",
+    "inGroup": "in toewijzingsgroep", "noGroup": "Standaardgroep", "threshold": "Scoredrempel", "mode": "Modus", "group": "Toewijzingsgroep", "save": "Beleid opslaan"
+  }
+}

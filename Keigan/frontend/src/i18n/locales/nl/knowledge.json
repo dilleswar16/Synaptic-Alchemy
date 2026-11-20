@@ -1,0 +1,160 @@
+{
+  "pageTitle": "Kennisbank",
+  "pageDescription": "Documenten en AI-samenvattingen die de antwoorden van Keigan onderbouwen.",
+  "categories": {
+    "code_context": "Codecontext",
+    "architecture": "Architectuur",
+    "operations_guide": "Operationele handleiding",
+    "runbook_source": "Runbookbron",
+    "incident_history": "Incidentgeschiedenis",
+    "other": "Overig"
+  },
+  "capture": {
+    "title": "Codecontext van Copilot",
+    "description": "Copilot leest de repository en schrijft één Markdown-bestand dat Keigan leert hoe de service werkt.",
+    "stages": {
+      "copy": {
+        "title": "Kopieer de prompt",
+        "body": "Kies de service en kopieer de onderstaande prompt."
+      },
+      "run": {
+        "title": "Voer hem uit in VS Code",
+        "body": "Plak hem in Copilot Chat in de repository van de service."
+      },
+      "upload": {
+        "title": "Upload het bestand",
+        "body": "Sleep het Markdown-bestand dat Copilot heeft geschreven naar het gebied hieronder."
+      }
+    },
+    "scope": "Wat moet Copilot beschrijven?",
+    "wholeApplication": "De hele applicatie",
+    "promptTitle": "Prompt voor kennisverzameling · versie {{version}} · {{lines}} regels"
+  },
+  "upload": {
+    "category": "Documentcategorie",
+    "accepted": "Markdown, tekst, PDF, PNG, JPG, WebP (tot 15 MB)",
+    "failed": "Uploaden mislukt. Probeer het opnieuw."
+  },
+  "documents": {
+    "title": "Documenten",
+    "emptyTitle": "Nog geen documenten",
+    "emptyDescription": "Upload het Copilot-bestand, architectuurdiagrammen of handleidingen. Keigan vat elk document samen.",
+    "wholeApplication": "Hele applicatie",
+    "headings_one": "{{count}} kop",
+    "headings_other": "{{count}} koppen",
+    "stale": "Ouder dan 90 dagen",
+    "viewDigest": "Samenvatting bekijken",
+    "delete": "Document verwijderen",
+    "deleteTitle": "{{name}} verwijderen?",
+    "deleteDescription": "Het bestand, de samenvatting en de zoekindex worden verwijderd. Reeds gebouwde topologieën blijven ongewijzigd.",
+    "deleteConfirm": "Document verwijderen"
+  },
+  "digest": {
+    "title": "AI-samenvatting",
+    "headings": "Gevonden koppen ({{count}})",
+    "chunks": "{{count}} doorzoekbare secties, ongeveer {{tokens}} tokens.",
+    "injectionTitle": "Dit document bevat tekst die op instructies lijkt",
+    "injectionBody": "Keigan behandelt documenten als gegevens en negeert instructies erin, maar een persoon moet dit bestand controleren.",
+    "status": {
+      "pending": "Wacht op samenvatting",
+      "running": "Samenvatten",
+      "ready": "Samenvatting gereed",
+      "failed": "Samenvatten mislukt"
+    }
+  },
+  "records": {
+    "title": "Bedrijfsrecords",
+    "description": "Koppel de EAI- en CMDB-records van deze applicatie. De readers zijn in ontwikkeling, dus Keigan slaat de gegevens op.",
+    "systems": {
+      "eai": "EAI",
+      "cmdb": "CMDB"
+    },
+    "system": "Recordsysteem",
+    "identifier": "Record-ID",
+    "placeholder": "Bijvoorbeeld EAI-21530",
+    "add": "Record koppelen",
+    "remove": "{{code}} verwijderen"
+  },
+  "integrations": {
+    "savedReaderNotAvailable": "Gegevens opgeslagen — reader nog niet beschikbaar",
+    "configured": "Geconfigureerd",
+    "notSetUp": "Niet ingesteld",
+    "viewDetails": "Details bekijken",
+    "setUp": "Instellen",
+    "notes": "Notities",
+    "save": "Gegevens opslaan",
+    "saveFailed": "De gegevens konden niet worden opgeslagen. Probeer het opnieuw.",
+    "fields": {}
+  },
+  "topology": {
+    "build": "Topologie bouwen",
+    "rebuild": "Topologie opnieuw bouwen",
+    "buildingTitle": "Keigan bouwt de topologie",
+    "buildingBody": "Services, afhankelijkheden en kennissamenvattingen lezen…",
+    "emptyTitle": "Nog geen topologie",
+    "emptyDescription": "Bouw hem op basis van uw services, afhankelijkheden en kennisdocumenten. Reviewers kunnen hem daarna corrigeren.",
+    "reviewStatus": {
+      "awaiting_review": "Wacht op review",
+      "reviewed": "Beoordeeld",
+      "needs_correction": "Correctie nodig"
+    },
+    "version": "Versie {{number}} van {{count}}",
+    "selectNodeHint": "Selecteer een node in de grafiek om deze te beoordelen.",
+    "wholeGraph": "Hele grafiek",
+    "looksRight": "Klopt",
+    "needsCorrection": "Correctie nodig",
+    "correctionLabel": "Wat moet er veranderen?",
+    "correctionPlaceholder": "Wat moet er veranderen? De volgende build gebruikt dit.",
+    "sendCorrection": "Correctie versturen",
+    "cancel": "Annuleren",
+    "verdicts": {
+      "looks_right": "Klopt",
+      "needs_correction": "Correctie nodig",
+      "comment": "Opmerking"
+    },
+    "nodeTypes": {
+      "service": "Service",
+      "data_store": "Gegevensopslag",
+      "external": "Extern systeem",
+      "hardware": "Hardware",
+      "queue": "Wachtrij",
+      "client": "Client",
+      "mainframe": "Mainframe",
+      "saas": "SaaS"
+    },
+    "understanding": "Het begrip van Keigan",
+    "uncertainties": "Keigan is onzeker over",
+    "relationships_one": "{{count}} relatie",
+    "relationships_other": "{{count}} relaties",
+    "correctRelationship": "Corrigeren: {{source}} naar {{target}}"
+  },
+  "runbooks": {
+    "add": "Runbook toevoegen",
+    "addTitle": "Een runbook toevoegen",
+    "editTitle": "Runbook bewerken",
+    "edit": "Bewerken",
+    "delete": "Runbook verwijderen",
+    "emptyTitle": "Nog geen runbooks",
+    "emptyDescription": "Voeg de bekende problemen toe en hoe uw team reageert. Keigan verwijst ernaar in onderzoeken.",
+    "titleLabel": "Titel",
+    "symptoms": "Wanneer van toepassing",
+    "symptomsHelp": "Symptomen, namen van meldingen en foutsignaturen. Keigan vergelijkt incidenten met deze tekst.",
+    "steps": "Stappen (Markdown)",
+    "write": "Schrijven",
+    "preview": "Voorbeeld",
+    "nothingToPreview": "Nog niets om te bekijken.",
+    "loadFile": "Laden uit een .md-bestand",
+    "fileTooLarge": "Dat bestand is groter dan 512 KB.",
+    "sourceLink": "Bronlink",
+    "appliesTo": "Services waarop het van toepassing is",
+    "appliesToHelp": "Laat alles uitgevinkt als het voor de hele applicatie geldt.",
+    "save": "Runbook opslaan",
+    "saveFailed": "Het runbook kon niet worden opgeslagen. Probeer het opnieuw.",
+    "wholeApplication": "Hele applicatie",
+    "referenced_one": "Genoemd in {{count}} onderzoek",
+    "referenced_other": "Genoemd in {{count}} onderzoeken",
+    "deleteTitle": "{{name}} verwijderen?",
+    "deleteDescription": "Onderzoeken die er al naar verwezen, behouden hun geschiedenis.",
+    "deleteConfirm": "Runbook verwijderen"
+  }
+}

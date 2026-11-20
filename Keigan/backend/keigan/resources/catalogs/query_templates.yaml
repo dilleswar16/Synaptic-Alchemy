@@ -1,0 +1,344 @@
+# Evidence query templates (doc 06 section 3.3). Each template is executed for every candidate service whose
+# service type and log source kind match, once over the investigation window and once over the baseline window.
+# Variables: ${service_name} ${namespace} ${role_name} ${resource_id} ${index_pattern}  (sanitised before substitution).
+# signal_kind drives the simulator and the evidence pipeline; evidence_category groups evidence in the UI.
+# source_kinds: application_insights | log_analytics | azure_monitor_metrics | log_tool | synthetic_probe
+# tool_types (log_tool only): elastic | splunk | datadog | "*" (any other tool, e.g. SolarWinds -> reader note)
+templates:
+  # ── Application Insights (any compute with an App Insights role) ───────────────────────────────
+  - template_key: appinsights_failed_requests
+    service_types: [aks, app_service, function_app, api_management]
+    source_kinds: [application_insights]
+    query_language: kql
+    signal_kind: failed_requests
+    evidence_category: failed_requests
+    title: Failed requests by operation and result code
+    query_text: |
+      AppRequests
+      | where AppRoleName == "${role_name}" and Success == false
+      | summarize count_ = count() by OperationName, ResultCode
+      | order by count_ desc
+
+  - template_key: appinsights_exceptions
+    service_types: [aks, app_service, function_app]
+    source_kinds: [application_insights]
+    query_language: kql
+    signal_kind: exceptions
+    evidence_category: exceptions
+    title: Exceptions by type and message
+    query_text: |
+      AppExceptions
+      | where AppRoleName == "${role_name}"
+      | summarize count_ = count() by ExceptionType, OuterMessage
+      | order by count_ desc
+
+  - template_key: appinsights_failed_dependencies
+    service_types: [aks, app_service, function_app]
+    source_kinds: [application_insights]
+    query_language: kql
+    signal_kind: failed_dependencies
+    evidence_category: failed_dependencies
+    title: Failed dependency calls by target and result
+    query_text: |
+      AppDependencies
+      | where AppRoleName == "${role_name}" and Success == false
+      | summarize count_ = count() by Target, Type, ResultCode
+      | order by count_ desc
+
+  - template_key: appinsights_slow_requests
+    service_types: [aks, app_service, function_app, api_management]
+    source_kinds: [application_insights]
+    query_language: kql
+    signal_kind: slow_requests
+    evidence_category: slow_requests
+    title: Slowest operations (p95 duration)
+    query_text: |
+      AppRequests
+      | where AppRoleName == "${role_name}"
+      | summarize P95DurationMs = percentile(DurationMs, 95), RequestCount = count() by OperationName
+      | order by P95DurationMs desc
+      | take 10
+
+  - template_key: appinsights_error_traces
+    service_types: [aks, app_service, function_app]
+    source_kinds: [application_insights]
+    query_language: kql
+    signal_kind: error_logs
+    evidence_category: error_logs
+    title: Error and warning traces (severity 2 or higher)
+    query_text: |
+      AppTraces
+      | where AppRoleName == "${role_name}" and SeverityLevel >= 2
+      | project TimeGenerated, Message, SeverityLevel, AppRoleName
+      | take 500
+
+  # ── AKS ────────────────────────────────────────────────────────────────────────────────────────
+  - template_key: aks_container_errors
+    service_types: [aks]
+    source_kinds: [log_analytics, application_insights]
+    query_language: kql
+    signal_kind: error_logs
+    evidence_category: error_logs
+    title: Container log errors in namespace ${namespace}
+    query_text: |
+      ContainerLogV2
+      | where PodNamespace == "${namespace}" and PodName startswith "${service_name}"
+      | where LogMessage matches regex @"(?i)(error|exception|fatal|timeout|refused)"
+      | project TimeGenerated, PodName, ContainerName, Message = LogMessage
+      | take 500
+
+  - template_key: aks_kube_events
+    service_types: [aks]
+    source_kinds: [log_analytics, application_insights]
+    query_language: kql
+    signal_kind: kube_events
+    evidence_category: kubernetes_events
+    title: Kubernetes warning events (OOMKilled, BackOff, FailedScheduling, Unhealthy)
+    query_text: |
+      KubeEvents
+      | where Namespace == "${namespace}" and KubeEventType == "Warning"
+      | where Reason in ("OOMKilled", "BackOff", "FailedScheduling", "Unhealthy", "Failed", "Evicted")
+      | summarize count_ = count() by Reason, Name, Message
+
+  - template_key: aks_pod_restarts
+    service_types: [aks]
+    source_kinds: [log_analytics, application_insights]
+    query_language: kql
+    signal_kind: pod_restarts
+    evidence_category: pod_restarts
+    title: Pod restarts and not-ready pods
+    query_text: |
+      KubePodInventory
+      | where Namespace == "${namespace}" and Name startswith "${service_name}"
+      | summarize Restarts = max(ContainerRestartCount), NotReadySamples = countif(PodStatus != "Running") by Name, ContainerLastStatus
+
+  - template_key: aks_node_and_pod_metrics
+    service_types: [aks]
+    source_kinds: [azure_monitor_metrics]
+    query_language: metrics_api
+    signal_kind: metrics
+    evidence_category: metrics
+    title: Node CPU, node memory and container restarts
+    metric_names: [node_cpu_usage_percentage, node_memory_working_set_percentage, restarting_container_count]
+
+  # ── Azure Functions ────────────────────────────────────────────────────────────────────────────
+  - template_key: function_app_errors
+    service_types: [function_app]
+    source_kinds: [log_analytics]
+    query_language: kql
+    signal_kind: error_logs
+    evidence_category: error_logs
+    title: Function app errors and failed executions
+    query_text: |
+      FunctionAppLogs
+      | where AppName == "${service_name}" and Level in ("Error", "Critical")
+      | project TimeGenerated, FunctionName, Message, ExceptionType
+      | take 500
+
+  - template_key: function_app_metrics
+    service_types: [function_app]
+    source_kinds: [azure_monitor_metrics]
+    query_language: metrics_api
+    signal_kind: metrics
+    evidence_category: metrics
+    title: Function HTTP 5xx and execution count
+    metric_names: [Http5xx, FunctionExecutionCount]
+
+  # ── App Service ────────────────────────────────────────────────────────────────────────────────
+  - template_key: app_service_http_5xx
+    service_types: [app_service]
+    source_kinds: [log_analytics]
+    query_language: kql
+    signal_kind: failed_requests
+    evidence_category: failed_requests
+    title: HTTP 5xx by path
+    query_text: |
+      AppServiceHTTPLogs
+      | where _ResourceId contains "${service_name}" and ScStatus >= 500
+      | summarize count_ = count() by OperationName = CsUriStem, ResultCode = tostring(ScStatus)
+
+  - template_key: app_service_console_errors
+    service_types: [app_service]
+    source_kinds: [log_analytics]
+    query_language: kql
+    signal_kind: error_logs
+    evidence_category: error_logs
+    title: App Service console errors
+    query_text: |
+      AppServiceConsoleLogs
+      | where _ResourceId contains "${service_name}" and ResultDescription matches regex @"(?i)(error|exception|fatal)"
+      | project TimeGenerated, Message = ResultDescription
+      | take 500
+
+  - template_key: app_service_metrics
+    service_types: [app_service]
+    source_kinds: [azure_monitor_metrics]
+    query_language: metrics_api
+    signal_kind: metrics
+    evidence_category: metrics
+    title: HTTP 5xx, response time and memory
+    metric_names: [Http5xx, HttpResponseTime, MemoryWorkingSet]
+
+  # ── API Management ─────────────────────────────────────────────────────────────────────────────
+  - template_key: apim_gateway_errors
+    service_types: [api_management]
+    source_kinds: [log_analytics]
+    query_language: kql
+    signal_kind: failed_requests
+    evidence_category: failed_requests
+    title: Gateway 4xx/5xx by API and operation
+    query_text: |
+      ApiManagementGatewayLogs
+      | where _ResourceId contains "${service_name}" and ResponseCode >= 400
+      | summarize count_ = count() by OperationName = strcat(ApiId, " ", OperationId), ResultCode = tostring(ResponseCode)
+
+  - template_key: apim_backend_errors
+    service_types: [api_management]
+    source_kinds: [log_analytics]
+    query_language: kql
+    signal_kind: error_logs
+    evidence_category: error_logs
+    title: Backend errors and throttling messages
+    query_text: |
+      ApiManagementGatewayLogs
+      | where _ResourceId contains "${service_name}" and (BackendResponseCode >= 500 or ResponseCode == 429)
+      | project TimeGenerated, Message = strcat("Backend ", BackendId, " responded ", BackendResponseCode, " for ", OperationId), OperationName = OperationId
+      | take 500
+
+  - template_key: apim_metrics
+    service_types: [api_management]
+    source_kinds: [azure_monitor_metrics]
+    query_language: metrics_api
+    signal_kind: metrics
+    evidence_category: metrics
+    title: Requests, capacity and backend duration
+    metric_names: [Requests, Capacity, BackendDuration]
+
+  # ── Logic Apps and Data Factory ────────────────────────────────────────────────────────────────
+  - template_key: logic_app_failed_runs
+    service_types: [logic_app]
+    source_kinds: [log_analytics]
+    query_language: kql
+    signal_kind: batch_failures
+    evidence_category: batch_failures
+    title: Failed workflow runs and actions
+    query_text: |
+      AzureDiagnostics
+      | where Category == "WorkflowRuntime" and resource_workflowName_s == "${service_name}" and status_s == "Failed"
+      | project TimeGenerated, Message = strcat(code_s, ": ", error_message_s), OperationName = resource_actionName_s
+      | take 500
+
+  - template_key: logic_app_metrics
+    service_types: [logic_app]
+    source_kinds: [azure_monitor_metrics]
+    query_language: metrics_api
+    signal_kind: metrics
+    evidence_category: metrics
+    title: Runs failed and actions failed
+    metric_names: [RunsFailed, ActionsFailed]
+
+  - template_key: adf_pipeline_failures
+    service_types: [data_factory]
+    source_kinds: [log_analytics]
+    query_language: kql
+    signal_kind: batch_failures
+    evidence_category: batch_failures
+    title: Pipeline and activity run failures
+    query_text: |
+      ADFActivityRun
+      | where Status == "Failed" and ResourceId contains "${service_name}"
+      | project TimeGenerated, Message = tostring(Error), OperationName = ActivityName
+      | take 500
+
+  # ── SQL ────────────────────────────────────────────────────────────────────────────────────────
+  - template_key: sql_errors_and_timeouts
+    service_types: [sql_database]
+    source_kinds: [log_analytics]
+    query_language: kql
+    signal_kind: error_logs
+    evidence_category: error_logs
+    title: SQL errors, timeouts, deadlocks and blocking
+    query_text: |
+      AzureDiagnostics
+      | where ResourceProvider == "MICROSOFT.SQL" and Resource =~ "${service_name}"
+      | where Category in ("Errors", "Timeouts", "Deadlocks", "Blocks")
+      | project TimeGenerated, Message = strcat(Category, ": ", error_message_s), Level = "error"
+      | take 500
+
+  - template_key: sql_metrics
+    service_types: [sql_database]
+    source_kinds: [azure_monitor_metrics]
+    query_language: metrics_api
+    signal_kind: metrics
+    evidence_category: metrics
+    title: CPU, DTU, sessions and connection failures
+    metric_names: [cpu_percent, dtu_consumption_percent, sessions_percent, connection_failed]
+
+  # ── Log tools: Elastic, Splunk, Datadog ────────────────────────────────────────────────────────
+  - template_key: elastic_error_logs
+    service_types: [aks, app_service, function_app, api_management]
+    source_kinds: [log_tool]
+    tool_types: [elastic]
+    query_language: elastic_dsl
+    signal_kind: error_logs
+    evidence_category: error_logs
+    title: Elastic error logs (log.level error or fatal)
+    query_text: |
+      {"size": 200, "sort": [{"@timestamp": "desc"}], "query": {"bool": {"filter": [
+        {"terms": {"log.level": ["error", "fatal"]}},
+        {"term": {"service.name": "${service_name}"}}]}},
+       "aggs": {"top_messages": {"terms": {"field": "message.keyword", "size": 20}}}}
+
+  - template_key: splunk_error_logs
+    service_types: [aks, app_service, function_app, mainframe_subsystem, batch_job_stream, server]
+    source_kinds: [log_tool]
+    tool_types: [splunk]
+    query_language: spl
+    signal_kind: error_logs
+    evidence_category: error_logs
+    title: Splunk errors and exceptions by message template
+    query_text: |
+      search index=${index_pattern} host="${service_name}" (level=ERROR OR "Exception" OR "ABEND")
+      | stats count by message_template
+
+  - template_key: splunk_mainframe_abends
+    service_types: [mainframe_subsystem, batch_job_stream]
+    source_kinds: [log_tool]
+    tool_types: [splunk]
+    query_language: spl
+    signal_kind: batch_failures
+    evidence_category: batch_failures
+    title: Mainframe ABENDs and job failures ($HASP, IEF450I)
+    query_text: |
+      search index=${index_pattern} host="${service_name}" ("ABEND" OR "IEF450I" OR "$HASP395" OR "CEE3207S")
+      | stats count by message_template
+
+  - template_key: datadog_error_logs
+    service_types: [aks, app_service, function_app, api_management]
+    source_kinds: [log_tool]
+    tool_types: [datadog]
+    query_language: datadog
+    signal_kind: error_logs
+    evidence_category: error_logs
+    title: Datadog error logs
+    query_text: "status:error service:${service_name}"
+
+  - template_key: hardware_device_status
+    service_types: [server, network_appliance]
+    source_kinds: [log_tool]
+    tool_types: ["*"]
+    query_language: generic
+    signal_kind: error_logs
+    evidence_category: hardware_status
+    title: Device status and interface errors
+    query_text: "device status and interface error counters for ${service_name}"
+
+  # ── SaaS ───────────────────────────────────────────────────────────────────────────────────────
+  - template_key: saas_synthetic_probe
+    service_types: [saas_service]
+    source_kinds: [synthetic_probe]
+    query_language: probe
+    signal_kind: probe
+    evidence_category: synthetic_probe
+    title: Synthetic probe results in the investigation window
+    query_text: "HTTPS GET probe of the vendor endpoint"

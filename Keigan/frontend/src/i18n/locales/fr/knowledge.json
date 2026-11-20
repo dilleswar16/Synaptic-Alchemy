@@ -1,0 +1,160 @@
+{
+  "pageTitle": "Base de connaissances",
+  "pageDescription": "Documents et synthèses IA sur lesquels reposent les réponses de Keigan.",
+  "categories": {
+    "code_context": "Contexte du code",
+    "architecture": "Architecture",
+    "operations_guide": "Guide d'exploitation",
+    "runbook_source": "Source de runbook",
+    "incident_history": "Historique des incidents",
+    "other": "Autre"
+  },
+  "capture": {
+    "title": "Contexte du code via Copilot",
+    "description": "Copilot lit le dépôt et rédige un fichier Markdown qui explique à Keigan le fonctionnement du service.",
+    "stages": {
+      "copy": {
+        "title": "Copiez le prompt",
+        "body": "Choisissez le service et copiez le prompt ci-dessous."
+      },
+      "run": {
+        "title": "Exécutez-le dans VS Code",
+        "body": "Collez-le dans Copilot Chat, dans le dépôt du service."
+      },
+      "upload": {
+        "title": "Téléversez le fichier",
+        "body": "Déposez le fichier Markdown rédigé par Copilot dans la zone ci-dessous."
+      }
+    },
+    "scope": "Que doit décrire Copilot ?",
+    "wholeApplication": "L'application entière",
+    "promptTitle": "Prompt de capture de connaissances · version {{version}} · {{lines}} lignes"
+  },
+  "upload": {
+    "category": "Catégorie du document",
+    "accepted": "Markdown, texte, PDF, PNG, JPG, WebP (jusqu'à 15 Mo)",
+    "failed": "Échec du téléversement. Réessayez."
+  },
+  "documents": {
+    "title": "Documents",
+    "emptyTitle": "Aucun document",
+    "emptyDescription": "Téléversez le fichier Copilot, des schémas d'architecture ou des guides. Keigan synthétise chacun d'eux.",
+    "wholeApplication": "Application entière",
+    "headings_one": "{{count}} titre",
+    "headings_other": "{{count}} titres",
+    "stale": "Plus de 90 jours",
+    "viewDigest": "Voir la synthèse",
+    "delete": "Supprimer le document",
+    "deleteTitle": "Supprimer {{name}} ?",
+    "deleteDescription": "Le fichier, sa synthèse et son index de recherche sont supprimés. Les topologies déjà créées ne sont pas modifiées.",
+    "deleteConfirm": "Supprimer le document"
+  },
+  "digest": {
+    "title": "Synthèse IA",
+    "headings": "Titres détectés ({{count}})",
+    "chunks": "{{count}} sections interrogeables, environ {{tokens}} jetons.",
+    "injectionTitle": "Ce document contient du texte ressemblant à des instructions",
+    "injectionBody": "Keigan traite les documents comme des données et ignore les instructions qu'ils contiennent, mais une personne devrait vérifier ce fichier.",
+    "status": {
+      "pending": "En attente de synthèse",
+      "running": "Synthèse en cours",
+      "ready": "Synthèse prête",
+      "failed": "Échec de la synthèse"
+    }
+  },
+  "records": {
+    "title": "Enregistrements d'entreprise",
+    "description": "Associez les enregistrements EAI et CMDB de cette application. Les lecteurs sont en cours de développement : Keigan enregistre donc les informations.",
+    "systems": {
+      "eai": "EAI",
+      "cmdb": "CMDB"
+    },
+    "system": "Système d'enregistrement",
+    "identifier": "Identifiant de l'enregistrement",
+    "placeholder": "Par exemple EAI-21530",
+    "add": "Associer l'enregistrement",
+    "remove": "Retirer {{code}}"
+  },
+  "integrations": {
+    "savedReaderNotAvailable": "Informations enregistrées — lecteur pas encore disponible",
+    "configured": "Configuré",
+    "notSetUp": "Non configuré",
+    "viewDetails": "Voir les détails",
+    "setUp": "Configurer",
+    "notes": "Notes",
+    "save": "Enregistrer les informations",
+    "saveFailed": "Impossible d'enregistrer les informations. Réessayez.",
+    "fields": {}
+  },
+  "topology": {
+    "build": "Construire la topologie",
+    "rebuild": "Reconstruire la topologie",
+    "buildingTitle": "Keigan construit la topologie",
+    "buildingBody": "Lecture des services, des dépendances et des synthèses de connaissances…",
+    "emptyTitle": "Aucune topologie",
+    "emptyDescription": "Construisez-la à partir de vos services, dépendances et documents de connaissances. Les relecteurs pourront ensuite la corriger.",
+    "reviewStatus": {
+      "awaiting_review": "En attente de relecture",
+      "reviewed": "Relue",
+      "needs_correction": "À corriger"
+    },
+    "version": "Version {{number}} sur {{count}}",
+    "selectNodeHint": "Sélectionnez un nœud dans le graphe pour le relire.",
+    "wholeGraph": "Graphe entier",
+    "looksRight": "Correct",
+    "needsCorrection": "À corriger",
+    "correctionLabel": "Que faut-il modifier ?",
+    "correctionPlaceholder": "Que faut-il modifier ? La prochaine construction en tiendra compte.",
+    "sendCorrection": "Envoyer la correction",
+    "cancel": "Annuler",
+    "verdicts": {
+      "looks_right": "Correct",
+      "needs_correction": "À corriger",
+      "comment": "Commentaire"
+    },
+    "nodeTypes": {
+      "service": "Service",
+      "data_store": "Stockage de données",
+      "external": "Système externe",
+      "hardware": "Matériel",
+      "queue": "File d'attente",
+      "client": "Client",
+      "mainframe": "Mainframe",
+      "saas": "SaaS"
+    },
+    "understanding": "Compréhension de Keigan",
+    "uncertainties": "Points sur lesquels Keigan hésite",
+    "relationships_one": "{{count}} relation",
+    "relationships_other": "{{count}} relations",
+    "correctRelationship": "Corriger : {{source}} vers {{target}}"
+  },
+  "runbooks": {
+    "add": "Ajouter un runbook",
+    "addTitle": "Ajouter un runbook",
+    "editTitle": "Modifier le runbook",
+    "edit": "Modifier",
+    "delete": "Supprimer le runbook",
+    "emptyTitle": "Aucun runbook",
+    "emptyDescription": "Ajoutez les problèmes connus et la façon dont votre équipe y répond. Keigan les cite dans les investigations.",
+    "titleLabel": "Titre",
+    "symptoms": "Quand l'appliquer",
+    "symptomsHelp": "Symptômes, noms d'alertes et signatures d'erreur. Keigan compare les incidents à ce texte.",
+    "steps": "Étapes (Markdown)",
+    "write": "Rédiger",
+    "preview": "Aperçu",
+    "nothingToPreview": "Rien à prévisualiser pour l'instant.",
+    "loadFile": "Charger depuis un fichier .md",
+    "fileTooLarge": "Ce fichier dépasse 512 Ko.",
+    "sourceLink": "Lien source",
+    "appliesTo": "Services concernés",
+    "appliesToHelp": "Ne cochez rien s'il s'applique à toute l'application.",
+    "save": "Enregistrer le runbook",
+    "saveFailed": "Impossible d'enregistrer le runbook. Réessayez.",
+    "wholeApplication": "Application entière",
+    "referenced_one": "Référencé dans {{count}} investigation",
+    "referenced_other": "Référencé dans {{count}} investigations",
+    "deleteTitle": "Supprimer {{name}} ?",
+    "deleteDescription": "Les investigations qui l'ont déjà cité conservent leur historique.",
+    "deleteConfirm": "Supprimer le runbook"
+  }
+}

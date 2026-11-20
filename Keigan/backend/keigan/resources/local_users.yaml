@@ -1,0 +1,30 @@
+# Dummy users for AUTH_MODE=local. Never used when AUTH_MODE=entra; refused when ENVIRONMENT=prod.
+# Groups follow the SailPoint naming pattern: KEIGAN_admin, <APPLICATION_CODE>_admin, <APPLICATION_CODE>_reader.
+local_users:
+  - user_principal_name: keigan.admin@keigan.local
+    display_name: Kai Admin
+    email_address: keigan.admin@keigan.local
+    role_description: Keigan admin — full access to every application and platform setting
+    group_names: [KEIGAN_admin]
+    preferred_locale: en
+
+  - user_principal_name: aiko.appadmin@keigan.local
+    display_name: Aiko AppAdmin
+    email_address: aiko.appadmin@keigan.local
+    role_description: Application admin for Claims Processing (JP), reader for Channel APIs for Digital (AU)
+    group_names: [CLMJP_admin, CHAD_reader]
+    preferred_locale: ja
+
+  - user_principal_name: rui.reader@keigan.local
+    display_name: Rui Reader
+    email_address: rui.reader@keigan.local
+    role_description: Application reader for Claims Processing (JP) and Payments Platform (AU)
+    group_names: [CLMJP_reader, PAYAU_reader]
+    preferred_locale: en
+
+  - user_principal_name: noa.noaccess@keigan.local
+    display_name: Noa NoAccess
+    email_address: noa.noaccess@keigan.local
+    role_description: Signed in but not a member of any Keigan group
+    group_names: []
+    preferred_locale: en

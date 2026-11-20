@@ -1,0 +1,160 @@
+{
+  "pageTitle": "Base de conocimiento",
+  "pageDescription": "Documentos y resúmenes de IA que fundamentan las respuestas de Keigan.",
+  "categories": {
+    "code_context": "Contexto de código",
+    "architecture": "Arquitectura",
+    "operations_guide": "Guía de operaciones",
+    "runbook_source": "Origen de runbooks",
+    "incident_history": "Historial de incidentes",
+    "other": "Otros"
+  },
+  "capture": {
+    "title": "Contexto de código desde Copilot",
+    "description": "Copilot lee el repositorio y escribe un archivo Markdown que enseña a Keigan cómo funciona el servicio.",
+    "stages": {
+      "copy": {
+        "title": "Copie el prompt",
+        "body": "Elija el servicio y copie el prompt de abajo."
+      },
+      "run": {
+        "title": "Ejecútelo en VS Code",
+        "body": "Péguelo en Copilot Chat dentro del repositorio del servicio."
+      },
+      "upload": {
+        "title": "Suba el archivo",
+        "body": "Suelte en el área de abajo el archivo Markdown que escribió Copilot."
+      }
+    },
+    "scope": "¿Qué debe describir Copilot?",
+    "wholeApplication": "Toda la aplicación",
+    "promptTitle": "Prompt de captura de conocimiento · versión {{version}} · {{lines}} líneas"
+  },
+  "upload": {
+    "category": "Categoría del documento",
+    "accepted": "Markdown, texto, PDF, PNG, JPG, WebP (hasta 15 MB)",
+    "failed": "Error al subir el archivo. Inténtelo de nuevo."
+  },
+  "documents": {
+    "title": "Documentos",
+    "emptyTitle": "Aún no hay documentos",
+    "emptyDescription": "Suba el archivo de Copilot, diagramas de arquitectura o guías. Keigan resume cada uno.",
+    "wholeApplication": "Toda la aplicación",
+    "headings_one": "{{count}} encabezado",
+    "headings_other": "{{count}} encabezados",
+    "stale": "Más de 90 días",
+    "viewDigest": "Ver resumen",
+    "delete": "Eliminar documento",
+    "deleteTitle": "¿Eliminar {{name}}?",
+    "deleteDescription": "Se eliminan el archivo, su resumen y su índice de búsqueda. Las topologías ya creadas no cambian.",
+    "deleteConfirm": "Eliminar documento"
+  },
+  "digest": {
+    "title": "Resumen de IA",
+    "headings": "Encabezados encontrados ({{count}})",
+    "chunks": "{{count}} secciones con búsqueda, unos {{tokens}} tokens.",
+    "injectionTitle": "Este documento contiene texto con forma de instrucciones",
+    "injectionBody": "Keigan trata los documentos como datos e ignora las instrucciones que contienen, pero una persona debería revisar este archivo.",
+    "status": {
+      "pending": "Pendiente de resumir",
+      "running": "Resumiendo",
+      "ready": "Resumen listo",
+      "failed": "Error al resumir"
+    }
+  },
+  "records": {
+    "title": "Registros corporativos",
+    "description": "Vincule los registros de EAI y CMDB de esta aplicación. Los lectores están en desarrollo, así que Keigan guarda los detalles.",
+    "systems": {
+      "eai": "EAI",
+      "cmdb": "CMDB"
+    },
+    "system": "Sistema de registro",
+    "identifier": "Identificador del registro",
+    "placeholder": "Por ejemplo, EAI-21530",
+    "add": "Vincular registro",
+    "remove": "Quitar {{code}}"
+  },
+  "integrations": {
+    "savedReaderNotAvailable": "Detalles guardados — el lector aún no está disponible",
+    "configured": "Configurado",
+    "notSetUp": "Sin configurar",
+    "viewDetails": "Ver detalles",
+    "setUp": "Configurar",
+    "notes": "Notas",
+    "save": "Guardar detalles",
+    "saveFailed": "No se pudieron guardar los detalles. Inténtelo de nuevo.",
+    "fields": {}
+  },
+  "topology": {
+    "build": "Crear topología",
+    "rebuild": "Recrear topología",
+    "buildingTitle": "Keigan está creando la topología",
+    "buildingBody": "Leyendo servicios, dependencias y resúmenes de conocimiento…",
+    "emptyTitle": "Aún no hay topología",
+    "emptyDescription": "Créela a partir de sus servicios, dependencias y documentos de conocimiento. Después, los revisores pueden corregirla.",
+    "reviewStatus": {
+      "awaiting_review": "Pendiente de revisión",
+      "reviewed": "Revisada",
+      "needs_correction": "Requiere corrección"
+    },
+    "version": "Versión {{number}} de {{count}}",
+    "selectNodeHint": "Seleccione un nodo del gráfico para revisarlo.",
+    "wholeGraph": "Todo el gráfico",
+    "looksRight": "Es correcto",
+    "needsCorrection": "Requiere corrección",
+    "correctionLabel": "¿Qué debería cambiar?",
+    "correctionPlaceholder": "¿Qué debería cambiar? La próxima creación lo tendrá en cuenta.",
+    "sendCorrection": "Enviar corrección",
+    "cancel": "Cancelar",
+    "verdicts": {
+      "looks_right": "Es correcto",
+      "needs_correction": "Requiere corrección",
+      "comment": "Comentario"
+    },
+    "nodeTypes": {
+      "service": "Servicio",
+      "data_store": "Almacén de datos",
+      "external": "Sistema externo",
+      "hardware": "Hardware",
+      "queue": "Cola",
+      "client": "Cliente",
+      "mainframe": "Mainframe",
+      "saas": "SaaS"
+    },
+    "understanding": "Lo que entiende Keigan",
+    "uncertainties": "Keigan no está seguro de",
+    "relationships_one": "{{count}} relación",
+    "relationships_other": "{{count}} relaciones",
+    "correctRelationship": "Corregir: {{source}} a {{target}}"
+  },
+  "runbooks": {
+    "add": "Añadir runbook",
+    "addTitle": "Añadir un runbook",
+    "editTitle": "Editar runbook",
+    "edit": "Editar",
+    "delete": "Eliminar runbook",
+    "emptyTitle": "Aún no hay runbooks",
+    "emptyDescription": "Añada los problemas conocidos y cómo responde su equipo. Keigan los cita en las investigaciones.",
+    "titleLabel": "Título",
+    "symptoms": "Cuándo se aplica",
+    "symptomsHelp": "Síntomas, nombres de alertas y firmas de error. Keigan compara los incidentes con este texto.",
+    "steps": "Pasos (Markdown)",
+    "write": "Escribir",
+    "preview": "Vista previa",
+    "nothingToPreview": "Aún no hay nada que previsualizar.",
+    "loadFile": "Cargar desde un archivo .md",
+    "fileTooLarge": "Ese archivo supera los 512 KB.",
+    "sourceLink": "Enlace de origen",
+    "appliesTo": "Servicios a los que se aplica",
+    "appliesToHelp": "Deje todos sin marcar si se aplica a toda la aplicación.",
+    "save": "Guardar runbook",
+    "saveFailed": "No se pudo guardar el runbook. Inténtelo de nuevo.",
+    "wholeApplication": "Toda la aplicación",
+    "referenced_one": "Referenciado en {{count}} investigación",
+    "referenced_other": "Referenciado en {{count}} investigaciones",
+    "deleteTitle": "¿Eliminar {{name}}?",
+    "deleteDescription": "Las investigaciones que ya lo citaron conservan su historial.",
+    "deleteConfirm": "Eliminar runbook"
+  }
+}

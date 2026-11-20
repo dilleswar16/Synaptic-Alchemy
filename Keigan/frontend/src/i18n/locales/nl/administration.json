@@ -1,0 +1,96 @@
+{
+  "pageTitle": "Beheer",
+  "pageDescription": "Platforminstellingen, gebruik en bezorgrecords voor Keigan-beheerders.",
+  "tabs": { "usage": "AI-gebruik", "audit": "Auditlogboek", "jobs": "Achtergrondtaken" },
+  "settings": {
+    "pageTitle": "Platforminstellingen",
+    "pageDescription": "Effectieve configuratie, identiteiten en verbindingstests.",
+    "integrationsTitle": "Integraties",
+    "integrations": {
+      "telemetry": "Telemetrie",
+      "servicenow": "ServiceNow",
+      "teams": "Microsoft Teams en Graph",
+      "email": "E-mail",
+      "llm": "AI-provider",
+      "azure": "Azure-toegang",
+      "authentication": "Aanmelden"
+    },
+    "simulated": "Gesimuleerd",
+    "configured": "Geconfigureerd",
+    "notConfigured": "Niet geconfigureerd",
+    "testConnection": "Verbinding testen",
+    "testFailed": "De test kon niet worden gestart.",
+    "identityTitle": "Keigan-identiteit",
+    "identityDescription": "Geef deze identiteit leestoegang tot de Azure-resources die Keigan moet monitoren.",
+    "identity": { "name": "Weergavenaam", "objectId": "Object-ID", "clientId": "Client-ID", "multiTenant": "Client-ID van multitenant-app" },
+    "groups": {
+      "general": "Algemeen",
+      "authentication": "Authenticatie",
+      "integrations": "Integraties",
+      "ai": "AI",
+      "safety": "Veiligheid en limieten",
+      "storage": "Opslag en monitoring"
+    }
+  },
+  "simulation": {
+    "title": "Simulatiebesturing",
+    "description": "Start een realistisch incident in een demoapplicatie. Alleen beschikbaar in local-, dev- en testomgevingen.",
+    "application": "Applicatie",
+    "pickApplication": "Kies een applicatie",
+    "scenario": "Scenario",
+    "pickScenario": "Kies een scenario",
+    "start": "Scenario starten",
+    "started": "Scenario gestart",
+    "startedDescription": "Gesimuleerd ServiceNow-incident {{number}} is onderweg naar Keigan.",
+    "failed": "Het scenario kon niet worden gestart"
+  },
+  "usage": {
+    "pageTitle": "Gebruik en audit",
+    "pageDescription": "AI-tokengebruik, kostenramingen, het auditlogboek van elke wijziging en de takenwachtrij.",
+    "range": "Periode",
+    "days_one": "{{count}} dag",
+    "days_other": "{{count}} dagen",
+    "tiles": {
+      "tokens": "Gebruikte tokens",
+      "tokenSplit": "{{input}} in, {{output}} uit",
+      "cost": "Geschatte kosten",
+      "costNote": "Op basis van geconfigureerde tokenprijzen",
+      "calls": "AI-aanroepen",
+      "failedCalls_one": "{{count}} mislukt",
+      "failedCalls_other": "{{count}} mislukt",
+      "perInvestigation": "Tokens per onderzoek",
+      "perInvestigationNote": "Gemiddelde in deze periode"
+    },
+    "chartTitle": "Tokens per dag",
+    "chartDescription": "Invoer- en uitvoertokens voor alle AI-functies.",
+    "byApplication": "Per applicatie",
+    "byFeature": "Per functie",
+    "empty": "Geen AI-gebruik geregistreerd in deze periode.",
+    "columns": { "name": "Naam", "calls": "Aanroepen", "input": "Invoertokens", "output": "Uitvoertokens", "cost": "Gesch. kosten" }
+  },
+  "audit": {
+    "caption": "Auditgebeurtenissen",
+    "empty": "Geen auditgebeurtenissen voldoen aan deze filters.",
+    "filters": { "actor": "Persoon", "action": "Actie bevat" },
+    "columns": { "time": "Wanneer", "actor": "Wie", "action": "Actie", "target": "Doel", "details": "Details" }
+  },
+  "jobs": {
+    "deadLetters": "Dead letters",
+    "deadLettersDescription": "Taken die bij elke poging zijn mislukt. Probeer opnieuw nadat de oorzaak is verholpen.",
+    "noDeadLetters": "Geen mislukte taken. De wachtrij is gezond.",
+    "recent": "Recente taken",
+    "retry": "Opnieuw proberen",
+    "columns": { "type": "Taak", "status": "Status", "attempts": "Pogingen", "created": "Aangemaakt", "error": "Laatste fout" }
+  },
+  "outbox": {
+    "pageTitle": "Postvak uit",
+    "pageDescription": "E-mails en Teams-berichten die Keigan heeft verzonden of gesimuleerd.",
+    "emptyTitle": "Nog niets verzonden",
+    "emptyDescription": "Notificaties verschijnen hier zodra Keigan ze verzendt of simuleert.",
+    "unavailableTitle": "Postvak uit niet beschikbaar",
+    "unavailableDescription": "De bezorgrecords konden niet worden geladen. Notificaties zijn mogelijk niet ingeschakeld in deze omgeving.",
+    "previewTitle": "Berichtvoorbeeld",
+    "noBody": "Dit bericht heeft geen inhoud.",
+    "columns": { "created": "Aangemaakt", "subject": "Onderwerp", "recipient": "Ontvanger", "application": "Applicatie", "channel": "Kanaal", "status": "Status" }
+  }
+}

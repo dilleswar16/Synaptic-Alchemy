@@ -1,0 +1,227 @@
+{
+  "appName": "Keigan",
+  "tagline": "システムを見極める、確かな眼。",
+  "actions": {
+    "save": "保存",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "copyToClipboard": "クリップボードにコピー",
+    "retry": "再試行",
+    "search": "検索",
+    "clear": "クリア",
+    "clearAll": "すべてクリア",
+    "apply": "適用",
+    "back": "戻る",
+    "next": "次へ",
+    "continue": "続行",
+    "viewAll": "すべて表示",
+    "seeAll": "すべて見る",
+    "showMore": "もっと見る",
+    "showLess": "一部を表示",
+    "edit": "編集",
+    "delete": "削除",
+    "remove": "削除",
+    "confirm": "確認",
+    "refresh": "更新",
+    "dismiss": "閉じる",
+    "learnMore": "詳細を見る",
+    "moreActions": "その他の操作",
+    "goHome": "ホームへ移動",
+    "reloadPage": "ページを再読み込み",
+    "removeItem": "{{label}}を削除",
+    "expand": "展開",
+    "collapse": "折りたたむ",
+    "showDetails": "詳細を表示"
+  },
+  "states": {
+    "loading": "読み込み中…",
+    "saving": "保存中…",
+    "noResults": "結果なし",
+    "noResultsFor": "「{{query}}」の結果はありません",
+    "empty": "まだデータがありません",
+    "underConstructionTitle": "このページは準備中です",
+    "underConstructionDescription": "Keigan チームがこのページを作成しています。しばらくしてからもう一度ご確認ください。",
+    "optional": "任意",
+    "required": "必須"
+  },
+  "errors": {
+    "genericTitle": "問題が発生しました",
+    "genericDescription": "Keigan はこのリクエストを完了できませんでした。しばらくしてからもう一度お試しください。",
+    "networkTitle": "Keigan に接続できません",
+    "networkDescription": "接続を確認して、もう一度お試しください。",
+    "forbiddenTitle": "アクセス権限がありません",
+    "forbiddenDescription": "アプリケーション管理者に連絡するか、SailPoint で適切なグループを申請してください。",
+    "notFoundTitle": "見つかりません",
+    "notFoundDescription": "削除されたか、リンクが古い可能性があります。",
+    "conflictTitle": "他のユーザーが変更しました",
+    "conflictDescription": "再読み込みして最新の状態を確認し、もう一度変更してください。",
+    "reference": "参照 {{correlationId}}"
+  },
+  "theme": {
+    "label": "テーマ",
+    "light": "ライト",
+    "dark": "ダーク",
+    "system": "システム",
+    "change": "テーマを変更"
+  },
+  "language": {
+    "label": "言語",
+    "change": "言語を変更"
+  },
+  "priority": {
+    "ariaLabel": "優先度 {{priority}}"
+  },
+  "confidence": {
+    "label": "確信度",
+    "low": "低",
+    "moderate": "中",
+    "high": "高",
+    "veryHigh": "非常に高",
+    "valueText": "確信度 {{percentage}}、{{level}}"
+  },
+  "risk": {
+    "low": "低リスク",
+    "medium": "中リスク",
+    "high": "高リスク — 変更管理プロセスで確認してください"
+  },
+  "commandBlock": {
+    "label": "コマンド",
+    "copyCommand": "コマンドをコピー"
+  },
+  "markdown": {
+    "copyCode": "コードをコピー"
+  },
+  "ai": {
+    "keigan": "Keigan",
+    "generatedBy": "Keigan が生成",
+    "aiGeneratedContent": "AI 生成コンテンツ"
+  },
+  "saveIndicator": {
+    "saving": "保存中…",
+    "savedAt": "{{time}}に保存しました",
+    "saved": "保存済み",
+    "failed": "保存できませんでした",
+    "retry": "再試行"
+  },
+  "stepStatus": {
+    "not_started": "未着手",
+    "in_progress": "進行中",
+    "waiting": "待機中",
+    "blocked": "ブロック中",
+    "done": "完了"
+  },
+  "readiness": {
+    "summary": "必須 {{requiredCount}} 件中 {{completedCount}} 件完了",
+    "next": "次: {{stepLabel}}",
+    "allDone": "必須項目はすべて完了しています",
+    "seeAll": "すべて見る"
+  },
+  "fileDrop": {
+    "dropFiles": "ファイルをここにドラッグ＆ドロップするか、",
+    "browse": "参照",
+    "dropToUpload": "ドロップしてアップロード",
+    "acceptedTypes": "対応形式: {{types}}",
+    "maximumSize": "1 ファイルあたり最大 {{size}}",
+    "rejectedType": "{{fileName}} は対応していないファイル形式です。",
+    "rejectedSize": "{{fileName}} は {{size}} を超えています。",
+    "pending": "待機中",
+    "uploading": "アップロード中 {{percentage}}",
+    "uploaded": "アップロード済み",
+    "failed": "アップロードに失敗しました",
+    "removeFile": "{{fileName}}を削除"
+  },
+  "dataTable": {
+    "selectAllRows": "すべての行を選択",
+    "selectRow": "行を選択",
+    "selectedCount_one": "{{count}} 件選択中",
+    "selectedCount_other": "{{count}} 件選択中",
+    "sortBy": "{{column}}で並べ替え",
+    "pageSummary": "{{start}}～{{end}} / {{total}}",
+    "previousPage": "前のページ",
+    "nextPage": "次のページ",
+    "emptyTitle": "表示するデータがありません",
+    "emptyDescription": "データがあると、ここに行が表示されます。",
+    "loadingRows": "行を読み込み中"
+  },
+  "select": {
+    "placeholder": "選択してください"
+  },
+  "combobox": {
+    "placeholder": "選択…",
+    "searchPlaceholder": "検索…",
+    "noMatches": "一致なし",
+    "clearSelection": "選択を解除"
+  },
+  "tokenInput": {
+    "placeholder": "入力して Enter を押す",
+    "removeToken": "{{token}}を削除",
+    "duplicateToken": "{{token}} はすでにリストにあります。"
+  },
+  "toast": {
+    "regionLabel": "通知",
+    "dismiss": "通知を閉じる"
+  },
+  "countWithInfo": {
+    "moreItems_one": "ほか {{count}} 件",
+    "moreItems_other": "ほか {{count}} 件"
+  },
+  "timeline": {
+    "empty": "イベントはまだありません"
+  },
+  "units": {
+    "tokens_one": "{{formattedCount}} トークン",
+    "tokens_other": "{{formattedCount}} トークン"
+  },
+  "chart": {
+    "viewAsTable": "表で表示",
+    "viewAsChart": "グラフで表示",
+    "target": "目標",
+    "anomaly": "異常",
+    "total": "合計",
+    "noData": "この期間のデータはありません",
+    "category": "カテゴリ",
+    "time": "時刻",
+    "value": "値",
+    "share": "割合",
+    "stage": "ステージ",
+    "count": "件数",
+    "ofFirstStage": "{{stage}}の {{percentage}}",
+    "noValue": "データなし"
+  },
+  "topology": {
+    "label": "トポロジーグラフ",
+    "legend": "凡例",
+    "impactDirect": "直接影響あり",
+    "impactIndirect": "間接影響あり",
+    "minimap": "トポロジー概要",
+    "emptyTitle": "トポロジーがありません",
+    "emptyDescription": "トポロジーを作成すると、このアプリケーションのサービス間の接続を確認できます。",
+    "nodeTypes": {
+      "aks": "AKS",
+      "functions": "Functions",
+      "app_service": "App Service",
+      "logic_apps": "Logic Apps",
+      "api_management": "API Management",
+      "data_factory": "Data Factory",
+      "service": "サービス",
+      "database": "データベース",
+      "storage": "ストレージ",
+      "queue": "キュー",
+      "external": "外部依存",
+      "hardware": "ハードウェアとネットワーク",
+      "mainframe": "メインフレーム",
+      "saas": "SaaS プラットフォーム",
+      "users": "ユーザー"
+    }
+  },
+  "environment": {
+    "local": "ローカル",
+    "dev": "開発",
+    "test": "テスト",
+    "prod": "本番",
+    "badgeLabel": "環境: {{environment}}"
+  },
+  "version": "バージョン {{version}}"
+}

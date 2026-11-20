@@ -1,0 +1,114 @@
+{
+  "pageTitle": "告警",
+  "pageDescription": "将告警噪音收敛为真正重要的告警组。不丢弃任何内容：每条告警都会被保存，每个决策都有依据。",
+  "severity": "Sev {{level}}",
+  "tools": { "azure_monitor": "Azure Monitor", "elastic": "Elastic", "generic": "通用 Webhook" },
+  "groupStatus": { "open": "未关闭", "queued": "排队中", "resolved": "已解决" },
+  "alertStatus": { "firing": "触发中", "resolved": "已解决" },
+  "verdict": { "useful": "有用", "noise": "这是噪音" },
+  "filters": { "period": "周期", "last24h": "24 小时", "last7d": "7 天", "last30d": "30 天" },
+  "observe": {
+    "title": "观察模式：剩余 {{count}} 天",
+    "body": "Keigan 会记录它将会降噪和分组的内容，但仍会调查所有高于最低严重程度的告警。切换到“生效”之前，不会有任何变化。",
+    "effect": "目前测得的效果：{{sentence}}"
+  },
+  "funnel": {
+    "title": "噪音漏斗",
+    "description": "收到的告警被收敛为需要调查的告警组。",
+    "emptyTitle": "此周期内没有告警",
+    "emptyDescription": "在应用的“事件与告警”步骤中接入告警源，即可查看漏斗。",
+    "steps": { "received": "收到的告警", "deduplicated": "去重后", "filtered": "抑制和静默等待后", "groups": "告警组", "investigations": "调查" },
+    "reasons": {
+      "repeats": "{{count}} 条重复", "maintenance": "{{count}} 条处于维护期", "muted": "{{count}} 条已静音", "environment": "{{count}} 条来自其他环境",
+      "severity": "{{count}} 条低于最低严重程度", "resolved_before_settle": "{{count}} 条自行恢复", "flapping": "{{count}} 条抖动"
+    },
+    "reasonHelp": {
+      "repeats": "同一告警再次触发，并计入已有告警。", "maintenance": "在维护窗口内到达：仅记录，不调查。", "muted": "匹配了静音规则。",
+      "environment": "不属于需要调查的环境。", "severity": "严重程度低于最低严重程度。", "resolved_before_settle": "在静默等待时间内已恢复。", "flapping": "状态反复变化，已合并为一条告警。"
+    }
+  },
+  "groups": {
+    "title": "告警组",
+    "columns": { "group": "组", "services": "服务", "severity": "严重程度", "alerts": "告警", "status": "状态", "score": "评分", "reason": "决策", "lastActivity": "最近活动", "feedback": "反馈" },
+    "occurrences": "发生 {{count}} 次",
+    "applicationLevel": "应用级",
+    "emptyTitle": "暂无告警组",
+    "emptyDescription": "告警到达后会在此处分组，并说明每个决策的原因。"
+  },
+  "outcome": {
+    "investigation_started": "已开始调查", "investigation_replayed": "将会调查", "queued": "排队中", "below_threshold": "低于阈值", "joined_group": "已加入告警组",
+    "joined_investigation": "已加入调查", "servicenow_incident_suggested": "已建议创建事件", "servicenow_incident_created": "已创建事件", "suppressed_maintenance": "维护窗口",
+    "suppressed_mute": "已静音", "suppressed_environment": "其他环境", "suppressed_severity": "低于严重程度", "resolved_before_settle": "自行恢复", "new_group": "新告警组",
+    "passed": "通过", "waiting": "等待中", "settled": "已稳定", "skipped_wait": "无需等待", "normalised": "已解析", "new_alert": "新告警", "repeat": "重复", "resolved": "已解决",
+    "reopened": "已重新打开", "flapping": "抖动", "kept_open_flapping": "保持未关闭", "scored": "已评分", "notification_planned": "已计划通知", "thread_updated": "会话已更新"
+  },
+  "stage": { "normalise": "1 标准化", "deduplicate": "2 去重", "lifecycle": "3 生命周期", "suppress": "4 抑制", "settle": "5 静默等待", "group": "6 分组", "prioritise": "7 排定优先级", "decide": "8 决策", "notify": "9 通知" },
+  "drawer": {
+    "loading": "告警组", "rule": "规则", "service": "服务", "severity": "严重程度", "state": "状态", "occurrences": "出现次数", "lastSeen": "最近出现", "flapping": "抖动",
+    "applicationLevel": "应用级（无服务）", "members": "成员告警（{{count}}）", "decisionLog": "决策日志", "decisionLogHelp": "流水线的每个阶段，以及其做出相应决策的原因。",
+    "noDecisions": "没有决策记录。", "wouldHave": "生效模式下将会：{{outcome}}", "groupingReason": "分组：{{reason}}",
+    "observeTitle": "观察模式", "observeBody": "这些决策仅被记录，并未应用。标有“生效模式下将会”的行显示了将发生的变化。",
+    "openInvestigation": "打开调查", "openIncident": "未关闭事件", "createIncident": "创建 ServiceNow 事件", "createIncidentSuggested": "创建建议的 ServiceNow 事件",
+    "incidentCreated": "已创建 ServiceNow 事件", "incidentFailed": "无法创建事件",
+    "feedback": "此告警组有用吗？", "feedbackHelp": "您的反馈会用于调整每周噪音报告。", "feedbackCurrent": "当前反馈：{{verdict}}", "noiseReason": "为什么是噪音？", "feedbackSaved": "反馈已保存"
+  },
+  "sources": {
+    "title": "告警源", "description": "将监控工具的告警发送给 Keigan，使其与 ServiceNow 事件以相同方式进行分析。可选。",
+    "add": "添加告警源", "emptyTitle": "暂无告警源", "emptyDescription": "添加 Azure Monitor、Elastic 或任何可发送 JSON Webhook 的工具。",
+    "rulesFound": "条告警规则在您的范围内被发现（{{sending}} 条会发送给 Keigan）", "rulesTitle": "已发现的告警规则", "sendsToKeigan": "发送给 Keigan", "doesNotSend": "不发送",
+    "simulatedRules": "模拟组件的示例规则，并非从 Azure 读取。",
+    "status": { "waiting_for_first_alert": "等待首条告警", "receiving": "接收中，最近告警", "authentication_failures": "认证失败", "paused": "已暂停" },
+    "counts": "7 天内 {{alerts}} 条告警、{{groups}} 个告警组、{{investigated}} 个已调查", "authFailures": "{{count}} 个请求因令牌错误被拒绝。",
+    "test": "测试", "testSent": "测试告警已发送", "rotate": "轮换密钥", "pause": "暂停", "resume": "恢复", "remove": "移除",
+    "removeTitle": "移除告警源", "removeBody": "Keigan 将停止接收发送到{{name}} URL 的告警。已保存的告警会保留。", "removeConfirm": "移除告警源",
+    "rotatedTitle": "新密钥", "rotatedBody": "请立即复制：它只显示一次。旧密钥在 24 小时内仍然有效。"
+  },
+  "sheet": {
+    "title": "添加告警源", "cancel": "取消", "back": "返回", "next": "下一步", "done": "完成", "createSource": "创建告警源", "saveContinue": "保存并继续",
+    "steps": { "tool": "选择工具并为告警源命名。", "endpoint": "Keigan 已为此告警源创建唯一的端点。", "configure": "使用真实值配置您的工具。", "mapping": "映射告警负载中的字段。", "services": "告诉 Keigan 告警涉及哪个服务。", "test": "发送测试告警，或等待真实告警。" },
+    "tool": "工具", "toolHelp": { "azure_monitor": "通用告警架构，自动映射", "elastic": "带现成请求体模板的 Webhook 连接器", "generic": "Dynatrace、Datadog、Grafana、Alertmanager、SolarWinds 等" },
+    "name": "告警源名称", "namePlaceholder": "Azure Monitor 生产环境",
+    "secretOnceTitle": "请立即复制密钥", "secretOnceBody": "Keigan 仅存储哈希值。密钥只显示一次，之后可以轮换。",
+    "webhookUrl": "Webhook URL", "webhookUrlHelp": "包含令牌，适用于无法发送请求头的工具（Azure Monitor）。", "secret": "密钥", "secretHelp": "通过 X-Keigan-Token 请求头或 token 查询参数发送。",
+    "header": "请求头", "headerHelp": "可选：使用 X-Keigan-Signature 对请求体签名（HMAC-SHA256，密钥为密钥的 SHA-256 十六进制值）。",
+    "samplePayload": "示例负载（JSON）", "samplePayloadHelp": "粘贴您工具中的一条告警，或留空以使用收到的第一条。", "suggestMapping": "建议映射并预览",
+    "fields": { "ruleName": "规则名称", "ruleId": "规则 ID", "externalId": "告警 ID", "status": "状态", "severity": "严重程度", "resourceRef": "资源", "serviceHint": "服务", "summary": "摘要", "startedAt": "开始时间", "link": "链接" },
+    "severityMapping": "严重程度映射（工具值对应 Sev 0 到 4）", "toolValue": "工具值", "severityLevel": "严重程度", "removeRow": "删除行", "addRow": "添加行",
+    "servicesHelp": "Azure 告警会按资源 ID 自动匹配。对于其他工具，请选择标明服务名称的负载字段；未匹配的告警将归为应用级。",
+    "serviceField": "服务字段", "serviceFieldHelp": "JSONPath，例如 $.service.name 或 $.kubernetes.namespace", "autoMatch": "按相同名称匹配", "autoMatchHelp": "与服务名称相同的值将映射到该服务。",
+    "sendTest": "从 Keigan 发送测试告警", "listen": "等待真实告警", "stopListening": "停止等待", "connected": "已连接：已收到并解析一条告警",
+    "matchedService": "匹配的服务", "processing": "处理中", "rawPayload": "原始负载", "waiting": "等待首条告警...", "testHelp": "收到并解析一条告警后，该告警源将标记为已连接。"
+  },
+  "policy": {
+    "title": "告警降噪", "description": "默认即可运行。编辑下列语句即可更改告警的降噪方式。", "reset": "恢复默认", "save": "保存策略", "discard": "放弃更改",
+    "minSeverityA": "调查严重程度为", "minSeverityB": "或更高的告警。",
+    "environmentsA": "仅调查来自以下环境的告警：", "environmentsB": "其他环境仅记录。", "allEnvironments": "所有环境",
+    "settleA": "调查前等待", "settleB": "，以防告警自行恢复。以下情况跳过等待：",
+    "reopenA": "将同一告警的重复触发视为一条告警，并在其恢复后的", "reopenB": "内同样处理。",
+    "groupA": "将", "groupB": "内同一服务或相互依赖服务上的告警视为同一个问题。",
+    "flapA": "如果告警状态在", "flapB": "内变化", "flapC": "次，则视为抖动，并保持为一条未关闭告警。",
+    "rateA": "此应用每小时最多发起", "rateB": "次调查。",
+    "thresholdA": "调查优先级评分至少为", "thresholdB": "的告警组（严重程度 × 重要等级 × 环境）。",
+    "modeA": "模式：", "modeActive": "生效：决策将实际执行", "modeObserve": "观察：仅显示将会降噪的内容，不改变行为",
+    "beforeSwitch": "切换到“生效”之前的实测效果"
+  },
+  "windows": {
+    "title": "维护窗口", "description": "窗口内的告警会被记录并标记，但不会被调查。", "add": "添加窗口", "create": "创建窗口", "name": "名称", "scope": "服务",
+    "wholeApplication": "整个应用", "when": "时间", "repeat": "重复", "weekly": "每周重复", "once": "仅一次", "state": "状态", "active": "当前生效", "delete": "删除窗口",
+    "starts": "开始", "ends": "结束", "empty": "暂无维护窗口"
+  },
+  "mute": {
+    "title": "静音规则", "description": "必须填写有效期和原因。过期的规则会显示为已过期，绝不会被悄悄删除。", "add": "添加静音规则", "create": "创建静音规则", "name": "名称",
+    "matcher": "匹配条件", "reason": "原因", "expires": "到期时间", "expired": "已过期", "delete": "删除静音规则", "ruleContains": "规则名称包含", "severity": "严重程度", "anySeverity": "任意严重程度",
+    "expiresHelp": "静音规则一定会结束。", "empty": "暂无静音规则"
+  },
+  "preview": {
+    "title": "过去 7 天预览", "description": "在内存中用这些设置重新处理已存储的告警，不会产生任何变更。", "run": "将这些设置应用到过去 7 天",
+    "illustration": "示例，并非您的数据。告警到达后会在此填充。"
+  },
+  "incidentPolicy": {
+    "title": "由告警创建事件", "description": "当已调查的告警组足够严重时，Keigan 的处理方式。",
+    "whenScore": "当告警组评分达到或高于", "thenDo": "且调查确认影响了客户时，", "suggest": "建议创建 ServiceNow 事件", "automatic": "自动创建 ServiceNow 事件",
+    "inGroup": "分派组：", "noGroup": "默认组", "threshold": "评分阈值", "mode": "模式", "group": "分派组", "save": "保存策略"
+  }
+}

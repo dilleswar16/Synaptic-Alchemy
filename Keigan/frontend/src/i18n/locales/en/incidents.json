@@ -1,0 +1,69 @@
+{
+  "pageTitle": "Incident room",
+  "pageDescription": "Open and recent incidents for your applications, updated live.",
+  "filters": {
+    "searchLabel": "Search incidents",
+    "searchPlaceholder": "Search by number or title",
+    "onlyMine": "Only mine",
+    "viewLabel": "View",
+    "viewTable": "Table",
+    "viewBoard": "Board",
+    "priority": "Priority",
+    "status": "Status",
+    "source": "Source"
+  },
+  "status": {
+    "new": "New",
+    "investigating": "Investigating",
+    "identified": "Cause identified",
+    "resolved": "Resolved",
+    "closed": "Closed"
+  },
+  "source": {
+    "servicenow": "ServiceNow",
+    "alert": "Alert",
+    "manual": "Manual"
+  },
+  "servicenowPriority": "ServiceNow: {{priority}}",
+  "columns": {
+    "priority": "Priority",
+    "number": "Number",
+    "title": "Incident",
+    "application": "Application",
+    "status": "Status",
+    "confidence": "Keigan confidence",
+    "detected": "Detected",
+    "duration": "Duration",
+    "group": "Assignment group"
+  },
+  "noNumber": "No number",
+  "noServices": "No services identified yet",
+  "analysing": "Analysing",
+  "tableCaption": "Incidents for the selected applications",
+  "boardLabel": "Incident board by status",
+  "board": {
+    "emptyColumn": "Nothing here"
+  },
+  "empty": {
+    "title": "No incidents match these filters",
+    "description": "Clear a filter or widen the search to see more incidents.",
+    "noIncidentsTitle": "No incidents yet",
+    "noIncidentsDescription": "Incidents from ServiceNow appear here as soon as Keigan detects them. You can also start an investigation yourself."
+  },
+  "newInvestigation": {
+    "open": "New investigation",
+    "title": "Start an investigation",
+    "description": "Keigan collects evidence from the selected services and proposes a root cause. Nothing is changed in your systems.",
+    "application": "Application",
+    "services": "Services to examine",
+    "servicesHelp": "Leave all unchecked and Keigan chooses the services from your description and the application topology.",
+    "descriptionLabel": "What is going wrong?",
+    "descriptionHelp": "Describe the symptoms, who is affected and when it started. Do not paste personal data; Keigan masks it before analysis.",
+    "windowStart": "Window start",
+    "windowEnd": "Window end",
+    "cancel": "Cancel",
+    "start": "Start investigation",
+    "startedTitle": "Investigation started",
+    "startedDescription": "Keigan is gathering evidence. This usually takes a minute or two."
+  }
+}

@@ -1,0 +1,452 @@
+{
+  "pageTitle": "Incorporación",
+  "pageDescription": "Conecte, enseñe y ponga en producción una aplicación en Keigan.",
+  "environments": {
+    "dev": "Desarrollo",
+    "test": "Pruebas",
+    "uat": "UAT",
+    "prod": "Producción"
+  },
+  "tiers": {
+    "tier_1": "Nivel 1",
+    "tier_2": "Nivel 2",
+    "tier_3": "Nivel 3"
+  },
+  "types": {
+    "azure_resource_group": {
+      "title": "Grupo de recursos de Azure",
+      "description": "Functions, AKS, App Service, Logic Apps, API Management, Data Factory y SQL en un grupo de recursos."
+    },
+    "hardware": {
+      "title": "Hardware y red",
+      "description": "Servidores, conmutadores, routers, cortafuegos, balanceadores de carga y matrices de almacenamiento."
+    },
+    "mainframe": {
+      "title": "Mainframe",
+      "description": "Subsistemas IBM z/OS: CICS, IMS, DB2, MQ y procesos por lotes."
+    },
+    "saas_platform": {
+      "title": "Plataforma SaaS",
+      "description": "Un servicio alojado por el proveedor, con registros también alojados por el proveedor."
+    }
+  },
+  "empty": {
+    "title": "Aún no hay componentes",
+    "description": "Añada dónde se ejecuta la aplicación. Keigan la lee con acceso de solo lectura."
+  },
+  "status": {
+    "not_checked": "Sin comprobar",
+    "checking": "Comprobando acceso",
+    "verified": "Acceso verificado",
+    "missing_roles": "Esperando roles",
+    "failed": "Error en la comprobación",
+    "not_applicable": "Detalles guardados",
+    "simulated": "Simulado"
+  },
+  "card": {
+    "verify": "Verificar",
+    "refresh": "Actualizar",
+    "remove": "Quitar",
+    "checked": "Comprobado",
+    "resourcesFound": "recursos encontrados",
+    "monitoredServices": "monitorizados como servicios",
+    "telemetrySources": "fuentes de telemetría",
+    "services_one": "{{count}} servicio",
+    "services_other": "{{count}} servicios",
+    "showCommands": "Mostrar comandos de asignación de roles",
+    "addComponent": "Añadir componente",
+    "removeTitle": "¿Quitar {{name}}?",
+    "removeDescription_one": "Keigan deja de vigilar {{count}} servicio de este componente. Los incidentes y el historial se conservan.",
+    "removeDescription_other": "Keigan deja de vigilar {{count}} servicios de este componente. Los incidentes y el historial se conservan.",
+    "removeConfirm": "Quitar componente"
+  },
+  "verify": {
+    "checklistLabel": "Comprobaciones de acceso",
+    "checks": {
+      "list_resources": "Listar recursos",
+      "read_activity_log": "Leer el registro de actividad",
+      "read_metrics": "Leer métricas",
+      "query_workspace": "Consultar el espacio de trabajo de Log Analytics"
+    },
+    "missingRole": "Necesita el rol {{role}}",
+    "rolesCanTakeAWhile": "Azure puede tardar unos minutos en aplicar un rol nuevo. Keigan sigue comprobando aunque continúe con otra cosa.",
+    "failed": "Keigan no pudo comprobar el acceso. Inténtelo de nuevo."
+  },
+  "roleGrant": {
+    "tenantId": "ID de inquilino",
+    "clientId": "ID de cliente de la identidad administrada",
+    "objectId": "ID de objeto de la identidad administrada",
+    "displayName": "Nombre para mostrar",
+    "rolesTitle": "Roles de solo lectura que conceder",
+    "tabs": {
+      "cli": "Azure CLI",
+      "powershell": "PowerShell",
+      "terraform": "Terraform",
+      "portal": "Portal"
+    },
+    "copyAll": "Copiar todos los comandos",
+    "sendToSomeone": "Enviar a alguien con acceso",
+    "shareIntro": "Conceda a Keigan acceso de solo lectura al grupo de recursos {{resourceGroup}} con los comandos de abajo. Enlace:",
+    "notConfigured": "Sin configurar",
+    "displayNameUnknown": "Buscar por ID de objeto",
+    "identityIncompleteTitle": "La identidad de Keigan no está completamente configurada",
+    "identityIncompleteBody": "Keigan no pudo determinar: {{values}}. Pida a un administrador de Keigan que los configure antes de asignar roles.",
+    "identityDiscovered": "Estos ID se leyeron de la identidad de Azure de Keigan en tiempo de ejecución."
+  },
+  "explorer": {
+    "title": "Recursos de {{name}}",
+    "description": "Todo lo que Azure devolvió para este grupo de recursos. Solo algunos recursos se convierten en servicios.",
+    "filter": "Filtrar recursos",
+    "filters": {
+      "all": "Todos",
+      "monitored_service": "Servicios",
+      "telemetry_source": "Fuentes de telemetría",
+      "not_monitored_type": "Otros"
+    },
+    "name": "Nombre",
+    "type": "Tipo",
+    "classification": "Se usa como",
+    "classifications": {
+      "monitored_service": "Servicio",
+      "telemetry_source": "Fuente de telemetría",
+      "not_monitored_type": "No monitorizado"
+    },
+    "diagnostics": "Configuración de diagnóstico",
+    "diagnosticSettingOn": "Envía registros",
+    "noDiagnosticSetting": "Sin configuración de diagnóstico",
+    "state": "Estado",
+    "present": "Presente",
+    "noLongerFound": "Ya no se encuentra en Azure"
+  },
+  "add": {
+    "chooseTypeTitle": "Añadir un componente",
+    "chooseTypeDescription": "Elija dónde se ejecuta esta parte de la aplicación.",
+    "titles": {
+      "azure_resource_group": "Grupo de recursos de Azure",
+      "hardware": "Hardware y red",
+      "mainframe": "Mainframe",
+      "saas_platform": "Plataforma SaaS"
+    },
+    "descriptions": {
+      "azure_resource_group": "Primero el ámbito, luego conceda acceso de solo lectura y después verifique.",
+      "hardware": "Un dispositivo se convierte en un servicio que Keigan puede monitorizar.",
+      "mainframe": "Cada subsistema se convierte en un servicio.",
+      "saas_platform": "Keigan sondea la instancia y lee la página de estado del proveedor."
+    },
+    "accessDescription": "Conceda estos roles de solo lectura y luego verifique. Azure puede tardar unos minutos en aplicarlos.",
+    "azure": {
+      "tenantId": "ID de inquilino",
+      "tenantHelp": "Rellenado con el inquilino de Keigan. Cámbielo solo para otro inquilino.",
+      "subscriptionId": "ID de suscripción",
+      "guidInvalid": "Introduzca un GUID como 00000000-0000-0000-0000-000000000000.",
+      "subscriptionName": "Nombre de la suscripción",
+      "resourceGroup": "Nombre del grupo de recursos",
+      "addSeveral": "Añadir varios",
+      "addSeveralHelp": "Una línea por grupo de recursos: subscriptionId/resourceGroup. Si se rellena, sustituye a los campos de arriba."
+    },
+    "hardware": {
+      "name": "Nombre del dispositivo"
+    },
+    "mainframe": {
+      "name": "Nombre del sistema"
+    },
+    "saas_platform": {
+      "name": "Nombre del componente"
+    },
+    "environment": "Entorno",
+    "choose": "Elegir…",
+    "noLogTools": "Añada una conexión de herramienta de registros en el paso 3 para monitorizar este componente.",
+    "back": "Atrás",
+    "cancel": "Cancelar",
+    "continueToAccess": "Continuar con el acceso",
+    "addComponent": "Añadir componente",
+    "verifyNow": "Verificar acceso",
+    "verifyLater": "Verificar más tarde",
+    "failed": "No funcionó. Revise los detalles e inténtelo de nuevo."
+  },
+  "fields": {
+    "device_category": "Categoría del dispositivo",
+    "hostname": "Nombre de host o IP",
+    "location": "Centro de datos o ubicación",
+    "cmdb_ci": "ID del elemento de configuración de CMDB",
+    "owner_team": "Equipo responsable",
+    "log_tool_connection_id": "Cómo se monitoriza",
+    "query_host": "Nombre de host o ID de nodo en la herramienta",
+    "notes": "Notas",
+    "lpar": "LPAR o sysplex",
+    "subsystems": "Subsistemas",
+    "job_name_prefixes": "Prefijos de nombres de trabajo",
+    "query_index": "Índice o tipos de origen",
+    "batch_window": "Programación de la ventana de lotes",
+    "vendor_name": "Nombre del proveedor",
+    "product_name": "Producto",
+    "instance_url": "URL del inquilino o la instancia",
+    "status_page_url": "Página de estado del proveedor (JSON o RSS)",
+    "synthetic_probe_url": "URL de la sonda sintética",
+    "vendor_api_endpoint": "Endpoint de la API de registros o auditoría del proveedor",
+    "support_contact": "Contacto de soporte del proveedor",
+    "contractual_sla": "SLA contractual"
+  },
+  "options": {
+    "server": "Servidor",
+    "network_switch": "Conmutador de red",
+    "router": "Router",
+    "firewall": "Cortafuegos",
+    "load_balancer": "Balanceador de carga",
+    "storage_array": "Matriz de almacenamiento",
+    "other": "Otro"
+  },
+  "serviceTypes": {
+    "aks": "Clúster de AKS",
+    "function_app": "Function App",
+    "app_service": "App Service",
+    "logic_app": "Logic App",
+    "api_management": "API Management",
+    "data_factory": "Data Factory",
+    "sql_database": "Base de datos SQL",
+    "network_appliance": "Dispositivo de hardware y red",
+    "mainframe_subsystem": "Subsistema de mainframe",
+    "batch_job_stream": "Flujo de trabajos por lotes",
+    "saas_service": "Servicio SaaS"
+  },
+  "services": {
+    "caption": "Servicios de esta aplicación",
+    "addService": "Añadir servicio",
+    "addTitle": "Añadir un servicio",
+    "addDescription": "Para todo lo que el descubrimiento no encontró. Los recursos de Azure aparecen aquí solos.",
+    "name": "Nombre del servicio",
+    "type": "Tipo",
+    "component": "Componente",
+    "environment": "Entorno",
+    "criticality": "Criticidad",
+    "emptyTitle": "Aún no hay servicios",
+    "emptyDescription": "Verifique un componente de Azure para descubrir servicios, o añada uno a mano.",
+    "columns": {
+      "monitor": "Monitorizar",
+      "service": "Servicio",
+      "environment": "Entorno",
+      "criticality": "Criticidad",
+      "logs": "Registros",
+      "metrics": "Métricas",
+      "dependsOn": "Depende de",
+      "repository": "Repositorio",
+      "actions": "Detalles"
+    },
+    "noLongerFound": "Ya no se encuentra en Azure",
+    "noDiagnosticSetting": "Sin configuración de diagnóstico",
+    "available": "disponibles",
+    "metricsTitle": "Métricas disponibles",
+    "dependsOnTitle": "Depende de",
+    "openDetails": "Abrir detalles del servicio",
+    "selected_one": "{{count}} servicio seleccionado",
+    "selected_other": "{{count}} servicios seleccionados",
+    "bulk": {
+      "setEnvironment": "Establecer entorno",
+      "setCriticality": "Establecer criticidad",
+      "addLogSource": "Añadir fuente de registros",
+      "addLogSourceTitle_one": "Añadir una fuente de registros a {{count}} servicio",
+      "addLogSourceTitle_other": "Añadir una fuente de registros a {{count}} servicios",
+      "monitoringOff": "Desactivar monitorización",
+      "clear": "Borrar selección"
+    }
+  },
+  "serviceDrawer": {
+    "basics": "Información básica",
+    "displayName": "Nombre para mostrar",
+    "namespace": "Espacio de nombres de Kubernetes",
+    "namespaceHelp": "Un clúster puede alojar muchas aplicaciones. Keigan lee solo este espacio de nombres.",
+    "description": "Descripción",
+    "repository": "Repositorio",
+    "repositoryHelp": "Ayuda a Keigan a señalar el código cuando sugiere una solución.",
+    "provider": "Proveedor",
+    "repositoryUrl": "URL del repositorio",
+    "branch": "Rama predeterminada",
+    "path": "Ruta en el repositorio",
+    "dependsOn": "Depende de",
+    "dependsOnHelp": "Servicios a los que llama este. Alimenta la topología y el radio de impacto.",
+    "noOtherServices": "Aún no hay otros servicios.",
+    "logSources": "Fuentes de registros",
+    "noDiagnosticSetting": "Aún no hay configuración de diagnóstico. Muestre el comando para habilitarla.",
+    "metrics_one": "{{count}} métrica disponible",
+    "metrics_other": "{{count}} métricas disponibles"
+  },
+  "repositoryProviders": {
+    "azure_devops": "Azure DevOps",
+    "github": "GitHub",
+    "gitlab": "GitLab",
+    "bitbucket": "Bitbucket",
+    "other": "Otro"
+  },
+  "logSource": {
+    "none": "Aún no hay fuente de registros. Se usan las métricas cuando están disponibles.",
+    "kind": "Origen",
+    "kinds": {
+      "log_analytics": "Espacio de trabajo de Log Analytics",
+      "application_insights": "Application Insights",
+      "azure_monitor_metrics": "Métricas de Azure Monitor",
+      "log_tool": "Conexión de herramienta de registros",
+      "synthetic_probe": "Sonda sintética",
+      "vendor_status_page": "Página de estado del proveedor"
+    },
+    "chips": {
+      "log_analytics": "Log Analytics",
+      "application_insights": "App Insights",
+      "azure_monitor_metrics": "Métricas",
+      "log_tool": "Herram. registros",
+      "synthetic_probe": "Sonda",
+      "vendor_status_page": "Pág. de estado"
+    },
+    "workspaceResourceId": "ID de recurso del espacio de trabajo",
+    "connection": "Conexión",
+    "chooseConnection": "Elija una conexión",
+    "noConnections": "Aún no hay conexiones de herramientas de registros. Añada una en el paso 3.",
+    "scope": {
+      "index": "Índice",
+      "namespace": "Espacio de nombres",
+      "host": "Host",
+      "labels": "Etiquetas",
+      "probeUrl": "URL de la sonda"
+    },
+    "primary": "Principal",
+    "autoDetected": "Detectada automáticamente",
+    "add": "Añadir este origen",
+    "addSource": "Añadir fuente de registros",
+    "remove": "Quitar fuente de registros",
+    "test": "Probar lectura",
+    "testPassed": "Keigan puede leer este origen",
+    "testFailed": "Keigan no pudo leer este origen",
+    "testStatus": {
+      "not_tested": "Aún sin probar",
+      "passed": "Prueba de lectura superada",
+      "failed": "Prueba de lectura fallida"
+    }
+  },
+  "logTools": {
+    "tools": {
+      "elastic": {
+        "title": "Elastic",
+        "description": "Busque registros en Elasticsearch o Elastic Cloud."
+      },
+      "splunk": {
+        "title": "Splunk",
+        "description": "Busque registros mediante la API REST de Splunk."
+      },
+      "datadog": {
+        "title": "Datadog",
+        "description": "Lea registros y métricas de Datadog."
+      },
+      "solarwinds": {
+        "title": "SolarWinds",
+        "description": "Monitorización de red y nodos desde Orion o el SaaS de observabilidad."
+      },
+      "ibm_z_log_analytics": {
+        "title": "IBM Z log analytics",
+        "description": "Registros de mainframe y registros SMF."
+      },
+      "vendor_api": {
+        "title": "API del proveedor (SaaS)",
+        "description": "La API de registros o auditoría de un proveedor."
+      },
+      "other": {
+        "title": "Otra herramienta",
+        "description": "Solo se registra como referencia."
+      }
+    },
+    "fields": {
+      "endpoint": "URL del endpoint",
+      "authenticationMethod": "Autenticación",
+      "index_pattern": "Patrones de índice",
+      "service_field": "Nombre del campo de servicio",
+      "namespace_field": "Campo de espacio de nombres",
+      "time_field": "Campo de hora",
+      "indexes": "Índices predeterminados",
+      "source_types": "Tipos de origen",
+      "host_field": "Campo de host",
+      "site": "Sitio de Datadog",
+      "application_key_reference": "Referencia de la clave de aplicación",
+      "default_service_tag": "Etiqueta de servicio predeterminada",
+      "env_tag": "Etiqueta de entorno",
+      "platform": "Plataforma",
+      "node_ids": "ID de nodos o grupos",
+      "product": "Producto",
+      "index": "Índice o tipos de origen",
+      "smf_record_types": "Tipos de registro SMF",
+      "vendor": "Proveedor",
+      "extra_settings": "Ajustes adicionales (clave=valor por línea)",
+      "holds": "Nombre y qué contiene"
+    },
+    "options": {
+      "api_key": "Clave de API",
+      "basic": "Autenticación básica",
+      "oauth_client_credentials": "Credenciales de cliente OAuth",
+      "orion_swis": "Orion (SWIS)",
+      "observability_saas": "SaaS de observabilidad"
+    },
+    "connectionName": "Nombre de la conexión",
+    "credential": "Secreto o clave de API",
+    "credentialHelp": "Se envía una vez y se guarda de forma segura. Keigan no lo vuelve a mostrar.",
+    "credentialSet": "•••• establecido {{date}}",
+    "saveConnection": "Guardar conexión",
+    "saveChanges": "Guardar cambios",
+    "placeholderBanner": "El lector de esta herramienta está en desarrollo. Keigan guarda ahora los detalles y los usará cuando se publique el lector.",
+    "readerInDevelopment": "Lector en desarrollo",
+    "status": {
+      "not_tested": "Sin probar",
+      "connected": "Conectado",
+      "failed": "Fallido",
+      "reader_not_available": "Lector en desarrollo"
+    },
+    "test": "Probar conexión",
+    "testDisabled": "El lector de esta herramienta está en desarrollo, así que aún no se puede probar.",
+    "edit": "Editar",
+    "delete": "Eliminar conexión",
+    "deleteTitle": "¿Eliminar {{name}}?",
+    "deleteDescription": "Los servicios que usan esta conexión deben dejar de usarla antes. El secreto almacenado se elimina.",
+    "deleteConfirm": "Eliminar conexión",
+    "none": "Aún no hay conexiones. Elija una herramienta arriba para añadir una.",
+    "newestLog": "registro más reciente",
+    "usedBy": "Usada por {{names}}",
+    "notUsed": "Aún no la usa ningún servicio"
+  },
+  "servicenow": {
+    "title": "Grupos de asignación de ServiceNow",
+    "description": "Keigan consulta incidentes solo de estos grupos.",
+    "groups": "Grupos de asignación",
+    "groupsHelp": "Pulse Enter después de cada nombre. Los nombres que Keigan no pudo comprobar se guardan como no verificados.",
+    "placeholder": "Añada un nombre de grupo",
+    "search": "Buscar grupos de ServiceNow",
+    "searchPlaceholder": "Escriba para buscar…"
+  },
+  "access": {
+    "sailpointTitle": "Solicitar acceso mediante SailPoint",
+    "adminGroup": "Grupo de administradores (acceso de edición)",
+    "readerGroup": "Grupo de lectores (solo lectura)",
+    "copyGroup": "Copiar nombre del grupo",
+    "groupName": "Nombre del grupo",
+    "objectId": "ID de objeto del grupo",
+    "objectIdHelp": "Solo es necesario cuando los tokens de Entra incluyen ID de grupo.",
+    "save": "Guardar",
+    "membersEntra": "Los miembros provienen de Entra ID y aparecen aquí cuando Keigan puede leerlos.",
+    "membersLocal": "La pertenencia a grupos se lee de Entra ID. En modo local, los usuarios de demostración definen quién tiene acceso.",
+    "howItWorksTitle": "Cómo funciona el acceso",
+    "howItWorksBody": "Keigan no mantiene su propia lista de usuarios. En cada inicio de sesión lee los grupos de Entra ID de la persona: los miembros del grupo de administradores pueden modificar esta aplicación y los del grupo de lectores pueden consultarla. Cree ambos grupos en SailPoint con los nombres siguientes y agregue a las personas allí; no hace falta agregar a nadie en Keigan.",
+    "verify": {
+      "title": "Comprobar los grupos en Entra ID",
+      "description": "Confirme que SailPoint ha creado ambos grupos y vea quién pertenece a ellos antes de que nadie inicie sesión.",
+      "button": "Comprobar en Entra",
+      "members_one": "{{count}} miembro: {{names}}",
+      "members_other": "{{count}} miembros, entre ellos {{names}}",
+      "objectIdSaved": "ID de objeto {{objectId}} guardado para la correspondencia de inicio de sesión.",
+      "sourceEntra": "Comprobado en directo en Microsoft Entra ID.",
+      "sourceLocal": "Modo local: comprobado con los usuarios de demostración. En Azure se comprueba Microsoft Entra ID."
+    }
+  },
+  "stubs": {
+    "alertsTitle": "Fuentes de alertas y reducción de ruido",
+    "alertsDescription": "Aquí se configuran las fuentes de alertas por webhook, la política de reducción de ruido y la creación de incidentes a partir de alertas.",
+    "sloTitle": "Propuestas de SLO",
+    "sloDescription": "Keigan propone SLO a partir de los datos que puede leer. Se configuran aquí.",
+    "notificationsTitle": "Partes interesadas y notificaciones",
+    "notificationsDescription": "Aquí se configura a quién se avisa de los incidentes y cómo."
+  }
+}

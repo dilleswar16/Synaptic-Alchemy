@@ -1,0 +1,270 @@
+# SLI catalogue keyed by service type (sample plan 7.2, spec 6.10).
+# An SLI is offered only when its source exists and returned data in the last 30 days; otherwise the row is shown disabled with the reason.
+# kind: availability | latency | run_success | freshness | dependency_success | pod_readiness | device_availability | vendor_status
+# source: application_insights | metrics | log_query | synthetic_probe | status_page
+# requires: application_insights | metric | none   (metric_name is checked against the resource's exposed metrics when known)
+application_insights_entries:
+  - key: appinsights_availability
+    kind: availability
+    display_name: Request availability
+    explanation: Share of requests that succeed (Success == true) out of all requests, measured closest to the user.
+    source: application_insights
+    good_total_definition: "good = AppRequests where Success == true; total = all AppRequests"
+    default_enabled: true
+    headline_candidate: true
+  - key: appinsights_latency
+    kind: latency
+    display_name: Request latency
+    explanation: Share of requests that complete faster than the latency threshold (exact, from request durations).
+    source: application_insights
+    good_total_definition: "good = AppRequests where DurationMs <= threshold; total = all AppRequests"
+    default_enabled: true
+    headline_candidate: false
+  - key: appinsights_dependency_success
+    kind: dependency_success
+    display_name: Dependency call success
+    explanation: Share of outgoing calls to other systems (databases, APIs) that succeed.
+    source: application_insights
+    good_total_definition: "good = AppDependencies where Success == true; total = all AppDependencies"
+    default_enabled: false
+    headline_candidate: false
+application_insights_supporting_signals:
+  - { key: request_rate, name: Request rate, description: Requests per interval (traffic). }
+  - { key: exception_count, name: Exception count, description: Exceptions per interval (AppExceptions). }
+
+service_types:
+  api_management:
+    entries:
+      - key: apim_availability
+        kind: availability
+        display_name: Gateway availability
+        explanation: Requests not answered with a gateway 5xx, out of all requests that reached the gateway.
+        source: metrics
+        metric_name: Requests
+        good_total_definition: "good = Requests excluding GatewayResponseCodeCategory 5xx; total = Requests"
+        default_enabled: true
+        headline_candidate: true
+      - key: apim_latency
+        kind: latency
+        display_name: Gateway latency
+        explanation: Share of requests faster than the threshold, based on the overall Duration metric (5-minute averages, approximate).
+        source: metrics
+        metric_name: Duration
+        good_total_definition: "good = intervals/requests with Duration <= threshold; total = Requests"
+        default_enabled: true
+        approximate: true
+    supporting_signals:
+      - { key: backend_duration, name: Backend duration, metric_name: BackendDuration, description: Time spent in the backend service. }
+      - { key: capacity, name: Gateway capacity, metric_name: Capacity, description: Share of gateway capacity in use. }
+  app_service:
+    entries:
+      - key: appservice_availability
+        kind: availability
+        display_name: Web app availability
+        explanation: (Requests - Http5xx) divided by Requests.
+        source: metrics
+        metric_name: Requests
+        good_total_definition: "good = Requests - Http5xx; total = Requests"
+        default_enabled: true
+        headline_candidate: true
+      - key: appservice_latency
+        kind: latency
+        display_name: Web app latency
+        explanation: Share of time the average HttpResponseTime stays under the threshold (approximate, 5-minute averages).
+        source: metrics
+        metric_name: HttpResponseTime
+        good_total_definition: "good = intervals with HttpResponseTime <= threshold; total = intervals"
+        default_enabled: true
+        approximate: true
+    supporting_signals:
+      - { key: cpu_time, name: CPU time, metric_name: CpuTime, description: CPU consumed by the app. }
+      - { key: memory_working_set, name: Memory working set, metric_name: MemoryWorkingSet, description: Memory in use. }
+      - { key: http_4xx, name: Client errors (4xx), metric_name: Http4xx, description: Requests rejected with 4xx. }
+  function_app:
+    entries:
+      - key: function_execution_success
+        kind: run_success
+        display_name: Execution success
+        explanation: Successful function invocations out of all invocations (each invocation is a request in Application Insights).
+        source: application_insights
+        metric_name: FunctionExecutionCount
+        good_total_definition: "good = successful invocations; total = all invocations"
+        default_enabled: true
+        headline_candidate: true
+      - key: function_duration
+        kind: latency
+        display_name: Execution duration
+        explanation: Share of invocations that finish within the threshold.
+        source: application_insights
+        metric_name: FunctionExecutionUnits
+        good_total_definition: "good = invocations with Duration <= threshold; total = invocations"
+        default_enabled: true
+    supporting_signals:
+      - { key: execution_count, name: Execution count, metric_name: FunctionExecutionCount, description: Invocations per interval. }
+      - { key: execution_units, name: Execution units, metric_name: FunctionExecutionUnits, description: Consumption units used. }
+  logic_app:
+    entries:
+      - key: logicapp_run_success
+        kind: run_success
+        display_name: Run success
+        explanation: RunsSucceeded divided by RunsCompleted.
+        source: metrics
+        metric_name: RunsCompleted
+        good_total_definition: "good = RunsSucceeded; total = RunsCompleted"
+        default_enabled: true
+        headline_candidate: true
+      - key: logicapp_run_latency
+        kind: latency
+        display_name: Run latency
+        explanation: Share of runs that complete faster than the threshold (RunLatency, approximate).
+        source: metrics
+        metric_name: RunLatency
+        good_total_definition: "good = runs with RunLatency <= threshold; total = RunsCompleted"
+        default_enabled: false
+        approximate: true
+    supporting_signals:
+      - { key: runs_started, name: Runs started, metric_name: RunsStarted, description: Workflow runs started. }
+      - { key: triggers_failed, name: Triggers failed, metric_name: TriggersFailed, description: Trigger failures. }
+      - { key: actions_failed, name: Actions failed, metric_name: ActionsFailed, description: Action failures. }
+  data_factory:
+    entries:
+      - key: adf_pipeline_success
+        kind: run_success
+        display_name: Pipeline success
+        explanation: PipelineSucceededRuns divided by succeeded plus failed runs.
+        source: metrics
+        metric_name: PipelineSucceededRuns
+        good_total_definition: "good = PipelineSucceededRuns; total = succeeded + PipelineFailedRuns"
+        default_enabled: true
+        headline_candidate: true
+      - key: adf_freshness
+        kind: freshness
+        display_name: Data freshness
+        explanation: Share of time the last successful run is newer than the freshness threshold (needs pipeline-run logs).
+        source: log_query
+        metric_name: ADFPipelineRun
+        good_total_definition: "good = intervals where time since last success <= threshold; total = intervals"
+        default_enabled: false
+    supporting_signals:
+      - { key: activity_failed_runs, name: Activity failed runs, metric_name: ActivityFailedRuns, description: Failed activities. }
+      - { key: trigger_failed_runs, name: Trigger failed runs, metric_name: TriggerFailedRuns, description: Failed triggers. }
+  aks:
+    entries:
+      - key: aks_pod_readiness
+        kind: pod_readiness
+        display_name: Pod readiness
+        explanation: Share of pods in the Ready state (platform health; request SLIs come from Application Insights when instrumented).
+        source: metrics
+        metric_name: kube_pod_status_ready
+        good_total_definition: "good = pods Ready; total = pods"
+        default_enabled: true
+    supporting_signals:
+      - { key: node_cpu, name: Node CPU, metric_name: node_cpu_usage_percentage, description: Node CPU percentage. }
+      - { key: node_memory, name: Node memory, metric_name: node_memory_working_set_percentage, description: Node memory percentage. }
+      - { key: container_restarts, name: Container restarts, metric_name: restarting_container_count, description: Container restarts and OOM kills. }
+  sql_database:
+    entries:
+      - key: sql_connection_success
+        kind: availability
+        display_name: Successful connections
+        explanation: Successful connections out of all connection attempts.
+        source: metrics
+        metric_name: connection_successful
+        good_total_definition: "good = connection_successful; total = connection_successful + connection_failed"
+        default_enabled: true
+        headline_candidate: false
+      - key: sql_query_latency
+        kind: latency
+        display_name: Query latency
+        explanation: Share of time the database stays under the latency threshold (approximate, from averaged metrics).
+        source: metrics
+        metric_name: sql_instance_cpu_percent
+        good_total_definition: "good = intervals under threshold; total = intervals"
+        default_enabled: false
+        approximate: true
+    supporting_signals:
+      - { key: dtu_percentage, name: DTU / CPU percentage, metric_name: dtu_consumption_percent, description: Compute consumption. }
+      - { key: sessions_percent, name: Sessions percentage, metric_name: sessions_percent, description: Share of the session limit used. }
+      - { key: storage_percent, name: Storage percentage, metric_name: storage_percent, description: Share of storage used. }
+  network_appliance:
+    entries:
+      - key: device_availability
+        kind: device_availability
+        display_name: Device availability
+        explanation: Up samples divided by all samples reported by the monitoring tool (SolarWinds or log tool).
+        source: log_query
+        good_total_definition: "good = samples where the device is up; total = samples"
+        default_enabled: true
+        headline_candidate: false
+    supporting_signals:
+      - { key: device_cpu, name: Device CPU, description: Device CPU percentage. }
+      - { key: interface_errors, name: Interface errors, description: Interface error counters. }
+  server:
+    entries:
+      - key: server_availability
+        kind: device_availability
+        display_name: Server availability
+        explanation: Up samples divided by all samples reported by the monitoring tool.
+        source: log_query
+        good_total_definition: "good = samples where the server is up; total = samples"
+        default_enabled: true
+    supporting_signals:
+      - { key: server_cpu, name: Server CPU, description: CPU percentage. }
+      - { key: server_memory, name: Server memory, description: Memory percentage. }
+  mainframe_subsystem:
+    entries:
+      - key: mainframe_transaction_success
+        kind: availability
+        display_name: Transaction success
+        explanation: Online transactions that complete without an abend or error response, out of all transactions (from the mainframe log tool).
+        source: log_query
+        good_total_definition: "good = transactions without abend or error; total = all transactions"
+        default_enabled: true
+        headline_candidate: true
+    supporting_signals:
+      - { key: transaction_rate, name: Transaction rate, description: Transactions per interval. }
+  batch_job_stream:
+    entries:
+      - key: batch_job_success
+        kind: run_success
+        display_name: Batch job success
+        explanation: Jobs that complete without an ABEND out of all jobs started.
+        source: log_query
+        good_total_definition: "good = jobs completed without ABEND; total = jobs run"
+        default_enabled: true
+        headline_candidate: false
+      - key: batch_freshness
+        kind: freshness
+        display_name: Batch freshness
+        explanation: Share of time the last successful batch run is newer than the freshness threshold.
+        source: log_query
+        good_total_definition: "good = intervals where time since last success <= threshold; total = intervals"
+        default_enabled: false
+    supporting_signals:
+      - { key: job_duration, name: Job duration, description: Elapsed time of the batch stream. }
+  saas_service:
+    entries:
+      - key: saas_synthetic_availability
+        kind: availability
+        display_name: Synthetic availability
+        explanation: Keigan's synthetic probe succeeded out of all probes sent to the vendor service.
+        source: synthetic_probe
+        good_total_definition: "good = successful probes; total = probes"
+        default_enabled: true
+        headline_candidate: true
+      - key: saas_synthetic_latency
+        kind: latency
+        display_name: Synthetic latency
+        explanation: Share of probes answered faster than the threshold.
+        source: synthetic_probe
+        good_total_definition: "good = probes with latency <= threshold; total = probes"
+        default_enabled: true
+      - key: saas_vendor_status
+        kind: vendor_status
+        display_name: Vendor status
+        explanation: Minutes the vendor status page reported "operational" out of all minutes.
+        source: status_page
+        good_total_definition: "good = minutes operational; total = minutes"
+        default_enabled: false
+    supporting_signals:
+      - { key: probe_latency, name: Probe latency, description: Synthetic probe response time. }

@@ -1,0 +1,442 @@
+# 01 — Product specification
+
+## 1. Vision and success criteria
+
+Keigan is a set of AI tools that helps MetLife handle technology incidents faster and with less stress.
+It is a **multi-application** platform: regional SRE teams look after many applications, each made of
+many components hosted in Azure, on-premises hardware, mainframes and SaaS platforms.
+
+| Success measure | How Keigan shows it |
+|---|---|
+| Find root causes faster and more accurately | Time from incident detected to investigation completed; leading-hypothesis confidence; SRE feedback ("correct / partly / wrong") on every RCA |
+| Communicate promptly and accurately | Time to first update (TTFU); bilingual drafts ready with the preliminary report |
+| See incidents before they happen | Predictive signals raised before an incident on the same service |
+| Gauge ecosystem health at any time | SLO compliance and error budget across all applications on the home page |
+
+Kick-off 1 Dec 2026. First milestone: proof of concept running for a Japanese application, January 2027.
+
+## 2. Users and roles (RBAC)
+
+Identity comes from Microsoft Entra ID; groups are provisioned through SailPoint.
+
+| Role | Granted by | Can do |
+|---|---|---|
+| **Keigan admin** | Member of `KEIGAN_ADMIN_GROUP_NAME` (default `KEIGAN_admin`) | Everything: platform settings, all applications (read and edit), create applications, usage and audit pages |
+| **Application admin** | Member of `<APPLICATION_CODE>_admin` | Read and edit that application: onboarding, knowledge, runbooks, SLOs, notifications, noise policy; act on its incidents (rerun, approve communications, generate postmortem) |
+| **Application reader** | Member of `<APPLICATION_CODE>_reader` | Read-only view of that application, its incidents, investigations, SLOs, knowledge; may chat with Keigan about it |
+
+- Ten applications produce twenty application groups. A person who needs several applications joins several groups.
+- Group name pattern is configurable (`APPLICATION_ADMIN_GROUP_PATTERN={application_code}_admin`, `APPLICATION_READER_GROUP_PATTERN={application_code}_reader`).
+- Users who belong to no group see an empty state explaining how to request access through SailPoint.
+- Everything a user sees (lists, counts, chat answers, search) is filtered to the applications they can read.
+  Keigan AI chat never retrieves knowledge or runs queries for an application the user cannot read.
+
+### Authentication modes
+
+`AUTH_MODE` in `backend/.env`:
+
+- `entra`: the frontend signs in with MSAL React; the backend validates Entra access tokens (issuer, audience,
+  signature via JWKS, expiry) and reads group membership from the `groups` claim (with Graph fallback for group overage).
+- `local`: a sign-in page lists dummy users from `backend/keigan/resources/local_users.yaml`; the backend issues a
+  short-lived signed local token. The backend refuses to start with `AUTH_MODE=local` when `ENVIRONMENT=production`.
+
+The frontend learns the mode at runtime from `GET /api/public/client-configuration`, so a single flag in
+`backend/.env` switches both tiers.
+
+Local dummy users (all clearly fictional):
+
+| User | Groups | Purpose |
+|---|---|---|
+| Kai Admin — `keigan.admin@keigan.local` | `KEIGAN_admin` | Keigan admin |
+| Aiko AppAdmin — `aiko.appadmin@keigan.local` | `CLMJP_admin`, `CHAD_reader` | Application admin for Claims Processing (JP), reader for Channel APIs |
+| Rui Reader — `rui.reader@keigan.local` | `CLMJP_reader`, `PAYAU_reader` | Application reader |
+| Noa NoAccess — `noa.noaccess@keigan.local` | none | Shows the "request access" empty state |
+
+## 3. Domain vocabulary
+
+| Term | Meaning |
+|---|---|
+| **Application** | A business application with a short code (`CLMJP`), region, business unit, lifecycle status. |
+| **Component** | Where part of the application runs. Four types: **Azure resource group**, **Hardware and network** (servers, network appliances, storage, load balancers, firewalls), **Mainframe** (IBM z/OS subsystems), **SaaS platform** (vendor-hosted service with vendor-hosted logging). An application has one or many components of any mix. |
+| **Discovered resource** | Anything Azure returns when Keigan lists a resource group. Stored for transparency; only some become services. |
+| **Service** | A monitored unit: an Azure resource of a monitored type (AKS, Functions, App Service, Logic Apps, API Management, Data Factory, SQL), a hardware device, a mainframe subsystem or a SaaS service. Incidents, evidence, SLOs and stakeholder subscriptions are expressed against services. |
+| **Log tool connection** | A connection to Elastic, Splunk, Datadog, SolarWinds, IBM log tooling or a vendor API, defined once per application and referenced by services. |
+| **Log source** | How Keigan reads a given service's telemetry: Log Analytics workspace, Application Insights, Azure Monitor metrics, or a log tool connection plus a query scope (index, namespace, labels, tags, host). |
+| **Knowledge base** | Markdown generated by Copilot from the codebase, architecture images and PDFs, CMDB / EI portal records. Grounds every AI answer. |
+| **Topology** | Keigan's AI-built model of the application: nodes (services, data stores, external dependencies, hardware) and edges (calls, reads, writes, hosts). Reviewed — not approved — by stakeholders. |
+| **Runbook** | Known issue plus the team's documented response. Extra grounding for investigations. |
+| **Incident** | A ServiceNow incident for the application's assignment groups, or an incident Keigan created from an alert group. |
+| **Alert / alert group** | Alerts pushed by monitoring tools through webhooks; noise reduction groups them into alert groups, each a probable single problem. |
+| **Investigation** | Keigan's analysis of an incident or alert group. Produces the RCA, hypotheses, evidence, blast radius, communications and later the postmortem. |
+| **SLI / SLO** | Indicator (good events ÷ valid events) and objective (target over a rolling window) with an error budget. |
+| **Predictive signal** | An anomaly or forecast Keigan raises before users notice. Bundled into the **Keigan Intelligence Report**. |
+
+## 4. Navigation map
+
+Left sidebar sections (labels localised):
+
+1. **Operate** — Home · Incident room · Alerts
+2. **Reliability** — SLO monitoring · Intelligence
+3. **Assist** — Keigan AI chat
+4. **Prepare** — Applications
+5. **Administration** (Keigan admins only) — Platform settings · Usage and audit · Outbox (local/test only)
+
+Top bar: application scope switcher ("All my applications" or one or more applications), command palette
+(`Ctrl/⌘ + K`) for navigation and incident-number search, language switcher, light/dark theme toggle,
+notifications bell, user menu showing name and role badge.
+
+## 5. Home (SRE command centre)
+
+Purpose: in five seconds an SRE knows whether anything needs them, across all their applications.
+
+1. **Greeting strip:** "Good afternoon, Aiko" + one-line status sentence generated deterministically
+   ("2 incidents open · 1 SLO burning fast · 37 alerts reduced to 3 groups today"). Last-synced indicator.
+2. **KPI tiles (4):** Open incidents (with P1–P4 mini bar), Active alert groups (with "412 alerts → 9 groups, 98 % noise reduced"),
+   SLOs at risk (burn rate > 1×) with error budget remaining for the worst, Investigations in last 24 h with mean time to first update.
+   Every tile is a link to the filtered list behind the number.
+3. **Application health grid:** one card per application in scope: health ring (share of SLOs meeting target),
+   error budget remaining bar (worst SLO), availability sparkline (24 h), open incident badge, latest predictive signal, component-type icons.
+   Sorted worst first.
+4. **Live incidents and investigations:** compact list with priority chip, status, investigation progress (animated stage indicator), duration.
+5. **Keigan intelligence feed:** latest predictive signals and anomalies, each with a "why" line and link.
+6. **Ask Keigan card:** dark navy gradient card with a text box; submitting opens Keigan AI chat with the question.
+7. **Upcoming maintenance windows** (next 7 days) and **recent postmortems**.
+
+## 6. Applications and onboarding
+
+### 6.1 Applications page
+
+- Grid or table of applications the user can read: name, code, region flag, lifecycle chip (Requested, Draft, Onboarding, Live, Paused),
+  component-type icons, services count, SLO compliance, open incidents, readiness (for not-yet-live).
+- **Onboard application** button (Keigan admins). Others see **Request onboarding**, which creates an application in
+  `requested` status for Keigan admins to accept.
+- Create dialog: application name, application code (2–10 upper-case letters/digits, unique, used in AD group names),
+  business unit, region, primary locale (default by region: JP→ja), description, criticality tier.
+  On create Keigan shows the two AD group names to request in SailPoint.
+
+### 6.2 Application workspace
+
+Header: breadcrumb, name, code chip, region, lifecycle chip, readiness bar ("7 of 8 required done · Next: add an SLO"), **View topology**.
+Left in-page navigation (same modules render in wizard mode during onboarding and page mode after go-live — build each section once):
+
+| Stage | Step | Required? |
+|---|---|---|
+| **Connect** | 1. Components (where it runs) | Required |
+| | 2. Services | Required |
+| | 3. Log and monitoring tools | Optional |
+| **Teach** | 4. Knowledge base | Recommended |
+| | 5. Topology review | Recommended |
+| | 6. Runbooks | Optional |
+| **Operate** | 7. Incidents and alerts | Required (ServiceNow group **or** an alert source) |
+| | 8. SLOs | Required |
+| | 9. Notifications | Required |
+| **Launch** | 10. Access | Informational |
+| | 11. Review and go live | Required |
+
+Rules carried over from the onboarding revamp (see `Samples/sample_plan.md`, still valid):
+discover then confirm; every number is a drill-down; facts are not problems (missing diagnostic setting is a neutral grey chip, never a warning);
+bulk work in tables, single decisions on screens; autosave with a "Saved 10:42" indicator; every step deep-linkable; step status icons
+(not started, in progress, waiting, blocked, done) derived from **one readiness object** returned by the backend.
+
+### 6.3 Step 1 — Components
+
+Component cards plus a dashed **Add component** card. The add sheet first asks for the type:
+
+**Azure resource group** (four sub-steps in a side sheet):
+1. *Scope:* tenant (pre-filled with Keigan's tenant; editable for other tenants), subscription ID (GUID validated) and name, resource group name,
+   environment (dev / test / uat / prod). "Add several" accepts pasted lines `subscriptionId/resourceGroup`.
+2. *Grant access:* shows Keigan's identity — tenant ID, managed identity client ID, managed identity object ID (service principal),
+   display name — each with a copy button; explains the read-only roles:
+   - `Reader` — list resources, read diagnostic settings, read activity log
+   - `Monitoring Reader` — read metrics, metric definitions, alert rules
+   - `Log Analytics Reader` — run log queries on the workspace (if the workspace is in another subscription, a separate command for that scope)
+   Generated commands with real IDs in tabs: Azure CLI, PowerShell, Terraform, Portal steps. "Copy all" and "Send to someone with access" (copies a deep link + commands).
+   For other tenants: explains that a multi-tenant app registration / Azure Lighthouse delegation is needed and shows the configured multi-tenant client ID.
+3. *Verify:* live checklist per role (list resources, read activity log, read metrics, query workspace). If roles are missing, poll with back-off
+   (5, 10, 20, 30, 30 … s up to 10 min) with the message "Azure can take a few minutes to apply a new role". Polling continues if the user moves on (step shows *waiting*).
+4. *Discover:* lists resources and creates services for monitored types (§6.4). Shows "33 resources found · 6 monitored as services · 2 telemetry sources", each number opening the Resource explorer.
+
+**Hardware and network:** device name, device category (server, network switch, router, firewall, load balancer, storage array, other), hostname / IP (optional),
+data centre or location, CMDB configuration item ID, owner team, environment, how it is monitored (pick a log tool connection: SolarWinds, Splunk, Elastic, Datadog, other),
+query scope (node ID, host name, tags), notes. Bulk import: paste CSV rows `name,category,hostname,location`.
+
+**Mainframe:** system name, LPAR / sysplex, subsystems (CICS, IMS, DB2, MQ, batch), job name prefixes, logging tool (IBM Z Operational Log and Data Analytics, Splunk,
+Elastic or other connection) and its query scope (index / source types / SMF record types), owner team, environment, batch window schedule (for freshness SLIs).
+
+**SaaS platform:** vendor name, product, tenant or instance URL, vendor status page (Statuspage.io-compatible JSON URL or RSS),
+vendor log / audit API (endpoint, auth method, credential reference — reader may be a placeholder), synthetic probe URL (Keigan calls it every 5 minutes for availability and latency),
+vendor support contact, contractual SLA, environment.
+
+Every component card shows type icon, name, environment chip, status chip, "Checked 4 min ago", summary line with drill-downs, actions (Verify / Refresh / Remove with confirmation naming what stops being watched).
+
+### 6.4 Step 2 — Services
+
+Monitored Azure types (kept in `resources/catalogs/monitored_resource_types.yaml` so a type can be added without code changes):
+
+| Service type | ARM type |
+|---|---|
+| AKS | `Microsoft.ContainerService/managedClusters` (optional namespace filter per service: one cluster can host many apps) |
+| Functions | `Microsoft.Web/sites` with kind containing `functionapp` |
+| App Service | `Microsoft.Web/sites` with kind `app` |
+| Logic Apps | `Microsoft.Logic/workflows`; Standard: `Microsoft.Web/sites` kind containing `workflowapp` |
+| API Management | `Microsoft.ApiManagement/service` |
+| Data Factory | `Microsoft.DataFactory/factories` |
+| SQL | `Microsoft.Sql/servers/databases` |
+
+Application Insights components and Log Analytics workspaces are **telemetry sources**, not services; they are linked to services.
+
+Full-width editable table, one row per service (Azure-discovered rows and hardware/mainframe/SaaS services alike):
+Monitor toggle · Service (display name, type icon, component in muted text) · Environment · Criticality (Tier 1/2/3) ·
+Logs (chips: `Log Analytics · workspace`, `App Insights`, `Elastic`, `Splunk`, `No diagnostic setting` in neutral grey) ·
+Metrics ("27 available ⓘ" popover) · Depends on · Repository · ⋯ detail drawer.
+Bulk actions: set environment, set criticality, add log source, turn monitoring off. Re-discovery never deletes a service; vanished resources show "No longer found in Azure".
+
+When a service has no diagnostic setting the log editor shows one quiet line and a collapsed command to enable it — no banner, no status change, listed only under "Good to know".
+
+### 6.5 Step 3 — Log and monitoring tools
+
+Tiles: **Elastic**, **Splunk**, **Datadog**, **SolarWinds**, **IBM Z log analytics**, **Vendor API (SaaS)**, **Another tool**.
+Readable now: Elastic, Splunk, Datadog (form + Test connection showing newest log timestamp). Placeholder readers: SolarWinds, IBM, Vendor API
+(save details, "Reader in development" chip, test disabled with tooltip). Fields per tool:
+
+| Tool | Fields |
+|---|---|
+| Elastic | Endpoint URL or Cloud ID, auth (API key / basic), credential reference, index pattern(s), service field name (default `service.name`), namespace field, time field |
+| Splunk | Search head URL (REST port), auth token reference, default index(es), source types, host field |
+| Datadog | Site (e.g. `datadoghq.eu`), API key + application key references, default service tag, env tag |
+| SolarWinds | Platform (Orion SWIS / Observability SaaS), endpoint, credential reference, node IDs or groups |
+| IBM Z | Product, endpoint, credential reference, index / source types, SMF record types |
+| Vendor API | Vendor, base URL, auth type, credential reference, extra key–value settings |
+| Another tool | Name and what it holds (recorded only) |
+
+Secrets are typed into a password field, sent once, stored in Key Vault (or the local encrypted store) and never returned; the UI shows only "•••• set 12 Nov".
+Each connection lists which services use it. Each service log source stores the query scope the tool needs (index, namespace, labels, tags, host).
+
+### 6.6 Step 4 — Knowledge base
+
+1. **Code context (per service or whole application).** Three-stage strip: *Copy prompt → Run in VS Code with Copilot → Upload*.
+   Keigan provides the **Knowledge capture prompt** (versioned, in `resources/prompts/knowledge_capture_prompt.md`), parameterised by service name.
+   It instructs Copilot to read the repository, Helm charts, pipelines and infrastructure code, and to write one Markdown file with fixed headings:
+   Purpose · Runtime and hosting · Entry points and APIs · Sequence diagrams (Mermaid) · Class / module overview · Data stores · Outbound dependencies (with timeouts, retries) ·
+   Configuration and feature flags · Deployment route (pipeline → environments → clusters/namespaces) · Logging and telemetry (log fields, correlation IDs, App Insights role names) ·
+   Known failure modes · Operational commands · Owners.
+2. **Uploads:** Markdown, text, PDF, PNG/JPG/SVG architecture images (max size configurable, default 15 MB). After upload Keigan extracts text (PDF) or
+   describes the image with a vision-capable model, chunks the content and produces an **AI digest** (structured summary) shown beside the file.
+   File card: title, service, category, uploaded by/when, size, headings found, digest status, stale after 90 days.
+3. **Enterprise records (placeholders):** EAI codes linked to the application; CMDB and EI portal integration cards (base URL, auth type, credential reference,
+   extra settings, notes; "Details saved — reader not available yet"). Built on a generic integration table and a JSON field schema per integration kind,
+   so fields can be refined without UI changes.
+
+### 6.7 Step 5 — Topology review
+
+"Build topology" runs the topology builder (AI) over all knowledge digests, discovered resources, service dependencies and CMDB data (when available).
+Output: interactive graph (React Flow) with nodes coloured by type and edges labelled by relationship, plus a written summary of Keigan's understanding.
+Stakeholders **review, not approve**: each node and edge can be marked "Looks right" or "Needs correction" with a comment; corrections feed the next build.
+Topology versions are kept; the current version grounds investigations and blast radius.
+
+### 6.8 Step 6 — Runbooks
+
+List + **Add runbook**: title, when it applies (symptoms, alert names, error signatures), steps (Markdown editor or file upload), source link, services it applies to.
+Runbooks are matched to investigations (see `06_AI_ENGINE_AND_PROMPT_SAFETY.md` §4.6) and cited in hypotheses. Each runbook shows "Referenced in 4 investigations".
+
+### 6.9 Step 7 — Incidents and alerts
+
+- **7a ServiceNow assignment groups:** typeahead when ServiceNow is connected; otherwise free-text tokens saved as `unverified`. Keigan polls only these groups' incidents.
+- **7b Alert sources (webhooks):** per sample plan §7A.2 — Azure Monitor (common alert schema), Elastic, Generic (field mapping with JSONPath and live preview).
+  Keigan issues a unique URL and secret (shown once, hash stored, rotation with 24 h overlap). Discovered Azure alert rules are listed with whether they send to Keigan.
+  "Send a test alert" and "Listen for a real alert" panels.
+- **7c Noise reduction policy:** editable sentences (min severity, environments, settle delay, re-open window, group window, flapping, max investigations per hour, mode Observe/Active),
+  maintenance windows, mute rules (expiry and reason required), preview funnel on the last 7 days.
+- **7d Incident creation from alerts:** "When an alert group scores at or above **[threshold]** and the investigation confirms customer impact, **[suggest | automatically create]** a ServiceNow incident in **[assignment group]**."
+
+### 6.10 Step 8 — SLOs
+
+Keigan proposes indicators from what it can actually read (per sample plan §7, extended for non-Azure components):
+
+| Component | SLO-grade SLIs | Source |
+|---|---|---|
+| Any service with Application Insights | Availability (successful requests ÷ requests), Latency (requests ≤ threshold ÷ requests), Dependency success | `AppRequests`, `AppDependencies` |
+| API Management | Availability (non-5xx ÷ requests), Latency | Metrics with response-code dimension / gateway logs |
+| App Service | Availability ((Requests − Http5xx) ÷ Requests), Latency (`HttpResponseTime`, approximate) | Azure Monitor metrics |
+| Functions | Execution success, Duration ≤ threshold | App Insights |
+| Logic Apps | Run success (`RunsSucceeded` ÷ `RunsCompleted`), Run latency | Metrics |
+| Data Factory | Pipeline success, Freshness | Metrics / `ADFPipelineRun` |
+| AKS | Request SLIs via App Insights; Pod readiness share | Container Insights |
+| SQL | Successful connections share, Query latency (approx.) | Metrics |
+| Hardware / network | Device availability (up samples ÷ samples) | SolarWinds / log tool (placeholder reader) |
+| Mainframe | Batch job success (completed without ABEND ÷ jobs), Batch freshness | Log tool query |
+| SaaS | Synthetic availability and latency (Keigan probe), Vendor status (operational minutes ÷ minutes) | Synthetic probe, status page |
+
+Screen: "Measuring" state (reading definitions → 30 days of data → baselines), then a proposal table grouped by service: checkbox · SLI with ⓘ explanation ·
+source chip · 30-day measured value with sparkline · proposed target (editable) · window (7/28/30 days) · resulting error budget ("21 min of failure per 30 days").
+**Accept suggested** saves all in one click. A **Headline SLO** card proposes an application-level SLO on the entry point (APIM / front door / synthetic probe).
+Supporting signals (CPU, memory, saturation, queue depth) are listed as "collected, no target" and feed predictive intelligence.
+Custom SLI (advanced): pick a metric or paste a query that returns `good` and `total`.
+
+Target proposal: highest of [99.99, 99.95, 99.9, 99.5, 99.0, 98.0, 95.0] ≤ measured − 0.05; latency threshold = ceil(p95 × 1.2 / 50) × 50 ms at 95 %; fewer than 1 000 events → no proposal, explain why.
+
+### 6.11 Step 9 — Notifications
+
+Stakeholder table: name, email / UPN (directory lookup in Entra mode), role (SRE, developer, manager, executive, business owner, vendor contact),
+**services dropdown with checkboxes** (default "All services"), channels (Email, Teams incident chat, Teams channel), minimum priority (P1 only · P1–P2 · P1–P3 · All),
+notification types (Incident detected, Preliminary report, Progress updates, Postmortem, Keigan Intelligence Report, SLO burn alerts), preferred language (English / 日本語 / …), Send test, Remove.
+Also: Teams channel destinations (team + channel), distribution lists, quiet hours (non-P1 deferred), escalation note.
+
+Behaviour this configures:
+- When an incident is detected, Keigan **creates a Teams group chat** with stakeholders subscribed to the affected services whose minimum priority is met,
+  installs the Keigan bot, posts the preliminary analysis (Adaptive Card) with a link to the investigation.
+- The **preliminary investigation report** is emailed as soon as the investigation completes.
+- Keigan reads the chat every `TEAMS_CHAT_POLL_INTERVAL_MINUTES` (default 5), answers questions addressed to it ("@Keigan …" or "Keigan, …"),
+  adds facts to the timeline, and comments unprompted only when it has new, evidence-backed insight (at most once per 15 minutes).
+- A milestone phrase ("Keigan, this is finished", "Keigan, resolved", configurable) or the **Resolve and write postmortem** button makes Keigan read the whole chat,
+  the preliminary report and the timeline, write the **blameless postmortem**, post it in the chat and email all stakeholders.
+- Predictive intelligence emails the **Keigan Intelligence Report** to subscribed stakeholders.
+
+### 6.12 Step 10 — Access
+
+Shows the application's AD group names (admin and reader) with copy buttons, SailPoint request instructions, optional group object IDs (for Entra tokens carrying IDs),
+and the current members Keigan can see (Entra mode, via Graph). Keigan admins can edit group names.
+
+### 6.13 Step 11 — Review and go live
+
+Read-only summary per step with Edit links. Required checklist (only these block go-live):
+1. At least one component verified (Azure roles verified, or a non-Azure component with a tested or recorded telemetry source).
+2. At least one service with monitoring on.
+3. At least one telemetry source passed a read test.
+4. Incident intake: at least one ServiceNow assignment group **or** one alert source.
+5. At least one stakeholder.
+6. At least one SLO.
+
+"Good to know" (neutral): services without diagnostic settings, no knowledge documents, topology not reviewed, no runbooks, placeholder integrations, Observe mode.
+Go live confirmation lists what starts: incident polling, alert intake, SLI collection every 5 minutes, predictive analysis, notifications.
+
+## 7. Incident detection and the investigation lifecycle
+
+### 7.1 Sources
+
+1. **ServiceNow polling** every `SERVICENOW_POLL_INTERVAL_SECONDS` (default 60) for incidents in the application's assignment groups updated since the last watermark.
+2. **Alert groups** that pass noise reduction (§9) and score above the investigate threshold.
+3. **Manual**: "New investigation" (application, services, time window, description).
+
+### 7.2 Triage (deterministic + AI)
+
+- Deterministic: map ServiceNow impact × urgency to a priority; read affected CI / service hints; locate services by alert resource IDs.
+- AI (fast model): classify P1–P4 from the incident body with a rationale, category (availability, latency, errors, data, batch, security, capacity, dependency, change-related),
+  candidate services from the topology, a one-paragraph summary.
+- Guardrails: a Tier-1 production service with an SLO burning faster than 6× is at least P2; Keigan never lowers a priority a human set in ServiceNow — it shows "Keigan suggests P1" beside it.
+
+### 7.3 Investigation stages (shown live in the UI)
+
+1. **Triage** → 2. **Context** (knowledge, topology, runbooks, recent changes) → 3. **Evidence** (deterministic queries over the investigation window and a baseline window, per service and source)
+→ 4. **Hypotheses** (three perspectives in parallel: Application, Dependencies, Infrastructure) → 5. **Synthesis** (RCA, leading hypothesis, fix, blast radius) → 6. **Communications** (EN + JA drafts).
+
+Investigation window: from `incident_opened_at − INVESTIGATION_LOOKBACK_MINUTES` (default 60) to now, capped at `INVESTIGATION_MAX_WINDOW_MINUTES` (default 240).
+Baseline window: same length immediately before, to detect *new* error patterns.
+
+### 7.4 Investigation page
+
+Header: incident number (link to ServiceNow), title, Keigan priority (and ServiceNow priority if different), status, application, services, timers (Detected · First update · Elapsed), actions:
+Re-run, Resolve and write postmortem, Open Teams chat, Create ServiceNow incident (alert-triggered only), Feedback.
+
+Sections (sticky in-page tabs):
+1. **RCA** — three cards: *What went wrong* · *Why it happened* · *How to fix* (with overall confidence meter and evidence citations).
+2. **Hypotheses** — three columns: Application · Dependencies · Infrastructure. Each: title, statement, confidence, supporting and contradicting evidence chips,
+   proposed fix (ordered steps, commands such as `kubectl rollout restart deployment/claims-api -n claims` in copyable command blocks with risk label,
+   or code change: repository, file path, what to change, before/after snippet), matched runbook, "Leading" ribbon on the best one.
+   Keigan never runs these. Destructive commands are labelled "High risk — confirm with change process".
+3. **Evidence** — grouped by service and source: summary, signal strength, log patterns with counts and "New" / "×12 vs baseline" badges, masked samples, the exact query (copy, open in Log Analytics).
+4. **Blast radius** — mini topology with directly and indirectly impacted nodes; impacted SLOs, stakeholders and downstream applications.
+5. **Timeline** — incident events, alerts, deployments and config changes, Keigan actions, Teams discussion facts, communications.
+6. **Alerts** — the alert group, member alerts, and the decision trail of noise reduction.
+7. **Communications** — EN / 日本語 tabs; drafts for initial, progress and resolution updates; edit, approve and send (email / Teams); sent history.
+8. **Postmortem** — once generated: blameless report with Summary, Impact, Timeline, Root cause, Contributing factors, Detection, Response, What went well, What could be improved,
+   Action items (owner, due date, type: prevent / detect / mitigate), Lessons learned. Edit, finalise, send, download Markdown, print to PDF.
+
+**Investigation chat** — floating button bottom-right opens an expandable panel (400 px → 50 % width) grounded in this investigation (summary, hypotheses, evidence, topology, runbooks, timeline).
+It can run follow-up read-only queries for this application. Suggested prompts: "Why not the database?", "What changed in the last hour?", "Draft a status update for executives", "Explain this to a new engineer".
+
+### 7.5 Incident room
+
+Filters: application, priority, status, source (ServiceNow / Alert / Manual), date range, "only mine". Views: table and board (columns by status).
+Columns: priority, number, title, application, services, status, Keigan confidence, detected at, duration, assignment group. Live updating. Row → investigation page.
+
+## 8. Communications
+
+- Drafts generated with the preliminary report in English and Japanese (plus the stakeholder's preferred language when another is configured).
+- Templates (Jinja2) for email: incident detected, preliminary report, progress update, resolution, postmortem, intelligence report, SLO burn alert. Brand header, plain-text alternative.
+- Sending requires an application admin approval in the UI **unless** `AUTO_SEND_PRELIMINARY_REPORT=true` (default true for preliminary report, false for others).
+- Every message sent is recorded in the outbox with delivery status.
+
+## 9. Alert intake and noise reduction (denoising)
+
+Implement sample plan §7A in full: canonical alert, intake endpoint (202 within 1 s, constant-time token check, 256 KB limit, raw stored), worker pipeline:
+**Normalise → Deduplicate → Lifecycle (resolve, flapping) → Suppress (maintenance, mute, environment, severity) → Settle → Group (same service, dependency, same rule, open incident) → Prioritise → Decide → Notify**,
+each stage writing a decision with a human-readable reason. Observe mode for the first 14 days; Active afterwards (switch shows measured effect).
+Feedback buttons (Useful / This was noise) and a weekly noise report with plain suggestions. Keigan never edits rules in the source tool.
+
+Alerts page: noise funnel (received → deduplicated → suppressed → groups → investigated) for the selected period, alert groups list (title, services, alert count, state, score, decision), group detail with member alerts and decision log.
+
+When an investigated alert group is judged harmful (customer impact and score ≥ threshold), Keigan suggests or auto-creates a ServiceNow incident per the 7d policy.
+
+## 10. SLO monitoring
+
+- Collector writes `good` and `total` counts per SLI every 5 minutes (supporting signals write `value`). 30-day backfill on SLO save.
+- SLO dashboard per application: headline SLO card; grid of SLO cards (current compliance vs target, error budget remaining %, minutes left, burn rate 1 h / 6 h, status chip);
+  detail drawer with SLI over time with target line, error budget burn-down, events table, linked incidents.
+- Multi-window multi-burn-rate alerts: page when burn rate > 14.4 over 1 h **and** 5 min; ticket when > 6 over 6 h **and** 30 min. They create alert groups through the same pipeline (source `keigan_slo`).
+- Ecosystem view: all applications × SLOs heatmap for Keigan admins and multi-application SREs.
+
+## 11. Predictive intelligence
+
+Designed to grow as data accumulates; useful from day one with simple, explainable statistics:
+
+| Detector | Method | Output |
+|---|---|---|
+| Seasonal anomaly | Median and median absolute deviation for the same hour-of-week over the last 4 weeks; robust z-score > 3.5 for 3 consecutive samples | Anomaly signal |
+| Error budget exhaustion forecast | Current burn rate projected over the remaining window | "Budget exhausted in ~3 days at current rate" |
+| Saturation trend | Linear regression over 7 days on CPU / memory / DTU / storage; time to threshold | "Memory reaches 90 % in ~5 days" |
+| New error pattern drift | Log templates appearing that were absent in the previous 7 days, rising | Early warning |
+| Recurring incident pattern | Incidents with similar root-cause categories on the same service within 30 days | "3rd time in 30 days — consider a permanent fix" |
+| Change risk | Deployments followed by error-rate change | "Release 2026.11.18 raised errors by 40 %" |
+
+The AI (fast model) writes the narrative for each signal and the **Keigan Intelligence Report** (proactive email when a high-confidence signal fires; weekly digest every Monday 08:00 in the application's time zone).
+Every signal has a status (open, acknowledged, dismissed, converted to incident) and feedback, so detectors can be tuned once months of data exist. Model-based forecasting (Prophet-style / gradient boosting) is a later extension point.
+
+Intelligence page: signals feed with filters, per-application health score trend, report archive with "View" and "Send now".
+
+## 12. Keigan AI chat
+
+Full-page conversational assistant scoped to the applications the user can read (scope chips at the top).
+
+- **Knowledge questions** ("How does claims-api talk to the policy service?") → answer from knowledge base, topology and runbooks with citations.
+- **Data questions** ("How many requests failed in the last 17 hours?") → Keigan identifies the service(s) and source, generates a query in the right language
+  (KQL for Log Analytics / App Insights, Elastic Query DSL or ES|QL, Splunk SPL, Datadog query), validates it (read-only, allowlisted tables, bounded time range, row limit),
+  executes it with Keigan's reader identity, and answers in one human sentence ("14 requests failed in the last 17 hours, 12 of them on POST /claims.").
+- **Pattern / chart requests** ("Show me the pattern") → if no time frame is given, Keigan asks with quick chips (1 h, 24 h, 7 d, 30 d), then renders a chart (line, area, bar, stacked bar, pie, table) from a chart specification.
+- Every data answer shows a collapsible "How I got this": service, source, query, row count, time range.
+- Conversation history per user; new chat; rename; delete. Suggested prompts per application.
+
+## 13. Platform administration (Keigan admins)
+
+- **Platform settings:** Keigan identity panel (tenant ID, managed identity client and object IDs, multi-tenant app client ID), AI provider status (provider, models, last call health — never the key),
+  ServiceNow connection, Microsoft Graph / Teams / email connection, CMDB and EI portal placeholders, global defaults (lookback window, polling intervals, budgets). Values come from env; the page shows effective values and connection tests.
+- **Usage and audit:** tokens per day / per application / per feature, cost estimate (configurable price per 1 000 tokens), investigations per day, average tokens per investigation, budget alerts; audit log of all write actions and AI tool executions with filters.
+- **Outbox:** emails and Teams messages Keigan sent or simulated (essential in local mode).
+
+## 14. Localisation
+
+Locales: English (`en`, primary), Japanese (`ja`), Chinese Simplified (`zh-CN`), Spanish (`es`), Spanish — Mexico (`es-MX`), Dutch (`nl`), French (`fr`).
+All labels in namespaced JSON files; numbers, dates, durations and plurals via `Intl`; user preference stored on the profile; default from browser.
+AI-generated content is produced in the stakeholder's or user's language when requested; investigation content is stored in English with Japanese communications generated alongside.
+
+## 15. Non-functional requirements
+
+| Area | Requirement |
+|---|---|
+| Performance | API p95 < 300 ms for reads; webhook intake 202 in < 1 s at 50 req/s; investigation completes in < 3 min typical |
+| Capacity | Investigation concurrency, LLM concurrency, per-application rate limits and daily token budgets configurable (see architecture §9) |
+| Availability | Stateless API and worker deployments (2+ replicas in prod); idempotent jobs; database-backed queue with leases |
+| Security | Entra auth, RBAC on every endpoint, Key Vault secrets, PII masking, prompt-injection defences, audit log, CSP and security headers, upload validation |
+| Privacy | Masked logs only are stored; raw alert payloads retained 30 days; incident data 13 months (configurable) |
+| Accessibility | WCAG 2.1 AA; keyboard navigation; focus management; status never by colour alone |
+| Observability of Keigan | Structured JSON logs with correlation IDs; health endpoints; job metrics; LLM usage records |

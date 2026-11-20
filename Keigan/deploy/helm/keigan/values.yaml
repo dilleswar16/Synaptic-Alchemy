@@ -1,0 +1,106 @@
+# Keigan Helm values. Non-secret settings only; secrets come from Azure Key Vault via the Secrets Store CSI driver.
+
+namespaces:
+  frontend: keigan-frontend
+  backend: keigan-backend
+  create: true
+
+images:
+  registry: metlifeacr.azurecr.io
+  backend: keigan-backend
+  web: keigan-web
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+# User-assigned managed identity federated with the backend service account (workload identity).
+workloadIdentity:
+  clientId: "<managed-identity-client-id>"
+  tenantId: "<tenant-id>"
+
+hosts:
+  internal: keigan.metlife.example          # corporate users
+  public: keigan-hooks.metlife.example      # webhook + bot paths only
+ingress:
+  className: nginx-internal
+  publicClassName: nginx-public
+  tlsSecretName: keigan-tls
+  # Restrict the public webhook ingress to Azure Monitor (ActionGroup service tag), Elastic Cloud and Bot Framework ranges.
+  publicAllowedSourceRanges: []
+
+api:
+  replicas: 2
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1Gi }
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6, targetCpuUtilizationPercentage: 70 }
+
+worker:
+  replicas: 2
+  resources:
+    requests: { cpu: 250m, memory: 768Mi }
+    limits: { cpu: "1", memory: 1536Mi }
+
+web:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 128Mi }
+
+# Backend environment (see backend/.env.example for every key).
+backendEnvironment:
+  ENVIRONMENT: prod
+  LOG_LEVEL: INFO
+  AUTH_MODE: entra
+  ENTRA_TENANT_ID: "<tenant-id>"
+  ENTRA_API_CLIENT_ID: "<keigan-api-client-id>"
+  ENTRA_SPA_CLIENT_ID: "<keigan-spa-client-id>"
+  ENTRA_API_SCOPE: "api://<keigan-api-client-id>/access_as_user"
+  KEIGAN_ADMIN_GROUP_NAME: KEIGAN_admin
+  AZURE_IDENTITY_MODE: workload_identity
+  # Shown to application teams on "Grant access". Leave the IDs empty: the workload identity webhook injects
+  # AZURE_TENANT_ID and AZURE_CLIENT_ID, and Keigan reads its object ID from its own token. Set them only to override.
+  KEIGAN_MANAGED_IDENTITY_OBJECT_ID: ""
+  KEIGAN_MANAGED_IDENTITY_CLIENT_ID: ""
+  KEIGAN_MANAGED_IDENTITY_DISPLAY_NAME: id-keigan-prod
+  TELEMETRY_MODE: live
+  SERVICENOW_MODE: live
+  SERVICENOW_INSTANCE_URL: "https://metlife.service-now.com"
+  TEAMS_MODE: live
+  EMAIL_MODE: graph
+  GRAPH_SENDER_MAILBOX: keigan@metlife.example
+  LLM_PROVIDER: openai_compatible
+  LLM_BASE_URL: "https://<internal-ai-gateway>/openai/v1"
+  LLM_FAST_MODEL: "<fast-deployment>"
+  LLM_DEEP_MODEL: "<deep-deployment>"
+  LLM_VISION_MODEL: "<vision-deployment>"
+  FILE_STORAGE_MODE: azure_blob
+  AZURE_BLOB_ACCOUNT_URL: "https://<storage-account>.blob.core.windows.net"
+  SECRET_STORE_MODE: key_vault
+  AZURE_KEY_VAULT_URL: "https://<key-vault>.vault.azure.net"
+  PUBLIC_BASE_URL: "https://keigan-hooks.metlife.example"
+  FRONTEND_BASE_URL: "https://keigan.metlife.example"
+  CORS_ALLOWED_ORIGINS: "https://keigan.metlife.example"
+  RUN_WORKERS_IN_PROCESS: "false"
+  # Tables come from database/azure_sql/*.sql (run once by a DBA) and later releases' Alembic migrations.
+  AUTO_CREATE_SCHEMA: "false"
+  # Azure SQL: tables live in the "keigan" schema; Keigan signs in to SQL with its managed identity (no password).
+  # DATABASE_URL (Key Vault) then holds no secret, e.g.
+  # mssql+aioodbc://@<server>.database.windows.net:1433/<database>?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no
+  DATABASE_SCHEMA: keigan
+  DATABASE_AUTHENTICATION: managed_identity
+
+# Database migration job (Helm pre-install/pre-upgrade hook running "alembic upgrade head").
+# Its identity needs ALTER/CREATE TABLE rights (optional grants in database/azure_sql/06_grant_keigan_identity.sql).
+# Set enabled: false if DBAs apply schema changes with the generated SQL scripts instead.
+databaseMigration:
+  enabled: true
+
+# Key Vault secrets exposed as environment variables (Secrets Store CSI driver).
+keyVault:
+  enabled: true
+  name: "<key-vault>"
+  secrets:
+    - objectName: keigan-database-url
+      environmentVariable: DATABASE_URL
+    - objectName: keigan-llm-api-key
+      environmentVariable: LLM_API_KEY

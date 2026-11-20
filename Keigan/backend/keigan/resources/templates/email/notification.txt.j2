@@ -1,0 +1,12 @@
+{{ headline }}
+{{ intro }}
+
+{% for fact in facts %}{{ fact.label }}: {{ fact.value }}
+{% endfor %}
+{{ body_text }}
+{% if action_url %}
+{{ layout.open_in_keigan }}: {{ action_url }}
+{% endif %}
+--
+{{ footer }}
+{{ layout.automated }}

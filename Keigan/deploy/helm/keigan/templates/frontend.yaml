@@ -1,0 +1,82 @@
+{{- $frontendNamespace := .Values.namespaces.frontend -}}
+{{- if .Values.namespaces.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $frontendNamespace }}
+  labels: {{- include "keigan.labels" . | nindent 4 }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keigan-web
+  namespace: {{ $frontendNamespace }}
+  labels:
+    {{- include "keigan.labels" . | nindent 4 }}
+    app.kubernetes.io/name: keigan-web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: keigan-web }
+  template:
+    metadata:
+      labels:
+        {{- include "keigan.labels" . | nindent 8 }}
+        app.kubernetes.io/name: keigan-web
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: web
+          image: {{ include "keigan.webImage" . }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          env:
+            - name: BACKEND_URL
+              value: "http://keigan-api.{{ .Values.namespaces.backend }}.svc.cluster.local:8080"
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /, port: http }
+          securityContext: {{- include "keigan.containerSecurityContext" . | nindent 12 }}
+          resources: {{- toYaml .Values.web.resources | nindent 12 }}
+          volumeMounts:
+            - { name: nginx-temporary, mountPath: /tmp }
+            - { name: nginx-configuration, mountPath: /etc/nginx/conf.d }
+      volumes:
+        - name: nginx-temporary
+          emptyDir: {}
+        - name: nginx-configuration
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keigan-web
+  namespace: {{ $frontendNamespace }}
+spec:
+  selector: { app.kubernetes.io/name: keigan-web }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keigan-web
+  namespace: {{ $frontendNamespace }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts: [{{ .Values.hosts.internal | quote }}]
+      secretName: {{ .Values.ingress.tlsSecretName }}
+  rules:
+    - host: {{ .Values.hosts.internal | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: keigan-web, port: { number: 8080 } } }

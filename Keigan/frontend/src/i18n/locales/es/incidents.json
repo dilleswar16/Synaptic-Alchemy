@@ -1,0 +1,69 @@
+{
+  "pageTitle": "Sala de incidentes",
+  "pageDescription": "Incidentes abiertos y recientes de sus aplicaciones, actualizados en vivo.",
+  "filters": {
+    "searchLabel": "Buscar incidentes",
+    "searchPlaceholder": "Buscar por número o título",
+    "onlyMine": "Solo míos",
+    "viewLabel": "Vista",
+    "viewTable": "Tabla",
+    "viewBoard": "Tablero",
+    "priority": "Prioridad",
+    "status": "Estado",
+    "source": "Origen"
+  },
+  "status": {
+    "new": "Nuevo",
+    "investigating": "Investigando",
+    "identified": "Causa identificada",
+    "resolved": "Resuelto",
+    "closed": "Cerrado"
+  },
+  "source": {
+    "servicenow": "ServiceNow",
+    "alert": "Alerta",
+    "manual": "Manual"
+  },
+  "servicenowPriority": "ServiceNow: {{priority}}",
+  "columns": {
+    "priority": "Prioridad",
+    "number": "Número",
+    "title": "Incidente",
+    "application": "Aplicación",
+    "status": "Estado",
+    "confidence": "Confianza de Keigan",
+    "detected": "Detectado",
+    "duration": "Duración",
+    "group": "Grupo de asignación"
+  },
+  "noNumber": "Sin número",
+  "noServices": "Aún no se han identificado servicios",
+  "analysing": "Analizando",
+  "tableCaption": "Incidentes de las aplicaciones seleccionadas",
+  "boardLabel": "Tablero de incidentes por estado",
+  "board": {
+    "emptyColumn": "Nada aquí"
+  },
+  "empty": {
+    "title": "Ningún incidente coincide con estos filtros",
+    "description": "Quite un filtro o amplíe la búsqueda para ver más incidentes.",
+    "noIncidentsTitle": "Aún no hay incidentes",
+    "noIncidentsDescription": "Los incidentes de ServiceNow aparecen aquí en cuanto Keigan los detecta. También puede iniciar una investigación usted mismo."
+  },
+  "newInvestigation": {
+    "open": "Nueva investigación",
+    "title": "Iniciar una investigación",
+    "description": "Keigan recopila evidencia de los servicios seleccionados y propone una causa raíz. No se modifica nada en sus sistemas.",
+    "application": "Aplicación",
+    "services": "Servicios que examinar",
+    "servicesHelp": "Si no marca ninguno, Keigan elige los servicios según su descripción y la topología de la aplicación.",
+    "descriptionLabel": "¿Qué está fallando?",
+    "descriptionHelp": "Describa los síntomas, a quién afecta y cuándo empezó. No pegue datos personales; Keigan los enmascara antes del análisis.",
+    "windowStart": "Inicio del intervalo",
+    "windowEnd": "Fin del intervalo",
+    "cancel": "Cancelar",
+    "start": "Iniciar investigación",
+    "startedTitle": "Investigación iniciada",
+    "startedDescription": "Keigan está recopilando evidencia. Suele tardar uno o dos minutos."
+  }
+}

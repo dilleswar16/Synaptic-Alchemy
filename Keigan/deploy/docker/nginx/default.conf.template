@@ -1,0 +1,47 @@
+server_tokens off;
+
+map $http_x_correlation_id $keigan_correlation_id {
+    default $http_x_correlation_id;
+    ""      $request_id;
+}
+
+# Cache policy by path. Kept in a map so no location needs its own add_header
+# (any add_header inside a location would silently drop the security headers below).
+map $uri $keigan_cache_control {
+    ~^/assets/  "public, max-age=31536000, immutable";
+    ~^/api/     "no-store";
+    default     "no-cache";
+}
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    client_max_body_size 20m;
+
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://login.microsoftonline.com; frame-src 'self' https://login.microsoftonline.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header Cache-Control $keigan_cache_control always;
+
+    location /api/ {
+        proxy_pass ${BACKEND_URL};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Correlation-Id $keigan_correlation_id;
+        proxy_read_timeout 180s;
+    }
+
+    location /assets/ {
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

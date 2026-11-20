@@ -1,0 +1,96 @@
+{
+  "pageTitle": "管理",
+  "pageDescription": "Keigan 管理者向けのプラットフォーム設定、利用状況、配信記録です。",
+  "tabs": { "usage": "AI 利用状況", "audit": "監査ログ", "jobs": "バックグラウンドジョブ" },
+  "settings": {
+    "pageTitle": "プラットフォーム設定",
+    "pageDescription": "有効な設定、ID、接続テストです。",
+    "integrationsTitle": "連携",
+    "integrations": {
+      "telemetry": "テレメトリ",
+      "servicenow": "ServiceNow",
+      "teams": "Microsoft Teams と Graph",
+      "email": "メール",
+      "llm": "AI プロバイダー",
+      "azure": "Azure アクセス",
+      "authentication": "サインイン"
+    },
+    "simulated": "シミュレーション",
+    "configured": "設定済み",
+    "notConfigured": "未設定",
+    "testConnection": "接続をテスト",
+    "testFailed": "テストを開始できませんでした。",
+    "identityTitle": "Keigan の ID",
+    "identityDescription": "Keigan が監視する Azure リソースへの読み取りアクセスを、この ID に付与してください。",
+    "identity": { "name": "表示名", "objectId": "オブジェクト ID", "clientId": "クライアント ID", "multiTenant": "マルチテナントアプリのクライアント ID" },
+    "groups": {
+      "general": "全般",
+      "authentication": "認証",
+      "integrations": "連携",
+      "ai": "AI",
+      "safety": "安全性と制限",
+      "storage": "ストレージとモニタリング"
+    }
+  },
+  "simulation": {
+    "title": "シミュレーション制御",
+    "description": "デモアプリケーションで現実的なインシデントを開始します。local、dev、test 環境でのみ利用できます。",
+    "application": "アプリケーション",
+    "pickApplication": "アプリケーションを選択",
+    "scenario": "シナリオ",
+    "pickScenario": "シナリオを選択",
+    "start": "シナリオを開始",
+    "started": "シナリオを開始しました",
+    "startedDescription": "シミュレーションの ServiceNow インシデント {{number}} を Keigan に送信中です。",
+    "failed": "シナリオを開始できませんでした"
+  },
+  "usage": {
+    "pageTitle": "利用状況と監査",
+    "pageDescription": "AI のトークン使用量、概算コスト、すべての変更の監査ログ、ジョブキューです。",
+    "range": "期間",
+    "days_one": "{{count}} 日間",
+    "days_other": "{{count}} 日間",
+    "tiles": {
+      "tokens": "使用トークン数",
+      "tokenSplit": "入力 {{input}}、出力 {{output}}",
+      "cost": "概算コスト",
+      "costNote": "設定済みのトークン単価に基づく",
+      "calls": "AI 呼び出し",
+      "failedCalls_one": "失敗 {{count}} 件",
+      "failedCalls_other": "失敗 {{count}} 件",
+      "perInvestigation": "調査あたりのトークン数",
+      "perInvestigationNote": "この期間の平均"
+    },
+    "chartTitle": "1 日あたりのトークン数",
+    "chartDescription": "すべての AI 機能の入力・出力トークンです。",
+    "byApplication": "アプリケーション別",
+    "byFeature": "機能別",
+    "empty": "この期間の AI 利用記録はありません。",
+    "columns": { "name": "名前", "calls": "呼び出し", "input": "入力トークン", "output": "出力トークン", "cost": "概算コスト" }
+  },
+  "audit": {
+    "caption": "監査イベント",
+    "empty": "条件に一致する監査イベントはありません。",
+    "filters": { "actor": "ユーザー", "action": "操作に含む語" },
+    "columns": { "time": "日時", "actor": "実行者", "action": "操作", "target": "対象", "details": "詳細" }
+  },
+  "jobs": {
+    "deadLetters": "デッドレター",
+    "deadLettersDescription": "すべての試行で失敗したジョブです。原因を修正してから再試行してください。",
+    "noDeadLetters": "失敗したジョブはありません。キューは正常です。",
+    "recent": "最近のジョブ",
+    "retry": "再試行",
+    "columns": { "type": "ジョブ", "status": "ステータス", "attempts": "試行回数", "created": "作成日時", "error": "直近のエラー" }
+  },
+  "outbox": {
+    "pageTitle": "送信トレイ",
+    "pageDescription": "Keigan が送信またはシミュレートしたメールと Teams メッセージです。",
+    "emptyTitle": "送信済みのメッセージはありません",
+    "emptyDescription": "通知は、Keigan が送信またはシミュレートするとすぐにここに表示されます。",
+    "unavailableTitle": "送信トレイを利用できません",
+    "unavailableDescription": "配信記録を読み込めませんでした。この環境では通知が有効になっていない可能性があります。",
+    "previewTitle": "メッセージのプレビュー",
+    "noBody": "このメッセージには本文がありません。",
+    "columns": { "created": "作成日時", "subject": "件名", "recipient": "宛先", "application": "アプリケーション", "channel": "チャネル", "status": "ステータス" }
+  }
+}

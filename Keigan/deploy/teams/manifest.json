@@ -1,0 +1,41 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "<TEAMS_BOT_APP_ID>",
+  "developer": {
+    "name": "MetLife Site Reliability Engineering",
+    "websiteUrl": "https://<KEIGAN_PUBLIC_HOST>",
+    "privacyUrl": "https://<KEIGAN_PUBLIC_HOST>/privacy",
+    "termsOfUseUrl": "https://<KEIGAN_PUBLIC_HOST>/terms"
+  },
+  "name": { "short": "Keigan", "full": "Keigan AI Site Reliability Engineer" },
+  "description": {
+    "short": "AI SRE that investigates incidents and answers in your incident chat.",
+    "full": "Keigan joins incident group chats, posts investigation findings, answers questions when you write 'Keigan, ...', records what responders do on the incident timeline and prepares the postmortem when you say 'Keigan, this is finished'."
+  },
+  "icons": { "outline": "keigan-outline.png", "color": "keigan-color.png" },
+  "accentColor": "#0090DA",
+  "bots": [
+    {
+      "botId": "<TEAMS_BOT_APP_ID>",
+      "scopes": ["groupChat"],
+      "supportsFiles": false,
+      "isNotificationOnly": false
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": ["<KEIGAN_PUBLIC_HOST>"],
+  "webApplicationInfo": {
+    "id": "<TEAMS_BOT_APP_ID>",
+    "resource": "https://RscPermission"
+  },
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": [
+        { "name": "ChatMessage.Read.Chat", "type": "Application" },
+        { "name": "ChatMember.Read.Chat", "type": "Application" }
+      ]
+    }
+  }
+}

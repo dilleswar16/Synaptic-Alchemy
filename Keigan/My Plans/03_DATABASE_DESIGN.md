@@ -1,0 +1,891 @@
+# 03 — Database design (static schema)
+
+Source of truth for persistence. The SQLAlchemy entities in `backend/keigan/entities/*.py` implement exactly this.
+Any change must be made here first (or recorded in the change log at the bottom) and then in the entity.
+
+## 1. Conventions
+
+| Rule | Detail |
+|---|---|
+| Names | `snake_case`, fully descriptive, singular table names (`incident`, not `incidents`). No abbreviations except the accepted acronyms (`id`, `url`, `sli`, `slo`, `kql`, `llm`, `ai`, `aks`, `pii`). |
+| Primary keys | `<table>_id` `VARCHAR(36)` holding a UUID v4 string, generated in Python. Exception: high-volume `sli_measurement` uses `BIGINT` autoincrement. |
+| Foreign keys | Same name as the referenced primary key (`application_id`). `ON DELETE CASCADE` only for owned children; otherwise restrict. |
+| Time | `TIMESTAMP WITH TIME ZONE`, stored in UTC, columns end with `_at` (instants) or `_start` / `_end` (ranges). |
+| Enumerations | `VARCHAR(40)` with allowed values listed below (portable across SQLite and PostgreSQL; validated by Pydantic / Python `StrEnum`). |
+| Flexible data | `JSON` columns end with `_json`. Only for data that is read as a whole (configuration, AI payloads), never for data we filter on. |
+| Audit columns | Mixin on most tables: `created_at`, `updated_at`, `created_by_user_principal_name`, `updated_by_user_principal_name`. Marked **[audit]** below. |
+| Soft delete | Not used. Retention jobs purge by age. |
+| Secrets | Never stored in plain text. Only `credential_secret_name` (a reference into Key Vault / the local encrypted store). |
+| PII | Telemetry-derived text is stored **masked** (`*_masked` columns or documented as masked). |
+
+Database engines: SQLite (local, WAL mode), **Azure SQL Database** (production target) and PostgreSQL 16 (still supported).
+Local schema is created with `Base.metadata.create_all`. In Azure the schema comes from the generated scripts in
+`database/azure_sql/` (run once before the first install) and Alembic migrations afterwards (baseline `94692c828bd3`).
+The column types written below as `VARCHAR` / `TIMESTAMPTZ` are the logical types; on Azure SQL they are created as:
+
+| Logical type | Azure SQL type | Why |
+|---|---|---|
+| `VARCHAR(n)`, `TEXT` | `NVARCHAR(n)`, `NVARCHAR(max)` | Japanese and Chinese text needs Unicode |
+| `TIMESTAMP WITH TIME ZONE` | `DATETIME2(6)` holding UTC | SQL Server's `DATETIMEOFFSET` is not needed when every value is UTC |
+| `JSON` | `NVARCHAR(max)` | SQL Server has no JSON column type; `JSON_VALUE` still works on it |
+| `BOOLEAN` / `FLOAT` | `BIT` / `FLOAT` | |
+
+All tables live in schema `DATABASE_SCHEMA` (`keigan`). Constraint and index names follow one convention so migrations can
+change them by name: `pk_<table>`, `fk_<table>_<column>_<referenced table>`, `uq_<table>_<columns>`, `ix_<table>_<columns>`.
+Diagrams: [15 · Entity relationship diagram](15_ENTITY_RELATIONSHIP_DIAGRAM.md) (generated from the entities).
+
+## 2. Entity overview
+
+```
+platform:      platform_user · platform_setting · stored_secret · audit_event · llm_usage_record · background_job
+application:   application ─┬─ application_component ─── discovered_resource
+                            ├─ monitored_service ─┬─ service_log_source ── log_tool_connection
+                            │                     └─ service_dependency
+                            ├─ external_integration · application_record_link
+knowledge:     knowledge_document ── knowledge_chunk · application_topology · topology_review_comment · runbook
+incident:      servicenow_assignment_group · incident ─── investigation ─┬─ investigation_hypothesis
+                                                                       ├─ investigation_evidence
+                                                                       └─ investigation_timeline_event
+               incident_communication · postmortem_report · conversation ── conversation_message
+alert:         alert_source ── alert_event · alert ── alert_decision · alert_group · noise_reduction_policy · maintenance_window · alert_mute_rule
+slo:           service_level_indicator ── service_level_objective · sli_measurement · slo_burn_alert
+intelligence:  predictive_signal · intelligence_report
+notification:  stakeholder · notification_delivery · teams_incident_chat
+```
+
+## 3. Platform tables (`platform_entities.py`)
+
+### `platform_user`
+| Column | Type | Notes |
+|---|---|---|
+| platform_user_id | VARCHAR(36) PK | |
+| user_principal_name | VARCHAR(320) UNIQUE NOT NULL | Entra UPN or local user id |
+| display_name | VARCHAR(200) | |
+| email_address | VARCHAR(320) | |
+| entra_object_id | VARCHAR(36) | null in local mode |
+| preferred_locale | VARCHAR(10) | `en`, `ja`, `zh-CN`, `es`, `es-MX`, `nl`, `fr` |
+| preferred_theme | VARCHAR(10) | `light`, `dark`, `system` |
+| last_known_group_names_json | JSON | for display only, never for authorization |
+| last_sign_in_at | TIMESTAMPTZ | |
+| [audit] | | |
+
+### `platform_setting`
+| Column | Type | Notes |
+|---|---|---|
+| setting_key | VARCHAR(200) PK | e.g. `servicenow_watermark:{application_id}` |
+| setting_value_json | JSON | |
+| setting_description | TEXT | |
+| updated_at, updated_by_user_principal_name | | |
+
+### `stored_secret`
+Local encrypted secret store (used only when `SECRET_STORE_MODE=local_encrypted`; in Key Vault mode only metadata rows exist).
+| Column | Type | Notes |
+|---|---|---|
+| secret_name | VARCHAR(200) PK | e.g. `logtool-elastic-3f2a…` |
+| encrypted_secret_value | TEXT | Fernet token; null in Key Vault mode |
+| secret_description | VARCHAR(400) | |
+| last_rotated_at | TIMESTAMPTZ | |
+| [audit] | | |
+
+### `audit_event`
+| Column | Type | Notes |
+|---|---|---|
+| audit_event_id | VARCHAR(36) PK | |
+| actor_user_principal_name | VARCHAR(320) | `system:worker` for jobs |
+| action_name | VARCHAR(120) | e.g. `application.update`, `ai.query.execute` |
+| target_entity_type | VARCHAR(80) | |
+| target_entity_id | VARCHAR(36) | |
+| application_id | VARCHAR(36) | nullable, indexed |
+| action_details_json | JSON | masked |
+| client_ip_address | VARCHAR(64) | |
+| correlation_id | VARCHAR(64) | |
+| occurred_at | TIMESTAMPTZ | indexed |
+
+### `llm_usage_record`
+| Column | Type | Notes |
+|---|---|---|
+| llm_usage_record_id | VARCHAR(36) PK | |
+| application_id | VARCHAR(36) | nullable, indexed |
+| investigation_id | VARCHAR(36) | nullable |
+| conversation_id | VARCHAR(36) | nullable |
+| feature_name | VARCHAR(80) | `triage`, `hypothesis_application`, `synthesis`, `communications`, `postmortem`, `chat_answer`, `query_generation`, `topology`, `document_digest`, `intelligence_narrative`, … |
+| provider_name | VARCHAR(40) | |
+| model_name | VARCHAR(120) | |
+| model_tier | VARCHAR(20) | `fast`, `deep`, `vision` |
+| input_token_count | INTEGER | |
+| output_token_count | INTEGER | |
+| cached_input_token_count | INTEGER | |
+| latency_milliseconds | INTEGER | |
+| outcome_status | VARCHAR(20) | `succeeded`, `failed`, `blocked_by_budget`, `validation_retry` |
+| error_message | TEXT | |
+| requested_by_user_principal_name | VARCHAR(320) | |
+| created_at | TIMESTAMPTZ | indexed |
+
+### `background_job`
+| Column | Type | Notes |
+|---|---|---|
+| background_job_id | VARCHAR(36) PK | |
+| job_type | VARCHAR(80) | indexed |
+| job_payload_json | JSON | |
+| job_status | VARCHAR(20) | `queued`, `running`, `succeeded`, `failed`, `dead_lettered`, `cancelled` |
+| priority_number | INTEGER | lower runs first, default 100 |
+| deduplication_key | VARCHAR(200) | UNIQUE among non-finished jobs (enforced in code) |
+| attempt_count | INTEGER | |
+| maximum_attempt_count | INTEGER | |
+| available_at | TIMESTAMPTZ | indexed with status |
+| leased_by_worker_name | VARCHAR(120) | |
+| lease_expires_at | TIMESTAMPTZ | |
+| last_error_message | TEXT | |
+| result_summary_json | JSON | |
+| created_at, started_at, finished_at | TIMESTAMPTZ | |
+
+## 4. Application tables (`application_entities.py`)
+
+### `application`
+| Column | Type | Notes |
+|---|---|---|
+| application_id | VARCHAR(36) PK | |
+| application_name | VARCHAR(200) NOT NULL | |
+| application_code | VARCHAR(20) UNIQUE NOT NULL | upper case, used in AD group names |
+| application_description | TEXT | |
+| business_unit_name | VARCHAR(200) | |
+| region_code | VARCHAR(10) | `JP`, `AU`, `US`, `MX`, `CN`, `NL`, `FR`, … |
+| primary_locale | VARCHAR(10) | |
+| time_zone_name | VARCHAR(60) | IANA, e.g. `Asia/Tokyo` |
+| criticality_tier | VARCHAR(10) | `tier_1`, `tier_2`, `tier_3` |
+| lifecycle_status | VARCHAR(20) | `requested`, `draft`, `onboarding`, `live`, `paused`, `retired` |
+| admin_group_name | VARCHAR(200) | default from pattern |
+| admin_group_object_id | VARCHAR(36) | optional |
+| reader_group_name | VARCHAR(200) | |
+| reader_group_object_id | VARCHAR(36) | optional |
+| incident_creation_policy_json | JSON | `{mode: suggest|automatic, minimum_score, assignment_group_name}` |
+| onboarding_progress_json | JSON | per-step "nothing to add" markers, last visited step |
+| went_live_at | TIMESTAMPTZ | |
+| went_live_by_user_principal_name | VARCHAR(320) | |
+| [audit] | | |
+
+### `application_component`
+| Column | Type | Notes |
+|---|---|---|
+| component_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | indexed |
+| component_type | VARCHAR(40) | `azure_resource_group`, `hardware`, `mainframe`, `saas_platform` |
+| component_name | VARCHAR(200) | RG name, device name, system name, vendor product |
+| environment_name | VARCHAR(20) | `dev`, `test`, `uat`, `prod` |
+| azure_tenant_id | VARCHAR(36) | Azure only |
+| azure_subscription_id | VARCHAR(36) | Azure only |
+| azure_subscription_name | VARCHAR(200) | Azure only |
+| azure_resource_group_name | VARCHAR(200) | Azure only |
+| component_configuration_json | JSON | type-specific fields (hardware category, hostname, location, CMDB CI; mainframe LPAR, subsystems, job prefixes, batch windows; SaaS vendor, instance URL, status page URL, probe URL, SLA) |
+| access_verification_status | VARCHAR(20) | `not_checked`, `checking`, `verified`, `partial`, `failed`, `not_applicable` |
+| access_verification_details_json | JSON | per check: name, passed, message, missing role |
+| last_verified_at | TIMESTAMPTZ | |
+| last_discovered_at | TIMESTAMPTZ | |
+| discovery_summary_json | JSON | counts for the card |
+| [audit] | | |
+
+### `discovered_resource`
+| Column | Type | Notes |
+|---|---|---|
+| discovered_resource_id | VARCHAR(36) PK | |
+| component_id | FK application_component CASCADE | |
+| application_id | VARCHAR(36) | indexed |
+| azure_resource_id | VARCHAR(600) | full ARM id (unique per component) |
+| resource_name | VARCHAR(260) | |
+| resource_type | VARCHAR(200) | ARM type |
+| resource_kind | VARCHAR(120) | |
+| location_name | VARCHAR(60) | |
+| monitoring_classification | VARCHAR(30) | `monitored_service`, `telemetry_source`, `not_monitored_type` |
+| has_diagnostic_setting | BOOLEAN | |
+| diagnostic_settings_json | JSON | destinations, categories |
+| log_analytics_workspace_resource_ids_json | JSON | |
+| resource_tags_json | JSON | |
+| last_seen_at | TIMESTAMPTZ | |
+| no_longer_found_at | TIMESTAMPTZ | |
+
+### `monitored_service`
+| Column | Type | Notes |
+|---|---|---|
+| service_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | indexed |
+| component_id | FK application_component | |
+| discovered_resource_id | VARCHAR(36) | nullable (manual services) |
+| service_name | VARCHAR(200) | display name |
+| service_type | VARCHAR(40) | `aks`, `function_app`, `app_service`, `logic_app`, `api_management`, `data_factory`, `sql_database`, `server`, `network_appliance`, `storage_device`, `mainframe_subsystem`, `batch_job_stream`, `saas_service`, `other` |
+| external_resource_identifier | VARCHAR(600) | ARM id / hostname / vendor service id |
+| environment_name | VARCHAR(20) | |
+| criticality_tier | VARCHAR(10) | |
+| is_monitoring_enabled | BOOLEAN | default true |
+| aks_namespace_filter | VARCHAR(200) | AKS only |
+| application_insights_resource_id | VARCHAR(600) | linked component |
+| application_insights_role_name | VARCHAR(200) | `cloud_RoleName` filter |
+| available_metrics_json | JSON | cached metric definitions (name, unit, aggregations) |
+| repository_provider | VARCHAR(40) | `azure_devops`, `github_enterprise` |
+| repository_url | VARCHAR(600) | |
+| repository_default_branch | VARCHAR(200) | |
+| repository_path | VARCHAR(400) | monorepo subpath |
+| repository_credential_secret_name | VARCHAR(200) | |
+| service_description | TEXT | |
+| [audit] | | |
+
+### `service_dependency`
+| Column | Type | Notes |
+|---|---|---|
+| service_dependency_id | VARCHAR(36) PK | |
+| application_id | VARCHAR(36) | indexed |
+| upstream_service_id | FK monitored_service CASCADE | the caller / consumer |
+| downstream_service_id | FK monitored_service CASCADE | the dependency |
+| dependency_kind | VARCHAR(30) | `calls`, `reads_from`, `writes_to`, `publishes_to`, `hosted_on` |
+| dependency_source | VARCHAR(30) | `user_declared`, `topology_inferred` |
+| created_at | TIMESTAMPTZ | |
+
+### `log_tool_connection`
+| Column | Type | Notes |
+|---|---|---|
+| log_tool_connection_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | |
+| tool_type | VARCHAR(40) | `elastic`, `splunk`, `datadog`, `solarwinds`, `ibm_z_log_analytics`, `vendor_api`, `other` |
+| connection_name | VARCHAR(200) | |
+| endpoint_url | VARCHAR(600) | |
+| authentication_method | VARCHAR(40) | `api_key`, `basic`, `bearer_token`, `oauth_client_credentials`, `managed_identity`, `none` |
+| credential_secret_name | VARCHAR(200) | |
+| connection_configuration_json | JSON | index patterns, field names, site, source types… |
+| connection_status | VARCHAR(30) | `not_tested`, `connected`, `failed`, `reader_not_available`, `recorded_only` |
+| last_tested_at | TIMESTAMPTZ | |
+| last_test_message | TEXT | |
+| newest_log_timestamp_seen_at | TIMESTAMPTZ | |
+| [audit] | | |
+
+### `service_log_source`
+| Column | Type | Notes |
+|---|---|---|
+| service_log_source_id | VARCHAR(36) PK | |
+| service_id | FK monitored_service CASCADE | indexed |
+| source_kind | VARCHAR(40) | `log_analytics`, `application_insights`, `azure_monitor_metrics`, `log_tool`, `synthetic_probe`, `vendor_status_page` |
+| log_tool_connection_id | FK log_tool_connection | nullable |
+| log_analytics_workspace_resource_id | VARCHAR(600) | |
+| log_analytics_workspace_customer_id | VARCHAR(36) | GUID used by the query API |
+| query_scope_json | JSON | index, namespace, labels, tags, host filter, service field value |
+| is_primary_source | BOOLEAN | |
+| was_auto_detected | BOOLEAN | |
+| last_read_test_status | VARCHAR(20) | `not_tested`, `passed`, `failed` |
+| last_read_test_at | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ | |
+
+### `external_integration`
+Generic record for placeholder and real integrations (CMDB, EI portal, enterprise knowledge API, application-specific ServiceNow).
+| Column | Type | Notes |
+|---|---|---|
+| external_integration_id | VARCHAR(36) PK | |
+| application_id | VARCHAR(36) | null = platform-wide |
+| integration_kind | VARCHAR(40) | `cmdb`, `ei_portal`, `knowledge_api`, `servicenow` |
+| integration_configuration_json | JSON | rendered from `integration_field_schemas.yaml` |
+| credential_secret_name | VARCHAR(200) | |
+| integration_status | VARCHAR(30) | `not_set_up`, `details_saved`, `connected`, `failed` |
+| integration_notes | TEXT | |
+| [audit] | | |
+
+### `application_record_link`
+| Column | Type | Notes |
+|---|---|---|
+| application_record_link_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | |
+| record_system | VARCHAR(30) | `eai`, `cmdb` |
+| record_identifier | VARCHAR(100) | e.g. EAI `14470`, CMDB CI number |
+| link_status | VARCHAR(30) | `saved_reader_in_development`, `verified`, `not_found` |
+| created_at | TIMESTAMPTZ | |
+
+## 5. Knowledge tables (`knowledge_entities.py`)
+
+### `knowledge_document`
+| Column | Type | Notes |
+|---|---|---|
+| knowledge_document_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | indexed |
+| service_id | VARCHAR(36) | nullable (whole application) |
+| document_title | VARCHAR(300) | |
+| document_category | VARCHAR(40) | `code_context`, `architecture_diagram`, `design_document`, `operational_note`, `cmdb_record`, `ei_portal_record` |
+| original_file_name | VARCHAR(300) | sanitised |
+| content_type | VARCHAR(120) | |
+| file_size_bytes | BIGINT | |
+| storage_path | VARCHAR(600) | blob path / local relative path |
+| file_sha256_hash | VARCHAR(64) | duplicate detection |
+| extracted_text | TEXT | for Markdown/PDF; for images the vision description |
+| extracted_headings_json | JSON | |
+| ai_digest_markdown | TEXT | structured summary used for grounding |
+| ai_digest_status | VARCHAR(20) | `pending`, `processing`, `completed`, `failed` |
+| ai_digest_error_message | TEXT | |
+| estimated_token_count | INTEGER | |
+| uploaded_by_user_principal_name | VARCHAR(320) | |
+| uploaded_at | TIMESTAMPTZ | |
+| stale_after_at | TIMESTAMPTZ | uploaded_at + 90 days |
+
+### `knowledge_chunk`
+| Column | Type | Notes |
+|---|---|---|
+| knowledge_chunk_id | VARCHAR(36) PK | |
+| knowledge_document_id | FK knowledge_document CASCADE | |
+| application_id | VARCHAR(36) | indexed |
+| service_id | VARCHAR(36) | nullable |
+| chunk_sequence_number | INTEGER | |
+| section_heading | VARCHAR(400) | |
+| chunk_text | TEXT | |
+| estimated_token_count | INTEGER | |
+| search_terms_json | JSON | normalised term frequencies for lexical (BM25) retrieval; replaced by embeddings when RAG arrives |
+
+### `application_topology`
+| Column | Type | Notes |
+|---|---|---|
+| topology_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | |
+| topology_version_number | INTEGER | |
+| topology_graph_json | JSON | `{nodes:[{node_key, label, node_type, service_id?, technology, description, criticality}], edges:[{source_node_key, target_node_key, relationship, protocol, description}]}` |
+| understanding_summary_markdown | TEXT | Keigan's narrative of how the application works |
+| generated_from_document_ids_json | JSON | |
+| generation_status | VARCHAR(20) | `building`, `completed`, `failed` |
+| generated_by_model_name | VARCHAR(120) | |
+| review_status | VARCHAR(30) | `awaiting_review`, `reviewed_looks_right`, `needs_correction` |
+| is_current_version | BOOLEAN | |
+| created_at | TIMESTAMPTZ | |
+
+### `topology_review_comment`
+| Column | Type | Notes |
+|---|---|---|
+| topology_review_comment_id | VARCHAR(36) PK | |
+| topology_id | FK application_topology CASCADE | |
+| target_element_key | VARCHAR(200) | node key or `source->target` edge key; null = whole topology |
+| review_verdict | VARCHAR(30) | `looks_right`, `needs_correction` |
+| review_comment_text | TEXT | |
+| reviewer_user_principal_name | VARCHAR(320) | |
+| created_at | TIMESTAMPTZ | |
+
+### `runbook`
+| Column | Type | Notes |
+|---|---|---|
+| runbook_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | |
+| runbook_title | VARCHAR(300) | |
+| trigger_symptoms_text | TEXT | when it applies: symptoms, alert names, error signatures |
+| runbook_steps_markdown | TEXT | |
+| source_url | VARCHAR(600) | |
+| applies_to_service_ids_json | JSON | empty = whole application |
+| knowledge_document_id | VARCHAR(36) | if uploaded as a file |
+| search_terms_json | JSON | lexical retrieval |
+| times_referenced_count | INTEGER | |
+| last_referenced_at | TIMESTAMPTZ | |
+| [audit] | | |
+
+## 6. Incident and investigation tables (`incident_entities.py`)
+
+### `servicenow_assignment_group`
+| Column | Type | Notes |
+|---|---|---|
+| assignment_group_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | |
+| group_name | VARCHAR(200) | exact ServiceNow name |
+| servicenow_sys_id | VARCHAR(64) | when verified |
+| verification_status | VARCHAR(20) | `verified`, `unverified`, `not_found` |
+| created_at | TIMESTAMPTZ | |
+
+### `incident`
+| Column | Type | Notes |
+|---|---|---|
+| incident_id | VARCHAR(36) PK | |
+| application_id | FK application | indexed |
+| incident_source | VARCHAR(20) | `servicenow`, `alert_group`, `manual` |
+| external_incident_number | VARCHAR(40) | `INC0012345`; indexed |
+| external_system_identifier | VARCHAR(64) | ServiceNow sys_id |
+| incident_title | VARCHAR(500) | |
+| incident_description | TEXT | as received (access-controlled; masked before AI) |
+| servicenow_priority | VARCHAR(10) | `1`–`5` as in ServiceNow |
+| servicenow_impact | VARCHAR(10) | |
+| servicenow_urgency | VARCHAR(10) | |
+| keigan_priority | VARCHAR(4) | `P1`–`P4` |
+| priority_rationale | TEXT | |
+| incident_category | VARCHAR(40) | `availability`, `latency`, `errors`, `data`, `batch`, `security`, `capacity`, `dependency`, `change_related`, `unknown` |
+| incident_status | VARCHAR(20) | `new`, `investigating`, `identified`, `monitoring`, `resolved`, `closed` |
+| affected_service_ids_json | JSON | |
+| assignment_group_name | VARCHAR(200) | |
+| external_state | VARCHAR(40) | ServiceNow state label |
+| opened_at | TIMESTAMPTZ | |
+| detected_by_keigan_at | TIMESTAMPTZ | |
+| first_update_sent_at | TIMESTAMPTZ | TTFU |
+| resolved_at | TIMESTAMPTZ | |
+| closed_at | TIMESTAMPTZ | |
+| external_last_updated_at | TIMESTAMPTZ | |
+| [audit] | | |
+UNIQUE (`application_id`, `external_incident_number`).
+
+### `investigation`
+| Column | Type | Notes |
+|---|---|---|
+| investigation_id | VARCHAR(36) PK | |
+| application_id | FK application | indexed |
+| incident_id | FK incident | nullable |
+| alert_group_id | VARCHAR(36) | nullable |
+| investigation_trigger | VARCHAR(20) | `incident`, `alert_group`, `manual`, `rerun` |
+| investigation_status | VARCHAR(30) | `queued`, `running`, `completed`, `completed_evidence_only`, `failed`, `cancelled` |
+| current_stage_name | VARCHAR(30) | `triage`, `context`, `evidence`, `hypotheses`, `synthesis`, `communications`, `done` |
+| progress_percent | INTEGER | |
+| investigation_window_start | TIMESTAMPTZ | |
+| investigation_window_end | TIMESTAMPTZ | |
+| baseline_window_start | TIMESTAMPTZ | |
+| baseline_window_end | TIMESTAMPTZ | |
+| investigated_service_ids_json | JSON | |
+| triage_result_json | JSON | priority, category, candidates, summary |
+| executive_summary | TEXT | 2–3 sentences |
+| what_went_wrong_markdown | TEXT | |
+| why_it_happened_markdown | TEXT | |
+| how_to_fix_markdown | TEXT | |
+| overall_confidence_score | NUMERIC(4,3) | 0–1 |
+| leading_hypothesis_id | VARCHAR(36) | |
+| blast_radius_json | JSON | impacted nodes, services, SLOs, stakeholders, downstream applications, narrative |
+| matched_runbook_ids_json | JSON | |
+| user_feedback_verdict | VARCHAR(20) | `correct`, `partially_correct`, `incorrect` |
+| user_feedback_comment | TEXT | |
+| user_feedback_by_user_principal_name | VARCHAR(320) | |
+| failure_reason | TEXT | |
+| total_input_token_count | INTEGER | |
+| total_output_token_count | INTEGER | |
+| requested_by_user_principal_name | VARCHAR(320) | |
+| started_at | TIMESTAMPTZ | |
+| completed_at | TIMESTAMPTZ | |
+| [audit] | | |
+
+### `investigation_hypothesis`
+| Column | Type | Notes |
+|---|---|---|
+| hypothesis_id | VARCHAR(36) PK | |
+| investigation_id | FK investigation CASCADE | |
+| analysis_perspective | VARCHAR(20) | `application`, `dependencies`, `infrastructure` |
+| hypothesis_title | VARCHAR(300) | |
+| hypothesis_statement_markdown | TEXT | |
+| reasoning_markdown | TEXT | |
+| confidence_score | NUMERIC(4,3) | |
+| supporting_evidence_codes_json | JSON | `["E2","E5"]` |
+| contradicting_evidence_codes_json | JSON | |
+| proposed_fix_json | JSON | `{summary, steps:[{order, description, command?, command_language?, risk_level}], code_changes:[{repository, file_path, change_description, before_snippet, after_snippet}], verification_steps:[…], rollback_steps:[…]}` |
+| fix_risk_level | VARCHAR(10) | `low`, `medium`, `high` |
+| matched_runbook_id | VARCHAR(36) | |
+| is_leading_hypothesis | BOOLEAN | |
+| display_order | INTEGER | |
+| created_at | TIMESTAMPTZ | |
+
+### `investigation_evidence`
+| Column | Type | Notes |
+|---|---|---|
+| evidence_id | VARCHAR(36) PK | |
+| investigation_id | FK investigation CASCADE | indexed |
+| evidence_code | VARCHAR(10) | `E1`, `E2`, … unique within investigation |
+| service_id | VARCHAR(36) | nullable |
+| evidence_source_kind | VARCHAR(40) | `log_analytics`, `application_insights`, `azure_monitor_metrics`, `activity_log`, `elastic`, `splunk`, `datadog`, `synthetic_probe`, `vendor_status_page`, `knowledge`, `runbook` |
+| evidence_category | VARCHAR(40) | `errors`, `exceptions`, `failed_requests`, `dependency_failures`, `pod_events`, `metrics_anomaly`, `change_event`, `saturation`, `availability` |
+| evidence_title | VARCHAR(300) | |
+| evidence_summary | TEXT | masked |
+| query_language | VARCHAR(20) | `kql`, `elastic_dsl`, `esql`, `spl`, `datadog`, `metrics_api`, `none` |
+| query_text | TEXT | |
+| query_time_range_start | TIMESTAMPTZ | |
+| query_time_range_end | TIMESTAMPTZ | |
+| matched_record_count | INTEGER | |
+| baseline_record_count | INTEGER | |
+| condensed_patterns_json | JSON | `[{template, count, baseline_count, first_seen, last_seen, level, is_new_pattern, change_ratio, sample_lines_masked:[…]}]` |
+| metric_series_json | JSON | downsampled points for charts |
+| signal_strength | VARCHAR(10) | `high`, `medium`, `low` |
+| deep_link_url | VARCHAR(1000) | e.g. Log Analytics portal link |
+| collected_at | TIMESTAMPTZ | |
+
+### `investigation_timeline_event`
+| Column | Type | Notes |
+|---|---|---|
+| timeline_event_id | VARCHAR(36) PK | |
+| incident_id | VARCHAR(36) | indexed, nullable |
+| investigation_id | VARCHAR(36) | indexed, nullable |
+| event_occurred_at | TIMESTAMPTZ | |
+| event_type | VARCHAR(40) | `incident_opened`, `alert_fired`, `alert_resolved`, `deployment`, `configuration_change`, `error_spike`, `investigation_started`, `investigation_completed`, `communication_sent`, `chat_fact`, `action_taken`, `priority_changed`, `resolved`, `postmortem_generated` |
+| event_title | VARCHAR(400) | |
+| event_details_markdown | TEXT | |
+| event_source | VARCHAR(40) | `servicenow`, `alert`, `azure_activity_log`, `keigan`, `teams_chat`, `user` |
+| source_reference | VARCHAR(400) | ids, links |
+| actor_display_name | VARCHAR(200) | |
+| created_at | TIMESTAMPTZ | |
+
+### `incident_communication`
+| Column | Type | Notes |
+|---|---|---|
+| communication_id | VARCHAR(36) PK | |
+| incident_id | VARCHAR(36) | indexed |
+| investigation_id | VARCHAR(36) | |
+| communication_type | VARCHAR(30) | `initial_update`, `progress_update`, `resolution_update`, `preliminary_report`, `executive_summary` |
+| audience_type | VARCHAR(20) | `stakeholders`, `executives`, `technical` |
+| language_code | VARCHAR(10) | |
+| subject_line | VARCHAR(400) | |
+| body_markdown | TEXT | |
+| communication_status | VARCHAR(20) | `draft`, `approved`, `sent`, `discarded` |
+| approved_by_user_principal_name | VARCHAR(320) | |
+| approved_at | TIMESTAMPTZ | |
+| sent_at | TIMESTAMPTZ | |
+| [audit] | | |
+
+### `postmortem_report`
+| Column | Type | Notes |
+|---|---|---|
+| postmortem_id | VARCHAR(36) PK | |
+| incident_id | VARCHAR(36) | indexed |
+| investigation_id | VARCHAR(36) | |
+| report_title | VARCHAR(400) | |
+| report_markdown | TEXT | |
+| report_sections_json | JSON | summary, impact, timeline, root_cause, contributing_factors, detection, response, what_went_well, what_could_be_improved, action_items[{description, owner, due_date, action_type}], lessons_learned |
+| language_code | VARCHAR(10) | |
+| report_status | VARCHAR(20) | `generating`, `draft`, `final`, `sent` |
+| generation_trigger | VARCHAR(30) | `teams_milestone`, `user_button`, `incident_resolved` |
+| finalized_by_user_principal_name | VARCHAR(320) | |
+| finalized_at | TIMESTAMPTZ | |
+| sent_at | TIMESTAMPTZ | |
+| [audit] | | |
+
+### `conversation`
+| Column | Type | Notes |
+|---|---|---|
+| conversation_id | VARCHAR(36) PK | |
+| conversation_scope | VARCHAR(30) | `investigation`, `keigan_ai_chat`, `teams_incident_chat` |
+| application_ids_json | JSON | scope of the chat (subset of readable apps at time of question) |
+| investigation_id | VARCHAR(36) | |
+| incident_id | VARCHAR(36) | |
+| owner_user_principal_name | VARCHAR(320) | indexed |
+| conversation_title | VARCHAR(300) | |
+| [audit] | | |
+
+### `conversation_message`
+| Column | Type | Notes |
+|---|---|---|
+| message_id | VARCHAR(36) PK | |
+| conversation_id | FK conversation CASCADE | indexed |
+| author_role | VARCHAR(20) | `user`, `assistant`, `tool`, `teams_participant`, `system_notice` |
+| author_display_name | VARCHAR(200) | |
+| author_user_principal_name | VARCHAR(320) | |
+| message_text | TEXT | |
+| message_payload_json | JSON | chart specification, query details, citations, clarifying options |
+| external_message_identifier | VARCHAR(200) | Teams message id |
+| input_token_count | INTEGER | |
+| output_token_count | INTEGER | |
+| created_at | TIMESTAMPTZ | |
+
+## 7. Alert tables (`alert_entities.py`)
+
+### `alert_source`
+| Column | Type | Notes |
+|---|---|---|
+| alert_source_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | |
+| source_tool | VARCHAR(30) | `azure_monitor`, `elastic`, `generic`, `keigan_slo` |
+| source_name | VARCHAR(200) | |
+| webhook_secret_hash | VARCHAR(128) | SHA-256 of the secret |
+| previous_webhook_secret_hash | VARCHAR(128) | rotation overlap |
+| previous_secret_valid_until | TIMESTAMPTZ | |
+| field_mapping_json | JSON | canonical field → JSONPath |
+| severity_mapping_json | JSON | tool value → 0–4 |
+| service_mapping_json | JSON | `{field_path, value_to_service_id:{…}}` |
+| source_status | VARCHAR(30) | `waiting_for_first_alert`, `receiving`, `authentication_failures`, `paused` |
+| last_received_at | TIMESTAMPTZ | |
+| received_alert_count | INTEGER | |
+| authentication_failure_count | INTEGER | |
+| [audit] | | |
+
+### `alert_event` (raw, retained 30 days)
+| Column | Type | Notes |
+|---|---|---|
+| alert_event_id | VARCHAR(36) PK | |
+| alert_source_id | FK alert_source CASCADE | |
+| application_id | VARCHAR(36) | |
+| received_at | TIMESTAMPTZ | indexed |
+| raw_payload_json | JSON | |
+| payload_size_bytes | INTEGER | |
+| processing_status | VARCHAR(20) | `received`, `processed`, `failed` |
+| processing_error_message | TEXT | |
+
+### `alert`
+| Column | Type | Notes |
+|---|---|---|
+| alert_id | VARCHAR(36) PK | |
+| application_id | VARCHAR(36) | indexed |
+| alert_source_id | VARCHAR(36) | |
+| external_alert_identifier | VARCHAR(400) | |
+| alert_fingerprint | VARCHAR(64) | indexed |
+| rule_identifier | VARCHAR(600) | |
+| rule_name | VARCHAR(400) | |
+| service_id | VARCHAR(36) | nullable |
+| resource_reference | VARCHAR(600) | |
+| environment_name | VARCHAR(20) | |
+| severity_level | INTEGER | 0 (most severe) – 4 |
+| alert_status | VARCHAR(20) | `firing`, `resolved` |
+| alert_summary | VARCHAR(1000) | masked |
+| alert_description | TEXT | masked |
+| alert_link_url | VARCHAR(1000) | |
+| alert_labels_json | JSON | |
+| occurrence_count | INTEGER | |
+| state_change_count | INTEGER | |
+| is_flapping | BOOLEAN | |
+| first_seen_at | TIMESTAMPTZ | |
+| last_seen_at | TIMESTAMPTZ | |
+| resolved_at | TIMESTAMPTZ | |
+| alert_group_id | VARCHAR(36) | indexed |
+| final_disposition | VARCHAR(30) | `investigated`, `joined_group`, `deduplicated`, `suppressed_maintenance`, `suppressed_mute_rule`, `suppressed_environment`, `suppressed_severity`, `self_resolved`, `queued_rate_limit`, `observed_only` |
+| latest_alert_event_id | VARCHAR(36) | |
+
+### `alert_decision`
+| Column | Type | Notes |
+|---|---|---|
+| alert_decision_id | VARCHAR(36) PK | |
+| alert_id | FK alert CASCADE | indexed |
+| alert_group_id | VARCHAR(36) | |
+| pipeline_stage | VARCHAR(20) | `normalise`, `deduplicate`, `lifecycle`, `suppress`, `settle`, `group`, `prioritise`, `decide`, `notify` |
+| decision_outcome | VARCHAR(40) | |
+| decision_reason | VARCHAR(600) | human-readable |
+| would_have_outcome_in_active_mode | VARCHAR(40) | Observe mode record |
+| decided_at | TIMESTAMPTZ | |
+
+### `alert_group`
+| Column | Type | Notes |
+|---|---|---|
+| alert_group_id | VARCHAR(36) PK | |
+| application_id | VARCHAR(36) | indexed |
+| group_title | VARCHAR(400) | AI-written, deterministic fallback |
+| group_summary | TEXT | |
+| group_status | VARCHAR(20) | `open`, `investigating`, `resolved` |
+| priority_score | NUMERIC(8,2) | |
+| grouping_reason | VARCHAR(400) | |
+| member_alert_count | INTEGER | |
+| primary_service_id | VARCHAR(36) | |
+| affected_service_ids_json | JSON | |
+| highest_severity_level | INTEGER | |
+| started_at | TIMESTAMPTZ | |
+| last_activity_at | TIMESTAMPTZ | |
+| resolved_at | TIMESTAMPTZ | |
+| investigation_id | VARCHAR(36) | |
+| incident_id | VARCHAR(36) | |
+| servicenow_incident_suggested | BOOLEAN | |
+| user_feedback_verdict | VARCHAR(20) | `useful`, `noise` |
+| user_feedback_reason | TEXT | |
+| user_feedback_by_user_principal_name | VARCHAR(320) | |
+
+### `noise_reduction_policy`
+| Column | Type | Notes |
+|---|---|---|
+| application_id | VARCHAR(36) PK, FK application CASCADE | |
+| policy_settings_json | JSON | min_severity, investigate_environments, settle_delay_seconds, no_delay_severities, reopen_window_minutes, group_window_minutes, flap_count, flap_window_minutes, max_investigations_per_hour, investigate_score_threshold, weights |
+| policy_mode | VARCHAR(10) | `observe`, `active` |
+| observe_mode_started_at | TIMESTAMPTZ | |
+| [audit] | | |
+
+### `maintenance_window`
+| Column | Type | Notes |
+|---|---|---|
+| maintenance_window_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | |
+| window_name | VARCHAR(200) | |
+| applies_to_service_ids_json | JSON | empty = whole application |
+| applies_to_environments_json | JSON | |
+| starts_at | TIMESTAMPTZ | |
+| ends_at | TIMESTAMPTZ | |
+| repeats_weekly | BOOLEAN | |
+| [audit] | | |
+
+### `alert_mute_rule`
+| Column | Type | Notes |
+|---|---|---|
+| mute_rule_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | |
+| rule_name | VARCHAR(200) | |
+| matcher_json | JSON | `{source_id?, rule_name_contains?, service_id?, maximum_severity?, label_equals?{k:v}}` |
+| mute_reason | TEXT | required |
+| expires_at | TIMESTAMPTZ | required |
+| [audit] | | |
+
+## 8. SLO tables (`slo_entities.py`)
+
+### `service_level_indicator`
+| Column | Type | Notes |
+|---|---|---|
+| sli_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | indexed |
+| service_id | VARCHAR(36) | null = application-level (headline) |
+| catalog_entry_key | VARCHAR(120) | from `sli_catalog.yaml`, or `custom` |
+| sli_name | VARCHAR(200) | |
+| sli_kind | VARCHAR(30) | `availability`, `latency`, `run_success`, `freshness`, `dependency_success`, `custom`, `supporting_signal` |
+| data_source_kind | VARCHAR(30) | `application_insights`, `azure_monitor_metrics`, `log_query`, `log_tool`, `synthetic_probe`, `vendor_status_page` |
+| query_definition_json | JSON | how to compute good/total (or value) for a window |
+| latency_threshold_milliseconds | INTEGER | |
+| is_approximate | BOOLEAN | metric averages based |
+| is_enabled | BOOLEAN | |
+| is_headline | BOOLEAN | |
+| measured_baseline_json | JSON | 30-day measured value, event count, p95, sparkline points |
+| last_collected_window_start | TIMESTAMPTZ | |
+| [audit] | | |
+
+### `service_level_objective`
+| Column | Type | Notes |
+|---|---|---|
+| slo_id | VARCHAR(36) PK | |
+| sli_id | FK service_level_indicator CASCADE | |
+| application_id | VARCHAR(36) | indexed |
+| target_percentage | NUMERIC(7,4) | e.g. 99.9000 |
+| rolling_window_days | INTEGER | 7 / 28 / 30 |
+| burn_rate_policy_json | JSON | default multiwindow policy |
+| [audit] | | |
+
+### `sli_measurement`
+| Column | Type | Notes |
+|---|---|---|
+| sli_measurement_id | BIGINT PK autoincrement | |
+| sli_id | VARCHAR(36) | indexed with window |
+| measurement_window_start | TIMESTAMPTZ | 5-minute bucket start |
+| good_event_count | BIGINT | null for supporting signals |
+| total_event_count | BIGINT | |
+| measured_value | DOUBLE | supporting signals / latency value |
+| collected_at | TIMESTAMPTZ | |
+UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_measurement_hourly` with the same columns.
+
+### `slo_burn_alert`
+| Column | Type | Notes |
+|---|---|---|
+| slo_burn_alert_id | VARCHAR(36) PK | |
+| slo_id | FK service_level_objective CASCADE | |
+| application_id | VARCHAR(36) | |
+| burn_alert_severity | VARCHAR(10) | `page`, `ticket` |
+| long_window_burn_rate | DOUBLE | |
+| short_window_burn_rate | DOUBLE | |
+| fired_at | TIMESTAMPTZ | |
+| resolved_at | TIMESTAMPTZ | |
+| alert_group_id | VARCHAR(36) | |
+
+## 9. Intelligence tables (in `slo_entities.py`)
+
+### `predictive_signal`
+| Column | Type | Notes |
+|---|---|---|
+| predictive_signal_id | VARCHAR(36) PK | |
+| application_id | VARCHAR(36) | indexed |
+| service_id | VARCHAR(36) | |
+| sli_id | VARCHAR(36) | |
+| detector_name | VARCHAR(40) | `seasonal_anomaly`, `error_budget_exhaustion`, `saturation_trend`, `new_error_pattern`, `recurring_incident`, `change_risk` |
+| signal_severity | VARCHAR(10) | `info`, `warning`, `critical` |
+| signal_title | VARCHAR(400) | |
+| explanation_markdown | TEXT | AI narrative + numbers |
+| metric_name | VARCHAR(200) | |
+| observed_value | DOUBLE | |
+| expected_value | DOUBLE | |
+| deviation_score | DOUBLE | |
+| forecast_breach_at | TIMESTAMPTZ | |
+| confidence_score | NUMERIC(4,3) | |
+| evidence_series_json | JSON | points for chart |
+| signal_status | VARCHAR(30) | `open`, `acknowledged`, `dismissed`, `converted_to_incident`, `expired` |
+| detected_at | TIMESTAMPTZ | |
+| status_changed_by_user_principal_name | VARCHAR(320) | |
+| intelligence_report_id | VARCHAR(36) | |
+
+### `intelligence_report`
+| Column | Type | Notes |
+|---|---|---|
+| intelligence_report_id | VARCHAR(36) PK | |
+| application_id | VARCHAR(36) | indexed |
+| report_type | VARCHAR(20) | `proactive_alert`, `weekly_digest` |
+| report_title | VARCHAR(400) | |
+| report_period_start | TIMESTAMPTZ | |
+| report_period_end | TIMESTAMPTZ | |
+| overall_health_score | INTEGER | 0–100 |
+| report_markdown | TEXT | |
+| report_sections_json | JSON | |
+| sent_at | TIMESTAMPTZ | |
+| recipient_addresses_json | JSON | |
+| created_at | TIMESTAMPTZ | |
+
+## 10. Notification tables (`notification_entities.py`)
+
+### `stakeholder`
+| Column | Type | Notes |
+|---|---|---|
+| stakeholder_id | VARCHAR(36) PK | |
+| application_id | FK application CASCADE | indexed |
+| recipient_type | VARCHAR(20) | `person`, `teams_channel`, `distribution_list` |
+| display_name | VARCHAR(200) | |
+| email_address | VARCHAR(320) | |
+| user_principal_name | VARCHAR(320) | |
+| entra_object_id | VARCHAR(36) | needed to add to Teams chats |
+| teams_team_id | VARCHAR(100) | channel destinations |
+| teams_channel_id | VARCHAR(200) | |
+| stakeholder_role | VARCHAR(30) | `sre`, `developer`, `manager`, `executive`, `business_owner`, `vendor_contact` |
+| subscribed_service_ids_json | JSON | empty = all services |
+| notification_channels_json | JSON | `["email","teams_incident_chat","teams_channel"]` |
+| minimum_priority | VARCHAR(4) | `P1`, `P2`, `P3`, `P4` |
+| subscribed_notification_types_json | JSON | `incident_detected`, `preliminary_report`, `progress_update`, `postmortem`, `intelligence_report`, `slo_burn_alert`, `alert_group` |
+| preferred_language_code | VARCHAR(10) | |
+| quiet_hours_json | JSON | optional |
+| is_active | BOOLEAN | |
+| [audit] | | |
+
+### `notification_delivery` (outbox)
+| Column | Type | Notes |
+|---|---|---|
+| notification_delivery_id | VARCHAR(36) PK | |
+| application_id | VARCHAR(36) | indexed |
+| incident_id | VARCHAR(36) | |
+| investigation_id | VARCHAR(36) | |
+| notification_type | VARCHAR(40) | |
+| delivery_channel | VARCHAR(30) | `email`, `teams_incident_chat`, `teams_channel` |
+| recipient_address | VARCHAR(600) | email / chat id / channel id |
+| subject_line | VARCHAR(400) | |
+| body_html | TEXT | |
+| body_text | TEXT | |
+| delivery_status | VARCHAR(20) | `pending`, `sent`, `failed`, `simulated`, `skipped` |
+| provider_message_identifier | VARCHAR(400) | |
+| attempt_count | INTEGER | |
+| last_error_message | TEXT | |
+| created_at | TIMESTAMPTZ | |
+| sent_at | TIMESTAMPTZ | |
+
+### `teams_incident_chat`
+| Column | Type | Notes |
+|---|---|---|
+| teams_incident_chat_id | VARCHAR(36) PK | |
+| incident_id | VARCHAR(36) | UNIQUE |
+| application_id | VARCHAR(36) | |
+| teams_chat_identifier | VARCHAR(300) | Graph chat id (`simulated:{uuid}` locally) |
+| bot_conversation_reference_json | JSON | for proactive messages |
+| chat_topic | VARCHAR(300) | |
+| chat_web_url | VARCHAR(1000) | |
+| member_user_principal_names_json | JSON | |
+| conversation_id | VARCHAR(36) | mirror conversation in Keigan |
+| last_polled_at | TIMESTAMPTZ | |
+| last_processed_message_identifier | VARCHAR(200) | |
+| last_unprompted_comment_at | TIMESTAMPTZ | |
+| chat_status | VARCHAR(20) | `active`, `closed` |
+| created_at | TIMESTAMPTZ | |
+
+## 11. Index plan (beyond PK/FK)
+
+- `incident (application_id, incident_status, opened_at DESC)`
+- `investigation (application_id, created_at DESC)`, `investigation (incident_id)`
+- `alert (application_id, alert_fingerprint, alert_status)`, `alert (alert_group_id)`
+- `alert_group (application_id, group_status, last_activity_at DESC)`
+- `sli_measurement (sli_id, measurement_window_start)` unique
+- `background_job (job_status, available_at, priority_number)`
+- `audit_event (occurred_at DESC)`, `llm_usage_record (created_at, application_id)`
+- `knowledge_chunk (application_id)`, `predictive_signal (application_id, detected_at DESC)`
+
+## 12. Retention
+
+| Data | Retention | Job |
+|---|---|---|
+| `alert_event` | `RAW_ALERT_RETENTION_DAYS` (30) | `retention_cleanup` |
+| `sli_measurement` 5-minute rows | `SLI_RAW_RETENTION_DAYS` (90) after hourly roll-up | `retention_cleanup` |
+| incidents, investigations, alerts, groups | `INCIDENT_RETENTION_DAYS` (395 ≈ 13 months) | `retention_cleanup` |
+| `background_job` finished | 14 days | `retention_cleanup` |
+| `audit_event`, `llm_usage_record` | 400 days | `retention_cleanup` |
+
+## 13. Change log
+
+| Date | Change | By |
+|---|---|---|
+| 2026-11-19 | Initial schema | Plan |
+| 2026-11-19 | Implementation: NUMERIC confidence/score/percentage columns implemented as FLOAT (portable across SQLite/PostgreSQL). Added `investigation.stage_messages_json`, `open_questions_json`, `knowledge_references_json`, `model_names_json`; `investigation_evidence.masked_value_count`, `possible_prompt_injection`. | Lead |
+| 2026-11-20 | Azure SQL support. Schema `keigan`; NVARCHAR / DATETIME2(6) / naming convention (see section 1). SQL Server allows one cascade path per table, so these foreign keys became NO ACTION and the application delete removes the rows itself first: `monitored_service.component_id` (was SET NULL), `service_dependency.downstream_service_id` (was CASCADE), `service_log_source.log_tool_connection_id` (was SET NULL), `investigation.incident_id` (was CASCADE). `incident (application_id, external_incident_number)` unique constraint became a filtered unique index `WHERE external_incident_number IS NOT NULL` (SQL Server treats NULLs as equal in unique constraints). Alembic baseline `94692c828bd3`; DDL scripts in `database/azure_sql/`. | Lead |

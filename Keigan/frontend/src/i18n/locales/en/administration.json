@@ -1,0 +1,96 @@
+{
+  "pageTitle": "Administration",
+  "pageDescription": "Platform settings, usage and delivery records for Keigan admins.",
+  "tabs": { "usage": "AI usage", "audit": "Audit log", "jobs": "Background jobs" },
+  "settings": {
+    "pageTitle": "Platform settings",
+    "pageDescription": "Effective configuration, identities and connection tests.",
+    "integrationsTitle": "Integrations",
+    "integrations": {
+      "telemetry": "Telemetry",
+      "servicenow": "ServiceNow",
+      "teams": "Microsoft Teams and Graph",
+      "email": "Email",
+      "llm": "AI provider",
+      "azure": "Azure access",
+      "authentication": "Sign-in"
+    },
+    "simulated": "Simulated",
+    "configured": "Configured",
+    "notConfigured": "Not configured",
+    "testConnection": "Test connection",
+    "testFailed": "The test could not be started.",
+    "identityTitle": "Keigan identity",
+    "identityDescription": "Grant this identity read access to the Azure resources Keigan should monitor.",
+    "identity": { "name": "Display name", "objectId": "Object ID", "clientId": "Client ID", "multiTenant": "Multi-tenant app client ID" },
+    "groups": {
+      "general": "General",
+      "authentication": "Authentication",
+      "integrations": "Integrations",
+      "ai": "AI",
+      "safety": "Safety and limits",
+      "storage": "Storage and monitoring"
+    }
+  },
+  "simulation": {
+    "title": "Simulation controls",
+    "description": "Start a realistic incident in a demo application. Available in local, dev and test environments only.",
+    "application": "Application",
+    "pickApplication": "Choose an application",
+    "scenario": "Scenario",
+    "pickScenario": "Choose a scenario",
+    "start": "Start scenario",
+    "started": "Scenario started",
+    "startedDescription": "Simulated ServiceNow incident {{number}} is on its way to Keigan.",
+    "failed": "Could not start the scenario"
+  },
+  "usage": {
+    "pageTitle": "Usage and audit",
+    "pageDescription": "AI token usage, cost estimates, the audit log of every change and the job queue.",
+    "range": "Period",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "tiles": {
+      "tokens": "Tokens used",
+      "tokenSplit": "{{input}} in, {{output}} out",
+      "cost": "Estimated cost",
+      "costNote": "From configured token prices",
+      "calls": "AI calls",
+      "failedCalls_one": "{{count}} failed",
+      "failedCalls_other": "{{count}} failed",
+      "perInvestigation": "Tokens per investigation",
+      "perInvestigationNote": "Average in this period"
+    },
+    "chartTitle": "Tokens per day",
+    "chartDescription": "Input and output tokens across all AI features.",
+    "byApplication": "By application",
+    "byFeature": "By feature",
+    "empty": "No AI usage recorded in this period.",
+    "columns": { "name": "Name", "calls": "Calls", "input": "Input tokens", "output": "Output tokens", "cost": "Est. cost" }
+  },
+  "audit": {
+    "caption": "Audit events",
+    "empty": "No audit events match these filters.",
+    "filters": { "actor": "Person", "action": "Action contains" },
+    "columns": { "time": "When", "actor": "Who", "action": "Action", "target": "Target", "details": "Details" }
+  },
+  "jobs": {
+    "deadLetters": "Dead letters",
+    "deadLettersDescription": "Jobs that failed every attempt. Retry after fixing the cause.",
+    "noDeadLetters": "No failed jobs. The queue is healthy.",
+    "recent": "Recent jobs",
+    "retry": "Retry",
+    "columns": { "type": "Job", "status": "Status", "attempts": "Attempts", "created": "Created", "error": "Last error" }
+  },
+  "outbox": {
+    "pageTitle": "Outbox",
+    "pageDescription": "Emails and Teams messages Keigan sent or simulated.",
+    "emptyTitle": "Nothing sent yet",
+    "emptyDescription": "Notifications appear here as soon as Keigan sends or simulates them.",
+    "unavailableTitle": "Outbox unavailable",
+    "unavailableDescription": "The delivery records could not be loaded. Notifications may not be enabled in this environment.",
+    "previewTitle": "Message preview",
+    "noBody": "This message has no body.",
+    "columns": { "created": "Created", "subject": "Subject", "recipient": "Recipient", "application": "Application", "channel": "Channel", "status": "Status" }
+  }
+}

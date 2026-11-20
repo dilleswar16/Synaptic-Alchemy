@@ -1,0 +1,96 @@
+{
+  "sections": {
+    "operate": "Operate",
+    "reliability": "Reliability",
+    "assist": "Assist",
+    "prepare": "Prepare",
+    "administration": "Administration"
+  },
+  "items": {
+    "home": "Home",
+    "incidents": "Incident room",
+    "alerts": "Alerts",
+    "slo": "SLO monitoring",
+    "intelligence": "Intelligence",
+    "chat": "Keigan AI chat",
+    "applications": "Applications",
+    "platformSettings": "Platform settings",
+    "usageAndAudit": "Usage and audit",
+    "outbox": "Outbox",
+    "designSystem": "Design system"
+  },
+  "skipToContent": "Skip to main content",
+  "mainNavigation": "Main navigation",
+  "breadcrumb": "Breadcrumb",
+  "sidebar": {
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "open": "Open navigation",
+    "close": "Close navigation"
+  },
+  "applicationScope": {
+    "label": "Applications",
+    "allMyApplications": "All my applications",
+    "selectedCount_one": "{{count}} application",
+    "selectedCount_other": "{{count}} applications",
+    "searchPlaceholder": "Search applications",
+    "noApplications": "You don't have access to any application yet.",
+    "noMatches": "No applications match “{{query}}”",
+    "showAll": "Show all",
+    "triggerLabel": "Application scope: {{scope}}",
+    "roleAdmin": "Admin",
+    "roleReader": "Reader",
+    "hint": "Lists, counts and chat answers follow this scope."
+  },
+  "commandPalette": {
+    "title": "Search Keigan",
+    "open": "Search Keigan",
+    "trigger": "Search",
+    "placeholder": "Go to a page or find an incident number…",
+    "pages": "Pages",
+    "incidents": "Incidents",
+    "searchIncident": "Search incidents for “{{query}}”",
+    "noResults": "No pages match. Press Enter to search incidents.",
+    "hintNavigate": "to move",
+    "hintOpen": "to open",
+    "hintClose": "to close"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "open": "Open notifications",
+    "emptyTitle": "You're all caught up",
+    "emptyDescription": "Incident and SLO updates for your applications will appear here."
+  },
+  "userMenu": {
+    "open": "Open user menu",
+    "preferences": "Preferences",
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as"
+  },
+  "roles": {
+    "keiganAdmin": "Keigan admin",
+    "applicationAdmin": "Application admin",
+    "reader": "Reader",
+    "noAccess": "No access"
+  },
+  "preferences": {
+    "title": "Preferences",
+    "description": "Your language and theme are saved to your Keigan profile.",
+    "language": "Language",
+    "theme": "Theme",
+    "done": "Done"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you're looking for doesn't exist or has moved.",
+    "goHome": "Go to home"
+  },
+  "adminOnly": {
+    "title": "Keigan admins only",
+    "description": "This area is limited to members of the Keigan admin group."
+  },
+  "routeError": {
+    "title": "This page hit a problem",
+    "description": "Reload the page. If it keeps happening, share the details below with the Keigan team."
+  }
+}

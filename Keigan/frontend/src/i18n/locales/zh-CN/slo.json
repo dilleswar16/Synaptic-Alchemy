@@ -1,0 +1,30 @@
+{
+  "pageTitle": "SLO 监控",
+  "pageDescription": "查看范围内所有 SLO 的达标率、错误预算和燃烧速率。",
+  "status": { "healthy": "健康", "at_risk": "有风险", "breached": "已违约", "no_data": "无数据" },
+  "summary": { "breached": "{{count}} 个已违约", "at_risk": "{{count}} 个有风险", "healthy": "{{count}} 个健康" },
+  "emptyTitle": "暂无 SLO",
+  "emptyDescription": "打开应用的 SLO 步骤，查看 Keigan 根据过去 30 天数据测算出的建议，然后接受它们。",
+  "headline": { "title": "核心 SLO", "description": "在最接近用户的位置，即各应用的入口处测量。" },
+  "cards": { "title": "所有 SLO" },
+  "card": {
+    "window": "{{days}} 天窗口", "approximate": "近似值", "target": "目标 {{target}} %", "sparkline": "{{name}}过去 14 天的趋势", "budget": "错误预算",
+    "budgetLeft": "剩余 {{percent}} %，{{minutes}} 分钟", "noData": "无数据", "burn1h": "燃烧速率 1 小时", "burn6h": "燃烧速率 6 小时", "noBurn": "不适用"
+  },
+  "detail": {
+    "compliance": "达标率", "target": "目标", "budget": "剩余错误预算", "budgetValue": "{{total}} 分钟中的 {{minutes}} 分钟", "resolution": "粒度", "daily": "按天", "hourly": "按小时",
+    "sliOverTime": "SLI 随时间变化", "sli": "SLI", "targetLine": "目标", "burnDown": "错误预算消耗曲线", "budgetRemaining": "剩余预算"
+  },
+  "heatmap": { "title": "生态热力图", "description": "各应用所有 SLO 的每日达标率。", "emptyTitle": "暂无内容", "emptyDescription": "应用接受 SLO 后将显示在此处。" },
+  "proposals": {
+    "measuring": "正在测算过去 30 天", "stages": { "0": "读取指标定义", "1": "读取 30 天数据", "2": "计算基线" }, "measuringHelp": "您可以离开此页面，Keigan 会继续测算。",
+    "failed": "测算失败", "retry": "重试", "remeasure": "重新测算", "suggests": "Keigan 建议在 {{services}} 个服务上设置 {{slos}} 个 SLO", "acceptSuggested": "接受建议",
+    "accepted": "已接受 {{count}} 个 SLO", "headline": "核心 SLO", "explain": "解释此指标", "approximate": "近似值（5 分钟平均）", "alreadyAccepted": "已接受",
+    "columns": { "sli": "指标", "source": "来源", "measured": "30 天值", "target": "目标", "window": "窗口", "budget": "错误预算" }, "days": "{{days}} 天",
+    "sparkline": "{{name}}的 30 天趋势", "supporting": "辅助信号（{{count}}）：仅采集，无目标", "emptyTitle": "未找到指标", "emptyDescription": "请将 Application Insights 或日志源关联到服务，然后重新测算。"
+  },
+  "custom": {
+    "title": "添加自定义 SLI（高级）", "description": "返回 good、total 和 window_start（5 分钟分箱）的 KQL 查询。", "service": "服务", "servicePlaceholder": "选择服务", "name": "名称",
+    "query": "KQL 查询", "queryHelp": "AppRequests | summarize good=countif(Success == true), total=count() by window_start=bin(TimeGenerated, 5m)", "target": "目标", "save": "创建 SLI 和 SLO"
+  }
+}

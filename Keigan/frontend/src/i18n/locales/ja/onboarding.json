@@ -1,0 +1,452 @@
+{
+  "pageTitle": "オンボーディング",
+  "pageDescription": "Keigan にアプリケーションを接続し、学習させ、稼働を開始します。",
+  "environments": {
+    "dev": "開発",
+    "test": "テスト",
+    "uat": "UAT",
+    "prod": "本番"
+  },
+  "tiers": {
+    "tier_1": "ティア 1",
+    "tier_2": "ティア 2",
+    "tier_3": "ティア 3"
+  },
+  "types": {
+    "azure_resource_group": {
+      "title": "Azure リソースグループ",
+      "description": "リソースグループ内の Functions、AKS、App Service、Logic Apps、API Management、Data Factory、SQL。"
+    },
+    "hardware": {
+      "title": "ハードウェアとネットワーク",
+      "description": "サーバー、スイッチ、ルーター、ファイアウォール、ロードバランサー、ストレージアレイ。"
+    },
+    "mainframe": {
+      "title": "メインフレーム",
+      "description": "IBM z/OS のサブシステム: CICS、IMS、DB2、MQ、バッチ。"
+    },
+    "saas_platform": {
+      "title": "SaaS プラットフォーム",
+      "description": "ベンダーがホストするサービスと、ベンダーがホストするログ。"
+    }
+  },
+  "empty": {
+    "title": "コンポーネントはまだありません",
+    "description": "アプリケーションの稼働先を追加してください。Keigan は読み取り専用のアクセスで参照します。"
+  },
+  "status": {
+    "not_checked": "未確認",
+    "checking": "アクセスを確認中",
+    "verified": "アクセス検証済み",
+    "missing_roles": "ロール付与待ち",
+    "failed": "確認に失敗",
+    "not_applicable": "詳細を保存済み",
+    "simulated": "シミュレーション"
+  },
+  "card": {
+    "verify": "検証",
+    "refresh": "更新",
+    "remove": "削除",
+    "checked": "確認日時",
+    "resourcesFound": "件のリソースを検出",
+    "monitoredServices": "件をサービスとして監視",
+    "telemetrySources": "件のテレメトリソース",
+    "services_one": "{{count}} 件のサービス",
+    "services_other": "{{count}} 件のサービス",
+    "showCommands": "ロール付与コマンドを表示",
+    "addComponent": "コンポーネントを追加",
+    "removeTitle": "{{name}}を削除しますか？",
+    "removeDescription_one": "Keigan はこのコンポーネントの {{count}} 件のサービスの監視を停止します。インシデントと履歴は残ります。",
+    "removeDescription_other": "Keigan はこのコンポーネントの {{count}} 件のサービスの監視を停止します。インシデントと履歴は残ります。",
+    "removeConfirm": "コンポーネントを削除"
+  },
+  "verify": {
+    "checklistLabel": "アクセスチェック",
+    "checks": {
+      "list_resources": "リソースを一覧表示",
+      "read_activity_log": "アクティビティログを読み取り",
+      "read_metrics": "メトリクスを読み取り",
+      "query_workspace": "Log Analytics ワークスペースをクエリ"
+    },
+    "missingRole": "{{role}}ロールが必要です",
+    "rolesCanTakeAWhile": "Azure が新しいロールを反映するまで数分かかることがあります。別の画面に移っても、Keigan は確認を続けます。",
+    "failed": "Keigan がアクセスを確認できませんでした。もう一度お試しください。"
+  },
+  "roleGrant": {
+    "tenantId": "テナント ID",
+    "clientId": "マネージド ID のクライアント ID",
+    "objectId": "マネージド ID のオブジェクト ID",
+    "displayName": "表示名",
+    "rolesTitle": "付与する読み取り専用ロール",
+    "tabs": {
+      "cli": "Azure CLI",
+      "powershell": "PowerShell",
+      "terraform": "Terraform",
+      "portal": "ポータル"
+    },
+    "copyAll": "すべてのコマンドをコピー",
+    "sendToSomeone": "権限のある担当者に送る",
+    "shareIntro": "以下のコマンドで、リソースグループ {{resourceGroup}} への読み取り専用アクセスを Keigan に付与してください。リンク:",
+    "notConfigured": "未設定",
+    "displayNameUnknown": "オブジェクト ID で検索",
+    "identityIncompleteTitle": "Keigan の ID が完全には設定されていません",
+    "identityIncompleteBody": "次の値を特定できませんでした: {{values}}。ロールを付与する前に Keigan 管理者に設定を依頼してください。",
+    "identityDiscovered": "これらの ID は Keigan 自身の Azure ID から実行時に取得しました。"
+  },
+  "explorer": {
+    "title": "{{name}}のリソース",
+    "description": "このリソースグループについて Azure が返したすべての内容です。サービスになるのは一部のリソースのみです。",
+    "filter": "リソースを絞り込み",
+    "filters": {
+      "all": "すべて",
+      "monitored_service": "サービス",
+      "telemetry_source": "テレメトリソース",
+      "not_monitored_type": "その他"
+    },
+    "name": "名前",
+    "type": "種類",
+    "classification": "用途",
+    "classifications": {
+      "monitored_service": "サービス",
+      "telemetry_source": "テレメトリソース",
+      "not_monitored_type": "監視対象外"
+    },
+    "diagnostics": "診断設定",
+    "diagnosticSettingOn": "ログを送信中",
+    "noDiagnosticSetting": "診断設定なし",
+    "state": "状態",
+    "present": "存在",
+    "noLongerFound": "Azure で見つかりません"
+  },
+  "add": {
+    "chooseTypeTitle": "コンポーネントを追加",
+    "chooseTypeDescription": "アプリケーションのこの部分がどこで稼働しているかを選択してください。",
+    "titles": {
+      "azure_resource_group": "Azure リソースグループ",
+      "hardware": "ハードウェアとネットワーク",
+      "mainframe": "メインフレーム",
+      "saas_platform": "SaaS プラットフォーム"
+    },
+    "descriptions": {
+      "azure_resource_group": "まずスコープを指定し、読み取り専用アクセスを付与してから検証します。",
+      "hardware": "1 台のデバイスが、Keigan が監視できる 1 つのサービスになります。",
+      "mainframe": "各サブシステムがサービスになります。",
+      "saas_platform": "Keigan がインスタンスを調査し、ベンダーのステータスページを読み取ります。"
+    },
+    "accessDescription": "次の読み取り専用ロールを付与してから検証してください。Azure が反映するまで数分かかることがあります。",
+    "azure": {
+      "tenantId": "テナント ID",
+      "tenantHelp": "Keigan のテナントが入力済みです。別のテナントの場合のみ変更してください。",
+      "subscriptionId": "サブスクリプション ID",
+      "guidInvalid": "00000000-0000-0000-0000-000000000000 のような GUID を入力してください。",
+      "subscriptionName": "サブスクリプション名",
+      "resourceGroup": "リソースグループ名",
+      "addSeveral": "複数を追加",
+      "addSeveralHelp": "1 行に 1 リソースグループ（subscriptionId/resourceGroup）。入力すると、上の項目より優先されます。"
+    },
+    "hardware": {
+      "name": "デバイス名"
+    },
+    "mainframe": {
+      "name": "システム名"
+    },
+    "saas_platform": {
+      "name": "コンポーネント名"
+    },
+    "environment": "環境",
+    "choose": "選択…",
+    "noLogTools": "このコンポーネントを監視するには、ステップ 3 でログツールの接続を追加してください。",
+    "back": "戻る",
+    "cancel": "キャンセル",
+    "continueToAccess": "アクセス設定へ進む",
+    "addComponent": "コンポーネントを追加",
+    "verifyNow": "アクセスを検証",
+    "verifyLater": "後で検証",
+    "failed": "操作に失敗しました。内容を確認して、もう一度お試しください。"
+  },
+  "fields": {
+    "device_category": "デバイスの分類",
+    "hostname": "ホスト名または IP",
+    "location": "データセンターまたは設置場所",
+    "cmdb_ci": "CMDB 構成アイテム ID",
+    "owner_team": "担当チーム",
+    "log_tool_connection_id": "監視方法",
+    "query_host": "ツール内のホスト名またはノード ID",
+    "notes": "メモ",
+    "lpar": "LPAR またはシスプレックス",
+    "subsystems": "サブシステム",
+    "job_name_prefixes": "ジョブ名のプレフィックス",
+    "query_index": "インデックスまたはソースタイプ",
+    "batch_window": "バッチウィンドウのスケジュール",
+    "vendor_name": "ベンダー名",
+    "product_name": "製品",
+    "instance_url": "テナントまたはインスタンスの URL",
+    "status_page_url": "ベンダーのステータスページ（JSON または RSS）",
+    "synthetic_probe_url": "合成モニタリングの URL",
+    "vendor_api_endpoint": "ベンダーのログまたは監査 API エンドポイント",
+    "support_contact": "ベンダーのサポート窓口",
+    "contractual_sla": "契約上の SLA"
+  },
+  "options": {
+    "server": "サーバー",
+    "network_switch": "ネットワークスイッチ",
+    "router": "ルーター",
+    "firewall": "ファイアウォール",
+    "load_balancer": "ロードバランサー",
+    "storage_array": "ストレージアレイ",
+    "other": "その他"
+  },
+  "serviceTypes": {
+    "aks": "AKS クラスター",
+    "function_app": "Function App",
+    "app_service": "App Service",
+    "logic_app": "Logic App",
+    "api_management": "API Management",
+    "data_factory": "Data Factory",
+    "sql_database": "SQL データベース",
+    "network_appliance": "ハードウェア／ネットワーク機器",
+    "mainframe_subsystem": "メインフレームのサブシステム",
+    "batch_job_stream": "バッチジョブストリーム",
+    "saas_service": "SaaS サービス"
+  },
+  "services": {
+    "caption": "このアプリケーションのサービス",
+    "addService": "サービスを追加",
+    "addTitle": "サービスを追加",
+    "addDescription": "検出で見つからなかったものを追加します。Azure リソースは自動的にここに表示されます。",
+    "name": "サービス名",
+    "type": "種類",
+    "component": "コンポーネント",
+    "environment": "環境",
+    "criticality": "重要度",
+    "emptyTitle": "サービスはまだありません",
+    "emptyDescription": "Azure コンポーネントを検証するとサービスが検出されます。手動で追加することもできます。",
+    "columns": {
+      "monitor": "監視",
+      "service": "サービス",
+      "environment": "環境",
+      "criticality": "重要度",
+      "logs": "ログ",
+      "metrics": "メトリクス",
+      "dependsOn": "依存先",
+      "repository": "リポジトリ",
+      "actions": "詳細"
+    },
+    "noLongerFound": "Azure で見つかりません",
+    "noDiagnosticSetting": "診断設定なし",
+    "available": "利用可能",
+    "metricsTitle": "利用可能なメトリクス",
+    "dependsOnTitle": "依存先",
+    "openDetails": "サービスの詳細を開く",
+    "selected_one": "{{count}} 件のサービスを選択中",
+    "selected_other": "{{count}} 件のサービスを選択中",
+    "bulk": {
+      "setEnvironment": "環境を設定",
+      "setCriticality": "重要度を設定",
+      "addLogSource": "ログソースを追加",
+      "addLogSourceTitle_one": "{{count}} 件のサービスにログソースを追加",
+      "addLogSourceTitle_other": "{{count}} 件のサービスにログソースを追加",
+      "monitoringOff": "監視をオフにする",
+      "clear": "選択を解除"
+    }
+  },
+  "serviceDrawer": {
+    "basics": "基本情報",
+    "displayName": "表示名",
+    "namespace": "Kubernetes 名前空間",
+    "namespaceHelp": "1 つのクラスターで多数のアプリケーションをホストできます。Keigan はこの名前空間のみを読み取ります。",
+    "description": "説明",
+    "repository": "リポジトリ",
+    "repositoryHelp": "修正を提案する際に、Keigan が該当コードを示すのに役立ちます。",
+    "provider": "プロバイダー",
+    "repositoryUrl": "リポジトリ URL",
+    "branch": "デフォルトブランチ",
+    "path": "リポジトリ内のパス",
+    "dependsOn": "依存先",
+    "dependsOnHelp": "このサービスが呼び出すサービスです。トポロジーと影響範囲に反映されます。",
+    "noOtherServices": "他のサービスはまだありません。",
+    "logSources": "ログソース",
+    "noDiagnosticSetting": "診断設定がまだありません。有効にするコマンドを表示します。",
+    "metrics_one": "利用可能なメトリクス {{count}} 件",
+    "metrics_other": "利用可能なメトリクス {{count}} 件"
+  },
+  "repositoryProviders": {
+    "azure_devops": "Azure DevOps",
+    "github": "GitHub",
+    "gitlab": "GitLab",
+    "bitbucket": "Bitbucket",
+    "other": "その他"
+  },
+  "logSource": {
+    "none": "ログソースはまだありません。メトリクスが利用可能な場合はメトリクスを使用します。",
+    "kind": "ソース",
+    "kinds": {
+      "log_analytics": "Log Analytics ワークスペース",
+      "application_insights": "Application Insights",
+      "azure_monitor_metrics": "Azure Monitor メトリクス",
+      "log_tool": "ログツールの接続",
+      "synthetic_probe": "合成モニタリング",
+      "vendor_status_page": "ベンダーのステータスページ"
+    },
+    "chips": {
+      "log_analytics": "Log Analytics",
+      "application_insights": "App Insights",
+      "azure_monitor_metrics": "メトリクス",
+      "log_tool": "ログツール",
+      "synthetic_probe": "プローブ",
+      "vendor_status_page": "ステータスページ"
+    },
+    "workspaceResourceId": "ワークスペースのリソース ID",
+    "connection": "接続",
+    "chooseConnection": "接続を選択",
+    "noConnections": "ログツールの接続はまだありません。ステップ 3 で追加してください。",
+    "scope": {
+      "index": "インデックス",
+      "namespace": "名前空間",
+      "host": "ホスト",
+      "labels": "ラベルまたはタグ",
+      "probeUrl": "プローブ URL"
+    },
+    "primary": "プライマリ",
+    "autoDetected": "自動検出",
+    "add": "このソースを追加",
+    "addSource": "ログソースを追加",
+    "remove": "ログソースを削除",
+    "test": "読み取りテスト",
+    "testPassed": "Keigan はこのソースを読み取れます",
+    "testFailed": "Keigan はこのソースを読み取れませんでした",
+    "testStatus": {
+      "not_tested": "未テスト",
+      "passed": "読み取りテスト合格",
+      "failed": "読み取りテスト失敗"
+    }
+  },
+  "logTools": {
+    "tools": {
+      "elastic": {
+        "title": "Elastic",
+        "description": "Elasticsearch または Elastic Cloud のログを検索します。"
+      },
+      "splunk": {
+        "title": "Splunk",
+        "description": "Splunk REST API 経由でログを検索します。"
+      },
+      "datadog": {
+        "title": "Datadog",
+        "description": "Datadog からログとメトリクスを読み取ります。"
+      },
+      "solarwinds": {
+        "title": "SolarWinds",
+        "description": "Orion または Observability SaaS によるネットワークとノードの監視。"
+      },
+      "ibm_z_log_analytics": {
+        "title": "IBM Z ログ分析",
+        "description": "メインフレームのログと SMF レコード。"
+      },
+      "vendor_api": {
+        "title": "ベンダー API（SaaS）",
+        "description": "ベンダーのログまたは監査 API。"
+      },
+      "other": {
+        "title": "その他のツール",
+        "description": "参照用の記録のみです。"
+      }
+    },
+    "fields": {
+      "endpoint": "エンドポイント URL",
+      "authenticationMethod": "認証",
+      "index_pattern": "インデックスパターン",
+      "service_field": "サービスのフィールド名",
+      "namespace_field": "名前空間のフィールド",
+      "time_field": "時刻のフィールド",
+      "indexes": "デフォルトのインデックス",
+      "source_types": "ソースタイプ",
+      "host_field": "ホストのフィールド",
+      "site": "Datadog サイト",
+      "application_key_reference": "アプリケーションキーの参照",
+      "default_service_tag": "デフォルトのサービスタグ",
+      "env_tag": "環境タグ",
+      "platform": "プラットフォーム",
+      "node_ids": "ノード ID またはグループ",
+      "product": "製品",
+      "index": "インデックスまたはソースタイプ",
+      "smf_record_types": "SMF レコードタイプ",
+      "vendor": "ベンダー",
+      "extra_settings": "追加設定（1 行に key=value）",
+      "holds": "名前と保持している内容"
+    },
+    "options": {
+      "api_key": "API キー",
+      "basic": "Basic 認証",
+      "oauth_client_credentials": "OAuth クライアント資格情報",
+      "orion_swis": "Orion (SWIS)",
+      "observability_saas": "Observability SaaS"
+    },
+    "connectionName": "接続名",
+    "credential": "シークレットまたは API キー",
+    "credentialHelp": "一度だけ送信され、安全に保存されます。Keigan が再表示することはありません。",
+    "credentialSet": "•••• {{date}}に設定",
+    "saveConnection": "接続を保存",
+    "saveChanges": "変更を保存",
+    "placeholderBanner": "このツールのリーダーは開発中です。Keigan は今は詳細を保存し、リーダーの提供開始後に使用します。",
+    "readerInDevelopment": "リーダーは開発中",
+    "status": {
+      "not_tested": "未テスト",
+      "connected": "接続済み",
+      "failed": "失敗",
+      "reader_not_available": "リーダーは開発中"
+    },
+    "test": "接続をテスト",
+    "testDisabled": "このツールのリーダーは開発中のため、まだテストできません。",
+    "edit": "編集",
+    "delete": "接続を削除",
+    "deleteTitle": "{{name}}を削除しますか？",
+    "deleteDescription": "この接続を使用しているサービスは、先に使用を停止してください。保存されているシークレットは削除されます。",
+    "deleteConfirm": "接続を削除",
+    "none": "接続はまだありません。上でツールを選択して追加してください。",
+    "newestLog": "最新のログ",
+    "usedBy": "使用元: {{names}}",
+    "notUsed": "まだどのサービスでも使用されていません"
+  },
+  "servicenow": {
+    "title": "ServiceNow の担当グループ",
+    "description": "Keigan は、これらのグループのインシデントのみをポーリングします。",
+    "groups": "担当グループ",
+    "groupsHelp": "各名前の入力後に Enter を押してください。Keigan が確認できなかった名前は、未検証として保存されます。",
+    "placeholder": "グループ名を追加",
+    "search": "ServiceNow のグループを検索",
+    "searchPlaceholder": "入力して検索…"
+  },
+  "access": {
+    "sailpointTitle": "SailPoint でアクセスを申請",
+    "adminGroup": "管理者グループ（編集権限）",
+    "readerGroup": "閲覧者グループ（読み取り専用）",
+    "copyGroup": "グループ名をコピー",
+    "groupName": "グループ名",
+    "objectId": "グループのオブジェクト ID",
+    "objectIdHelp": "Entra のトークンにグループ ID が含まれる場合のみ必要です。",
+    "save": "保存",
+    "membersEntra": "メンバーは Entra ID から取得され、Keigan が読み取れるとここに表示されます。",
+    "membersLocal": "グループのメンバーシップは Entra ID から読み取ります。ローカルモードでは、デモユーザーがアクセス権を定義します。",
+    "howItWorksTitle": "アクセスの仕組み",
+    "howItWorksBody": "Keigan は独自のユーザー一覧を持ちません。サインインのたびに Entra ID のグループメンバーシップを確認し、管理者グループのメンバーはこのアプリケーションを変更でき、閲覧者グループのメンバーは閲覧できます。下記の名前で SailPoint に両グループを作成し、メンバーを追加してください。Keigan 側での登録は不要です。",
+    "verify": {
+      "title": "Entra ID のグループを確認",
+      "description": "サインイン前に、SailPoint が両グループを作成済みかとメンバーを確認します。",
+      "button": "Entra で確認",
+      "members_one": "メンバー {{count}} 人: {{names}}",
+      "members_other": "メンバー {{count}} 人（{{names}} など）",
+      "objectIdSaved": "サインイン照合用にオブジェクト ID {{objectId}} を保存しました。",
+      "sourceEntra": "Microsoft Entra ID でリアルタイムに確認しました。",
+      "sourceLocal": "ローカルモード: デモユーザーで確認しました。Azure では Microsoft Entra ID を確認します。"
+    }
+  },
+  "stubs": {
+    "alertsTitle": "アラートソースとノイズ削減",
+    "alertsDescription": "Webhook のアラートソース、ノイズ削減ポリシー、アラートからのインシデント作成をここで設定します。",
+    "sloTitle": "SLO の提案",
+    "sloDescription": "Keigan が読み取れるデータから SLO を提案します。ここで設定します。",
+    "notificationsTitle": "ステークホルダーと通知",
+    "notificationsDescription": "インシデントを誰にどのように通知するかをここで設定します。"
+  }
+}

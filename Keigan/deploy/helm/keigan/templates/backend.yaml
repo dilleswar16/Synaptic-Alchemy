@@ -1,0 +1,225 @@
+{{- $backendNamespace := .Values.namespaces.backend -}}
+{{- if .Values.namespaces.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $backendNamespace }}
+  labels: {{- include "keigan.labels" . | nindent 4 }}
+---
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keigan-backend
+  namespace: {{ $backendNamespace }}
+  labels: {{- include "keigan.labels" . | nindent 4 }}
+  annotations:
+    azure.workload.identity/client-id: {{ .Values.workloadIdentity.clientId | quote }}
+    azure.workload.identity/tenant-id: {{ .Values.workloadIdentity.tenantId | quote }}
+automountServiceAccountToken: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keigan-backend-configuration
+  namespace: {{ $backendNamespace }}
+  labels: {{- include "keigan.labels" . | nindent 4 }}
+data:
+  {{- range $settingName, $settingValue := .Values.backendEnvironment }}
+  {{ $settingName }}: {{ $settingValue | quote }}
+  {{- end }}
+  AZURE_CLIENT_ID: {{ .Values.workloadIdentity.clientId | quote }}
+  AZURE_TENANT_ID: {{ .Values.workloadIdentity.tenantId | quote }}
+  KEIGAN_MANAGED_IDENTITY_CLIENT_ID: {{ .Values.workloadIdentity.clientId | quote }}
+  DATA_DIRECTORY: /tmp/keigan-data
+{{- if .Values.keyVault.enabled }}
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: keigan-backend-key-vault
+  namespace: {{ $backendNamespace }}
+spec:
+  provider: azure
+  parameters:
+    clientID: {{ .Values.workloadIdentity.clientId | quote }}
+    keyvaultName: {{ .Values.keyVault.name | quote }}
+    tenantId: {{ .Values.workloadIdentity.tenantId | quote }}
+    objects: |
+      array:
+        {{- range .Values.keyVault.secrets }}
+        - |
+          objectName: {{ .objectName }}
+          objectType: secret
+        {{- end }}
+  secretObjects:
+    - secretName: keigan-backend-secrets
+      type: Opaque
+      data:
+        {{- range .Values.keyVault.secrets }}
+        - objectName: {{ .objectName }}
+          key: {{ .environmentVariable }}
+        {{- end }}
+{{- end }}
+{{- range $workloadName := list "api" "worker" }}
+{{- $workloadValues := index $.Values $workloadName }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keigan-{{ $workloadName }}
+  namespace: {{ $backendNamespace }}
+  labels:
+    {{- include "keigan.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: keigan-{{ $workloadName }}
+spec:
+  replicas: {{ $workloadValues.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keigan-{{ $workloadName }}
+  template:
+    metadata:
+      labels:
+        {{- include "keigan.labels" $ | nindent 8 }}
+        app.kubernetes.io/name: keigan-{{ $workloadName }}
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: keigan-backend
+      securityContext: {{- include "keigan.podSecurityContext" $ | nindent 8 }}
+      containers:
+        - name: {{ $workloadName }}
+          image: {{ include "keigan.backendImage" $ }}
+          imagePullPolicy: {{ $.Values.images.pullPolicy }}
+          {{- if eq $workloadName "worker" }}
+          command: ["python", "-m", "keigan.worker_main"]
+          {{- else }}
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /api/public/readiness, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/public/health, port: http }
+            periodSeconds: 20
+          {{- end }}
+          env:
+            - name: WORKER_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          {{- include "keigan.backendEnvironment" $ | nindent 10 }}
+          securityContext: {{- include "keigan.containerSecurityContext" $ | nindent 12 }}
+          resources: {{- toYaml $workloadValues.resources | nindent 12 }}
+          volumeMounts:
+            - { name: temporary-files, mountPath: /tmp }
+            {{- if $.Values.keyVault.enabled }}
+            - { name: key-vault-secrets, mountPath: /mnt/secrets, readOnly: true }
+            {{- end }}
+      volumes:
+        - name: temporary-files
+          emptyDir: { sizeLimit: 512Mi }
+        {{- if $.Values.keyVault.enabled }}
+        - name: key-vault-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes: { secretProviderClass: keigan-backend-key-vault }
+        {{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keigan-api
+  namespace: {{ $backendNamespace }}
+  labels: {{- include "keigan.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: keigan-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+{{- if .Values.api.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: keigan-api
+  namespace: {{ $backendNamespace }}
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: keigan-api }
+  minReplicas: {{ .Values.api.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.api.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: {{ .Values.api.autoscaling.targetCpuUtilizationPercentage }} }
+{{- end }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: keigan-api
+  namespace: {{ $backendNamespace }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: keigan-api }
+---
+# Only the web tier and the ingress controllers may reach the API; the worker accepts no inbound traffic.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keigan-api-ingress
+  namespace: {{ $backendNamespace }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: keigan-api }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.namespaces.frontend }} }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
+      ports:
+        - port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keigan-worker-deny-ingress
+  namespace: {{ $backendNamespace }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: keigan-worker }
+  policyTypes: ["Ingress"]
+---
+# Public ingress: only the alert webhook and the Teams bot endpoint, rate limited and size limited.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keigan-public-hooks
+  namespace: {{ $backendNamespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/proxy-body-size: "256k"
+    {{- if .Values.ingress.publicAllowedSourceRanges }}
+    nginx.ingress.kubernetes.io/whitelist-source-range: {{ join "," .Values.ingress.publicAllowedSourceRanges | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.publicClassName }}
+  tls:
+    - hosts: [{{ .Values.hosts.public | quote }}]
+      secretName: {{ .Values.ingress.tlsSecretName }}
+  rules:
+    - host: {{ .Values.hosts.public | quote }}
+      http:
+        paths:
+          - path: /api/alerts/in/
+            pathType: Prefix
+            backend: { service: { name: keigan-api, port: { number: 8080 } } }
+          - path: /api/teams/messages
+            pathType: Exact
+            backend: { service: { name: keigan-api, port: { number: 8080 } } }

@@ -1,0 +1,49 @@
+{
+  "pageTitle": "Keigan AI chat",
+  "pageDescription": "Ask about your applications, incidents and telemetry.",
+  "list": {
+    "title": "Conversations",
+    "newChat": "New chat",
+    "search": "Search conversations",
+    "empty": "No conversations yet. Ask your first question.",
+    "noMatches": "No conversation matches your search.",
+    "actions": "Conversation actions",
+    "rename": "Rename",
+    "renameTitle": "Rename conversation",
+    "nameLabel": "Name",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteTitle": "Delete this conversation?",
+    "deleteDescription": "The conversation and its answers are removed for you. This cannot be undone."
+  },
+  "conversation": {
+    "title": "Conversation",
+    "newTitle": "New conversation",
+    "scope": "Looking at",
+    "allApplications": "All my applications",
+    "thinking": "Keigan is working on it…"
+  },
+  "empty": {
+    "title": "What would you like to know?",
+    "description": "Ask about error counts, patterns over time, architecture or runbooks. Keigan only reads; it never changes your systems.",
+    "category": { "data": "From your logs", "knowledge": "From your knowledge base" }
+  },
+  "composer": {
+    "label": "Message Keigan",
+    "placeholder": "Ask a question about your applications…",
+    "send": "Send",
+    "hint": "Enter to send, Shift+Enter for a new line. Personal data is masked before it reaches the AI."
+  },
+  "message": {
+    "howIGotThis": "How I got this",
+    "queryMeta": "{{service}} · {{source}} · {{language}} · {{count}} rows",
+    "simulated": "simulated data",
+    "sources": "Sources",
+    "noData": "No data in this period.",
+    "clarificationLabel": "Choose a time range"
+  },
+  "errors": {
+    "rateLimited": "You are sending messages too quickly. Wait a moment and try again.",
+    "generic": "Keigan could not answer just now. Please try again."
+  }
+}

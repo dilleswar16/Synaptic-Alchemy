@@ -1,0 +1,69 @@
+{
+  "pageTitle": "事件室",
+  "pageDescription": "您所属应用的未关闭和近期事件，实时更新。",
+  "filters": {
+    "searchLabel": "搜索事件",
+    "searchPlaceholder": "按编号或标题搜索",
+    "onlyMine": "仅我的",
+    "viewLabel": "视图",
+    "viewTable": "表格",
+    "viewBoard": "看板",
+    "priority": "优先级",
+    "status": "状态",
+    "source": "来源"
+  },
+  "status": {
+    "new": "新建",
+    "investigating": "调查中",
+    "identified": "已定位原因",
+    "resolved": "已解决",
+    "closed": "已关闭"
+  },
+  "source": {
+    "servicenow": "ServiceNow",
+    "alert": "告警",
+    "manual": "手动"
+  },
+  "servicenowPriority": "ServiceNow：{{priority}}",
+  "columns": {
+    "priority": "优先级",
+    "number": "编号",
+    "title": "事件",
+    "application": "应用",
+    "status": "状态",
+    "confidence": "Keigan 置信度",
+    "detected": "发现时间",
+    "duration": "持续时间",
+    "group": "分派组"
+  },
+  "noNumber": "无编号",
+  "noServices": "尚未识别出服务",
+  "analysing": "分析中",
+  "tableCaption": "所选应用的事件",
+  "boardLabel": "按状态划分的事件看板",
+  "board": {
+    "emptyColumn": "暂无"
+  },
+  "empty": {
+    "title": "没有符合筛选条件的事件",
+    "description": "清除筛选条件或扩大搜索范围以查看更多事件。",
+    "noIncidentsTitle": "暂无事件",
+    "noIncidentsDescription": "来自 ServiceNow 的事件会在 Keigan 发现后立即显示在此处。您也可以自行发起调查。"
+  },
+  "newInvestigation": {
+    "open": "新建调查",
+    "title": "发起调查",
+    "description": "Keigan 会从所选服务收集证据并提出根因。不会更改您的任何系统。",
+    "application": "应用",
+    "services": "要检查的服务",
+    "servicesHelp": "如果全部不选，Keigan 会根据您的描述和应用拓扑选择服务。",
+    "descriptionLabel": "出现了什么问题？",
+    "descriptionHelp": "请描述症状、受影响的对象和开始时间。请勿粘贴个人数据；Keigan 会在分析前对其脱敏。",
+    "windowStart": "窗口开始",
+    "windowEnd": "窗口结束",
+    "cancel": "取消",
+    "start": "开始调查",
+    "startedTitle": "调查已开始",
+    "startedDescription": "Keigan 正在收集证据，通常需要一到两分钟。"
+  }
+}

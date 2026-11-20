@@ -1,0 +1,47 @@
+{
+  "layout": {
+    "brand": "Keigan",
+    "tagline": "AI サイト信頼性エンジニア",
+    "open_in_keigan": "Keigan で開く",
+    "footer": "このメッセージは {application_name} の関係者としてお送りしています。配信設定は Keigan でアプリケーションチームにご相談ください。",
+    "automated": "このメッセージは Keigan が自動生成しました。重要な事項はインシデント記録でご確認ください。"
+  },
+  "labels": {
+    "application": "アプリケーション",
+    "incident": "インシデント",
+    "priority": "優先度",
+    "services": "影響を受けるサービス",
+    "category": "カテゴリ",
+    "status": "ステータス",
+    "opened": "発生時刻",
+    "confidence": "確信度",
+    "health_score": "ヘルススコア",
+    "period": "期間",
+    "severity": "重大度",
+    "slo": "SLO",
+    "burn_rate": "バーンレート"
+  },
+  "types": {
+    "incident_detected": {"subject": "[{priority}] インシデント検知: {title}", "headline": "インシデントを検知しました", "intro": "Keigan が {application_name} の新しいインシデントを検知し、調査を開始しました。"},
+    "preliminary_report": {"subject": "[{priority}] 暫定報告: {title}", "headline": "暫定調査レポート", "intro": "Keigan がこのインシデントの最初の調査を完了しました。内容は暫定であり、変更される可能性があります。"},
+    "progress_update": {"subject": "[{priority}] 更新: {title}", "headline": "インシデント更新", "intro": "{application_name} のインシデントに関する更新です。"},
+    "resolution_update": {"subject": "[{priority}] 解決: {title}", "headline": "インシデントが解決しました", "intro": "{application_name} のインシデントは解決しました。"},
+    "executive_summary": {"subject": "[{priority}] エグゼクティブサマリー: {title}", "headline": "エグゼクティブサマリー", "intro": "{application_name} のインシデントに関する経営層向けの要約です。"},
+    "postmortem": {"subject": "ポストモーテム: {title}", "headline": "ポストモーテムレポート", "intro": "{application_name} のインシデントのポストモーテムが完成しました。"},
+    "intelligence_report": {"subject": "Keigan インテリジェンスレポート: {title}", "headline": "Keigan インテリジェンスレポート", "intro": "Keigan が {application_name} の信頼性を分析しました。"},
+    "slo_burn_alert": {"subject": "[{severity}] SLO バーンアラート: {title}", "headline": "SLO エラーバジェットの消費が加速しています", "intro": "{application_name} の SLO のエラーバジェットが想定より速く消費されています。"},
+    "test": {"subject": "{application_name} の Keigan テスト通知", "headline": "テスト通知", "intro": "Keigan の通知が届くことを確認するためのテストメッセージです。"}
+  },
+  "cards": {
+    "incident_detected": "インシデント検知",
+    "preliminary_report": "暫定レポート",
+    "postmortem_ready": "ポストモーテム完成",
+    "intelligence_alert": "予兆シグナル",
+    "open": "Keigan で開く"
+  },
+  "chat": {
+    "welcome": "Keigan です。調査結果をここに投稿し、皆さんの議論から学びます。「Keigan, ...」と話しかけてください。インシデントが完了したら「Keigan, this is finished」と伝えるとポストモーテムを準備します。",
+    "milestone_ack": "承知しました。ポストモーテムの下書きを作成中です。まもなく Keigan に表示されます。",
+    "no_answer": "現在お答えできません。詳細は Keigan の調査画面をご確認ください。"
+  }
+}

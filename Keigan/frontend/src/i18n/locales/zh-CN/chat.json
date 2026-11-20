@@ -1,0 +1,49 @@
+{
+  "pageTitle": "Keigan AI 对话",
+  "pageDescription": "可询问有关应用、事件和遥测数据的问题。",
+  "list": {
+    "title": "对话",
+    "newChat": "新对话",
+    "search": "搜索对话",
+    "empty": "暂无对话，提出您的第一个问题吧。",
+    "noMatches": "没有与搜索匹配的对话。",
+    "actions": "对话操作",
+    "rename": "重命名",
+    "renameTitle": "重命名对话",
+    "nameLabel": "名称",
+    "save": "保存",
+    "delete": "删除",
+    "deleteTitle": "删除此对话？",
+    "deleteDescription": "该对话及其回答将从您的账号中移除，此操作无法撤销。"
+  },
+  "conversation": {
+    "title": "对话",
+    "newTitle": "新对话",
+    "scope": "当前范围",
+    "allApplications": "我的所有应用",
+    "thinking": "Keigan 正在处理…"
+  },
+  "empty": {
+    "title": "您想了解什么？",
+    "description": "可询问错误数量、随时间变化的规律、架构或运行手册。Keigan 只读取数据，绝不会更改您的系统。",
+    "category": { "data": "来自您的日志", "knowledge": "来自您的知识库" }
+  },
+  "composer": {
+    "label": "给 Keigan 发消息",
+    "placeholder": "询问有关您应用的问题…",
+    "send": "发送",
+    "hint": "按 Enter 发送，Shift+Enter 换行。个人数据在发送给 AI 之前会被脱敏。"
+  },
+  "message": {
+    "howIGotThis": "结论依据",
+    "queryMeta": "{{service}} · {{source}} · {{language}} · {{count}} 行",
+    "simulated": "模拟数据",
+    "sources": "来源",
+    "noData": "此时间段无数据。",
+    "clarificationLabel": "选择时间范围"
+  },
+  "errors": {
+    "rateLimited": "您发送消息过于频繁，请稍等片刻后重试。",
+    "generic": "Keigan 暂时无法回答，请重试。"
+  }
+}

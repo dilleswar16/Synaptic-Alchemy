@@ -1,0 +1,96 @@
+{
+  "sections": {
+    "operate": "運用",
+    "reliability": "信頼性",
+    "assist": "支援",
+    "prepare": "準備",
+    "administration": "管理"
+  },
+  "items": {
+    "home": "ホーム",
+    "incidents": "インシデントルーム",
+    "alerts": "アラート",
+    "slo": "SLO モニタリング",
+    "intelligence": "インテリジェンス",
+    "chat": "Keigan AI チャット",
+    "applications": "アプリケーション",
+    "platformSettings": "プラットフォーム設定",
+    "usageAndAudit": "利用状況と監査",
+    "outbox": "送信トレイ",
+    "designSystem": "デザインシステム"
+  },
+  "skipToContent": "メインコンテンツへスキップ",
+  "mainNavigation": "メインナビゲーション",
+  "breadcrumb": "パンくずリスト",
+  "sidebar": {
+    "collapse": "サイドバーを折りたたむ",
+    "expand": "サイドバーを展開",
+    "open": "ナビゲーションを開く",
+    "close": "ナビゲーションを閉じる"
+  },
+  "applicationScope": {
+    "label": "アプリケーション",
+    "allMyApplications": "自分のすべてのアプリケーション",
+    "selectedCount_one": "{{count}} 件のアプリケーション",
+    "selectedCount_other": "{{count}} 件のアプリケーション",
+    "searchPlaceholder": "アプリケーションを検索",
+    "noApplications": "アクセスできるアプリケーションはまだありません。",
+    "noMatches": "「{{query}}」に一致するアプリケーションはありません",
+    "showAll": "すべて表示",
+    "triggerLabel": "アプリケーションの範囲: {{scope}}",
+    "roleAdmin": "管理者",
+    "roleReader": "閲覧者",
+    "hint": "一覧、件数、チャットの回答はこの範囲に従います。"
+  },
+  "commandPalette": {
+    "title": "Keigan を検索",
+    "open": "Keigan を検索",
+    "trigger": "検索",
+    "placeholder": "ページへ移動、またはインシデント番号を検索…",
+    "pages": "ページ",
+    "incidents": "インシデント",
+    "searchIncident": "「{{query}}」でインシデントを検索",
+    "noResults": "一致するページはありません。Enter でインシデントを検索します。",
+    "hintNavigate": "で移動",
+    "hintOpen": "で開く",
+    "hintClose": "で閉じる"
+  },
+  "notifications": {
+    "title": "通知",
+    "open": "通知を開く",
+    "emptyTitle": "すべて確認済みです",
+    "emptyDescription": "アプリケーションのインシデントと SLO の更新がここに表示されます。"
+  },
+  "userMenu": {
+    "open": "ユーザーメニューを開く",
+    "preferences": "設定",
+    "signOut": "サインアウト",
+    "signedInAs": "サインイン中"
+  },
+  "roles": {
+    "keiganAdmin": "Keigan 管理者",
+    "applicationAdmin": "アプリケーション管理者",
+    "reader": "閲覧者",
+    "noAccess": "アクセス権なし"
+  },
+  "preferences": {
+    "title": "設定",
+    "description": "言語とテーマは Keigan のプロファイルに保存されます。",
+    "language": "言語",
+    "theme": "テーマ",
+    "done": "完了"
+  },
+  "notFound": {
+    "title": "ページが見つかりません",
+    "description": "お探しのページは存在しないか、移動されました。",
+    "goHome": "ホームへ移動"
+  },
+  "adminOnly": {
+    "title": "Keigan 管理者専用",
+    "description": "この領域は Keigan 管理者グループのメンバーのみ利用できます。"
+  },
+  "routeError": {
+    "title": "このページで問題が発生しました",
+    "description": "ページを再読み込みしてください。繰り返し発生する場合は、下記の詳細を Keigan チームに共有してください。"
+  }
+}

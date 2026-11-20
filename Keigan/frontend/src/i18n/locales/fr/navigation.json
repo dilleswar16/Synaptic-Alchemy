@@ -1,0 +1,96 @@
+{
+  "sections": {
+    "operate": "Exploitation",
+    "reliability": "Fiabilité",
+    "assist": "Assistance",
+    "prepare": "Préparation",
+    "administration": "Administration"
+  },
+  "items": {
+    "home": "Accueil",
+    "incidents": "Salle des incidents",
+    "alerts": "Alertes",
+    "slo": "Suivi des SLO",
+    "intelligence": "Intelligence",
+    "chat": "Chat IA Keigan",
+    "applications": "Applications",
+    "platformSettings": "Paramètres de la plateforme",
+    "usageAndAudit": "Utilisation et audit",
+    "outbox": "Boîte d'envoi",
+    "designSystem": "Design system"
+  },
+  "skipToContent": "Passer au contenu principal",
+  "mainNavigation": "Navigation principale",
+  "breadcrumb": "Fil d'Ariane",
+  "sidebar": {
+    "collapse": "Réduire la barre latérale",
+    "expand": "Développer la barre latérale",
+    "open": "Ouvrir la navigation",
+    "close": "Fermer la navigation"
+  },
+  "applicationScope": {
+    "label": "Applications",
+    "allMyApplications": "Toutes mes applications",
+    "selectedCount_one": "{{count}} application",
+    "selectedCount_other": "{{count}} applications",
+    "searchPlaceholder": "Rechercher des applications",
+    "noApplications": "Vous n'avez encore accès à aucune application.",
+    "noMatches": "Aucune application ne correspond à « {{query}} »",
+    "showAll": "Tout afficher",
+    "triggerLabel": "Périmètre des applications : {{scope}}",
+    "roleAdmin": "Admin",
+    "roleReader": "Lecteur",
+    "hint": "Les listes, les compteurs et les réponses du chat suivent ce périmètre."
+  },
+  "commandPalette": {
+    "title": "Rechercher dans Keigan",
+    "open": "Rechercher dans Keigan",
+    "trigger": "Rechercher",
+    "placeholder": "Accédez à une page ou trouvez un numéro d'incident…",
+    "pages": "Pages",
+    "incidents": "Incidents",
+    "searchIncident": "Rechercher des incidents pour « {{query}} »",
+    "noResults": "Aucune page ne correspond. Appuyez sur Entrée pour rechercher des incidents.",
+    "hintNavigate": "pour naviguer",
+    "hintOpen": "pour ouvrir",
+    "hintClose": "pour fermer"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "open": "Ouvrir les notifications",
+    "emptyTitle": "Vous êtes à jour",
+    "emptyDescription": "Les mises à jour d'incidents et de SLO de vos applications apparaîtront ici."
+  },
+  "userMenu": {
+    "open": "Ouvrir le menu utilisateur",
+    "preferences": "Préférences",
+    "signOut": "Se déconnecter",
+    "signedInAs": "Connecté en tant que"
+  },
+  "roles": {
+    "keiganAdmin": "Administrateur Keigan",
+    "applicationAdmin": "Administrateur d'application",
+    "reader": "Lecteur",
+    "noAccess": "Aucun accès"
+  },
+  "preferences": {
+    "title": "Préférences",
+    "description": "Votre langue et votre thème sont enregistrés dans votre profil Keigan.",
+    "language": "Langue",
+    "theme": "Thème",
+    "done": "Terminé"
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "description": "La page que vous cherchez n'existe pas ou a été déplacée.",
+    "goHome": "Aller à l'accueil"
+  },
+  "adminOnly": {
+    "title": "Réservé aux administrateurs Keigan",
+    "description": "Cet espace est réservé aux membres du groupe des administrateurs Keigan."
+  },
+  "routeError": {
+    "title": "Cette page a rencontré un problème",
+    "description": "Rechargez la page. Si le problème persiste, transmettez les détails ci-dessous à l'équipe Keigan."
+  }
+}

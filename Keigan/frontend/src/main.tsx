@@ -1,0 +1,18 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./styles/global.css";
+import { Bootstrap } from "./app/Bootstrap";
+import { initializeTheme } from "./hooks/useTheme";
+
+initializeTheme();
+
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Missing #root element in index.html");
+}
+
+createRoot(rootElement).render(
+  <StrictMode>
+    <Bootstrap />
+  </StrictMode>,
+);

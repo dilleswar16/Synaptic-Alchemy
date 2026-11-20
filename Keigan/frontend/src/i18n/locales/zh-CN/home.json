@@ -1,0 +1,69 @@
+{
+  "pageTitle": "首页",
+  "pageDescription": "汇总所有应用中需要您处理的事项。",
+  "greeting": {
+    "morning": "早上好，{{name}}",
+    "afternoon": "下午好，{{name}}",
+    "evening": "晚上好，{{name}}"
+  },
+  "syncedAt": "{{time}}更新",
+  "viewAll": "查看全部",
+  "kpi": {
+    "sectionLabel": "关键指标",
+    "openIncidents": "未关闭事件",
+    "noneOpen": "无未关闭项",
+    "alertGroups": "活跃告警组",
+    "noAlerts": "24 小时内无告警",
+    "noiseReduced": "24 小时内噪音减少 {{percentage}}",
+    "slosAtRisk": "存在风险的 SLO",
+    "slosTotal_one": "共 {{count}} 个目标",
+    "slosTotal_other": "共 {{count}} 个目标",
+    "investigations": "调查（24 小时）",
+    "firstUpdate": "首次更新平均耗时 {{duration}}",
+    "noFirstUpdate": "暂无首次更新"
+  },
+  "health": {
+    "title": "应用健康度",
+    "emptyTitle": "暂无应用",
+    "emptyDescription": "您有权访问的应用完成接入后将显示在此处。",
+    "ringLabel": "健康度 {{percentage}}%，{{status}}",
+    "status": { "healthy": "健康", "watch": "关注", "degraded": "降级", "critical": "严重" },
+    "tier": "{{tier}} 级",
+    "openIncidents_one": "{{count}} 个事件",
+    "openIncidents_other": "{{count}} 个事件",
+    "worstBudget": "剩余错误预算最低",
+    "noBudget": "暂无 SLO",
+    "noTrend": "暂无趋势",
+    "sparklineLabel": "{{name}}过去 24 小时的可用性"
+  },
+  "live": {
+    "title": "实时事件",
+    "description": "未关闭的事件及 Keigan 的调查进展。",
+    "empty": "没有未关闭的事件，Keigan 持续监控中。",
+    "investigating": "调查中",
+    "status": { "new": "新建", "investigating": "调查中", "identified": "已定位原因", "monitoring": "监控中" }
+  },
+  "ask": {
+    "title": "询问 Keigan",
+    "description": "错误数量、规律、架构、运行手册。",
+    "label": "向 Keigan 提问",
+    "placeholder": "过去 24 小时有多少请求失败？",
+    "submit": "提问"
+  },
+  "feed": {
+    "title": "智能洞察动态",
+    "description": "在演变为事件之前的早期预警。",
+    "empty": "没有未处理的信号，一切正常。",
+    "forecast": "预计违约时间 {{time}}"
+  },
+  "maintenance": {
+    "title": "维护窗口",
+    "description": "未来 7 天。",
+    "empty": "本周没有计划中的维护。"
+  },
+  "postmortems": {
+    "title": "近期复盘",
+    "empty": "暂无复盘。",
+    "status": { "generating": "生成中", "draft": "草稿", "final": "终稿", "failed": "失败" }
+  }
+}

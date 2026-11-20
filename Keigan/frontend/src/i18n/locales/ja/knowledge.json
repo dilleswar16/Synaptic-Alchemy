@@ -1,0 +1,160 @@
+{
+  "pageTitle": "ナレッジベース",
+  "pageDescription": "Keigan の回答の根拠となるドキュメントと AI ダイジェストです。",
+  "categories": {
+    "code_context": "コードコンテキスト",
+    "architecture": "アーキテクチャ",
+    "operations_guide": "運用ガイド",
+    "runbook_source": "ランブックの元資料",
+    "incident_history": "インシデント履歴",
+    "other": "その他"
+  },
+  "capture": {
+    "title": "Copilot によるコードコンテキスト",
+    "description": "Copilot がリポジトリを読み取り、サービスの仕組みを Keigan に伝える Markdown ファイルを 1 つ作成します。",
+    "stages": {
+      "copy": {
+        "title": "プロンプトをコピー",
+        "body": "サービスを選択し、下のプロンプトをコピーします。"
+      },
+      "run": {
+        "title": "VS Code で実行",
+        "body": "サービスのリポジトリで Copilot Chat に貼り付けます。"
+      },
+      "upload": {
+        "title": "ファイルをアップロード",
+        "body": "Copilot が作成した Markdown ファイルを下のエリアにドロップします。"
+      }
+    },
+    "scope": "Copilot に何を説明させますか？",
+    "wholeApplication": "アプリケーション全体",
+    "promptTitle": "ナレッジ取得プロンプト · バージョン {{version}} · {{lines}} 行"
+  },
+  "upload": {
+    "category": "ドキュメントのカテゴリ",
+    "accepted": "Markdown、テキスト、PDF、PNG、JPG、WebP（最大 15 MB）",
+    "failed": "アップロードに失敗しました。もう一度お試しください。"
+  },
+  "documents": {
+    "title": "ドキュメント",
+    "emptyTitle": "ドキュメントはまだありません",
+    "emptyDescription": "Copilot のファイル、アーキテクチャ図、ガイドをアップロードしてください。Keigan がそれぞれを要約します。",
+    "wholeApplication": "アプリケーション全体",
+    "headings_one": "見出し {{count}} 件",
+    "headings_other": "見出し {{count}} 件",
+    "stale": "90 日以上前",
+    "viewDigest": "ダイジェストを表示",
+    "delete": "ドキュメントを削除",
+    "deleteTitle": "{{name}}を削除しますか？",
+    "deleteDescription": "ファイル、ダイジェスト、検索インデックスが削除されます。作成済みのトポロジーは変更されません。",
+    "deleteConfirm": "ドキュメントを削除"
+  },
+  "digest": {
+    "title": "AI ダイジェスト",
+    "headings": "検出された見出し（{{count}}）",
+    "chunks": "検索可能なセクション {{count}} 件、約 {{tokens}} トークン。",
+    "injectionTitle": "このドキュメントに指示のような文章が含まれています",
+    "injectionBody": "Keigan はドキュメントをデータとして扱い、内部の指示は無視しますが、担当者がこのファイルを確認してください。",
+    "status": {
+      "pending": "ダイジェスト待ち",
+      "running": "ダイジェスト作成中",
+      "ready": "ダイジェスト完了",
+      "failed": "ダイジェスト失敗"
+    }
+  },
+  "records": {
+    "title": "エンタープライズレコード",
+    "description": "このアプリケーションの EAI と CMDB のレコードを関連付けます。リーダーは開発中のため、Keigan は詳細のみ保存します。",
+    "systems": {
+      "eai": "EAI",
+      "cmdb": "CMDB"
+    },
+    "system": "レコードシステム",
+    "identifier": "レコード ID",
+    "placeholder": "例: EAI-21530",
+    "add": "レコードを関連付け",
+    "remove": "{{code}}を削除"
+  },
+  "integrations": {
+    "savedReaderNotAvailable": "詳細を保存しました — リーダーはまだ利用できません",
+    "configured": "設定済み",
+    "notSetUp": "未設定",
+    "viewDetails": "詳細を表示",
+    "setUp": "設定",
+    "notes": "メモ",
+    "save": "詳細を保存",
+    "saveFailed": "詳細を保存できませんでした。もう一度お試しください。",
+    "fields": {}
+  },
+  "topology": {
+    "build": "トポロジーを作成",
+    "rebuild": "トポロジーを再作成",
+    "buildingTitle": "Keigan がトポロジーを作成中です",
+    "buildingBody": "サービス、依存関係、ナレッジダイジェストを読み取り中…",
+    "emptyTitle": "トポロジーがありません",
+    "emptyDescription": "サービス、依存関係、ナレッジドキュメントから作成します。その後、レビュー担当者が修正できます。",
+    "reviewStatus": {
+      "awaiting_review": "レビュー待ち",
+      "reviewed": "レビュー済み",
+      "needs_correction": "修正が必要"
+    },
+    "version": "{{count}} 件中バージョン {{number}}",
+    "selectNodeHint": "グラフ上のノードを選択してレビューします。",
+    "wholeGraph": "グラフ全体",
+    "looksRight": "問題なし",
+    "needsCorrection": "修正が必要",
+    "correctionLabel": "何を修正すべきですか？",
+    "correctionPlaceholder": "何を修正すべきですか？次回の作成時に反映されます。",
+    "sendCorrection": "修正を送信",
+    "cancel": "キャンセル",
+    "verdicts": {
+      "looks_right": "問題なし",
+      "needs_correction": "修正が必要",
+      "comment": "コメント"
+    },
+    "nodeTypes": {
+      "service": "サービス",
+      "data_store": "データストア",
+      "external": "外部システム",
+      "hardware": "ハードウェア",
+      "queue": "キュー",
+      "client": "クライアント",
+      "mainframe": "メインフレーム",
+      "saas": "SaaS"
+    },
+    "understanding": "Keigan の理解",
+    "uncertainties": "Keigan が確信を持てない点",
+    "relationships_one": "関係 {{count}} 件",
+    "relationships_other": "関係 {{count}} 件",
+    "correctRelationship": "修正: {{source}} から {{target}}"
+  },
+  "runbooks": {
+    "add": "ランブックを追加",
+    "addTitle": "ランブックを追加",
+    "editTitle": "ランブックを編集",
+    "edit": "編集",
+    "delete": "ランブックを削除",
+    "emptyTitle": "ランブックはまだありません",
+    "emptyDescription": "既知の問題とチームの対応方法を追加してください。Keigan は調査でそれらを引用します。",
+    "titleLabel": "タイトル",
+    "symptoms": "適用条件",
+    "symptomsHelp": "症状、アラート名、エラーのシグネチャ。Keigan はこのテキストとインシデントを照合します。",
+    "steps": "手順（Markdown）",
+    "write": "編集",
+    "preview": "プレビュー",
+    "nothingToPreview": "プレビューする内容がありません。",
+    "loadFile": ".md ファイルから読み込む",
+    "fileTooLarge": "ファイルが 512 KB を超えています。",
+    "sourceLink": "元資料のリンク",
+    "appliesTo": "適用するサービス",
+    "appliesToHelp": "アプリケーション全体に適用する場合は、すべて未選択のままにしてください。",
+    "save": "ランブックを保存",
+    "saveFailed": "ランブックを保存できませんでした。もう一度お試しください。",
+    "wholeApplication": "アプリケーション全体",
+    "referenced_one": "{{count}} 件の調査で参照",
+    "referenced_other": "{{count}} 件の調査で参照",
+    "deleteTitle": "{{name}}を削除しますか？",
+    "deleteDescription": "すでにこれを引用した調査の履歴は保持されます。",
+    "deleteConfirm": "ランブックを削除"
+  }
+}

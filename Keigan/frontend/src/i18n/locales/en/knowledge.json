@@ -1,0 +1,160 @@
+{
+  "pageTitle": "Knowledge base",
+  "pageDescription": "Documents and AI digests that ground Keigan's answers.",
+  "categories": {
+    "code_context": "Code context",
+    "architecture": "Architecture",
+    "operations_guide": "Operations guide",
+    "runbook_source": "Runbook source",
+    "incident_history": "Incident history",
+    "other": "Other"
+  },
+  "capture": {
+    "title": "Code context from Copilot",
+    "description": "Copilot reads the repository and writes one Markdown file that teaches Keigan how the service works.",
+    "stages": {
+      "copy": {
+        "title": "Copy the prompt",
+        "body": "Choose the service and copy the prompt below."
+      },
+      "run": {
+        "title": "Run it in VS Code",
+        "body": "Paste it into Copilot Chat in the service's repository."
+      },
+      "upload": {
+        "title": "Upload the file",
+        "body": "Drop the Markdown file Copilot wrote into the area below."
+      }
+    },
+    "scope": "What should Copilot describe?",
+    "wholeApplication": "The whole application",
+    "promptTitle": "Knowledge capture prompt · version {{version}} · {{lines}} lines"
+  },
+  "upload": {
+    "category": "Document category",
+    "accepted": "Markdown, text, PDF, PNG, JPG, WebP (up to 15 MB)",
+    "failed": "The upload failed. Try again."
+  },
+  "documents": {
+    "title": "Documents",
+    "emptyTitle": "No documents yet",
+    "emptyDescription": "Upload the Copilot file, architecture diagrams or guides. Keigan digests each one.",
+    "wholeApplication": "Whole application",
+    "headings_one": "{{count}} heading",
+    "headings_other": "{{count}} headings",
+    "stale": "Older than 90 days",
+    "viewDigest": "View digest",
+    "delete": "Delete document",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteDescription": "The file, its digest and its search index are removed. Topologies already built are not changed.",
+    "deleteConfirm": "Delete document"
+  },
+  "digest": {
+    "title": "AI digest",
+    "headings": "Headings found ({{count}})",
+    "chunks": "{{count}} searchable sections, about {{tokens}} tokens.",
+    "injectionTitle": "This document contains instruction-like text",
+    "injectionBody": "Keigan treats documents as data and ignores instructions inside them, but a person should check this file.",
+    "status": {
+      "pending": "Waiting to digest",
+      "running": "Digesting",
+      "ready": "Digest ready",
+      "failed": "Digest failed"
+    }
+  },
+  "records": {
+    "title": "Enterprise records",
+    "description": "Link the EAI and CMDB records of this application. The readers are in development, so Keigan saves the details.",
+    "systems": {
+      "eai": "EAI",
+      "cmdb": "CMDB"
+    },
+    "system": "Record system",
+    "identifier": "Record identifier",
+    "placeholder": "For example EAI-21530",
+    "add": "Link record",
+    "remove": "Remove {{code}}"
+  },
+  "integrations": {
+    "savedReaderNotAvailable": "Details saved — reader not available yet",
+    "configured": "Configured",
+    "notSetUp": "Not set up",
+    "viewDetails": "View details",
+    "setUp": "Set up",
+    "notes": "Notes",
+    "save": "Save details",
+    "saveFailed": "The details could not be saved. Try again.",
+    "fields": {}
+  },
+  "topology": {
+    "build": "Build topology",
+    "rebuild": "Rebuild topology",
+    "buildingTitle": "Keigan is building the topology",
+    "buildingBody": "Reading services, dependencies and knowledge digests…",
+    "emptyTitle": "No topology yet",
+    "emptyDescription": "Build it from your services, dependencies and knowledge documents. Reviewers can then correct it.",
+    "reviewStatus": {
+      "awaiting_review": "Awaiting review",
+      "reviewed": "Reviewed",
+      "needs_correction": "Needs correction"
+    },
+    "version": "Version {{number}} of {{count}}",
+    "selectNodeHint": "Select a node in the graph to review it.",
+    "wholeGraph": "Whole graph",
+    "looksRight": "Looks right",
+    "needsCorrection": "Needs correction",
+    "correctionLabel": "What should change?",
+    "correctionPlaceholder": "What should change? The next build uses this.",
+    "sendCorrection": "Send correction",
+    "cancel": "Cancel",
+    "verdicts": {
+      "looks_right": "Looks right",
+      "needs_correction": "Needs correction",
+      "comment": "Comment"
+    },
+    "nodeTypes": {
+      "service": "Service",
+      "data_store": "Data store",
+      "external": "External system",
+      "hardware": "Hardware",
+      "queue": "Queue",
+      "client": "Client",
+      "mainframe": "Mainframe",
+      "saas": "SaaS"
+    },
+    "understanding": "Keigan's understanding",
+    "uncertainties": "Keigan is unsure about",
+    "relationships_one": "{{count}} relationship",
+    "relationships_other": "{{count}} relationships",
+    "correctRelationship": "Correct: {{source}} to {{target}}"
+  },
+  "runbooks": {
+    "add": "Add runbook",
+    "addTitle": "Add a runbook",
+    "editTitle": "Edit runbook",
+    "edit": "Edit",
+    "delete": "Delete runbook",
+    "emptyTitle": "No runbooks yet",
+    "emptyDescription": "Add the known issues and how your team responds. Keigan cites them in investigations.",
+    "titleLabel": "Title",
+    "symptoms": "When it applies",
+    "symptomsHelp": "Symptoms, alert names and error signatures. Keigan matches incidents against this text.",
+    "steps": "Steps (Markdown)",
+    "write": "Write",
+    "preview": "Preview",
+    "nothingToPreview": "Nothing to preview yet.",
+    "loadFile": "Load from a .md file",
+    "fileTooLarge": "That file is larger than 512 KB.",
+    "sourceLink": "Source link",
+    "appliesTo": "Services it applies to",
+    "appliesToHelp": "Leave all unchecked when it applies to the whole application.",
+    "save": "Save runbook",
+    "saveFailed": "The runbook could not be saved. Try again.",
+    "wholeApplication": "Whole application",
+    "referenced_one": "Referenced in {{count}} investigation",
+    "referenced_other": "Referenced in {{count}} investigations",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteDescription": "Investigations that already cited it keep their history.",
+    "deleteConfirm": "Delete runbook"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "pageTitle": "SLO-monitoring",
+  "pageDescription": "Naleving, foutbudgetten en burn rates voor elke SLO binnen het bereik.",
+  "status": { "healthy": "Gezond", "at_risk": "In gevaar", "breached": "Geschonden", "no_data": "Geen gegevens" },
+  "summary": { "breached": "{{count}} geschonden", "at_risk": "{{count}} in gevaar", "healthy": "{{count}} gezond" },
+  "emptyTitle": "Nog geen SLO's",
+  "emptyDescription": "Open de SLO-stap van een applicatie om de voorstellen te bekijken die Keigan over de laatste 30 dagen heeft gemeten, en accepteer ze.",
+  "headline": { "title": "Hoofd-SLO's", "description": "Zo dicht mogelijk bij de gebruiker gemeten, op het toegangspunt van elke applicatie." },
+  "cards": { "title": "Alle SLO's" },
+  "card": {
+    "window": "Venster van {{days}} dagen", "approximate": "bij benadering", "target": "Doel {{target}} %", "sparkline": "Trend van {{name}} over de laatste 14 dagen", "budget": "Foutbudget",
+    "budgetLeft": "{{percent}} % over, {{minutes}} min", "noData": "Geen gegevens", "burn1h": "Burn 1 u", "burn6h": "Burn 6 u", "noBurn": "n.v.t."
+  },
+  "detail": {
+    "compliance": "Naleving", "target": "Doel", "budget": "Resterend foutbudget", "budgetValue": "{{minutes}} van {{total}} minuten", "resolution": "Resolutie", "daily": "Dagelijks", "hourly": "Per uur",
+    "sliOverTime": "SLI in de tijd", "sli": "SLI", "targetLine": "Doel", "burnDown": "Burn-down van foutbudget", "budgetRemaining": "Resterend budget"
+  },
+  "heatmap": { "title": "Ecosysteem-heatmap", "description": "Dagelijkse naleving van elke SLO voor al uw applicaties.", "emptyTitle": "Niets om te tonen", "emptyDescription": "SLO's verschijnen hier zodra applicaties ze hebben geaccepteerd." },
+  "proposals": {
+    "measuring": "De laatste 30 dagen meten", "stages": { "0": "Metriekdefinities lezen", "1": "30 dagen aan gegevens lezen", "2": "Basislijnen berekenen" }, "measuringHelp": "U kunt deze pagina verlaten; Keigan blijft meten.",
+    "failed": "Meten mislukt", "retry": "Opnieuw proberen", "remeasure": "Opnieuw meten", "suggests": "Keigan stelt {{slos}} SLO's voor verspreid over {{services}} services", "acceptSuggested": "Voorstellen accepteren",
+    "accepted": "{{count}} SLO's geaccepteerd", "headline": "Hoofd-SLO", "explain": "Deze indicator toelichten", "approximate": "bij benadering (gemiddelden van 5 minuten)", "alreadyAccepted": "Geaccepteerd",
+    "columns": { "sli": "Indicator", "source": "Bron", "measured": "Waarde over 30 dagen", "target": "Doel", "window": "Venster", "budget": "Foutbudget" }, "days": "{{days}} dagen",
+    "sparkline": "Trend van {{name}} over 30 dagen", "supporting": "Ondersteunende signalen ({{count}}): verzameld, geen doel", "emptyTitle": "Geen indicatoren gevonden", "emptyDescription": "Koppel Application Insights of logbronnen aan de services en meet daarna opnieuw."
+  },
+  "custom": {
+    "title": "Aangepaste SLI toevoegen (geavanceerd)", "description": "Een KQL-query die good, total en window_start (blokken van 5 minuten) teruggeeft.", "service": "Service", "servicePlaceholder": "Kies een service", "name": "Naam",
+    "query": "KQL-query", "queryHelp": "AppRequests | summarize good=countif(Success == true), total=count() by window_start=bin(TimeGenerated, 5m)", "target": "Doel", "save": "SLI en SLO aanmaken"
+  }
+}

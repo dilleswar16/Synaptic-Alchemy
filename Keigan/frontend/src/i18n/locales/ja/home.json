@@ -1,0 +1,69 @@
+{
+  "pageTitle": "ホーム",
+  "pageDescription": "全アプリケーションで対応が必要なものをまとめて確認できます。",
+  "greeting": {
+    "morning": "おはようございます、{{name}}さん",
+    "afternoon": "こんにちは、{{name}}さん",
+    "evening": "こんばんは、{{name}}さん"
+  },
+  "syncedAt": "{{time}}に更新",
+  "viewAll": "すべて表示",
+  "kpi": {
+    "sectionLabel": "主要指標",
+    "openIncidents": "未解決のインシデント",
+    "noneOpen": "未解決なし",
+    "alertGroups": "アクティブなアラートグループ",
+    "noAlerts": "24 時間以内のアラートなし",
+    "noiseReduced": "24 時間でノイズ {{percentage}} 削減",
+    "slosAtRisk": "リスクのある SLO",
+    "slosTotal_one": "全 {{count}} 目標中",
+    "slosTotal_other": "全 {{count}} 目標中",
+    "investigations": "調査（24 時間）",
+    "firstUpdate": "初回更新まで平均 {{duration}}",
+    "noFirstUpdate": "初回更新はまだありません"
+  },
+  "health": {
+    "title": "アプリケーションの健全性",
+    "emptyTitle": "アプリケーションがありません",
+    "emptyDescription": "アクセスできるアプリケーションは、オンボーディング後にここに表示されます。",
+    "ringLabel": "健全性 {{percentage}} パーセント、{{status}}",
+    "status": { "healthy": "正常", "watch": "注意", "degraded": "劣化", "critical": "重大" },
+    "tier": "ティア {{tier}}",
+    "openIncidents_one": "インシデント {{count}} 件",
+    "openIncidents_other": "インシデント {{count}} 件",
+    "worstBudget": "最低のエラーバジェット残量",
+    "noBudget": "SLO はまだありません",
+    "noTrend": "トレンドはまだありません",
+    "sparklineLabel": "{{name}}の直近 24 時間の可用性"
+  },
+  "live": {
+    "title": "進行中のインシデント",
+    "description": "未解決のインシデントと Keigan の調査状況です。",
+    "empty": "未解決のインシデントはありません。Keigan は監視を続けています。",
+    "investigating": "調査中",
+    "status": { "new": "新規", "investigating": "調査中", "identified": "原因特定済み", "monitoring": "監視中" }
+  },
+  "ask": {
+    "title": "Keigan に質問",
+    "description": "エラー件数、パターン、アーキテクチャ、ランブック。",
+    "label": "Keigan への質問",
+    "placeholder": "過去 24 時間に失敗したリクエストは何件？",
+    "submit": "質問"
+  },
+  "feed": {
+    "title": "インテリジェンスフィード",
+    "description": "インシデントになる前の早期警告です。",
+    "empty": "未解決のシグナルはありません。すべて正常です。",
+    "forecast": "違反予測 {{time}}"
+  },
+  "maintenance": {
+    "title": "メンテナンスウィンドウ",
+    "description": "今後 7 日間。",
+    "empty": "今週予定されているメンテナンスはありません。"
+  },
+  "postmortems": {
+    "title": "最近のポストモーテム",
+    "empty": "ポストモーテムはまだありません。",
+    "status": { "generating": "生成中", "draft": "下書き", "final": "確定", "failed": "失敗" }
+  }
+}

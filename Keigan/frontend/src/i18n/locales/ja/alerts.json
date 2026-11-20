@@ -1,0 +1,114 @@
+{
+  "pageTitle": "アラート",
+  "pageDescription": "アラートノイズを、重要なグループだけに集約します。破棄されるものはなく、すべてのアラートが保存され、すべての判断に理由があります。",
+  "severity": "Sev {{level}}",
+  "tools": { "azure_monitor": "Azure Monitor", "elastic": "Elastic", "generic": "汎用 Webhook" },
+  "groupStatus": { "open": "未解決", "queued": "キュー待ち", "resolved": "解決済み" },
+  "alertStatus": { "firing": "発火中", "resolved": "解決済み" },
+  "verdict": { "useful": "有用", "noise": "ノイズだった" },
+  "filters": { "period": "期間", "last24h": "24 時間", "last7d": "7 日間", "last30d": "30 日間" },
+  "observe": {
+    "title": "観察モード: 残り {{count}} 日",
+    "body": "Keigan は削減・グループ化の内容を記録しますが、最低重大度以上のアラートはすべて調査します。アクティブに切り替えるまで、動作は変わりません。",
+    "effect": "これまでの測定効果: {{sentence}}"
+  },
+  "funnel": {
+    "title": "ノイズファネル",
+    "description": "受信したアラートが、調査対象のグループに絞り込まれるまでの流れです。",
+    "emptyTitle": "この期間のアラートはありません",
+    "emptyDescription": "アプリケーションの「インシデントとアラート」ステップでアラートソースを接続すると、ファネルが表示されます。",
+    "steps": { "received": "受信したアラート", "deduplicated": "重複排除後", "filtered": "抑制・待機後", "groups": "アラートグループ", "investigations": "調査" },
+    "reasons": {
+      "repeats": "再発 {{count}} 件", "maintenance": "メンテナンス中 {{count}} 件", "muted": "ミュート {{count}} 件", "environment": "他の環境 {{count}} 件",
+      "severity": "最低重大度未満 {{count}} 件", "resolved_before_settle": "自然回復 {{count}} 件", "flapping": "フラッピング {{count}} 件"
+    },
+    "reasonHelp": {
+      "repeats": "同じアラートが再度発火し、既存のアラートに集計されました。", "maintenance": "メンテナンスウィンドウ中に到着したため、記録のみで調査していません。", "muted": "ミュートルールに一致しました。",
+      "environment": "調査対象の環境ではありません。", "severity": "最低重大度より低い重大度です。", "resolved_before_settle": "待機時間内に解消されました。", "flapping": "状態が繰り返し変化したため、1 件のアラートとして保持されました。"
+    }
+  },
+  "groups": {
+    "title": "アラートグループ",
+    "columns": { "group": "グループ", "services": "サービス", "severity": "重大度", "alerts": "アラート", "status": "状態", "score": "スコア", "reason": "判断", "lastActivity": "最終アクティビティ", "feedback": "フィードバック" },
+    "occurrences": "{{count}} 回発生",
+    "applicationLevel": "アプリケーションレベル",
+    "emptyTitle": "アラートグループはありません",
+    "emptyDescription": "アラートが到着すると、すべての判断の理由とともにここでグループ化されます。"
+  },
+  "outcome": {
+    "investigation_started": "調査を開始", "investigation_replayed": "調査対象になる", "queued": "キュー待ち", "below_threshold": "しきい値未満", "joined_group": "グループに追加",
+    "joined_investigation": "調査に追加", "servicenow_incident_suggested": "インシデントを提案", "servicenow_incident_created": "インシデントを作成", "suppressed_maintenance": "メンテナンスウィンドウ",
+    "suppressed_mute": "ミュート", "suppressed_environment": "他の環境", "suppressed_severity": "重大度未満", "resolved_before_settle": "自然回復", "new_group": "新規グループ",
+    "passed": "通過", "waiting": "待機中", "settled": "安定", "skipped_wait": "待機なし", "normalised": "解析済み", "new_alert": "新規アラート", "repeat": "再発", "resolved": "解決済み",
+    "reopened": "再オープン", "flapping": "フラッピング", "kept_open_flapping": "未解決のまま保持", "scored": "スコア算出済み", "notification_planned": "通知予定", "thread_updated": "スレッドを更新"
+  },
+  "stage": { "normalise": "1 正規化", "deduplicate": "2 重複排除", "lifecycle": "3 ライフサイクル", "suppress": "4 抑制", "settle": "5 待機", "group": "6 グループ化", "prioritise": "7 優先順位付け", "decide": "8 判断", "notify": "9 通知" },
+  "drawer": {
+    "loading": "アラートグループ", "rule": "ルール", "service": "サービス", "severity": "重大度", "state": "状態", "occurrences": "検知回数", "lastSeen": "最終検知", "flapping": "フラッピング",
+    "applicationLevel": "アプリケーションレベル（サービスなし）", "members": "所属アラート（{{count}}）", "decisionLog": "判断ログ", "decisionLogHelp": "パイプラインの各ステージと、その判断の理由です。",
+    "noDecisions": "記録された判断はありません。", "wouldHave": "アクティブモードでは: {{outcome}}", "groupingReason": "グループ化: {{reason}}",
+    "observeTitle": "観察モード", "observeBody": "これらの判断は記録のみで、適用されていません。「アクティブモードでは」の行は、変更される内容を示します。",
+    "openInvestigation": "調査を開く", "openIncident": "未解決のインシデント", "createIncident": "ServiceNow インシデントを作成", "createIncidentSuggested": "提案された ServiceNow インシデントを作成",
+    "incidentCreated": "ServiceNow インシデントを作成しました", "incidentFailed": "インシデントを作成できませんでした",
+    "feedback": "このグループは役に立ちましたか？", "feedbackHelp": "フィードバックは週次ノイズレポートの調整に使われます。", "feedbackCurrent": "現在のフィードバック: {{verdict}}", "noiseReason": "なぜノイズでしたか？", "feedbackSaved": "フィードバックを保存しました"
+  },
+  "sources": {
+    "title": "アラートソース", "description": "監視ツールのアラートを Keigan に送信すると、ServiceNow のインシデントと同じ方法で分析されます。任意です。",
+    "add": "アラートソースを追加", "emptyTitle": "アラートソースはまだありません", "emptyDescription": "Azure Monitor、Elastic、または JSON Webhook を送信できる任意のツールを追加してください。",
+    "rulesFound": "件のアラートルールがスコープ内で見つかりました（{{sending}} 件が Keigan に送信）", "rulesTitle": "検出されたアラートルール", "sendsToKeigan": "Keigan に送信", "doesNotSend": "送信しない",
+    "simulatedRules": "シミュレーション用コンポーネントの例のルールです。Azure から読み取ったものではありません。",
+    "status": { "waiting_for_first_alert": "最初のアラートを待機中", "receiving": "受信中、最終アラート", "authentication_failures": "認証失敗", "paused": "一時停止" },
+    "counts": "7 日間でアラート {{alerts}} 件、グループ {{groups}} 件、調査 {{investigated}} 件", "authFailures": "誤ったトークンによる拒否リクエスト {{count}} 件。",
+    "test": "テスト", "testSent": "テストアラートを送信しました", "rotate": "シークレットをローテーション", "pause": "一時停止", "resume": "再開", "remove": "削除",
+    "removeTitle": "アラートソースを削除", "removeBody": "Keigan は{{name}}の URL でのアラート受信を停止します。保存済みのアラートは残ります。", "removeConfirm": "ソースを削除",
+    "rotatedTitle": "新しいシークレット", "rotatedBody": "今すぐコピーしてください。表示は 1 回のみです。古いシークレットは 24 時間引き続き有効です。"
+  },
+  "sheet": {
+    "title": "アラートソースを追加", "cancel": "キャンセル", "back": "戻る", "next": "次へ", "done": "完了", "createSource": "ソースを作成", "saveContinue": "保存して続行",
+    "steps": { "tool": "ツールを選択し、ソースに名前を付けます。", "endpoint": "Keigan がこのソース専用のエンドポイントを作成しました。", "configure": "実際の値でツールを設定します。", "mapping": "ペイロードのフィールドをマッピングします。", "services": "アラートがどのサービスに関するものかを Keigan に伝えます。", "test": "テストアラートを送信するか、実際のアラートを待ち受けます。" },
+    "tool": "ツール", "toolHelp": { "azure_monitor": "共通アラートスキーマ、自動でマッピング", "elastic": "すぐ使えるボディテンプレート付き Webhook コネクタ", "generic": "Dynatrace、Datadog、Grafana、Alertmanager、SolarWinds など" },
+    "name": "ソース名", "namePlaceholder": "Azure Monitor 本番",
+    "secretOnceTitle": "今すぐシークレットをコピー", "secretOnceBody": "Keigan はハッシュのみを保存します。シークレットは 1 回だけ表示され、後でローテーションできます。",
+    "webhookUrl": "Webhook URL", "webhookUrlHelp": "ヘッダーを送信できないツール（Azure Monitor）向けに、トークンを含みます。", "secret": "シークレット", "secretHelp": "X-Keigan-Token ヘッダー、または token クエリパラメータで送信します。",
+    "header": "ヘッダー", "headerHelp": "任意: X-Keigan-Signature でボディに署名します（HMAC-SHA256、キーはシークレットの SHA-256 16 進数）。",
+    "samplePayload": "サンプルペイロード（JSON）", "samplePayloadHelp": "ツールのアラートを 1 件貼り付けるか、空のままにして最初に受信したものを使用します。", "suggestMapping": "マッピングを提案してプレビュー",
+    "fields": { "ruleName": "ルール名", "ruleId": "ルール ID", "externalId": "アラート ID", "status": "ステータス", "severity": "重大度", "resourceRef": "リソース", "serviceHint": "サービス", "summary": "概要", "startedAt": "開始日時", "link": "リンク" },
+    "severityMapping": "重大度のマッピング（ツールの値から Sev 0～4）", "toolValue": "ツールの値", "severityLevel": "重大度", "removeRow": "行を削除", "addRow": "行を追加",
+    "servicesHelp": "Azure のアラートは、リソース ID で自動的に照合されます。他のツールでは、サービス名を示すペイロードのフィールドを選択してください。一致しないアラートはアプリケーションレベルになります。",
+    "serviceField": "サービスフィールド", "serviceFieldHelp": "JSONPath。例: $.service.name または $.kubernetes.namespace", "autoMatch": "同じ名前で照合", "autoMatchHelp": "サービス名と一致する値は、そのサービスにマッピングされます。",
+    "sendTest": "Keigan からテストアラートを送信", "listen": "実際のアラートを待ち受ける", "stopListening": "待ち受けを停止", "connected": "接続済み: アラートを受信し、解析しました",
+    "matchedService": "一致したサービス", "processing": "処理中", "rawPayload": "生のペイロード", "waiting": "最初のアラートを待機中...", "testHelp": "アラートを 1 件受信して解析すると、ソースが接続済みになります。"
+  },
+  "policy": {
+    "title": "ノイズ削減", "description": "デフォルトのまま動作します。文を編集して、アラートの削減方法を変更できます。", "reset": "デフォルトに戻す", "save": "ポリシーを保存", "discard": "変更を破棄",
+    "minSeverityA": "重大度が", "minSeverityB": "以上のアラートを調査する。",
+    "environmentsA": "次の環境のアラートのみを調査する:", "environmentsB": "それ以外は記録のみ。", "allEnvironments": "すべての環境",
+    "settleA": "アラートが自然に回復する場合に備えて、調査前に", "settleB": "待機する。待機を省略する条件:",
+    "reopenA": "同じアラートの再発は 1 件のアラートとして扱い、解消後", "reopenB": "の間もそう扱う。",
+    "groupA": "同じまたは依存関係にあるサービスのアラートを", "groupB": "以内であれば 1 つの問題として扱う。",
+    "flapA": "アラートの状態が", "flapB": "回、", "flapC": "以内に変化した場合、フラッピングとして扱い、1 件の未解決アラートとして保持する。",
+    "rateA": "このアプリケーションの調査を 1 時間あたり最大", "rateB": "件まで開始する。",
+    "thresholdA": "優先度スコアが次の値以上のグループを調査する:", "thresholdB": "（重大度 × 重要度 × 環境）。",
+    "modeA": "モード:", "modeActive": "アクティブ: 判断が反映される", "modeObserve": "観察: 動作を変えずに、削減される内容を表示",
+    "beforeSwitch": "アクティブに切り替える前の測定効果"
+  },
+  "windows": {
+    "title": "メンテナンスウィンドウ", "description": "ウィンドウ内のアラートは記録とラベル付けのみで、調査されません。", "add": "ウィンドウを追加", "create": "ウィンドウを作成", "name": "名前", "scope": "サービス",
+    "wholeApplication": "アプリケーション全体", "when": "日時", "repeat": "繰り返し", "weekly": "毎週繰り返す", "once": "1 回のみ", "state": "状態", "active": "現在有効", "delete": "ウィンドウを削除",
+    "starts": "開始", "ends": "終了", "empty": "メンテナンスウィンドウはありません"
+  },
+  "mute": {
+    "title": "ミュートルール", "description": "有効期限と理由は必須です。期限切れのルールは、黙って削除されず、期限切れとして表示されます。", "add": "ミュートルールを追加", "create": "ミュートルールを作成", "name": "名前",
+    "matcher": "一致条件", "reason": "理由", "expires": "有効期限", "expired": "期限切れ", "delete": "ミュートルールを削除", "ruleContains": "ルール名に含まれる文字列", "severity": "重大度", "anySeverity": "すべての重大度",
+    "expiresHelp": "ミュートルールは必ず終了します。", "empty": "ミュートルールはありません"
+  },
+  "preview": {
+    "title": "過去 7 日間のプレビュー", "description": "保存済みのアラートに対して、これらの設定をメモリ上で再実行します。何も変更されません。", "run": "これらの設定を過去 7 日間に適用",
+    "illustration": "例であり、実際のデータではありません。アラートが届くとここに反映されます。"
+  },
+  "incidentPolicy": {
+    "title": "アラートからのインシデント作成", "description": "調査済みのアラートグループが十分に深刻な場合の Keigan の動作です。",
+    "whenScore": "アラートグループのスコアが次の値以上で、", "thenDo": "調査で顧客への影響が確認された場合、", "suggest": "ServiceNow インシデントを提案する", "automatic": "ServiceNow インシデントを自動作成する",
+    "inGroup": "担当グループ:", "noGroup": "デフォルトグループ", "threshold": "スコアのしきい値", "mode": "モード", "group": "担当グループ", "save": "ポリシーを保存"
+  }
+}

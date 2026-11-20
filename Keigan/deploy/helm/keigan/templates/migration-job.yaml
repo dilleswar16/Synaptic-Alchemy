@@ -1,0 +1,48 @@
+# Applies database migrations before the API and worker roll out (Alembic, same image and settings as the backend).
+{{- if .Values.databaseMigration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keigan-database-migration-{{ .Release.Revision }}
+  namespace: {{ .Values.namespaces.backend }}
+  labels: {{- include "keigan.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        {{- include "keigan.labels" . | nindent 8 }}
+        app.kubernetes.io/name: keigan-database-migration
+        azure.workload.identity/use: "true"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: keigan-backend
+      securityContext: {{- include "keigan.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "keigan.backendImage" . }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: ["python", "-m", "alembic", "upgrade", "head"]
+          {{- include "keigan.backendEnvironment" . | nindent 10 }}
+          securityContext: {{- include "keigan.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - { name: temporary-files, mountPath: /tmp }
+            {{- if .Values.keyVault.enabled }}
+            - { name: key-vault-secrets, mountPath: /mnt/secrets, readOnly: true }
+            {{- end }}
+      volumes:
+        - name: temporary-files
+          emptyDir: {}
+        {{- if .Values.keyVault.enabled }}
+        - name: key-vault-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes: { secretProviderClass: keigan-backend-key-vault }
+        {{- end }}
+{{- end }}

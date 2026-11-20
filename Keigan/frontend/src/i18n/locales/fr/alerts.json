@@ -1,0 +1,114 @@
+{
+  "pageTitle": "Alertes",
+  "pageDescription": "Le bruit des alertes réduit aux groupes qui comptent. Rien n'est supprimé : chaque alerte est conservée et chaque décision a une raison.",
+  "severity": "Sev {{level}}",
+  "tools": { "azure_monitor": "Azure Monitor", "elastic": "Elastic", "generic": "Webhook générique" },
+  "groupStatus": { "open": "Ouvert", "queued": "En file d'attente", "resolved": "Résolu" },
+  "alertStatus": { "firing": "Active", "resolved": "Résolue" },
+  "verdict": { "useful": "Utile", "noise": "C'était du bruit" },
+  "filters": { "period": "Période", "last24h": "24 heures", "last7d": "7 jours", "last30d": "30 jours" },
+  "observe": {
+    "title": "Mode Observation : {{count}} jours restants",
+    "body": "Keigan enregistre ce qu'il réduirait et regrouperait, mais continue d'investiguer chaque alerte au-dessus de la gravité minimale. Rien ne change tant que vous n'êtes pas passé en mode Actif.",
+    "effect": "Effet mesuré jusqu'ici : {{sentence}}"
+  },
+  "funnel": {
+    "title": "Entonnoir de bruit",
+    "description": "Alertes reçues, réduites aux groupes qui ont été investigués.",
+    "emptyTitle": "Aucune alerte sur cette période",
+    "emptyDescription": "Connectez une source d'alertes à l'étape Incidents et alertes de l'application pour voir l'entonnoir.",
+    "steps": { "received": "Alertes reçues", "deduplicated": "Après dédoublonnage", "filtered": "Après suppression et temporisation", "groups": "Groupes d'alertes", "investigations": "Investigations" },
+    "reasons": {
+      "repeats": "{{count}} répétitions", "maintenance": "{{count}} en maintenance", "muted": "{{count}} mises en sourdine", "environment": "{{count}} d'autres environnements",
+      "severity": "{{count}} sous la gravité minimale", "resolved_before_settle": "{{count}} résolues d'elles-mêmes", "flapping": "{{count}} instables"
+    },
+    "reasonHelp": {
+      "repeats": "La même alerte s'est redéclenchée et a été comptabilisée sur l'alerte existante.", "maintenance": "Reçue pendant une fenêtre de maintenance : enregistrée, non investiguée.", "muted": "Correspond à une règle de sourdine.",
+      "environment": "Ne fait pas partie d'un environnement investigué.", "severity": "Moins grave que la gravité minimale.", "resolved_before_settle": "Rétablie pendant le délai de temporisation.", "flapping": "A changé d'état à plusieurs reprises et a été conservée comme une seule alerte."
+    }
+  },
+  "groups": {
+    "title": "Groupes d'alertes",
+    "columns": { "group": "Groupe", "services": "Services", "severity": "Gravité", "alerts": "Alertes", "status": "État", "score": "Score", "reason": "Décision", "lastActivity": "Dernière activité", "feedback": "Retour" },
+    "occurrences": "{{count}} occurrences",
+    "applicationLevel": "Niveau application",
+    "emptyTitle": "Aucun groupe d'alertes",
+    "emptyDescription": "Lorsque des alertes arrivent, elles sont regroupées ici, avec la raison de chaque décision."
+  },
+  "outcome": {
+    "investigation_started": "Investigation lancée", "investigation_replayed": "Serait investiguée", "queued": "En file d'attente", "below_threshold": "Sous le seuil", "joined_group": "Ajoutée au groupe",
+    "joined_investigation": "Ajoutée à l'investigation", "servicenow_incident_suggested": "Incident suggéré", "servicenow_incident_created": "Incident créé", "suppressed_maintenance": "Fenêtre de maintenance",
+    "suppressed_mute": "En sourdine", "suppressed_environment": "Autre environnement", "suppressed_severity": "Sous la gravité", "resolved_before_settle": "Résolue d'elle-même", "new_group": "Nouveau groupe",
+    "passed": "Validée", "waiting": "En attente", "settled": "Stabilisée", "skipped_wait": "Sans attente", "normalised": "Analysée", "new_alert": "Nouvelle alerte", "repeat": "Répétition", "resolved": "Résolue",
+    "reopened": "Rouverte", "flapping": "Instable", "kept_open_flapping": "Maintenue ouverte", "scored": "Évaluée", "notification_planned": "Notification planifiée", "thread_updated": "Fil mis à jour"
+  },
+  "stage": { "normalise": "1 Normaliser", "deduplicate": "2 Dédoublonner", "lifecycle": "3 Cycle de vie", "suppress": "4 Supprimer", "settle": "5 Temporiser", "group": "6 Regrouper", "prioritise": "7 Prioriser", "decide": "8 Décider", "notify": "9 Notifier" },
+  "drawer": {
+    "loading": "Groupe d'alertes", "rule": "Règle", "service": "Service", "severity": "Gravité", "state": "État", "occurrences": "Nombre d'occurrences", "lastSeen": "Dernière occurrence", "flapping": "Instable",
+    "applicationLevel": "Niveau application (sans service)", "members": "Alertes membres ({{count}})", "decisionLog": "Journal des décisions", "decisionLogHelp": "Chaque étape du pipeline avec la raison de sa décision.",
+    "noDecisions": "Aucune décision enregistrée.", "wouldHave": "Le mode Actif aurait : {{outcome}}", "groupingReason": "Regroupement : {{reason}}",
+    "observeTitle": "Mode Observation", "observeBody": "Ces décisions ont été enregistrées mais non appliquées. Les lignes « Le mode Actif aurait » montrent ce qui changerait.",
+    "openInvestigation": "Ouvrir l'investigation", "openIncident": "Incidents ouverts", "createIncident": "Créer un incident ServiceNow", "createIncidentSuggested": "Créer l'incident ServiceNow suggéré",
+    "incidentCreated": "Incident ServiceNow créé", "incidentFailed": "Impossible de créer l'incident",
+    "feedback": "Ce groupe était-il utile ?", "feedbackHelp": "Vos retours affinent le rapport hebdomadaire sur le bruit.", "feedbackCurrent": "Retour actuel : {{verdict}}", "noiseReason": "Pourquoi était-ce du bruit ?", "feedbackSaved": "Retour enregistré"
+  },
+  "sources": {
+    "title": "Sources d'alertes", "description": "Envoyez à Keigan les alertes de vos outils de supervision pour qu'elles soient analysées comme les incidents ServiceNow. Facultatif.",
+    "add": "Ajouter une source d'alertes", "emptyTitle": "Aucune source d'alertes", "emptyDescription": "Ajoutez Azure Monitor, Elastic ou tout outil capable d'envoyer un webhook JSON.",
+    "rulesFound": "règles d'alerte trouvées dans vos périmètres ({{sending}} envoient à Keigan)", "rulesTitle": "Règles d'alerte découvertes", "sendsToKeigan": "Envoie à Keigan", "doesNotSend": "N'envoie pas",
+    "simulatedRules": "Exemples de règles pour des composants simulés, non lues depuis Azure.",
+    "status": { "waiting_for_first_alert": "En attente de la première alerte", "receiving": "Réception en cours, dernière alerte", "authentication_failures": "Échecs d'authentification", "paused": "En pause" },
+    "counts": "{{alerts}} alertes en 7 jours, {{groups}} groupes, {{investigated}} investigués", "authFailures": "{{count}} requêtes rejetées avec un jeton incorrect.",
+    "test": "Tester", "testSent": "Alerte de test envoyée", "rotate": "Renouveler le secret", "pause": "Mettre en pause", "resume": "Reprendre", "remove": "Retirer",
+    "removeTitle": "Retirer la source d'alertes", "removeBody": "Keigan cesse d'accepter les alertes à l'URL de {{name}}. Les alertes enregistrées sont conservées.", "removeConfirm": "Retirer la source",
+    "rotatedTitle": "Nouveau secret", "rotatedBody": "Copiez-le maintenant : il n'est affiché qu'une fois. L'ancien secret reste valable 24 heures."
+  },
+  "sheet": {
+    "title": "Ajouter une source d'alertes", "cancel": "Annuler", "back": "Retour", "next": "Suivant", "done": "Terminé", "createSource": "Créer la source", "saveContinue": "Enregistrer et continuer",
+    "steps": { "tool": "Choisissez l'outil et nommez la source.", "endpoint": "Keigan a créé un point de terminaison unique pour cette source.", "configure": "Configurez votre outil avec les valeurs réelles.", "mapping": "Associez les champs de votre charge utile.", "services": "Indiquez à Keigan de quel service concerne une alerte.", "test": "Envoyez une alerte de test ou attendez une alerte réelle." },
+    "tool": "Outil", "toolHelp": { "azure_monitor": "Schéma d'alerte commun, associé automatiquement", "elastic": "Connecteur webhook avec modèle de corps prêt à l'emploi", "generic": "Dynatrace, Datadog, Grafana, Alertmanager, SolarWinds et autres" },
+    "name": "Nom de la source", "namePlaceholder": "Azure Monitor production",
+    "secretOnceTitle": "Copiez le secret maintenant", "secretOnceBody": "Keigan ne conserve qu'un hachage. Le secret n'est affiché qu'une fois ; vous pourrez le renouveler plus tard.",
+    "webhookUrl": "URL du webhook", "webhookUrlHelp": "Inclut le jeton pour les outils qui ne peuvent pas envoyer d'en-têtes (Azure Monitor).", "secret": "Secret", "secretHelp": "Envoyez-le dans l'en-tête X-Keigan-Token ou le paramètre de requête token.",
+    "header": "En-tête", "headerHelp": "Facultatif : signez le corps avec X-Keigan-Signature (HMAC-SHA256, la clé est le SHA-256 hexadécimal du secret).",
+    "samplePayload": "Exemple de charge utile (JSON)", "samplePayloadHelp": "Collez une alerte de votre outil, ou laissez vide pour utiliser la première reçue.", "suggestMapping": "Suggérer l'association et prévisualiser",
+    "fields": { "ruleName": "Nom de la règle", "ruleId": "ID de la règle", "externalId": "ID de l'alerte", "status": "Statut", "severity": "Gravité", "resourceRef": "Ressource", "serviceHint": "Service", "summary": "Résumé", "startedAt": "Début", "link": "Lien" },
+    "severityMapping": "Association des gravités (valeur de l'outil vers Sev 0 à 4)", "toolValue": "Valeur de l'outil", "severityLevel": "Gravité", "removeRow": "Retirer la ligne", "addRow": "Ajouter une ligne",
+    "servicesHelp": "Les alertes Azure sont associées automatiquement par ID de ressource. Pour les autres outils, choisissez le champ de la charge utile qui désigne le service ; les alertes non associées passent au niveau application.",
+    "serviceField": "Champ du service", "serviceFieldHelp": "JSONPath, par exemple $.service.name ou $.kubernetes.namespace", "autoMatch": "Associer par noms identiques", "autoMatchHelp": "Une valeur identique au nom d'un service est associée à ce service.",
+    "sendTest": "Envoyer une alerte de test depuis Keigan", "listen": "Attendre une alerte réelle", "stopListening": "Arrêter l'attente", "connected": "Connecté : une alerte a été reçue et analysée",
+    "matchedService": "Service associé", "processing": "Traitement en cours", "rawPayload": "Charge utile brute", "waiting": "En attente de la première alerte...", "testHelp": "La source est marquée comme connectée dès qu'une alerte a été reçue et analysée."
+  },
+  "policy": {
+    "title": "Réduction du bruit", "description": "Fonctionne avec les valeurs par défaut. Modifiez les phrases pour changer la façon dont les alertes sont réduites.", "reset": "Rétablir les valeurs par défaut", "save": "Enregistrer la politique", "discard": "Annuler les modifications",
+    "minSeverityA": "Investiguer les alertes de gravité", "minSeverityB": "ou supérieure.",
+    "environmentsA": "N'investiguer que les alertes des environnements", "environmentsB": ". Les autres sont enregistrées.", "allEnvironments": "tous les environnements",
+    "settleA": "Attendre", "settleB": "avant d'investiguer, au cas où l'alerte se rétablirait d'elle-même. Ignorer l'attente pour",
+    "reopenA": "Traiter la répétition d'une même alerte comme une seule alerte, et pendant", "reopenB": "après son rétablissement.",
+    "groupA": "Traiter les alertes sur des services identiques ou dépendants dans un délai de", "groupB": "comme un seul problème.",
+    "flapA": "Si une alerte change d'état", "flapB": "fois en", "flapC": "la traiter comme instable et la conserver comme une seule alerte ouverte.",
+    "rateA": "Lancer au maximum", "rateB": "investigations par heure pour cette application.",
+    "thresholdA": "Investiguer les groupes dont le score de priorité est d'au moins", "thresholdB": "(gravité x criticité x environnement).",
+    "modeA": "Mode :", "modeActive": "Actif : les décisions prennent effet", "modeObserve": "Observation : afficher ce qui serait réduit sans modifier le comportement",
+    "beforeSwitch": "Effet mesuré avant de passer en mode Actif"
+  },
+  "windows": {
+    "title": "Fenêtres de maintenance", "description": "Les alertes pendant une fenêtre sont enregistrées et étiquetées, mais non investiguées.", "add": "Ajouter une fenêtre", "create": "Créer la fenêtre", "name": "Nom", "scope": "Services",
+    "wholeApplication": "Application entière", "when": "Quand", "repeat": "Répétition", "weekly": "Se répète chaque semaine", "once": "Une fois", "state": "État", "active": "Active maintenant", "delete": "Supprimer la fenêtre",
+    "starts": "Début", "ends": "Fin", "empty": "Aucune fenêtre de maintenance"
+  },
+  "mute": {
+    "title": "Règles de sourdine", "description": "L'expiration et la raison sont obligatoires. Les règles expirées sont affichées comme expirées, jamais supprimées silencieusement.", "add": "Ajouter une règle de sourdine", "create": "Créer la règle de sourdine", "name": "Nom",
+    "matcher": "Correspond à", "reason": "Raison", "expires": "Expire", "expired": "Expirée", "delete": "Supprimer la règle de sourdine", "ruleContains": "Le nom de la règle contient", "severity": "Gravité", "anySeverity": "Toute gravité",
+    "expiresHelp": "Les règles de sourdine prennent toujours fin.", "empty": "Aucune règle de sourdine"
+  },
+  "preview": {
+    "title": "Aperçu sur les 7 derniers jours", "description": "Réexécute ces paramètres sur les alertes enregistrées, en mémoire. Rien n'est modifié.", "run": "Appliquer ces paramètres aux 7 derniers jours",
+    "illustration": "Exemple, pas vos données. Les alertes le rempliront."
+  },
+  "incidentPolicy": {
+    "title": "Création d'incidents à partir des alertes", "description": "Ce que fait Keigan lorsqu'un groupe d'alertes investigué est suffisamment grave.",
+    "whenScore": "Lorsqu'un groupe d'alertes obtient un score supérieur ou égal à", "thenDo": "et que l'investigation confirme un impact client,", "suggest": "suggérer un incident ServiceNow", "automatic": "créer automatiquement un incident ServiceNow",
+    "inGroup": "dans le groupe d'affectation", "noGroup": "Groupe par défaut", "threshold": "Seuil de score", "mode": "Mode", "group": "Groupe d'affectation", "save": "Enregistrer la politique"
+  }
+}

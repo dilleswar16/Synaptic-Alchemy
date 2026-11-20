@@ -1,0 +1,227 @@
+{
+  "appName": "Keigan",
+  "tagline": "洞察系统的慧眼。",
+  "actions": {
+    "save": "保存",
+    "cancel": "取消",
+    "close": "关闭",
+    "copy": "复制",
+    "copied": "已复制",
+    "copyToClipboard": "复制到剪贴板",
+    "retry": "重试",
+    "search": "搜索",
+    "clear": "清除",
+    "clearAll": "全部清除",
+    "apply": "应用",
+    "back": "返回",
+    "next": "下一步",
+    "continue": "继续",
+    "viewAll": "查看全部",
+    "seeAll": "查看全部",
+    "showMore": "显示更多",
+    "showLess": "收起",
+    "edit": "编辑",
+    "delete": "删除",
+    "remove": "移除",
+    "confirm": "确认",
+    "refresh": "刷新",
+    "dismiss": "忽略",
+    "learnMore": "了解更多",
+    "moreActions": "更多操作",
+    "goHome": "返回首页",
+    "reloadPage": "重新加载页面",
+    "removeItem": "移除{{label}}",
+    "expand": "展开",
+    "collapse": "折叠",
+    "showDetails": "显示详情"
+  },
+  "states": {
+    "loading": "加载中…",
+    "saving": "保存中…",
+    "noResults": "无结果",
+    "noResultsFor": "未找到“{{query}}”的结果",
+    "empty": "暂无内容",
+    "underConstructionTitle": "此页面正在建设中",
+    "underConstructionDescription": "Keigan 团队正在构建此页面，请稍后再来查看。",
+    "optional": "可选",
+    "required": "必填"
+  },
+  "errors": {
+    "genericTitle": "出了点问题",
+    "genericDescription": "Keigan 无法完成此请求，请稍后重试。",
+    "networkTitle": "无法连接到 Keigan",
+    "networkDescription": "请检查网络连接，然后重试。",
+    "forbiddenTitle": "您无权访问此内容",
+    "forbiddenDescription": "请联系应用管理员，或在 SailPoint 中申请相应的组。",
+    "notFoundTitle": "未找到",
+    "notFoundDescription": "该内容可能已被删除，或链接已过期。",
+    "conflictTitle": "内容已被他人修改",
+    "conflictDescription": "请重新加载以查看最新版本，然后再次修改。",
+    "reference": "参考编号 {{correlationId}}"
+  },
+  "theme": {
+    "label": "主题",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统",
+    "change": "切换主题"
+  },
+  "language": {
+    "label": "语言",
+    "change": "切换语言"
+  },
+  "priority": {
+    "ariaLabel": "优先级 {{priority}}"
+  },
+  "confidence": {
+    "label": "置信度",
+    "low": "低",
+    "moderate": "中",
+    "high": "高",
+    "veryHigh": "很高",
+    "valueText": "置信度 {{percentage}}，{{level}}"
+  },
+  "risk": {
+    "low": "低风险",
+    "medium": "中风险",
+    "high": "高风险 — 请按变更流程确认"
+  },
+  "commandBlock": {
+    "label": "命令",
+    "copyCommand": "复制命令"
+  },
+  "markdown": {
+    "copyCode": "复制代码"
+  },
+  "ai": {
+    "keigan": "Keigan",
+    "generatedBy": "由 Keigan 生成",
+    "aiGeneratedContent": "AI 生成内容"
+  },
+  "saveIndicator": {
+    "saving": "保存中…",
+    "savedAt": "{{time}}已保存",
+    "saved": "已保存",
+    "failed": "保存失败",
+    "retry": "重试"
+  },
+  "stepStatus": {
+    "not_started": "未开始",
+    "in_progress": "进行中",
+    "waiting": "等待中",
+    "blocked": "已阻塞",
+    "done": "已完成"
+  },
+  "readiness": {
+    "summary": "必填项已完成 {{completedCount}}/{{requiredCount}}",
+    "next": "下一步：{{stepLabel}}",
+    "allDone": "所有必填项均已完成",
+    "seeAll": "查看全部"
+  },
+  "fileDrop": {
+    "dropFiles": "将文件拖放到此处，或",
+    "browse": "浏览",
+    "dropToUpload": "释放以上传",
+    "acceptedTypes": "支持类型：{{types}}",
+    "maximumSize": "每个文件最大 {{size}}",
+    "rejectedType": "{{fileName}} 不是支持的文件类型。",
+    "rejectedSize": "{{fileName}} 超过 {{size}}。",
+    "pending": "等待中",
+    "uploading": "上传中 {{percentage}}",
+    "uploaded": "已上传",
+    "failed": "上传失败",
+    "removeFile": "移除{{fileName}}"
+  },
+  "dataTable": {
+    "selectAllRows": "选择所有行",
+    "selectRow": "选择行",
+    "selectedCount_one": "已选择 {{count}} 项",
+    "selectedCount_other": "已选择 {{count}} 项",
+    "sortBy": "按{{column}}排序",
+    "pageSummary": "第 {{start}}–{{end}} 条，共 {{total}} 条",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "emptyTitle": "暂无可显示的内容",
+    "emptyDescription": "有数据时，行将显示在此处。",
+    "loadingRows": "正在加载行"
+  },
+  "select": {
+    "placeholder": "请选择"
+  },
+  "combobox": {
+    "placeholder": "请选择…",
+    "searchPlaceholder": "搜索…",
+    "noMatches": "无匹配项",
+    "clearSelection": "清除选择"
+  },
+  "tokenInput": {
+    "placeholder": "输入后按 Enter",
+    "removeToken": "移除{{token}}",
+    "duplicateToken": "{{token}} 已在列表中。"
+  },
+  "toast": {
+    "regionLabel": "通知",
+    "dismiss": "关闭通知"
+  },
+  "countWithInfo": {
+    "moreItems_one": "另有 {{count}} 项",
+    "moreItems_other": "另有 {{count}} 项"
+  },
+  "timeline": {
+    "empty": "暂无事件"
+  },
+  "units": {
+    "tokens_one": "{{formattedCount}} 个 token",
+    "tokens_other": "{{formattedCount}} 个 token"
+  },
+  "chart": {
+    "viewAsTable": "以表格查看",
+    "viewAsChart": "以图表查看",
+    "target": "目标",
+    "anomaly": "异常",
+    "total": "总计",
+    "noData": "此时间段无数据",
+    "category": "类别",
+    "time": "时间",
+    "value": "值",
+    "share": "占比",
+    "stage": "阶段",
+    "count": "数量",
+    "ofFirstStage": "占{{stage}}的 {{percentage}}",
+    "noValue": "无数据"
+  },
+  "topology": {
+    "label": "拓扑图",
+    "legend": "图例",
+    "impactDirect": "直接受影响",
+    "impactIndirect": "间接受影响",
+    "minimap": "拓扑概览",
+    "emptyTitle": "暂无拓扑",
+    "emptyDescription": "构建拓扑后，即可查看此应用各服务之间的连接关系。",
+    "nodeTypes": {
+      "aks": "AKS",
+      "functions": "Functions",
+      "app_service": "App Service",
+      "logic_apps": "Logic Apps",
+      "api_management": "API Management",
+      "data_factory": "Data Factory",
+      "service": "服务",
+      "database": "数据库",
+      "storage": "存储",
+      "queue": "队列",
+      "external": "外部依赖",
+      "hardware": "硬件和网络",
+      "mainframe": "大型机",
+      "saas": "SaaS 平台",
+      "users": "用户"
+    }
+  },
+  "environment": {
+    "local": "本地",
+    "dev": "开发",
+    "test": "测试",
+    "prod": "生产",
+    "badgeLabel": "环境：{{environment}}"
+  },
+  "version": "版本 {{version}}"
+}

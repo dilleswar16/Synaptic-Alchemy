@@ -1,0 +1,69 @@
+{
+  "pageTitle": "Accueil",
+  "pageDescription": "Tout ce qui nécessite votre attention, dans toutes vos applications.",
+  "greeting": {
+    "morning": "Bonjour, {{name}}",
+    "afternoon": "Bon après-midi, {{name}}",
+    "evening": "Bonsoir, {{name}}"
+  },
+  "syncedAt": "Mis à jour {{time}}",
+  "viewAll": "Tout afficher",
+  "kpi": {
+    "sectionLabel": "Chiffres clés",
+    "openIncidents": "Incidents ouverts",
+    "noneOpen": "Rien d'ouvert",
+    "alertGroups": "Groupes d'alertes actifs",
+    "noAlerts": "Aucune alerte en 24 heures",
+    "noiseReduced": "{{percentage}} de bruit en moins sur 24 h",
+    "slosAtRisk": "SLO à risque",
+    "slosTotal_one": "sur {{count}} objectif",
+    "slosTotal_other": "sur {{count}} objectifs",
+    "investigations": "Investigations, 24 h",
+    "firstUpdate": "Première mise à jour en {{duration}} en moyenne",
+    "noFirstUpdate": "Aucune première mise à jour pour l'instant"
+  },
+  "health": {
+    "title": "Santé des applications",
+    "emptyTitle": "Aucune application",
+    "emptyDescription": "Les applications auxquelles vous avez accès apparaîtront ici une fois intégrées.",
+    "ringLabel": "Santé {{percentage}} pour cent, {{status}}",
+    "status": { "healthy": "saine", "watch": "à surveiller", "degraded": "dégradée", "critical": "critique" },
+    "tier": "Niveau {{tier}}",
+    "openIncidents_one": "{{count}} incident",
+    "openIncidents_other": "{{count}} incidents",
+    "worstBudget": "Budget d'erreur restant le plus bas",
+    "noBudget": "Aucun SLO",
+    "noTrend": "Aucune tendance",
+    "sparklineLabel": "Disponibilité de {{name}} au cours des dernières 24 heures"
+  },
+  "live": {
+    "title": "Incidents en direct",
+    "description": "Incidents ouverts et avancement de l'investigation de Keigan.",
+    "empty": "Aucun incident ouvert. Keigan continue de surveiller.",
+    "investigating": "Investigation en cours",
+    "status": { "new": "Nouveau", "investigating": "Investigation en cours", "identified": "Cause identifiée", "monitoring": "Sous surveillance" }
+  },
+  "ask": {
+    "title": "Demander à Keigan",
+    "description": "Nombre d'erreurs, tendances, architecture, runbooks.",
+    "label": "Question pour Keigan",
+    "placeholder": "Combien de requêtes ont échoué au cours des dernières 24 heures ?",
+    "submit": "Demander"
+  },
+  "feed": {
+    "title": "Flux d'intelligence",
+    "description": "Alertes précoces avant qu'elles ne deviennent des incidents.",
+    "empty": "Aucun signal ouvert. Tout semble normal.",
+    "forecast": "dépassement prévu {{time}}"
+  },
+  "maintenance": {
+    "title": "Fenêtres de maintenance",
+    "description": "7 prochains jours.",
+    "empty": "Aucune maintenance prévue cette semaine."
+  },
+  "postmortems": {
+    "title": "Post-mortems récents",
+    "empty": "Aucun post-mortem pour l'instant.",
+    "status": { "generating": "Génération", "draft": "Brouillon", "final": "Final", "failed": "Échec" }
+  }
+}

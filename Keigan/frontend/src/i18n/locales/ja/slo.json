@@ -1,0 +1,30 @@
+{
+  "pageTitle": "SLO モニタリング",
+  "pageDescription": "対象範囲のすべての SLO について、達成率、エラーバジェット、バーンレートを確認できます。",
+  "status": { "healthy": "正常", "at_risk": "リスクあり", "breached": "違反", "no_data": "データなし" },
+  "summary": { "breached": "違反 {{count}} 件", "at_risk": "リスクあり {{count}} 件", "healthy": "正常 {{count}} 件" },
+  "emptyTitle": "SLO はまだありません",
+  "emptyDescription": "アプリケーションの SLO ステップを開き、Keigan が過去 30 日間から測定した提案を確認して承認してください。",
+  "headline": { "title": "主要 SLO", "description": "各アプリケーションのエントリポイントで、ユーザーに最も近い位置で測定しています。" },
+  "cards": { "title": "すべての SLO" },
+  "card": {
+    "window": "{{days}} 日間のウィンドウ", "approximate": "概算", "target": "目標 {{target}} %", "sparkline": "{{name}}の過去 14 日間のトレンド", "budget": "エラーバジェット",
+    "budgetLeft": "残り {{percent}} %、{{minutes}} 分", "noData": "データなし", "burn1h": "バーン 1 時間", "burn6h": "バーン 6 時間", "noBurn": "該当なし"
+  },
+  "detail": {
+    "compliance": "達成率", "target": "目標", "budget": "エラーバジェット残量", "budgetValue": "{{total}} 分中 {{minutes}} 分", "resolution": "粒度", "daily": "日次", "hourly": "時間別",
+    "sliOverTime": "SLI の推移", "sli": "SLI", "targetLine": "目標", "burnDown": "エラーバジェットのバーンダウン", "budgetRemaining": "バジェット残量"
+  },
+  "heatmap": { "title": "エコシステムヒートマップ", "description": "全アプリケーションの各 SLO の日次達成率です。", "emptyTitle": "表示するデータがありません", "emptyDescription": "アプリケーションが SLO を承認すると、ここに表示されます。" },
+  "proposals": {
+    "measuring": "過去 30 日間を測定中", "stages": { "0": "メトリクス定義を読み取り中", "1": "30 日分のデータを読み取り中", "2": "ベースラインを計算中" }, "measuringHelp": "このページを離れても、Keigan は測定を続けます。",
+    "failed": "測定に失敗しました", "retry": "再試行", "remeasure": "再測定", "suggests": "Keigan は {{services}} サービスにわたる {{slos}} 件の SLO を提案します", "acceptSuggested": "提案を承認",
+    "accepted": "{{count}} 件の SLO を承認済み", "headline": "主要 SLO", "explain": "この指標を説明", "approximate": "概算（5 分平均）", "alreadyAccepted": "承認済み",
+    "columns": { "sli": "指標", "source": "ソース", "measured": "30 日間の値", "target": "目標", "window": "ウィンドウ", "budget": "エラーバジェット" }, "days": "{{days}} 日間",
+    "sparkline": "{{name}}の 30 日間のトレンド", "supporting": "補助シグナル（{{count}}）: 収集のみ、目標なし", "emptyTitle": "指標が見つかりません", "emptyDescription": "Application Insights またはログソースをサービスに関連付けてから、再測定してください。"
+  },
+  "custom": {
+    "title": "カスタム SLI を追加（上級）", "description": "good、total、window_start（5 分間隔）を返す KQL クエリです。", "service": "サービス", "servicePlaceholder": "サービスを選択", "name": "名前",
+    "query": "KQL クエリ", "queryHelp": "AppRequests | summarize good=countif(Success == true), total=count() by window_start=bin(TimeGenerated, 5m)", "target": "目標", "save": "SLI と SLO を作成"
+  }
+}

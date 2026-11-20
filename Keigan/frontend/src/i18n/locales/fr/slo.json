@@ -1,0 +1,30 @@
+{
+  "pageTitle": "Suivi des SLO",
+  "pageDescription": "Conformité, budgets d'erreur et taux de consommation de chaque SLO du périmètre.",
+  "status": { "healthy": "Sain", "at_risk": "À risque", "breached": "Non respecté", "no_data": "Aucune donnée" },
+  "summary": { "breached": "{{count}} non respectés", "at_risk": "{{count}} à risque", "healthy": "{{count}} sains" },
+  "emptyTitle": "Aucun SLO",
+  "emptyDescription": "Ouvrez l'étape SLO d'une application pour examiner les propositions que Keigan a mesurées sur les 30 derniers jours, puis acceptez-les.",
+  "headline": { "title": "SLO principaux", "description": "Mesurés au plus près de l'utilisateur, sur le point d'entrée de chaque application." },
+  "cards": { "title": "Tous les SLO" },
+  "card": {
+    "window": "Fenêtre de {{days}} jours", "approximate": "approximatif", "target": "Cible {{target}} %", "sparkline": "Tendance de {{name}} sur les 14 derniers jours", "budget": "Budget d'erreur",
+    "budgetLeft": "{{percent}} % restant, {{minutes}} min", "noData": "Aucune donnée", "burn1h": "Conso. 1 h", "burn6h": "Conso. 6 h", "noBurn": "s.o."
+  },
+  "detail": {
+    "compliance": "Conformité", "target": "Cible", "budget": "Budget d'erreur restant", "budgetValue": "{{minutes}} sur {{total}} minutes", "resolution": "Résolution", "daily": "Quotidienne", "hourly": "Horaire",
+    "sliOverTime": "SLI dans le temps", "sli": "SLI", "targetLine": "Cible", "burnDown": "Consommation du budget d'erreur", "budgetRemaining": "Budget restant"
+  },
+  "heatmap": { "title": "Carte thermique de l'écosystème", "description": "Conformité quotidienne de chaque SLO pour l'ensemble de vos applications.", "emptyTitle": "Rien à afficher", "emptyDescription": "Les SLO apparaissent ici une fois acceptés par les applications." },
+  "proposals": {
+    "measuring": "Mesure des 30 derniers jours", "stages": { "0": "Lecture des définitions de métriques", "1": "Lecture de 30 jours de données", "2": "Calcul des références" }, "measuringHelp": "Vous pouvez quitter cette page ; Keigan poursuit la mesure.",
+    "failed": "Échec de la mesure", "retry": "Réessayer", "remeasure": "Mesurer à nouveau", "suggests": "Keigan suggère {{slos}} SLO sur {{services}} services", "acceptSuggested": "Accepter les suggestions",
+    "accepted": "{{count}} SLO acceptés", "headline": "SLO principal", "explain": "Expliquer cet indicateur", "approximate": "approximatif (moyennes sur 5 minutes)", "alreadyAccepted": "Accepté",
+    "columns": { "sli": "Indicateur", "source": "Source", "measured": "Valeur sur 30 jours", "target": "Cible", "window": "Fenêtre", "budget": "Budget d'erreur" }, "days": "{{days}} jours",
+    "sparkline": "Tendance de {{name}} sur 30 jours", "supporting": "Signaux complémentaires ({{count}}) : collectés, sans cible", "emptyTitle": "Aucun indicateur trouvé", "emptyDescription": "Liez Application Insights ou des sources de journaux aux services, puis mesurez à nouveau."
+  },
+  "custom": {
+    "title": "Ajouter un SLI personnalisé (avancé)", "description": "Une requête KQL qui renvoie good, total et window_start (intervalles de 5 minutes).", "service": "Service", "servicePlaceholder": "Choisissez un service", "name": "Nom",
+    "query": "Requête KQL", "queryHelp": "AppRequests | summarize good=countif(Success == true), total=count() by window_start=bin(TimeGenerated, 5m)", "target": "Cible", "save": "Créer le SLI et le SLO"
+  }
+}

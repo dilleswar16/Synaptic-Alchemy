@@ -1,0 +1,49 @@
+{
+  "pageTitle": "Chat IA Keigan",
+  "pageDescription": "Posez vos questions sur vos applications, incidents et données de télémétrie.",
+  "list": {
+    "title": "Conversations",
+    "newChat": "Nouveau chat",
+    "search": "Rechercher des conversations",
+    "empty": "Aucune conversation pour l'instant. Posez votre première question.",
+    "noMatches": "Aucune conversation ne correspond à votre recherche.",
+    "actions": "Actions de la conversation",
+    "rename": "Renommer",
+    "renameTitle": "Renommer la conversation",
+    "nameLabel": "Nom",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "deleteTitle": "Supprimer cette conversation ?",
+    "deleteDescription": "La conversation et ses réponses sont supprimées pour vous. Cette action est irréversible."
+  },
+  "conversation": {
+    "title": "Conversation",
+    "newTitle": "Nouvelle conversation",
+    "scope": "Portée",
+    "allApplications": "Toutes mes applications",
+    "thinking": "Keigan y travaille…"
+  },
+  "empty": {
+    "title": "Que souhaitez-vous savoir ?",
+    "description": "Posez des questions sur le nombre d'erreurs, les tendances dans le temps, l'architecture ou les runbooks. Keigan lit uniquement ; il ne modifie jamais vos systèmes.",
+    "category": { "data": "Depuis vos journaux", "knowledge": "Depuis votre base de connaissances" }
+  },
+  "composer": {
+    "label": "Message pour Keigan",
+    "placeholder": "Posez une question sur vos applications…",
+    "send": "Envoyer",
+    "hint": "Entrée pour envoyer, Maj+Entrée pour un saut de ligne. Les données personnelles sont masquées avant d'atteindre l'IA."
+  },
+  "message": {
+    "howIGotThis": "Comment j'y suis arrivé",
+    "queryMeta": "{{service}} · {{source}} · {{language}} · {{count}} lignes",
+    "simulated": "données simulées",
+    "sources": "Sources",
+    "noData": "Aucune donnée sur cette période.",
+    "clarificationLabel": "Choisissez une plage de temps"
+  },
+  "errors": {
+    "rateLimited": "Vous envoyez des messages trop rapidement. Patientez un instant, puis réessayez.",
+    "generic": "Keigan n'a pas pu répondre pour le moment. Veuillez réessayer."
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "pageTitle": "Home",
+  "pageDescription": "Everything that needs you, across all your applications.",
+  "greeting": {
+    "morning": "Good morning, {{name}}",
+    "afternoon": "Good afternoon, {{name}}",
+    "evening": "Good evening, {{name}}"
+  },
+  "syncedAt": "Updated {{time}}",
+  "viewAll": "View all",
+  "kpi": {
+    "sectionLabel": "Key numbers",
+    "openIncidents": "Open incidents",
+    "noneOpen": "Nothing open",
+    "alertGroups": "Active alert groups",
+    "noAlerts": "No alerts in 24 hours",
+    "noiseReduced": "{{percentage}} less noise in 24 h",
+    "slosAtRisk": "SLOs at risk",
+    "slosTotal_one": "of {{count}} objective",
+    "slosTotal_other": "of {{count}} objectives",
+    "investigations": "Investigations, 24 h",
+    "firstUpdate": "First update in {{duration}} on average",
+    "noFirstUpdate": "No first updates yet"
+  },
+  "health": {
+    "title": "Application health",
+    "emptyTitle": "No applications yet",
+    "emptyDescription": "Applications you can access will appear here once they are onboarded.",
+    "ringLabel": "Health {{percentage}} percent, {{status}}",
+    "status": { "healthy": "healthy", "watch": "watch", "degraded": "degraded", "critical": "critical" },
+    "tier": "Tier {{tier}}",
+    "openIncidents_one": "{{count}} incident",
+    "openIncidents_other": "{{count}} incidents",
+    "worstBudget": "Worst error budget left",
+    "noBudget": "No SLOs yet",
+    "noTrend": "No trend yet",
+    "sparklineLabel": "Availability over the last 24 hours for {{name}}"
+  },
+  "live": {
+    "title": "Live incidents",
+    "description": "Open incidents and Keigan's investigation progress.",
+    "empty": "No open incidents. Keigan keeps watching.",
+    "investigating": "Investigating",
+    "status": { "new": "New", "investigating": "Investigating", "identified": "Cause identified", "monitoring": "Monitoring" }
+  },
+  "ask": {
+    "title": "Ask Keigan",
+    "description": "Error counts, patterns, architecture, runbooks.",
+    "label": "Question for Keigan",
+    "placeholder": "How many requests failed in the last 24 hours?",
+    "submit": "Ask"
+  },
+  "feed": {
+    "title": "Intelligence feed",
+    "description": "Early warnings before they become incidents.",
+    "empty": "No open signals. Everything looks normal.",
+    "forecast": "breach forecast {{time}}"
+  },
+  "maintenance": {
+    "title": "Maintenance windows",
+    "description": "Next 7 days.",
+    "empty": "No maintenance planned this week."
+  },
+  "postmortems": {
+    "title": "Recent postmortems",
+    "empty": "No postmortems yet.",
+    "status": { "generating": "Generating", "draft": "Draft", "final": "Final", "failed": "Failed" }
+  }
+}

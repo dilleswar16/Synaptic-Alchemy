@@ -1,0 +1,69 @@
+{
+  "pageTitle": "Inicio",
+  "pageDescription": "Todo lo que requiere su atención, en todas sus aplicaciones.",
+  "greeting": {
+    "morning": "Buenos días, {{name}}",
+    "afternoon": "Buenas tardes, {{name}}",
+    "evening": "Buenas noches, {{name}}"
+  },
+  "syncedAt": "Actualizado {{time}}",
+  "viewAll": "Ver todo",
+  "kpi": {
+    "sectionLabel": "Cifras clave",
+    "openIncidents": "Incidentes abiertos",
+    "noneOpen": "Nada abierto",
+    "alertGroups": "Grupos de alertas activos",
+    "noAlerts": "Sin alertas en 24 horas",
+    "noiseReduced": "{{percentage}} menos ruido en 24 h",
+    "slosAtRisk": "SLO en riesgo",
+    "slosTotal_one": "de {{count}} objetivo",
+    "slosTotal_other": "de {{count}} objetivos",
+    "investigations": "Investigaciones, 24 h",
+    "firstUpdate": "Primera actualización en {{duration}} de media",
+    "noFirstUpdate": "Aún no hay primeras actualizaciones"
+  },
+  "health": {
+    "title": "Estado de las aplicaciones",
+    "emptyTitle": "Aún no hay aplicaciones",
+    "emptyDescription": "Las aplicaciones a las que tiene acceso aparecerán aquí cuando se incorporen.",
+    "ringLabel": "Estado {{percentage}} por ciento, {{status}}",
+    "status": { "healthy": "saludable", "watch": "vigilar", "degraded": "degradado", "critical": "crítico" },
+    "tier": "Nivel {{tier}}",
+    "openIncidents_one": "{{count}} incidente",
+    "openIncidents_other": "{{count}} incidentes",
+    "worstBudget": "Menor presupuesto de error restante",
+    "noBudget": "Aún no hay SLO",
+    "noTrend": "Aún no hay tendencia",
+    "sparklineLabel": "Disponibilidad de {{name}} en las últimas 24 horas"
+  },
+  "live": {
+    "title": "Incidentes en vivo",
+    "description": "Incidentes abiertos y progreso de la investigación de Keigan.",
+    "empty": "No hay incidentes abiertos. Keigan sigue vigilando.",
+    "investigating": "Investigando",
+    "status": { "new": "Nuevo", "investigating": "Investigando", "identified": "Causa identificada", "monitoring": "En monitorización" }
+  },
+  "ask": {
+    "title": "Pregunte a Keigan",
+    "description": "Recuentos de errores, patrones, arquitectura, runbooks.",
+    "label": "Pregunta para Keigan",
+    "placeholder": "¿Cuántas solicitudes fallaron en las últimas 24 horas?",
+    "submit": "Preguntar"
+  },
+  "feed": {
+    "title": "Feed de inteligencia",
+    "description": "Alertas tempranas antes de que se conviertan en incidentes.",
+    "empty": "No hay señales abiertas. Todo parece normal.",
+    "forecast": "incumplimiento previsto {{time}}"
+  },
+  "maintenance": {
+    "title": "Ventanas de mantenimiento",
+    "description": "Próximos 7 días.",
+    "empty": "No hay mantenimientos previstos esta semana."
+  },
+  "postmortems": {
+    "title": "Postmortems recientes",
+    "empty": "Aún no hay postmortems.",
+    "status": { "generating": "Generando", "draft": "Borrador", "final": "Final", "failed": "Fallido" }
+  }
+}

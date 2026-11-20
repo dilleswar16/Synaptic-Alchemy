@@ -1,0 +1,124 @@
+"""Interval schedules that enqueue recurring jobs (ServiceNow polling, SLI collection, predictions, Teams polling, reports)."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from keigan.config.database_config import open_session
+from keigan.config.settings import IntegrationMode, get_settings
+from keigan.entities.application_entities import Application
+from keigan.entities.incident_entities import ServiceNowAssignmentGroup
+from keigan.entities.notification_entities import TeamsIncidentChat
+from keigan.entities.slo_entities import ServiceLevelIndicator
+from keigan.workers.job_queue import JobQueue
+
+logger = logging.getLogger(__name__)
+
+ScheduleAction = Callable[[AsyncSession], Awaitable[None]]
+
+
+@dataclass
+class IntervalSchedule:
+    schedule_name: str
+    interval_seconds: float
+    action: ScheduleAction
+    last_run_monotonic: float = -1e12
+
+
+async def _live_application_ids(session: AsyncSession) -> list[str]:
+    return list((await session.scalars(select(Application.application_id).where(Application.lifecycle_status == "live"))).all())
+
+
+async def enqueue_servicenow_polls(session: AsyncSession) -> None:
+    if get_settings().servicenow_mode == IntegrationMode.DISABLED:
+        return
+    application_ids_with_groups = set((await session.scalars(select(ServiceNowAssignmentGroup.application_id).distinct())).all())
+    for application_id in await _live_application_ids(session):
+        if application_id in application_ids_with_groups:
+            await JobQueue(session).enqueue("poll_servicenow", {"application_id": application_id}, deduplication_key=f"poll_servicenow:{application_id}", priority_number=20)
+
+
+async def enqueue_sli_collection(session: AsyncSession) -> None:
+    application_ids_with_slis = set((await session.scalars(select(ServiceLevelIndicator.application_id).distinct())).all())
+    for application_id in await _live_application_ids(session):
+        if application_id in application_ids_with_slis:
+            await JobQueue(session).enqueue("collect_sli_measurements", {"application_id": application_id}, deduplication_key=f"collect_sli:{application_id}", priority_number=60)
+            await JobQueue(session).enqueue("evaluate_burn_rates", {"application_id": application_id}, deduplication_key=f"burn_rates:{application_id}", priority_number=61)
+
+
+async def enqueue_predictive_analysis(session: AsyncSession) -> None:
+    for application_id in await _live_application_ids(session):
+        await JobQueue(session).enqueue("run_predictive_analysis", {"application_id": application_id}, deduplication_key=f"predictive:{application_id}", priority_number=120)
+
+
+async def enqueue_teams_chat_polls(session: AsyncSession) -> None:
+    if get_settings().teams_mode == IntegrationMode.DISABLED:
+        return
+    active_chat_ids = (await session.scalars(select(TeamsIncidentChat.teams_incident_chat_id).where(TeamsIncidentChat.chat_status == "active"))).all()
+    for teams_incident_chat_id in active_chat_ids:
+        await JobQueue(session).enqueue(
+            "poll_incident_chat", {"teams_incident_chat_id": teams_incident_chat_id}, deduplication_key=f"poll_chat:{teams_incident_chat_id}", priority_number=40
+        )
+
+
+async def enqueue_weekly_reports(session: AsyncSession) -> None:
+    settings = get_settings()
+    now = datetime.now(UTC)
+    if now.weekday() != settings.intelligence_weekly_report_weekday or now.hour != settings.intelligence_weekly_report_hour:
+        return
+    iso_year, iso_week, _ = now.isocalendar()
+    for application_id in await _live_application_ids(session):
+        await JobQueue(session).enqueue(
+            "send_intelligence_report", {"application_id": application_id, "report_type": "weekly_digest"}, deduplication_key=f"weekly_report:{application_id}:{iso_year}-{iso_week}"
+        )
+        await JobQueue(session).enqueue("weekly_noise_report", {"application_id": application_id}, deduplication_key=f"noise_report:{application_id}:{iso_year}-{iso_week}")
+
+
+async def enqueue_retention_cleanup(session: AsyncSession) -> None:
+    await JobQueue(session).enqueue("retention_cleanup", {}, deduplication_key=f"retention:{datetime.now(UTC).date().isoformat()}", priority_number=200)
+
+
+def build_schedules() -> list[IntervalSchedule]:
+    settings = get_settings()
+    return [
+        IntervalSchedule("servicenow_poll", settings.servicenow_poll_interval_seconds, enqueue_servicenow_polls),
+        IntervalSchedule("sli_collection", settings.sli_collection_interval_minutes * 60, enqueue_sli_collection),
+        IntervalSchedule("predictive_analysis", settings.predictive_analysis_interval_minutes * 60, enqueue_predictive_analysis),
+        IntervalSchedule("teams_chat_poll", settings.teams_chat_poll_interval_minutes * 60, enqueue_teams_chat_polls),
+        IntervalSchedule("weekly_reports", 3600, enqueue_weekly_reports),
+        IntervalSchedule("retention_cleanup", 86400, enqueue_retention_cleanup),
+    ]
+
+
+class Scheduler:
+    def __init__(self) -> None:
+        self.schedules = build_schedules()
+        self._stop_event = asyncio.Event()
+
+    def stop(self) -> None:
+        self._stop_event.set()
+
+    async def run_forever(self) -> None:
+        logger.info("Scheduler started with %s schedules", len(self.schedules))
+        while not self._stop_event.is_set():
+            loop_time = asyncio.get_running_loop().time()
+            for interval_schedule in self.schedules:
+                if loop_time - interval_schedule.last_run_monotonic < interval_schedule.interval_seconds:
+                    continue
+                interval_schedule.last_run_monotonic = loop_time
+                try:
+                    async with open_session() as session:
+                        await interval_schedule.action(session)
+                except Exception:  # noqa: BLE001
+                    logger.exception("Schedule %s failed", interval_schedule.schedule_name)
+            try:
+                await asyncio.wait_for(self._stop_event.wait(), timeout=10)
+            except TimeoutError:
+                pass

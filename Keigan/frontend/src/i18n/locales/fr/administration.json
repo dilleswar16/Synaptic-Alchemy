@@ -1,0 +1,96 @@
+{
+  "pageTitle": "Administration",
+  "pageDescription": "Paramètres de la plateforme, utilisation et enregistrements de livraison pour les administrateurs Keigan.",
+  "tabs": { "usage": "Utilisation de l'IA", "audit": "Journal d'audit", "jobs": "Tâches en arrière-plan" },
+  "settings": {
+    "pageTitle": "Paramètres de la plateforme",
+    "pageDescription": "Configuration effective, identités et tests de connexion.",
+    "integrationsTitle": "Intégrations",
+    "integrations": {
+      "telemetry": "Télémétrie",
+      "servicenow": "ServiceNow",
+      "teams": "Microsoft Teams et Graph",
+      "email": "E-mail",
+      "llm": "Fournisseur d'IA",
+      "azure": "Accès Azure",
+      "authentication": "Connexion"
+    },
+    "simulated": "Simulé",
+    "configured": "Configuré",
+    "notConfigured": "Non configuré",
+    "testConnection": "Tester la connexion",
+    "testFailed": "Impossible de lancer le test.",
+    "identityTitle": "Identité Keigan",
+    "identityDescription": "Accordez à cette identité un accès en lecture aux ressources Azure que Keigan doit surveiller.",
+    "identity": { "name": "Nom d'affichage", "objectId": "ID d'objet", "clientId": "ID client", "multiTenant": "ID client de l'application multilocataire" },
+    "groups": {
+      "general": "Général",
+      "authentication": "Authentification",
+      "integrations": "Intégrations",
+      "ai": "IA",
+      "safety": "Sécurité et limites",
+      "storage": "Stockage et supervision"
+    }
+  },
+  "simulation": {
+    "title": "Contrôles de simulation",
+    "description": "Lancez un incident réaliste dans une application de démonstration. Disponible uniquement dans les environnements local, dev et test.",
+    "application": "Application",
+    "pickApplication": "Choisissez une application",
+    "scenario": "Scénario",
+    "pickScenario": "Choisissez un scénario",
+    "start": "Lancer le scénario",
+    "started": "Scénario lancé",
+    "startedDescription": "L'incident ServiceNow simulé {{number}} est en route vers Keigan.",
+    "failed": "Impossible de lancer le scénario"
+  },
+  "usage": {
+    "pageTitle": "Utilisation et audit",
+    "pageDescription": "Consommation de jetons d'IA, estimations de coût, journal d'audit de chaque modification et file de tâches.",
+    "range": "Période",
+    "days_one": "{{count}} jour",
+    "days_other": "{{count}} jours",
+    "tiles": {
+      "tokens": "Jetons utilisés",
+      "tokenSplit": "{{input}} en entrée, {{output}} en sortie",
+      "cost": "Coût estimé",
+      "costNote": "D'après les tarifs de jetons configurés",
+      "calls": "Appels d'IA",
+      "failedCalls_one": "{{count}} échoué",
+      "failedCalls_other": "{{count}} échoués",
+      "perInvestigation": "Jetons par investigation",
+      "perInvestigationNote": "Moyenne sur cette période"
+    },
+    "chartTitle": "Jetons par jour",
+    "chartDescription": "Jetons d'entrée et de sortie pour toutes les fonctionnalités d'IA.",
+    "byApplication": "Par application",
+    "byFeature": "Par fonctionnalité",
+    "empty": "Aucune utilisation de l'IA enregistrée sur cette période.",
+    "columns": { "name": "Nom", "calls": "Appels", "input": "Jetons d'entrée", "output": "Jetons de sortie", "cost": "Coût est." }
+  },
+  "audit": {
+    "caption": "Événements d'audit",
+    "empty": "Aucun événement d'audit ne correspond à ces filtres.",
+    "filters": { "actor": "Personne", "action": "L'action contient" },
+    "columns": { "time": "Quand", "actor": "Qui", "action": "Action", "target": "Cible", "details": "Détails" }
+  },
+  "jobs": {
+    "deadLetters": "Messages en échec",
+    "deadLettersDescription": "Tâches ayant échoué à chaque tentative. Réessayez après avoir corrigé la cause.",
+    "noDeadLetters": "Aucune tâche en échec. La file est saine.",
+    "recent": "Tâches récentes",
+    "retry": "Réessayer",
+    "columns": { "type": "Tâche", "status": "Statut", "attempts": "Tentatives", "created": "Créée", "error": "Dernière erreur" }
+  },
+  "outbox": {
+    "pageTitle": "Boîte d'envoi",
+    "pageDescription": "E-mails et messages Teams que Keigan a envoyés ou simulés.",
+    "emptyTitle": "Rien d'envoyé pour l'instant",
+    "emptyDescription": "Les notifications apparaissent ici dès que Keigan les envoie ou les simule.",
+    "unavailableTitle": "Boîte d'envoi indisponible",
+    "unavailableDescription": "Impossible de charger les enregistrements de livraison. Les notifications ne sont peut-être pas activées dans cet environnement.",
+    "previewTitle": "Aperçu du message",
+    "noBody": "Ce message n'a pas de corps.",
+    "columns": { "created": "Créé", "subject": "Objet", "recipient": "Destinataire", "application": "Application", "channel": "Canal", "status": "Statut" }
+  }
+}

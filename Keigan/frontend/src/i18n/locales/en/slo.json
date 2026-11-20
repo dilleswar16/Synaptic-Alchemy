@@ -1,0 +1,30 @@
+{
+  "pageTitle": "SLO monitoring",
+  "pageDescription": "Compliance, error budgets and burn rates for every SLO in scope.",
+  "status": { "healthy": "Healthy", "at_risk": "At risk", "breached": "Breached", "no_data": "No data" },
+  "summary": { "breached": "{{count}} breached", "at_risk": "{{count}} at risk", "healthy": "{{count}} healthy" },
+  "emptyTitle": "No SLOs yet",
+  "emptyDescription": "Open an application's SLO step to review the proposals Keigan measured from the last 30 days, then accept them.",
+  "headline": { "title": "Headline SLOs", "description": "Measured closest to the user, on each application's entry point." },
+  "cards": { "title": "All SLOs" },
+  "card": {
+    "window": "{{days}} day window", "approximate": "approximate", "target": "Target {{target}} %", "sparkline": "Trend of {{name}} for the last 14 days", "budget": "Error budget",
+    "budgetLeft": "{{percent}} % left, {{minutes}} min", "noData": "No data", "burn1h": "Burn 1 h", "burn6h": "Burn 6 h", "noBurn": "n/a"
+  },
+  "detail": {
+    "compliance": "Compliance", "target": "Target", "budget": "Error budget left", "budgetValue": "{{minutes}} of {{total}} minutes", "resolution": "Resolution", "daily": "Daily", "hourly": "Hourly",
+    "sliOverTime": "SLI over time", "sli": "SLI", "targetLine": "Target", "burnDown": "Error budget burn-down", "budgetRemaining": "Budget remaining"
+  },
+  "heatmap": { "title": "Ecosystem heatmap", "description": "Daily compliance for every SLO across your applications.", "emptyTitle": "Nothing to show", "emptyDescription": "SLOs appear here once applications have accepted them." },
+  "proposals": {
+    "measuring": "Measuring the last 30 days", "stages": { "0": "Reading metric definitions", "1": "Reading 30 days of data", "2": "Calculating baselines" }, "measuringHelp": "You can leave this page; Keigan keeps measuring.",
+    "failed": "Measuring failed", "retry": "Try again", "remeasure": "Measure again", "suggests": "Keigan suggests {{slos}} SLOs across {{services}} services", "acceptSuggested": "Accept suggested",
+    "accepted": "{{count}} SLOs accepted", "headline": "Headline SLO", "explain": "Explain this indicator", "approximate": "approximate (5-minute averages)", "alreadyAccepted": "Accepted",
+    "columns": { "sli": "Indicator", "source": "Source", "measured": "30-day value", "target": "Target", "window": "Window", "budget": "Error budget" }, "days": "{{days}} days",
+    "sparkline": "30-day trend of {{name}}", "supporting": "Supporting signals ({{count}}): collected, no target", "emptyTitle": "No indicators found", "emptyDescription": "Link Application Insights or log sources to the services, then measure again."
+  },
+  "custom": {
+    "title": "Add custom SLI (advanced)", "description": "A KQL query that returns good, total and window_start (5-minute bins).", "service": "Service", "servicePlaceholder": "Choose a service", "name": "Name",
+    "query": "KQL query", "queryHelp": "AppRequests | summarize good=countif(Success == true), total=count() by window_start=bin(TimeGenerated, 5m)", "target": "Target", "save": "Create SLI and SLO"
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "sections": {
+    "operate": "Operatie",
+    "reliability": "Betrouwbaarheid",
+    "assist": "Ondersteuning",
+    "prepare": "Voorbereiden",
+    "administration": "Beheer"
+  },
+  "items": {
+    "home": "Home",
+    "incidents": "Incidentenkamer",
+    "alerts": "Meldingen",
+    "slo": "SLO-monitoring",
+    "intelligence": "Intelligence",
+    "chat": "Keigan AI-chat",
+    "applications": "Applicaties",
+    "platformSettings": "Platforminstellingen",
+    "usageAndAudit": "Gebruik en audit",
+    "outbox": "Postvak uit",
+    "designSystem": "Designsysteem"
+  },
+  "skipToContent": "Naar hoofdinhoud gaan",
+  "mainNavigation": "Hoofdnavigatie",
+  "breadcrumb": "Kruimelpad",
+  "sidebar": {
+    "collapse": "Zijbalk inklappen",
+    "expand": "Zijbalk uitklappen",
+    "open": "Navigatie openen",
+    "close": "Navigatie sluiten"
+  },
+  "applicationScope": {
+    "label": "Applicaties",
+    "allMyApplications": "Al mijn applicaties",
+    "selectedCount_one": "{{count}} applicatie",
+    "selectedCount_other": "{{count}} applicaties",
+    "searchPlaceholder": "Applicaties zoeken",
+    "noApplications": "U hebt nog geen toegang tot een applicatie.",
+    "noMatches": "Geen applicaties komen overeen met “{{query}}”",
+    "showAll": "Alles tonen",
+    "triggerLabel": "Applicatiebereik: {{scope}}",
+    "roleAdmin": "Beheerder",
+    "roleReader": "Lezer",
+    "hint": "Lijsten, aantallen en chatantwoorden volgen dit bereik."
+  },
+  "commandPalette": {
+    "title": "Keigan doorzoeken",
+    "open": "Keigan doorzoeken",
+    "trigger": "Zoeken",
+    "placeholder": "Ga naar een pagina of zoek een incidentnummer…",
+    "pages": "Pagina's",
+    "incidents": "Incidenten",
+    "searchIncident": "Incidenten zoeken voor “{{query}}”",
+    "noResults": "Geen pagina's gevonden. Druk op Enter om incidenten te zoeken.",
+    "hintNavigate": "om te navigeren",
+    "hintOpen": "om te openen",
+    "hintClose": "om te sluiten"
+  },
+  "notifications": {
+    "title": "Notificaties",
+    "open": "Notificaties openen",
+    "emptyTitle": "U bent bij",
+    "emptyDescription": "Incident- en SLO-updates voor uw applicaties verschijnen hier."
+  },
+  "userMenu": {
+    "open": "Gebruikersmenu openen",
+    "preferences": "Voorkeuren",
+    "signOut": "Afmelden",
+    "signedInAs": "Aangemeld als"
+  },
+  "roles": {
+    "keiganAdmin": "Keigan-beheerder",
+    "applicationAdmin": "Applicatiebeheerder",
+    "reader": "Lezer",
+    "noAccess": "Geen toegang"
+  },
+  "preferences": {
+    "title": "Voorkeuren",
+    "description": "Uw taal en thema worden opgeslagen in uw Keigan-profiel.",
+    "language": "Taal",
+    "theme": "Thema",
+    "done": "Klaar"
+  },
+  "notFound": {
+    "title": "Pagina niet gevonden",
+    "description": "De pagina die u zoekt bestaat niet of is verplaatst.",
+    "goHome": "Naar home"
+  },
+  "adminOnly": {
+    "title": "Alleen voor Keigan-beheerders",
+    "description": "Dit gebied is beperkt tot leden van de Keigan-beheerdersgroep."
+  },
+  "routeError": {
+    "title": "Er is een probleem met deze pagina",
+    "description": "Laad de pagina opnieuw. Blijft het gebeuren, deel dan de onderstaande details met het Keigan-team."
+  }
+}

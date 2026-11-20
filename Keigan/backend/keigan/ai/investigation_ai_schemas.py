@@ -1,0 +1,122 @@
+"""Structured output schemas for the investigation engine (triage, planner, hypotheses, synthesis, communications, postmortem)."""
+
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+IncidentCategoryName = Literal["availability", "latency", "errors", "data", "batch", "security", "capacity", "dependency", "change_related"]
+PriorityName = Literal["P1", "P2", "P3", "P4"]
+AnalysisPerspectiveName = Literal["application", "dependencies", "infrastructure"]
+RiskLevelName = Literal["low", "medium", "high"]
+
+
+class TriageResult(BaseModel):
+    suggested_priority: PriorityName
+    priority_rationale: str
+    incident_category: IncidentCategoryName
+    candidate_service_names: list[str] = Field(default_factory=list, description="Names taken from the service catalogue only")
+    incident_summary: str
+    key_symptoms: list[str] = Field(default_factory=list)
+    time_of_onset_hint: str | None = None
+
+
+class PlannedQuery(BaseModel):
+    service_name: str
+    query_language: Literal["kql", "elastic_dsl", "spl"]
+    query_text: str
+    justification: str
+
+
+class AdditionalQueryPlan(BaseModel):
+    queries: list[PlannedQuery] = Field(default_factory=list, description="At most three read-only queries")
+
+
+class FixStep(BaseModel):
+    description: str
+    command_text: str | None = Field(default=None, description="A copyable command (kubectl, az, SQL, ...) using real resource names, or null")
+    command_language: str | None = Field(default=None, description="bash | powershell | sql | kql | text")
+
+
+class CodeChange(BaseModel):
+    repository_name: str | None = None
+    file_path: str = Field(description="Only a file path found in the knowledge base; otherwise 'file not identified'")
+    change_description: str
+    before_snippet: str | None = None
+    after_snippet: str | None = None
+
+
+class ProposedFix(BaseModel):
+    summary: str
+    steps: list[FixStep] = Field(default_factory=list)
+    code_changes: list[CodeChange] = Field(default_factory=list)
+    verification_steps: list[str] = Field(default_factory=list)
+    rollback_steps: list[str] = Field(default_factory=list)
+
+
+class HypothesisResult(BaseModel):
+    hypothesis_title: str
+    hypothesis_statement_markdown: str
+    reasoning_markdown: str
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    supporting_evidence_codes: list[str] = Field(default_factory=list)
+    contradicting_evidence_codes: list[str] = Field(default_factory=list)
+    proposed_fix: ProposedFix
+    fix_risk_level: RiskLevelName = "medium"
+    matched_runbook_code: str | None = None
+
+
+class RcaSynthesisResult(BaseModel):
+    leading_perspective: AnalysisPerspectiveName
+    leading_perspective_reason: str
+    overall_confidence_score: float = Field(ge=0.0, le=1.0)
+    executive_summary: str
+    what_went_wrong_markdown: str
+    why_it_happened_markdown: str
+    how_to_fix_markdown: str
+    open_questions: list[str] = Field(default_factory=list)
+    applied_runbook_codes: list[str] = Field(default_factory=list)
+
+
+class BlastRadiusNarrative(BaseModel):
+    narrative_markdown: str
+    user_impact_summary: str
+
+
+class CommunicationDraft(BaseModel):
+    communication_type: Literal["initial_update", "executive_summary", "preliminary_report", "progress_update", "resolution_update"]
+    language_code: str
+    subject_line: str
+    body_markdown: str
+
+
+class CommunicationDraftSet(BaseModel):
+    drafts: list[CommunicationDraft]
+
+
+class PostmortemTimelineEntry(BaseModel):
+    time_text: str
+    description: str
+
+
+class PostmortemActionItem(BaseModel):
+    description: str
+    owner_role: str
+    due_in_days: int = 14
+    action_type: Literal["prevent", "detect", "mitigate"]
+
+
+class PostmortemResult(BaseModel):
+    report_title: str
+    summary: str
+    impact: str
+    timeline: list[PostmortemTimelineEntry] = Field(default_factory=list)
+    root_cause: str
+    contributing_factors: list[str] = Field(default_factory=list)
+    detection: str
+    response: str
+    what_went_well: list[str] = Field(default_factory=list)
+    what_could_be_improved: list[str] = Field(default_factory=list)
+    action_items: list[PostmortemActionItem] = Field(default_factory=list)
+    lessons_learned: list[str] = Field(default_factory=list)
