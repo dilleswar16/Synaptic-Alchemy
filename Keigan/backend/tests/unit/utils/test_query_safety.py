@@ -474,14 +474,14 @@ class TestSliAllowedTablesPolicy:
 
     def test_sli_allowed_tables_count_and_composition(self) -> None:
         sli_tables = sli_allowed_kql_tables()
-        assert len(sli_tables) == 20
-        # Must only include telemetry, requests, dependencies, exceptions, availability, and container/job runtime logs
+        assert len(sli_tables) == 26
+        # Telemetry (requests, dependencies, exceptions, traces, custom events and metrics, availability), app and runtime logs, platform metrics
         expected_tables = {
             "AppRequests", "AppDependencies", "AppExceptions", "AppTraces", "AppAvailabilityResults",
             "AppPageViews", "AppMetrics", "AppEvents", "requests", "dependencies", "exceptions",
-            "availabilityResults", "ContainerLogV2", "FunctionAppLogs", "AppServiceHTTPLogs",
-            "ApiManagementGatewayLogs", "AzureDiagnostics", "ADFPipelineRun", "ADFActivityRun",
-            "LogicAppWorkflowRuntime",
+            "traces", "customEvents", "customMetrics", "availabilityResults", "ContainerLogV2", "FunctionAppLogs",
+            "AppServiceHTTPLogs", "AppServiceAppLogs", "ApiManagementGatewayLogs", "AzureDiagnostics", "AzureMetrics",
+            "ADFPipelineRun", "ADFActivityRun", "ADFTriggerRun", "LogicAppWorkflowRuntime",
         }
         assert sli_tables == expected_tables
 

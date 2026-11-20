@@ -54,7 +54,8 @@ kql:
     - Event
     - Heartbeat
   # Tables a custom SLI query (stored by an application admin, run on a schedule with Keigan's identity) may read.
-  # Narrower than the list above: only request, dependency and availability style data, no activity, syslog or event logs.
+  # Narrower than the list above: telemetry, app and runtime logs and platform metrics. No activity log, syslog, event log, host
+  # performance or Kubernetes inventory, and no App Service console or platform logs (see the sensitive list in test_query_safety.py).
   sli_allowed_tables:
     - AppRequests
     - AppDependencies
@@ -67,14 +68,20 @@ kql:
     - requests
     - dependencies
     - exceptions
+    - traces
+    - customEvents
+    - customMetrics
     - availabilityResults
     - ContainerLogV2
     - FunctionAppLogs
     - AppServiceHTTPLogs
+    - AppServiceAppLogs
     - ApiManagementGatewayLogs
     - AzureDiagnostics
+    - AzureMetrics
     - ADFPipelineRun
     - ADFActivityRun
+    - ADFTriggerRun
     - LogicAppWorkflowRuntime
   # Words that are refused wherever they appear outside strings and comments (as a keyword: value is the reason shown to the user).
   forbidden_keywords:
