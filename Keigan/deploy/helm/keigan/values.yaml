@@ -28,6 +28,11 @@ ingress:
   publicAllowedSourceRanges: []
 
 api:
+  # Peers whose X-Forwarded-For / X-Forwarded-Proto headers the API trusts (uvicorn FORWARDED_ALLOW_IPS): comma-separated IPs or CIDRs
+  # of the hop directly in front of the pod, i.e. the ingress controller pods (APIM sits in front of the ingress and is not the peer).
+  # Replace the placeholder with the ingress controller's pod CIDR or addresses. "*" is refused (any caller could spoof its IP).
+  # Left as a placeholder, no peer is trusted: the API still works but sees the ingress address instead of the real client.
+  forwardedAllowIps: "<ingress-controller-pod-cidr>"
   replicas: 2
   resources:
     requests: { cpu: 250m, memory: 512Mi }
@@ -104,3 +109,49 @@ keyVault:
       environmentVariable: DATABASE_URL
     - objectName: keigan-llm-api-key
       environmentVariable: LLM_API_KEY
+    # Outside ENVIRONMENT=local/test the backend refuses to start with the built-in default signing secret, even in entra mode
+    # where local sign-in tokens are never issued. Store any random value of at least 32 characters (for example 48 random bytes, base64).
+    - objectName: keigan-local-token-signing-secret
+      environmentVariable: LOCAL_TOKEN_SIGNING_SECRET
+
+# Egress NetworkPolicy for the API and worker pods (templates/egress-network-policy.yaml).
+# Once a pod is selected by an egress policy, ALL outbound traffic not listed here is dropped. That limits what a server-side request
+# forgery (user-configured integration URLs, log tool hosts, synthetic probes) can reach: cluster services, the node metadata
+# endpoint and private networks stay blocked unless listed below.
+# A NetworkPolicy matches addresses, not host names: list the private endpoint or firewall ranges (CIDRs) of each destination.
+# A destination with no CIDRs produces no rule (stays blocked). Ask the network team for the ranges; they change rarely.
+egress:
+  enabled: true
+  dns:
+    # The cluster DNS pods (CoreDNS on AKS). Port 53 over UDP and TCP.
+    namespace: kube-system
+    podLabelKey: k8s-app
+    podLabelValue: kube-dns
+  destinations:
+    azureSql:
+      cidrs: []        # e.g. the private endpoint subnet of the Azure SQL server
+      ports: [1433]
+    keyVault:
+      cidrs: []        # private endpoint of the Key Vault
+      ports: [443]
+    microsoftIdentityAndGraph:
+      cidrs: []        # login.microsoftonline.com and graph.microsoft.com (Entra sign-in keys, workload identity token, groups, mail)
+      ports: [443]
+    azureMonitor:
+      cidrs: []        # Log Analytics / Azure Data Explorer query endpoints and Application Insights
+      ports: [443]
+    llmGateway:
+      cidrs: []        # the corporate AI gateway behind LLM_BASE_URL
+      ports: [443]
+    botFramework:
+      cidrs: []        # smba.trafficmanager.net / *.botframework.com (proactive Teams messages)
+      ports: [443]
+    serviceNow:
+      cidrs: []        # the ServiceNow instance
+      ports: [443]
+  # One entry per log tool Keigan queries (Elastic, Splunk, Datadog ...). Each entry: name, cidrs, ports.
+  # logTools:
+  #   - { name: elastic-prod, cidrs: ["10.20.30.0/24"], ports: [9243] }
+  logTools: []
+  # Anything else (for example an SMTP relay): same shape as logTools.
+  additional: []

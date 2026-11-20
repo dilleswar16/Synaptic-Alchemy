@@ -126,4 +126,11 @@ def create_secret_store(settings: Settings, credential_provider: AzureCredential
         if not settings.azure_key_vault_url:
             raise IntegrationException("SECRET_STORE_MODE=key_vault requires AZURE_KEY_VAULT_URL.")
         return KeyVaultSecretStore(settings.azure_key_vault_url, credential_provider)
-    return LocalEncryptedSecretStore(settings.local_secret_encryption_key or settings.local_token_signing_secret)
+    if settings.local_secret_encryption_key:
+        return LocalEncryptedSecretStore(settings.local_secret_encryption_key)
+    if not settings.allows_local_authentication:
+        # The signing secret may still be the public default; never derive an encryption key from it on a shared deployment.
+        raise IntegrationException(
+            f"LOCAL_SECRET_ENCRYPTION_KEY must be set when SECRET_STORE_MODE=local_encrypted and ENVIRONMENT={settings.environment}."
+        )
+    return LocalEncryptedSecretStore(settings.local_token_signing_secret)

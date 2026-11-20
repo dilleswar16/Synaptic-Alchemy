@@ -1,0 +1,55 @@
+{{- /*
+Default-deny egress for the API and worker pods, with an explicit allow-list from values.yaml (egress:).
+Why: the API and worker call user-configured URLs (log tools, synthetic probes). Without an egress policy a request forged through
+those settings can reach cluster services, other namespaces, the node metadata endpoint and private networks.
+Allowed: cluster DNS, plus every destination in values (egress.destinations, egress.logTools, egress.additional) that has CIDRs.
+A destination without CIDRs adds no rule, so it stays blocked. NetworkPolicy matches IP ranges, not host names.
+*/ -}}
+{{- if .Values.egress.enabled }}
+{{- $destinations := list }}
+{{- range $destinationName, $destination := .Values.egress.destinations }}
+{{- $destinations = append $destinations (merge (dict "name" $destinationName) $destination) }}
+{{- end }}
+{{- range .Values.egress.logTools }}
+{{- $destinations = append $destinations . }}
+{{- end }}
+{{- range .Values.egress.additional }}
+{{- $destinations = append $destinations . }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keigan-backend-egress
+  namespace: {{ .Values.namespaces.backend }}
+  labels: {{- include "keigan.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [keigan-api, keigan-worker]
+  policyTypes: ["Egress"]
+  egress:
+    # Cluster DNS
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.egress.dns.namespace }} }
+          podSelector:
+            matchLabels: { {{ .Values.egress.dns.podLabelKey }}: {{ .Values.egress.dns.podLabelValue | quote }} }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    {{- range $destination := $destinations }}
+    {{- if $destination.cidrs }}
+    # {{ $destination.name }}
+    - to:
+        {{- range $destination.cidrs }}
+        - ipBlock: { cidr: {{ . | quote }} }
+        {{- end }}
+      ports:
+        {{- range $destination.ports }}
+        - { protocol: TCP, port: {{ . }} }
+        {{- end }}
+    {{- end }}
+    {{- end }}
+{{- end }}
