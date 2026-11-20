@@ -19,7 +19,7 @@
   "proposals": {
     "measuring": "De laatste 30 dagen meten", "stages": { "0": "Metriekdefinities lezen", "1": "30 dagen aan gegevens lezen", "2": "Basislijnen berekenen" }, "measuringHelp": "U kunt deze pagina verlaten; Keigan blijft meten.",
     "failed": "Meten mislukt", "retry": "Opnieuw proberen", "remeasure": "Opnieuw meten", "suggests": "Keigan stelt {{slos}} SLO's voor verspreid over {{services}} services", "acceptSuggested": "Voorstellen accepteren",
-    "accepted": "{{count}} SLO's geaccepteerd", "headline": "Hoofd-SLO", "explain": "Deze indicator toelichten", "approximate": "bij benadering (gemiddelden van 5 minuten)", "alreadyAccepted": "Geaccepteerd",
+    "accepted_one": "{{count}} SLO geaccepteerd", "accepted_other": "{{count}} SLO's geaccepteerd", "headline": "Hoofd-SLO", "explain": "Deze indicator toelichten", "approximate": "bij benadering (gemiddelden van 5 minuten)", "alreadyAccepted": "Geaccepteerd",
     "columns": { "sli": "Indicator", "source": "Bron", "measured": "Waarde over 30 dagen", "target": "Doel", "window": "Venster", "budget": "Foutbudget" }, "days": "{{days}} dagen",
     "sparkline": "Trend van {{name}} over 30 dagen", "supporting": "Ondersteunende signalen ({{count}}): verzameld, geen doel", "emptyTitle": "Geen indicatoren gevonden", "emptyDescription": "Koppel Application Insights of logbronnen aan de services en meet daarna opnieuw."
   },

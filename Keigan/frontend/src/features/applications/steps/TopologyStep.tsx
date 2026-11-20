@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { Textarea } from "@/components/ui/Textarea";
 import { TopologyGraph, type TopologyGraphNode } from "@/components/topology/TopologyGraph";
+import { useRelationshipLabel } from "@/components/topology/useRelationshipLabel";
 import { StepFrame } from "../components/StepFrame";
 import type { StepProps } from "../stepRegistry";
 
@@ -85,6 +86,7 @@ function ReviewPanel({ title, subtitle, verdict, comment, canEdit, isSaving, onR
 
 function TopologyView({ applicationId, topology, canEdit }: { applicationId: string; topology: TopologyDetail; canEdit: boolean }) {
   const { t } = useTranslation("knowledge");
+  const relationshipLabel = useRelationshipLabel();
   const review = useReviewTopology(applicationId);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [edgeToCorrect, setEdgeToCorrect] = useState<TopologyEdge | null>(null);
@@ -100,7 +102,7 @@ function TopologyView({ applicationId, topology, canEdit }: { applicationId: str
     <div className="flex flex-col gap-6">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <Card radius="lg" className="overflow-hidden p-0">
-          <TopologyGraph nodes={graphNodes} edges={topology.edges.map((edge) => ({ source: edge.sourceNodeKey, target: edge.targetNodeKey, label: edge.relationship.replace(/_/g, " ") }))} height={460} showMiniMap onNodeSelect={setSelectedKey} highlightedNodeKeys={selectedKey ? { [selectedKey]: "direct" } : undefined} />
+          <TopologyGraph nodes={graphNodes} edges={topology.edges.map((edge) => ({ source: edge.sourceNodeKey, target: edge.targetNodeKey, label: relationshipLabel(edge.relationship) }))} height={460} showMiniMap onNodeSelect={setSelectedKey} highlightedNodeKeys={selectedKey ? { [selectedKey]: "direct" } : undefined} />
         </Card>
         <div className="flex flex-col gap-4">
           {selectedNode ? (
@@ -140,7 +142,7 @@ function TopologyView({ applicationId, topology, canEdit }: { applicationId: str
             {topology.edges.map((edge: TopologyEdge) => (
               <li key={edge.edgeKey} className="flex flex-wrap items-center justify-between gap-2 py-2 text-body-sm">
                 <span>
-                  <span className="font-medium">{labelOf(edge.sourceNodeKey)}</span> <span className="text-muted">{edge.relationship.replace(/_/g, " ")}</span> <span className="font-medium">{labelOf(edge.targetNodeKey)}</span>
+                  <span className="font-medium">{labelOf(edge.sourceNodeKey)}</span> <span className="text-muted">{relationshipLabel(edge.relationship)}</span> <span className="font-medium">{labelOf(edge.targetNodeKey)}</span>
                 </span>
                 <span className="flex items-center gap-2">
                   {edge.reviewVerdict ? <StatusChip size="sm" tone={verdictTones[edge.reviewVerdict]}>{t(`topology.verdicts.${edge.reviewVerdict}`)}</StatusChip> : null}

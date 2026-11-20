@@ -13,6 +13,7 @@
     "ariaLabel": "Health score trend over the last 30 days"
   },
   "signals": {
+    "status": { "open": "Open", "acknowledged": "Acknowledged", "dismissed": "Dismissed", "expired": "Expired" },
     "title": "Predictive signals",
     "description": "Keigan watches trends and patterns that usually come before an incident.",
     "emptyTitle": "No open signals",
@@ -57,7 +58,7 @@
     "generateFailed": "Could not start the report",
     "weekly_digest": "Weekly digest",
     "proactive_alert": "Proactive alert",
-    "sentTo": "Sent to {{count}} recipients",
+    "sentTo_one": "Sent to {{count}} recipient", "sentTo_other": "Sent to {{count}} recipients",
     "notSent": "Not emailed",
     "healthScore": "Health {{score}}",
     "reader": "Report",

@@ -101,15 +101,15 @@
     "slo": "至少一个 SLO（{{count}}）"
   },
   "goodToKnow": {
-    "diagnostic_settings": "{{count}} 个服务尚未配置诊断设置",
+    "diagnostic_settings_other": "{{count}} 个服务尚未配置诊断设置",
     "diagnostic_settings_done": "所有已发现的服务都已将日志发送到工作区",
     "knowledge_documents": "尚未上传知识文档",
-    "knowledge_documents_done": "已上传 {{count}} 份知识文档",
+    "knowledge_documents_done_other": "已上传 {{count}} 份知识文档",
     "topology_reviewed": "拓扑尚未审阅",
     "topology_reviewed_done": "拓扑已审阅",
     "runbooks": "尚未添加运行手册",
-    "runbooks_done": "已添加 {{count}} 份运行手册",
-    "placeholder_integrations": "{{count}} 个日志工具已保存，但其读取器尚不可用",
+    "runbooks_done_other": "已添加 {{count}} 份运行手册",
+    "placeholder_integrations_other": "{{count}} 个日志工具已保存，但其读取器尚不可用",
     "placeholder_integrations_done": "所有日志工具均可读取",
     "observe_mode": "告警降噪处于观察模式",
     "observe_mode_done": "告警降噪已启用"

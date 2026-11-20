@@ -19,7 +19,7 @@
   "proposals": {
     "measuring": "Measuring the last 30 days", "stages": { "0": "Reading metric definitions", "1": "Reading 30 days of data", "2": "Calculating baselines" }, "measuringHelp": "You can leave this page; Keigan keeps measuring.",
     "failed": "Measuring failed", "retry": "Try again", "remeasure": "Measure again", "suggests": "Keigan suggests {{slos}} SLOs across {{services}} services", "acceptSuggested": "Accept suggested",
-    "accepted": "{{count}} SLOs accepted", "headline": "Headline SLO", "explain": "Explain this indicator", "approximate": "approximate (5-minute averages)", "alreadyAccepted": "Accepted",
+    "accepted_one": "{{count}} SLO accepted", "accepted_other": "{{count}} SLOs accepted", "headline": "Headline SLO", "explain": "Explain this indicator", "approximate": "approximate (5-minute averages)", "alreadyAccepted": "Accepted",
     "columns": { "sli": "Indicator", "source": "Source", "measured": "30-day value", "target": "Target", "window": "Window", "budget": "Error budget" }, "days": "{{days}} days",
     "sparkline": "30-day trend of {{name}}", "supporting": "Supporting signals ({{count}}): collected, no target", "emptyTitle": "No indicators found", "emptyDescription": "Link Application Insights or log sources to the services, then measure again."
   },

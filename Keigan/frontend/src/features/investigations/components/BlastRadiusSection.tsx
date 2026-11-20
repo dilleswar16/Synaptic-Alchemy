@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { MarkdownView } from "@/components/ui/MarkdownView";
 import { StatusChip } from "@/components/ui/StatusChip";
 import type { StatusTone } from "@/components/ui/toneStyles";
+import { useRelationshipLabel } from "@/components/topology/useRelationshipLabel";
 import { communicationLanguageLabel, topologyNodeType } from "./investigationPresentation";
 
 const sloTone: Record<string, StatusTone> = { healthy: "success", at_risk: "warning", breached: "danger", no_data: "neutral" };
@@ -17,6 +18,8 @@ const sloTone: Record<string, StatusTone> = { healthy: "success", at_risk: "warn
 /** Mini topology with directly and indirectly impacted services, the impact narrative, impacted SLOs and stakeholders. */
 export function BlastRadiusSection({ detail }: { detail: InvestigationDetail }) {
   const { t } = useTranslation("investigations");
+  const { t: translateNotifications } = useTranslation("notifications");
+  const relationshipLabel = useRelationshipLabel();
   const blastRadius = detail.blastRadius;
   const graph = useMemo(() => {
     if (!blastRadius) return null;
@@ -26,7 +29,7 @@ export function BlastRadiusSection({ detail }: { detail: InvestigationDetail }) 
     }
     return {
       nodes: blastRadius.nodes.map((node) => ({ key: node.serviceId, name: node.serviceName, type: topologyNodeType(node.serviceType), subtitle: t(`blast.impact.${node.impactLevel}`) })),
-      edges: blastRadius.edges.map((edge) => ({ source: edge.fromServiceId, target: edge.toServiceId, label: edge.kind })),
+      edges: blastRadius.edges.map((edge) => ({ source: edge.fromServiceId, target: edge.toServiceId, label: relationshipLabel(edge.kind) })),
       highlighted,
     };
   }, [blastRadius, t]);
@@ -81,7 +84,7 @@ export function BlastRadiusSection({ detail }: { detail: InvestigationDetail }) 
                 {blastRadius.stakeholders.map((stakeholder) => (
                   <li key={stakeholder.displayName} className="flex items-center justify-between gap-3 text-body-sm">
                     <span className="text-default">{stakeholder.displayName}</span>
-                    <span className="text-caption text-muted">{stakeholder.role} · {communicationLanguageLabel(stakeholder.preferredLanguageCode)}</span>
+                    <span className="text-caption text-muted">{translateNotifications(`roles.${stakeholder.role}`, { defaultValue: stakeholder.role })} · {communicationLanguageLabel(stakeholder.preferredLanguageCode)}</span>
                   </li>
                 ))}
               </ul>

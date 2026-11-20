@@ -55,7 +55,7 @@ export function AlertSourcesSection({ applicationId, canEdit, onChanged }: { app
           <Card key={source.alertSourceId} dense>
             <CardBody className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className="font-semibold">{source.sourceName}</span>
                   <StatusChip tone="neutral" variant="outline" size="sm" icon={false}>{t(`tools.${source.sourceTool}`)}</StatusChip>
                   <StatusChip tone={statusTones[source.sourceStatus]} size="sm" dot>

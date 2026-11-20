@@ -52,7 +52,7 @@
   "digest": {
     "title": "Resumen de IA",
     "headings": "Encabezados encontrados ({{count}})",
-    "chunks": "{{count}} secciones con búsqueda, unos {{tokens}} tokens.",
+    "chunks_one": "{{count}} sección con búsqueda, unos {{tokens}} tokens.", "chunks_other": "{{count}} secciones con búsqueda, unos {{tokens}} tokens.",
     "injectionTitle": "Este documento contiene texto con forma de instrucciones",
     "injectionBody": "Keigan trata los documentos como datos e ignora las instrucciones que contienen, pero una persona debería revisar este archivo.",
     "status": {

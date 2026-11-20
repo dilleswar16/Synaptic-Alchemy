@@ -19,7 +19,7 @@
   "proposals": {
     "measuring": "正在测算过去 30 天", "stages": { "0": "读取指标定义", "1": "读取 30 天数据", "2": "计算基线" }, "measuringHelp": "您可以离开此页面，Keigan 会继续测算。",
     "failed": "测算失败", "retry": "重试", "remeasure": "重新测算", "suggests": "Keigan 建议在 {{services}} 个服务上设置 {{slos}} 个 SLO", "acceptSuggested": "接受建议",
-    "accepted": "已接受 {{count}} 个 SLO", "headline": "核心 SLO", "explain": "解释此指标", "approximate": "近似值（5 分钟平均）", "alreadyAccepted": "已接受",
+    "accepted_other": "已接受 {{count}} 个 SLO", "headline": "核心 SLO", "explain": "解释此指标", "approximate": "近似值（5 分钟平均）", "alreadyAccepted": "已接受",
     "columns": { "sli": "指标", "source": "来源", "measured": "30 天值", "target": "目标", "window": "窗口", "budget": "错误预算" }, "days": "{{days}} 天",
     "sparkline": "{{name}}的 30 天趋势", "supporting": "辅助信号（{{count}}）：仅采集，无目标", "emptyTitle": "未找到指标", "emptyDescription": "请将 Application Insights 或日志源关联到服务，然后重新测算。"
   },

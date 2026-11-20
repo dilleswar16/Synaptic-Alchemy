@@ -13,6 +13,7 @@
     "ariaLabel": "Tendance du score de santé sur les 30 derniers jours"
   },
   "signals": {
+    "status": { "open": "Ouvert", "acknowledged": "Pris en compte", "dismissed": "Écarté", "expired": "Expiré" },
     "title": "Signaux prédictifs",
     "description": "Keigan surveille les tendances et schémas qui précèdent généralement un incident.",
     "emptyTitle": "Aucun signal ouvert",
@@ -57,7 +58,7 @@
     "generateFailed": "Impossible de lancer le rapport",
     "weekly_digest": "Récapitulatif hebdomadaire",
     "proactive_alert": "Alerte proactive",
-    "sentTo": "Envoyé à {{count}} destinataires",
+    "sentTo_one": "Envoyé à {{count}} destinataire", "sentTo_other": "Envoyé à {{count}} destinataires",
     "notSent": "Non envoyé par e-mail",
     "healthScore": "Santé {{score}}",
     "reader": "Rapport",

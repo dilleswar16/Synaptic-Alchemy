@@ -28,7 +28,6 @@
     "emptyDescription": "Applicaties waartoe u toegang hebt, verschijnen hier zodra ze zijn onboard.",
     "ringLabel": "Status {{percentage}} procent, {{status}}",
     "status": { "healthy": "gezond", "watch": "aandacht", "degraded": "verminderd", "critical": "kritiek" },
-    "tier": "Tier {{tier}}",
     "openIncidents_one": "{{count}} incident",
     "openIncidents_other": "{{count}} incidenten",
     "worstBudget": "Laagste resterende foutbudget",

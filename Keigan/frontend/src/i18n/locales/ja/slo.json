@@ -19,7 +19,7 @@
   "proposals": {
     "measuring": "過去 30 日間を測定中", "stages": { "0": "メトリクス定義を読み取り中", "1": "30 日分のデータを読み取り中", "2": "ベースラインを計算中" }, "measuringHelp": "このページを離れても、Keigan は測定を続けます。",
     "failed": "測定に失敗しました", "retry": "再試行", "remeasure": "再測定", "suggests": "Keigan は {{services}} サービスにわたる {{slos}} 件の SLO を提案します", "acceptSuggested": "提案を承認",
-    "accepted": "{{count}} 件の SLO を承認済み", "headline": "主要 SLO", "explain": "この指標を説明", "approximate": "概算（5 分平均）", "alreadyAccepted": "承認済み",
+    "accepted_other": "{{count}} 件の SLO を承認済み", "headline": "主要 SLO", "explain": "この指標を説明", "approximate": "概算（5 分平均）", "alreadyAccepted": "承認済み",
     "columns": { "sli": "指標", "source": "ソース", "measured": "30 日間の値", "target": "目標", "window": "ウィンドウ", "budget": "エラーバジェット" }, "days": "{{days}} 日間",
     "sparkline": "{{name}}の 30 日間のトレンド", "supporting": "補助シグナル（{{count}}）: 収集のみ、目標なし", "emptyTitle": "指標が見つかりません", "emptyDescription": "Application Insights またはログソースをサービスに関連付けてから、再測定してください。"
   },

@@ -75,6 +75,7 @@
     "columns": { "time": "日時", "actor": "実行者", "action": "操作", "target": "対象", "details": "詳細" }
   },
   "jobs": {
+    "status": { "queued": "待機中", "running": "実行中", "succeeded": "成功", "failed": "失敗", "dead_lettered": "デッドレター" },
     "deadLetters": "デッドレター",
     "deadLettersDescription": "すべての試行で失敗したジョブです。原因を修正してから再試行してください。",
     "noDeadLetters": "失敗したジョブはありません。キューは正常です。",
@@ -83,6 +84,7 @@
     "columns": { "type": "ジョブ", "status": "ステータス", "attempts": "試行回数", "created": "作成日時", "error": "直近のエラー" }
   },
   "outbox": {
+    "status": { "pending": "保留中", "sent": "送信済み", "simulated": "シミュレーション", "failed": "失敗", "skipped": "スキップ" },
     "pageTitle": "送信トレイ",
     "pageDescription": "Keigan が送信またはシミュレートしたメールと Teams メッセージです。",
     "emptyTitle": "送信済みのメッセージはありません",

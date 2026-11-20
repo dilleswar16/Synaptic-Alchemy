@@ -52,7 +52,7 @@
   "digest": {
     "title": "AI 摘要",
     "headings": "发现的标题（{{count}}）",
-    "chunks": "{{count}} 个可搜索片段，约 {{tokens}} 个 token。",
+    "chunks_other": "{{count}} 个可搜索片段，约 {{tokens}} 个 token。",
     "injectionTitle": "此文档包含类似指令的文本",
     "injectionBody": "Keigan 将文档视为数据，并忽略其中的指令，但仍需人工检查此文件。",
     "status": {

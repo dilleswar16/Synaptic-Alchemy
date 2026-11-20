@@ -13,6 +13,7 @@
     "ariaLabel": "过去 30 天的健康评分趋势"
   },
   "signals": {
+    "status": { "open": "未处理", "acknowledged": "已确认", "dismissed": "已忽略", "expired": "已过期" },
     "title": "预测信号",
     "description": "Keigan 会监控通常出现在事件之前的趋势和模式。",
     "emptyTitle": "没有未处理的信号",
@@ -57,7 +58,7 @@
     "generateFailed": "无法启动报告生成",
     "weekly_digest": "每周摘要",
     "proactive_alert": "主动告警",
-    "sentTo": "已发送给 {{count}} 位收件人",
+    "sentTo_other": "已发送给 {{count}} 位收件人",
     "notSent": "未发送邮件",
     "healthScore": "健康度 {{score}}",
     "reader": "报告",

@@ -171,6 +171,7 @@
     "empty": "暂无事件"
   },
   "units": {
+    "minutesShort": "分钟",
     "tokens_one": "{{formattedCount}} 个 token",
     "tokens_other": "{{formattedCount}} 个 token"
   },
@@ -191,6 +192,7 @@
     "noValue": "无数据"
   },
   "topology": {
+    "relationships": { "calls": "调用", "reads_from": "读取自", "writes_to": "写入到", "publishes_to": "发布到", "hosts": "托管", "hosted_on": "托管于", "depends_on": "依赖" },
     "label": "拓扑图",
     "legend": "图例",
     "impactDirect": "直接受影响",
@@ -217,6 +219,7 @@
     }
   },
   "environment": {
+    "uat": "UAT",
     "local": "本地",
     "dev": "开发",
     "test": "测试",

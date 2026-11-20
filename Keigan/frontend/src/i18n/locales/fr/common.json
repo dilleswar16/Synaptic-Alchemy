@@ -171,6 +171,7 @@
     "empty": "Aucun événement pour l'instant"
   },
   "units": {
+    "minutesShort": "min",
     "tokens_one": "{{formattedCount}} jeton",
     "tokens_other": "{{formattedCount}} jetons"
   },
@@ -191,6 +192,7 @@
     "noValue": "Aucune donnée"
   },
   "topology": {
+    "relationships": { "calls": "appelle", "reads_from": "lit depuis", "writes_to": "écrit dans", "publishes_to": "publie vers", "hosts": "héberge", "hosted_on": "hébergé sur", "depends_on": "dépend de" },
     "label": "Graphe de topologie",
     "legend": "Légende",
     "impactDirect": "Impact direct",
@@ -217,6 +219,7 @@
     }
   },
   "environment": {
+    "uat": "UAT",
     "local": "Local",
     "dev": "Dév.",
     "test": "Test",

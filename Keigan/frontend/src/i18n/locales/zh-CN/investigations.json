@@ -177,7 +177,7 @@
     "injectionTitle": "可能存在提示词注入",
     "injectionDescription": "部分日志文本看起来像是给 AI 的指令。它们已作为数据被引用，不会被执行。",
     "query": "显示 {{language}} 查询",
-    "queryTitle": "查询（{{count}} 条匹配记录）",
+    "queryTitle_other": "查询（{{count}} 条匹配记录）",
     "window": "窗口 {{start}} 至 {{end}}",
     "metricPeak": "峰值 {{peak}} {{unit}}（基线 {{baseline}}）",
     "baselineLabel": "基线",

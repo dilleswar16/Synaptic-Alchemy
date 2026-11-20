@@ -52,7 +52,7 @@
   "digest": {
     "title": "AI-samenvatting",
     "headings": "Gevonden koppen ({{count}})",
-    "chunks": "{{count}} doorzoekbare secties, ongeveer {{tokens}} tokens.",
+    "chunks_one": "{{count}} doorzoekbare sectie, ongeveer {{tokens}} tokens.", "chunks_other": "{{count}} doorzoekbare secties, ongeveer {{tokens}} tokens.",
     "injectionTitle": "Dit document bevat tekst die op instructies lijkt",
     "injectionBody": "Keigan behandelt documenten als gegevens en negeert instructies erin, maar een persoon moet dit bestand controleren.",
     "status": {

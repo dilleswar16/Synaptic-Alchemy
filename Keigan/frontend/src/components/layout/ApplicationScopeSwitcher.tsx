@@ -41,8 +41,9 @@ export function ApplicationScopeSwitcher({ className }: { className?: string }) 
       isFlush
       aria-label={t("applicationScope.label")}
       trigger={
-        <Button variant="secondary" size="sm" leadingIcon={Layers} trailingIcon={ChevronDown} aria-label={t("applicationScope.triggerLabel", { scope: scopeLabel })} className={cn("max-w-[260px]", className)}>
-          <span className="truncate">{scopeLabel}</span>
+        <Button variant="secondary" size="sm" leadingIcon={Layers} aria-label={t("applicationScope.triggerLabel", { scope: scopeLabel })} className={cn("min-w-0 max-w-[260px] shrink", className)}>
+          <span className="min-w-0 truncate">{scopeLabel}</span>
+          <ChevronDown aria-hidden="true" size={16} strokeWidth={1.75} className="shrink-0" />
         </Button>
       }
     >

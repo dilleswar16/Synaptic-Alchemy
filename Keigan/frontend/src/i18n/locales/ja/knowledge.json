@@ -52,7 +52,7 @@
   "digest": {
     "title": "AI ダイジェスト",
     "headings": "検出された見出し（{{count}}）",
-    "chunks": "検索可能なセクション {{count}} 件、約 {{tokens}} トークン。",
+    "chunks_other": "検索可能なセクション {{count}} 件、約 {{tokens}} トークン。",
     "injectionTitle": "このドキュメントに指示のような文章が含まれています",
     "injectionBody": "Keigan はドキュメントをデータとして扱い、内部の指示は無視しますが、担当者がこのファイルを確認してください。",
     "status": {

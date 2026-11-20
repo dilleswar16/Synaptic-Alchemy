@@ -19,7 +19,7 @@
   "proposals": {
     "measuring": "Midiendo los últimos 30 días", "stages": { "0": "Leyendo definiciones de métricas", "1": "Leyendo 30 días de datos", "2": "Calculando líneas base" }, "measuringHelp": "Puede salir de esta página; Keigan sigue midiendo.",
     "failed": "Error en la medición", "retry": "Reintentar", "remeasure": "Medir de nuevo", "suggests": "Keigan sugiere {{slos}} SLO en {{services}} servicios", "acceptSuggested": "Aceptar sugeridos",
-    "accepted": "{{count}} SLO aceptados", "headline": "SLO principal", "explain": "Explicar este indicador", "approximate": "aproximado (promedios de 5 minutos)", "alreadyAccepted": "Aceptado",
+    "accepted_one": "{{count}} SLO aceptado", "accepted_other": "{{count}} SLO aceptados", "headline": "SLO principal", "explain": "Explicar este indicador", "approximate": "aproximado (promedios de 5 minutos)", "alreadyAccepted": "Aceptado",
     "columns": { "sli": "Indicador", "source": "Origen", "measured": "Valor a 30 días", "target": "Objetivo", "window": "Ventana", "budget": "Presupuesto de error" }, "days": "{{days}} días",
     "sparkline": "Tendencia de {{name}} a 30 días", "supporting": "Señales de apoyo ({{count}}): recopiladas, sin objetivo", "emptyTitle": "No se encontraron indicadores", "emptyDescription": "Vincule Application Insights o fuentes de registros a los servicios y vuelva a medir."
   },

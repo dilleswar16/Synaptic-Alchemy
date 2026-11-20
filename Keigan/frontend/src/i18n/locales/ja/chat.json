@@ -36,7 +36,7 @@
   },
   "message": {
     "howIGotThis": "回答の根拠",
-    "queryMeta": "{{service}} · {{source}} · {{language}} · {{count}} 行",
+    "queryMeta_other": "{{service}} · {{source}} · {{language}} · {{count}} 行",
     "simulated": "シミュレーションデータ",
     "sources": "ソース",
     "noData": "この期間のデータはありません。",

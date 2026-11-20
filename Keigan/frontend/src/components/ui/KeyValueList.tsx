@@ -31,12 +31,12 @@ export function KeyValueList({ items, layout = "columns", dense = false, isDivid
         <div
           key={item.key}
           className={cn(
-            layout === "columns" ? "grid gap-x-6 gap-y-1 sm:grid-cols-[minmax(160px,2fr)_5fr]" : "flex flex-col gap-1",
+            layout === "columns" ? "grid grid-cols-[minmax(0,1fr)] gap-x-6 gap-y-1 sm:grid-cols-[minmax(160px,2fr)_5fr]" : "flex flex-col gap-1",
             dense ? "py-2" : "py-3",
             !isDivided && "py-1.5",
           )}
         >
-          <dt className="pt-0.5 text-body-sm text-muted">{item.label}</dt>
+          <dt className="min-w-0 pt-0.5 text-body-sm break-words text-muted">{item.label}</dt>
           <dd className="flex min-w-0 items-start gap-1">
             <div className="min-w-0 flex-1">
               <div className={cn("text-body break-words text-default", item.isMonospace && "font-mono text-code")}>{item.value}</div>

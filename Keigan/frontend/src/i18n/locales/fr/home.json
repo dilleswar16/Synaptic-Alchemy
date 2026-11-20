@@ -28,7 +28,6 @@
     "emptyDescription": "Les applications auxquelles vous avez accès apparaîtront ici une fois intégrées.",
     "ringLabel": "Santé {{percentage}} pour cent, {{status}}",
     "status": { "healthy": "saine", "watch": "à surveiller", "degraded": "dégradée", "critical": "critique" },
-    "tier": "Niveau {{tier}}",
     "openIncidents_one": "{{count}} incident",
     "openIncidents_other": "{{count}} incidents",
     "worstBudget": "Budget d'erreur restant le plus bas",

@@ -52,7 +52,7 @@
   "digest": {
     "title": "Synthèse IA",
     "headings": "Titres détectés ({{count}})",
-    "chunks": "{{count}} sections interrogeables, environ {{tokens}} jetons.",
+    "chunks_one": "{{count}} section interrogeable, environ {{tokens}} jetons.", "chunks_other": "{{count}} sections interrogeables, environ {{tokens}} jetons.",
     "injectionTitle": "Ce document contient du texte ressemblant à des instructions",
     "injectionBody": "Keigan traite les documents comme des données et ignore les instructions qu'ils contiennent, mais une personne devrait vérifier ce fichier.",
     "status": {

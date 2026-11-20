@@ -27,6 +27,7 @@ export interface ChatMessageViewProps {
 /** One chat turn: user bubble on the right; Keigan prose on the left with the mark, optional chart, "How I got this" and citations. */
 export function ChatMessageView({ role, text, payload, onClarificationSelect, isClarificationDisabled = false, isCompact = false, className }: ChatMessageViewProps) {
   const { t } = useTranslation("chat");
+  const { t: translateOnboarding } = useTranslation("onboarding");
   const [isQueryOpen, setIsQueryOpen] = useState(false);
   if (role === "user") {
     return <div className={cn("ml-10 max-w-[85%] self-end rounded-lg rounded-br-xs bg-action-subtle px-3.5 py-2.5 text-body-sm whitespace-pre-wrap text-action-subtle-text", className)}>{text}</div>;
@@ -65,7 +66,7 @@ export function ChatMessageView({ role, text, payload, onClarificationSelect, is
             {isQueryOpen ? (
               <div className="mt-2 flex flex-col gap-2">
                 <p className="text-caption text-muted">
-                  {t("message.queryMeta", { service: queryDetails.serviceName, source: queryDetails.sourceKind, language: queryDetails.queryLanguage.toUpperCase(), count: queryDetails.rowCount })}
+                  {t("message.queryMeta", { service: queryDetails.serviceName, source: translateOnboarding(`logSource.kinds.${queryDetails.sourceKind}`, { defaultValue: queryDetails.sourceKind }), language: queryDetails.queryLanguage.toUpperCase(), count: queryDetails.rowCount })}
                   {queryDetails.timeRange ? ` · ${formatDateTime(queryDetails.timeRange.start)} – ${formatDateTime(queryDetails.timeRange.end)}` : ""}
                   {queryDetails.isSimulated ? ` · ${t("message.simulated")}` : ""}
                 </p>

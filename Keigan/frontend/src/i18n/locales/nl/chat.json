@@ -36,7 +36,7 @@
   },
   "message": {
     "howIGotThis": "Hoe ik hieraan kwam",
-    "queryMeta": "{{service}} · {{source}} · {{language}} · {{count}} rijen",
+    "queryMeta_one": "{{service}} · {{source}} · {{language}} · {{count}} rij", "queryMeta_other": "{{service}} · {{source}} · {{language}} · {{count}} rijen",
     "simulated": "gesimuleerde gegevens",
     "sources": "Bronnen",
     "noData": "Geen gegevens in deze periode.",

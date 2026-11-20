@@ -101,15 +101,15 @@
     "slo": "SLO が 1 つ以上（{{count}}）"
   },
   "goodToKnow": {
-    "diagnostic_settings": "{{count}} 件のサービスに診断設定がありません",
+    "diagnostic_settings_other": "{{count}} 件のサービスに診断設定がありません",
     "diagnostic_settings_done": "検出されたすべてのサービスがワークスペースにログを送信しています",
     "knowledge_documents": "ナレッジドキュメントはまだアップロードされていません",
-    "knowledge_documents_done": "{{count}} 件のナレッジドキュメントをアップロード済み",
+    "knowledge_documents_done_other": "{{count}} 件のナレッジドキュメントをアップロード済み",
     "topology_reviewed": "トポロジーはまだレビューされていません",
     "topology_reviewed_done": "トポロジーはレビュー済みです",
     "runbooks": "ランブックはまだ追加されていません",
-    "runbooks_done": "{{count}} 件のランブックを追加済み",
-    "placeholder_integrations": "{{count}} 件のログツールは保存済みですが、リーダーはまだ利用できません",
+    "runbooks_done_other": "{{count}} 件のランブックを追加済み",
+    "placeholder_integrations_other": "{{count}} 件のログツールは保存済みですが、リーダーはまだ利用できません",
     "placeholder_integrations_done": "すべてのログツールを読み取り可能です",
     "observe_mode": "アラートノイズ削減は観察モードです",
     "observe_mode_done": "アラートノイズ削減は有効です"

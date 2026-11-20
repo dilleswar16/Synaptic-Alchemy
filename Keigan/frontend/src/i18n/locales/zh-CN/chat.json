@@ -36,7 +36,7 @@
   },
   "message": {
     "howIGotThis": "结论依据",
-    "queryMeta": "{{service}} · {{source}} · {{language}} · {{count}} 行",
+    "queryMeta_other": "{{service}} · {{source}} · {{language}} · {{count}} 行",
     "simulated": "模拟数据",
     "sources": "来源",
     "noData": "此时间段无数据。",

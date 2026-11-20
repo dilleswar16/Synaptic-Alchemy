@@ -8,7 +8,7 @@
   "verdict": { "useful": "Useful", "noise": "This was noise" },
   "filters": { "period": "Period", "last24h": "24 hours", "last7d": "7 days", "last30d": "30 days" },
   "observe": {
-    "title": "Observe mode: {{count}} days left",
+    "title_one": "Observe mode: {{count}} day left", "title_other": "Observe mode: {{count}} days left",
     "body": "Keigan records what it would reduce and group, but still investigates every alert above the minimum severity. Nothing changes until you switch to Active.",
     "effect": "Measured effect so far: {{sentence}}"
   },
@@ -19,8 +19,8 @@
     "emptyDescription": "Connect an alert source in the application's Incidents and alerts step to see the funnel.",
     "steps": { "received": "Alerts received", "deduplicated": "After de-duplication", "filtered": "After suppression and settle", "groups": "Alert groups", "investigations": "Investigations" },
     "reasons": {
-      "repeats": "{{count}} repeats", "maintenance": "{{count}} in maintenance", "muted": "{{count}} muted", "environment": "{{count}} other environments",
-      "severity": "{{count}} below minimum severity", "resolved_before_settle": "{{count}} resolved by themselves", "flapping": "{{count}} flapping"
+      "repeats_one": "{{count}} repeat", "repeats_other": "{{count}} repeats", "maintenance": "{{count}} in maintenance", "muted": "{{count}} muted", "environment_one": "{{count}} other environment", "environment_other": "{{count}} other environments",
+      "severity": "{{count}} below minimum severity", "resolved_before_settle_one": "{{count}} resolved by itself", "resolved_before_settle_other": "{{count}} resolved by themselves", "flapping": "{{count}} flapping"
     },
     "reasonHelp": {
       "repeats": "The same alert fired again and was counted on the existing alert.", "maintenance": "Arrived during a maintenance window: recorded, not investigated.", "muted": "Matched a mute rule.",
@@ -30,7 +30,7 @@
   "groups": {
     "title": "Alert groups",
     "columns": { "group": "Group", "services": "Services", "severity": "Severity", "alerts": "Alerts", "status": "State", "score": "Score", "reason": "Decision", "lastActivity": "Last activity", "feedback": "Feedback" },
-    "occurrences": "{{count}} occurrences",
+    "occurrences_one": "{{count}} occurrence", "occurrences_other": "{{count}} occurrences",
     "applicationLevel": "Application-level",
     "emptyTitle": "No alert groups",
     "emptyDescription": "When alerts arrive they are grouped here, with the reason for every decision."
@@ -58,7 +58,7 @@
     "rulesFound": "alert rules found in your scopes ({{sending}} send to Keigan)", "rulesTitle": "Discovered alert rules", "sendsToKeigan": "Sends to Keigan", "doesNotSend": "Does not send",
     "simulatedRules": "Example rules for simulated components, not read from Azure.",
     "status": { "waiting_for_first_alert": "Waiting for first alert", "receiving": "Receiving, last alert", "authentication_failures": "Authentication failures", "paused": "Paused" },
-    "counts": "{{alerts}} alerts in 7 days, {{groups}} groups, {{investigated}} investigated", "authFailures": "{{count}} rejected requests with a wrong token.",
+    "counts": "{{alerts}} alerts in 7 days, {{groups}} groups, {{investigated}} investigated", "authFailures_one": "{{count}} rejected request with a wrong token.", "authFailures_other": "{{count}} rejected requests with a wrong token.",
     "test": "Test", "testSent": "Test alert sent", "rotate": "Rotate secret", "pause": "Pause", "resume": "Resume", "remove": "Remove",
     "removeTitle": "Remove alert source", "removeBody": "Keigan stops accepting alerts at the URL of {{name}}. Stored alerts stay.", "removeConfirm": "Remove source",
     "rotatedTitle": "New secret", "rotatedBody": "Copy it now: it is shown once. The old secret keeps working for 24 hours."

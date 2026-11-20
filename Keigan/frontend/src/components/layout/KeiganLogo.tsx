@@ -22,8 +22,9 @@ export function KeiganLogo({ variant = "full", size = 32, showKanji = false, ton
   const gradientId = `keigan-eye-${useId()}`;
   const { resolvedTheme } = useTheme();
   const isOnDark = tone === "inverse" || resolvedTheme === "dark";
-  const outlineStops = isOnDark ? ["#FFFFFF", "#A4CE4E"] : ["#0061A0", "#0090DA", "#A4CE4E"];
-  const irisColor = isOnDark && tone === "inverse" ? "#0061A0" : "#0061A0";
+  // Colours come from the --logo-* tokens so the mark follows the theme; `inverse` (on the brand gradient) stays white and Dark Blue.
+  const outlineStops = tone === "inverse" ? ["white", "var(--logo-outline-end)"] : ["var(--logo-outline-start)", "var(--logo-outline-middle)", "var(--logo-outline-end)"];
+  const irisColor = tone === "inverse" ? "var(--metlife-dark-blue)" : "var(--logo-iris)";
 
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
@@ -31,16 +32,16 @@ export function KeiganLogo({ variant = "full", size = 32, showKanji = false, ton
         <defs>
           <linearGradient id={gradientId} x1="2" y1="16" x2="30" y2="16" gradientUnits="userSpaceOnUse">
             {outlineStops.map((stopColor, stopIndex) => (
-              <stop key={stopColor + stopIndex} offset={stopIndex / (outlineStops.length - 1)} stopColor={stopColor} />
+              <stop key={stopColor + stopIndex} offset={stopIndex / (outlineStops.length - 1)} style={{ stopColor }} />
             ))}
           </linearGradient>
         </defs>
         <path d="M2 16 Q16 3.5 30 16" stroke={`url(#${gradientId})`} strokeWidth="2.25" strokeLinecap="round" />
         <path d="M2 16 Q16 28.5 30 16" stroke={`url(#${gradientId})`} strokeWidth="2.25" strokeLinecap="round" />
-        <circle cx="16" cy="16" r="6" fill={isOnDark ? "#FFFFFF" : irisColor} />
-        <circle cx="16" cy="16" r="4.6" fill={irisColor} />
-        <circle cx="14.2" cy="14.2" r="1.5" fill="#FFFFFF" fillOpacity="0.9" />
-        <path d="M23.2 18.9 A8 8 0 0 1 17.6 23.9" stroke="#A4CE4E" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="16" cy="16" r="6" style={{ fill: isOnDark ? "white" : irisColor }} />
+        <circle cx="16" cy="16" r="4.6" style={{ fill: irisColor }} />
+        <circle cx="14.2" cy="14.2" r="1.5" fill="white" fillOpacity="0.9" />
+        <path d="M23.2 18.9 A8 8 0 0 1 17.6 23.9" style={{ stroke: "var(--logo-insight)" }} strokeWidth="2" strokeLinecap="round" />
       </svg>
       {variant === "full" ? (
         <span className="inline-flex items-baseline gap-2 leading-none">

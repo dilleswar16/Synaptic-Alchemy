@@ -75,6 +75,7 @@
     "columns": { "time": "Cuándo", "actor": "Quién", "action": "Acción", "target": "Destino", "details": "Detalles" }
   },
   "jobs": {
+    "status": { "queued": "En cola", "running": "En ejecución", "succeeded": "Correcto", "failed": "Fallido", "dead_lettered": "En cola de errores" },
     "deadLetters": "Mensajes fallidos",
     "deadLettersDescription": "Trabajos que fallaron en todos los intentos. Reintente tras corregir la causa.",
     "noDeadLetters": "No hay trabajos fallidos. La cola está sana.",
@@ -83,6 +84,7 @@
     "columns": { "type": "Trabajo", "status": "Estado", "attempts": "Intentos", "created": "Creado", "error": "Último error" }
   },
   "outbox": {
+    "status": { "pending": "Pendiente", "sent": "Enviado", "simulated": "Simulado", "failed": "Fallido", "skipped": "Omitido" },
     "pageTitle": "Bandeja de salida",
     "pageDescription": "Correos y mensajes de Teams que Keigan envió o simuló.",
     "emptyTitle": "Aún no se ha enviado nada",

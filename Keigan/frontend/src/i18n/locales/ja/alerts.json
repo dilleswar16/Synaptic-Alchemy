@@ -8,7 +8,7 @@
   "verdict": { "useful": "有用", "noise": "ノイズだった" },
   "filters": { "period": "期間", "last24h": "24 時間", "last7d": "7 日間", "last30d": "30 日間" },
   "observe": {
-    "title": "観察モード: 残り {{count}} 日",
+    "title_other": "観察モード: 残り {{count}} 日",
     "body": "Keigan は削減・グループ化の内容を記録しますが、最低重大度以上のアラートはすべて調査します。アクティブに切り替えるまで、動作は変わりません。",
     "effect": "これまでの測定効果: {{sentence}}"
   },
@@ -19,8 +19,8 @@
     "emptyDescription": "アプリケーションの「インシデントとアラート」ステップでアラートソースを接続すると、ファネルが表示されます。",
     "steps": { "received": "受信したアラート", "deduplicated": "重複排除後", "filtered": "抑制・待機後", "groups": "アラートグループ", "investigations": "調査" },
     "reasons": {
-      "repeats": "再発 {{count}} 件", "maintenance": "メンテナンス中 {{count}} 件", "muted": "ミュート {{count}} 件", "environment": "他の環境 {{count}} 件",
-      "severity": "最低重大度未満 {{count}} 件", "resolved_before_settle": "自然回復 {{count}} 件", "flapping": "フラッピング {{count}} 件"
+      "repeats_other": "再発 {{count}} 件", "maintenance": "メンテナンス中 {{count}} 件", "muted": "ミュート {{count}} 件", "environment_other": "他の環境 {{count}} 件",
+      "severity": "最低重大度未満 {{count}} 件", "resolved_before_settle_other": "自然回復 {{count}} 件", "flapping": "フラッピング {{count}} 件"
     },
     "reasonHelp": {
       "repeats": "同じアラートが再度発火し、既存のアラートに集計されました。", "maintenance": "メンテナンスウィンドウ中に到着したため、記録のみで調査していません。", "muted": "ミュートルールに一致しました。",
@@ -30,7 +30,7 @@
   "groups": {
     "title": "アラートグループ",
     "columns": { "group": "グループ", "services": "サービス", "severity": "重大度", "alerts": "アラート", "status": "状態", "score": "スコア", "reason": "判断", "lastActivity": "最終アクティビティ", "feedback": "フィードバック" },
-    "occurrences": "{{count}} 回発生",
+    "occurrences_other": "{{count}} 回発生",
     "applicationLevel": "アプリケーションレベル",
     "emptyTitle": "アラートグループはありません",
     "emptyDescription": "アラートが到着すると、すべての判断の理由とともにここでグループ化されます。"
@@ -58,7 +58,7 @@
     "rulesFound": "件のアラートルールがスコープ内で見つかりました（{{sending}} 件が Keigan に送信）", "rulesTitle": "検出されたアラートルール", "sendsToKeigan": "Keigan に送信", "doesNotSend": "送信しない",
     "simulatedRules": "シミュレーション用コンポーネントの例のルールです。Azure から読み取ったものではありません。",
     "status": { "waiting_for_first_alert": "最初のアラートを待機中", "receiving": "受信中、最終アラート", "authentication_failures": "認証失敗", "paused": "一時停止" },
-    "counts": "7 日間でアラート {{alerts}} 件、グループ {{groups}} 件、調査 {{investigated}} 件", "authFailures": "誤ったトークンによる拒否リクエスト {{count}} 件。",
+    "counts": "7 日間でアラート {{alerts}} 件、グループ {{groups}} 件、調査 {{investigated}} 件", "authFailures_other": "誤ったトークンによる拒否リクエスト {{count}} 件。",
     "test": "テスト", "testSent": "テストアラートを送信しました", "rotate": "シークレットをローテーション", "pause": "一時停止", "resume": "再開", "remove": "削除",
     "removeTitle": "アラートソースを削除", "removeBody": "Keigan は{{name}}の URL でのアラート受信を停止します。保存済みのアラートは残ります。", "removeConfirm": "ソースを削除",
     "rotatedTitle": "新しいシークレット", "rotatedBody": "今すぐコピーしてください。表示は 1 回のみです。古いシークレットは 24 時間引き続き有効です。"

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Checks every locale (except es-MX, which is a sparse override of es) against English:
-// valid JSON, identical key sets, identical {{placeholder}} sets per key.
+// Checks every locale against English: valid JSON, identical key sets, identical {{placeholder}} sets per key.
+// es-MX is a sparse override of es (falls back to es, then English), so it must have a file for every namespace and
+// valid JSON, but it may leave keys out; the keys it has must exist in English with the same placeholders.
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -86,12 +87,31 @@ for (const locale of locales) {
   }
 }
 
-// es-MX sanity: must be valid JSON only.
+// es-MX: a file per namespace, valid JSON, no unknown keys, matching placeholders.
 const mxDir = join(root, 'es-MX');
-if (existsSync(mxDir)) {
-  for (const ns of namespaces) {
-    const f = join(mxDir, ns);
-    if (existsSync(f) && load(f).error) report(`es-MX/${ns}: invalid JSON`);
+for (const ns of namespaces) {
+  const label = `es-MX/${ns}`;
+  const file = join(mxDir, ns);
+  if (!existsSync(file)) {
+    report(`${label}: file missing`);
+    continue;
+  }
+  const override = load(file);
+  if (override.error) {
+    report(`${label}: invalid JSON (${override.error})`);
+    continue;
+  }
+  const enFlat = flatten(load(join(enDir, ns)).data);
+  const enBaseKeys = new Set(Object.keys(enFlat).map(baseKey));
+  for (const [k, v] of Object.entries(flatten(override.data))) {
+    if (!enBaseKeys.has(baseKey(k))) {
+      report(`${label}: extra key ${k}`);
+      continue;
+    }
+    const english = enFlat[k] ?? enFlat[k.replace(PLURAL, '_other')];
+    if (english !== undefined && placeholders(english).join('|') !== placeholders(v).join('|')) {
+      report(`${label}: placeholder mismatch at ${k}`);
+    }
   }
 }
 

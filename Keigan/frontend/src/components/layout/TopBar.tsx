@@ -27,7 +27,7 @@ export function TopBar({ onOpenNavigation, onOpenCommandPalette }: TopBarProps) 
   const roleKey = user ? highestRoleOf(user) : "noAccess";
 
   return (
-    <header className="glass-surface sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b border-hairline px-4 sm:px-6">
+    <header className="glass-surface sticky top-0 z-30 flex h-16 shrink-0 items-center gap-1 border-b border-hairline px-3 sm:gap-2 sm:px-6">
       <IconButton icon={Menu} label={t("sidebar.open")} onClick={onOpenNavigation} className="md:hidden" />
       <ApplicationScopeSwitcher />
       <div className="flex-1" />
@@ -35,14 +35,14 @@ export function TopBar({ onOpenNavigation, onOpenCommandPalette }: TopBarProps) 
         type="button"
         onClick={onOpenCommandPalette}
         aria-label={t("commandPalette.open")}
-        className="hidden h-9 min-w-56 items-center gap-2 rounded-sm border border-strong bg-surface px-3 text-body-sm text-muted shadow-xs transition-colors hover:bg-surface-hover sm:inline-flex"
+        className="hidden h-9 min-w-56 items-center gap-2 rounded-sm border border-strong bg-surface px-3 text-body-sm text-muted shadow-xs transition-colors hover:bg-surface-hover lg:inline-flex"
       >
         <Search aria-hidden="true" size={16} />
         <span className="flex-1 text-left">{t("commandPalette.trigger")}</span>
         <Kbd>{isApplePlatform ? "⌘" : "Ctrl"}</Kbd>
         <Kbd>K</Kbd>
       </button>
-      <IconButton icon={Search} label={t("commandPalette.open")} onClick={onOpenCommandPalette} className="sm:hidden" />
+      <IconButton icon={Search} label={t("commandPalette.open")} onClick={onOpenCommandPalette} className="lg:hidden" />
       <LanguageSwitcher />
       <ThemeToggle />
       <Popover

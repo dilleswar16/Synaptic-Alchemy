@@ -28,7 +28,6 @@
     "emptyDescription": "アクセスできるアプリケーションは、オンボーディング後にここに表示されます。",
     "ringLabel": "健全性 {{percentage}} パーセント、{{status}}",
     "status": { "healthy": "正常", "watch": "注意", "degraded": "劣化", "critical": "重大" },
-    "tier": "ティア {{tier}}",
     "openIncidents_one": "インシデント {{count}} 件",
     "openIncidents_other": "インシデント {{count}} 件",
     "worstBudget": "最低のエラーバジェット残量",

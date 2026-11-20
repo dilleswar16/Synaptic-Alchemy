@@ -75,6 +75,7 @@
     "columns": { "time": "Wanneer", "actor": "Wie", "action": "Actie", "target": "Doel", "details": "Details" }
   },
   "jobs": {
+    "status": { "queued": "In wachtrij", "running": "Bezig", "succeeded": "Geslaagd", "failed": "Mislukt", "dead_lettered": "Definitief mislukt" },
     "deadLetters": "Dead letters",
     "deadLettersDescription": "Taken die bij elke poging zijn mislukt. Probeer opnieuw nadat de oorzaak is verholpen.",
     "noDeadLetters": "Geen mislukte taken. De wachtrij is gezond.",
@@ -83,6 +84,7 @@
     "columns": { "type": "Taak", "status": "Status", "attempts": "Pogingen", "created": "Aangemaakt", "error": "Laatste fout" }
   },
   "outbox": {
+    "status": { "pending": "In behandeling", "sent": "Verzonden", "simulated": "Gesimuleerd", "failed": "Mislukt", "skipped": "Overgeslagen" },
     "pageTitle": "Postvak uit",
     "pageDescription": "E-mails en Teams-berichten die Keigan heeft verzonden of gesimuleerd.",
     "emptyTitle": "Nog niets verzonden",

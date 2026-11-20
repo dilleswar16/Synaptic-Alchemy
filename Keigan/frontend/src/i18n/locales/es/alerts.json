@@ -8,7 +8,7 @@
   "verdict": { "useful": "Útil", "noise": "Era ruido" },
   "filters": { "period": "Periodo", "last24h": "24 horas", "last7d": "7 días", "last30d": "30 días" },
   "observe": {
-    "title": "Modo Observar: quedan {{count}} días",
+    "title_one": "Modo Observar: queda {{count}} día", "title_other": "Modo Observar: quedan {{count}} días",
     "body": "Keigan registra lo que reduciría y agruparía, pero sigue investigando cada alerta por encima de la gravedad mínima. No cambia nada hasta que pase a Activo.",
     "effect": "Efecto medido hasta ahora: {{sentence}}"
   },
@@ -19,8 +19,8 @@
     "emptyDescription": "Conecte una fuente de alertas en el paso Incidentes y alertas de la aplicación para ver el embudo.",
     "steps": { "received": "Alertas recibidas", "deduplicated": "Tras la deduplicación", "filtered": "Tras supresión y espera", "groups": "Grupos de alertas", "investigations": "Investigaciones" },
     "reasons": {
-      "repeats": "{{count}} repeticiones", "maintenance": "{{count}} en mantenimiento", "muted": "{{count}} silenciadas", "environment": "{{count}} de otros entornos",
-      "severity": "{{count}} por debajo de la gravedad mínima", "resolved_before_settle": "{{count}} resueltas por sí solas", "flapping": "{{count}} oscilantes"
+      "repeats_one": "{{count}} repetición", "repeats_other": "{{count}} repeticiones", "maintenance": "{{count}} en mantenimiento", "muted": "{{count}} silenciadas", "environment_one": "{{count}} de otro entorno", "environment_other": "{{count}} de otros entornos",
+      "severity": "{{count}} por debajo de la gravedad mínima", "resolved_before_settle_one": "{{count}} resuelta por sí sola", "resolved_before_settle_other": "{{count}} resueltas por sí solas", "flapping": "{{count}} oscilantes"
     },
     "reasonHelp": {
       "repeats": "La misma alerta se activó de nuevo y se contó en la alerta existente.", "maintenance": "Llegó durante una ventana de mantenimiento: registrada, no investigada.", "muted": "Coincidió con una regla de silencio.",
@@ -30,7 +30,7 @@
   "groups": {
     "title": "Grupos de alertas",
     "columns": { "group": "Grupo", "services": "Servicios", "severity": "Gravedad", "alerts": "Alertas", "status": "Estado", "score": "Puntuación", "reason": "Decisión", "lastActivity": "Última actividad", "feedback": "Opinión" },
-    "occurrences": "{{count}} apariciones",
+    "occurrences_one": "{{count}} aparición", "occurrences_other": "{{count}} apariciones",
     "applicationLevel": "A nivel de aplicación",
     "emptyTitle": "No hay grupos de alertas",
     "emptyDescription": "Cuando llegan alertas se agrupan aquí, con el motivo de cada decisión."
@@ -58,7 +58,7 @@
     "rulesFound": "reglas de alertas encontradas en sus ámbitos ({{sending}} envían a Keigan)", "rulesTitle": "Reglas de alertas descubiertas", "sendsToKeigan": "Envía a Keigan", "doesNotSend": "No envía",
     "simulatedRules": "Reglas de ejemplo para componentes simulados, no leídas de Azure.",
     "status": { "waiting_for_first_alert": "Esperando la primera alerta", "receiving": "Recibiendo, última alerta", "authentication_failures": "Fallos de autenticación", "paused": "En pausa" },
-    "counts": "{{alerts}} alertas en 7 días, {{groups}} grupos, {{investigated}} investigadas", "authFailures": "{{count}} solicitudes rechazadas por token incorrecto.",
+    "counts": "{{alerts}} alertas en 7 días, {{groups}} grupos, {{investigated}} investigadas", "authFailures_one": "{{count}} solicitud rechazada por token incorrecto.", "authFailures_other": "{{count}} solicitudes rechazadas por token incorrecto.",
     "test": "Probar", "testSent": "Alerta de prueba enviada", "rotate": "Rotar secreto", "pause": "Pausar", "resume": "Reanudar", "remove": "Quitar",
     "removeTitle": "Quitar fuente de alertas", "removeBody": "Keigan deja de aceptar alertas en la URL de {{name}}. Las alertas almacenadas se conservan.", "removeConfirm": "Quitar fuente",
     "rotatedTitle": "Nuevo secreto", "rotatedBody": "Cópielo ahora: se muestra una sola vez. El secreto anterior sigue funcionando 24 horas."

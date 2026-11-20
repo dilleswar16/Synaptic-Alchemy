@@ -101,15 +101,15 @@
     "slo": "At least one SLO ({{count}})"
   },
   "goodToKnow": {
-    "diagnostic_settings": "{{count}} services have no diagnostic setting yet",
+    "diagnostic_settings_one": "{{count}} service has no diagnostic setting yet", "diagnostic_settings_other": "{{count}} services have no diagnostic setting yet",
     "diagnostic_settings_done": "All discovered services send logs to a workspace",
     "knowledge_documents": "No knowledge documents uploaded yet",
-    "knowledge_documents_done": "{{count}} knowledge documents uploaded",
+    "knowledge_documents_done_one": "{{count}} knowledge document uploaded", "knowledge_documents_done_other": "{{count}} knowledge documents uploaded",
     "topology_reviewed": "The topology has not been reviewed yet",
     "topology_reviewed_done": "The topology has been reviewed",
     "runbooks": "No runbooks added yet",
-    "runbooks_done": "{{count}} runbooks added",
-    "placeholder_integrations": "{{count}} log tools are saved but their reader is not available yet",
+    "runbooks_done_one": "{{count}} runbook added", "runbooks_done_other": "{{count}} runbooks added",
+    "placeholder_integrations_one": "{{count}} log tool is saved but its reader is not available yet", "placeholder_integrations_other": "{{count}} log tools are saved but their reader is not available yet",
     "placeholder_integrations_done": "All log tools can be read",
     "observe_mode": "Alert noise reduction is in Observe mode",
     "observe_mode_done": "Alert noise reduction is active"

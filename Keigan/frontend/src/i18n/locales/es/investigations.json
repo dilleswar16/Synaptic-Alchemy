@@ -177,7 +177,7 @@
     "injectionTitle": "Posible inyección de prompt",
     "injectionDescription": "Parte del texto de los registros parecía instrucciones para una IA. Se citó como dato y nunca se siguió.",
     "query": "Mostrar la consulta {{language}}",
-    "queryTitle": "Consulta ({{count}} registros coincidentes)",
+    "queryTitle_one": "Consulta ({{count}} registro coincidente)", "queryTitle_other": "Consulta ({{count}} registros coincidentes)",
     "window": "Ventana de {{start}} a {{end}}",
     "metricPeak": "Pico de {{peak}} {{unit}} (referencia {{baseline}})",
     "baselineLabel": "Referencia",

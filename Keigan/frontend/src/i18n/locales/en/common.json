@@ -171,6 +171,7 @@
     "empty": "No events yet"
   },
   "units": {
+    "minutesShort": "min",
     "tokens_one": "{{formattedCount}} token",
     "tokens_other": "{{formattedCount}} tokens"
   },
@@ -191,6 +192,7 @@
     "noValue": "No data"
   },
   "topology": {
+    "relationships": { "calls": "calls", "reads_from": "reads from", "writes_to": "writes to", "publishes_to": "publishes to", "hosts": "hosts", "hosted_on": "hosted on", "depends_on": "depends on" },
     "label": "Topology graph",
     "legend": "Legend",
     "impactDirect": "Directly impacted",
@@ -217,6 +219,7 @@
     }
   },
   "environment": {
+    "uat": "UAT",
     "local": "Local",
     "dev": "Dev",
     "test": "Test",

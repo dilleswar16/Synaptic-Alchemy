@@ -13,6 +13,7 @@
     "ariaLabel": "過去 30 日間のヘルススコアの推移"
   },
   "signals": {
+    "status": { "open": "未対応", "acknowledged": "確認済み", "dismissed": "却下", "expired": "期限切れ" },
     "title": "予兆シグナル",
     "description": "Keigan は、インシデントの前によく現れるトレンドやパターンを監視します。",
     "emptyTitle": "未対応のシグナルはありません",
@@ -57,7 +58,7 @@
     "generateFailed": "レポートを開始できませんでした",
     "weekly_digest": "週次ダイジェスト",
     "proactive_alert": "プロアクティブアラート",
-    "sentTo": "{{count}} 件の宛先に送信済み",
+    "sentTo_other": "{{count}} 件の宛先に送信済み",
     "notSent": "メール未送信",
     "healthScore": "ヘルス {{score}}",
     "reader": "レポート",

@@ -177,7 +177,7 @@
     "injectionTitle": "Possible prompt injection",
     "injectionDescription": "Some log text looked like instructions to an AI. It was quoted as data and never followed.",
     "query": "Show the {{language}} query",
-    "queryTitle": "Query ({{count}} matching records)",
+    "queryTitle_one": "Query ({{count}} matching record)", "queryTitle_other": "Query ({{count}} matching records)",
     "window": "Window {{start}} to {{end}}",
     "metricPeak": "Peak {{peak}} {{unit}} (baseline {{baseline}})",
     "baselineLabel": "Baseline",
