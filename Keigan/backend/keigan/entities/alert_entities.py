@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, identifier_column, utc_now
@@ -21,6 +21,9 @@ class AlertSource(AuditColumnsMixin, EntityBase):
     webhook_secret_hash: Mapped[str] = mapped_column(String(128))
     previous_webhook_secret_hash: Mapped[str | None] = mapped_column(String(128))
     previous_secret_valid_until: Mapped[datetime | None] = mapped_column()
+    # Names of the plaintext webhook secrets in the secret store (the HMAC signing keys). Null on sources created before signing keys were stored.
+    webhook_secret_name: Mapped[str | None] = mapped_column(String(200))
+    previous_webhook_secret_name: Mapped[str | None] = mapped_column(String(200))
     field_mapping_json: Mapped[dict[str, Any] | None] = mapped_column()
     severity_mapping_json: Mapped[dict[str, Any] | None] = mapped_column()
     service_mapping_json: Mapped[dict[str, Any] | None] = mapped_column()
@@ -43,9 +46,21 @@ class AlertEvent(EntityBase):
     processing_error_message: Mapped[str | None] = mapped_column(Text)
 
 
+# An alert is "open" while it is firing (a flapping alert stays firing). The database allows one open alert per fingerprint.
+OPEN_ALERT_STATUS = "firing"
+_OPEN_ALERT_FILTER = text(f"alert_status = '{OPEN_ALERT_STATUS}'")
+
+
 class Alert(EntityBase):
     __tablename__ = "alert"
-    __table_args__ = (Index("ix_alert_application_fingerprint_status", "application_id", "alert_fingerprint", "alert_status"),)
+    __table_args__ = (
+        Index("ix_alert_application_fingerprint_status", "application_id", "alert_fingerprint", "alert_status"),
+        # Filtered unique index (portable like uq_incident_external_number): resolved alerts keep their fingerprint for history.
+        Index(
+            "uq_alert_open_fingerprint", "application_id", "alert_fingerprint", unique=True,
+            mssql_where=_OPEN_ALERT_FILTER, postgresql_where=_OPEN_ALERT_FILTER, sqlite_where=_OPEN_ALERT_FILTER,
+        ),
+    )
 
     alert_id: Mapped[str] = identifier_column()
     application_id: Mapped[str] = mapped_column(String(36))

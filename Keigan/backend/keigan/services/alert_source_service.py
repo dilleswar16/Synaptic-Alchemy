@@ -8,6 +8,7 @@ import json
 import re
 import secrets
 import uuid
+from collections.abc import Sequence
 from datetime import timedelta
 from typing import Any
 
@@ -24,6 +25,7 @@ from keigan.dtos.common_dtos import ApiModel
 from keigan.entities.alert_entities import Alert, AlertEvent, AlertGroup, AlertSource
 from keigan.entities.application_entities import Application, ApplicationComponent, MonitoredService
 from keigan.exceptions.keigan_exceptions import AuthenticationException, BusinessValidationException, NotFoundException
+from keigan.integrations.secret_store import build_secret_name
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.security.current_user import CurrentUser
 from keigan.security.security_middleware import rate_limiter
@@ -48,6 +50,13 @@ FIELD_NAME_HINTS = {
 
 def hash_secret(secret_value: str) -> str:
     return hashlib.sha256(secret_value.encode("utf-8")).hexdigest()
+
+
+async def store_webhook_secret(secret_value: str, application_id: str) -> str:
+    """Keep the plaintext webhook secret (the HMAC signing key) in the secret store and return its generated name. Only the name goes in the database."""
+    secret_name = build_secret_name("alert-webhook")
+    await application_context.secret_store().set_secret(secret_name, secret_value, f"Alert webhook secret for application {application_id}")
+    return secret_name
 
 
 class AlertSourceService:
@@ -87,8 +96,9 @@ class AlertSourceService:
 
     async def create_source(self, current_user: CurrentUser, application_id: str, request: AlertSourceCreateRequest) -> AlertSourceCreatedResponse:
         secret_value = SECRET_PREFIX + secrets.token_urlsafe(32)
+        secret_name = await store_webhook_secret(secret_value, application_id)  # before any write in this session: the secret store commits in its own session
         source = AlertSource(
-            application_id=application_id, source_tool=request.source_tool, source_name=request.source_name.strip(), webhook_secret_hash=hash_secret(secret_value),
+            application_id=application_id, source_tool=request.source_tool, source_name=request.source_name.strip(), webhook_secret_hash=hash_secret(secret_value), webhook_secret_name=secret_name,
             field_mapping_json=request.field_mapping, severity_mapping_json=request.severity_mapping, service_mapping_json=request.service_mapping,
             created_by_user_principal_name=current_user.user_principal_name, updated_by_user_principal_name=current_user.user_principal_name,
         )
@@ -117,17 +127,32 @@ class AlertSourceService:
 
     async def delete_source(self, current_user: CurrentUser, application_id: str, alert_source_id: str) -> None:
         source = await self._get_source(application_id, alert_source_id)
+        for secret_name in (source.webhook_secret_name, source.previous_webhook_secret_name):
+            await self._delete_stored_secret(secret_name)
         await self.session.delete(source)
         await AuditService(self.session).record(current_user, "alert_source.delete", target_entity_type="alert_source", target_entity_id=alert_source_id, application_id=application_id, action_details={"name": source.source_name})
 
     async def rotate_secret(self, current_user: CurrentUser, application_id: str, alert_source_id: str) -> SecretRotationResponse:
         source = await self._get_source(application_id, alert_source_id)
         new_secret = SECRET_PREFIX + secrets.token_urlsafe(32)
+        new_secret_name = await store_webhook_secret(new_secret, application_id)
+        await self._delete_stored_secret(source.previous_webhook_secret_name)  # the secret from two rotations ago is no longer accepted
         source.previous_webhook_secret_hash = source.webhook_secret_hash
+        source.previous_webhook_secret_name = source.webhook_secret_name
         source.previous_secret_valid_until = alert_rules.utc_now() + SECRET_ROTATION_OVERLAP
         source.webhook_secret_hash = hash_secret(new_secret)
+        source.webhook_secret_name = new_secret_name
         await AuditService(self.session).record(current_user, "alert_source.rotate_secret", target_entity_type="alert_source", target_entity_id=alert_source_id, application_id=application_id)
         return SecretRotationResponse(alert_source=await self._to_response(source), webhook_url=self.webhook_url(alert_source_id, new_secret, include_token=True), webhook_secret=new_secret, previous_secret_valid_until=source.previous_secret_valid_until)
+
+    @staticmethod
+    async def _delete_stored_secret(secret_name: str | None) -> None:
+        if not secret_name:
+            return
+        try:
+            await application_context.secret_store().delete_secret(secret_name)
+        except NotFoundException:
+            pass
 
     async def get_or_create_internal_source(self, application_id: str) -> AlertSource:
         source = await self.session.scalar(select(AlertSource).where(AlertSource.application_id == application_id, AlertSource.source_tool == INTERNAL_SOURCE_TOOL).limit(1))
@@ -151,7 +176,8 @@ class AlertSourceService:
         rate_limiter.check(f"alert-intake:{alert_source_id}", self.settings.alert_intake_rate_limit_per_minute)
         rate_limiter.check(f"alert-intake-client:{client_key}", self.settings.alert_intake_rate_limit_per_minute)
         source = await self.session.get(AlertSource, alert_source_id)
-        if not self._credentials_are_valid(source, body_bytes, supplied_token, supplied_signature):
+        signing_secrets = await self._signing_secrets(source) if source is not None and supplied_signature else []
+        if not self._credentials_are_valid(source, body_bytes, supplied_token, supplied_signature, signing_secrets):
             if source is not None:
                 source.authentication_failure_count += 1
                 if source.source_status != "paused":
@@ -179,19 +205,37 @@ class AlertSourceService:
         return event.alert_event_id
 
     @staticmethod
-    def _accepted_secret_hashes(source: AlertSource) -> list[str]:
-        """The stored secret hashes that may authenticate a request now: the current one, plus the previous one during rotation."""
+    def _previous_secret_is_accepted(source: AlertSource) -> bool:
+        return bool(source.previous_secret_valid_until and source.previous_secret_valid_until > alert_rules.utc_now())
+
+    @classmethod
+    def _accepted_secret_hashes(cls, source: AlertSource) -> list[str]:
+        """The stored secret hashes that may authenticate a token now: the current one, plus the previous one during rotation."""
         accepted_hashes = [source.webhook_secret_hash]
-        if source.previous_webhook_secret_hash and source.previous_secret_valid_until and source.previous_secret_valid_until > alert_rules.utc_now():
+        if source.previous_webhook_secret_hash and cls._previous_secret_is_accepted(source):
             accepted_hashes.append(source.previous_webhook_secret_hash)
         return accepted_hashes
 
     @classmethod
-    def _credentials_are_valid(cls, source: AlertSource | None, body_bytes: bytes, supplied_token: str | None, supplied_signature: str | None) -> bool:
-        """Token (compared by hash) or HMAC-SHA256 signature of the body keyed with the secret hash.
+    async def _signing_secrets(cls, source: AlertSource) -> list[str]:
+        """Plaintext webhook secrets (HMAC keys) from the secret store: the current one, plus the previous one during rotation.
 
-        Only hashes that really belong to the source are candidates. An unknown source is still compared against a random
-        throw-away hash so the response time does not reveal whether the source exists.
+        Empty for a source created before signing keys were stored: it stays token-only until its secret is rotated.
+        """
+        secret_names = [source.webhook_secret_name]
+        if cls._previous_secret_is_accepted(source):
+            secret_names.append(source.previous_webhook_secret_name)
+        secret_store = application_context.secret_store()
+        return [secret_value for secret_value in [await secret_store.get_secret_or_none(name) for name in secret_names] if secret_value]
+
+    @classmethod
+    def _credentials_are_valid(
+        cls, source: AlertSource | None, body_bytes: bytes, supplied_token: str | None, supplied_signature: str | None, signing_secrets: Sequence[str] = ()
+    ) -> bool:
+        """Token (compared by hash) or HMAC-SHA256 signature of the body keyed with the webhook secret itself.
+
+        The key is the plaintext secret from the secret store, never the stored hash, so database read access cannot forge signatures.
+        An unknown source is still compared against a random throw-away hash so the response time does not reveal whether the source exists.
         """
         candidate_hashes = cls._accepted_secret_hashes(source) if source is not None else [hash_secret(secrets.token_hex(32))]
         supplied_hash = hash_secret(supplied_token.strip()) if supplied_token else None
@@ -200,9 +244,10 @@ class AlertSourceService:
         for candidate_hash in candidate_hashes:
             if supplied_hash is not None and hmac.compare_digest(supplied_hash, candidate_hash):
                 is_authenticated = True
-            if cleaned_signature is not None:
-                expected_signature = hmac.new(candidate_hash.encode("utf-8"), body_bytes, hashlib.sha256).hexdigest()
-                if hmac.compare_digest(cleaned_signature, expected_signature):
+        if cleaned_signature is not None and source is not None:
+            for signing_secret in signing_secrets:
+                expected_signature = hmac.new(signing_secret.encode("utf-8"), body_bytes, hashlib.sha256).hexdigest()
+                if signing_secret and hmac.compare_digest(cleaned_signature, expected_signature):
                     is_authenticated = True
         return source is not None and is_authenticated
 
@@ -248,7 +293,29 @@ class AlertSourceService:
                 SetupTab(tab_key="generic", tab_title="Generic webhook", steps=["Configure your tool (Dynatrace, AppDynamics, Datadog, Grafana, Alertmanager, SolarWinds and so on) to POST JSON to the URL below.", "Send the token in the X-Keigan-Token header when the tool supports headers, otherwise use the URL with ?token=.", "If the payload shape is fixed, use the field mapping step to map its fields; otherwise send the canonical JSON shown here."],
                          code_blocks=[SetupCodeBlock(title="Test with curl", language="bash", content=f"curl -X POST '{plain_url}' \\\n  -H 'Content-Type: application/json' -H 'X-Keigan-Token: {secret_text}' \\\n  -d '{json.dumps(canonical_example)}'")]),
             ]
+        tabs.append(self._signature_tab(source, plain_url, secret_text))
         return SetupInstructionsResponse(source_tool=source.source_tool, webhook_url=url_with_token if secret_value else plain_url + "?token=<YOUR_SECRET>", webhook_secret_is_placeholder=secret_value is None, tabs=tabs, canonical_example=canonical_example)
+
+    @staticmethod
+    def _signature_tab(source: AlertSource, plain_url: str, secret_text: str) -> SetupTab:
+        """How to sign requests instead of sending the token. The key is the webhook secret itself."""
+        if not source.webhook_secret_name:
+            return SetupTab(
+                tab_key="signature", tab_title="Request signature (optional)",
+                steps=["Signed requests are not enabled for this source because it was created before signing keys were stored. It keeps working with its token.",
+                       "To enable signatures, rotate the secret: the new secret becomes the signing key, and the old token stays valid for 24 hours."],
+            )
+        return SetupTab(
+            tab_key="signature", tab_title="Request signature (optional)",
+            steps=["Instead of the token you can sign each request. Compute the HMAC-SHA256 (SHA-256) of the exact request body with your webhook secret as the key, as lowercase hex.",
+                   "Send it in the X-Keigan-Signature header, optionally with the prefix sha256=. Keigan keeps the secret in its secret store and accepts the previous secret for 24 hours after a rotation."],
+            code_blocks=[SetupCodeBlock(
+                title="Sign and send with curl", language="bash",
+                content=f"BODY='{{\"ruleId\":\"checkout-error-rate\",\"ruleName\":\"Checkout error rate\",\"status\":\"firing\"}}'\n"
+                        f"SIGNATURE=$(printf '%s' \"$BODY\" | openssl dgst -sha256 -hmac '{secret_text}' | sed 's/^.* //')\n"
+                        f"curl -X POST '{plain_url}' -H 'Content-Type: application/json' -H \"X-Keigan-Signature: sha256=$SIGNATURE\" -d \"$BODY\"",
+            )],
+        )
 
     # ── Mapping preview ────────────────────────────────────────────────────────
     async def preview_mapping(self, application_id: str, request: MappingPreviewRequest) -> MappingPreviewResponse:

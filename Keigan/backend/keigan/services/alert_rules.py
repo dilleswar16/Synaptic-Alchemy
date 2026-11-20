@@ -225,6 +225,7 @@ def _raise_missing_alert_id() -> CanonicalAlert:
 
 def mask_alert_text(alert: CanonicalAlert) -> None:
     masker = PiiMasker()
+    alert.rule_name = masker.mask_text(alert.rule_name)
     alert.summary = masker.mask_text(alert.summary)
     alert.description = masker.mask_text(alert.description) if alert.description else None
     alert.labels = {key: masker.mask_text(value) for key, value in alert.labels.items()}
