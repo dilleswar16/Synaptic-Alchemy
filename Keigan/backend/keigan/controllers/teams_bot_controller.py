@@ -15,6 +15,6 @@ router = APIRouter(prefix="/api", tags=["Teams bot"])
 
 @router.post("/teams/messages", status_code=status.HTTP_200_OK)
 async def receive_teams_activity(activity: dict[str, Any], authorization: str | None = Header(None), chat_service: TeamsChatService = Depends(provide(TeamsChatService))) -> dict[str, str]:
-    await BotFrameworkClient(get_settings(), application_context.secret_store()).validate_inbound_request(authorization)
+    await BotFrameworkClient(get_settings(), application_context.secret_store()).validate_inbound_request(authorization, activity.get("serviceUrl"))
     await chat_service.handle_bot_activity(activity)
     return {"status": "ok"}

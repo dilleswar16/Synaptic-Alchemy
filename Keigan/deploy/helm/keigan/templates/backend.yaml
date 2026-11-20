@@ -106,6 +106,13 @@ spec:
           env:
             - name: WORKER_NAME
               valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            {{- if eq $workloadName "api" }}
+            {{- if eq (trim $workloadValues.forwardedAllowIps) "*" }}
+            {{- fail "api.forwardedAllowIps must not be \"*\": list the ingress controller pod CIDR or addresses." }}
+            {{- end }}
+            - name: FORWARDED_ALLOW_IPS
+              value: {{ $workloadValues.forwardedAllowIps | quote }}
+            {{- end }}
           {{- include "keigan.backendEnvironment" $ | nindent 10 }}
           securityContext: {{- include "keigan.containerSecurityContext" $ | nindent 12 }}
           resources: {{- toYaml $workloadValues.resources | nindent 12 }}

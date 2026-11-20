@@ -17,7 +17,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config.settings import RESOURCES_DIRECTORY, AuthenticationMode, get_settings
 from keigan.entities.platform_entities import PlatformUser
-from keigan.exceptions.keigan_exceptions import AuthenticationException, BusinessValidationException, NotFoundException
+from keigan.exceptions.keigan_exceptions import (
+    AuthenticationException,
+    BusinessValidationException,
+    ForbiddenException,
+    NotFoundException,
+)
 from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 
@@ -165,8 +170,10 @@ class AuthenticationService:
             )
         except jwt.PyJWTError as token_error:
             raise AuthenticationException("Your Microsoft sign-in is not valid for Keigan. Sign in again.") from token_error
-        if token_claims.get("iss") not in accepted_issuers or token_claims.get("tid") not in (settings.entra_tenant_id, None):
+        if token_claims.get("iss") not in accepted_issuers or token_claims.get("tid") != settings.entra_tenant_id:
+            logger.warning("Rejected an Entra token from tenant %s (issuer %s).", token_claims.get("tid"), token_claims.get("iss"))
             raise AuthenticationException("The token was issued by an unexpected tenant.")
+        cls._require_delegated_scope_or_allowed_app_role(token_claims)
 
         entra_object_id = token_claims.get("oid")
         token_group_object_ids = frozenset(token_claims.get("groups", []))
@@ -183,6 +190,27 @@ class AuthenticationService:
             group_names=group_names,
             group_object_ids=group_object_ids,
             entra_object_id=entra_object_id,
+        )
+
+    @staticmethod
+    def _require_delegated_scope_or_allowed_app_role(token_claims: dict[str, Any]) -> None:
+        """A token for the Keigan API must be a user token with Keigan's scope, or come from an explicitly allowed app role.
+
+        Without this, any service principal in the tenant that can obtain a token for the API would act as a user with no groups.
+        """
+        settings = get_settings()
+        granted_scopes = str(token_claims.get("scp", "")).split()
+        granted_app_roles = set(token_claims.get("roles") or [])
+        if settings.entra_delegated_scope_name in granted_scopes or granted_app_roles & set(settings.entra_allowed_app_role_list):
+            return
+        logger.warning(
+            "Rejected an Entra token without the %s scope or an allowed app role (scopes: %s, roles: %s).",
+            settings.entra_delegated_scope_name,
+            granted_scopes,
+            sorted(granted_app_roles),
+        )
+        raise ForbiddenException(
+            "Your Microsoft sign-in does not include permission to use Keigan. Sign in again, and ask a Keigan admin if it keeps happening."
         )
 
     @staticmethod

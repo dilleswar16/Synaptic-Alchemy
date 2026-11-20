@@ -27,7 +27,7 @@ async def get_client_configuration() -> ClientConfigurationResponse:
         entra_configuration = EntraClientConfiguration(
             tenant_id=settings.entra_tenant_id,
             spa_client_id=settings.entra_spa_client_id,
-            api_scope=settings.entra_api_scope or f"api://{settings.entra_api_client_id}/access_as_user",
+            api_scope=settings.entra_api_scope or f"api://{settings.entra_api_client_id}/{settings.entra_delegated_scope_name}",
             authority=f"https://login.microsoftonline.com/{settings.entra_tenant_id}",
         )
     return ClientConfigurationResponse(

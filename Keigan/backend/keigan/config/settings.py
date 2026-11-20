@@ -16,6 +16,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 RESOURCES_DIRECTORY = Path(__file__).resolve().parents[1] / "resources"
+# Published in the repository, so it is a known value: it may only be used on a developer machine or in the test suite.
+DEFAULT_LOCAL_TOKEN_SIGNING_SECRET = "local-development-only-change-me-0123456789abcdef"
 
 
 class EnvironmentName(StrEnum):
@@ -23,6 +25,9 @@ class EnvironmentName(StrEnum):
     DEV = "dev"
     TEST = "test"
     PROD = "prod"
+
+
+LOCAL_AUTHENTICATION_ENVIRONMENTS = frozenset({EnvironmentName.LOCAL, EnvironmentName.TEST})
 
 
 class AuthenticationMode(StrEnum):
@@ -93,13 +98,19 @@ class Settings(BaseSettings):
 
     # ── Authentication and authorization ───────────────────────────────────────
     auth_mode: AuthenticationMode = AuthenticationMode.LOCAL
-    local_token_signing_secret: str = "local-development-only-change-me-0123456789abcdef"
+    local_token_signing_secret: str = DEFAULT_LOCAL_TOKEN_SIGNING_SECRET
+    # Shortest accepted LOCAL_TOKEN_SIGNING_SECRET and LOCAL_SECRET_ENCRYPTION_KEY outside the local and test environments.
+    secret_minimum_length: int = 32
     local_token_lifetime_minutes: int = 480
     entra_tenant_id: str = ""
     entra_api_client_id: str = ""
     entra_api_audience: str = ""
     entra_spa_client_id: str = ""
     entra_api_scope: str = ""
+    # Delegated scope a user token must carry in its "scp" claim. Empty: the last part of ENTRA_API_SCOPE (access_as_user).
+    entra_required_delegated_scope: str = ""
+    # Comma-separated app roles ("roles" claim) that may call the API without a user (service principals). Empty: none.
+    entra_allowed_app_roles: str = ""
     keigan_admin_group_name: str = "KEIGAN_admin"
     keigan_admin_group_object_id: str = ""
     application_admin_group_pattern: str = "{application_code}_admin"
@@ -140,6 +151,8 @@ class Settings(BaseSettings):
     teams_bot_app_id: str = ""
     teams_bot_app_secret_name: str = "teams-bot-secret"
     teams_app_catalog_id: str = ""
+    # Comma-separated host patterns (* wildcard) a Teams activity "serviceUrl" must match before Keigan sends its bot token there.
+    bot_framework_service_url_host_patterns: str = "*.botframework.com,smba.trafficmanager.net"
     teams_chat_poll_interval_minutes: int = 5
     teams_milestone_phrases: str = "keigan, this is finished|keigan this is finished|keigan, resolved|keigan resolved|keigan, incident closed|keigan, we are done"
     teams_unprompted_comment_minimum_interval_minutes: int = 15
@@ -213,18 +226,59 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_safe_combinations(self) -> "Settings":
         if self.environment == EnvironmentName.PROD:
-            if self.auth_mode == AuthenticationMode.LOCAL:
-                raise ValueError("AUTH_MODE=local is not allowed when ENVIRONMENT=prod.")
             if not self.pii_masking_enabled:
                 raise ValueError("PII_MASKING_ENABLED must be true when ENVIRONMENT=prod.")
             if self.llm_provider == LlmProviderName.MOCK:
                 raise ValueError("LLM_PROVIDER=mock is not allowed when ENVIRONMENT=prod.")
-        if self.auth_mode == AuthenticationMode.ENTRA and not (self.entra_tenant_id and self.entra_api_client_id):
-            raise ValueError("AUTH_MODE=entra requires ENTRA_TENANT_ID and ENTRA_API_CLIENT_ID.")
+        self._validate_authentication_and_secrets()
         if self.llm_provider in (LlmProviderName.GEMINI, LlmProviderName.OPENAI_COMPATIBLE) and not self.llm_api_key:
             if not (self.llm_provider == LlmProviderName.OPENAI_COMPATIBLE and self.llm_use_managed_identity):
                 raise ValueError(f"LLM_PROVIDER={self.llm_provider} requires LLM_API_KEY.")
         return self
+
+    def _validate_authentication_and_secrets(self) -> None:
+        """Refuse to start with passwordless sign-in or publicly known secrets on a shared (dev, prod) deployment."""
+        if self.auth_mode == AuthenticationMode.ENTRA:
+            if not (self.entra_tenant_id and self.entra_api_client_id):
+                raise ValueError("AUTH_MODE=entra requires ENTRA_TENANT_ID and ENTRA_API_CLIENT_ID.")
+            if not self.entra_delegated_scope_name:
+                raise ValueError("AUTH_MODE=entra requires ENTRA_API_SCOPE (for example api://<api-client-id>/access_as_user) or ENTRA_REQUIRED_DELEGATED_SCOPE.")
+        if self.allows_local_authentication:
+            return
+        if self.auth_mode == AuthenticationMode.LOCAL:
+            raise ValueError(
+                "AUTH_MODE=local is only allowed when ENVIRONMENT is local or test, because anyone can sign in as any user. "
+                f"Set AUTH_MODE=entra for ENVIRONMENT={self.environment}."
+            )
+        self._require_strong_secret("LOCAL_TOKEN_SIGNING_SECRET", self.local_token_signing_secret, DEFAULT_LOCAL_TOKEN_SIGNING_SECRET)
+        if self.secret_store_mode == "local_encrypted":
+            self._require_strong_secret("LOCAL_SECRET_ENCRYPTION_KEY", self.local_secret_encryption_key, "")
+
+    def _require_strong_secret(self, variable_name: str, secret_value: str, known_default_value: str) -> None:
+        if not secret_value or secret_value == known_default_value:
+            raise ValueError(
+                f"{variable_name} is not set or still has its default value, which is public. "
+                f"Set {variable_name} to a random value of at least {self.secret_minimum_length} characters for ENVIRONMENT={self.environment}."
+            )
+        if len(secret_value) < self.secret_minimum_length:
+            raise ValueError(f"{variable_name} must be at least {self.secret_minimum_length} characters long for ENVIRONMENT={self.environment}.")
+
+    @property
+    def allows_local_authentication(self) -> bool:
+        """Local sign-in and default development secrets are for a developer machine and the test suite only."""
+        return self.environment in LOCAL_AUTHENTICATION_ENVIRONMENTS
+
+    @property
+    def entra_delegated_scope_name(self) -> str:
+        return self.entra_required_delegated_scope or self.entra_api_scope.rstrip("/").rsplit("/", 1)[-1]
+
+    @property
+    def entra_allowed_app_role_list(self) -> list[str]:
+        return [role.strip() for role in self.entra_allowed_app_roles.split(",") if role.strip()]
+
+    @property
+    def bot_framework_service_url_host_pattern_list(self) -> list[str]:
+        return [pattern.strip().lower() for pattern in self.bot_framework_service_url_host_patterns.split(",") if pattern.strip()]
 
     @property
     def is_local_environment(self) -> bool:
@@ -284,6 +338,8 @@ def safe_settings_for_display(settings: Settings) -> dict[str, object]:
 
 
 __all__ = [
+    "DEFAULT_LOCAL_TOKEN_SIGNING_SECRET",
+    "LOCAL_AUTHENTICATION_ENVIRONMENTS",
     "AuthenticationMode",
     "AzureIdentityMode",
     "EmailMode",

@@ -7,6 +7,8 @@ name = "keigan"
 version = "0.1.0"
 description = "Keigan (慧眼) — AI SRE platform: incident root cause analysis, alert noise reduction, SLO monitoring and predictive intelligence."
 requires-python = ">=3.12"
+# Version ranges only. The Docker image installs the pinned, hashed requirements.lock: regenerate it after changing this list
+# (the command is at the top of requirements.lock).
 dependencies = [
     "fastapi>=0.115,<1.0",
     "uvicorn[standard]>=0.30",
