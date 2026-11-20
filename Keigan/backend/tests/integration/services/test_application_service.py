@@ -1,0 +1,76 @@
+"""keigan/services/application_service.py: access groups (H7) and the Entra rules around going live."""
+
+from __future__ import annotations
+
+import pytest
+
+from keigan.config.database_config import open_session
+from keigan.config.settings import AuthenticationMode, get_settings
+from keigan.dtos.application_dtos import AccessUpdateRequest
+from keigan.entities.application_entities import Application
+from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException
+from keigan.security.current_user import CurrentUser
+from keigan.services.application_service import ApplicationService
+
+pytestmark = pytest.mark.usefixtures("seed_context")  # creates the schema
+
+GROUP_OBJECT_ID = "33333333-3333-3333-3333-333333333333"
+
+
+def user(user_principal_name: str, *, is_keigan_admin: bool, group_names: set[str] | None = None) -> CurrentUser:
+    return CurrentUser(
+        user_principal_name=user_principal_name, display_name=user_principal_name, email_address=None,
+        group_names=frozenset(group_names or set()), group_object_ids=frozenset(), is_keigan_admin=is_keigan_admin,
+    )
+
+
+async def create_application(code: str, lifecycle_status: str = "draft") -> str:
+    async with open_session() as session:
+        application = Application(
+            application_name=f"Access {code}", application_code=code, lifecycle_status=lifecycle_status,
+            admin_group_name=f"{code}_admin", reader_group_name=f"{code}_reader", created_by_user_principal_name="system:test",
+        )
+        session.add(application)
+        await session.flush()
+        return application.application_id
+
+
+async def test_application_admin_cannot_change_the_group_object_ids() -> None:
+    application_id = await create_application("ACC1")
+    application_admin = user("acc1.admin@example.com", is_keigan_admin=False, group_names={"ACC1_admin"})
+    async with open_session() as session:
+        with pytest.raises(ForbiddenException) as denial:
+            await ApplicationService(session).update_access(application_admin, application_id, AccessUpdateRequest(admin_group_object_id=GROUP_OBJECT_ID))
+    assert denial.value.detail == "Only Keigan admins can change the group object IDs. Run 'Check in Entra' to link the groups."
+
+
+async def test_keigan_admin_can_set_the_group_object_ids() -> None:
+    application_id = await create_application("ACC2")
+    keigan_admin = user("keigan.admin@example.com", is_keigan_admin=True)
+    async with open_session() as session:
+        response = await ApplicationService(session).update_access(
+            keigan_admin, application_id, AccessUpdateRequest(admin_group_object_id=f" {GROUP_OBJECT_ID} ", reader_group_object_id=GROUP_OBJECT_ID)
+        )
+    assert (response.admin_group_object_id, response.reader_group_object_id) == (GROUP_OBJECT_ID, GROUP_OBJECT_ID)
+
+
+async def test_group_object_id_that_is_not_a_guid_is_rejected_with_a_field_error() -> None:
+    application_id = await create_application("ACC3")
+    keigan_admin = user("keigan.admin@example.com", is_keigan_admin=True)
+    async with open_session() as session:
+        with pytest.raises(BusinessValidationException) as rejection:
+            await ApplicationService(session).update_access(keigan_admin, application_id, AccessUpdateRequest(admin_group_object_id="KEIGAN_admin"))
+    assert rejection.value.extra["fieldErrors"] == [{"field": "adminGroupObjectId", "message": "Enter the group's object ID as a GUID (for example 3f2a9c1b-0d4e-4c7a-9b1f-2e8d6a5c4b30)."}]
+
+
+async def test_application_cannot_go_live_with_entra_sign_in_until_its_groups_are_linked(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "auth_mode", AuthenticationMode.ENTRA)
+    application_id = await create_application("ACC4")
+    keigan_admin = user("keigan.admin@example.com", is_keigan_admin=True)
+    async with open_session() as session:
+        with pytest.raises(BusinessValidationException) as rejection:
+            await ApplicationService(session).go_live(keigan_admin, application_id)
+    assert rejection.value.detail == (
+        "The application's access groups are not linked to Entra yet, so nobody could open it after go-live. "
+        "Run 'Check in Entra' on the Access step first."
+    )

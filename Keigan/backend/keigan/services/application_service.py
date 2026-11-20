@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
 
+from pydantic.alias_generators import to_camel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +33,7 @@ from keigan.security.current_user import CurrentUser
 from keigan.services.application_readiness_service import ApplicationReadinessService
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
+from keigan.services.onboarding_service import GUID_PATTERN
 
 DEFAULT_LOCALE_BY_REGION = {"JP": "ja", "CN": "zh-CN", "ES": "es", "MX": "es-MX", "NL": "nl", "FR": "fr"}
 DEFAULT_TIME_ZONE_BY_REGION = {"JP": "Asia/Tokyo", "AU": "Australia/Sydney", "US": "America/New_York", "NL": "Europe/Amsterdam", "FR": "Europe/Paris", "MX": "America/Mexico_City"}
@@ -223,6 +225,10 @@ class ApplicationService:
         application = await self.application_repository.get_required(application_id, "application")
         if application.lifecycle_status == "live":
             return self._to_response(application, True)
+        if self.settings.auth_mode == AuthenticationMode.ENTRA and not (application.admin_group_object_id and application.reader_group_object_id):
+            raise BusinessValidationException(
+                "The application's access groups are not linked to Entra yet, so nobody could open it after go-live. Run 'Check in Entra' on the Access step first."
+            )
         readiness = await self.readiness_service.build_readiness(application)
         if not readiness.can_go_live:
             missing_keys = [requirement.requirement_key for requirement in readiness.required if not requirement.is_done]
@@ -278,15 +284,38 @@ class ApplicationService:
         for field_name in ("admin_group_name", "reader_group_name"):
             if changes.get(field_name):
                 setattr(application, field_name, changes[field_name].strip())
-        for field_name in ("admin_group_object_id", "reader_group_object_id"):
-            if field_name in changes:
-                setattr(application, field_name, (changes[field_name] or "").strip() or None)
+        self._apply_group_object_id_changes(current_user, application, changes)
         await self.session.flush()
         await self.audit_service.record(
             current_user, "application.access_update", target_entity_type="application", target_entity_id=application_id, application_id=application_id,
             action_details={"changedFields": sorted(changes.keys())},
         )
         return await self.get_access(current_user, application_id)
+
+    @staticmethod
+    def _apply_group_object_id_changes(current_user: CurrentUser, application: Application, changes: dict[str, Any]) -> None:
+        """With Entra sign-in the object ids decide who may open the application, so only Keigan admins may change them
+        (the access check fills in missing ids). Sending the stored value again is not a change."""
+        new_object_ids = {
+            field_name: (changes[field_name] or "").strip().lower() or None
+            for field_name in ("admin_group_object_id", "reader_group_object_id")
+            if field_name in changes
+        }
+        changed_object_ids = {
+            field_name: new_object_id for field_name, new_object_id in new_object_ids.items()
+            if new_object_id != ((getattr(application, field_name) or "").lower() or None)
+        }
+        if changed_object_ids and not current_user.is_keigan_admin:
+            raise ForbiddenException("Only Keigan admins can change the group object IDs. Run 'Check in Entra' to link the groups.")
+        field_errors = [
+            {"field": to_camel(field_name), "message": "Enter the group's object ID as a GUID (for example 3f2a9c1b-0d4e-4c7a-9b1f-2e8d6a5c4b30)."}
+            for field_name, new_object_id in changed_object_ids.items()
+            if new_object_id and not GUID_PATTERN.match(new_object_id)
+        ]
+        if field_errors:
+            raise BusinessValidationException("A group object ID is not valid.", field_errors=field_errors)
+        for field_name, new_object_id in changed_object_ids.items():
+            setattr(application, field_name, new_object_id)
 
     async def verify_access_groups(self, current_user: CurrentUser, application_id: str) -> AccessVerificationResponse:
         """Check that the admin and reader groups exist (SailPoint has provisioned them) and who is in them — before owners sign in.
