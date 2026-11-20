@@ -28,6 +28,7 @@ class AiSafetySettings(BaseSettings):
 
     # Hosts that AI-written text may link to (exact host match). ``*.example.com`` explicitly allows sub-domains.
     # The hosts of SERVICENOW_INSTANCE_URL, FRONTEND_BASE_URL and PUBLIC_BASE_URL are always allowed in addition.
+    # No public code-hosting sites by default: their content is attacker-controlled.
     ai_output_allowed_link_hosts: str = "portal.azure.com,learn.microsoft.com"
     # Name of the organisation Keigan works for, rendered into prompts. Empty means the prompts do not name one.
     organization_name: str = ""
