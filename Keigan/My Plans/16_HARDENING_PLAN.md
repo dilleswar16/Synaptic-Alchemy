@@ -86,7 +86,7 @@ Where a V-item covers an H-item above, the V-item is the one tracked (noted in t
 | V15 | Medium | Default signing secret accepted outside prod; local auth allowed in dev/test | ⬜ (= H6) |
 | V13 | Medium | Teams bot answers (and runs log queries for) anyone in the chat; tenant not checked | ⬜ |
 | V8 | Medium | Link filter bypassable and missing on many AI outputs; markdown images render | ⬜ |
-| V11 | Medium | PII masker gaps (full-width text, JP numbers without separators, tokens, snake_case keys) | ⬜ |
+| V11 | Medium | PII masker gaps (full-width text, JP numbers without separators, tokens, snake_case keys) | ✅ fixed (stream F): NFKC normalisation, new catalog patterns (JP/international phones, IPv6, GitHub/Slack/sk- tokens, Basic auth, URL credentials, password assignments), normalised JSON keys, My Number check digit; 47 tests in `tests/unit/utils/test_pii_masker.py`. Accepted residuals: masking errs on the safe side (e.g. `password: required` is masked); header rule expects one space after `Authorization:` |
 | V12 | Medium | Chat history, activity-log callers, Teams names and alert rule names reach storage or the LLM unmasked | ⬜ |
 | V16 | Medium | SSRF and credential redirect: changing a connection's endpoint keeps its stored credential; no egress policy | ⬜ |
 | V6 | Medium | Elastic script check bypassable with JSON unicode escapes; size not validated | ⬜ |
