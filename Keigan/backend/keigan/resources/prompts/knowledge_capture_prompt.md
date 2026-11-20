@@ -51,7 +51,7 @@ Log format and the fields that exist (for example `traceId`, `correlationId`, `c
 For each failure mode seen in code comments, TODOs, retry logic, issues or incident notes: symptom, likely cause, how to confirm it in logs or metrics, and the mitigation.
 
 ## Operational commands
-Safe, read-only diagnostic commands first (kubectl, az, SQL, curl), then recovery commands (restart, scale, rollback, replay) with their risks.
+Safe, read-only diagnostic commands first (kubectl, az, SQL, curl), then recovery commands (restart, scale, rollback, replay) with their risks. This section is written for people. Keigan shows it to responders and never copies a command from it into an automated action, so state for each recovery command when it must not be used.
 
 ## Owners
 Team, repository owners (from CODEOWNERS or the README), support channel, escalation contact, ServiceNow assignment group when known.

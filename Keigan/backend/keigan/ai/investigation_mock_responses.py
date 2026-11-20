@@ -20,6 +20,7 @@ from keigan.ai.investigation_ai_schemas import (
     PostmortemResult, PostmortemTimelineEntry, ProposedFix, RcaSynthesisResult, TriageResult,
 )
 from keigan.ai.llm_gateway import PromptSection, register_mock_response
+from keigan.ai.prompt_safety import assess_prompt_injection
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 
 
@@ -496,12 +497,13 @@ def build_triage(output_schema: type[BaseModel], prompt_sections: list[PromptSec
         return output_schema.model_validate({"suggested_priority": "P3", "priority_rationale": "No context", "incident_category": "errors", "incident_summary": "No context available."})
     scenario = SCENARIO_CATALOG.get(context.scenario_key or "")
     names = [name for name in (context.primary_service_name, context.dependency_service_name) if name]
-    injection_note = " The incident text contained instruction-like content, which was ignored." if "ignore previous" in _section_text(prompt_sections, "Incident from ServiceNow").lower() else ""
+    has_injection = assess_prompt_injection(_section_text(prompt_sections, "Incident from ServiceNow")).is_suspicious
     return TriageResult(
         suggested_priority=context.priority if context.priority in ("P1", "P2", "P3", "P4") else "P3",  # type: ignore[arg-type]
-        priority_rationale=f"Customer-facing impact on a {context.application_name} journey with a recent onset; priority follows the reported impact and urgency." + injection_note,
+        priority_rationale=f"Customer-facing impact on a {context.application_name} journey with a recent onset; priority follows the reported impact and urgency.",
         incident_category=scenario.incident_category if scenario else "errors",  # type: ignore[arg-type]
-        candidate_service_names=names, incident_summary=f"{context.incident_title}. Users and systems of {context.application_name} are affected.{injection_note}",
+        contains_instruction_like_text=has_injection,
+        candidate_service_names=names, incident_summary=f"{context.incident_title}. Users and systems of {context.application_name} are affected.",
         key_symptoms=[symptom for symptom in (context.incident_title.split(":")[-1].strip(),) if symptom], time_of_onset_hint="Shortly before the incident was opened",
     )
 
@@ -591,11 +593,11 @@ def build_communications(output_schema: type[BaseModel], prompt_sections: list[P
                 if communication_type == "resolution_update":
                     body = f"{context.application_name}の障害は復旧しました。\n\n- 原因: {script['ja_cause']}\n- 影響: {script['ja_impact']}\n- 今後: 事後分析（ポストモーテム）を作成し、再発防止策を共有します。"
                 elif communication_type == "executive_summary":
-                    body = f"{context.application_name}で障害が発生しています。\n\n- 影響: {script['ja_impact']}\n- 想定される原因: {script['ja_cause']}\n- 対応状況: 復旧作業を進めています。\n- 次回報告: 30分以内"
+                    body = f"{context.application_name}で障害が発生しています。\n\n- 影響: {script['ja_impact']}\n- 想定される原因: {script['ja_cause']}\n- 対応状況: 復旧作業を進めています。\n- 次回報告: 時刻は改めてお知らせします"
                 else:
                     body = (
                         f"関係者各位\n\n{context.application_name}で障害を確認しています。影響を受けているサービス: {services_text}。\n\n- 影響: {script['ja_impact']}\n"
-                        f"- 現状: 調査中。暫定の原因分析では、{script['ja_cause']}（確度 約{confidence_percent}%）\n- 次回報告: 30分以内\n\n詳細が分かり次第、改めてご連絡します。"
+                        f"- 現状: 調査中。暫定の原因分析では、{script['ja_cause']}（確度 約{confidence_percent}%）\n- 次回報告: 時刻は改めてお知らせします\n\n詳細が分かり次第、改めてご連絡します。"
                     )
             else:
                 subject = f"[{context.priority}] {context.application_name}: {ENGLISH_TYPE_LABELS[communication_type]}"
@@ -603,11 +605,11 @@ def build_communications(output_schema: type[BaseModel], prompt_sections: list[P
                 if communication_type == "resolution_update":
                     body = f"The incident affecting {context.application_name} is resolved.\n\n- **Cause:** {synthesis.get('executive_summary') or executive}\n- **Duration:** {context.duration_minutes or 'n/a'} minutes\n- **Next:** a blameless postmortem will be shared with follow-up actions."
                 elif communication_type == "executive_summary":
-                    body = f"{executive}\n\n- **Status:** recovery in progress\n- **Next update:** within 30 minutes"
+                    body = f"{executive}\n\n- **Status:** recovery in progress\n- **Next update:** the time of the next update will be confirmed"
                 elif communication_type == "preliminary_report":
-                    body = f"**Impact:** {services_text} are affected.\n\n**Likely cause (confidence {confidence_percent}%):** {synthesis.get('why_it_happened_markdown') or executive}\n\n**Mitigation:** see the proposed fix in the investigation.\n\n**Next update:** within 30 minutes"
+                    body = f"**Impact:** {services_text} are affected.\n\n**Likely cause (confidence {confidence_percent}%):** {synthesis.get('why_it_happened_markdown') or executive}\n\n**Mitigation:** see the proposed fix in the investigation.\n\n**Next update:** the time of the next update will be confirmed"
                 else:
-                    body = f"We are aware of an issue affecting {context.application_name} ({services_text}). {executive}\n\n- **Status:** investigating\n- **Next update:** within 30 minutes"
+                    body = f"We are aware of an issue affecting {context.application_name} ({services_text}). {executive}\n\n- **Status:** investigating\n- **Next update:** the time of the next update will be confirmed"
             drafts.append(CommunicationDraft(communication_type=communication_type, language_code=language_code, subject_line=subject, body_markdown=body))  # type: ignore[arg-type]
     return CommunicationDraftSet(drafts=drafts)
 

@@ -15,7 +15,9 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from keigan.ai.author_labels import AuthorAliases
 from keigan.ai.llm_gateway import LlmUsageContext, ModelTier, PromptSection
+from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
 from keigan.ai.notification_ai_schemas import TeamsChatDigestResult, deterministic_chat_facts
 from keigan.config import application_context
 from keigan.config.settings import IntegrationMode, get_settings
@@ -23,11 +25,12 @@ from keigan.dtos.notification_dtos import TeamsChatFactResponse, TeamsChatMessag
 from keigan.entities.application_entities import Application
 from keigan.entities.incident_entities import Conversation, ConversationMessage, Incident, Investigation, InvestigationTimelineEvent
 from keigan.entities.notification_entities import Stakeholder, TeamsIncidentChat
-from keigan.exceptions.keigan_exceptions import BusinessValidationException, IntegrationException, KeiganException, NotFoundException
+from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, IntegrationException, KeiganException, NotFoundException
 from keigan.integrations.bot_framework_client import BotFrameworkClient
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
 from keigan.security.current_user import CurrentUser
 from keigan.services.notification_renderer import NotificationRenderer, translate
+from keigan.services.teams_sender_authorizer import TeamsSenderAuthorizer
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
 
@@ -37,6 +40,7 @@ KEIGAN_DISPLAY_NAME = "Keigan"
 MENTION_PATTERN = re.compile(r"^\s*(@keigan|keigan)\b[\s,:：、-]*", re.IGNORECASE)
 HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 DEFAULT_BOT_SERVICE_URL = "https://smba.trafficmanager.net/teams/"
+NOT_AUTHORIZED_REPLY = "I can only answer people who have access to this application in Keigan. Ask the application's admin to add you to its reader group."
 
 
 def is_message_for_keigan(message_text: str) -> bool:
@@ -143,7 +147,7 @@ class TeamsChatService:
         already_posted = await self.session.scalar(
             select(func.count()).select_from(ConversationMessage).where(
                 ConversationMessage.conversation_id == chat.conversation_id, ConversationMessage.author_role == "assistant",
-                ConversationMessage.message_text == PiiMasker().mask_text(message_text),
+                ConversationMessage.message_text == self._outgoing_text(message_text),
             )
         )
         if already_posted:  # chat creation may already have posted this report (alerts often arrive before the ticket)
@@ -151,10 +155,15 @@ class TeamsChatService:
         await self._post_keigan_message(chat, message_text, adaptive_card, notification_type="progress_update")
         return True
 
+    @staticmethod
+    def _outgoing_text(message_text: str) -> str:
+        """Everything Keigan posts into a chat is masked and sanitised (no links to other hosts, no images, no HTML), whoever wrote it (V8)."""
+        return sanitize_ai_markdown(PiiMasker().mask_text(message_text))
+
     async def _post_keigan_message(self, chat: TeamsIncidentChat, message_text: str, adaptive_card: dict[str, Any] | None, *, notification_type: str = "progress_update") -> None:
         from keigan.services.notification_service import NotificationService
 
-        masked_text = PiiMasker().mask_text(message_text)
+        masked_text = self._outgoing_text(message_text)
         self.session.add(ConversationMessage(
             conversation_id=chat.conversation_id, author_role="assistant", author_display_name=KEIGAN_DISPLAY_NAME, message_text=masked_text, message_payload_json={"adaptiveCard": adaptive_card} if adaptive_card else None,
         ))
@@ -219,7 +228,7 @@ class TeamsChatService:
         members = set(chat.member_user_principal_names_json or [])
         if current_user.user_principal_name not in members:
             chat.member_user_principal_names_json = sorted(members | {current_user.user_principal_name})
-        await self._process_messages(chat, [(current_user.display_name, current_user.user_principal_name, masked_text, message.message_id)])
+        await self._process_messages(chat, [(current_user.display_name, current_user.user_principal_name, masked_text, message.message_id)], authenticated_user=current_user)
         chat.last_processed_message_identifier = message.message_id
         await self.session.flush()
         return await self.get_chat_view(incident_id)
@@ -265,6 +274,9 @@ class TeamsChatService:
             sender = (graph_message.get("from") or {}).get("user")
             if message_identifier in known_identifiers or not sender or graph_message.get("messageType") != "message":
                 continue
+            if not (await TeamsSenderAuthorizer(self.session).access_for(chat.application_id, sender.get("id"), sender.get("displayName"))).can_read:
+                chat.last_processed_message_identifier = message_identifier  # not kept and not processed: only people who may read the application are heard (V13)
+                continue
             plain_text = HTML_TAG_PATTERN.sub(" ", (graph_message.get("body") or {}).get("content", "")).strip()
             masked_text = masker.mask_text(plain_text)
             row = ConversationMessage(
@@ -284,23 +296,35 @@ class TeamsChatService:
         except ValueError:
             return utc_now()
 
-    async def _process_messages(self, chat: TeamsIncidentChat, messages: list[tuple[str, str | None, str, str]]) -> None:
-        """Milestone phrase → postmortem; question to Keigan → answer; everything else → digest into chat facts."""
+    async def _process_messages(
+        self, chat: TeamsIncidentChat, messages: list[tuple[str, str | None, str, str]], authenticated_user: CurrentUser | None = None
+    ) -> None:
+        """Milestone phrase → postmortem; question to Keigan → answer; everything else → digest into chat facts.
+
+        Only people who may read the application are heard (V13): messages of anyone else are ignored, and a person who addresses Keigan is told why.
+        """
         incident = await self.session.get(Incident, chat.incident_id)
         investigation = await self._latest_investigation(chat.incident_id)
         application = await self.session.get(Application, chat.application_id)
         language = application.primary_locale if application else "en"
+        author_aliases = AuthorAliases(PiiMasker())
         digest_lines: list[str] = []
-        for author_name, author_upn, message_text, message_identifier in messages:
+        for author_name, author_identity, message_text, message_identifier in messages:
+            access = await TeamsSenderAuthorizer(self.session).access_for(chat.application_id, author_identity, author_name, authenticated_user)
+            if not access.can_read:
+                logger.info("Ignored a Teams message from a sender without access to application %s", chat.application_id)
+                if is_message_for_keigan(message_text):
+                    await self._post_keigan_message(chat, NOT_AUTHORIZED_REPLY, None)
+                continue
             lowered = message_text.lower().strip()
             if any(phrase in lowered for phrase in self.settings.teams_milestone_phrase_list):
-                await self._handle_milestone(chat, author_name, author_upn, language)
+                await self._handle_milestone(chat, author_name, author_identity, language)
             elif is_message_for_keigan(message_text):
-                await self._answer_question(chat, investigation, author_name, author_upn, strip_keigan_address(message_text))
+                await self._answer_question(chat, investigation, author_name, author_identity, strip_keigan_address(message_text), allow_log_queries=access.is_application_admin)
             else:
-                digest_lines.append(f"{author_name}: {message_text}")
+                digest_lines.append(f"{author_aliases.alias(author_name)}: {message_text}")
         if digest_lines and incident is not None:
-            await self._digest_messages(chat, incident, investigation, digest_lines)
+            await self._digest_messages(chat, incident, investigation, digest_lines, author_aliases)
 
     async def _handle_milestone(self, chat: TeamsIncidentChat, author_name: str, author_upn: str | None, language: str) -> None:
         from keigan.workers.job_queue import JobQueue
@@ -308,18 +332,23 @@ class TeamsChatService:
         await JobQueue(self.session).enqueue(
             "generate_postmortem", {"incident_id": chat.incident_id, "generation_trigger": "teams_phrase", "requested_by_user_principal_name": author_upn}, deduplication_key=f"postmortem:{chat.incident_id}:teams",
         )
-        self.session.add(InvestigationTimelineEvent(
-            incident_id=chat.incident_id, event_type="action_taken", event_title=f"{author_name} declared the incident finished in Teams", event_source="teams_chat", actor_display_name=author_name,
+        self.session.add(InvestigationTimelineEvent(  # the title names a role, not the person (the name is kept separately for the UI)
+            incident_id=chat.incident_id, event_type="action_taken", event_title="A responder declared the incident finished in Teams", event_source="teams_chat", actor_display_name=author_name,
         ))
         await self._post_keigan_message(chat, translate(language, "chat.milestone_ack"), None)
 
-    async def _answer_question(self, chat: TeamsIncidentChat, investigation: Investigation | None, author_name: str, author_upn: str | None, question_text: str) -> None:
+    async def _answer_question(
+        self, chat: TeamsIncidentChat, investigation: Investigation | None, author_name: str, author_upn: str | None, question_text: str, *, allow_log_queries: bool = False
+    ) -> None:
+        """``allow_log_queries`` is true only for application admins: a log query runs with Keigan's identity and returns sample rows into the chat."""
         answer_text = None
         if investigation is not None and question_text:
             try:
                 from keigan.services.chat_service import ChatService
 
-                answer = await ChatService(self.session).answer_investigation_question(investigation.investigation_id, question_text, asked_by_user_principal_name=author_upn, asked_by_display_name=author_name)
+                answer = await ChatService(self.session).answer_investigation_question(
+                    investigation.investigation_id, question_text, asked_by_user_principal_name=author_upn, asked_by_display_name=author_name, allow_log_queries=allow_log_queries
+                )
                 answer_text = answer.answer_markdown
             except (NotImplementedError, KeiganException):
                 answer_text = None
@@ -338,7 +367,10 @@ class TeamsChatService:
             parts.append(f"**Suggested fix**\n{investigation.how_to_fix_markdown}")
         return "\n\n".join(parts)
 
-    async def _digest_messages(self, chat: TeamsIncidentChat, incident: Incident, investigation: Investigation | None, message_lines: list[str]) -> None:
+    async def _digest_messages(
+        self, chat: TeamsIncidentChat, incident: Incident, investigation: Investigation | None, message_lines: list[str], author_aliases: AuthorAliases
+    ) -> None:
+        """``message_lines`` already carry author placeholders instead of names; the names are restored only for the timeline shown to responders."""
         digest: TeamsChatDigestResult
         application = await self.session.get(Application, incident.application_id)
         try:
@@ -347,27 +379,44 @@ class TeamsChatService:
             digest = await gateway.generate_structured(
                 feature_name="teams_chat_digest", model_tier=ModelTier.FAST, system_prompt=system_prompt,
                 prompt_sections=[
-                    PromptSection("Investigation summary", (investigation.executive_summary or "No summary yet.") if investigation else "No investigation yet."),
+                    # The summary is earlier AI output derived from tickets and logs, so it is data, not instructions (V7).
+                    PromptSection("Investigation summary", (investigation.executive_summary or "No summary yet.") if investigation else "No investigation yet.", is_untrusted=True, source_label="investigation summary"),
                     PromptSection("New chat messages (author: text)", "\n".join(message_lines), is_untrusted=True, source_label=f"teams-chat:{chat.teams_incident_chat_id}"),
                 ],
                 output_schema=TeamsChatDigestResult, usage_context=LlmUsageContext(application_id=incident.application_id, investigation_id=investigation.investigation_id if investigation else None),
             )
-        except Exception:  # noqa: BLE001 - AI is optional here: fall back to deterministic facts
+        except Exception as digest_error:  # noqa: BLE001 - AI is optional here: fall back to deterministic facts
+            logger.info("Teams chat digest fell back to deterministic facts: %s", digest_error)
             digest = TeamsChatDigestResult(facts=deterministic_chat_facts(message_lines), confidence=0.5)
         for fact in digest.facts:
             self.session.add(InvestigationTimelineEvent(
-                incident_id=incident.incident_id, investigation_id=investigation.investigation_id if investigation else None, event_type="chat_fact", event_title=fact.fact_title[:400],
-                event_details_markdown=fact.fact_details or None, event_source="teams_chat", source_reference=chat.teams_incident_chat_id,
+                incident_id=incident.incident_id, investigation_id=investigation.investigation_id if investigation else None, event_type="chat_fact",
+                event_title=sanitize_ai_line(author_aliases.restore_names(fact.fact_title), maximum_characters=400),
+                event_details_markdown=sanitize_ai_markdown(author_aliases.restore_names(fact.fact_details)) or None, event_source="teams_chat", source_reference=chat.teams_incident_chat_id,
             ))
         minimum_gap = timedelta(minutes=self.settings.teams_unprompted_comment_minimum_interval_minutes)
         gap_elapsed = chat.last_unprompted_comment_at is None or utc_now() - chat.last_unprompted_comment_at >= minimum_gap
         if digest.should_comment and digest.confidence >= 0.7 and digest.comment_markdown.strip() and gap_elapsed:
-            await self._post_keigan_message(chat, digest.comment_markdown.strip(), None)
+            await self._post_keigan_message(chat, author_aliases.restore_names(digest.comment_markdown.strip()), None)
             chat.last_unprompted_comment_at = utc_now()
         await self.session.flush()
 
     # ── Bot Framework inbound ──────────────────────────────────────────────────
+    def _ensure_expected_tenant(self, activity: dict[str, Any]) -> None:
+        """Only activities from Keigan's own Entra tenant are accepted (V13); without a configured tenant a live bot accepts nothing."""
+        expected_tenant = self.settings.entra_tenant_id.strip().lower()
+        if not expected_tenant:
+            if self.is_live:
+                logger.warning("A Teams activity was rejected because ENTRA_TENANT_ID is not configured")
+                raise ForbiddenException("The Teams bot is not set up for a tenant yet. Ask a Keigan admin to configure ENTRA_TENANT_ID.")
+            return
+        tenant = ((activity.get("channelData") or {}).get("tenant") or {}).get("id") or (activity.get("conversation") or {}).get("tenantId") or ""
+        if str(tenant).strip().lower() != expected_tenant:
+            logger.warning("A Teams activity from tenant %s was rejected", tenant or "(none)")
+            raise ForbiddenException("This Teams tenant is not allowed to use Keigan.")
+
     async def handle_bot_activity(self, activity: dict[str, Any]) -> None:
+        self._ensure_expected_tenant(activity)
         conversation_id = (activity.get("conversation") or {}).get("id")
         if not conversation_id:
             return
@@ -383,6 +432,10 @@ class TeamsChatService:
             sender = activity.get("from") or {}
             plain_text = PiiMasker().mask_text(HTML_TAG_PATTERN.sub(" ", activity.get("text") or "").strip())
             if not plain_text:
+                return
+            if not (await TeamsSenderAuthorizer(self.session).access_for(chat.application_id, sender.get("aadObjectId"), sender.get("name"))).can_read:
+                logger.info("Ignored a Teams message from a sender without access to application %s", chat.application_id)
+                await self._post_keigan_message(chat, NOT_AUTHORIZED_REPLY, None)  # the bot only receives messages that address it
                 return
             message = ConversationMessage(
                 conversation_id=chat.conversation_id, author_role="teams_participant", author_display_name=sender.get("name"), message_text=plain_text, external_message_identifier=activity.get("id"),

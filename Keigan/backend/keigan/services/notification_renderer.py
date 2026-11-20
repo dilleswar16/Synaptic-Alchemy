@@ -14,6 +14,7 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
 from keigan.config.settings import RESOURCES_DIRECTORY, get_settings
 
 TEMPLATES_DIRECTORY = RESOURCES_DIRECTORY / "templates"
@@ -53,16 +54,25 @@ def translate(language_code: str | None, dotted_path: str, **format_values: Any)
     return dotted_path
 
 
+_BACKSLASH_ESCAPE_PATTERN = re.compile(r"\\([!-/:-@\[-`{-~])")
+_ESCAPED_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+
+
 def markdown_to_safe_html(markdown_text: str | None) -> str:
-    """Tiny Markdown subset (headings, bullets, bold, inline code, paragraphs) on already-escaped text."""
+    """Tiny Markdown subset (headings, bullets, bold, inline code, links, paragraphs) on already-escaped text.
+
+    The text is sanitised first (links only to allowed hosts, no images or HTML), so the only links that can appear are allowed ones.
+    """
     if not markdown_text:
         return ""
     output_parts: list[str] = []
     open_list = False
-    for raw_line in markdown_text.splitlines():
+    for raw_line in sanitize_ai_markdown(markdown_text).splitlines():
         line = html.escape(raw_line.rstrip())
         line = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", line)
         line = re.sub(r"`(.+?)`", r"<code>\1</code>", line)
+        line = _ESCAPED_LINK_PATTERN.sub(r'<a href="\2">\1</a>', line)
+        line = _BACKSLASH_ESCAPE_PATTERN.sub(r"\1", line)
         bullet_match = re.match(r"^\s*[-*]\s+(.*)$", line)
         if bullet_match:
             if not open_list:
@@ -106,7 +116,8 @@ class NotificationRenderer:
     ) -> RenderedEmail:
         language = resolve_language_code(language_code)
         format_values = {"application_name": application_name, "title": title, "severity": severity, "priority": priority}
-        subject_line = subject_override or translate(language, f"types.{notification_type}.subject", **format_values)
+        subject_line = sanitize_ai_line(subject_override) if subject_override else " ".join(translate(language, f"types.{notification_type}.subject", **format_values).split())  # one line: no header injection
+        body_markdown = sanitize_ai_markdown(body_markdown)  # the last gate before an email leaves: only sanitised text is ever sent (V8)
         context = {
             "language_code": language,
             "subject_line": subject_line,
@@ -130,7 +141,7 @@ class NotificationRenderer:
     ) -> dict[str, Any]:
         language = resolve_language_code(language_code)
         rendered = self._card_environment.get_template(f"{card_name}.json.j2").render(
-            heading=translate(language, f"cards.{heading_key}"), title=title, summary=summary, facts=[{"label": label, "value": value} for label, value in facts if value],
+            heading=translate(language, f"cards.{heading_key}"), title=sanitize_ai_line(title), summary=sanitize_ai_markdown(summary), facts=[{"label": label, "value": value} for label, value in facts if value],
             open_label=translate(language, "cards.open"), action_url=f"{self.settings.frontend_base_url.rstrip('/')}{action_path}" if action_path else None,
         )
         return json.loads(rendered)

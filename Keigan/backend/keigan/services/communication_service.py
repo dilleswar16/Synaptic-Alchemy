@@ -15,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from keigan.ai.investigation_ai_caller import InvestigationAiCaller, build_mock_context
 from keigan.ai.investigation_ai_schemas import CommunicationDraftSet, PostmortemResult
 from keigan.ai.llm_gateway import PromptSection
-from keigan.ai.prompt_safety import DEFAULT_ALLOWED_LINK_HOSTS, neutralize_untrusted_links
+from keigan.ai.author_labels import mask_author_name, mask_known_names
+from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown, sanitize_ai_model
+from keigan.ai.user_facing_errors import describe_failure_for_user
 from keigan.config.settings import get_settings
 from keigan.dtos.common_dtos import JobAcceptedResponse
 from keigan.dtos.incident_dtos import CommunicationDto, CommunicationSendResult, CommunicationUpdateRequest, GenerateCommunicationsRequest, PostmortemDto, PostmortemUpdateRequest
@@ -29,7 +31,6 @@ from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.utils.pii_masker import PiiMasker
-from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
 
@@ -74,9 +75,11 @@ class CommunicationService:
         incident = await self.session.get(Incident, investigation.incident_id) if investigation.incident_id else None
         stakeholder_languages = list((await self.session.scalars(select(Stakeholder.preferred_language_code).where(Stakeholder.application_id == application.application_id, Stakeholder.is_active.is_(True)))).all())
         languages = [language for language in dict.fromkeys([*(language_codes or ["en", "ja"]), *([] if language_codes else stakeholder_languages)]) if language in SUPPORTED_COMMUNICATION_LANGUAGES]
+        # Audience rule: updates go to business and technical stakeholders by email, so the fix steps (commands, resource names) are
+        # not given to the writer at all. Engineers read the fix on the investigation page and in the incident's Teams room.
         findings_text = (
             f"Priority: {(incident.keigan_priority if incident else None) or 'P3'}\nExecutive summary: {investigation.executive_summary}\nWhat went wrong: {investigation.what_went_wrong_markdown}\n"
-            f"Why it happened: {investigation.why_it_happened_markdown}\nHow to fix: {investigation.how_to_fix_markdown}\nConfidence: {investigation.overall_confidence_score}\n"
+            f"Why it happened: {investigation.why_it_happened_markdown}\nConfidence: {investigation.overall_confidence_score}\n"
             f"Incident opened: {incident.opened_at.isoformat() if incident else 'n/a'}; resolved: {incident.resolved_at.isoformat() if incident and incident.resolved_at else 'not yet'}"
         )
         sections = [
@@ -102,8 +105,8 @@ class CommunicationService:
                 continue
             communication = IncidentCommunication(
                 incident_id=investigation.incident_id, investigation_id=investigation.investigation_id, communication_type=draft.communication_type,
-                audience_type=AUDIENCE_BY_TYPE.get(draft.communication_type, "stakeholders"), language_code=draft.language_code, subject_line=truncate_text(draft.subject_line, 400),
-                body_markdown=neutralize_untrusted_links(draft.body_markdown, DEFAULT_ALLOWED_LINK_HOSTS), communication_status="draft", created_by_user_principal_name="system:keigan",
+                audience_type=AUDIENCE_BY_TYPE.get(draft.communication_type, "stakeholders"), language_code=draft.language_code, subject_line=sanitize_ai_line(draft.subject_line),
+                body_markdown=sanitize_ai_markdown(draft.body_markdown), communication_status="draft", created_by_user_principal_name="system:keigan",
             )
             self.session.add(communication)
             created.append(communication)
@@ -165,9 +168,9 @@ class CommunicationService:
             raise BusinessValidationException("A sent communication can no longer be edited.")
         masker = PiiMasker()
         if request.subject_line is not None:
-            communication.subject_line = request.subject_line
+            communication.subject_line = sanitize_ai_line(masker.mask_text(request.subject_line))
         if request.body_markdown is not None:
-            communication.body_markdown = neutralize_untrusted_links(masker.mask_text(request.body_markdown), DEFAULT_ALLOWED_LINK_HOSTS)
+            communication.body_markdown = sanitize_ai_markdown(masker.mask_text(request.body_markdown))
         communication.communication_status, communication.approved_by_user_principal_name, communication.approved_at = "draft", None, None  # edits need a fresh approval
         communication.updated_by_user_principal_name = current_user.user_principal_name
         await AuditService(self.session).record(current_user, "communication.edit", target_entity_type="incident_communication", target_entity_id=communication_id, application_id=application_id)
@@ -273,6 +276,10 @@ class CommunicationService:
             list((await self.session.scalars(select(ConversationMessage).where(ConversationMessage.conversation_id == chat.conversation_id).order_by(ConversationMessage.created_at).limit(80))).all())
             if chat and chat.conversation_id else []
         )
+        # Postmortems name roles, not people: every known person name is replaced by a stable placeholder before the model sees it (V12).
+        person_names = {message.author_display_name for message in chat_messages if message.author_display_name} | {event.actor_display_name for event in timeline_events if event.actor_display_name}
+        timeline_lines = [(time_text, mask_known_names(masker, title, person_names)) for time_text, title in timeline_lines]
+        chat_facts = [mask_known_names(masker, fact, person_names) for fact in chat_facts]
         sent_communications = (await self.session.scalars(select(IncidentCommunication).where(IncidentCommunication.incident_id == incident_id, IncidentCommunication.communication_status == "sent"))).all()
         resolution_note = next((event.event_details_markdown for event in reversed(timeline_events) if event.event_type == "incident_resolved" and event.event_details_markdown), None)
         sections = [
@@ -281,7 +288,7 @@ class CommunicationService:
             PromptSection("Investigation", f"{investigation.executive_summary}\n\nWhat went wrong: {investigation.what_went_wrong_markdown}\n\nWhy: {investigation.why_it_happened_markdown}\n\nFix: {investigation.how_to_fix_markdown}" if investigation else "No investigation was completed.", is_untrusted=True, source_label="investigation"),
             PromptSection("Timeline", "\n".join(f"{time_text} {title}" for time_text, title in timeline_lines), is_untrusted=True, source_label="timeline"),
             PromptSection("Facts from the responders' chat", "\n".join(chat_facts) or "None recorded.", is_untrusted=True, source_label="teams chat facts"),
-            PromptSection("Teams conversation", masker.mask_text("\n".join(f"{message.author_display_name or message.author_role}: {message.message_text}" for message in chat_messages)) or "None.", is_untrusted=True, source_label="teams chat"),
+            PromptSection("Teams conversation", masker.mask_text("\n".join(f"{mask_author_name(masker, message.author_display_name or message.author_role)}: {mask_known_names(masker, message.message_text, person_names)}" for message in chat_messages)) or "None.", is_untrusted=True, source_label="teams chat"),
             PromptSection("Communications sent", "\n".join(f"{communication.sent_at}: {communication.subject_line}" for communication in sent_communications) or "None sent.", is_untrusted=True, source_label="communications"),
             PromptSection("Task", "Write the blameless postmortem."),
         ]
@@ -297,13 +304,14 @@ class CommunicationService:
             result: PostmortemResult = await caller.ask("postmortem_report", sections, PostmortemResult)
         except KeiganException as ai_error:
             postmortem.report_status = "failed"
-            postmortem.report_markdown = f"The postmortem could not be generated: {ai_error.detail}. Try again later or write it manually."
+            postmortem.report_markdown = f"The postmortem could not be generated: {describe_failure_for_user(ai_error)} Try again later or write it manually."
             return {"postmortemId": postmortem.postmortem_id, "status": "failed"}
+        result = sanitize_ai_model(result)
         sections_payload = result.model_dump()
         sections_payload["incident_resolved_at"] = incident.resolved_at.isoformat() if incident.resolved_at else None
-        postmortem.report_title = truncate_text(result.report_title, 400)
+        postmortem.report_title = sanitize_ai_line(result.report_title)
         postmortem.report_sections_json = sections_payload
-        postmortem.report_markdown = neutralize_untrusted_links(self.render_postmortem_markdown(result, incident), DEFAULT_ALLOWED_LINK_HOSTS)
+        postmortem.report_markdown = sanitize_ai_markdown(self.render_postmortem_markdown(result, incident))
         postmortem.report_status, postmortem.generation_trigger = "draft", generation_trigger
         self.session.add(InvestigationTimelineEvent(incident_id=incident_id, investigation_id=postmortem.investigation_id, event_type="postmortem_drafted", event_title="Postmortem draft prepared", event_source="keigan"))
         return {"postmortemId": postmortem.postmortem_id}
@@ -354,9 +362,9 @@ class CommunicationService:
         if postmortem.report_status == "generating":
             raise BusinessValidationException("The postmortem is still being generated.")
         if request.report_title is not None:
-            postmortem.report_title = request.report_title
+            postmortem.report_title = sanitize_ai_line(PiiMasker().mask_text(request.report_title))
         if request.report_markdown is not None:
-            postmortem.report_markdown = neutralize_untrusted_links(PiiMasker().mask_text(request.report_markdown), DEFAULT_ALLOWED_LINK_HOSTS)
+            postmortem.report_markdown = sanitize_ai_markdown(PiiMasker().mask_text(request.report_markdown))
         postmortem.updated_by_user_principal_name = current_user.user_principal_name
         await AuditService(self.session).record(current_user, "postmortem.edit", target_entity_type="postmortem_report", target_entity_id=postmortem_id, application_id=application_id)
         await self.session.flush()

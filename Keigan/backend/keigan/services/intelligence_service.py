@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.llm_gateway import LlmUsageContext, ModelTier, PromptSection
 from keigan.ai.notification_ai_schemas import IntelligenceNarrativeResult, IntelligenceReportResult
+from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
 from keigan.config import application_context
 from keigan.dtos.intelligence_dtos import (
     HealthScorePoint, HealthScoreTrendResponse, IntelligenceReportResponse, IntelligenceReportSummary, PredictiveSignalResponse, PredictiveSignalStatusRequest, SignalInvestigationResponse,
@@ -99,7 +100,7 @@ class IntelligenceService:
                 prompt_sections=[PromptSection("Signal facts", detection.facts_text), PromptSection("Task", "Explain this signal for the on-call team.")],
                 output_schema=IntelligenceNarrativeResult, usage_context=LlmUsageContext(application_id=application.application_id),
             )
-            return result.narrative_markdown
+            return sanitize_ai_markdown(result.narrative_markdown)
         except Exception:  # noqa: BLE001 - the numbers alone are a valid explanation
             return detection.facts_text
 
@@ -252,7 +253,7 @@ class IntelligenceService:
             "healthScore": health_score, "healthComponents": components, "executiveSummary": summary_text, "slos": slo_rows, "recommendations": recommendations, "incidents": {"total": len(incidents), "byPriority": dict(incident_counts)},
             "noise": {"alerts": alert_count, "groups": group_count}, "signals": [{"predictiveSignalId": signal.predictive_signal_id, "title": signal.signal_title, "severity": signal.signal_severity, "detector": signal.detector_name, "confidence": signal.confidence_score, "explanation": signal.explanation_markdown} for signal in signals],
         }
-        report = IntelligenceReport(application_id=application.application_id, report_type=report_type, report_title=title[:400], report_period_start=period_start, report_period_end=period_end, overall_health_score=health_score, report_markdown=self._report_markdown(title, sections), report_sections_json=sections)
+        report = IntelligenceReport(application_id=application.application_id, report_type=report_type, report_title=title[:400], report_period_start=period_start, report_period_end=period_end, overall_health_score=health_score, report_markdown=sanitize_ai_markdown(self._report_markdown(title, sections)), report_sections_json=sections)
         self.session.add(report)
         await self.session.flush()
         for signal in signals:
@@ -267,7 +268,7 @@ class IntelligenceService:
                 feature_name="intelligence_report", model_tier=ModelTier.FAST, system_prompt=prompt, prompt_sections=[PromptSection("Report facts", facts_text), PromptSection("Task", "Write the summary and recommendations.")],
                 output_schema=IntelligenceReportResult, usage_context=LlmUsageContext(application_id=application.application_id),
             )
-            return result.executive_summary, result.recommendations[:4]
+            return sanitize_ai_markdown(result.executive_summary), [sanitize_ai_line(recommendation, maximum_characters=500) for recommendation in result.recommendations[:4]]
         except Exception:  # noqa: BLE001
             return facts_text.replace("- ", "", 2), ["Review the open predictive signals with the owning teams."]
 
