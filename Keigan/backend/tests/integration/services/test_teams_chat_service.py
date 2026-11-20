@@ -120,23 +120,47 @@ async def test_an_application_admin_may_trigger_log_queries_from_teams(seed_cont
     assert recorded_question["allow_log_queries"] is True
 
 
+CLMJP_ADMIN_GROUP_OBJECT_ID = "11111111-1111-4111-8111-111111111111"
+CLMJP_READER_GROUP_OBJECT_ID = "22222222-2222-4222-8222-222222222222"
+OTHER_APPLICATION_READER_GROUP_OBJECT_ID = "33333333-3333-4333-8333-333333333333"
+
+
 @pytest.mark.parametrize(
-    ("groups", "expected_read", "expected_admin"),
-    [(frozenset({"CLMJP_reader"}), True, False), (frozenset({"CLMJP_admin"}), True, True), (frozenset({"PAYAU_reader"}), False, False), (None, False, False)],
+    ("group_object_ids", "expected_read", "expected_admin"),
+    [
+        (frozenset({CLMJP_READER_GROUP_OBJECT_ID}), True, False),
+        (frozenset({CLMJP_ADMIN_GROUP_OBJECT_ID}), True, True),
+        (frozenset({OTHER_APPLICATION_READER_GROUP_OBJECT_ID}), False, False),
+        (None, False, False),
+    ],
     ids=["reader", "admin", "reader-of-another-application", "graph-unavailable"],
 )
-async def test_in_entra_mode_the_senders_groups_decide_access(seed_context, monkeypatch: pytest.MonkeyPatch, groups: frozenset[str] | None, expected_read: bool, expected_admin: bool) -> None:
+async def test_in_entra_mode_the_senders_group_object_ids_decide_access(
+    seed_context, monkeypatch: pytest.MonkeyPatch, group_object_ids: frozenset[str] | None, expected_read: bool, expected_admin: bool
+) -> None:
+    """In Entra mode access follows group object ids (H7), so the application must be linked to its two groups first."""
     from keigan.config.settings import AuthenticationMode
+    from keigan.entities.application_entities import Application
     from keigan.services.authentication_service import AuthenticationService
     from keigan.services.teams_sender_authorizer import TeamsSenderAuthorizer
 
     async def fake_memberships(entra_object_id: str) -> tuple[frozenset[str], frozenset[str]] | None:
-        return None if groups is None else (groups, frozenset())
+        return None if group_object_ids is None else (frozenset(), group_object_ids)
 
+    application_id = seed_context.application_ids_by_code["CLMJP"]
+    async with open_session() as session:
+        application = await session.get(Application, application_id)
+        previous_group_object_ids = (application.admin_group_object_id, application.reader_group_object_id)
+        application.admin_group_object_id, application.reader_group_object_id = CLMJP_ADMIN_GROUP_OBJECT_ID, CLMJP_READER_GROUP_OBJECT_ID
     monkeypatch.setattr(get_settings(), "auth_mode", AuthenticationMode.ENTRA)
     monkeypatch.setattr(AuthenticationService, "_resolve_group_memberships", staticmethod(fake_memberships))
-    async with open_session() as session:
-        access = await TeamsSenderAuthorizer(session).access_for(seed_context.application_ids_by_code["CLMJP"], str(uuid.uuid4()), "Someone")
+    try:
+        async with open_session() as session:
+            access = await TeamsSenderAuthorizer(session).access_for(application_id, str(uuid.uuid4()), "Someone")
+    finally:
+        async with open_session() as session:
+            application = await session.get(Application, application_id)
+            application.admin_group_object_id, application.reader_group_object_id = previous_group_object_ids
     assert (access.can_read, access.is_application_admin) == (expected_read, expected_admin)
 
 
