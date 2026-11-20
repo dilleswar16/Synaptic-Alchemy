@@ -1,7 +1,8 @@
 # PII and secret masking patterns. Applied to every telemetry result, alert summary, ServiceNow description and
 # chat input before storage (evidence) and before any AI call. Order matters: secrets first, then identifiers.
+# Text is NFKC-normalized before these run, so full-width input matches the ASCII patterns.
 # placeholder: name used in <NAME_n>; numbered: false gives a fixed placeholder like <SECRET>.
-# validator: optional extra check (luhn).
+# validator: optional extra check that must pass for a match to be masked (luhn, japan_my_number_check_digit).
 patterns:
   - name: private_key_block
     placeholder: PRIVATE_KEY
@@ -19,10 +20,23 @@ patterns:
     placeholder: SECRET
     numbered: false
     regex: '(?i)\b(password|pwd|accountkey|sharedaccesskey|sharedaccesssignature|client_secret|clientsecret)\s*=\s*[^;\s"'']+'
+  # Userinfo of any scheme URL (postgres://user:pass@host, redis://:pass@host). The username is masked too: for service
+  # accounts and UPNs it identifies a person or system just as an email address does. Anchored after "://" with a
+  # fixed-width lookbehind so the match cannot wander, and a URL without a colon-separated password is left alone.
+  - name: url_userinfo_credentials
+    placeholder: SECRET
+    numbered: false
+    regex: '(?<=://)[^\s/@:]*:[^\s/@]+(?=@)'
+  # Key names may carry prefixes and suffixes in snake or kebab case (aws_secret_access_key, x-api-key, db_password_v2).
   - name: key_value_secret
     placeholder: SECRET
     numbered: false
-    regex: '(?i)\b(api[_-]?key|secret|token|passwd|password|access[_-]?key|auth)\b\s*["'']?\s*[:=]\s*["'']?[A-Za-z0-9._~+/=-]{8,}'
+    regex: '(?i)\b(?:[a-z0-9]+[_-])*(?:api[_-]?key|access[_-]?key|secret|token|passwd|password|auth)(?:[_-][a-z0-9]+)*\b["'']?\s*[:=]\s*["'']?[A-Za-z0-9._~+/=-]{8,}'
+  # Passwords are masked whatever their length: short passwords are the most common and the most damaging to leak.
+  - name: password_assignment
+    placeholder: SECRET
+    numbered: false
+    regex: '(?i)\b(?:[a-z0-9]+[_-])*(?:password|passwd|pwd)\b["'']?\s*[:=]\s*["'']?[^\s"'',;&]+'
   - name: sas_signature
     placeholder: SECRET
     numbered: false
@@ -31,9 +45,32 @@ patterns:
     placeholder: SECRET
     numbered: false
     regex: '\bAKIA[0-9A-Z]{16}\b'
+  - name: github_token
+    placeholder: SECRET
+    numbered: false
+    regex: '\bgh[pousr]_[A-Za-z0-9]{36,}'
+  - name: slack_token
+    placeholder: SECRET
+    numbered: false
+    regex: '\bxox[abpr]-[A-Za-z0-9-]{10,}'
+  - name: openai_style_secret_key
+    placeholder: SECRET
+    numbered: false
+    regex: '\bsk-[A-Za-z0-9_-]{20,}'
+  # Basic credentials in an Authorization header, in any base64 form. Only the header context counts, so prose such as
+  # "Basic setup" is not matched. Fixed-width lookbehinds cover "Authorization: ", the JSON form and "Authorization=".
+  - name: authorization_header_basic_credentials
+    placeholder: SECRET
+    numbered: false
+    regex: '(?i)(?:(?<=authorization: )|(?<=authorization": ")|(?<=authorization=))basic\s+[A-Za-z0-9+/]{4,}={0,2}'
+  # Bare "Basic <base64>" outside a header is only masked when the base64 has a digit, '+', '/' or '=', which keeps prose unmasked.
+  - name: basic_authorization
+    placeholder: SECRET
+    numbered: false
+    regex: '(?i)\bbasic\s+(?=[A-Za-z0-9+/]*[0-9+/=])[A-Za-z0-9+/]{8,}={0,2}'
   - name: email_address
     placeholder: EMAIL
-    regex: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
+    regex: '(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
   - name: payment_card
     placeholder: CARD
     validator: luhn
@@ -46,10 +83,24 @@ patterns:
     regex: '\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b'
   - name: japan_my_number
     placeholder: MYNUMBER
+    validator: japan_my_number_check_digit
     regex: '(?<![\d-])\d{4}[ -]?\d{4}[ -]?\d{4}(?![\d-])'
+  # Contiguous Japanese numbers: 0 followed by 9 or 10 digits (mobile 070/080/090, landlines).
+  - name: japan_contiguous_phone_number
+    placeholder: PHONE
+    regex: '(?<![\w.+-])0\d{9,10}(?![\w-]|\.\d)'
+  # International format with a plus sign and at least three space, dot or hyphen separated groups.
+  - name: international_phone_number
+    placeholder: PHONE
+    regex: '(?<![\w+])\+\d{1,3}(?:[ .-]\d{1,5}){2,4}(?![\w-]|\.\d)'
+  # Parenthesized area code followed by a seven or eight digit local number, such as (03)1234-5678 or (415) 555-2671.
+  - name: parenthesized_area_code_phone_number
+    placeholder: PHONE
+    regex: '(?<![\w.+-])(?:\+\d{1,3}[ .-]?)?\(\d{1,4}\)[ .-]?\d{2,4}[ .-]\d{3,4}(?![\w-]|\.\d)'
+  # The 4-4-4 grouping without a country code or area code is an identifier format (trace 1234-5678-9012), not a phone number.
   - name: phone_number
     placeholder: PHONE
-    regex: '(?<![\w.-])(?:\+\d{1,3}[ .-]?)?(?:\(\d{1,4}\)[ .-]?)?\d{2,4}[ .-]\d{3,4}[ .-]\d{3,4}(?![\w-]|\.\d)'
+    regex: '(?<![\w.-])(?!\d{4}[ .-]\d{4}[ .-]\d{4}(?!\d))(?:\+\d{1,3}[ .-]?)?(?:\(\d{1,4}\)[ .-]?)?\d{2,4}[ .-]\d{3,4}[ .-]\d{3,4}(?![\w-]|\.\d)'
   - name: australia_tax_file_number
     placeholder: TAXID
     regex: '(?i)\b(?:tfn|tax file number)\D{0,5}\d{3}[ -]?\d{3}[ -]?\d{3}\b'
@@ -59,11 +110,12 @@ patterns:
     enabled: false
     regex: '(?i)\bpolicy(?:\s*(?:no|number|#))?\s*[:#]?\s*[A-Z]{0,3}\d{6,12}\b'
 
-# JSON keys whose values are always masked regardless of content (case-insensitive, exact key match).
+# JSON keys whose values are always masked regardless of content. Keys are compared after normalize_json_key
+# (NFKC, lowercase, no '_', '-' or spaces), so client_secret, Client-Secret and client_secret all match "clientsecret".
 sensitive_json_keys:
   NAME: [firstname, lastname, fullname, givenname, surname, name_of_insured, customername, membername, beneficiaryname]
   ADDRESS: [address, street, streetaddress, postcode, postalcode, zipcode, homeaddress]
   DOB: [dob, dateofbirth, birthdate, date_of_birth]
   EMAIL: [email, emailaddress, mail]
   PHONE: [phone, phonenumber, mobile, telephone]
-  SECRET: [password, secret, apikey, api_key, token, accesstoken, refreshtoken, clientsecret, connectionstring]
+  SECRET: [password, passwd, pwd, secret, apikey, api_key, token, accesstoken, access_token, refreshtoken, refresh_token, clientsecret, client_secret, connectionstring, privatekey, accesskey, sastoken]
