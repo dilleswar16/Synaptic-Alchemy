@@ -56,8 +56,9 @@ export function PostmortemSection({ detail, canEdit }: { detail: InvestigationDe
       <EmptyState
         icon={FileText}
         title={t("postmortem.emptyTitle")}
-        description={isResolved ? t("postmortem.emptyResolved") : t("postmortem.emptyOpen")}
-        action={canEdit ? <Button leadingIcon={Sparkles} isLoading={generate.isPending} onClick={() => generate.mutate(undefined, { onError: reportError })}>{t("postmortem.generate")}</Button> : undefined}
+        description={isResolved ? t("postmortem.emptyResolved") : t("postmortem.emptyOpen", { action: t("header.resolve") })}
+        // While the incident is open the header's "Resolve and write postmortem" is the main action, so this one is the lesser "draft only" choice.
+        action={canEdit ? <Button variant={isResolved ? "primary" : "secondary"} leadingIcon={Sparkles} isLoading={generate.isPending} onClick={() => generate.mutate(undefined, { onError: reportError })}>{isResolved ? t("postmortem.generate") : t("postmortem.generateDraft")}</Button> : undefined}
         isBordered
       />
     );

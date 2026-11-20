@@ -181,7 +181,15 @@
     "window": "窗口 {{start}} 至 {{end}}",
     "metricPeak": "峰值 {{peak}} {{unit}}（基线 {{baseline}}）",
     "baselineLabel": "基线",
-    "metricChartLabel": "调查窗口内的{{metric}}"
+    "metricChartLabel": "调查窗口内的{{metric}}",
+    "filterBar": "证据筛选",
+    "filterRelevant": "强和中等（{{count}}）",
+    "serviceFilter": "按服务筛选",
+    "allServices": "所有服务",
+    "noMatches": "没有符合这些筛选条件的证据。",
+    "showMore_one": "再显示 {{count}} 项（弱信号或已排除）",
+    "showMore_other": "再显示 {{count}} 项（弱信号或已排除）",
+    "showFewer": "隐藏弱信号项"
   },
   "blast": {
     "emptyTitle": "暂无影响范围",
@@ -196,7 +204,9 @@
     "sloFallback": "SLO",
     "sloStatus": { "healthy": "健康", "at_risk": "有风险", "breached": "已违约", "no_data": "无数据" },
     "stakeholdersTitle": "需通知的相关方",
-    "noStakeholders": "没有相关方订阅了受影响的服务。"
+    "noStakeholders": "没有相关方订阅了受影响的服务。",
+    "healthySlos_one": "这些服务的另外 {{count}} 个 SLO 状态正常。",
+    "healthySlos_other": "这些服务的另外 {{count}} 个 SLO 状态正常。"
   },
   "timeline": {
     "empty": "暂无事件。",
@@ -206,7 +216,11 @@
       "azure_activity_log": "Azure 活动日志",
       "alert_intake": "告警",
       "teams": "Teams 群聊"
-    }
+    },
+    "beforeIncident": "事件发生之前",
+    "pipelineTitle_one": "Keigan 分析：{{count}} 个步骤",
+    "pipelineTitle_other": "Keigan 分析：{{count}} 个步骤",
+    "pipelineShow": "显示步骤"
   },
   "alerts": {
     "emptyTitle": "无告警组",
@@ -254,7 +268,7 @@
     "noIncidentDescription": "复盘是针对事件撰写的。此调查未关联任何事件。",
     "emptyTitle": "暂无复盘",
     "emptyResolved": "根据事件、调查、时间线和沟通内容，生成一份对事不对人的复盘。",
-    "emptyOpen": "解决事件后即可生成复盘，也可以现在先生成草稿。",
+    "emptyOpen": "使用上方的“{{action}}”可一次性关闭事件并撰写复盘。此按钮只会生成草稿，事件保持未解决状态。",
     "generate": "生成复盘",
     "regenerate": "重新生成",
     "generatingTitle": "正在撰写复盘",
@@ -277,7 +291,8 @@
     "notSentTitle": "尚未发送",
     "download": "下载 .md",
     "print": "打印或另存为 PDF",
-    "actionFailed": "操作未成功"
+    "actionFailed": "操作未成功",
+    "generateDraft": "仅生成草稿"
   },
   "resolve": {
     "title": "解决此事件",

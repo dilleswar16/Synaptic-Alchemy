@@ -26,7 +26,15 @@
   "empty": {
     "title": "Wat wilt u weten?",
     "description": "Vraag naar aantallen fouten, patronen in de tijd, architectuur of runbooks. Keigan leest alleen en wijzigt nooit uw systemen.",
-    "category": { "data": "Uit uw logs", "knowledge": "Uit uw kennisbank" }
+    "category": { "data": "Uit uw logs", "knowledge": "Uit uw kennisbank" },
+    "generic": {
+      "errors": "Welke van mijn applicaties had de afgelopen 24 uur de meeste fouten?",
+      "trend": "Toon me de foutentrend van mijn applicaties over de afgelopen 7 dagen",
+      "slow": "Welke services zijn vandaag trager dan normaal?",
+      "incidents": "Welke van mijn applicaties hebben op dit moment open incidenten?",
+      "runbook": "Wat is het runbook voor een mislukte databaseverbinding?",
+      "changes": "Vat samen wat er het afgelopen etmaal in mijn applicaties is gewijzigd"
+    }
   },
   "composer": {
     "label": "Bericht aan Keigan",

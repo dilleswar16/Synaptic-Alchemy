@@ -26,7 +26,7 @@ export function EcosystemHeatmap({ days = 30 }: { days?: number }) {
   return (
     <HeatmapGrid
       ariaLabel={t("heatmap.title")}
-      rows={heatmap.rows.map((row) => ({ key: row.sloId, label: `${row.applicationName.split(" (")[0]} · ${row.rowLabel}` }))}
+      rows={heatmap.rows.map((row) => ({ key: row.sloId, label: `${row.rowLabel} · ${row.applicationName.split(" (")[0]}` }))}
       columns={heatmap.dates.map((date) => ({ key: date, label: formatDate(date, { month: "short", day: "numeric" }) }))}
       getValue={(rowKey, columnKey) => cellByKey.get(`${rowKey}|${columnKey}`)}
       valueFormatter={(value) => `${formatNumber(value, { maximumFractionDigits: 2 })} %`}

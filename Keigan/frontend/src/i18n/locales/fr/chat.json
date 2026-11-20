@@ -26,7 +26,15 @@
   "empty": {
     "title": "Que souhaitez-vous savoir ?",
     "description": "Posez des questions sur le nombre d'erreurs, les tendances dans le temps, l'architecture ou les runbooks. Keigan lit uniquement ; il ne modifie jamais vos systèmes.",
-    "category": { "data": "Depuis vos journaux", "knowledge": "Depuis votre base de connaissances" }
+    "category": { "data": "Depuis vos journaux", "knowledge": "Depuis votre base de connaissances" },
+    "generic": {
+      "errors": "Laquelle de mes applications a eu le plus d'erreurs ces dernières 24 heures ?",
+      "trend": "Montre-moi l'évolution des erreurs de mes applications sur les 7 derniers jours",
+      "slow": "Quels services sont plus lents que d'habitude aujourd'hui ?",
+      "incidents": "Quelles applications ont des incidents ouverts en ce moment ?",
+      "runbook": "Quel est le runbook en cas d'échec de connexion à la base de données ?",
+      "changes": "Résume ce qui a changé dans mes applications au cours du dernier jour"
+    }
   },
   "composer": {
     "label": "Message pour Keigan",

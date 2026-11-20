@@ -128,7 +128,7 @@ export function InvestigationChatPanel({ investigationId }: { investigationId: s
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
+            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { // Enter that confirms an IME conversion (Japanese, Chinese) must not send
               event.preventDefault();
               void sendMessage(draft);
             }

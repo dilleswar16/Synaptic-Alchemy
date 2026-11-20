@@ -26,7 +26,15 @@
   "empty": {
     "title": "您想了解什么？",
     "description": "可询问错误数量、随时间变化的规律、架构或运行手册。Keigan 只读取数据，绝不会更改您的系统。",
-    "category": { "data": "来自您的日志", "knowledge": "来自您的知识库" }
+    "category": { "data": "来自您的日志", "knowledge": "来自您的知识库" },
+    "generic": {
+      "errors": "过去 24 小时内，我的哪个应用程序错误最多？",
+      "trend": "显示我的应用程序过去 7 天的错误趋势",
+      "slow": "今天哪些服务比平时更慢？",
+      "incidents": "我的哪些应用程序目前有未解决的事件？",
+      "runbook": "数据库连接失败的运行手册是什么？",
+      "changes": "总结我的应用程序在过去一天内的变更"
+    }
   },
   "composer": {
     "label": "给 Keigan 发消息",

@@ -22,6 +22,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
 import { cn } from "@/utils/cn";
 
+const genericPromptKeys = [["errors", "data"], ["trend", "data"], ["slow", "data"], ["incidents", "data"], ["runbook", "knowledge"], ["changes", "knowledge"]] as const;
+
 /** Keigan AI chat: conversation list on the left, the conversation on the right (doc 04 §6.8). */
 export default function KeiganChatPage() {
   const { t } = useTranslation("chat");
@@ -34,7 +36,10 @@ export default function KeiganChatPage() {
   const createConversation = useCreateConversation();
   const renameConversation = useRenameConversation();
   const deleteConversation = useDeleteConversation();
-  const suggestedPrompts = useSuggestedPrompts(scope.applicationIds[0] ?? null);
+  // One application in scope: the server writes prompts about it. Otherwise the prompts are generic, never about an arbitrary application.
+  const scopedApplicationId = scope.applicationIds.length === 1 ? (scope.applicationIds[0] ?? null) : null;
+  const suggestedPrompts = useSuggestedPrompts(scopedApplicationId);
+  const prompts = scopedApplicationId ? (suggestedPrompts.data ?? []) : genericPromptKeys.map(([key, category]) => ({ promptText: t(`empty.generic.${key}`), category }));
   const [searchText, setSearchText] = useState("");
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -140,7 +145,7 @@ export default function KeiganChatPage() {
                     <h2 className="text-h2 font-semibold text-default">{t("empty.title")}</h2>
                     <p className="text-body text-muted">{t("empty.description")}</p>
                     <ul className="grid w-full grid-cols-1 gap-3 text-left sm:grid-cols-2 lg:grid-cols-3">
-                      {(suggestedPrompts.data ?? []).map((prompt) => (
+                      {prompts.map((prompt) => (
                         <li key={prompt.promptText}>
                           <button type="button" onClick={() => void submit(prompt.promptText)} className="h-full w-full rounded-lg border border-hairline bg-surface p-3 text-body-sm text-default shadow-xs transition hover:-translate-y-px hover:bg-surface-hover hover:shadow-sm">
                             <span className="mb-1 block text-caption font-medium text-muted">{t(`empty.category.${prompt.category}`)}</span>

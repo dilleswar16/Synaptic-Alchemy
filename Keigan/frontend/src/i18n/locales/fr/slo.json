@@ -6,7 +6,7 @@
   "emptyTitle": "Aucun SLO",
   "emptyDescription": "Ouvrez l'étape SLO d'une application pour examiner les propositions que Keigan a mesurées sur les 30 derniers jours, puis acceptez-les.",
   "headline": { "title": "SLO principaux", "description": "Mesurés au plus près de l'utilisateur, sur le point d'entrée de chaque application." },
-  "cards": { "title": "Tous les SLO" },
+  "cards": { "title": "Tous les SLO", "showHealthy": "Autres SLO ({{count}})" },
   "card": {
     "window": "Fenêtre de {{days}} jours", "approximate": "approximatif", "target": "Cible {{target}} %", "sparkline": "Tendance de {{name}} sur les 14 derniers jours", "budget": "Budget d'erreur",
     "budgetLeft": "{{percent}} % restant, {{minutes}} min", "noData": "Aucune donnée", "burn1h": "Conso. 1 h", "burn6h": "Conso. 6 h", "noBurn": "s.o."
@@ -26,5 +26,10 @@
   "custom": {
     "title": "Ajouter un SLI personnalisé (avancé)", "description": "Une requête KQL qui renvoie good, total et window_start (intervalles de 5 minutes).", "service": "Service", "servicePlaceholder": "Choisissez un service", "name": "Nom",
     "query": "Requête KQL", "queryHelp": "AppRequests | summarize good=countif(Success == true), total=count() by window_start=bin(TimeGenerated, 5m)", "target": "Cible", "save": "Créer le SLI et le SLO"
+  },
+  "attention": {
+    "title": "À surveiller",
+    "description": "SLO non respectés et à risque, les non respectés en premier.",
+    "none": "Aucun SLO n'est non respecté ou à risque."
   }
 }

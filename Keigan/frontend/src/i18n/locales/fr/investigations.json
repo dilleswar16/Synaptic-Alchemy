@@ -181,7 +181,15 @@
     "window": "Période du {{start}} au {{end}}",
     "metricPeak": "Pic de {{peak}} {{unit}} (référence {{baseline}})",
     "baselineLabel": "Référence",
-    "metricChartLabel": "{{metric}} pendant la période d'investigation"
+    "metricChartLabel": "{{metric}} pendant la période d'investigation",
+    "filterBar": "Filtres des preuves",
+    "filterRelevant": "Forts et moyens ({{count}})",
+    "serviceFilter": "Filtrer par service",
+    "allServices": "Tous les services",
+    "noMatches": "Aucune preuve ne correspond à ces filtres.",
+    "showMore_one": "Afficher {{count}} de plus (faible ou écartée)",
+    "showMore_other": "Afficher {{count}} de plus (faibles ou écartées)",
+    "showFewer": "Masquer les éléments faibles"
   },
   "blast": {
     "emptyTitle": "Aucun rayon d'impact",
@@ -196,7 +204,9 @@
     "sloFallback": "SLO",
     "sloStatus": { "healthy": "Sain", "at_risk": "À risque", "breached": "Non respecté", "no_data": "Aucune donnée" },
     "stakeholdersTitle": "Parties prenantes à informer",
-    "noStakeholders": "Aucune partie prenante n'est abonnée aux services impactés."
+    "noStakeholders": "Aucune partie prenante n'est abonnée aux services impactés.",
+    "healthySlos_one": "{{count}} autre SLO de ces services est sain.",
+    "healthySlos_other": "{{count}} autres SLO de ces services sont sains."
   },
   "timeline": {
     "empty": "Aucun événement pour l'instant.",
@@ -206,7 +216,11 @@
       "azure_activity_log": "Journal d'activité Azure",
       "alert_intake": "Alerte",
       "teams": "Conversation Teams"
-    }
+    },
+    "beforeIncident": "Avant l'incident",
+    "pipelineTitle_one": "Analyse de Keigan : {{count}} étape",
+    "pipelineTitle_other": "Analyse de Keigan : {{count}} étapes",
+    "pipelineShow": "Afficher les étapes"
   },
   "alerts": {
     "emptyTitle": "Aucun groupe d'alertes",
@@ -254,7 +268,7 @@
     "noIncidentDescription": "Les post-mortems sont rédigés pour des incidents. Cette investigation n'est liée à aucun incident.",
     "emptyTitle": "Aucun post-mortem",
     "emptyResolved": "Générez un post-mortem sans recherche de coupable à partir de l'incident, de l'investigation, de la chronologie et des communications.",
-    "emptyOpen": "Résolvez l'incident pour générer un post-mortem, ou générez un brouillon dès maintenant.",
+    "emptyOpen": "Utilisez « {{action}} » ci-dessus pour clôturer l'incident et rédiger le post-mortem en une fois. Ce bouton génère seulement un brouillon maintenant et laisse l'incident ouvert.",
     "generate": "Générer le post-mortem",
     "regenerate": "Régénérer",
     "generatingTitle": "Rédaction du post-mortem",
@@ -277,7 +291,8 @@
     "notSentTitle": "Pas encore envoyé",
     "download": "Télécharger le .md",
     "print": "Imprimer ou enregistrer en PDF",
-    "actionFailed": "Cela n'a pas fonctionné"
+    "actionFailed": "Cela n'a pas fonctionné",
+    "generateDraft": "Générer seulement un brouillon"
   },
   "resolve": {
     "title": "Résoudre cet incident",

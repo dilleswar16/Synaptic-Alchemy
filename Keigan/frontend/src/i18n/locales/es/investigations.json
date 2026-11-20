@@ -181,7 +181,15 @@
     "window": "Ventana de {{start}} a {{end}}",
     "metricPeak": "Pico de {{peak}} {{unit}} (referencia {{baseline}})",
     "baselineLabel": "Referencia",
-    "metricChartLabel": "{{metric}} durante la ventana de investigación"
+    "metricChartLabel": "{{metric}} durante la ventana de investigación",
+    "filterBar": "Filtros de evidencia",
+    "filterRelevant": "Fuertes y medias ({{count}})",
+    "serviceFilter": "Filtrar por servicio",
+    "allServices": "Todos los servicios",
+    "noMatches": "Ninguna evidencia coincide con estos filtros.",
+    "showMore_one": "Mostrar {{count}} más (débil o descartada)",
+    "showMore_other": "Mostrar {{count}} más (débiles o descartadas)",
+    "showFewer": "Ocultar las débiles"
   },
   "blast": {
     "emptyTitle": "Aún no hay radio de impacto",
@@ -196,7 +204,9 @@
     "sloFallback": "SLO",
     "sloStatus": { "healthy": "Saludable", "at_risk": "En riesgo", "breached": "Incumplido", "no_data": "Sin datos" },
     "stakeholdersTitle": "Partes interesadas a informar",
-    "noStakeholders": "Ninguna parte interesada está suscrita a los servicios afectados."
+    "noStakeholders": "Ninguna parte interesada está suscrita a los servicios afectados.",
+    "healthySlos_one": "{{count}} SLO más de estos servicios está en buen estado.",
+    "healthySlos_other": "{{count}} SLO más de estos servicios están en buen estado."
   },
   "timeline": {
     "empty": "Aún no hay eventos.",
@@ -206,7 +216,11 @@
       "azure_activity_log": "Registro de actividad de Azure",
       "alert_intake": "Alerta",
       "teams": "Chat de Teams"
-    }
+    },
+    "beforeIncident": "Antes del incidente",
+    "pipelineTitle_one": "Análisis de Keigan: {{count}} paso",
+    "pipelineTitle_other": "Análisis de Keigan: {{count}} pasos",
+    "pipelineShow": "Mostrar los pasos"
   },
   "alerts": {
     "emptyTitle": "Sin grupo de alertas",
@@ -254,7 +268,7 @@
     "noIncidentDescription": "Los postmortems se redactan para incidentes. Esta investigación no está vinculada a ninguno.",
     "emptyTitle": "Aún no hay postmortem",
     "emptyResolved": "Genere un postmortem sin culpables a partir del incidente, la investigación, la cronología y las comunicaciones.",
-    "emptyOpen": "Resuelva el incidente para generar un postmortem, o genere un borrador ahora.",
+    "emptyOpen": "Use «{{action}}» arriba para cerrar el incidente y redactar el postmortem a la vez. Este botón solo genera un borrador ahora y deja el incidente abierto.",
     "generate": "Generar postmortem",
     "regenerate": "Regenerar",
     "generatingTitle": "Redactando el postmortem",
@@ -277,7 +291,8 @@
     "notSentTitle": "Aún no enviado",
     "download": "Descargar .md",
     "print": "Imprimir o guardar como PDF",
-    "actionFailed": "No funcionó"
+    "actionFailed": "No funcionó",
+    "generateDraft": "Generar solo un borrador"
   },
   "resolve": {
     "title": "Resolver este incidente",

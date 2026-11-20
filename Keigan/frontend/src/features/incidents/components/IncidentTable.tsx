@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import type { IncidentSummary } from "@/api/incidentsApi";
@@ -8,7 +9,8 @@ import { PriorityChip } from "@/components/ui/PriorityChip";
 import { RelativeTime } from "@/components/ui/RelativeTime";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { formatDuration } from "@/utils/formatters";
-import { incidentStatusTone, isOpenIncident } from "./incidentPresentation";
+import { cn } from "@/utils/cn";
+import { incidentStatusTone, isOpenIncident, orderOpenFirst } from "./incidentPresentation";
 
 interface IncidentTableProps {
   incidents: IncidentSummary[];
@@ -40,15 +42,16 @@ export function IncidentPriority({ incident }: { incident: IncidentSummary }) {
 export function IncidentTable({ incidents, isLoading, totalCount, page, pageSize, onPageChange }: IncidentTableProps) {
   const { t } = useTranslation("incidents");
   const navigate = useNavigate();
+  const orderedIncidents = useMemo(() => orderOpenFirst(incidents), [incidents]);
   const columns: DataTableColumn<IncidentSummary>[] = [
     { key: "priority", header: t("columns.priority"), width: "5.5rem", cell: (incident) => <IncidentPriority incident={incident} />, sortValue: (incident) => incident.keiganPriority ?? "P9" },
-    { key: "number", header: t("columns.number"), width: "8.5rem", cell: (incident) => <span className="whitespace-nowrap font-mono text-body-sm">{incident.externalIncidentNumber ?? t("noNumber")}</span>, sortValue: (incident) => incident.externalIncidentNumber },
+    { key: "number", header: t("columns.number"), width: "8.5rem", cell: (incident) => <span className={cn("whitespace-nowrap font-mono text-body-sm", !isOpenIncident(incident.incidentStatus) && "text-muted")}>{incident.externalIncidentNumber ?? t("noNumber")}</span>, sortValue: (incident) => incident.externalIncidentNumber },
     {
       key: "title",
       header: t("columns.title"),
       cell: (incident) => (
         <div className="flex min-w-[11rem] max-w-[15.5rem] min-[1400px]:max-w-[19rem] flex-col">
-          <span className="line-clamp-2 break-words font-medium text-default" title={incident.incidentTitle}>{incident.incidentTitle}</span>
+          <span className={cn("line-clamp-2 break-words", isOpenIncident(incident.incidentStatus) ? "font-medium text-default" : "text-muted")} title={incident.incidentTitle}>{incident.incidentTitle}</span>
           <span className="truncate text-caption text-muted" title={[incident.application.applicationName, incident.assignmentGroupName].filter(Boolean).join(" · ")}>
             {incident.application.applicationName} · {incident.affectedServiceNames.slice(0, 3).join(", ") || t("noServices")}
           </span>
@@ -79,10 +82,10 @@ export function IncidentTable({ incidents, isLoading, totalCount, page, pageSize
       key: "detected",
       header: t("columns.detected"),
       cell: (incident) => (
-        <div className="flex max-w-[8rem] flex-col min-[1400px]:max-w-none">
+        <div className="flex max-w-[9rem] flex-col min-[1400px]:max-w-none">
           <RelativeTime value={incident.detectedByKeiganAt} className="block truncate text-body-sm" />
           <span className={isOpenIncident(incident.incidentStatus) ? "text-caption font-medium text-default" : "text-caption text-muted"} title={t("columns.duration")}>
-            {formatDuration(incident.durationMinutes * 60_000, { maximumUnits: 2, unitDisplay: "narrow" })}
+            {t(isOpenIncident(incident.incidentStatus) ? "duration.open" : "duration.resolved", { duration: formatDuration(incident.durationMinutes * 60_000, { maximumUnits: 2, unitDisplay: "narrow" }) })}
           </span>
         </div>
       ),
@@ -93,7 +96,7 @@ export function IncidentTable({ incidents, isLoading, totalCount, page, pageSize
     <DataTable
       caption={t("tableCaption")}
       columns={columns}
-      rows={incidents}
+      rows={orderedIncidents}
       getRowId={(incident) => incident.incidentId}
       isLoading={isLoading}
       density="dense"

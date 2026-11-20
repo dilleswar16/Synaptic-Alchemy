@@ -6,7 +6,7 @@
   "emptyTitle": "No SLOs yet",
   "emptyDescription": "Open an application's SLO step to review the proposals Keigan measured from the last 30 days, then accept them.",
   "headline": { "title": "Headline SLOs", "description": "Measured closest to the user, on each application's entry point." },
-  "cards": { "title": "All SLOs" },
+  "cards": { "title": "All SLOs", "showHealthy": "Other SLOs ({{count}})" },
   "card": {
     "window": "{{days}} day window", "approximate": "approximate", "target": "Target {{target}} %", "sparkline": "Trend of {{name}} for the last 14 days", "budget": "Error budget",
     "budgetLeft": "{{percent}} % left, {{minutes}} min", "noData": "No data", "burn1h": "Burn 1 h", "burn6h": "Burn 6 h", "noBurn": "n/a"
@@ -26,5 +26,10 @@
   "custom": {
     "title": "Add custom SLI (advanced)", "description": "A KQL query that returns good, total and window_start (5-minute bins).", "service": "Service", "servicePlaceholder": "Choose a service", "name": "Name",
     "query": "KQL query", "queryHelp": "AppRequests | summarize good=countif(Success == true), total=count() by window_start=bin(TimeGenerated, 5m)", "target": "Target", "save": "Create SLI and SLO"
+  },
+  "attention": {
+    "title": "Needs attention",
+    "description": "Breached and at-risk SLOs, breached first.",
+    "none": "No SLO is breached or at risk."
   }
 }

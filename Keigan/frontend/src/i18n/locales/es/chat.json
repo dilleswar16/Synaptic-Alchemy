@@ -26,7 +26,15 @@
   "empty": {
     "title": "¿Qué le gustaría saber?",
     "description": "Pregunte por recuentos de errores, patrones en el tiempo, arquitectura o runbooks. Keigan solo lee; nunca modifica sus sistemas.",
-    "category": { "data": "De sus registros", "knowledge": "De su base de conocimiento" }
+    "category": { "data": "De sus registros", "knowledge": "De su base de conocimiento" },
+    "generic": {
+      "errors": "¿Cuál de mis aplicaciones tuvo más errores en las últimas 24 horas?",
+      "trend": "Muéstrame la tendencia de errores de mis aplicaciones en los últimos 7 días",
+      "slow": "¿Qué servicios están más lentos de lo habitual hoy?",
+      "incidents": "¿Cuáles de mis aplicaciones tienen incidentes abiertos ahora mismo?",
+      "runbook": "¿Cuál es el runbook para un fallo de conexión a la base de datos?",
+      "changes": "Resume qué cambió en mis aplicaciones en el último día"
+    }
   },
   "composer": {
     "label": "Mensaje para Keigan",

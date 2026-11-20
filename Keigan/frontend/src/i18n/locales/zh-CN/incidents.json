@@ -65,5 +65,9 @@
     "start": "开始调查",
     "startedTitle": "调查已开始",
     "startedDescription": "Keigan 正在收集证据，通常需要一到两分钟。"
+  },
+  "duration": {
+    "open": "已持续 {{duration}}",
+    "resolved": "历时 {{duration}}"
   }
 }

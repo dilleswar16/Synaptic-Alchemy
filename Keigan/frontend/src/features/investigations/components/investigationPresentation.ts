@@ -62,3 +62,7 @@ export const timelineEventTone = (eventType: string): StatusTone => {
   if (eventType.startsWith("rca") || eventType.startsWith("evidence") || eventType.startsWith("investigation") || eventType.startsWith("postmortem") || eventType.startsWith("communications")) return "ai";
   return "neutral";
 };
+
+/** Keigan's own pipeline steps (investigation, evidence, analysis, communications drafts): they all land within seconds of each other. */
+export const isPipelineEvent = (eventType: string, eventSource: string): boolean =>
+  eventSource === "keigan" && /^(investigation|evidence|rca|communications|postmortem)/.test(eventType);

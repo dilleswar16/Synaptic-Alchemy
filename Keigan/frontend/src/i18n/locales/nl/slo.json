@@ -6,7 +6,7 @@
   "emptyTitle": "Nog geen SLO's",
   "emptyDescription": "Open de SLO-stap van een applicatie om de voorstellen te bekijken die Keigan over de laatste 30 dagen heeft gemeten, en accepteer ze.",
   "headline": { "title": "Hoofd-SLO's", "description": "Zo dicht mogelijk bij de gebruiker gemeten, op het toegangspunt van elke applicatie." },
-  "cards": { "title": "Alle SLO's" },
+  "cards": { "title": "Alle SLO's", "showHealthy": "Overige SLO's ({{count}})" },
   "card": {
     "window": "Venster van {{days}} dagen", "approximate": "bij benadering", "target": "Doel {{target}} %", "sparkline": "Trend van {{name}} over de laatste 14 dagen", "budget": "Foutbudget",
     "budgetLeft": "{{percent}} % over, {{minutes}} min", "noData": "Geen gegevens", "burn1h": "Burn 1 u", "burn6h": "Burn 6 u", "noBurn": "n.v.t."
@@ -26,5 +26,10 @@
   "custom": {
     "title": "Aangepaste SLI toevoegen (geavanceerd)", "description": "Een KQL-query die good, total en window_start (blokken van 5 minuten) teruggeeft.", "service": "Service", "servicePlaceholder": "Kies een service", "name": "Naam",
     "query": "KQL-query", "queryHelp": "AppRequests | summarize good=countif(Success == true), total=count() by window_start=bin(TimeGenerated, 5m)", "target": "Doel", "save": "SLI en SLO aanmaken"
+  },
+  "attention": {
+    "title": "Vraagt aandacht",
+    "description": "SLO's die zijn geschonden of risico lopen, geschonden eerst.",
+    "none": "Geen enkele SLO is geschonden of loopt risico."
   }
 }

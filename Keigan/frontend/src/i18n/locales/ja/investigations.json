@@ -181,7 +181,15 @@
     "window": "期間 {{start}} ～ {{end}}",
     "metricPeak": "ピーク {{peak}} {{unit}}（ベースライン {{baseline}}）",
     "baselineLabel": "ベースライン",
-    "metricChartLabel": "調査期間中の{{metric}}"
+    "metricChartLabel": "調査期間中の{{metric}}",
+    "filterBar": "エビデンスの絞り込み",
+    "filterRelevant": "強・中（{{count}}）",
+    "serviceFilter": "サービスで絞り込む",
+    "allServices": "すべてのサービス",
+    "noMatches": "この条件に一致するエビデンスはありません。",
+    "showMore_one": "さらに {{count}} 件を表示（弱い・除外済み）",
+    "showMore_other": "さらに {{count}} 件を表示（弱い・除外済み）",
+    "showFewer": "弱い項目を隠す"
   },
   "blast": {
     "emptyTitle": "影響範囲はまだありません",
@@ -196,7 +204,9 @@
     "sloFallback": "SLO",
     "sloStatus": { "healthy": "正常", "at_risk": "リスクあり", "breached": "違反", "no_data": "データなし" },
     "stakeholdersTitle": "連絡すべきステークホルダー",
-    "noStakeholders": "影響を受けるサービスを購読しているステークホルダーはいません。"
+    "noStakeholders": "影響を受けるサービスを購読しているステークホルダーはいません。",
+    "healthySlos_one": "これらのサービスの他の {{count}} 件の SLO は正常です。",
+    "healthySlos_other": "これらのサービスの他の {{count}} 件の SLO は正常です。"
   },
   "timeline": {
     "empty": "イベントはまだありません。",
@@ -206,7 +216,11 @@
       "azure_activity_log": "Azure アクティビティログ",
       "alert_intake": "アラート",
       "teams": "Teams チャット"
-    }
+    },
+    "beforeIncident": "インシデント発生前",
+    "pipelineTitle_one": "Keigan の分析：{{count}} ステップ",
+    "pipelineTitle_other": "Keigan の分析：{{count}} ステップ",
+    "pipelineShow": "ステップを表示"
   },
   "alerts": {
     "emptyTitle": "アラートグループはありません",
@@ -254,7 +268,7 @@
     "noIncidentDescription": "ポストモーテムはインシデントに対して作成されます。この調査はインシデントに関連付けられていません。",
     "emptyTitle": "ポストモーテムはまだありません",
     "emptyResolved": "インシデント、調査、タイムライン、コミュニケーションから、非難のないポストモーテムを生成します。",
-    "emptyOpen": "インシデントを解決するとポストモーテムを生成できます。または、今すぐ下書きを生成できます。",
+    "emptyOpen": "上の「{{action}}」を使うと、インシデントの解決とポストモーテムの作成を一度に行えます。このボタンは下書きを生成するだけで、インシデントは未解決のままです。",
     "generate": "ポストモーテムを生成",
     "regenerate": "再生成",
     "generatingTitle": "ポストモーテムを作成中",
@@ -277,7 +291,8 @@
     "notSentTitle": "未送信",
     "download": ".md をダウンロード",
     "print": "印刷または PDF として保存",
-    "actionFailed": "操作に失敗しました"
+    "actionFailed": "操作に失敗しました",
+    "generateDraft": "下書きだけを生成"
   },
   "resolve": {
     "title": "このインシデントを解決",

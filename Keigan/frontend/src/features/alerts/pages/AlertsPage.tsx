@@ -67,10 +67,11 @@ export default function AlertsPage() {
       key: "reason",
       header: t("groups.columns.reason"),
       cell: (group) => (
-        <div className="flex max-w-80 flex-col gap-1">
-          {group.decisionOutcome ? <StatusChip tone="neutral" variant="outline" size="sm" icon={false}>{outcomeLabel(group.decisionOutcome)}</StatusChip> : null}
-          <span className="line-clamp-2 text-caption text-muted">{group.decisionReason}</span>
-        </div>
+        <Tooltip content={group.decisionReason} side="left">
+          <span className="inline-flex" tabIndex={group.decisionReason ? 0 : undefined}>
+            <StatusChip tone="neutral" variant="outline" size="sm" icon={false}>{outcomeLabel(group.decisionOutcome) || "-"}</StatusChip>
+          </span>
+        </Tooltip>
       ),
     },
     { key: "activity", header: t("groups.columns.lastActivity"), cell: (group) => <RelativeTime value={group.lastActivityAt} />, sortValue: (group) => group.lastActivityAt },
@@ -90,6 +91,7 @@ export default function AlertsPage() {
 
   const funnel = funnelQuery.data;
   const policy = policyQuery.data;
+  const orderedGroups = useMemo(() => [...(groupsQuery.data?.items ?? [])].sort((first, second) => Number(second.groupStatus === "open") - Number(first.groupStatus === "open") || second.priorityScore - first.priorityScore || Date.parse(second.lastActivityAt) - Date.parse(first.lastActivityAt)), [groupsQuery.data]);
   const openGroup = groupsQuery.data?.items.find((group) => group.alertGroupId === openGroupId);
 
   return (
@@ -129,7 +131,7 @@ export default function AlertsPage() {
         {groupsQuery.isError ? <ErrorState error={groupsQuery.error} onRetry={() => groupsQuery.refetch()} /> : (
           <DataTable
             columns={columns}
-            rows={groupsQuery.data?.items ?? []}
+            rows={orderedGroups}
             getRowId={(group) => group.alertGroupId}
             caption={t("groups.title")}
             isLoading={groupsQuery.isLoading}

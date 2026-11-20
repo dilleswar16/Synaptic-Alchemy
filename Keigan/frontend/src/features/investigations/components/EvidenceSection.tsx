@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, ShieldAlert } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, ShieldAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Evidence, InvestigationDetail, LogPattern, MetricSeriesSummary, SignalStrength } from "@/api/investigationsApi";
 import { TimeSeriesChart } from "@/components/charts";
@@ -10,6 +10,7 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { CommandBlock } from "@/components/ui/CommandBlock";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Select } from "@/components/ui/Select";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { formatDateTime, formatNumber, formatTime } from "@/utils/formatters";
 import { cn } from "@/utils/cn";
@@ -107,56 +108,87 @@ function EvidenceCard({ evidence, isSelected }: { evidence: Evidence; isSelected
   );
 }
 
-type StrengthFilter = "all" | "strong";
+type StrengthFilter = "relevant" | "strong" | "all";
+const allServices = "__all__";
 
 interface EvidenceSectionProps {
   detail: InvestigationDetail;
   selectedEvidenceCode: string | null;
 }
 
-/** Evidence grouped by service and source: patterns with NEW / xN badges, metrics, masked samples and the exact queries. */
+/** Evidence grouped by service: strong and medium signals first, weak or ruled-out items behind "Show N more"; the E-number anchors still open the item they point to. */
 export function EvidenceSection({ detail, selectedEvidenceCode }: EvidenceSectionProps) {
   const { t } = useTranslation("investigations");
-  const [filter, setFilter] = useState<StrengthFilter>("all");
+  const [strengthFilter, setStrengthFilter] = useState<StrengthFilter>("relevant");
+  const [serviceFilter, setServiceFilter] = useState(allServices);
+  const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
     if (!selectedEvidenceCode) return;
-    setFilter("all");
+    setStrengthFilter("all");
+    setServiceFilter(allServices);
     const timerId = window.setTimeout(() => document.getElementById(evidenceElementId(selectedEvidenceCode))?.scrollIntoView({ behavior: "smooth", block: "center" }), 120);
     return () => window.clearTimeout(timerId);
   }, [selectedEvidenceCode]);
 
+  const serviceNames = useMemo(() => [...new Set(detail.evidence.map((item) => item.serviceName ?? t("evidence.platform")))], [detail.evidence, t]);
   const groups = useMemo(() => {
-    const visible = detail.evidence.filter((item) => filter === "all" || item.signalStrength !== "low");
-    const grouped = new Map<string, Evidence[]>();
-    for (const item of visible) {
-      const key = item.serviceName ?? t("evidence.platform");
-      grouped.set(key, [...(grouped.get(key) ?? []), item]);
+    const grouped = new Map<string, { shown: Evidence[]; hidden: Evidence[] }>();
+    for (const item of detail.evidence) {
+      const service = item.serviceName ?? t("evidence.platform");
+      if (serviceFilter !== allServices && service !== serviceFilter) continue;
+      if (strengthFilter === "strong" && item.signalStrength !== "high") continue;
+      const group = grouped.get(service) ?? { shown: [], hidden: [] };
+      (strengthFilter === "relevant" && item.signalStrength === "low" ? group.hidden : group.shown).push(item);
+      grouped.set(service, group);
     }
     return [...grouped.entries()];
-  }, [detail.evidence, filter, t]);
+  }, [detail.evidence, strengthFilter, serviceFilter, t]);
 
   if (detail.evidence.length === 0) return <EmptyState title={t("evidence.emptyTitle")} description={t("evidence.emptyDescription")} isBordered />;
-  const strongCount = detail.evidence.filter((item) => item.signalStrength !== "low").length;
+  const strongCount = detail.evidence.filter((item) => item.signalStrength === "high").length;
+  const relevantCount = detail.evidence.filter((item) => item.signalStrength !== "low").length;
+  const toggleGroup = (service: string) => setExpandedGroups((previous) => { const next = new Set(previous); if (!next.delete(service)) next.add(service); return next; });
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-3xl text-body-sm text-muted">{t("evidence.intro", { window: `${formatDateTime(detail.investigationWindowStart)} - ${formatDateTime(detail.investigationWindowEnd)}` })}</p>
+      <p className="max-w-3xl text-body-sm text-muted">{t("evidence.intro", { window: `${formatDateTime(detail.investigationWindowStart)} - ${formatDateTime(detail.investigationWindowEnd)}` })}</p>
+      <div className="flex flex-wrap items-center gap-3" role="group" aria-label={t("evidence.filterBar")}>
         <SegmentedControl<StrengthFilter>
           aria-label={t("evidence.filterLabel")}
-          value={filter}
-          onValueChange={setFilter}
+          value={strengthFilter}
+          onValueChange={setStrengthFilter}
           options={[
-            { value: "all", label: t("evidence.filterAll", { count: detail.evidence.length }) },
+            { value: "relevant", label: t("evidence.filterRelevant", { count: relevantCount }) },
             { value: "strong", label: t("evidence.filterStrong", { count: strongCount }) },
+            { value: "all", label: t("evidence.filterAll", { count: detail.evidence.length }) },
           ]}
         />
+        {serviceNames.length > 1 ? (
+          <Select
+            size="sm"
+            aria-label={t("evidence.serviceFilter")}
+            value={serviceFilter}
+            onValueChange={setServiceFilter}
+            options={[{ value: allServices, label: t("evidence.allServices") }, ...serviceNames.map((name) => ({ value: name, label: name }))]}
+            className="w-56"
+          />
+        ) : null}
       </div>
-      {groups.map(([serviceName, items]) => (
-        <section key={serviceName} aria-label={serviceName} className="flex flex-col gap-3">
-          <h3 className="text-h4 text-default">{serviceName}</h3>
-          {items.map((item) => <EvidenceCard key={item.evidenceId} evidence={item} isSelected={selectedEvidenceCode === item.evidenceCode} />)}
-        </section>
-      ))}
+      {groups.length === 0 ? <p className="text-body-sm text-muted">{t("evidence.noMatches")}</p> : null}
+      {groups.map(([serviceName, { shown, hidden }]) => {
+        const isExpanded = expandedGroups.has(serviceName);
+        return (
+          <section key={serviceName} aria-label={serviceName} className="flex flex-col gap-3">
+            <h3 className="text-h4 text-default">{serviceName}</h3>
+            {shown.map((item) => <EvidenceCard key={item.evidenceId} evidence={item} isSelected={selectedEvidenceCode === item.evidenceCode} />)}
+            {isExpanded ? hidden.map((item) => <EvidenceCard key={item.evidenceId} evidence={item} isSelected={selectedEvidenceCode === item.evidenceCode} />) : null}
+            {hidden.length > 0 ? (
+              <Button variant="secondary" size="sm" className="self-start" leadingIcon={isExpanded ? ChevronUp : ChevronDown} aria-expanded={isExpanded} onClick={() => toggleGroup(serviceName)}>
+                {isExpanded ? t("evidence.showFewer") : t("evidence.showMore", { count: hidden.length })}
+              </Button>
+            ) : null}
+          </section>
+        );
+      })}
     </div>
   );
 }

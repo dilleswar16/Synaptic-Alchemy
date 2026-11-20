@@ -78,6 +78,13 @@ export default function HomePage() {
         </div>
       </section>
 
+      <Card>
+        <CardHeader title={t("live.title")} description={t("live.description")} actions={<Button variant="ghost" size="sm" onClick={() => navigate("/incidents")}>{t("viewAll")}</Button>} />
+        <CardBody>
+          {!data ? <Skeleton className="h-24" /> : data.liveIncidents.length === 0 ? <p className="py-2 text-body-sm text-muted">{t("live.empty")}</p> : <ul>{data.liveIncidents.map((incident) => <LiveIncidentRow key={incident.incidentId} incident={incident} />)}</ul>}
+        </CardBody>
+      </Card>
+
       <section aria-label={t("kpi.sectionLabel")} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {!kpis ? [0, 1, 2, 3].map((index) => <Skeleton key={index} className="h-28" />) : (
           <>
@@ -99,13 +106,6 @@ export default function HomePage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">{data.applicationCards.map((card) => <ApplicationHealthCardView key={card.applicationId} card={card} />)}</div>
             )}
           </section>
-
-          <Card>
-            <CardHeader title={t("live.title")} description={t("live.description")} actions={<Button variant="ghost" size="sm" onClick={() => navigate("/incidents")}>{t("viewAll")}</Button>} />
-            <CardBody>
-              {!data ? <Skeleton className="h-24" /> : data.liveIncidents.length === 0 ? <p className="py-2 text-body-sm text-muted">{t("live.empty")}</p> : <ul>{data.liveIncidents.map((incident) => <LiveIncidentRow key={incident.incidentId} incident={incident} />)}</ul>}
-            </CardBody>
-          </Card>
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">

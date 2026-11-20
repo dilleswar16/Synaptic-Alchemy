@@ -26,7 +26,15 @@
   "empty": {
     "title": "What would you like to know?",
     "description": "Ask about error counts, patterns over time, architecture or runbooks. Keigan only reads; it never changes your systems.",
-    "category": { "data": "From your logs", "knowledge": "From your knowledge base" }
+    "category": { "data": "From your logs", "knowledge": "From your knowledge base" },
+    "generic": {
+      "errors": "Which of my applications had the most errors in the last 24 hours?",
+      "trend": "Show me the error trend across my applications over the last 7 days",
+      "slow": "Which services are slower than usual today?",
+      "incidents": "Which of my applications have open incidents right now?",
+      "runbook": "What is the runbook for a database connection failure?",
+      "changes": "Summarise what changed across my applications in the last day"
+    }
   },
   "composer": {
     "label": "Message Keigan",

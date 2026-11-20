@@ -65,5 +65,9 @@
     "start": "Onderzoek starten",
     "startedTitle": "Onderzoek gestart",
     "startedDescription": "Keigan verzamelt bewijs. Dit duurt meestal een à twee minuten."
+  },
+  "duration": {
+    "open": "{{duration}} open",
+    "resolved": "Duurde {{duration}}"
   }
 }

@@ -65,5 +65,9 @@
     "start": "Iniciar investigación",
     "startedTitle": "Investigación iniciada",
     "startedDescription": "Keigan está recopilando evidencia. Suele tardar uno o dos minutos."
+  },
+  "duration": {
+    "open": "Abierto desde hace {{duration}}",
+    "resolved": "Duró {{duration}}"
   }
 }

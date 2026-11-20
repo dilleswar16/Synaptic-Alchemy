@@ -6,7 +6,7 @@
   "emptyTitle": "SLO はまだありません",
   "emptyDescription": "アプリケーションの SLO ステップを開き、Keigan が過去 30 日間から測定した提案を確認して承認してください。",
   "headline": { "title": "主要 SLO", "description": "各アプリケーションのエントリポイントで、ユーザーに最も近い位置で測定しています。" },
-  "cards": { "title": "すべての SLO" },
+  "cards": { "title": "すべての SLO", "showHealthy": "その他の SLO（{{count}}）" },
   "card": {
     "window": "{{days}} 日間のウィンドウ", "approximate": "概算", "target": "目標 {{target}} %", "sparkline": "{{name}}の過去 14 日間のトレンド", "budget": "エラーバジェット",
     "budgetLeft": "残り {{percent}} %、{{minutes}} 分", "noData": "データなし", "burn1h": "バーン 1 時間", "burn6h": "バーン 6 時間", "noBurn": "該当なし"
@@ -26,5 +26,10 @@
   "custom": {
     "title": "カスタム SLI を追加（上級）", "description": "good、total、window_start（5 分間隔）を返す KQL クエリです。", "service": "サービス", "servicePlaceholder": "サービスを選択", "name": "名前",
     "query": "KQL クエリ", "queryHelp": "AppRequests | summarize good=countif(Success == true), total=count() by window_start=bin(TimeGenerated, 5m)", "target": "目標", "save": "SLI と SLO を作成"
+  },
+  "attention": {
+    "title": "要対応",
+    "description": "目標未達および危険な SLO。未達を先に表示します。",
+    "none": "未達または危険な SLO はありません。"
   }
 }

@@ -65,5 +65,9 @@
     "start": "Start investigation",
     "startedTitle": "Investigation started",
     "startedDescription": "Keigan is gathering evidence. This usually takes a minute or two."
+  },
+  "duration": {
+    "open": "Open for {{duration}}",
+    "resolved": "Lasted {{duration}}"
   }
 }

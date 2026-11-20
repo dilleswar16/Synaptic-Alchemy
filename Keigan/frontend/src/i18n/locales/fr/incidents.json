@@ -65,5 +65,9 @@
     "start": "Lancer l'investigation",
     "startedTitle": "Investigation lancée",
     "startedDescription": "Keigan collecte des preuves. Cela prend généralement une à deux minutes."
+  },
+  "duration": {
+    "open": "Ouvert depuis {{duration}}",
+    "resolved": "A duré {{duration}}"
   }
 }

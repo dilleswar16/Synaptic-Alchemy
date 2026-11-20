@@ -181,7 +181,15 @@
     "window": "Window {{start}} to {{end}}",
     "metricPeak": "Peak {{peak}} {{unit}} (baseline {{baseline}})",
     "baselineLabel": "Baseline",
-    "metricChartLabel": "{{metric}} during the investigation window"
+    "metricChartLabel": "{{metric}} during the investigation window",
+    "filterBar": "Evidence filters",
+    "filterRelevant": "Strong and medium ({{count}})",
+    "serviceFilter": "Filter by service",
+    "allServices": "All services",
+    "noMatches": "No evidence matches these filters.",
+    "showMore_one": "Show {{count}} more (weak or ruled out)",
+    "showMore_other": "Show {{count}} more (weak or ruled out)",
+    "showFewer": "Hide weak items"
   },
   "blast": {
     "emptyTitle": "No blast radius yet",
@@ -196,7 +204,9 @@
     "sloFallback": "SLO",
     "sloStatus": { "healthy": "Healthy", "at_risk": "At risk", "breached": "Breached", "no_data": "No data" },
     "stakeholdersTitle": "Stakeholders to inform",
-    "noStakeholders": "No stakeholders are subscribed to the impacted services."
+    "noStakeholders": "No stakeholders are subscribed to the impacted services.",
+    "healthySlos_one": "{{count}} other SLO for these services is healthy.",
+    "healthySlos_other": "{{count}} other SLOs for these services are healthy."
   },
   "timeline": {
     "empty": "No events yet.",
@@ -206,7 +216,11 @@
       "azure_activity_log": "Azure activity log",
       "alert_intake": "Alert",
       "teams": "Teams chat"
-    }
+    },
+    "beforeIncident": "Before the incident",
+    "pipelineTitle_one": "Keigan analysis: {{count}} step",
+    "pipelineTitle_other": "Keigan analysis: {{count}} steps",
+    "pipelineShow": "Show the steps"
   },
   "alerts": {
     "emptyTitle": "No alert group",
@@ -254,7 +268,7 @@
     "noIncidentDescription": "Postmortems are written for incidents. This investigation is not linked to one.",
     "emptyTitle": "No postmortem yet",
     "emptyResolved": "Generate a blameless postmortem from the incident, investigation, timeline and communications.",
-    "emptyOpen": "Resolve the incident to generate a postmortem, or generate a draft now.",
+    "emptyOpen": "Use \"{{action}}\" above to close the incident and write the postmortem together. This button only writes a draft now and leaves the incident open.",
     "generate": "Generate postmortem",
     "regenerate": "Regenerate",
     "generatingTitle": "Writing the postmortem",
@@ -277,7 +291,8 @@
     "notSentTitle": "Not sent yet",
     "download": "Download .md",
     "print": "Print or save as PDF",
-    "actionFailed": "That did not work"
+    "actionFailed": "That did not work",
+    "generateDraft": "Generate a draft only"
   },
   "resolve": {
     "title": "Resolve this incident",

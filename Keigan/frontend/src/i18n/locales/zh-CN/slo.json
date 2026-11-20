@@ -6,7 +6,7 @@
   "emptyTitle": "暂无 SLO",
   "emptyDescription": "打开应用的 SLO 步骤，查看 Keigan 根据过去 30 天数据测算出的建议，然后接受它们。",
   "headline": { "title": "核心 SLO", "description": "在最接近用户的位置，即各应用的入口处测量。" },
-  "cards": { "title": "所有 SLO" },
+  "cards": { "title": "所有 SLO", "showHealthy": "其他 SLO（{{count}}）" },
   "card": {
     "window": "{{days}} 天窗口", "approximate": "近似值", "target": "目标 {{target}} %", "sparkline": "{{name}}过去 14 天的趋势", "budget": "错误预算",
     "budgetLeft": "剩余 {{percent}} %，{{minutes}} 分钟", "noData": "无数据", "burn1h": "燃烧速率 1 小时", "burn6h": "燃烧速率 6 小时", "noBurn": "不适用"
@@ -26,5 +26,10 @@
   "custom": {
     "title": "添加自定义 SLI（高级）", "description": "返回 good、total 和 window_start（5 分钟分箱）的 KQL 查询。", "service": "服务", "servicePlaceholder": "选择服务", "name": "名称",
     "query": "KQL 查询", "queryHelp": "AppRequests | summarize good=countif(Success == true), total=count() by window_start=bin(TimeGenerated, 5m)", "target": "目标", "save": "创建 SLI 和 SLO"
+  },
+  "attention": {
+    "title": "需要关注",
+    "description": "已违反和有风险的 SLO，已违反的排在前面。",
+    "none": "没有已违反或有风险的 SLO。"
   }
 }

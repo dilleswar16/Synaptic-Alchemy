@@ -36,16 +36,18 @@ export function BlastRadiusSection({ detail }: { detail: InvestigationDetail }) 
 
   if (!blastRadius || !graph) return <EmptyState title={t("blast.emptyTitle")} description={t("blast.emptyDescription")} isBordered />;
   const directNames = blastRadius.nodes.filter((node) => node.impactLevel === "direct").map((node) => node.serviceName);
+  const atRiskSlos = blastRadius.impactedSlos.filter((slo) => slo.status !== "healthy");
+  const healthySloCount = blastRadius.impactedSlos.length - atRiskSlos.length;
   const indirectNames = blastRadius.nodes.filter((node) => node.impactLevel === "indirect").map((node) => node.serviceName);
   return (
     <div className="flex flex-col gap-5">
       <Card>
         <CardHeader title={t("blast.graphTitle")} description={t("blast.graphDescription")} actions={<AiGeneratedChip size="sm" modelName={detail.modelNames.join(", ") || null} />} />
         <CardBody className="flex flex-col gap-4">
-          <TopologyGraph nodes={graph.nodes} edges={graph.edges} highlightedNodeKeys={graph.highlighted} height={360} />
+          <TopologyGraph nodes={graph.nodes} edges={graph.edges} highlightedNodeKeys={graph.highlighted} height={440} showMiniMap={false} legendPlacement="below" />
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-body-sm">
             <p><Badge tone="danger">{t("blast.impact.direct")}</Badge> <span className="ml-1 text-muted">{directNames.join(", ") || t("blast.none")}</span></p>
-            <p><Badge tone="warning">{t("blast.impact.indirect")}</Badge> <span className="ml-1 text-muted">{indirectNames.join(", ") || t("blast.none")}</span></p>
+            <p><Badge tone="alert">{t("blast.impact.indirect")}</Badge> <span className="ml-1 text-muted">{indirectNames.join(", ") || t("blast.none")}</span></p>
           </div>
         </CardBody>
       </Card>
@@ -60,11 +62,11 @@ export function BlastRadiusSection({ detail }: { detail: InvestigationDetail }) 
         <Card>
           <CardHeader icon={Gauge} iconTone="warning" title={t("blast.slosTitle")} />
           <CardBody>
-            {blastRadius.impactedSlos.length === 0 ? (
+            {atRiskSlos.length === 0 ? (
               <p className="text-body-sm text-muted">{t("blast.noSlos")}</p>
             ) : (
               <ul className="flex flex-col gap-3">
-                {blastRadius.impactedSlos.map((slo, sloIndex) => (
+                {atRiskSlos.map((slo, sloIndex) => (
                   <li key={String(slo.sloId ?? sloIndex)} className="flex items-center justify-between gap-3">
                     <span className="text-body-sm text-default">{String(slo.sliName ?? t("blast.sloFallback"))}</span>
                     <StatusChip tone={sloTone[String(slo.status)] ?? "neutral"} size="sm">{t(`blast.sloStatus.${String(slo.status)}`, { defaultValue: String(slo.status ?? "") })}</StatusChip>
@@ -72,6 +74,7 @@ export function BlastRadiusSection({ detail }: { detail: InvestigationDetail }) 
                 ))}
               </ul>
             )}
+            {healthySloCount > 0 ? <p className="mt-3 border-t border-hairline pt-3 text-caption text-muted">{t("blast.healthySlos", { count: healthySloCount })}</p> : null}
           </CardBody>
         </Card>
         <Card>

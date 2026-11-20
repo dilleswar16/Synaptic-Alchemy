@@ -65,5 +65,9 @@
     "start": "調査を開始",
     "startedTitle": "調査を開始しました",
     "startedDescription": "Keigan が証拠を収集しています。通常 1～2 分かかります。"
+  },
+  "duration": {
+    "open": "{{duration}}継続中",
+    "resolved": "所要 {{duration}}"
   }
 }

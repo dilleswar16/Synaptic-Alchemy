@@ -41,6 +41,7 @@ import { formatDateTime } from "@/utils/formatters";
 const severityTone = { critical: "danger", warning: "warning", info: "info" } as const;
 const detectorNames: DetectorName[] = ["seasonal_anomaly", "error_budget_exhaustion", "saturation_trend", "recurring_incident", "change_risk", "new_error_pattern"];
 const allValue = "all";
+const severityRank: Record<SignalSeverity, number> = { critical: 0, warning: 1, info: 2 };
 
 /** Predictive intelligence: health-score trend, signals feed with actions, and the Keigan Intelligence Report archive. */
 export default function IntelligencePage() {
@@ -117,7 +118,11 @@ function SignalsSection({ applicationIds }: { applicationIds: string[] }) {
     detectors: detector === allValue ? undefined : [detector as DetectorName],
     statuses: showClosed ? ["open", "acknowledged", "dismissed", "converted_to_incident", "expired"] : undefined,
   });
-  const signals = signalsQuery.data ?? [];
+  // Critical first, then the newest: the signal that needs action must be the first card.
+  const signals = useMemo(
+    () => [...(signalsQuery.data ?? [])].sort((first, second) => severityRank[first.signalSeverity] - severityRank[second.signalSeverity] || Date.parse(second.detectedAt) - Date.parse(first.detectedAt)),
+    [signalsQuery.data],
+  );
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-4">

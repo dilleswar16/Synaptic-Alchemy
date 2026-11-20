@@ -181,7 +181,15 @@
     "window": "Venster {{start}} tot {{end}}",
     "metricPeak": "Piek {{peak}} {{unit}} (basislijn {{baseline}})",
     "baselineLabel": "Basislijn",
-    "metricChartLabel": "{{metric}} tijdens het onderzoeksvenster"
+    "metricChartLabel": "{{metric}} tijdens het onderzoeksvenster",
+    "filterBar": "Filters voor bewijs",
+    "filterRelevant": "Sterk en gemiddeld ({{count}})",
+    "serviceFilter": "Filteren op service",
+    "allServices": "Alle services",
+    "noMatches": "Geen bewijs komt overeen met deze filters.",
+    "showMore_one": "Nog {{count}} tonen (zwak of uitgesloten)",
+    "showMore_other": "Nog {{count}} tonen (zwak of uitgesloten)",
+    "showFewer": "Zwakke items verbergen"
   },
   "blast": {
     "emptyTitle": "Nog geen impactradius",
@@ -196,7 +204,9 @@
     "sloFallback": "SLO",
     "sloStatus": { "healthy": "Gezond", "at_risk": "In gevaar", "breached": "Geschonden", "no_data": "Geen gegevens" },
     "stakeholdersTitle": "Te informeren belanghebbenden",
-    "noStakeholders": "Geen belanghebbenden zijn geabonneerd op de getroffen services."
+    "noStakeholders": "Geen belanghebbenden zijn geabonneerd op de getroffen services.",
+    "healthySlos_one": "{{count}} andere SLO van deze services is gezond.",
+    "healthySlos_other": "{{count}} andere SLO's van deze services zijn gezond."
   },
   "timeline": {
     "empty": "Nog geen gebeurtenissen.",
@@ -206,7 +216,11 @@
       "azure_activity_log": "Azure-activiteitenlogboek",
       "alert_intake": "Melding",
       "teams": "Teams-chat"
-    }
+    },
+    "beforeIncident": "Vóór het incident",
+    "pipelineTitle_one": "Keigan-analyse: {{count}} stap",
+    "pipelineTitle_other": "Keigan-analyse: {{count}} stappen",
+    "pipelineShow": "Stappen tonen"
   },
   "alerts": {
     "emptyTitle": "Geen meldingsgroep",
@@ -254,7 +268,7 @@
     "noIncidentDescription": "Postmortems worden geschreven voor incidenten. Dit onderzoek is niet aan een incident gekoppeld.",
     "emptyTitle": "Nog geen postmortem",
     "emptyResolved": "Genereer een blameless postmortem op basis van het incident, het onderzoek, de tijdlijn en de communicatie.",
-    "emptyOpen": "Los het incident op om een postmortem te genereren, of genereer nu een concept.",
+    "emptyOpen": "Gebruik hierboven \"{{action}}\" om het incident te sluiten en het postmortem in één keer te schrijven. Deze knop schrijft nu alleen een concept en laat het incident open.",
     "generate": "Postmortem genereren",
     "regenerate": "Opnieuw genereren",
     "generatingTitle": "De postmortem wordt geschreven",
@@ -277,7 +291,8 @@
     "notSentTitle": "Nog niet verzonden",
     "download": ".md downloaden",
     "print": "Afdrukken of opslaan als PDF",
-    "actionFailed": "Dat is niet gelukt"
+    "actionFailed": "Dat is niet gelukt",
+    "generateDraft": "Alleen een concept genereren"
   },
   "resolve": {
     "title": "Dit incident oplossen",

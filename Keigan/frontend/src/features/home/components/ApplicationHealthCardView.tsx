@@ -35,7 +35,7 @@ export function ApplicationHealthCardView({ card }: { card: ApplicationHealthCar
   const { t: translateApplications } = useTranslation("applications");
   const budget = card.worstBudgetRemainingPercentage;
   return (
-    <Card interactive dense className="flex flex-col gap-3 p-[var(--card-padding)]">
+    <Card interactive dense className={cn("flex flex-col gap-3 p-[var(--card-padding)]", card.openIncidentCount > 0 && "border-l-4 border-l-danger-fill")}>
       <Link to={`/applications/${card.applicationId}`} className="flex items-start gap-3 rounded-md focus-visible:outline-2">
         <HealthRing percentage={card.healthPercentage} status={card.healthStatus} label={t("health.ringLabel", { percentage: card.healthPercentage, status: t(`health.status.${card.healthStatus}`) })} />
         <div className="min-w-0 flex-1">
