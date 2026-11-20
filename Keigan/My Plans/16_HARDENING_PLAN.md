@@ -61,10 +61,10 @@ Status: ⬜ open · 🔄 in progress · ✅ fixed and tested · ➖ not doing (r
 | H14 | Two-way soft links between alert group, investigation and incident can disagree | `entities/alert_entities.py:108-109`, `entities/incident_entities.py:71-72` | ⬜ |
 | H15 | SLI list runs two queries per SLI | `services/slo_service.py:308-319` | ✅ (stream A): SLI list uses 3 queries instead of 2 per SLI; query-count test |
 | H16 | Backend has no dependency lock file; Docker builds from version ranges | `backend/pyproject.toml` | ✅ (stream C): `backend/requirements.lock` (pinned, sha256 hashes, includes `azuresql` extra); the image installs only from it with `--require-hashes --only-binary=:all:`. Regenerate with the command in the lock file header after changing `pyproject.toml`. Docker build not run yet |
-| H17 | Contrast below WCAG AA: `text-subtle` 3.25:1, success text on success background 4.17:1 | `frontend/src/styles/tokens.css:47,65-67` | ⬜ |
-| H18 | Horizontal scroll at phone width; raw enum labels; plural bug | frontend shell and pages | ⬜ |
-| H19 | Dead or leftover files: `app/PlaceholderPage.tsx`, `frontend/FOUNDATION_READY.md` | frontend | ⬜ |
-| H20 | `es-MX` locale has 12 of 15 namespaces (auth, common, navigation missing) | `frontend/src/i18n/locales/es-MX` | ⬜ |
+| H17 | Contrast below WCAG AA: `text-subtle` 3.25:1, success text on success background 4.17:1 | `frontend/src/styles/tokens.css:47,65-67` | ✅ (stream G): `text-subtle`, action and success text darkened, focus ring 3:1; `npm run check:contrast` asserts 218 pairs in both themes |
+| H18 | Horizontal scroll at phone width; raw enum labels; plural bug | frontend shell and pages | ✅ (stream G): top bar and four more pages no longer overflow at 390 px (31/31 screens exactly 390 px wide); enum labels go through i18n; plurals use `_one`/`_other` |
+| H19 | Dead or leftover files: `app/PlaceholderPage.tsx`, `frontend/FOUNDATION_READY.md` | frontend | ✅ (stream G): `PlaceholderPage.tsx` and `FOUNDATION_READY.md` removed |
+| H20 | `es-MX` locale has 12 of 15 namespaces (auth, common, navigation missing) | `frontend/src/i18n/locales/es-MX` | ✅ (stream G): es-MX has auth, common and navigation; `check-locales.mjs` now validates es-MX |
 | H21 | No check that Alembic migrations, entities and the Azure SQL scripts agree (three copies of the schema) | `backend/migrations`, `database/azure_sql` | ✅ (stream E): `tests/integration/migrations/test_schema_drift.py` compares Alembic, entities and the generated Azure SQL scripts and delta scripts |
 | R1 | In-process rate limiter and Content-Length-only body check | `security/security_middleware.py` | ➖ APIM policies own this |
 
@@ -142,7 +142,7 @@ then an independent review of the combined change and a full smoke run (seed, al
 | D | 🔄 running |
 | E | ✅ merged (556 passed after merge, no xfails left) |
 | F | ✅ merged |
-| G | 🔄 running |
+| G | ✅ merged (build, locales, contrast re-run by the lead: clean) |
 
 ### Follow-ups reported by the streams
 
@@ -161,6 +161,10 @@ then an independent review of the combined change and a full smoke run (seed, al
 | E | SQL Server leasing and the H3 race were verified by compiling for mssql and on SQLite only | ⬜ infra go-live check against real Azure SQL |
 | user | Seed data changes must be traceable as SQL the DBA can run. Today only the schema, the migration baseline and delta scripts exist as SQL; demo seed data is Python only and is not in Azure by design (`database/azure_sql/README.md`). Add a generated, optional demo-data script (kept out of `run_all.sql`) with a test that it matches the seed | ⬜ wave 2 |
 | lead | Frontend hardcodes the sidebar structure and admin-only flags (`navigationItems.ts`), the log source kinds (`LogSourceEditor.tsx`) and the reader-supported tool types (`LogToolsStep.tsx`, duplicates `READABLE_TOOL_TYPES` in the backend). Serve option lists and menu visibility from the API so the two cannot drift | ⬜ feature audit (phase 2), checked per feature |
+| G | Backend must publish `allowedLinkHosts` in `/api/public/client-configuration` (same source as `DEFAULT_ALLOWED_LINK_HOSTS`, ideally a setting). Until then the frontend uses a constant that mirrors it (`src/config/allowedLinkHosts.ts`) | ⬜ with stream D's V8 work |
+| G | The backend still builds some user-visible text in English (timeline text, signal titles); the frontend cannot translate it | ⬜ feature audit, labelling |
+| G | Hard-coded hex colours remain in `CommandBlock.tsx`, `ConfidenceMeter.tsx`, `CopyButton.tsx`, `useTheme.ts`; no frontend unit tests yet, so `linkSafety.ts` was checked with a throwaway script only | ⬜ phase 5 (frontend tests) and UI polish |
+| G | `07_BUILD_PHASES_AND_AGENTS.md` and `agent-briefs/*` still mention the deleted `FOUNDATION_READY.md`; new-language strings are machine-written and need native review | ⬜ docs pass; owner review |
 | all | New settings: `OUTBOUND_ALLOWED_HOSTS`, `OUTBOUND_DENIED_HOST_SUFFIXES`, `WORKSPACE_IDENTITY_CACHE_SECONDS`, `JOB_LEASE_DURATION_SECONDS`, `JOB_LEASE_RENEWAL_INTERVAL_SECONDS`, `WORKER_HEARTBEAT_INTERVAL_SECONDS`, `RETENTION_DELETE_BATCH_SIZE` (all in `backend/.env.example`); query limits live in `keigan/resources/catalogs/query_safety.yaml` | ✅ documented |
 
 Schema: three Alembic revisions on top of `94692c828bd3` (`89afa8e088ba`, `1fa7018ae4d6`, `3be32fbc3e37`), Azure SQL scripts 02-04 regenerated,
