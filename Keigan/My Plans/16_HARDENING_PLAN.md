@@ -67,3 +67,44 @@ Status: ⬜ open · 🔄 in progress · ✅ fixed and tested · ➖ not doing (r
 | H20 | `es-MX` locale has 12 of 15 namespaces (auth, common, navigation missing) | `frontend/src/i18n/locales/es-MX` | ⬜ |
 | H21 | No check that Alembic migrations, entities and the Azure SQL scripts agree (three copies of the schema) | `backend/migrations`, `database/azure_sql` | ⬜ |
 | R1 | In-process rate limiter and Content-Length-only body check | `security/security_middleware.py` | ➖ APIM policies own this |
+
+## Security and prompt review findings (V-series)
+
+Independent review, full detail and proofs in [`17_SECURITY_AND_PROMPT_REVIEW.md`](17_SECURITY_AND_PROMPT_REVIEW.md).
+Where a V-item covers an H-item above, the V-item is the one tracked (noted in the last column).
+
+| # | Severity | Finding | Status |
+|---|---|---|---|
+| V1 | Critical | Webhook accepted an HMAC signature forged with the all-zero placeholder key (no token needed) | ✅ fixed: only real secret hashes are candidates; tests in `tests/unit/services/test_alert_source_service.py` |
+| V1b | Medium | HMAC key is the stored secret hash, so database read access is enough to sign alerts | ⬜ design change: keep the plaintext webhook secret in the secret store (Key Vault in Azure) and sign with it; update setup instructions |
+| V3 | High | AI-written reports, emails and Teams comments go out without human approval (`AUTO_SEND_PRELIMINARY_REPORT=true`) | ⬜ |
+| V2 | High | A `requested` app's creator is its admin and can point log sources at another team's workspace (confused deputy) | ⬜ |
+| V4 | High | KQL validator bypasses: later `union`/`join`/`lookup`/`toscalar`; a `"//"` string hides the rest of the line from all checks | ⬜ (covers H2) |
+| V5 | High | SPL: no index restriction, deny-list instead of allow-list, `tstats` unbounded, no API time bounds | ⬜ |
+| V7 | High | Uploaded knowledge, runbooks, prior RCAs and the chat agent are treated as trusted prompt input | ⬜ |
+| V14 | Medium | Custom SLI KQL runs without validation | ⬜ (= H1) |
+| V15 | Medium | Default signing secret accepted outside prod; local auth allowed in dev/test | ⬜ (= H6) |
+| V13 | Medium | Teams bot answers (and runs log queries for) anyone in the chat; tenant not checked | ⬜ |
+| V8 | Medium | Link filter bypassable and missing on many AI outputs; markdown images render | ⬜ |
+| V11 | Medium | PII masker gaps (full-width text, JP numbers without separators, tokens, snake_case keys) | ⬜ |
+| V12 | Medium | Chat history, activity-log callers, Teams names and alert rule names reach storage or the LLM unmasked | ⬜ |
+| V16 | Medium | SSRF and credential redirect: changing a connection's endpoint keeps its stored credential; no egress policy | ⬜ |
+| V6 | Medium | Elastic script check bypassable with JSON unicode escapes; size not validated | ⬜ |
+| V9 | Medium | Command risk classifier misses `kubectl -n x delete`, `terraform destroy`, SQL `DELETE` | ⬜ |
+| V10 | Medium | Planner queries reuse the investigation window for the baseline, so they always look "new" | ⬜ |
+| V17 | Low | Token budget skipped in the chat agent and multi-app chat; manual investigation window not clamped | ⬜ |
+| V18 | Low | Sanitizer misses Unicode tag characters; injection detector easy to evade (advisory only) | ⬜ |
+| V19 | Low | Upstream error bodies shown to users | ⬜ |
+| V20 | Low | Citation validation inconsistent with prompts (`K#` stripped or unchecked) | ⬜ |
+| V21 | Low | Webhook `?token=` ends up in access logs; needs APIM / ingress log redaction | ⬜ (infra) |
+| V22 | Low | Request bodies can set arbitrary secret-name pointers | ⬜ |
+
+Prompt-quality notes per prompt are in doc 17 ("Prompt quality") and are handled with V7 and V20.
+
+## Priority order (agreed working order)
+
+1. V1 ✅ → V3 → V2 → V4 + V14 → V5 → V7 → V15 → V13 (security first: these are reachable without special access)
+2. H3, H4, H5 (multi-pod correctness; schema changes through Alembic)
+3. V8, V11, V12, V16, V6, V9, V10, H7, H8, H9, H10
+4. Data model H11-H14, H21 drift check, H15, H16
+5. Remaining low items, then features, then UI (H17-H20)

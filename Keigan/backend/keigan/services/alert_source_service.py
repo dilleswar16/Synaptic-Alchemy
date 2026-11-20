@@ -179,21 +179,32 @@ class AlertSourceService:
         return event.alert_event_id
 
     @staticmethod
-    def _credentials_are_valid(source: AlertSource | None, body_bytes: bytes, supplied_token: str | None, supplied_signature: str | None) -> bool:
-        dummy_hash = "0" * 64
-        current_hash = source.webhook_secret_hash if source else dummy_hash
-        previous_hash = dummy_hash
-        if source and source.previous_webhook_secret_hash and source.previous_secret_valid_until and source.previous_secret_valid_until > alert_rules.utc_now():
-            previous_hash = source.previous_webhook_secret_hash
-        supplied_hash = hash_secret(supplied_token.strip()) if supplied_token else "f" * 64
-        token_matches_current = hmac.compare_digest(supplied_hash, current_hash)
-        token_matches_previous = hmac.compare_digest(supplied_hash, previous_hash)
-        signature_matches = False
-        if supplied_signature:
-            expected_signatures = [hmac.new(candidate.encode("utf-8"), body_bytes, hashlib.sha256).hexdigest() for candidate in (current_hash, previous_hash)]
-            cleaned_signature = supplied_signature.strip().lower().removeprefix("sha256=")
-            signature_matches = any(hmac.compare_digest(cleaned_signature, expected) for expected in expected_signatures)
-        return source is not None and (token_matches_current or token_matches_previous or signature_matches)
+    def _accepted_secret_hashes(source: AlertSource) -> list[str]:
+        """The stored secret hashes that may authenticate a request now: the current one, plus the previous one during rotation."""
+        accepted_hashes = [source.webhook_secret_hash]
+        if source.previous_webhook_secret_hash and source.previous_secret_valid_until and source.previous_secret_valid_until > alert_rules.utc_now():
+            accepted_hashes.append(source.previous_webhook_secret_hash)
+        return accepted_hashes
+
+    @classmethod
+    def _credentials_are_valid(cls, source: AlertSource | None, body_bytes: bytes, supplied_token: str | None, supplied_signature: str | None) -> bool:
+        """Token (compared by hash) or HMAC-SHA256 signature of the body keyed with the secret hash.
+
+        Only hashes that really belong to the source are candidates. An unknown source is still compared against a random
+        throw-away hash so the response time does not reveal whether the source exists.
+        """
+        candidate_hashes = cls._accepted_secret_hashes(source) if source is not None else [hash_secret(secrets.token_hex(32))]
+        supplied_hash = hash_secret(supplied_token.strip()) if supplied_token else None
+        cleaned_signature = supplied_signature.strip().lower().removeprefix("sha256=") if supplied_signature else None
+        is_authenticated = False
+        for candidate_hash in candidate_hashes:
+            if supplied_hash is not None and hmac.compare_digest(supplied_hash, candidate_hash):
+                is_authenticated = True
+            if cleaned_signature is not None:
+                expected_signature = hmac.new(candidate_hash.encode("utf-8"), body_bytes, hashlib.sha256).hexdigest()
+                if hmac.compare_digest(cleaned_signature, expected_signature):
+                    is_authenticated = True
+        return source is not None and is_authenticated
 
     # ── Setup instructions ─────────────────────────────────────────────────────
     async def get_setup_instructions(self, application_id: str, alert_source_id: str) -> SetupInstructionsResponse:

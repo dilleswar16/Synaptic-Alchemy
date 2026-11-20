@@ -26,6 +26,7 @@ record the decision in `09_LEARNINGS_LOG.md`, never silently diverge.
 | 14 | [Class diagrams](14_CLASS_DIAGRAM.md) | Layers and the main classes: access, investigations, integrations, background jobs. |
 | 15 | [Entity relationship diagram](15_ENTITY_RELATIONSHIP_DIAGRAM.md) | All 47 tables by domain, generated from the entities. |
 | 16 | [Hardening plan](16_HARDENING_PLAN.md) | Review findings, agreed decisions (APIM, incremental schema, tests), and the status of every fix. |
+| 17 | [Security and prompt review](17_SECURITY_AND_PROMPT_REVIEW.md) | Independent review: verified findings with proofs, prompt-quality notes, what was not checked. |
 
 Database scripts for Azure SQL (run before the first deployment): [`database/azure_sql/`](../database/azure_sql/README.md).
 
