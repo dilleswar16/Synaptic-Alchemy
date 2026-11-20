@@ -77,7 +77,7 @@ Where a V-item covers an H-item above, the V-item is the one tracked (noted in t
 |---|---|---|---|
 | V1 | Critical | Webhook accepted an HMAC signature forged with the all-zero placeholder key (no token needed) | ✅ fixed: only real secret hashes are candidates; tests in `tests/unit/services/test_alert_source_service.py` |
 | V1b | Medium | HMAC key is the stored secret hash, so database read access is enough to sign alerts | ⬜ design change: keep the plaintext webhook secret in the secret store (Key Vault in Azure) and sign with it; update setup instructions |
-| V3 | High | AI-written reports, emails and Teams comments go out without human approval (`AUTO_SEND_PRELIMINARY_REPORT=true`) | ⬜ |
+| V3 | High | AI-written reports, emails and Teams comments go out without human approval (`AUTO_SEND_PRELIMINARY_REPORT=true`) | ➖ accepted by design (2026-11-20): Keigan only informs, it does not act, so auto-send stays. The content itself is still made safe through V7 (untrusted input) and V8 (link filtering on every outgoing field) |
 | V2 | High | A `requested` app's creator is its admin and can point log sources at another team's workspace (confused deputy) | ⬜ |
 | V4 | High | KQL validator bypasses: later `union`/`join`/`lookup`/`toscalar`; a `"//"` string hides the rest of the line from all checks | ⬜ (covers H2) |
 | V5 | High | SPL: no index restriction, deny-list instead of allow-list, `tstats` unbounded, no API time bounds | ⬜ |
@@ -103,7 +103,7 @@ Prompt-quality notes per prompt are in doc 17 ("Prompt quality") and are handled
 
 ## Priority order (agreed working order)
 
-1. V1 ✅ → V3 → V2 → V4 + V14 → V5 → V7 → V15 → V13 (security first: these are reachable without special access)
+1. V1 ✅ → V2 → V4 + V14 → V5 → V7 → V15 → V13 (security first: these are reachable without special access)
 2. H3, H4, H5 (multi-pod correctness; schema changes through Alembic)
 3. V8, V11, V12, V16, V6, V9, V10, H7, H8, H9, H10
 4. Data model H11-H14, H21 drift check, H15, H16
