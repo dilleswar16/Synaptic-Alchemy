@@ -10,8 +10,15 @@ each fix. Update the status column as work lands; record design decisions in `09
 - **APIM owns the edge.** Rate limiting, request size limits and edge security are APIM policies, so app-level rate
   limiting is not extended. The in-process limiter stays as a local convenience only.
 - **Git.** Work happens on the local branch `keigan-hardening` (baseline commit `3cf95ef`). It is not pushed unless asked.
-- **Schema changes are incremental.** The initial Alembic migration is never rewritten. Each change gets a new Alembic
-  revision plus a numbered incremental script in `database/azure_sql/`; the full create scripts are kept in sync.
+- **Schema changes are incremental, with Alembic as the single source of truth.** How the schema is managed today:
+  local SQLite is created from the entities at start-up (`AUTO_CREATE_SCHEMA=true`); a new Azure SQL database is created
+  once from `database/azure_sql/01-06` (script 05 stamps the Alembic baseline `94692c828bd3`); every later release runs
+  `alembic upgrade head` from the Helm pre-upgrade job. So each schema change gets:
+  1. a new Alembic revision (the initial migration is never rewritten);
+  2. regenerated `02-04` scripts (`backend/scripts/generate_azure_sql_ddl.py`) and the `05` stamp moved to the new head, so a fresh database starts current;
+  3. a delta script generated from Alembic offline mode (`--sql`) for DBAs who apply changes by hand. It is never hand-written, so it cannot drift from or double-apply with the Helm job;
+  4. a passing drift test (`alembic upgrade head` on an empty database must match the entities).
+- **Engineering standards.** Proper fixes, no workarounds; no hard-coded values (settings or resource catalogs); modular code following existing patterns; test first for every fix.
 - **Prompt review is static for now.** Prompts and guardrails are reviewed by reading code and running against the mock.
   A live-model eval waits until an LLM endpoint is available.
 - **Tests: backend pytest first.** Frontend unit and e2e tests come later. Ground rule 8 in `00_INDEX.md` is updated.
@@ -58,4 +65,5 @@ Status: ⬜ open · 🔄 in progress · ✅ fixed and tested · ➖ not doing (r
 | H18 | Horizontal scroll at phone width; raw enum labels; plural bug | frontend shell and pages | ⬜ |
 | H19 | Dead or leftover files: `app/PlaceholderPage.tsx`, `frontend/FOUNDATION_READY.md` | frontend | ⬜ |
 | H20 | `es-MX` locale has 12 of 15 namespaces (auth, common, navigation missing) | `frontend/src/i18n/locales/es-MX` | ⬜ |
+| H21 | No check that Alembic migrations, entities and the Azure SQL scripts agree (three copies of the schema) | `backend/migrations`, `database/azure_sql` | ⬜ |
 | R1 | In-process rate limiter and Content-Length-only body check | `security/security_middleware.py` | ➖ APIM policies own this |
