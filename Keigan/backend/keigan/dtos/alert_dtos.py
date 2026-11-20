@@ -130,13 +130,20 @@ class AzureAlertRuleResponse(ApiModel):
     action_group_names: list[str] = Field(default_factory=list)
 
 
+class UnreadableResourceGroupResponse(ApiModel):
+    resource_group_name: str
+    subscription_id: str
+    # Why Keigan could not read the rules; the UI turns it into a message. "failed" covers any other error.
+    reason_code: Literal["forbidden", "not_found", "throttled", "failed"]
+
+
 class AzureAlertRulesResponse(ApiModel):
     is_simulated: bool
     total_rule_count: int
     sending_to_keigan_count: int
     rules: list[AzureAlertRuleResponse] = Field(default_factory=list)
     # Resource groups whose rules Azure would not return, so the list above is incomplete for them.
-    unreadable_resource_groups: list[str] = Field(default_factory=list)
+    unreadable_resource_groups: list[UnreadableResourceGroupResponse] = Field(default_factory=list)
 
 
 # ── Noise policy ───────────────────────────────────────────────────────────────

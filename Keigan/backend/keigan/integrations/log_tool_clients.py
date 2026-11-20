@@ -138,7 +138,7 @@ class ElasticClient(LogToolClient):
                     json={"size": 1, "sort": [{time_field: "desc"}], "_source": [time_field]},
                 )
         except httpx.HTTPError as connection_error:
-            return ConnectionTestResult(False, f"Could not reach Elastic: {type(connection_error).__name__}")
+            return ConnectionTestResult(False, "Could not reach Elastic. Check the endpoint address and that Keigan can reach it over the network.")
         if response.status_code >= 400:
             return ConnectionTestResult(False, f"Elastic returned {response.status_code}.")
         hits = response.json().get("hits", {}).get("hits", [])
@@ -184,7 +184,7 @@ class SplunkClient(LogToolClient):
             async with httpx.AsyncClient(timeout=20) as http_client:
                 response = await http_client.get(f"{self._endpoint()}/services/server/info?output_mode=json", headers=self._headers())
         except httpx.HTTPError as connection_error:
-            return ConnectionTestResult(False, f"Could not reach Splunk: {type(connection_error).__name__}")
+            return ConnectionTestResult(False, "Could not reach Splunk. Check the endpoint address and that Keigan can reach it over the network.")
         return ConnectionTestResult(response.status_code < 400, "Connected to Splunk." if response.status_code < 400 else f"Splunk returned {response.status_code}.")
 
 
@@ -222,7 +222,7 @@ class DatadogClient(LogToolClient):
             async with httpx.AsyncClient(timeout=20) as http_client:
                 response = await http_client.get(f"{self._base_url()}/api/v1/validate", headers=self._headers())
         except httpx.HTTPError as connection_error:
-            return ConnectionTestResult(False, f"Could not reach Datadog: {type(connection_error).__name__}")
+            return ConnectionTestResult(False, "Could not reach Datadog. Check the endpoint address and that Keigan can reach it over the network.")
         return ConnectionTestResult(response.status_code < 400, "Connected to Datadog." if response.status_code < 400 else f"Datadog returned {response.status_code}.")
 
 

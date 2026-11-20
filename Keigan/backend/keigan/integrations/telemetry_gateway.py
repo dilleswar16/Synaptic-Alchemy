@@ -310,4 +310,5 @@ class TelemetryGateway:
             latency_milliseconds = int((time.monotonic() - started_at) * 1000)
             return ProbeResult(probe_response.status_code < 400, probe_response.status_code, latency_milliseconds, f"HTTP {probe_response.status_code}")
         except httpx.HTTPError as probe_error:
-            return ProbeResult(False, None, int((time.monotonic() - started_at) * 1000), f"{type(probe_error).__name__}")
+            logger.info("Synthetic probe of %s failed: %s", probe_url, type(probe_error).__name__)
+            return ProbeResult(False, None, int((time.monotonic() - started_at) * 1000), "The URL could not be reached (network error or timeout).")

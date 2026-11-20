@@ -514,8 +514,9 @@ class AlertPipelineService:
                 async with self.session.begin_nested():
                     await InvestigationService(self.session).attach_alerts_to_investigation(group.investigation_id, [alert.alert_id])
                 await self._record(alert, "decide", "joined_investigation", f"Added as evidence to the investigation of {code}; no second investigation was started.", reference_time, group_id=group.alert_group_id)
-            except Exception as attach_error:  # noqa: BLE001
-                await self._record(alert, "decide", "joined_group", f"Joined {code}, which is already being investigated (evidence attach unavailable: {type(attach_error).__name__}).", reference_time, group_id=group.alert_group_id)
+            except Exception as attach_error:  # noqa: BLE001 - the alert still joins its group
+                logger.warning("Could not attach alert %s as evidence to the investigation of %s: %s", alert.alert_id, code, attach_error, exc_info=True)
+                await self._record(alert, "decide", "joined_group", f"Joined {code}, which is already being investigated (the evidence could not be attached right now).", reference_time, group_id=group.alert_group_id)
             return
         if joined and group.investigation_id is None and group.group_status != AlertGroupStatus.QUEUED and group.priority_score < context.policy["investigate_score_threshold"]:
             await self._record(alert, "decide", "joined_group", f"Joined {code}; its score {group.priority_score} is still below the investigation threshold {context.policy['investigate_score_threshold']}.", reference_time, group_id=group.alert_group_id)
@@ -558,7 +559,7 @@ class AlertPipelineService:
         except Exception as start_error:  # noqa: BLE001
             group.group_status = AlertGroupStatus.QUEUED
             logger.warning("Could not start an investigation for %s: %s", code, start_error)
-            await self._record(alert, "decide", "queued", f"Group {code} is queued: the investigation engine is not available right now ({type(start_error).__name__}).", reference_time, group_id=group.alert_group_id)
+            await self._record(alert, "decide", "queued", f"Group {code} is queued: the investigation engine is not available right now.", reference_time, group_id=group.alert_group_id)
 
     async def start_queued_groups(self, application_id: str) -> int:
         """Start queued groups, highest score first, while the hourly limit allows. Called by the settle job and after groups resolve."""

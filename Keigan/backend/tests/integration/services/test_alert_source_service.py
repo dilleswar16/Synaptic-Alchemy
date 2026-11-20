@@ -7,10 +7,12 @@ import hmac
 import json
 
 import httpx
+import pytest
 from sqlalchemy import select
 
 from keigan.config import application_context
 from keigan.config.database_config import open_session
+from keigan.integrations.azure_client import AlertRuleReadResult
 from keigan.entities.alert_entities import AlertSource
 from keigan.services.alert_source_service import hash_secret
 from support import users
@@ -112,14 +114,47 @@ class TestAzureRuleDiscoveryNamesTheResourceGroupsItCannotRead:
                 return False
 
         class PartlyReadableClient:
-            async def list_alert_rules(self, tenant_id: str | None, subscription_id: str, resource_group_name: str) -> dict[str, list[dict[str, object]]]:
+            async def list_alert_rules(self, tenant_id: str | None, subscription_id: str, resource_group_name: str) -> object:
                 if resource_group_name == unreadable_group:
                     raise IntegrationException("Azure refused the read")
-                return {}
+                return AlertRuleReadResult(rules_by_collection={}, failure_codes=())
 
         monkeypatch.setattr(application_context, "telemetry_gateway", lambda: LiveGateway())
         monkeypatch.setattr(application_context, "azure_client", lambda: PartlyReadableClient())
         async with open_session() as session:
             response = await AlertSourceService(session).discover_azure_rules(application_id)
-        assert response.unreadable_resource_groups == [unreadable_group]
+        assert [(group.resource_group_name, group.reason_code) for group in response.unreadable_resource_groups] == [(unreadable_group, "failed")]
         assert any(record.levelno == logging.WARNING and unreadable_group in record.getMessage() for record in caplog.records)
+
+    @pytest.mark.parametrize(("failure_codes", "reason_code"), [
+        (("azure_forbidden",), "forbidden"),
+        (("azure_not_found",), "not_found"),
+        (("azure_throttled", "azure_forbidden"), "forbidden"),
+        (("azure_throttled",), "throttled"),
+        (("azure_request_failed",), "failed"),
+    ])
+    async def test_a_group_with_refused_collections_is_listed_with_the_most_useful_reason(self, seed_context, monkeypatch: pytest.MonkeyPatch, failure_codes: tuple[str, ...], reason_code: str) -> None:
+        from keigan.entities.application_entities import ApplicationComponent
+        from keigan.entities.status_values import ComponentType
+        from keigan.services.alert_source_service import AlertSourceService
+
+        application_id = seed_context.application_ids_by_code["CLMJP"]
+        async with open_session() as session:
+            resource_group_names = (await session.scalars(select(ApplicationComponent.azure_resource_group_name).where(
+                ApplicationComponent.application_id == application_id, ApplicationComponent.component_type == ComponentType.AZURE_RESOURCE_GROUP, ApplicationComponent.azure_resource_group_name.is_not(None),
+            ))).all()
+        refused_group = resource_group_names[0]
+
+        class LiveGateway:
+            def is_simulated(self) -> bool:
+                return False
+
+        class RefusingCollectionsClient:
+            async def list_alert_rules(self, tenant_id: str | None, subscription_id: str, resource_group_name: str) -> object:
+                return AlertRuleReadResult(rules_by_collection={}, failure_codes=failure_codes if resource_group_name == refused_group else ())
+
+        monkeypatch.setattr(application_context, "telemetry_gateway", lambda: LiveGateway())
+        monkeypatch.setattr(application_context, "azure_client", lambda: RefusingCollectionsClient())
+        async with open_session() as session:
+            response = await AlertSourceService(session).discover_azure_rules(application_id)
+        assert [(group.resource_group_name, group.reason_code) for group in response.unreadable_resource_groups] == [(refused_group, reason_code)]

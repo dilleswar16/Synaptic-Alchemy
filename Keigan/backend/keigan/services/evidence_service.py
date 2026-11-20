@@ -210,7 +210,7 @@ class EvidenceService:
             draft.is_rule_out = True
         except Exception as query_error:  # noqa: BLE001 — one failing query must not stop the investigation
             logger.warning("Evidence query %s for %s failed: %s", template["template_key"], service.service_name, query_error)
-            draft.evidence_summary = f"The query could not be completed ({type(query_error).__name__}). This source is inconclusive."
+            draft.evidence_summary = "The query could not be completed. This source is inconclusive."
             draft.is_rule_out = True
         return draft
 

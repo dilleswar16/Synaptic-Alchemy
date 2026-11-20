@@ -29,6 +29,17 @@ LOG_ANALYTICS_SCOPE = "https://api.loganalytics.io/.default"
 MAXIMUM_PAGES = 20
 
 
+AZURE_ERROR_CODE_BY_STATUS = {403: "azure_forbidden", 404: "azure_not_found", 429: "azure_throttled", 503: "azure_throttled"}
+
+
+@dataclass(frozen=True)
+class AlertRuleReadResult:
+    """Alert rules read from one resource group. ``failure_codes`` holds one error code for each rule collection Azure would not return; those rules are missing."""
+
+    rules_by_collection: dict[str, list[dict[str, Any]]]
+    failure_codes: tuple[str, ...] = ()
+
+
 @dataclass
 class AccessCheckResult:
     check_name: str  # list_resources | read_activity_log | read_metrics | query_workspace
@@ -83,7 +94,7 @@ class AzureClient:
             error_message = response.text[:300]
         raise IntegrationException(
             f"Azure returned {response.status_code} for {requested_url.split('?')[0][-160:]}: {error_message[:400]}",
-            error_code="azure_forbidden" if response.status_code == 403 else "azure_request_failed",
+            error_code=AZURE_ERROR_CODE_BY_STATUS.get(response.status_code, "azure_request_failed"),
         )
 
     # ── Resource Manager ───────────────────────────────────────────────────────
@@ -261,7 +272,7 @@ class AzureClient:
             )
         return sorted(change_events, key=lambda change_event: change_event.occurred_at)
 
-    async def list_alert_rules(self, tenant_id: str | None, subscription_id: str, resource_group_name: str) -> dict[str, list[dict[str, Any]]]:
+    async def list_alert_rules(self, tenant_id: str | None, subscription_id: str, resource_group_name: str) -> AlertRuleReadResult:
         base_url = f"{RESOURCE_MANAGER_URL}/subscriptions/{subscription_id}/resourceGroups/{quote(resource_group_name)}/providers/Microsoft.Insights"
         rule_collections = {
             "metric_alerts": f"{base_url}/metricAlerts?api-version=2018-03-01",
@@ -270,13 +281,15 @@ class AzureClient:
             "action_groups": f"{base_url}/actionGroups?api-version=2023-01-01",
         }
         discovered_rules: dict[str, list[dict[str, Any]]] = {}
+        failure_codes: list[str] = []
         for collection_name, collection_url in rule_collections.items():
             try:
                 discovered_rules[collection_name] = await self._get_all_pages(collection_url, tenant_id)
             except IntegrationException as listing_error:
-                logger.info("Could not list %s: %s", collection_name, listing_error.detail)
+                logger.info("Could not list %s in resource group %s: %s", collection_name, resource_group_name, listing_error.detail)
                 discovered_rules[collection_name] = []
-        return discovered_rules
+                failure_codes.append(listing_error.error_code)
+        return AlertRuleReadResult(discovered_rules, tuple(failure_codes))
 
     # ── Access verification ────────────────────────────────────────────────────
     async def verify_read_access(

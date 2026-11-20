@@ -20,7 +20,7 @@ from keigan.config import application_context
 from keigan.config.settings import get_settings
 from keigan.dtos.alert_dtos import (
     AlertSourceCreatedResponse, AlertSourceCreateRequest, AlertSourceResponse, AlertSourceUpdateRequest, AzureAlertRuleResponse, AzureAlertRulesResponse, MappingPreviewRequest,
-    MappingPreviewResponse, RecentAlertEventResponse, SecretRotationResponse, SetupCodeBlock, SetupInstructionsResponse, SetupTab, TestAlertResponse,
+    MappingPreviewResponse, RecentAlertEventResponse, SecretRotationResponse, SetupCodeBlock, SetupInstructionsResponse, SetupTab, TestAlertResponse, UnreadableResourceGroupResponse,
 )
 from keigan.dtos.common_dtos import ApiModel
 from keigan.entities.alert_entities import Alert, AlertEvent, AlertGroup, AlertSource
@@ -431,21 +431,35 @@ class AlertSourceService:
         components = list((await self.session.scalars(select(ApplicationComponent).where(ApplicationComponent.application_id == application_id, ApplicationComponent.component_type == ComponentType.AZURE_RESOURCE_GROUP))).all())
         is_simulated = gateway.is_simulated()
         rules: list[AzureAlertRuleResponse] = []
-        unreadable_resource_groups: list[str] = []
+        unreadable_resource_groups: list[UnreadableResourceGroupResponse] = []
         if is_simulated:
             rules = self._simulated_rules(services, seen_rule_names)
         else:
             for component in components:
                 if not (component.azure_subscription_id and component.azure_resource_group_name):
                     continue
+                resource_group_name, subscription_id = component.azure_resource_group_name, component.azure_subscription_id
                 try:
-                    discovered = await application_context.azure_client().list_alert_rules(component.azure_tenant_id, component.azure_subscription_id, component.azure_resource_group_name)
+                    listing = await application_context.azure_client().list_alert_rules(component.azure_tenant_id, subscription_id, resource_group_name)
                 except Exception:  # noqa: BLE001 - reported in the response, so the admin sees which rules are missing and why
-                    logger.warning("Alert rules of resource group %s in subscription %s (application %s) could not be read; they are missing from the list", component.azure_resource_group_name, component.azure_subscription_id, application_id, exc_info=True)
-                    unreadable_resource_groups.append(component.azure_resource_group_name)
+                    logger.warning("Alert rules of resource group %s in subscription %s (application %s) could not be read", resource_group_name, subscription_id, application_id, exc_info=True)
+                    unreadable_resource_groups.append(UnreadableResourceGroupResponse(resource_group_name=resource_group_name, subscription_id=subscription_id, reason_code="failed"))
                     continue
-                rules.extend(self._parse_azure_rules(discovered))
+                if listing.failure_codes:
+                    logger.warning("Alert rules of resource group %s in subscription %s (application %s) are partly unreadable: %s", resource_group_name, subscription_id, application_id, ", ".join(listing.failure_codes))
+                    unreadable_resource_groups.append(UnreadableResourceGroupResponse(resource_group_name=resource_group_name, subscription_id=subscription_id, reason_code=self._reason_code_for(listing.failure_codes)))
+                rules.extend(self._parse_azure_rules(listing.rules_by_collection))
         return AzureAlertRulesResponse(is_simulated=is_simulated, total_rule_count=len(rules), sending_to_keigan_count=sum(1 for rule in rules if rule.sends_to_keigan), rules=rules, unreadable_resource_groups=unreadable_resource_groups)
+
+    @staticmethod
+    def _reason_code_for(failure_codes: tuple[str, ...]) -> str:
+        """The most useful reason when several collections fail: a missing permission explains the most, then a missing group, then throttling."""
+        priority = ("azure_forbidden", "azure_not_found", "azure_throttled")
+        reason_by_error_code = {"azure_forbidden": "forbidden", "azure_not_found": "not_found", "azure_throttled": "throttled"}
+        for error_code in priority:
+            if error_code in failure_codes:
+                return reason_by_error_code[error_code]
+        return "failed"
 
     @staticmethod
     def _simulated_rules(services: list[MonitoredService], seen_rule_names: set[str]) -> list[AzureAlertRuleResponse]:
