@@ -23,6 +23,7 @@ from keigan.entities.platform_entities import PlatformSetting
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.integrations.servicenow_client import ServiceNowClient, normalized_state_name, parse_servicenow_timestamp, read_field_display, read_field_value
 from keigan.security.current_user import CurrentUser
+from keigan.services.alert_group_link_service import AlertGroupLinkService
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.incident_priority_rules import PRIORITY_NAMES, map_servicenow_priority
@@ -106,10 +107,11 @@ class IncidentService:
             incident_title=masker.mask_text(title_text)[:500], incident_description=masker.mask_text(read_field_value(record, "description")),
             servicenow_priority=priority_text or None, servicenow_impact=impact_text or None, servicenow_urgency=urgency_text or None,
             keigan_priority=map_servicenow_priority(impact_text, urgency_text, priority_text), incident_status=incident_status,
-            affected_service_ids_json=[service.service_id for service in matched_services] or None, assignment_group_name=read_field_display(record, "assignment_group") or None,
+            assignment_group_name=read_field_display(record, "assignment_group") or None,
             external_state=state_name, opened_at=parse_servicenow_timestamp(read_field_value(record, "opened_at")) or now, detected_by_keigan_at=now,
             resolved_at=now if incident_status in ("resolved", "closed") else None, external_last_updated_at=updated_at, created_by_user_principal_name="system:poller",
         )
+        incident.replace_linked_ids("affected_service_links", [service.service_id for service in matched_services])
         self.session.add(incident)
         await self.session.flush()
         self.session.add(
@@ -140,17 +142,14 @@ class IncidentService:
                 )
             ).all()
         )
-        incident_service_ids = set(incident.affected_service_ids_json or [])
-        matching_groups = [group for group in candidate_groups if not incident_service_ids or incident_service_ids & set(group.affected_service_ids_json or [group.primary_service_id])]
+        incident_service_ids = set(incident.affected_service_ids)
+        matching_groups = [group for group in candidate_groups if not incident_service_ids or incident_service_ids & set(group.affected_service_ids or [group.primary_service_id])]
         if not matching_groups:
             return False
         adopted_group = matching_groups[0]
-        adopted_group.incident_id = incident.incident_id
+        await AlertGroupLinkService(self.session).link(adopted_group, incident_id=incident.incident_id)
         investigation = await self.session.get(Investigation, adopted_group.investigation_id)
-        if investigation is None:
-            return False
-        if investigation.incident_id is None:
-            investigation.incident_id = incident.incident_id
+        assert investigation is not None  # the group query only returns groups with an investigation, and the foreign key guarantees it exists
         self.session.add(
             InvestigationTimelineEvent(
                 incident_id=incident.incident_id, investigation_id=investigation.investigation_id, event_type="investigation_started",
@@ -213,11 +212,8 @@ class IncidentService:
         if incident is None:
             incident = await self.session.scalar(select(Incident).where(Incident.application_id == application.application_id, Incident.external_incident_number == read_field_value(created_record, "number")))
         assert incident is not None
-        alert_group.incident_id = incident.incident_id
-        if alert_group.investigation_id:  # reuse the investigation that already analysed the group
-            investigation = await self.session.get(Investigation, alert_group.investigation_id)
-            if investigation is not None:
-                investigation.incident_id = incident.incident_id
+        await AlertGroupLinkService(self.session).link(alert_group, incident_id=incident.incident_id)  # also gives the investigation that already analysed the group this incident
+        if alert_group.investigation_id:
             pending_investigations = await self.session.scalars(select(Investigation).where(Investigation.incident_id == incident.incident_id, Investigation.investigation_id != alert_group.investigation_id, Investigation.investigation_status == "queued"))
             for pending_investigation in pending_investigations:
                 pending_investigation.investigation_status = "cancelled"
@@ -319,7 +315,7 @@ class IncidentService:
             return []
         application_ids = {incident.application_id for incident in incidents}
         applications = {application.application_id: application for application in (await self.session.scalars(select(Application).where(Application.application_id.in_(application_ids)))).all()}
-        service_ids = {service_id for incident in incidents for service_id in (incident.affected_service_ids_json or [])}
+        service_ids = {service_id for incident in incidents for service_id in incident.affected_service_ids}
         service_names = {service.service_id: service.service_name for service in (await self.session.scalars(select(MonitoredService).where(MonitoredService.service_id.in_(service_ids)))).all()} if service_ids else {}
         investigations = (await self.session.scalars(select(Investigation).where(Investigation.incident_id.in_([incident.incident_id for incident in incidents])).order_by(Investigation.created_at.desc()))).all()
         latest_by_incident: dict[str, Investigation] = {}
@@ -336,7 +332,7 @@ class IncidentService:
                     incident_id=incident.incident_id, application=ApplicationReference(application_id=application.application_id, application_code=application.application_code, application_name=application.application_name),
                     incident_source=incident.incident_source, external_incident_number=incident.external_incident_number, incident_title=incident.incident_title,
                     servicenow_priority=priority_label_from_servicenow(incident.servicenow_priority), keigan_priority=incident.keigan_priority, incident_category=incident.incident_category,
-                    incident_status=incident.incident_status, external_state=incident.external_state, affected_service_names=[service_names[service_id] for service_id in (incident.affected_service_ids_json or []) if service_id in service_names],
+                    incident_status=incident.incident_status, external_state=incident.external_state, affected_service_names=[service_names[service_id] for service_id in incident.affected_service_ids if service_id in service_names],
                     assignment_group_name=incident.assignment_group_name, opened_at=incident.opened_at, detected_by_keigan_at=incident.detected_by_keigan_at, resolved_at=incident.resolved_at,
                     duration_minutes=max(0, int((end_time - incident.opened_at).total_seconds() // 60)), keigan_confidence=investigation.overall_confidence_score if investigation else None,
                     latest_investigation_id=investigation.investigation_id if investigation else None, latest_investigation_status=investigation.investigation_status if investigation else None,

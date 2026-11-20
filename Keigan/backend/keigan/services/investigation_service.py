@@ -27,8 +27,10 @@ from keigan.entities.incident_entities import Incident, Investigation, Investiga
 from keigan.entities.knowledge_entities import Runbook
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.security.current_user import CurrentUser
+from keigan.services.alert_group_link_service import AlertGroupLinkService
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
+from keigan.services.service_scope import unknown_service_ids
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
@@ -60,18 +62,19 @@ class InvestigationService:
     ) -> str:
         """Create a queued investigation and enqueue ``run_investigation``. Returns investigation_id."""
         investigation = Investigation(
-            application_id=application_id, incident_id=incident_id, alert_group_id=alert_group_id, investigation_trigger=investigation_trigger, investigation_status="queued",
+            application_id=application_id, incident_id=incident_id, investigation_trigger=investigation_trigger, investigation_status="queued",
             current_stage_name="triage", progress_percent=0, stage_messages_json=[{"at": utc_now().isoformat(), "stage": "queued", "message": "Investigation queued"}],
-            investigated_service_ids_json=service_ids or None, investigation_window_start=window_start, investigation_window_end=window_end,
+            investigation_window_start=window_start, investigation_window_end=window_end,
             triage_result_json={"manual_description": PiiMasker().mask_text(description)} if description else None,
             requested_by_user_principal_name=requested_by_user_principal_name, created_by_user_principal_name=requested_by_user_principal_name,
         )
+        investigation.replace_linked_ids("investigated_service_links", service_ids or [])
         self.session.add(investigation)
         await self.session.flush()
         if alert_group_id:
             alert_group = await self.session.get(AlertGroup, alert_group_id)
-            if alert_group is not None and not alert_group.investigation_id:
-                alert_group.investigation_id = investigation.investigation_id
+            if alert_group is not None:
+                await AlertGroupLinkService(self.session).link(alert_group, investigation_id=investigation.investigation_id)
         await JobQueue(self.session).enqueue("run_investigation", {"investigation_id": investigation.investigation_id}, deduplication_key=f"run_investigation:{investigation.investigation_id}", priority_number=10)
         return investigation.investigation_id
 
@@ -124,10 +127,7 @@ class InvestigationService:
     # ══ API ═══════════════════════════════════════════════════════════════════
     async def start_manual_investigation(self, current_user: CurrentUser, request: StartInvestigationRequest) -> JobAcceptedResponse:
         await AuthorizationService(self.session).ensure_application_reader(current_user, request.application_id)
-        valid_service_ids = set(
-            (await self.session.scalars(select(MonitoredService.service_id).where(MonitoredService.application_id == request.application_id, MonitoredService.service_id.in_(request.service_ids or ["none"])))).all()
-        )
-        if set(request.service_ids) - valid_service_ids:
+        if await unknown_service_ids(self.session, request.application_id, request.service_ids):
             raise BusinessValidationException("One or more services do not belong to this application.", field_errors=[{"field": "serviceIds", "message": "Unknown service."}])
         if request.window_start and request.window_end and request.window_end <= request.window_start:
             raise BusinessValidationException("The window end must be after the window start.")
@@ -149,7 +149,7 @@ class InvestigationService:
         if original.investigation_status in ("queued", "running"):
             raise BusinessValidationException("This investigation is still running.")
         new_investigation_id = await self.start_investigation(
-            original.application_id, "rerun", incident_id=original.incident_id, alert_group_id=None, service_ids=original.investigated_service_ids_json,
+            original.application_id, "rerun", incident_id=original.incident_id, alert_group_id=None, service_ids=original.investigated_service_ids,
             window_start=None if original.incident_id else original.investigation_window_start, window_end=None if original.incident_id else original.investigation_window_end,
             description=(original.triage_result_json or {}).get("manual_description"), requested_by_user_principal_name=current_user.user_principal_name,
         )
@@ -206,7 +206,7 @@ class InvestigationService:
         applications = {application.application_id: application for application in (await self.session.scalars(select(Application).where(Application.application_id.in_({item.application_id for item in investigations})))).all()}
         incident_ids = {item.incident_id for item in investigations if item.incident_id}
         incidents = {incident.incident_id: incident for incident in (await self.session.scalars(select(Incident).where(Incident.incident_id.in_(incident_ids)))).all()} if incident_ids else {}
-        service_ids = {service_id for item in investigations for service_id in (item.investigated_service_ids_json or [])}
+        service_ids = {service_id for item in investigations for service_id in item.investigated_service_ids}
         service_names = {service.service_id: service.service_name for service in (await self.session.scalars(select(MonitoredService).where(MonitoredService.service_id.in_(service_ids)))).all()} if service_ids else {}
         summaries: list[InvestigationSummaryDto] = []
         for investigation in investigations:
@@ -219,7 +219,7 @@ class InvestigationService:
                     investigation_trigger=investigation.investigation_trigger, investigation_status=investigation.investigation_status, current_stage_name=investigation.current_stage_name,
                     progress_percent=investigation.progress_percent, keigan_priority=incident.keigan_priority if incident else (investigation.triage_result_json or {}).get("final_priority"),
                     overall_confidence_score=investigation.overall_confidence_score, executive_summary=investigation.executive_summary,
-                    investigated_service_names=[service_names[service_id] for service_id in (investigation.investigated_service_ids_json or []) if service_id in service_names],
+                    investigated_service_names=[service_names[service_id] for service_id in investigation.investigated_service_ids if service_id in service_names],
                     created_at=investigation.created_at, started_at=investigation.started_at, completed_at=investigation.completed_at, requested_by_user_principal_name=investigation.requested_by_user_principal_name,
                 )
             )
@@ -230,12 +230,12 @@ class InvestigationService:
 
         investigation = await self.load_readable_investigation(current_user, investigation_id)
         summary = (await self.summarize_investigations([investigation]))[0]
-        service_ids = investigation.investigated_service_ids_json or []
+        service_ids = investigation.investigated_service_ids
         services = list((await self.session.scalars(select(MonitoredService).where(MonitoredService.service_id.in_(service_ids)))).all()) if service_ids else []
         names_by_id = {service.service_id: service.service_name for service in services}
         evidence_rows = sorted((await self.session.scalars(select(InvestigationEvidence).where(InvestigationEvidence.investigation_id == investigation_id))).all(), key=lambda row: _evidence_number(row.evidence_code))
         hypothesis_rows = list((await self.session.scalars(select(InvestigationHypothesis).where(InvestigationHypothesis.investigation_id == investigation_id).order_by(InvestigationHypothesis.display_order))).all())
-        runbook_ids = {*(investigation.matched_runbook_ids_json or []), *(row.matched_runbook_id for row in hypothesis_rows if row.matched_runbook_id)}
+        runbook_ids = {*investigation.matched_runbook_ids, *(row.matched_runbook_id for row in hypothesis_rows if row.matched_runbook_id)}
         runbooks = {runbook.runbook_id: runbook for runbook in (await self.session.scalars(select(Runbook).where(Runbook.runbook_id.in_(runbook_ids)))).all()} if runbook_ids else {}
         incident = await self.session.get(Incident, investigation.incident_id) if investigation.incident_id else None
         incident_summary = (await IncidentService(self.session).summarize_incidents([incident]))[0] if incident else None
@@ -256,8 +256,8 @@ class InvestigationService:
                 for row in hypothesis_rows
             ],
             evidence=[self._evidence_dto(row, names_by_id) for row in evidence_rows], blast_radius=investigation.blast_radius_json,
-            matched_runbooks=[RunbookReference(runbook_id=runbook_id, runbook_title=runbooks[runbook_id].runbook_title) for runbook_id in (investigation.matched_runbook_ids_json or []) if runbook_id in runbooks],
-            knowledge_references=investigation.knowledge_references_json or [], alert_group=await self._alert_group_payload(investigation.alert_group_id), stage_messages=investigation.stage_messages_json or [],
+            matched_runbooks=[RunbookReference(runbook_id=runbook_id, runbook_title=runbooks[runbook_id].runbook_title) for runbook_id in investigation.matched_runbook_ids if runbook_id in runbooks],
+            knowledge_references=investigation.knowledge_references_json or [], alert_group=await self._alert_group_payload(investigation.investigation_id), stage_messages=investigation.stage_messages_json or [],
             is_evidence_only=investigation.investigation_status == "completed_evidence_only", failure_reason=investigation.failure_reason, user_feedback_verdict=investigation.user_feedback_verdict,
             user_feedback_comment=investigation.user_feedback_comment, total_input_token_count=investigation.total_input_token_count, total_output_token_count=investigation.total_output_token_count,
             model_names=investigation.model_names_json or [], detected_at=incident.detected_by_keigan_at if incident else investigation.created_at, first_update_sent_at=incident.first_update_sent_at if incident else None,
@@ -281,8 +281,9 @@ class InvestigationService:
         service = await self.session.get(MonitoredService, row.service_id) if row.service_id else None
         return self._evidence_dto(row, {service.service_id: service.service_name} if service else {})
 
-    async def _alert_group_payload(self, alert_group_id: str | None) -> dict[str, Any] | None:
-        alert_group = await self.session.get(AlertGroup, alert_group_id) if alert_group_id else None
+    async def _alert_group_payload(self, investigation_id: str) -> dict[str, Any] | None:
+        """The alert group this investigation covers (the oldest one when several joined it)."""
+        alert_group = await self.session.scalar(select(AlertGroup).where(AlertGroup.investigation_id == investigation_id).order_by(AlertGroup.started_at).limit(1))
         if alert_group is None:
             return None
         alerts = list((await self.session.scalars(select(Alert).where(Alert.alert_group_id == alert_group.alert_group_id).order_by(Alert.first_seen_at).limit(50))).all())

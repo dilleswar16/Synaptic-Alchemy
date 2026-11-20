@@ -12,6 +12,8 @@ from keigan.exceptions.keigan_exceptions import BusinessValidationException, Not
 from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
+from keigan.services.reference_release import release_references
+from keigan.services.service_scope import unknown_service_ids
 from keigan.utils.text_utils import term_frequencies
 
 
@@ -37,11 +39,11 @@ class RunbookService:
             trigger_symptoms_text=request.trigger_symptoms_text,
             runbook_steps_markdown=request.runbook_steps_markdown,
             source_url=request.source_url,
-            applies_to_service_ids_json=request.applies_to_service_ids,
             knowledge_document_id=request.knowledge_document_id,
             created_by_user_principal_name=current_user.user_principal_name,
             updated_by_user_principal_name=current_user.user_principal_name,
         )
+        runbook.replace_linked_ids("service_links", request.applies_to_service_ids)
         self._refresh_search_terms(runbook)
         await self.runbook_repository.add(runbook)
         await self.audit_service.record(
@@ -56,7 +58,7 @@ class RunbookService:
         await self._validate_references(application_id, changes.get("applies_to_service_ids") or [], changes.get("knowledge_document_id"))
         for field_name, field_value in changes.items():
             if field_name == "applies_to_service_ids":
-                runbook.applies_to_service_ids_json = field_value or []
+                runbook.replace_linked_ids("service_links", field_value)
             elif field_value is not None or field_name in ("trigger_symptoms_text", "runbook_steps_markdown", "source_url", "knowledge_document_id"):
                 setattr(runbook, field_name, field_value)
         self._refresh_search_terms(runbook)
@@ -74,6 +76,7 @@ class RunbookService:
             current_user, "runbook.delete", target_entity_type="runbook", target_entity_id=runbook_id, application_id=application_id,
             action_details={"runbookTitle": runbook.runbook_title},
         )
+        await release_references(self.session, Runbook.runbook_id, [runbook_id])
         await self.runbook_repository.delete(runbook)
 
     # ── Helpers ────────────────────────────────────────────────────────────────
@@ -83,11 +86,8 @@ class RunbookService:
         runbook.search_terms_json = term_frequencies(f"{runbook.runbook_title} {runbook.runbook_title} {runbook.trigger_symptoms_text or ''} {runbook.trigger_symptoms_text or ''} {runbook.runbook_steps_markdown or ''}")
 
     async def _validate_references(self, application_id: str, service_ids: list[str], knowledge_document_id: str | None) -> None:
-        if service_ids:
-            known_ids = set((await self.session.scalars(select(MonitoredService.service_id).where(MonitoredService.application_id == application_id, MonitoredService.service_id.in_(service_ids)))).all())
-            unknown_ids = set(service_ids) - known_ids
-            if unknown_ids:
-                raise BusinessValidationException("A selected service is not part of this application.", field_errors=[{"field": "appliesToServiceIds", "message": "Unknown service."}])
+        if await unknown_service_ids(self.session, application_id, service_ids):
+            raise BusinessValidationException("A selected service is not part of this application.", field_errors=[{"field": "appliesToServiceIds", "message": "Unknown service."}])
         if knowledge_document_id:
             document = await self.session.get(KnowledgeDocument, knowledge_document_id)
             if document is None or document.application_id != application_id:
@@ -104,7 +104,7 @@ class RunbookService:
 
     @staticmethod
     def _to_response(runbook: Runbook, service_names: dict[str, str]) -> RunbookResponse:
-        service_ids = runbook.applies_to_service_ids_json or []
+        service_ids = runbook.applies_to_service_ids
         return RunbookResponse(
             runbook_id=runbook.runbook_id,
             application_id=runbook.application_id,

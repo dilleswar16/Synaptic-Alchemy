@@ -62,7 +62,7 @@ async def _seed_communication_outbox(session: AsyncSession) -> None:
             continue
         application_name = await notification_service._application_name(incident.application_id)
         notification_type = "preliminary_report" if communication.communication_type == "preliminary_report" else "progress_update"
-        for stakeholder in await notification_service.matching_stakeholders(incident.application_id, notification_type, "email", priority=incident.keigan_priority or "P3", service_ids=incident.affected_service_ids_json):
+        for stakeholder in await notification_service.matching_stakeholders(incident.application_id, notification_type, "email", priority=incident.keigan_priority or "P3", service_ids=incident.affected_service_ids):
             recipient_language = stakeholder.preferred_language_code.split("-")[0]
             if recipient_language != communication.language_code.split("-")[0] and not (communication.language_code == "en" and recipient_language not in ("en", "ja")):
                 continue

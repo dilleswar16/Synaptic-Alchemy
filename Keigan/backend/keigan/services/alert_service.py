@@ -31,6 +31,7 @@ from keigan.services.alert_source_service import AlertSourceService
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.noise_preview_service import NoisePreviewService
+from keigan.services.service_scope import unknown_service_ids
 
 OBSERVE_MODE_DAYS = 14
 
@@ -236,7 +237,7 @@ class AlertService:
 
     # ── Maintenance windows ────────────────────────────────────────────────────
     async def _window_response(self, window: MaintenanceWindow) -> MaintenanceWindowResponse:
-        service_ids = window.applies_to_service_ids_json or []
+        service_ids = window.applies_to_service_ids
         names = [service.service_name for service in (await self.session.scalars(select(MonitoredService).where(MonitoredService.service_id.in_(service_ids)))).all()] if service_ids else []
         return MaintenanceWindowResponse(
             maintenance_window_id=window.maintenance_window_id, application_id=window.application_id, window_name=window.window_name, applies_to_service_ids=service_ids, applies_to_service_names=names,
@@ -248,13 +249,19 @@ class AlertService:
         windows = (await self.session.scalars(select(MaintenanceWindow).where(MaintenanceWindow.application_id == application_id).order_by(MaintenanceWindow.starts_at.desc()))).all()
         return [await self._window_response(window) for window in windows]
 
+    async def _ensure_services_belong_to_application(self, application_id: str, service_ids: list[str] | None) -> None:
+        if await unknown_service_ids(self.session, application_id, service_ids):
+            raise BusinessValidationException("A selected service is not part of this application.", field_errors=[{"field": "appliesToServiceIds", "message": "Unknown service."}])
+
     async def create_maintenance_window(self, current_user: CurrentUser, application_id: str, request: MaintenanceWindowRequest) -> MaintenanceWindowResponse:
         if request.ends_at <= request.starts_at:
             raise BusinessValidationException("The window must end after it starts.", field_errors=[{"field": "endsAt", "message": "Must be after the start."}])
+        await self._ensure_services_belong_to_application(application_id, request.applies_to_service_ids)
         window = MaintenanceWindow(
-            application_id=application_id, window_name=request.window_name.strip(), applies_to_service_ids_json=request.applies_to_service_ids or [], applies_to_environments_json=request.applies_to_environments or [],
+            application_id=application_id, window_name=request.window_name.strip(), applies_to_environments_json=request.applies_to_environments or [],
             starts_at=request.starts_at, ends_at=request.ends_at, repeats_weekly=request.repeats_weekly, created_by_user_principal_name=current_user.user_principal_name, updated_by_user_principal_name=current_user.user_principal_name,
         )
+        window.replace_linked_ids("service_links", request.applies_to_service_ids)
         self.session.add(window)
         await self.session.flush()
         await AuditService(self.session).record(current_user, "maintenance_window.create", target_entity_type="maintenance_window", target_entity_id=window.maintenance_window_id, application_id=application_id, action_details={"name": window.window_name})
@@ -272,7 +279,8 @@ class AlertService:
         if request.window_name is not None:
             window.window_name = request.window_name.strip()
         if "applies_to_service_ids" in provided:
-            window.applies_to_service_ids_json = request.applies_to_service_ids or []
+            await self._ensure_services_belong_to_application(application_id, request.applies_to_service_ids)
+            window.replace_linked_ids("service_links", request.applies_to_service_ids)
         if "applies_to_environments" in provided:
             window.applies_to_environments_json = request.applies_to_environments or []
         window.starts_at = request.starts_at or window.starts_at
@@ -432,7 +440,7 @@ class AlertService:
             summaries.append(AlertGroupSummaryResponse(
                 alert_group_id=group.alert_group_id, application_id=group.application_id, application_name=application_names.get(group.application_id), group_title=group.group_title, group_summary=group.group_summary,
                 group_status=group.group_status, priority_score=group.priority_score, grouping_reason=group.grouping_reason, member_alert_count=group.member_alert_count, total_occurrence_count=int(occurrence_totals.get(group.alert_group_id) or 0),
-                services=[ServiceReference(service_id=service_id, service_name=service_names[service_id]) for service_id in (group.affected_service_ids_json or []) if service_id in service_names],
+                services=[ServiceReference(service_id=service_id, service_name=service_names[service_id]) for service_id in group.affected_service_ids if service_id in service_names],
                 highest_severity_level=group.highest_severity_level, started_at=group.started_at, last_activity_at=group.last_activity_at, resolved_at=group.resolved_at, investigation_id=group.investigation_id,
                 incident_id=group.incident_id, servicenow_incident_suggested=group.servicenow_incident_suggested, user_feedback_verdict=group.user_feedback_verdict,
                 decision_reason=decision.decision_reason if decision else group.grouping_reason, decision_outcome=(decision.would_have_outcome_in_active_mode or decision.decision_outcome) if decision else None,
@@ -488,7 +496,6 @@ class AlertService:
             incident_id = await IncidentService(self.session).create_servicenow_incident_from_alert_group(alert_group_id, current_user.user_principal_name)
         except NotImplementedError:
             raise ReaderNotAvailableException("Creating ServiceNow incidents from alert groups is not available yet.") from None
-        group.incident_id = incident_id
         group.servicenow_incident_suggested = False
         await AuditService(self.session).record(current_user, "alert_group.create_incident", target_entity_type="alert_group", target_entity_id=alert_group_id, application_id=group.application_id, action_details={"incident_id": incident_id})
         return incident_id

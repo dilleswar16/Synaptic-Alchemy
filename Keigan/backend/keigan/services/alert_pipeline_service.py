@@ -23,6 +23,7 @@ from keigan.entities.alert_entities import Alert, AlertDecision, AlertEvent, Ale
 from keigan.entities.application_entities import Application, MonitoredService, ServiceDependency
 from keigan.entities.incident_entities import Incident, Investigation
 from keigan.services import alert_rules
+from keigan.services.alert_group_link_service import AlertGroupLinkService
 from keigan.services.alert_rules import CanonicalAlert
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.json_path_utils import read_json_path
@@ -392,8 +393,7 @@ class AlertPipelineService:
         if group is None:
             group = await self._create_group(context, alert, service, score, grouping_reason, reference_time)
             if incident_investigation_id:
-                group.investigation_id = incident_investigation_id[1]
-                group.incident_id = incident_investigation_id[0]
+                await AlertGroupLinkService(self.session).link(group, investigation_id=incident_investigation_id[1], incident_id=incident_investigation_id[0])
             await self._record(alert, "group", "new_group", grouping_reason or "No open group matched, so this alert starts a new group.", reference_time, group_id=group.alert_group_id, would_have=would_have_outcome)
         else:
             await self._join_group(group, alert, score, reference_time)
@@ -412,7 +412,7 @@ class AlertPipelineService:
         candidates = list((await self.session.scalars(
             select(AlertGroup).where(AlertGroup.application_id == alert.application_id, AlertGroup.group_status.in_(OPEN_GROUP_STATUSES), AlertGroup.last_activity_at >= reference_time - window).order_by(AlertGroup.last_activity_at.desc()).limit(60)
         )).all())
-        services_of = lambda group: set(group.affected_service_ids_json or []) | ({group.primary_service_id} if group.primary_service_id else set())  # noqa: E731
+        services_of = lambda group: set(group.affected_service_ids) | ({group.primary_service_id} if group.primary_service_id else set())  # noqa: E731
         if alert.service_id:
             for group in candidates:
                 if alert.service_id in services_of(group):
@@ -464,8 +464,9 @@ class AlertPipelineService:
         title, summary = await self._generate_title(context, [service.service_name] if service else [], [alert.rule_name], 1, alert.severity_level)
         group = AlertGroup(
             application_id=alert.application_id, group_title=title, group_summary=summary, group_status="open", priority_score=score, grouping_reason=grouping_reason[:400], member_alert_count=1,
-            primary_service_id=alert.service_id, affected_service_ids_json=[alert.service_id] if alert.service_id else [], highest_severity_level=alert.severity_level, started_at=reference_time, last_activity_at=reference_time,
+            primary_service_id=alert.service_id, highest_severity_level=alert.severity_level, started_at=reference_time, last_activity_at=reference_time,
         )
+        group.replace_linked_ids("affected_service_links", [alert.service_id])
         self.session.add(group)
         await self.session.flush()
         alert.alert_group_id = group.alert_group_id
@@ -476,10 +477,8 @@ class AlertPipelineService:
         group.last_activity_at = max(group.last_activity_at, reference_time)
         group.priority_score = max(group.priority_score, score)
         group.highest_severity_level = min(group.highest_severity_level, alert.severity_level)
-        affected = list(group.affected_service_ids_json or [])
-        if alert.service_id and alert.service_id not in affected:
-            affected.append(alert.service_id)
-            group.affected_service_ids_json = affected
+        if alert.service_id:
+            group.replace_linked_ids("affected_service_links", [*group.affected_service_ids, alert.service_id])
         alert.alert_group_id = group.alert_group_id
 
     async def _generate_title(self, context: ApplicationAlertContext, service_names: list[str], rule_names: list[str], alert_count: int, highest_severity_level: int) -> tuple[str, str]:
@@ -549,11 +548,10 @@ class AlertPipelineService:
             from keigan.services.investigation_service import InvestigationService
 
             async with self.session.begin_nested():
-                investigation_id = await InvestigationService(self.session).start_investigation(
-                    context.application.application_id, "alert_group", alert_group_id=group.alert_group_id, service_ids=list(group.affected_service_ids_json or []),
+                await InvestigationService(self.session).start_investigation(
+                    context.application.application_id, "alert_group", alert_group_id=group.alert_group_id, service_ids=group.affected_service_ids,
                     description=f"Alert group {code}: {group.group_title}",
                 )
-            group.investigation_id = investigation_id
             group.group_status = "open"
             await self._record(alert, "decide", "investigation_started", f"Investigation started: new group {code} scored {group.priority_score} (threshold {threshold}).", reference_time, group_id=group.alert_group_id)
         except Exception as start_error:  # noqa: BLE001
@@ -589,7 +587,7 @@ class AlertPipelineService:
                 from keigan.services.incident_service import IncidentService
 
                 async with self.session.begin_nested():
-                    group.incident_id = await IncidentService(self.session).create_servicenow_incident_from_alert_group(group.alert_group_id)
+                    await IncidentService(self.session).create_servicenow_incident_from_alert_group(group.alert_group_id)
                 await self._record(alert, "decide", "servicenow_incident_created", f"ServiceNow incident created automatically: score {group.priority_score} reached the policy threshold {threshold}.", reference_time, group_id=group.alert_group_id)
                 return
             except Exception as creation_error:  # noqa: BLE001

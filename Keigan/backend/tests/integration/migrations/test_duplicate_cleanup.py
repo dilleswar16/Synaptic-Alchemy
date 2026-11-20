@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from support.schema_revisions import insert_row
 
 BACKEND_DIRECTORY = Path(__file__).resolve().parents[3]
 INITIAL_REVISION = "94692c828bd3"
@@ -27,6 +28,7 @@ def database_with_duplicates(tmp_path: Path) -> Path:
     database_file = tmp_path / "old.db"
     _alembic(database_file, "upgrade", INITIAL_REVISION)
     with sqlite3.connect(database_file) as connection:
+        insert_row(connection, "application", application_id="app-1", application_code="APP1")  # the alerts must belong to a real application: the foreign-key revision deletes orphans
         for alert_id, last_seen_at in (("alert-old", "2026-11-01 10:00:00.000000"), ("alert-new", "2026-11-01 11:00:00.000000")):
             connection.execute(
                 "INSERT INTO alert (alert_id, application_id, alert_fingerprint, rule_name, severity_level, alert_status, alert_summary, occurrence_count, state_change_count, is_flapping, first_seen_at, last_seen_at)"

@@ -9,6 +9,7 @@ from sqlalchemy import BigInteger, Boolean, Float, ForeignKey, Index, Integer, S
 from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, identifier_column, utc_now
+from keigan.entities.status_values import BurnAlertSeverity, IntelligenceReportType, SignalSeverity, SignalStatus, values_check
 
 
 class ServiceLevelIndicator(AuditColumnsMixin, EntityBase):
@@ -16,7 +17,7 @@ class ServiceLevelIndicator(AuditColumnsMixin, EntityBase):
 
     sli_id: Mapped[str] = identifier_column()
     application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id", ondelete="CASCADE"), index=True)
-    service_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    service_id: Mapped[str | None] = mapped_column(ForeignKey("monitored_service.service_id"), index=True)
     catalog_entry_key: Mapped[str] = mapped_column(String(120), default="custom")
     sli_name: Mapped[str] = mapped_column(String(200))
     sli_kind: Mapped[str] = mapped_column(String(30))
@@ -35,7 +36,7 @@ class ServiceLevelObjective(AuditColumnsMixin, EntityBase):
 
     slo_id: Mapped[str] = identifier_column()
     sli_id: Mapped[str] = mapped_column(ForeignKey("service_level_indicator.sli_id", ondelete="CASCADE"), index=True)
-    application_id: Mapped[str] = mapped_column(String(36), index=True)
+    application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id"), index=True)
     target_percentage: Mapped[float] = mapped_column(Float)
     rolling_window_days: Mapped[int] = mapped_column(Integer, default=30)
     burn_rate_policy_json: Mapped[dict[str, Any] | None] = mapped_column()
@@ -48,7 +49,7 @@ class SliMeasurement(EntityBase):
     sli_measurement_id: Mapped[int] = mapped_column(
         BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
     )
-    sli_id: Mapped[str] = mapped_column(String(36), index=True)
+    sli_id: Mapped[str] = mapped_column(ForeignKey("service_level_indicator.sli_id", ondelete="CASCADE"), index=True)
     measurement_window_start: Mapped[datetime] = mapped_column()
     good_event_count: Mapped[int | None] = mapped_column(BigInteger)
     total_event_count: Mapped[int | None] = mapped_column(BigInteger)
@@ -58,10 +59,13 @@ class SliMeasurement(EntityBase):
 
 class SloBurnAlert(EntityBase):
     __tablename__ = "slo_burn_alert"
+    __table_args__ = (
+        values_check("burn_alert_severity", BurnAlertSeverity),
+    )
 
     slo_burn_alert_id: Mapped[str] = identifier_column()
     slo_id: Mapped[str] = mapped_column(ForeignKey("service_level_objective.slo_id", ondelete="CASCADE"), index=True)
-    application_id: Mapped[str] = mapped_column(String(36), index=True)
+    application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id"), index=True)
     burn_alert_severity: Mapped[str] = mapped_column(String(10))
     long_window_burn_rate: Mapped[float] = mapped_column(Float)
     short_window_burn_rate: Mapped[float] = mapped_column(Float)
@@ -72,12 +76,16 @@ class SloBurnAlert(EntityBase):
 
 class PredictiveSignal(EntityBase):
     __tablename__ = "predictive_signal"
-    __table_args__ = (Index("ix_predictive_signal_application_detected", "application_id", "detected_at"),)
+    __table_args__ = (
+        Index("ix_predictive_signal_application_detected", "application_id", "detected_at"),
+        values_check("signal_status", SignalStatus),
+        values_check("signal_severity", SignalSeverity),
+    )
 
     predictive_signal_id: Mapped[str] = identifier_column()
-    application_id: Mapped[str] = mapped_column(String(36))
-    service_id: Mapped[str | None] = mapped_column(String(36))
-    sli_id: Mapped[str | None] = mapped_column(String(36))
+    application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id", ondelete="CASCADE"))
+    service_id: Mapped[str | None] = mapped_column(ForeignKey("monitored_service.service_id"))
+    sli_id: Mapped[str | None] = mapped_column(ForeignKey("service_level_indicator.sli_id"))
     detector_name: Mapped[str] = mapped_column(String(40))
     signal_severity: Mapped[str] = mapped_column(String(10), default="warning")
     signal_title: Mapped[str] = mapped_column(String(400))
@@ -97,9 +105,12 @@ class PredictiveSignal(EntityBase):
 
 class IntelligenceReport(EntityBase):
     __tablename__ = "intelligence_report"
+    __table_args__ = (
+        values_check("report_type", IntelligenceReportType),
+    )
 
     intelligence_report_id: Mapped[str] = identifier_column()
-    application_id: Mapped[str] = mapped_column(String(36), index=True)
+    application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id", ondelete="CASCADE"), index=True)
     report_type: Mapped[str] = mapped_column(String(20))
     report_title: Mapped[str] = mapped_column(String(400))
     report_period_start: Mapped[datetime] = mapped_column()

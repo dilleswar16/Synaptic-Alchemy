@@ -29,7 +29,7 @@ from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
 from keigan.ai.prompt_safety import build_valid_citation_codes, remove_invalid_citations, restrict_to_known_file_path, strip_invisible_characters
 from keigan.config import application_context
 from keigan.config.settings import get_settings
-from keigan.entities.alert_entities import Alert
+from keigan.entities.alert_entities import Alert, AlertGroup
 from keigan.entities.application_entities import Application, MonitoredService, ServiceDependency
 from keigan.entities.incident_entities import Incident, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent
 from keigan.entities.notification_entities import Stakeholder
@@ -179,8 +179,9 @@ class InvestigationGraphRunner:
     async def triage_node(self, state: InvestigationState) -> dict[str, Any]:
         incident, investigation = self.incident, self.investigation
         raw_text = f"{incident.incident_title}\n\n{incident.incident_description or ''}" if incident else (investigation.triage_result_json or {}).get("manual_description", "")
-        if investigation.alert_group_id:
-            alerts = (await self.session.scalars(select(Alert).where(Alert.alert_group_id == investigation.alert_group_id).limit(20))).all()
+        covered_group_ids = select(AlertGroup.alert_group_id).where(AlertGroup.investigation_id == investigation.investigation_id)
+        alerts = (await self.session.scalars(select(Alert).where(Alert.alert_group_id.in_(covered_group_ids)).order_by(Alert.first_seen_at).limit(20))).all()
+        if alerts:
             raw_text += "\n\nAlerts in the group:\n" + "\n".join(f"- {alert.rule_name}: {alert.alert_summary}" for alert in alerts)
         self.incident_text = self.masker.mask_text(raw_text)
         catalogue = self._describe_services(self.all_services)
@@ -202,14 +203,14 @@ class InvestigationGraphRunner:
         catalogue_names = {service.service_name.lower(): service for service in self.all_services}
         triage.candidate_service_names = [name for name in triage.candidate_service_names if name.lower() in catalogue_names]
         self.services = self._resolve_candidate_services(triage.candidate_service_names)
-        investigation.investigated_service_ids_json = [service.service_id for service in self.services]
+        investigation.replace_linked_ids("investigated_service_links", [service.service_id for service in self.services])
         guardrail_priority = await self._guardrail_priority()
         mapped_priority = map_servicenow_priority(incident.servicenow_impact, incident.servicenow_urgency, incident.servicenow_priority) if incident else None
         final_priority = most_severe_priority(triage.suggested_priority, mapped_priority, guardrail_priority) or triage.suggested_priority
         if incident:
             incident.keigan_priority, incident.priority_rationale = final_priority, triage.priority_rationale
             incident.incident_category = triage.incident_category
-            incident.affected_service_ids_json = investigation.investigated_service_ids_json
+            incident.replace_linked_ids("affected_service_links", investigation.investigated_service_ids)
             incident.incident_status = "investigating" if incident.incident_status in ("new", "investigating") else incident.incident_status
         investigation.triage_result_json = {**(investigation.triage_result_json or {}), **triage.model_dump(), "final_priority": final_priority, "guardrail_priority": guardrail_priority, "mapped_servicenow_priority": mapped_priority}
         if self.mock_context:
@@ -223,9 +224,9 @@ class InvestigationGraphRunner:
     def _resolve_candidate_services(self, triage_names: list[str]) -> list[MonitoredService]:
         services_by_id = {service.service_id: service for service in self.all_services}
         services_by_name = {service.service_name.lower(): service for service in self.all_services}
-        ordered_ids: list[str] = list(self.investigation.investigated_service_ids_json or [])
-        if self.incident and self.incident.affected_service_ids_json:
-            ordered_ids += self.incident.affected_service_ids_json
+        ordered_ids: list[str] = list(self.investigation.investigated_service_ids)
+        if self.incident:
+            ordered_ids += self.incident.affected_service_ids
         ordered_ids += [services_by_name[name.lower()].service_id for name in triage_names if name.lower() in services_by_name]
         ordered_ids = [service_id for service_id in dict.fromkeys(ordered_ids) if service_id in services_by_id]
         for service_id in list(ordered_ids[:3]):  # dependency neighbourhood: downstream first, then upstream callers
@@ -347,7 +348,7 @@ class InvestigationGraphRunner:
     async def finalize_evidence_node(self, state: InvestigationState) -> dict[str, Any]:
         ranked_drafts = self.evidence_service.rank_and_trim(self.evidence_drafts, self.settings.investigation_evidence_token_budget)
         self.evidence_rows = await self.evidence_service.persist_evidence(self.investigation.investigation_id, ranked_drafts)
-        self.investigation.matched_runbook_ids_json = None
+        self.investigation.replace_linked_ids("matched_runbook_links", [])
         await self._refine_runbook_matches()
         if self.mock_context:
             names_by_id = {service.service_id: service.service_name for service in self.all_services}
@@ -505,7 +506,7 @@ class InvestigationGraphRunner:
         investigation.how_to_fix_markdown = clean(synthesis.how_to_fix_markdown)
         investigation.open_questions_json = [sanitize_ai_line(question, maximum_characters=500) for question in synthesis.open_questions[:5]]
         applied_runbook_ids = [runbook_codes[code].runbook_id for code in synthesis.applied_runbook_codes if code in runbook_codes]
-        investigation.matched_runbook_ids_json = applied_runbook_ids
+        investigation.replace_linked_ids("matched_runbook_links", applied_runbook_ids)
         if applied_runbook_ids:
             try:
                 from keigan.services.knowledge_service import KnowledgeService
@@ -564,7 +565,7 @@ class InvestigationGraphRunner:
         stakeholders = list(
             (await self.session.scalars(select(Stakeholder).where(Stakeholder.application_id == self.application.application_id, Stakeholder.is_active.is_(True)))).all()
         )
-        relevant_stakeholders = [stakeholder for stakeholder in stakeholders if not stakeholder.subscribed_service_ids_json or impacted_ids & set(stakeholder.subscribed_service_ids_json)]
+        relevant_stakeholders = [stakeholder for stakeholder in stakeholders if not stakeholder.subscribed_service_ids or impacted_ids & set(stakeholder.subscribed_service_ids)]
         node_ids = list(dict.fromkeys([*direct_ids, *indirect_ids, *(service.service_id for service in self.services)]))
         blast_radius = {
             "nodes": [
@@ -595,7 +596,7 @@ class InvestigationGraphRunner:
             blast_radius["narrativeMarkdown"] = deterministic_text.replace("\n", "  \n")
         self.investigation.blast_radius_json = blast_radius
         if self.incident is not None:
-            self.incident.affected_service_ids_json = [*direct_ids, *indirect_ids]
+            self.incident.replace_linked_ids("affected_service_links", [*direct_ids, *indirect_ids])
         await self._update_progress("synthesis", f"Blast radius mapped: {len(direct_ids)} direct, {len(indirect_ids)} indirect", 90)
         return {}
 

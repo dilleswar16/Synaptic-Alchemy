@@ -20,6 +20,7 @@ from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.incident_entities import Incident, IncidentCommunication, Investigation, PostmortemReport
 from keigan.entities.notification_entities import NotificationDelivery, Stakeholder, TeamsIncidentChat
 from keigan.entities.slo_entities import ServiceLevelIndicator, ServiceLevelObjective, SloBurnAlert
+from keigan.entities.status_values import Priority
 from keigan.exceptions.keigan_exceptions import IntegrationException, NotFoundException
 from keigan.integrations.email_sender import SmtpEmailSender
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
@@ -27,7 +28,7 @@ from keigan.services.notification_renderer import NotificationRenderer, Rendered
 from keigan.utils.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
-PRIORITY_RANK = {"P1": 1, "P2": 2, "P3": 3, "P4": 4}
+PRIORITY_RANK = {priority.value: rank for rank, priority in enumerate(Priority, start=1)}
 COMMUNICATION_TO_NOTIFICATION_TYPE = {"preliminary_report": "preliminary_report", "initial_update": "incident_detected"}
 EXECUTIVE_ROLES = {"manager", "executive", "business_owner"}
 TECHNICAL_ROLES = {"sre", "developer", "vendor_contact"}
@@ -58,7 +59,7 @@ class NotificationService:
                 continue
             if priority is not None and priority_rank(priority) > priority_rank(stakeholder.minimum_priority):
                 continue
-            subscribed_services = set(stakeholder.subscribed_service_ids_json or [])
+            subscribed_services = set(stakeholder.subscribed_service_ids)
             if subscribed_services and service_ids and not subscribed_services.intersection(service_ids):
                 continue
             matches.append(stakeholder)
@@ -195,9 +196,9 @@ class NotificationService:
             return None
         application_name = await self._application_name(incident.application_id)
         priority = incident.keigan_priority or "P3"
-        facts_services = await self._service_names(incident.affected_service_ids_json)
+        facts_services = await self._service_names(incident.affected_service_ids)
         queued_count = 0
-        for stakeholder in await self.matching_stakeholders(incident.application_id, "incident_detected", "email", priority=priority, service_ids=incident.affected_service_ids_json):
+        for stakeholder in await self.matching_stakeholders(incident.application_id, "incident_detected", "email", priority=priority, service_ids=incident.affected_service_ids):
             recipient_address = self.recipient_address_for(stakeholder, "email")
             if not recipient_address:
                 continue
@@ -210,7 +211,7 @@ class NotificationService:
             if await self.queue_email(incident.application_id, "incident_detected", recipient_address, rendered, incident_id=incident.incident_id, deduplicate=True):
                 queued_count += 1
         chat_enqueued = False
-        if self.settings.teams_mode != IntegrationMode.DISABLED and await self.matching_stakeholders(incident.application_id, "incident_detected", "teams_incident_chat", priority=priority, service_ids=incident.affected_service_ids_json):
+        if self.settings.teams_mode != IntegrationMode.DISABLED and await self.matching_stakeholders(incident.application_id, "incident_detected", "teams_incident_chat", priority=priority, service_ids=incident.affected_service_ids):
             from keigan.workers.job_queue import JobQueue
 
             await JobQueue(self.session).enqueue("create_incident_chat", {"incident_id": incident_id}, deduplication_key=f"create_incident_chat:{incident_id}", priority_number=15)
@@ -240,7 +241,7 @@ class NotificationService:
         queued_count = 0
         if self.settings.auto_send_preliminary_report and investigation.investigation_status.startswith("completed"):
             confidence_text = f"{round((investigation.overall_confidence_score or 0) * 100)}%"
-            for stakeholder in await self.matching_stakeholders(incident.application_id, "preliminary_report", "email", priority=priority, service_ids=incident.affected_service_ids_json):
+            for stakeholder in await self.matching_stakeholders(incident.application_id, "preliminary_report", "email", priority=priority, service_ids=incident.affected_service_ids):
                 recipient_address = self.recipient_address_for(stakeholder, "email")
                 if not recipient_address:
                     continue
@@ -278,7 +279,7 @@ class NotificationService:
         sibling_languages = {resolve_language_code(code) for code in sibling_languages}
         own_language = resolve_language_code(communication.language_code)
         queued_count = 0
-        for stakeholder in await self.matching_stakeholders(incident.application_id, notification_type, "email", priority=priority, service_ids=incident.affected_service_ids_json):
+        for stakeholder in await self.matching_stakeholders(incident.application_id, notification_type, "email", priority=priority, service_ids=incident.affected_service_ids):
             recipient_address = self.recipient_address_for(stakeholder, "email")
             recipient_language = resolve_language_code(stakeholder.preferred_language_code)
             if not recipient_address or not (recipient_language == own_language or (own_language == "en" and recipient_language not in sibling_languages)):
@@ -309,7 +310,7 @@ class NotificationService:
             raise NotFoundException("Incident not found.")
         application_name = await self._application_name(incident.application_id)
         queued_count = 0
-        for stakeholder in await self.matching_stakeholders(incident.application_id, "postmortem", "email", service_ids=incident.affected_service_ids_json):
+        for stakeholder in await self.matching_stakeholders(incident.application_id, "postmortem", "email", service_ids=incident.affected_service_ids):
             recipient_address = self.recipient_address_for(stakeholder, "email")
             if not recipient_address:
                 continue

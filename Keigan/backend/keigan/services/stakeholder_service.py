@@ -12,7 +12,7 @@ from keigan.config.settings import AuthenticationMode, get_settings
 from keigan.dtos.notification_dtos import (
     NOTIFICATION_CHANNEL_VALUES, NOTIFICATION_TYPE_VALUES, DirectoryUserResponse, StakeholderCreateRequest, StakeholderResponse, StakeholderTestResponse, StakeholderUpdateRequest,
 )
-from keigan.entities.application_entities import Application, MonitoredService
+from keigan.entities.application_entities import Application
 from keigan.entities.notification_entities import Stakeholder
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
@@ -20,8 +20,9 @@ from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.notification_renderer import translate
 from keigan.services.notification_service import NotificationService
+from keigan.services.service_scope import unknown_service_ids
 
-FIELD_NAMES_WITH_JSON_LISTS = {"subscribed_service_ids": "subscribed_service_ids_json", "notification_channels": "notification_channels_json", "subscribed_notification_types": "subscribed_notification_types_json"}
+FIELD_NAMES_WITH_JSON_LISTS = {"notification_channels": "notification_channels_json", "subscribed_notification_types": "subscribed_notification_types_json"}
 
 
 class StakeholderService:
@@ -124,11 +125,8 @@ class StakeholderService:
         for notification_type in values.get("subscribed_notification_types") or []:
             if notification_type not in NOTIFICATION_TYPE_VALUES:
                 errors.append({"field": "subscribedNotificationTypes", "message": f"Unknown notification type {notification_type}."})
-        service_ids = values.get("subscribed_service_ids") or []
-        if service_ids:
-            known_ids = set((await self.session.scalars(select(MonitoredService.service_id).where(MonitoredService.application_id == application_id))).all())
-            if not set(service_ids) <= known_ids:
-                errors.append({"field": "subscribedServiceIds", "message": "A selected service does not belong to this application."})
+        if await unknown_service_ids(self.session, application_id, values.get("subscribed_service_ids")):
+            errors.append({"field": "subscribedServiceIds", "message": "A selected service does not belong to this application."})
         recipient_type = values.get("recipient_type")
         if not partial and recipient_type in (None, "person", "distribution_list") and not (values.get("email_address") or values.get("user_principal_name")):
             errors.append({"field": "emailAddress", "message": "An email address is required for people and distribution lists."})
@@ -140,7 +138,10 @@ class StakeholderService:
     @staticmethod
     def _apply(stakeholder: Stakeholder, values: dict[str, Any]) -> None:
         for field_name, value in values.items():
-            setattr(stakeholder, FIELD_NAMES_WITH_JSON_LISTS.get(field_name, field_name), value)
+            if field_name == "subscribed_service_ids":
+                stakeholder.replace_linked_ids("subscribed_service_links", value)
+            else:
+                setattr(stakeholder, FIELD_NAMES_WITH_JSON_LISTS.get(field_name, field_name), value)
         if "email_address" in values and values["email_address"] and not stakeholder.user_principal_name:
             stakeholder.user_principal_name = values["email_address"]
 
@@ -149,7 +150,7 @@ class StakeholderService:
         return StakeholderResponse(
             stakeholder_id=stakeholder.stakeholder_id, application_id=stakeholder.application_id, recipient_type=stakeholder.recipient_type, display_name=stakeholder.display_name,
             email_address=stakeholder.email_address, user_principal_name=stakeholder.user_principal_name, entra_object_id=stakeholder.entra_object_id, teams_team_id=stakeholder.teams_team_id,
-            teams_channel_id=stakeholder.teams_channel_id, stakeholder_role=stakeholder.stakeholder_role, subscribed_service_ids=stakeholder.subscribed_service_ids_json or [],
+            teams_channel_id=stakeholder.teams_channel_id, stakeholder_role=stakeholder.stakeholder_role, subscribed_service_ids=stakeholder.subscribed_service_ids,
             notification_channels=stakeholder.notification_channels_json or [], minimum_priority=stakeholder.minimum_priority, subscribed_notification_types=stakeholder.subscribed_notification_types_json or [],
             preferred_language_code=stakeholder.preferred_language_code, is_active=stakeholder.is_active, updated_at=getattr(stakeholder, "updated_at", None),
         )

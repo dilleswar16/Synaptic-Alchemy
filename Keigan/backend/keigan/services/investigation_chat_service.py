@@ -95,7 +95,7 @@ class InvestigationChatService:
         timeline = list((await self.session.scalars(
             select(InvestigationTimelineEvent).where(InvestigationTimelineEvent.investigation_id == investigation_id).order_by(InvestigationTimelineEvent.event_occurred_at.desc()).limit(15)
         )).all())
-        runbook_ids = investigation.matched_runbook_ids_json or []
+        runbook_ids = investigation.matched_runbook_ids
         runbooks = list((await self.session.scalars(select(Runbook).where(Runbook.runbook_id.in_(runbook_ids)))).all()) if runbook_ids else []
         runbook_titles = {f"R{index + 1}": runbook.runbook_title for index, runbook in enumerate(runbooks)}
 

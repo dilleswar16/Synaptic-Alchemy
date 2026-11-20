@@ -25,7 +25,6 @@ from keigan.entities.application_entities import (
     ApplicationComponent,
     DiscoveredResource,
     MonitoredService,
-    ServiceDependency,
     ServiceLogSource,
 )
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, ConflictException, IntegrationException, NotFoundException
@@ -33,6 +32,7 @@ from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.component_discovery_service import ComponentDiscoveryService, resource_type_display_name
+from keigan.services.reference_release import release_references
 from keigan.services.role_command_builder import RoleCommandBuilder
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
@@ -202,7 +202,7 @@ class OnboardingService:
         component = await self._get_component(application_id, component_id)
         service_ids = list((await self.session.scalars(select(MonitoredService.service_id).where(MonitoredService.component_id == component_id))).all())
         if service_ids:
-            await self.session.execute(delete(ServiceDependency).where(ServiceDependency.upstream_service_id.in_(service_ids) | ServiceDependency.downstream_service_id.in_(service_ids)))
+            await release_references(self.session, MonitoredService.service_id, service_ids)
             await self.session.execute(delete(ServiceLogSource).where(ServiceLogSource.service_id.in_(service_ids)))
             await self.session.execute(delete(MonitoredService).where(MonitoredService.service_id.in_(service_ids)))
         await self.session.execute(delete(DiscoveredResource).where(DiscoveredResource.component_id == component_id))

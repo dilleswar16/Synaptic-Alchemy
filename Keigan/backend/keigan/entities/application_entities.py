@@ -9,10 +9,15 @@ from sqlalchemy import Boolean, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, identifier_column, utc_now
+from keigan.entities.status_values import AccessVerificationStatus, ApplicationLifecycleStatus, ComponentType, CriticalityTier, IntegrationStatus, LogToolConnectionStatus, ReadTestStatus, values_check
 
 
 class Application(AuditColumnsMixin, EntityBase):
     __tablename__ = "application"
+    __table_args__ = (
+        values_check("lifecycle_status", ApplicationLifecycleStatus),
+        values_check("criticality_tier", CriticalityTier),
+    )
 
     application_id: Mapped[str] = identifier_column()
     application_name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -36,6 +41,10 @@ class Application(AuditColumnsMixin, EntityBase):
 
 class ApplicationComponent(AuditColumnsMixin, EntityBase):
     __tablename__ = "application_component"
+    __table_args__ = (
+        values_check("component_type", ComponentType),
+        values_check("access_verification_status", AccessVerificationStatus),
+    )
 
     component_id: Mapped[str] = identifier_column()
     application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id", ondelete="CASCADE"), index=True)
@@ -60,7 +69,8 @@ class DiscoveredResource(EntityBase):
 
     discovered_resource_id: Mapped[str] = identifier_column()
     component_id: Mapped[str] = mapped_column(ForeignKey("application_component.component_id", ondelete="CASCADE"), index=True)
-    application_id: Mapped[str] = mapped_column(String(36), index=True)
+    # NO ACTION: discovered resources already cascade from their component.
+    application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id"), index=True)
     azure_resource_id: Mapped[str] = mapped_column(String(600))
     resource_name: Mapped[str] = mapped_column(String(260))
     resource_type: Mapped[str] = mapped_column(String(200))
@@ -77,6 +87,9 @@ class DiscoveredResource(EntityBase):
 
 class MonitoredService(AuditColumnsMixin, EntityBase):
     __tablename__ = "monitored_service"
+    __table_args__ = (
+        values_check("criticality_tier", CriticalityTier),
+    )
 
     service_id: Mapped[str] = identifier_column()
     application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id", ondelete="CASCADE"), index=True)
@@ -106,7 +119,8 @@ class ServiceDependency(EntityBase):
     __table_args__ = (UniqueConstraint("upstream_service_id", "downstream_service_id", name="uq_service_dependency_pair"),)
 
     service_dependency_id: Mapped[str] = identifier_column()
-    application_id: Mapped[str] = mapped_column(String(36), index=True)
+    # NO ACTION: dependencies already cascade from their upstream service.
+    application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id"), index=True)
     upstream_service_id: Mapped[str] = mapped_column(ForeignKey("monitored_service.service_id", ondelete="CASCADE"))
     # NO ACTION: SQL Server allows one cascade path; service removal deletes dependencies in both directions explicitly.
     downstream_service_id: Mapped[str] = mapped_column(ForeignKey("monitored_service.service_id"))
@@ -117,6 +131,9 @@ class ServiceDependency(EntityBase):
 
 class LogToolConnection(AuditColumnsMixin, EntityBase):
     __tablename__ = "log_tool_connection"
+    __table_args__ = (
+        values_check("connection_status", LogToolConnectionStatus),
+    )
 
     log_tool_connection_id: Mapped[str] = identifier_column()
     application_id: Mapped[str] = mapped_column(ForeignKey("application.application_id", ondelete="CASCADE"), index=True)
@@ -134,6 +151,9 @@ class LogToolConnection(AuditColumnsMixin, EntityBase):
 
 class ServiceLogSource(EntityBase):
     __tablename__ = "service_log_source"
+    __table_args__ = (
+        values_check("last_read_test_status", ReadTestStatus),
+    )
 
     service_log_source_id: Mapped[str] = identifier_column()
     service_id: Mapped[str] = mapped_column(ForeignKey("monitored_service.service_id", ondelete="CASCADE"), index=True)
@@ -152,10 +172,13 @@ class ServiceLogSource(EntityBase):
 
 class ExternalIntegration(AuditColumnsMixin, EntityBase):
     __tablename__ = "external_integration"
-    __table_args__ = (UniqueConstraint("application_id", "integration_kind", name="uq_external_integration_kind"),)
+    __table_args__ = (
+        UniqueConstraint("application_id", "integration_kind", name="uq_external_integration_kind"),
+        values_check("integration_status", IntegrationStatus),
+    )
 
     external_integration_id: Mapped[str] = identifier_column()
-    application_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    application_id: Mapped[str | None] = mapped_column(ForeignKey("application.application_id", ondelete="CASCADE"), index=True)
     integration_kind: Mapped[str] = mapped_column(String(40))
     integration_configuration_json: Mapped[dict[str, Any] | None] = mapped_column()
     credential_secret_name: Mapped[str | None] = mapped_column(String(200))

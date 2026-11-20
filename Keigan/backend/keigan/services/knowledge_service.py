@@ -46,6 +46,7 @@ from keigan.integrations.file_storage import build_storage_path
 from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
+from keigan.services.reference_release import release_references
 from keigan.utils.pii_masker import MaskingContext, PiiMasker
 from keigan.utils.text_utils import chunk_markdown, extract_markdown_headings, rank_with_bm25, term_frequencies, truncate_text
 from keigan.utils.time_utils import utc_now
@@ -233,6 +234,7 @@ class KnowledgeService:
             current_user, "knowledge.delete", target_entity_type="knowledge_document", target_entity_id=knowledge_document_id, application_id=application_id,
             action_details={"fileName": document.original_file_name},
         )
+        await release_references(self.session, KnowledgeDocument.knowledge_document_id, [knowledge_document_id])
         await self.document_repository.delete(document)
 
     async def read_document_content(self, application_id: str, knowledge_document_id: str) -> tuple[bytes, str, str]:
@@ -409,7 +411,7 @@ class KnowledgeService:
         eligible = {
             runbook.runbook_id: runbook
             for runbook in runbooks
-            if not service_id_set or not runbook.applies_to_service_ids_json or service_id_set & set(runbook.applies_to_service_ids_json)
+            if not service_id_set or not runbook.applies_to_service_ids or service_id_set & set(runbook.applies_to_service_ids)
         }
         term_sets = {key: runbook.search_terms_json or term_frequencies(f"{runbook.runbook_title} {runbook.trigger_symptoms_text or ''}") for key, runbook in eligible.items()}
         ranked_runbooks = rank_with_bm25(symptom_text, term_sets, maximum_results=maximum_results)

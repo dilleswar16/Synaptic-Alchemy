@@ -35,6 +35,7 @@ from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.component_discovery_service import load_resource_catalog
+from keigan.services.reference_release import release_references
 from keigan.services.telemetry_access_policy import TelemetryAccessRules, raise_if_field_problems
 from keigan.utils.time_utils import utc_now
 
@@ -105,7 +106,7 @@ class ServiceCatalogService:
 
     async def delete_service(self, current_user: CurrentUser, application_id: str, service_id: str) -> None:
         service = await self._get_service(application_id, service_id)
-        await self.session.execute(delete(ServiceDependency).where((ServiceDependency.upstream_service_id == service_id) | (ServiceDependency.downstream_service_id == service_id)))
+        await release_references(self.session, MonitoredService.service_id, [service_id])
         await self.session.execute(delete(ServiceLogSource).where(ServiceLogSource.service_id == service_id))
         await self.audit_service.record(
             current_user, "service.delete", target_entity_type="monitored_service", target_entity_id=service_id, application_id=application_id,

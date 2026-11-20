@@ -112,7 +112,7 @@ class TopologyService:
         await self.session.execute(update(ApplicationTopology).where(ApplicationTopology.application_id == application_id).values(is_current_version=False))
         topology.topology_graph_json = graph
         topology.understanding_summary_markdown = sanitize_ai_markdown(result.narrative_markdown)
-        topology.generated_from_document_ids_json = [document.knowledge_document_id for document in documents]
+        topology.replace_linked_ids("source_document_links", [document.knowledge_document_id for document in documents])
         topology.generated_by_model_name = generated_by_model_name
         topology.generation_status = "ready"
         topology.review_status = "awaiting_review"
@@ -311,5 +311,5 @@ class TopologyService:
             edges.append(TopologyEdgeResponse(**edge, edge_key=edge_key, review_verdict=getattr(reviews.get(edge_key), "review_verdict", None), review_comment_text=getattr(reviews.get(edge_key), "review_comment_text", None)))
         return TopologyDetailResponse(
             **self._to_version(topology).model_dump(), nodes=nodes, edges=edges, understanding_summary_markdown=topology.understanding_summary_markdown,
-            uncertainties=graph.get("uncertainties", []), generated_from_document_ids=topology.generated_from_document_ids_json or [],
+            uncertainties=graph.get("uncertainties", []), generated_from_document_ids=topology.generated_from_document_ids,
         )

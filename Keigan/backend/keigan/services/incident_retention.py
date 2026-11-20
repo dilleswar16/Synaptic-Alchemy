@@ -58,6 +58,7 @@ async def _delete_investigations(session: AsyncSession, investigation_ids: list[
     removed["conversations"] += await _count_deleted(session, delete(Conversation).where(Conversation.investigation_id.in_(investigation_ids)))
     removed["investigationTimelineEvents"] += await _count_deleted(session, delete(InvestigationTimelineEvent).where(InvestigationTimelineEvent.investigation_id.in_(investigation_ids)))
     removed["incidentCommunications"] += await _count_deleted(session, delete(IncidentCommunication).where(IncidentCommunication.investigation_id.in_(investigation_ids)))
+    removed["postmortems"] += await _count_deleted(session, delete(PostmortemReport).where(PostmortemReport.investigation_id.in_(investigation_ids)))
     removed["notificationDeliveries"] += await _count_deleted(session, delete(NotificationDelivery).where(NotificationDelivery.investigation_id.in_(investigation_ids)))
     removed["hypotheses"] += await _count_deleted(session, delete(InvestigationHypothesis).where(InvestigationHypothesis.investigation_id.in_(investigation_ids)))
     removed["evidence"] += await _count_deleted(session, delete(InvestigationEvidence).where(InvestigationEvidence.investigation_id.in_(investigation_ids)))
