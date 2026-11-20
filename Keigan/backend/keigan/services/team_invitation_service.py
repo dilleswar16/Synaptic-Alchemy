@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config.settings import EmailMode, get_settings
@@ -80,6 +80,7 @@ class TeamInvitationService:
         """Queue the invitation email and record that it was sent. Returns the outbox id and a message for the admin."""
         now = utc_now()
         self.ensure_can_invite(stakeholder, now)
+        await self._take_the_cooldown(stakeholder, now)
         language = stakeholder.preferred_language_code
         notification_service = NotificationService(self.session)
         rendered = notification_service.renderer.render_email(
@@ -105,6 +106,18 @@ class TeamInvitationService:
         if self.settings.email_mode == EmailMode.SIMULATED:
             message += " Email is in simulated mode, so nothing leaves Keigan."
         return delivery_id, message
+
+    async def _take_the_cooldown(self, stakeholder: Stakeholder, now: datetime) -> None:
+        """Claim the right to send with one guarded UPDATE, so two clicks at the same moment cannot both pass the read in ``ensure_can_invite``."""
+        cutoff = now - timedelta(minutes=self.settings.team_invitation_resend_cooldown_minutes)
+        claim = await self.session.execute(
+            update(Stakeholder)
+            .where(Stakeholder.stakeholder_id == stakeholder.stakeholder_id, or_(Stakeholder.last_invitation_sent_at.is_(None), Stakeholder.last_invitation_sent_at <= cutoff))
+            .values(last_invitation_sent_at=now)
+            .execution_options(synchronize_session=False)
+        )
+        if claim.rowcount != 1:
+            raise RateLimitedException("An invitation was just sent. You can send another in a few minutes.")
 
     async def record_sign_in(self, current_user: CurrentUser) -> int:
         """A person signed in: every active team member of any application who matches their sign-in name or email becomes active. Returns how many."""

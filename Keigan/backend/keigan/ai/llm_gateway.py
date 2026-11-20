@@ -73,8 +73,8 @@ LLM_FAILURE_RESPONSES: dict[LlmFailureKind, tuple[type[LlmUnavailableException],
     LlmFailureKind.UNAVAILABLE: (LlmUnavailableException, "The AI service is not responding. Try again in a few minutes."),
 }
 _AUTHENTICATION_MARKERS = ("api key", "api_key", "unauthenticated", "unauthorized", "permission denied", "invalid_api_key", "authentication")
-_RATE_LIMIT_MARKERS = ("rate limit", "resource exhausted", "resource has been exhausted", "quota", "too many requests", "429")
-_REJECTED_MARKERS = ("does not exist", "model not found", "not found", "context length", "maximum context", "too many tokens", "invalid request")
+_RATE_LIMIT_MARKERS = ("rate limit", "resource exhausted", "resource has been exhausted", "quota", "too many requests")
+_REJECTED_MARKERS = ("does not exist", "model not found", "context length", "maximum context", "too many tokens", "invalid request")
 
 
 def classify_llm_failure(invocation_error: BaseException) -> LlmFailureKind:
@@ -87,11 +87,13 @@ def classify_llm_failure(invocation_error: BaseException) -> LlmFailureKind:
         or (code if isinstance(code := getattr(invocation_error, "code", None), int) else None)
     )
     error_text = str(invocation_error).lower()
+    if isinstance(status_code, int) and status_code >= 500:
+        return LlmFailureKind.UNAVAILABLE  # an outage, whatever the text says
     if status_code in (401, 403) or (status_code in (400, None) and any(marker in error_text for marker in _AUTHENTICATION_MARKERS)):
         return LlmFailureKind.AUTHENTICATION
     if status_code == 429 or (status_code is None and any(marker in error_text for marker in _RATE_LIMIT_MARKERS)):
         return LlmFailureKind.RATE_LIMITED
-    if status_code in (400, 404, 413, 422) or any(marker in error_text for marker in _REJECTED_MARKERS):
+    if status_code in (400, 404, 413, 422) or (status_code is None and any(marker in error_text for marker in _REJECTED_MARKERS)):
         return LlmFailureKind.REJECTED
     return LlmFailureKind.UNAVAILABLE
 

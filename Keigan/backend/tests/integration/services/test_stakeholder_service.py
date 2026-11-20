@@ -260,3 +260,70 @@ async def test_an_application_with_no_lead_is_not_blocked_from_removing_people()
     person = await add(application.application_id, member("nolead@example.com"))
     async with open_session() as session:
         await StakeholderService(session).delete_stakeholder(ADMIN, application.application_id, person.stakeholder_id)
+
+
+# ── Found by the independent review ───────────────────────────────────────────────────────────────
+
+
+async def test_two_people_added_at_the_same_moment_with_one_address_get_the_clean_message_not_a_server_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Both requests pass the pre-check; the unique index then rejects the loser. It must read as a validation message."""
+    application = await create_scoped_application()
+    await add(application.application_id, member("race@example.com"))
+
+    async def pre_check_saw_nothing(self: StakeholderService, application_id: str, values: dict, existing: object, errors: list) -> None:  # noqa: ANN001
+        return None
+
+    monkeypatch.setattr(StakeholderService, "_validate_team_membership", pre_check_saw_nothing)
+    with pytest.raises(BusinessValidationException) as refusal:
+        await add(application.application_id, member("race@example.com", name="Loser"))
+    assert refusal.value.extra["fieldErrors"] == [{"field": "emailAddress", "message": "race@example.com is already on this team."}]
+
+
+async def test_the_only_lead_cannot_be_turned_into_a_list_or_a_channel() -> None:
+    application = await create_scoped_application()
+    lead = await add(application.application_id, member("lead5@example.com", name="Lena Lead", role="lead"))
+    for recipient_type in ("distribution_list", "teams_channel"):
+        async with open_session() as session:
+            with pytest.raises(BusinessValidationException, match="only team lead"):
+                await StakeholderService(session).update_stakeholder(ADMIN, application.application_id, lead.stakeholder_id, StakeholderUpdateRequest(recipient_type=recipient_type))
+
+
+async def test_changing_a_persons_address_starts_a_new_invitation_history_and_moves_the_sign_in_name() -> None:
+    """The new address belongs to someone else: they have not been invited and have not signed in."""
+    application = await create_scoped_application()
+    saved = await add(application.application_id, member("old.address@example.com", send_invitation=True))
+    async with open_session() as session:
+        row = await session.get(Stakeholder, saved.stakeholder_id)
+        row.joined_at = datetime.now(UTC)
+    async with open_session() as session:
+        changed = await StakeholderService(session).update_stakeholder(ADMIN, application.application_id, saved.stakeholder_id, StakeholderUpdateRequest(email_address="New.Address@example.com"))
+    assert changed.team_member_status == TeamMemberStatus.LISTED and changed.joined_at is None and changed.invited_at is None and changed.last_invitation_sent_at is None
+    assert changed.user_principal_name == "new.address@example.com"
+    async with open_session() as session:
+        assert await TeamInvitationService(session).record_sign_in(signed_in_user("old.address@example.com")) == 0, "the old address still claims the member"
+
+
+async def test_changing_something_else_keeps_the_invitation_history() -> None:
+    application = await create_scoped_application()
+    saved = await add(application.application_id, member("keeps@example.com", send_invitation=True))
+    async with open_session() as session:
+        changed = await StakeholderService(session).update_stakeholder(ADMIN, application.application_id, saved.stakeholder_id, StakeholderUpdateRequest(stakeholder_role="devops"))
+    assert changed.team_member_status == TeamMemberStatus.INVITED
+
+
+async def test_two_clicks_on_invite_at_the_same_moment_send_one_email() -> None:
+    import asyncio
+
+    application = await create_scoped_application()
+    saved = await add(application.application_id, member("double.click@example.com"))
+
+    async def click() -> object:
+        async with open_session() as session:
+            try:
+                return await StakeholderService(session).send_invitation(ADMIN, application.application_id, saved.stakeholder_id)
+            except RateLimitedException as refusal:
+                return refusal
+
+    results = await asyncio.gather(click(), click())
+    assert sum(isinstance(result, RateLimitedException) for result in results) == 1
+    assert len(await invitations_for("double.click@example.com")) == 1

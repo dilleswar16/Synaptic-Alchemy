@@ -73,6 +73,9 @@ Two options; pick one per environment:
   result is in `migrations/<revision>_<name>.sql`: one file per revision after the baseline, run in order, each once, on a
   database whose `keigan.alembic_version` is the revision named in the file header. A database created from steps 1-6 of the
   current release already includes them. Never edit these files; they are produced from Alembic offline mode.
+  Run them with `sqlcmd -b` (stop at the first error). Some start with a check that stops with a `THROW` when existing data would break the
+  change (for example two people of one application sharing an address); without `-b`, SSMS or Azure Data Studio carries on past the error and
+  still moves the version.
 
 ## Regenerating these files
 

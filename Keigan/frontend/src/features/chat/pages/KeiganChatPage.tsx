@@ -70,7 +70,7 @@ export default function KeiganChatPage() {
       await Promise.all([queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversation(targetId) }), queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversations })]);
       if (!conversationId) navigate(`/chat/${targetId}`, { replace: true });
     } catch (error) {
-      setSendError(isApiError(error) ? (error.status === 429 ? t("errors.rateLimited") : (error.detail ?? error.title)) : t("errors.generic"));
+      setSendError(isApiError(error) ? (error.errorCode === "rate_limited" ? t("errors.rateLimited") : (error.detail ?? error.title)) : t("errors.generic"));
       if (conversationId) await queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversation(conversationId) });
     } finally {
       setPendingQuestion(null);

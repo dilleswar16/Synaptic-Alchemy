@@ -21,6 +21,9 @@ class WorkerSettings(BaseSettings):
     job_lease_duration_seconds: float = Field(default=600.0, gt=0)
     job_lease_renewal_interval_seconds: float = Field(default=120.0, gt=0)
     worker_heartbeat_interval_seconds: float = Field(default=30.0, gt=0)
+    # A handler that runs longer than this is stopped and the job fails (retried, then dead-lettered). Without it a hung job renews its lease for ever and
+    # keeps counting against limits such as INVESTIGATION_MAX_CONCURRENT.
+    job_maximum_runtime_seconds: float = Field(default=3600.0, gt=0)
     # Retention deletes rows in batches of this size so one cleanup never holds a long lock or fills the transaction log.
     retention_delete_batch_size: int = Field(default=500, gt=0)
 

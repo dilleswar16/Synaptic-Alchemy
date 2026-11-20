@@ -259,3 +259,23 @@ def test_the_limited_job_type_is_a_registered_job_handler() -> None:
     from keigan.workers.job_queue import INVESTIGATION_JOB_TYPE
 
     assert INVESTIGATION_JOB_TYPE in JOB_HANDLER_REFERENCES
+
+
+async def test_a_handler_that_never_finishes_is_stopped_so_it_cannot_hold_a_limited_slot_for_ever(seed_context, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A hung investigation keeps renewing its lease. Without a maximum run time it would count against INVESTIGATION_MAX_CONCURRENT until the pod restarts."""
+    worker_settings = WorkerSettings(job_lease_duration_seconds=10, job_lease_renewal_interval_seconds=2, job_maximum_runtime_seconds=0.3)
+    worker = JobWorker(worker_settings)
+
+    async def hangs(job_type: str, job_payload: dict) -> dict:
+        await asyncio.sleep(30)
+        return {}
+
+    monkeypatch.setattr("keigan.workers.job_handlers.execute_job_handler", hangs)
+    job_id = await _enqueue("retention_cleanup", priority_number=-1000)
+    assert await worker._lease_next_job() == job_id
+    await worker._concurrency_limiter.acquire()
+    await asyncio.wait_for(worker._execute_job(job_id), timeout=5)
+    async with open_session() as session:
+        job = await session.get(BackgroundJob, job_id)
+        assert job is not None and job.job_status == "queued" and "ran longer than" in (job.last_error_message or ""), (job.job_status, job.last_error_message)
+        job.job_status, job.finished_at = "succeeded", datetime.now(UTC)

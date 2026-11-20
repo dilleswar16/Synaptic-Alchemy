@@ -210,7 +210,10 @@ class JobWorker:
 
         lease_renewal_task = asyncio.create_task(self._keep_lease_alive(background_job_id))
         try:
-            return await execute_job_handler(job_type, job_payload)
+            try:
+                return await asyncio.wait_for(execute_job_handler(job_type, job_payload), timeout=self.worker_settings.job_maximum_runtime_seconds)
+            except TimeoutError as stopped:
+                raise TimeoutError(f"The job ran longer than {self.worker_settings.job_maximum_runtime_seconds:g} seconds and was stopped.") from stopped
         finally:
             lease_renewal_task.cancel()
             await asyncio.gather(lease_renewal_task, return_exceptions=True)

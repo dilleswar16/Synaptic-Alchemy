@@ -155,3 +155,19 @@ async def test_the_prompt_text_is_logged_when_the_developer_switch_is_on(monkeyp
         await gateway._invoke_with_resilience(_EchoRunnable(), messages)
     logged_text = " ".join(record.getMessage() for record in caplog.records)
     assert "claims-api latency is 4s" in logged_text and "careful SRE" in logged_text
+
+
+@pytest.mark.parametrize(
+    ("upstream_error", "expected_error_code"),
+    [
+        (_UpstreamError("upstream model server not found", 503), "ai_unavailable"),  # a 5xx is an outage whatever the text says
+        (_UpstreamError("Name or service not known: host not found", None), "ai_unavailable"),  # a DNS failure is not a rejected request
+        (_UpstreamError("request id 4290 failed", None), "ai_unavailable"),  # a number inside text is not a status
+        (_UpstreamError("The model `gpt-9` does not exist", None), "ai_request_rejected"),
+    ],
+)
+async def test_the_message_is_only_trusted_when_the_provider_gave_no_status(monkeypatch: pytest.MonkeyPatch, upstream_error: Exception, expected_error_code: str) -> None:
+    monkeypatch.setattr(get_settings(), "llm_maximum_retries", 0)
+    with pytest.raises(LlmUnavailableException) as failure:
+        await LlmGateway(get_settings())._invoke_with_resilience(_FailingRunnable(upstream_error), [])
+    assert failure.value.error_code == expected_error_code

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config import application_context
@@ -47,8 +48,7 @@ class StakeholderService:
         invitation_service = TeamInvitationService(self.session)
         if request.send_invitation:
             invitation_service.ensure_can_invite(stakeholder, utc_now())  # before anything is saved: a refused invitation must not leave the member half added
-        self.session.add(stakeholder)
-        await self.session.flush()
+        await self._add_or_report_duplicate(stakeholder)
         if request.send_invitation:
             await invitation_service.queue_invitation(current_user, stakeholder, application)
         await AuditService(self.session).record(current_user, "stakeholder.create", target_entity_type="stakeholder", target_entity_id=stakeholder.stakeholder_id, application_id=application_id, action_details={"displayName": stakeholder.display_name, "invited": request.send_invitation})
@@ -72,11 +72,16 @@ class StakeholderService:
         stakeholder = await self._load(application_id, stakeholder_id)
         values = request.model_dump(exclude_unset=True)
         await self._validate(application_id, values, partial=True, existing=stakeholder)
-        if values.get("stakeholder_role", stakeholder.stakeholder_role) != StakeholderRole.LEAD or values.get("is_active") is False:
+        if (
+            values.get("stakeholder_role", stakeholder.stakeholder_role) != StakeholderRole.LEAD or values.get("is_active") is False
+            or values.get("recipient_type", stakeholder.recipient_type) != StakeholderRecipientType.PERSON
+        ):
             await self._ensure_not_the_only_lead(stakeholder)
+        if values.get("email_address") and values["email_address"] != stakeholder.email_address:
+            self._start_new_history_for_another_address(stakeholder, values["email_address"])
         self._apply(stakeholder, values)
         stakeholder.updated_by_user_principal_name = current_user.user_principal_name
-        await self.session.flush()
+        await self._add_or_report_duplicate(None)
         await AuditService(self.session).record(current_user, "stakeholder.update", target_entity_type="stakeholder", target_entity_id=stakeholder_id, application_id=application_id, action_details={"fields": sorted(values)})
         return self._to_response(stakeholder)
 
@@ -142,6 +147,27 @@ class StakeholderService:
         if stakeholder is None or stakeholder.application_id != application_id:
             raise NotFoundException("Stakeholder not found.")
         return stakeholder
+
+    async def _add_or_report_duplicate(self, new_stakeholder: Stakeholder | None) -> None:
+        """Save the change. Two requests can both pass the duplicate check; the unique index then rejects the second, which must read as the same
+        message the check gives, not as a server error. A savepoint keeps the rest of the request's work."""
+        try:
+            async with self.session.begin_nested():
+                if new_stakeholder is not None:
+                    self.session.add(new_stakeholder)
+                await self.session.flush()
+        except IntegrityError as conflict:
+            address = new_stakeholder.email_address if new_stakeholder is not None else None
+            raise BusinessValidationException(
+                "The team member is not valid.", field_errors=[{"field": "emailAddress", "message": f"{address or 'This address'} is already on this team."}]
+            ) from conflict
+
+    @staticmethod
+    def _start_new_history_for_another_address(stakeholder: Stakeholder, new_address: str) -> None:
+        """The new address belongs to someone else: they have not been invited and have not signed in, and the old sign-in name must stop claiming this member."""
+        if not stakeholder.user_principal_name or stakeholder.user_principal_name.lower() == (stakeholder.email_address or "").lower():
+            stakeholder.user_principal_name = new_address
+        stakeholder.invited_at = stakeholder.invited_by_user_principal_name = stakeholder.last_invitation_sent_at = stakeholder.joined_at = None
 
     async def _ensure_not_the_only_lead(self, stakeholder: Stakeholder) -> None:
         """An application whose team has a lead keeps one: the last active lead cannot be removed, switched off or given another role.
