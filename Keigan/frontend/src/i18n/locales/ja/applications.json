@@ -58,6 +58,7 @@
     "cancel": "キャンセル",
     "submit": "アプリケーションを作成",
     "requestSubmit": "申請を送信",
+    "team": {"title":"チーム（任意）","description":"このアプリケーションに携わる人を追加します。アクセスのために申請するグループを記載した招待メールが届きます。チームは後から変更できます。","descriptionRequest":"このアプリケーションに携わる人を追加します。Keigan 管理者が申請を承認するまで、誰にもメールは送られません。承認後に招待できます。","name":"名前","email":"メールアドレス","role":"役割","rowLabel":"{{number}} 人目","remove":"{{number}} 人目を削除","addFirst":"人を追加","addAnother":"もう一人追加","nameRequired":"名前を入力してください。","emailRequired":"メールアドレスを入力してください。","emailInvalid":"name@company.com の形式でメールアドレスを入力してください。","emailDuplicate":"このアドレスが重複しています。","addedInvited_one":"{{count}} 人を追加し、招待しました。","addedInvited_other":"{{count}} 人を追加し、招待しました。","addedListedOnly_one":"{{count}} 人をチームに追加しました。申請が承認されるまで、誰にもメールは送られません。","addedListedOnly_other":"{{count}} 人をチームに追加しました。申請が承認されるまで、誰にもメールは送られません。"},
     "failed": "アプリケーションを作成できませんでした。もう一度お試しください。",
     "createdTitle": "{{name}}の準備ができました",
     "requestedTitle": "申請を送信しました",

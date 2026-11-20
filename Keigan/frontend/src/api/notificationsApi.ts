@@ -4,13 +4,15 @@ import type { Identifier, IsoDateTimeString, Priority } from "@/api/types/common
 
 /* ── Types (doc 05 §10) ────────────────────────────────────────────── */
 export type RecipientType = "person" | "teams_channel" | "distribution_list";
-export type StakeholderRole = "sre" | "developer" | "manager" | "executive" | "business_owner" | "vendor_contact";
+export type StakeholderRole = "sre" | "developer" | "manager" | "executive" | "business_owner" | "vendor_contact" | "lead" | "infra" | "devops" | "tester";
+/** Where a team member stands: only listed (a recipient), invited (no sign-in yet), active (has signed in) or inactive (paused). Worked out by the server. */
+export type TeamMemberStatus = "listed" | "invited" | "active" | "inactive";
 export type NotificationChannel = "email" | "teams_incident_chat" | "teams_channel";
 export type NotificationType = "incident_detected" | "preliminary_report" | "progress_update" | "postmortem" | "intelligence_report" | "slo_burn_alert" | "alert_group";
 
 export const notificationChannels: NotificationChannel[] = ["email", "teams_incident_chat", "teams_channel"];
 export const notificationTypes: NotificationType[] = ["incident_detected", "preliminary_report", "progress_update", "postmortem", "intelligence_report", "slo_burn_alert", "alert_group"];
-export const stakeholderRoles: StakeholderRole[] = ["sre", "developer", "manager", "executive", "business_owner", "vendor_contact"];
+export const stakeholderRoles: StakeholderRole[] = ["lead", "developer", "infra", "devops", "tester", "sre", "manager", "executive", "business_owner", "vendor_contact"];
 
 export interface Stakeholder {
   stakeholderId: Identifier;
@@ -29,8 +31,22 @@ export interface Stakeholder {
   subscribedNotificationTypes: NotificationType[];
   preferredLanguageCode: string;
   isActive: boolean;
+  teamMemberStatus: TeamMemberStatus;
+  invitedAt: IsoDateTimeString | null;
+  invitedByUserPrincipalName: string | null;
+  lastInvitationSentAt: IsoDateTimeString | null;
+  joinedAt: IsoDateTimeString | null;
+  /** An invitation older than the configured limit with no sign-in. */
+  invitationIsStale: boolean;
+  canSendInvitation: boolean;
+  nextInvitationAllowedAt: IsoDateTimeString | null;
 }
-export type StakeholderBody = Partial<Omit<Stakeholder, "stakeholderId" | "applicationId">>;
+export type StakeholderBody = Partial<
+  Omit<Stakeholder, "stakeholderId" | "applicationId" | "teamMemberStatus" | "invitedAt" | "invitedByUserPrincipalName" | "lastInvitationSentAt" | "joinedAt" | "invitationIsStale" | "canSendInvitation" | "nextInvitationAllowedAt">
+> & {
+  /** Email the person an invitation as they are added (people only). */
+  sendInvitation?: boolean;
+};
 
 export interface DirectoryUser {
   displayName: string;
@@ -39,6 +55,11 @@ export interface DirectoryUser {
   entraObjectId: string | null;
   jobTitle: string | null;
   source: string;
+}
+export interface StakeholderInvitationResult {
+  teamMember: Stakeholder;
+  deliveryId: Identifier | null;
+  message: string;
 }
 export interface StakeholderTestResult {
   deliveriesQueued: number;
@@ -102,6 +123,8 @@ export const useUpdateStakeholder = (applicationId: string) =>
   );
 export const useDeleteStakeholder = (applicationId: string) =>
   useStakeholderMutation(applicationId, (stakeholderId: string) => apiDelete(`/applications/${applicationId}/stakeholders/${stakeholderId}`));
+export const useSendTeamInvitation = (applicationId: string) =>
+  useStakeholderMutation(applicationId, (stakeholderId: string) => apiPost<StakeholderInvitationResult>(`/applications/${applicationId}/stakeholders/${stakeholderId}/invitation`));
 export const useSendStakeholderTest = (applicationId: string) =>
   useMutation({ mutationFn: (stakeholderId: string) => apiPost<StakeholderTestResult>(`/applications/${applicationId}/stakeholders/${stakeholderId}/test`) });
 

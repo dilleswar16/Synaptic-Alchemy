@@ -56,7 +56,8 @@ function normaliseConfiguration(rawConfiguration: Partial<RuntimeConfiguration>)
   return {
     authMode: rawConfiguration.authMode === "entra" ? "entra" : "local",
     entra: rawConfiguration.entra ?? null,
-    environmentName: (rawConfiguration.environmentName ?? "local").toLowerCase(),
+    // A response that does not say which environment this is counts as production, so developer-only pages and sample data stay hidden rather than appear by mistake.
+    environmentName: (rawConfiguration.environmentName ?? "prod").toLowerCase(),
     supportedLocales: rawConfiguration.supportedLocales?.length
       ? rawConfiguration.supportedLocales
       : developmentFallbackConfiguration.supportedLocales,

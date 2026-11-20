@@ -58,6 +58,7 @@
     "cancel": "Cancel",
     "submit": "Create application",
     "requestSubmit": "Send request",
+    "team": {"title":"Team (optional)","description":"Add the people who work on this application. They receive an invitation email that tells them which group to request for access. You can change the team later.","descriptionRequest":"Add the people who work on this application. Nobody is emailed until Keigan admins accept the request; you can invite them then.","name":"Name","email":"Email address","role":"Role","rowLabel":"Person {{number}}","remove":"Remove person {{number}}","addFirst":"Add a person","addAnother":"Add another person","nameRequired":"Enter a name.","emailRequired":"Enter an email address.","emailInvalid":"Enter an email address like name@company.com.","emailDuplicate":"This address is listed twice.","addedInvited_one":"{{count}} person was added and invited.","addedInvited_other":"{{count}} people were added and invited.","addedListedOnly_one":"{{count}} person was added to the team. Nobody is emailed until the request is accepted.","addedListedOnly_other":"{{count}} people were added to the team. Nobody is emailed until the request is accepted."},
     "failed": "The application could not be created. Try again.",
     "createdTitle": "{{name}} is ready",
     "requestedTitle": "Your request was sent",

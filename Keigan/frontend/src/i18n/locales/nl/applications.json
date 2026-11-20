@@ -58,6 +58,7 @@
     "cancel": "Annuleren",
     "submit": "Applicatie aanmaken",
     "requestSubmit": "Aanvraag verzenden",
+    "team": {"title":"Team (optioneel)","description":"Voeg de mensen toe die aan deze applicatie werken. Zij ontvangen een uitnodigingsmail met de groep die ze voor toegang moeten aanvragen. U kunt het team later wijzigen.","descriptionRequest":"Voeg de mensen toe die aan deze applicatie werken. Niemand krijgt een e-mail totdat Keigan-beheerders het verzoek goedkeuren; daarna kunt u ze uitnodigen.","name":"Naam","email":"E-mailadres","role":"Rol","rowLabel":"Persoon {{number}}","remove":"Persoon {{number}} verwijderen","addFirst":"Persoon toevoegen","addAnother":"Nog een persoon toevoegen","nameRequired":"Voer een naam in.","emailRequired":"Voer een e-mailadres in.","emailInvalid":"Voer een e-mailadres in zoals naam@bedrijf.com.","emailDuplicate":"Dit adres staat twee keer in de lijst.","addedInvited_one":"{{count}} persoon is toegevoegd en uitgenodigd.","addedInvited_other":"{{count}} mensen zijn toegevoegd en uitgenodigd.","addedListedOnly_one":"{{count}} persoon is aan het team toegevoegd. Niemand krijgt een e-mail totdat het verzoek is goedgekeurd.","addedListedOnly_other":"{{count}} mensen zijn aan het team toegevoegd. Niemand krijgt een e-mail totdat het verzoek is goedgekeurd."},
     "failed": "De applicatie kon niet worden aangemaakt. Probeer het opnieuw.",
     "createdTitle": "{{name}} is klaar",
     "requestedTitle": "Uw aanvraag is verzonden",

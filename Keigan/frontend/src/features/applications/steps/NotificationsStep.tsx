@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, Pencil, Plus, Send, Trash2, UserPlus } from "lucide-react";
+import { ChevronDown, Mail, Pencil, Plus, Send, Trash2, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useServices } from "@/api/applicationsApi";
 import {
@@ -10,6 +10,7 @@ import {
   useDeleteStakeholder,
   useDirectorySearch,
   useSendStakeholderTest,
+  useSendTeamInvitation,
   useStakeholders,
   useUpdateStakeholder,
   type NotificationChannel,
@@ -18,6 +19,7 @@ import {
   type Stakeholder,
   type StakeholderBody,
   type StakeholderRole,
+  type TeamMemberStatus,
 } from "@/api/notificationsApi";
 import type { Priority } from "@/api/types/common";
 import { isApiError } from "@/api/httpClient";
@@ -33,10 +35,15 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/Input";
 import { Popover } from "@/components/ui/Popover";
+import { RelativeTime } from "@/components/ui/RelativeTime";
 import { Select } from "@/components/ui/Select";
 import { StatusChip } from "@/components/ui/StatusChip";
+import type { StatusTone } from "@/components/ui/toneStyles";
 import { useToast } from "@/components/ui/Toast";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useFeatureFlag } from "@/config/runtimeConfiguration";
+import { isValidEmailAddress } from "@/utils/emailAddress";
+import { formatTime } from "@/utils/formatters";
 import { StepFrame } from "../components/StepFrame";
 import type { StepProps } from "../stepRegistry";
 
@@ -54,7 +61,11 @@ interface StakeholderDraft {
   minimumPriority: Priority;
   subscribedNotificationTypes: NotificationType[];
   preferredLanguageCode: string;
+  /** Only used when adding a person: email them an invitation as they are saved. */
+  sendInvitation: boolean;
 }
+
+const statusTones: Record<TeamMemberStatus, StatusTone> = { listed: "neutral", invited: "info", active: "success", inactive: "warning" };
 
 const emptyDraft: StakeholderDraft = {
   recipientType: "person",
@@ -70,6 +81,7 @@ const emptyDraft: StakeholderDraft = {
   minimumPriority: "P2",
   subscribedNotificationTypes: ["incident_detected", "preliminary_report", "progress_update", "postmortem"],
   preferredLanguageCode: "en",
+  sendInvitation: true,
 };
 
 function draftFromStakeholder(stakeholder: Stakeholder): StakeholderDraft {
@@ -87,7 +99,23 @@ function draftFromStakeholder(stakeholder: Stakeholder): StakeholderDraft {
     minimumPriority: stakeholder.minimumPriority,
     subscribedNotificationTypes: stakeholder.subscribedNotificationTypes,
     preferredLanguageCode: stakeholder.preferredLanguageCode,
+    sendInvitation: false,
   };
+}
+
+/** Where a person stands (listed, invited, signed in, paused) and when; channels and lists have no sign-in, so they show a dash. */
+function MemberStatusCell({ row }: { row: Stakeholder }) {
+  const { t } = useTranslation("notifications");
+  if (row.recipientType !== "person") return <span className="text-muted" aria-label={t("stakeholders.status.notApplicable")}>–</span>;
+  return (
+    <div className="flex flex-col items-start gap-0.5">
+      <StatusChip size="sm" tone={row.invitationIsStale ? "warning" : statusTones[row.teamMemberStatus]} icon={false}>{t(`stakeholders.status.${row.teamMemberStatus}`)}</StatusChip>
+      {row.teamMemberStatus === "invited" && row.invitedAt ? (
+        <span className="text-caption text-muted">{row.invitationIsStale ? t("stakeholders.status.staleSince") : t("stakeholders.status.invitedAgo")} <RelativeTime value={row.invitedAt} /></span>
+      ) : null}
+      {row.teamMemberStatus === "active" && row.joinedAt ? <span className="text-caption text-muted">{t("stakeholders.status.signedInAgo")} <RelativeTime value={row.joinedAt} /></span> : null}
+    </div>
+  );
 }
 
 function toggled<Value>(values: Value[], value: Value, isChecked: boolean): Value[] {
@@ -98,12 +126,14 @@ function toggled<Value>(values: Value[], value: Value, isChecked: boolean): Valu
 export function NotificationsStep({ applicationId, canEdit, onStatusChange }: StepProps) {
   const { t } = useTranslation("notifications");
   const { showToast } = useToast();
+  const isEmailSimulated = useFeatureFlag("emailSimulated");
   const stakeholdersQuery = useStakeholders(applicationId);
   const servicesQuery = useServices(applicationId);
   const createStakeholder = useCreateStakeholder(applicationId);
   const updateStakeholder = useUpdateStakeholder(applicationId);
   const deleteStakeholder = useDeleteStakeholder(applicationId);
   const sendTest = useSendStakeholderTest(applicationId);
+  const sendInvitation = useSendTeamInvitation(applicationId);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<StakeholderDraft>(emptyDraft);
@@ -133,6 +163,7 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
       minimumPriority: draft.minimumPriority,
       subscribedNotificationTypes: draft.subscribedNotificationTypes,
       preferredLanguageCode: draft.preferredLanguageCode,
+      ...(editingId ? {} : { sendInvitation: draft.recipientType === "person" && draft.sendInvitation }),
     };
     const onSuccess = () => {
       showToast({ tone: "success", title: t("stakeholders.saved") });
@@ -158,6 +189,7 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
       ),
     },
     { key: "role", header: t("stakeholders.columns.role"), cell: (row) => t(`roles.${row.stakeholderRole}`) },
+    { key: "status", header: t("stakeholders.columns.status"), cell: (row) => <MemberStatusCell row={row} /> },
     {
       key: "services",
       header: t("stakeholders.columns.services"),
@@ -187,9 +219,29 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
       align: "end",
       cell: (row) => (
         <div className="flex items-center justify-end gap-1">
-          {!row.isActive ? <StatusChip size="sm" tone="warning" icon={false}>{t("stakeholders.inactive")}</StatusChip> : null}
           {canEdit ? (
             <>
+              {row.recipientType === "person" && (row.teamMemberStatus === "listed" || row.teamMemberStatus === "invited") ? (
+                <IconButton
+                  icon={Mail}
+                  label={
+                    row.canSendInvitation
+                      ? t(row.teamMemberStatus === "invited" ? "stakeholders.resendInvitation" : "stakeholders.invite")
+                      : row.nextInvitationAllowedAt
+                        ? t("stakeholders.inviteWaitUntil", { time: formatTime(row.nextInvitationAllowedAt) })
+                        : t("stakeholders.inviteNeedsEmail")
+                  }
+                  variant="ghost"
+                  size="sm"
+                  disabled={!row.canSendInvitation || sendInvitation.isPending}
+                  onClick={() =>
+                    sendInvitation.mutate(row.stakeholderId, {
+                      onSuccess: (result) => showToast({ tone: "success", title: t("stakeholders.inviteQueued"), description: result.message }),
+                      onError: (error) => reportError(t("stakeholders.inviteFailed"), error),
+                    })
+                  }
+                />
+              ) : null}
               <IconButton
                 icon={Send}
                 label={t("stakeholders.sendTest")}
@@ -214,7 +266,10 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
 
   const hasChatChannel = draft.notificationChannels.includes("teams_incident_chat");
   const isSaving = createStakeholder.isPending || updateStakeholder.isPending;
-  const isDraftValid = draft.displayName.trim().length > 0 && (draft.recipientType === "teams_channel" ? draft.teamsTeamId.trim() && draft.teamsChannelId.trim() : draft.emailAddress.trim().length > 0);
+  const emailIsInvalid = draft.recipientType !== "teams_channel" && draft.emailAddress.trim().length > 0 && !isValidEmailAddress(draft.emailAddress);
+  const isDraftValid = draft.displayName.trim().length > 0 && (draft.recipientType === "teams_channel" ? draft.teamsTeamId.trim() && draft.teamsChannelId.trim() : draft.emailAddress.trim().length > 0 && !emailIsInvalid);
+  const saveError = editingId ? updateStakeholder.error : createStakeholder.error;
+  const serverEmailError = isApiError(saveError) ? saveError.fieldErrorFor("emailAddress") : undefined;
 
   return (
     <StepFrame
@@ -222,6 +277,8 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
       actions={canEdit && !editorOpen ? <Button leadingIcon={UserPlus} onClick={() => openEditor()}>{t("stakeholders.addButton")}</Button> : undefined}
     >
       <Banner tone="info">{t("stakeholders.intro")}</Banner>
+      <Banner tone="neutral">{t("stakeholders.accessNote")}</Banner>
+      {isEmailSimulated ? <Banner tone="warning">{t("stakeholders.emailSimulated")}</Banner> : null}
       {!canEdit ? <Banner tone="neutral">{t("stakeholders.readOnly")}</Banner> : null}
 
       {editorOpen ? (
@@ -233,6 +290,8 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
               onChange={setDraft}
               services={(servicesQuery.data ?? []).map((service) => ({ id: service.serviceId, name: service.serviceName }))}
               hasChatChannel={hasChatChannel}
+              isNew={editingId === null}
+              emailError={serverEmailError ?? (emailIsInvalid ? t("stakeholders.emailInvalid") : undefined)}
             />
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setEditorOpen(false)}>{t("stakeholders.cancel")}</Button>
@@ -279,7 +338,21 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
   );
 }
 
-function StakeholderEditor({ draft, onChange, services, hasChatChannel }: { draft: StakeholderDraft; onChange: (draft: StakeholderDraft) => void; services: Array<{ id: string; name: string }>; hasChatChannel: boolean }) {
+function StakeholderEditor({
+  draft,
+  onChange,
+  services,
+  hasChatChannel,
+  isNew,
+  emailError,
+}: {
+  draft: StakeholderDraft;
+  onChange: (draft: StakeholderDraft) => void;
+  services: Array<{ id: string; name: string }>;
+  hasChatChannel: boolean;
+  isNew: boolean;
+  emailError: string | undefined;
+}) {
   const { t } = useTranslation("notifications");
   const [searchText, setSearchText] = useState("");
   const debouncedSearch = useDebouncedValue(searchText, 250);
@@ -322,7 +395,7 @@ function StakeholderEditor({ draft, onChange, services, hasChatChannel }: { draf
           <Input label={t("stakeholders.teamsChannelId")} value={draft.teamsChannelId} onChange={(event) => patch({ teamsChannelId: event.target.value })} />
         </>
       ) : (
-        <Input label={t("stakeholders.emailAddress")} type="email" value={draft.emailAddress} onChange={(event) => patch({ emailAddress: event.target.value })} />
+        <Input label={t("stakeholders.emailAddress")} type="email" value={draft.emailAddress} onChange={(event) => patch({ emailAddress: event.target.value })} errorMessage={emailError} />
       )}
       <Select<StakeholderRole>
         label={t("stakeholders.role")}
@@ -330,6 +403,15 @@ function StakeholderEditor({ draft, onChange, services, hasChatChannel }: { draf
         onValueChange={(stakeholderRole) => patch({ stakeholderRole })}
         options={stakeholderRoles.map((value) => ({ value, label: t(`roles.${value}`) }))}
       />
+      {isNew && draft.recipientType === "person" ? (
+        <Checkbox
+          className="md:col-span-2"
+          label={t("stakeholders.sendInvitation")}
+          description={t("stakeholders.sendInvitationHelp")}
+          checked={draft.sendInvitation}
+          onCheckedChange={(checked) => patch({ sendInvitation: checked === true })}
+        />
+      ) : null}
       <Select<string>
         label={t("stakeholders.language")}
         value={draft.preferredLanguageCode.split("-")[0]}

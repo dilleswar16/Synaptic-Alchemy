@@ -58,6 +58,7 @@
     "cancel": "Cancelar",
     "submit": "Crear aplicación",
     "requestSubmit": "Enviar solicitud",
+    "team": {"title":"Equipo (opcional)","description":"Añada a las personas que trabajan en esta aplicación. Reciben un correo de invitación que les indica qué grupo solicitar para obtener acceso. Podrá cambiar el equipo más adelante.","descriptionRequest":"Añada a las personas que trabajan en esta aplicación. Nadie recibe correo hasta que los administradores de Keigan acepten la solicitud; podrá invitarlas entonces.","name":"Nombre","email":"Correo electrónico","role":"Rol","rowLabel":"Persona {{number}}","remove":"Quitar a la persona {{number}}","addFirst":"Añadir una persona","addAnother":"Añadir otra persona","nameRequired":"Introduzca un nombre.","emailRequired":"Introduzca un correo electrónico.","emailInvalid":"Introduzca una dirección de correo como nombre@empresa.com.","emailDuplicate":"Esta dirección aparece dos veces.","addedInvited_one":"Se añadió e invitó a {{count}} persona.","addedInvited_other":"Se añadió e invitó a {{count}} personas.","addedListedOnly_one":"Se añadió {{count}} persona al equipo. Nadie recibe correo hasta que se acepte la solicitud.","addedListedOnly_other":"Se añadieron {{count}} personas al equipo. Nadie recibe correo hasta que se acepte la solicitud."},
     "failed": "No se pudo crear la aplicación. Inténtelo de nuevo.",
     "createdTitle": "{{name}} está lista",
     "requestedTitle": "Su solicitud se ha enviado",

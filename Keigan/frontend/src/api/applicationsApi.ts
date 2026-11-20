@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "@/api/httpClient";
+import type { StakeholderRole } from "@/api/notificationsApi";
 import type { AcceptedJob, Identifier, IsoDateTimeString } from "@/api/types/common";
 
 /* ── Types (doc 05 §4) ──────────────────────────────────────────────────────── */
@@ -48,6 +49,12 @@ export interface ApplicationSummary extends Application {
   requiredTotalCount: number | null;
 }
 
+/** A person entered while an application is created. */
+export interface TeamMemberBody {
+  displayName: string;
+  emailAddress: string;
+  stakeholderRole: StakeholderRole;
+}
 export interface CreateApplicationBody {
   applicationName: string;
   applicationCode: string;
@@ -56,6 +63,7 @@ export interface CreateApplicationBody {
   regionCode?: string;
   primaryLocale?: string;
   criticalityTier: CriticalityTier;
+  teamMembers?: TeamMemberBody[];
 }
 
 export interface Requirement {

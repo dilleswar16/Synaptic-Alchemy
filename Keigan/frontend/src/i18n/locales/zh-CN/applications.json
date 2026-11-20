@@ -58,6 +58,7 @@
     "cancel": "取消",
     "submit": "创建应用",
     "requestSubmit": "发送申请",
+    "team": {"title":"团队（可选）","description":"添加参与此应用程序的人员。他们会收到邀请邮件，说明需要申请哪个组才能访问。之后仍可修改团队。","descriptionRequest":"添加参与此应用程序的人员。在 Keigan 管理员接受申请之前不会向任何人发送邮件，届时您可以邀请他们。","name":"姓名","email":"电子邮件地址","role":"角色","rowLabel":"第 {{number}} 人","remove":"移除第 {{number}} 人","addFirst":"添加人员","addAnother":"再添加一人","nameRequired":"请输入姓名。","emailRequired":"请输入电子邮件地址。","emailInvalid":"请输入类似 name@company.com 的电子邮件地址。","emailDuplicate":"此地址重复出现。","addedInvited_one":"已添加并邀请 {{count}} 人。","addedInvited_other":"已添加并邀请 {{count}} 人。","addedListedOnly_one":"已将 {{count}} 人添加到团队。在申请被接受之前不会向任何人发送邮件。","addedListedOnly_other":"已将 {{count}} 人添加到团队。在申请被接受之前不会向任何人发送邮件。"},
     "failed": "无法创建应用，请重试。",
     "createdTitle": "{{name}}已就绪",
     "requestedTitle": "您的申请已发送",
