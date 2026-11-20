@@ -11,7 +11,7 @@ from keigan.config.database_config import open_session
 from keigan.entities.application_entities import MonitoredService, ServiceLogSource
 from keigan.exceptions.keigan_exceptions import ForbiddenException
 from keigan.services.chat_data_query_service import ChatDataQueryService
-from support.telemetry_scope import OWN_WORKSPACE_CUSTOMER_ID, OWN_WORKSPACE_RESOURCE_ID, create_scoped_application
+from support.telemetry_scope import OWN_WORKSPACE_CUSTOMER_ID, OWN_WORKSPACE_RESOURCE_ID, create_log_tool_connection, create_scoped_application
 
 pytestmark = pytest.mark.usefixtures("seed_context")
 
@@ -46,3 +46,62 @@ async def test_chat_refuses_an_onboarding_request_before_calling_the_llm() -> No
                 requested_by="requester@example.com", usage_context=LlmUsageContext(),
             )
     assert refusal.value.detail == "Keigan reads telemetry only for approved applications. Ask a Keigan admin to approve the onboarding request."
+
+
+class LlmGatewayWritingAPlainSplunkSearch:
+    """Answers the query-writing call with one plain SPL search and remembers the prompt it was given."""
+
+    def __init__(self) -> None:
+        self.prompt_section_titles: list[str] = []
+        self.prompt_section_bodies: dict[str, str] = {}
+
+    async def generate_structured(self, *, prompt_sections: list, output_schema: type, **_arguments: object) -> object:
+        for prompt_section in prompt_sections:
+            self.prompt_section_titles.append(prompt_section.title)
+            self.prompt_section_bodies[prompt_section.title] = prompt_section.content
+        return output_schema(query_text="error", explanation="Counts error events.")
+
+
+async def create_splunk_service(application_id: str, index_name: str) -> MonitoredService:
+    connection_id = await create_log_tool_connection(application_id, tool_type="splunk")
+    async with open_session() as session:
+        service = MonitoredService(application_id=application_id, service_name="polaris-batch", service_type="app_service", created_by_user_principal_name="system:test")
+        session.add(service)
+        await session.flush()
+        session.add(ServiceLogSource(
+            service_id=service.service_id, source_kind="log_tool", log_tool_connection_id=connection_id, query_scope_json={"index": index_name}, is_primary_source=True,
+        ))
+        return service
+
+
+async def test_chat_search_on_a_splunk_service_is_limited_to_the_index_of_its_log_source() -> None:
+    approved = await create_scoped_application()
+    service = await create_splunk_service(approved.application_id, "payments_prod")
+    now = datetime.now(UTC)
+    async with open_session() as session:
+        chat_query_service = ChatDataQueryService(session)
+        language_model = LlmGatewayWritingAPlainSplunkSearch()
+        chat_query_service.gateway = language_model  # type: ignore[assignment]
+        outcome = await chat_query_service.run(
+            service=service, question_text="show errors", wants_failures=True, wants_pattern=False, time_range_start=now - timedelta(hours=1), time_range_end=now,
+            requested_by="reader@example.com", usage_context=LlmUsageContext(),
+        )
+    assert outcome.query_language == "spl"
+    assert "index=payments_prod" in outcome.query_text
+    assert "index=*" not in outcome.query_text
+
+
+async def test_chat_query_prompt_tells_the_model_the_limits_of_the_log_source() -> None:
+    approved = await create_scoped_application()
+    service = await create_splunk_service(approved.application_id, "payments_prod")
+    now = datetime.now(UTC)
+    async with open_session() as session:
+        chat_query_service = ChatDataQueryService(session)
+        language_model = LlmGatewayWritingAPlainSplunkSearch()
+        chat_query_service.gateway = language_model  # type: ignore[assignment]
+        await chat_query_service.run(
+            service=service, question_text="show errors", wants_failures=True, wants_pattern=False, time_range_start=now - timedelta(hours=1), time_range_end=now,
+            requested_by="reader@example.com", usage_context=LlmUsageContext(),
+        )
+    assert "Query limits" in language_model.prompt_section_titles
+    assert '"index": "payments_prod"' in language_model.prompt_section_bodies["Query limits"]

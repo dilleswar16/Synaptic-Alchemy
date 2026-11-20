@@ -24,7 +24,7 @@ from keigan.exceptions.keigan_exceptions import ReaderNotAvailableException
 from keigan.integrations.telemetry_gateway import TelemetryQuery, TelemetryTarget
 from keigan.services.audit_service import AuditService
 from keigan.utils.pii_masker import PiiMasker
-from keigan.utils.query_safety import validate_generated_query
+from keigan.utils.query_safety import describe_query_limits, validate_generated_query
 
 _TIME_KEYS = ("TimeGenerated", "timestamp", "@timestamp", "window_start", "key_as_string", "_time")
 _LOG_TOOL_LANGUAGES = {"elastic": "elastic_dsl", "splunk": "spl"}
@@ -102,12 +102,13 @@ class ChatDataQueryService:
                     "wantsFailures": wants_failures, "wantsPattern": wants_pattern, "rangeMinutes": range_minutes,
                     "bucketSuggestion": f"{max(5, range_minutes // 24)}m",
                 })),
+                PromptSection("Query limits", json.dumps(self._query_limits(target, query_language))),
                 PromptSection("Question", PiiMasker().mask_text(question_text), is_untrusted=True, source_label="chat:user-question"),
             ],
             output_schema=ChatQueryResult,
             usage_context=usage_context,
         )
-        hardened_query = validate_generated_query(query_language, generated.query_text, time_range_start, time_range_end)
+        hardened_query = validate_generated_query(query_language, generated.query_text, time_range_start, time_range_end, query_scope=target.query_scope)
         query_result = await application_context.telemetry_gateway().query_logs(
             target,
             TelemetryQuery(
@@ -125,6 +126,12 @@ class ChatDataQueryService:
             time_range_start=time_range_start, time_range_end=time_range_end, rows=PiiMasker().mask_rows(query_result.rows), row_count=query_result.row_count,
             is_simulated=query_result.is_simulated,
         )
+
+    @staticmethod
+    def _query_limits(target: TelemetryTarget, query_language: str) -> dict[str, object]:
+        """What the model may use on this log source (index, fields, tables), from the same rules the validator enforces."""
+        connection_configuration = target.log_tool_connection.connection_configuration_json if target.log_tool_connection else None
+        return describe_query_limits(query_language, target.query_scope, connection_configuration)
 
     async def _resolve_target(self, service: MonitoredService) -> tuple[TelemetryTarget, str]:
         log_source = (await self.session.scalars(

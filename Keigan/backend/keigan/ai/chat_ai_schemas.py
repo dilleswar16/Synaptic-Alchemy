@@ -85,7 +85,7 @@ def build_query_offline(query_language: str, service_type: str, wants_failures: 
         stages.append(f"summarize count() by bin(TimeGenerated, {bucket})" if wants_pattern else "summarize count()")
         return ChatQueryResult(query_text="\n| ".join(stages), explanation="Counts matching records" + (" per time bucket." if wants_pattern else "."))
     if query_language == "spl":
-        spl = "search index=* " + ("(level=ERROR OR status>=500) " if wants_failures else "")
+        spl = "search " + ("(level=ERROR OR status>=500) " if wants_failures else "")
         spl += f"| timechart span={bucket} count" if wants_pattern else "| stats count"
         return ChatQueryResult(query_text=spl, explanation="Counts matching events.")
     filters: list[dict[str, Any]] = [{"match": {"log.level": "error"}}] if wants_failures else []
