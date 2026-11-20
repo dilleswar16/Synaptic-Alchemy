@@ -51,7 +51,7 @@ def _mock_chat_digest(output_schema: type[TeamsChatDigestResult], prompt_section
 
 def _mock_narrative(output_schema: type[IntelligenceNarrativeResult], prompt_sections: list[PromptSection]) -> IntelligenceNarrativeResult:
     facts = next((section.content for section in prompt_sections if section.title == "Signal facts"), "")
-    return output_schema(narrative_markdown=f"{facts.strip()}\n\nRecommended next step: review the trend with the service owner before it affects customers.".strip())
+    return output_schema(narrative_markdown=facts.strip())
 
 
 def _mock_report(output_schema: type[IntelligenceReportResult], prompt_sections: list[PromptSection]) -> IntelligenceReportResult:

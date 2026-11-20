@@ -57,6 +57,13 @@ class DetectedSignal:
         return (self.detector_name, self.service_id, self.sli_id, self.metric_name)
 
 
+def forecast_sentence(minutes_until_exhaustion: float) -> str:
+    """The closing sentence of an error-budget signal: a budget already used up is not "forecast" to run out in 0.0 days."""
+    if minutes_until_exhaustion <= 0:
+        return "the error budget is already exhausted."
+    return f"forecast exhaustion in {minutes_until_exhaustion / 1440:.1f} days."
+
+
 def _series_points(points: list[tuple[datetime, float]], maximum_points: int = 60) -> list[dict[str, Any]]:
     step = max(1, len(points) // maximum_points)
     return [{"t": timestamp.isoformat(), "v": round(float(value), 4)} for timestamp, value in points[::step]]
@@ -161,7 +168,7 @@ class PredictiveDetectors:
                 evidence_series=[{"t": str(index), "v": value} for index, value in enumerate(summary.get("sparkline") or [])],
                 facts_text=(f"SLO {summary['sliName']} target {summary['targetPercentage']}% over {summary['rollingWindowDays']} days; compliance {summary.get('compliancePercentage')}%; "
                             f"error budget remaining {summary.get('errorBudgetRemainingPercentage')}% ({remaining_minutes} of {total_minutes} minutes); burn rate {burn_rate_value:.1f}x (1h {summary.get('burnRateOneHour')}, 6h {summary.get('burnRateSixHours')}, 3d {burn_rate_three_days}); "
-                            f"forecast exhaustion in {days_until_exhaustion:.1f} days."),
+                            f"{forecast_sentence(minutes_until_exhaustion)}"),
             ))
         return signals
 

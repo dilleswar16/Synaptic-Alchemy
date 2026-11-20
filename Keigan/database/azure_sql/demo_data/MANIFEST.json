@@ -87,7 +87,7 @@
         "conversation_message": 9,
         "predictive_signal": 7
       },
-      "sha256": "6b877dbe9c2e673f1efb7a8278a653c86dd76b54090b39945b4badc3183746be"
+      "sha256": "7d449d90daa4fa3c99f044a8d91f005ffe36734d08244d413b5abd7a77845266"
     },
     "99_remove_demo_data.sql": {
       "committed": true,
