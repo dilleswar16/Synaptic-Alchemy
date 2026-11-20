@@ -8,7 +8,7 @@ from functools import lru_cache
 from typing import Any, TypeVar
 
 from fastapi import Depends
-from sqlalchemy import event
+from sqlalchemy import Connection, event, inspect
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from keigan.config.settings import get_settings
@@ -116,10 +116,45 @@ def provide(service_class: Callable[[AsyncSession], ServiceType]) -> Callable[..
     return construct_service
 
 
+class LocalDatabaseOutOfDateError(RuntimeError):
+    """The local SQLite file was made by an older Keigan: create_all adds tables, never columns."""
+
+
+def find_missing_columns(connection: Connection) -> dict[str, list[str]]:
+    """Columns the entities declare that an existing table lacks, by table. Tables that do not exist yet are not listed: create_all makes them."""
+    from keigan.entities import all_entities  # noqa: F401  (registers every entity with the metadata)
+    from keigan.entities.base_entity import EntityBase
+
+    inspector = inspect(connection)
+    existing_tables = set(inspector.get_table_names())
+    missing_columns: dict[str, list[str]] = {}
+    for table in EntityBase.metadata.sorted_tables:
+        if table.name not in existing_tables:
+            continue
+        existing_columns = {column["name"] for column in inspector.get_columns(table.name)}
+        absent_columns = sorted(column.name for column in table.columns if column.name not in existing_columns)
+        if absent_columns:
+            missing_columns[table.name] = absent_columns
+    return missing_columns
+
+
+def describe_missing_columns(missing_columns: dict[str, list[str]], database_location: str) -> str:
+    tables = "; ".join(f"{table}: {', '.join(columns)}" for table, columns in missing_columns.items())
+    return (
+        f"The local database {database_location} was made by an older version of Keigan and lacks columns the code now uses ({tables}). "
+        "Stop Keigan, delete that file (a local database only holds demo data) and start Keigan again: it recreates the file and loads the demo data."
+    )
+
+
 async def create_database_schema() -> None:
     """Create all tables (local development and first boot). Production uses migrations (Phase 6)."""
     from keigan.entities import all_entities  # noqa: F401  (registers every entity with the metadata)
     from keigan.entities.base_entity import EntityBase
 
+    settings = get_settings()
     async with get_database_engine().begin() as connection:
         await connection.run_sync(EntityBase.metadata.create_all)
+        if settings.uses_sqlite:  # SQL Server and PostgreSQL get new columns from the migrations, SQLite only from a new file
+            missing_columns = await connection.run_sync(find_missing_columns)
+            if missing_columns:
+                raise LocalDatabaseOutOfDateError(describe_missing_columns(missing_columns, settings.database_url.split("///", 1)[-1]))
