@@ -417,3 +417,101 @@ classDiagram
 `JOB_HANDLERS` in `workers/job_handlers.py` maps each job type to a service method, for example
 `run_investigation → InvestigationService.run_investigation` and `generate_postmortem → CommunicationService.generate_postmortem`.
 Schedules: ServiceNow poll, SLI collection, predictive analysis, Teams chat poll, weekly reports, retention cleanup.
+
+## 6. Linked ids, alert group links, status values and reference release
+
+Four small building blocks keep the data model honest. Lists of ids of other rows are association tables read and written through
+`LinkedIdsMixin`; every link between an alert group, an investigation and an incident is written by `AlertGroupLinkService`; every fixed
+value set is a `StrEnum` that also becomes the database CHECK constraint; deleting a service, runbook or document releases the rows that
+still point at it. Tables and constraints are described in [03 · Database design](03_DATABASE_DESIGN.md) §11 to §14.
+
+```mermaid
+classDiagram
+    direction LR
+    class LinkedIdsMixin {
+        <<mixin>>
+        +link_relationship_names tuple
+        +linked_ids(relationship_name) list
+        +replace_linked_ids(relationship_name, identifiers)
+    }
+    class OrderedLinkColumns {
+        <<mixin>>
+        +linked_id_attribute str
+        +position int
+    }
+    class Incident {
+        <<entity>>
+        +affected_service_links list
+        +affected_service_ids list
+    }
+    class IncidentAffectedService {
+        <<association entity>>
+        +incident_id str
+        +service_id str
+        +position int
+    }
+    class MonitoredService {
+        <<entity>>
+        +service_id str
+    }
+    class AlertGroupLinkService {
+        -session AsyncSession
+        +link(alert_group, investigation_id, incident_id)
+    }
+    class AlertGroup {
+        <<entity>>
+        +investigation_id str
+        +incident_id str
+        +affected_service_links list
+    }
+    class Investigation {
+        <<entity>>
+        +incident_id str
+    }
+    class reference_release {
+        <<module>>
+        +columns_that_block_deleting(referenced_column) list
+        +release_references(session, referenced_attribute, referenced_ids)
+    }
+    class service_scope {
+        <<module>>
+        +unknown_service_ids(session, application_id, service_ids) set
+    }
+    class status_values {
+        <<module>>
+        one StrEnum per fixed-value column
+        +sql_in_list(values) str
+        +values_check(column_name, values) CheckConstraint
+    }
+    class AlertGroupStatus {
+        <<StrEnum>>
+        OPEN
+        INVESTIGATING
+        QUEUED
+        RESOLVED
+    }
+    Incident --|> LinkedIdsMixin
+    AlertGroup --|> LinkedIdsMixin
+    IncidentAffectedService --|> OrderedLinkColumns
+    Incident "1" *-- "0..*" IncidentAffectedService : cascade
+    IncidentAffectedService "0..*" --> "1" MonitoredService : NO ACTION
+    AlertGroupLinkService ..> AlertGroup : sets investigation_id and incident_id
+    AlertGroupLinkService ..> Investigation : sets incident_id
+    AlertGroupLinkService ..> Incident : loads, checks application
+    reference_release ..> MonitoredService : releases rows that name it
+    service_scope ..> MonitoredService : checks ids belong to the application
+    status_values *-- AlertGroupStatus
+    AlertGroup ..> status_values : values_check on group_status
+```
+
+- Modules: `entities/linked_ids.py`, `entities/status_values.py`, `services/reference_release.py` and `services/service_scope.py`; the service is
+  `services/alert_group_link_service.py`.
+- `Incident`, `Investigation`, `AlertGroup`, `Conversation`, `MaintenanceWindow`, `Runbook`, `Stakeholder` and `ApplicationTopology` use
+  `LinkedIdsMixin`; `Incident` and `AlertGroup` are shown as the example. Each association entity (nine in all) extends `OrderedLinkColumns`
+  and names its linked id column in `linked_id_attribute`.
+- `AlertGroupLinkService.link` is the only writer of `alert_group.investigation_id` and `alert_group.incident_id`. It raises
+  `NotFoundException` or `ConflictException` instead of storing a combination that disagrees.
+- `release_references` walks the foreign keys in the entity metadata, so a new reference is released without editing a list of tables. A
+  nullable referencing column is set to NULL, a column that cannot be NULL (an association row) means the row is deleted.
+- `unknown_service_ids` is the one check, shared by the alert, investigation, runbook and stakeholder services, that the service ids a user
+  sent belong to the application.

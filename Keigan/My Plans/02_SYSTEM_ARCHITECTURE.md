@@ -109,7 +109,10 @@ backend/
     │   ├── chat_service.py                # investigation chat + Keigan AI chat (NL → query → answer/chart)
     │   ├── notification_service.py        # stakeholder routing, email, Teams chats, bot replies, chat polling, milestone detection, outbox
     │   ├── dashboard_service.py           # home aggregates
-    │   └── administration_service.py      # usage, audit queries, effective settings
+    │   ├── administration_service.py      # usage, audit queries, effective settings
+    │   ├── alert_group_link_service.py    # the only writer of alert group → investigation → incident links
+    │   ├── reference_release.py           # clears or deletes the rows that still point at a deleted service, runbook or document
+    │   └── service_scope.py               # checks that the service ids a user sent belong to the application
     ├── ai/
     │   ├── llm_gateway.py                 # THE only place that knows providers; structured output; retries; usage accounting; concurrency
     │   ├── prompt_library.py              # loads versioned prompts from resources/prompts
@@ -133,6 +136,8 @@ backend/
     │   └── <domain>_repository.py         # only where custom queries are needed
     ├── entities/                  # SQLAlchemy models grouped by domain (see 03_DATABASE_DESIGN.md)
     │   ├── base_entity.py
+    │   ├── linked_ids.py                  # LinkedIdsMixin: ordered id lists stored as association tables
+    │   ├── status_values.py               # one StrEnum per fixed-value column; builds the CHECK constraints
     │   ├── platform_entities.py
     │   ├── application_entities.py
     │   ├── knowledge_entities.py
@@ -197,6 +202,24 @@ async def get_investigation(investigation_id: str,
 
 `provide(ServiceClass)` (in `config/database_config.py`) returns a dependency that opens a session and constructs the service.
 Workers construct services with their own session the same way.
+
+### Linking and deleting rows
+
+Two rules keep references between rows consistent. Both are enforced by one piece of code each, so no service repeats them.
+
+- **Alert group, investigation and incident links.** The alert group's own `investigation_id` and `incident_id` are the single record of what
+  covers it and which incident it belongs to (an investigation does not store its alert group). Every write of these links goes through
+  `AlertGroupLinkService.link` (`services/alert_group_link_service.py`): the alert pipeline when it creates a group for an open incident,
+  `IncidentService` when an incident adopts a group or is created from one, and `InvestigationService` when it starts an investigation for a
+  group. `link` checks that the rows belong to the same application and that the group and its investigation do not name different incidents,
+  and raises `NotFoundException` or `ConflictException` instead of storing a disagreement.
+- **Deleting a service, runbook or document.** Rows that list them (association tables such as `incident_affected_service`) or name them
+  (for example `alert.service_id`) use a `NO ACTION` foreign key where SQL Server would otherwise see two cascade paths. Before the delete,
+  the service calls `release_references` (`services/reference_release.py`). It walks the foreign keys in the entity metadata, so there is no
+  hand-kept list of tables: a nullable referencing column is set to NULL, and a column that cannot be NULL (an association row) means the row is
+  deleted. `ApplicationService.delete_application` uses it for the application's services too.
+
+Details of the tables and keys: [03 · Database design](03_DATABASE_DESIGN.md) sections 11 to 14.
 
 ## 4. Configuration (`backend/.env`)
 
@@ -331,7 +354,7 @@ Worker ─▶ InvestigationService.run_investigation ─▶ InvestigationGraph
 Scheduler ─▶ poll_incident_chats ─▶ new messages → facts into timeline; answer mentions; milestone? → generate_postmortem → email + chat
 ```
 
-**Alert → alert group → investigation → (optional) ServiceNow incident** — see product spec §9.
+**Alert → alert group → investigation → (optional) ServiceNow incident** (product spec §9). Each step that links the group to its investigation or incident calls `AlertGroupLinkService.link`.
 
 **AI chat data question**
 

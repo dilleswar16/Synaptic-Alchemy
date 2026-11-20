@@ -55,10 +55,10 @@ Status: ⬜ open · 🔄 in progress · ✅ fixed and tested · ➖ not doing (r
 | H8 | Entra token accepted when `tid` is absent | `services/authentication_service.py:168` | ✅ (stream C): `tid` must equal `ENTRA_TENANT_ID`; tests in `tests/unit/services/test_authentication_service.py` |
 | H9 | Uvicorn trusts forwarded headers from any IP | `deploy/docker/backend.Dockerfile:34` | ✅ (stream C): uvicorn reads `FORWARDED_ALLOW_IPS` (image default `127.0.0.1`); Helm `api.forwardedAllowIps` sets it and refuses `*`. Not rendered with helm yet (see go-live prerequisites) |
 | H10 | Retention never removes incidents, investigations or evidence although `INCIDENT_RETENTION_DAYS` exists | `services/administration_service.py:219-237` | ✅ (stream E): `services/incident_retention.py` removes expired incidents and investigations in batches, children first |
-| H11 | Many-to-many links stored as JSON id lists (incident, investigation and alert-group services; conversation applications; maintenance windows) | `entities/incident_entities.py:53,82,208`, `entities/alert_entities.py:103,133` | ⬜ |
-| H12 | `application_id` without a foreign key on alert, SLO and intelligence tables (orphans on delete) | `entities/alert_entities.py`, `entities/slo_entities.py` | ⬜ |
-| H13 | No CHECK constraints on status columns | all entities | ⬜ |
-| H14 | Two-way soft links between alert group, investigation and incident can disagree | `entities/alert_entities.py:108-109`, `entities/incident_entities.py:71-72` | ⬜ |
+| H11 | Many-to-many links stored as JSON id lists (incident, investigation and alert-group services; conversation applications; maintenance windows) | `entities/incident_entities.py:53,82,208`, `entities/alert_entities.py:103,133` | ✅ (W2-1): nine association tables with composite keys, list order kept in `position`; migration copies the ids before dropping the JSON columns (`json_each` on SQLite, `OPENJSON` in T-SQL); `reference_release` clears references when a service, runbook or document is deleted. External or opaque id lists stay JSON on purpose |
+| H12 | `application_id` without a foreign key on alert, SLO and intelligence tables (orphans on delete) | `entities/alert_entities.py`, `entities/slo_entities.py` | ✅ (W2-1): foreign keys on every application, incident, investigation, SLI and service reference (history columns of `audit_event` and `llm_usage_record` excepted); CASCADE where there is one path, NO ACTION plus explicit deletes where SQL Server would see two; orphans are repaired before the keys, no parents are invented; a test walks all keys and shows an application delete leaves nothing behind |
+| H13 | No CHECK constraints on status columns | all entities | ✅ (W2-1): CHECK on 47 columns built from one StrEnum per column (`entities/status_values.py`), same SQL rendered by the migration; migration stops with a clear message if existing rows violate a set |
+| H14 | Two-way soft links between alert group, investigation and incident can disagree | `entities/alert_entities.py:108-109`, `entities/incident_entities.py:71-72` | ✅ (W2-1): the alert group's own `investigation_id` and `incident_id` are the single truth (real keys); `investigation.alert_group_id` is gone and read through the groups; `AlertGroupLinkService.link` is the only writer and refuses disagreeing links; migration repairs existing rows. API output unchanged |
 | H15 | SLI list runs two queries per SLI | `services/slo_service.py:308-319` | ✅ (stream A): SLI list uses 3 queries instead of 2 per SLI; query-count test |
 | H16 | Backend has no dependency lock file; Docker builds from version ranges | `backend/pyproject.toml` | ✅ (stream C): `backend/requirements.lock` (pinned, sha256 hashes, includes `azuresql` extra); the image installs only from it with `--require-hashes --only-binary=:all:`. Regenerate with the command in the lock file header after changing `pyproject.toml`. Docker build not run yet |
 | H17 | Contrast below WCAG AA: `text-subtle` 3.25:1, success text on success background 4.17:1 | `frontend/src/styles/tokens.css:47,65-67` | ✅ (stream G): `text-subtle`, action and success text darkened, focus ring 3:1; `npm run check:contrast` asserts 218 pairs in both themes |
@@ -144,6 +144,18 @@ then an independent review of the combined change and a full smoke run (seed, al
 | F | ✅ merged |
 | G | ✅ merged (build, locales, contrast re-run by the lead: clean) |
 
+**Wave 2 progress**
+
+| Part | Status |
+|---|---|
+| W2-1 data model (H11 to H14) | ✅ merged after rework (first attempt rejected: no data copy, invented parent rows, hand-typed CHECK lists, no tests); 1090 passed after merge; live API smoke clean |
+| W2-2 demo-data SQL for the DBA | ✅ merged after rework (first attempt rejected: 56 MB file, whole-table deletes, seeded job rows); regenerated after W2-1 |
+| W2-3 credential UI, Entra duplicate groups, chat cannot-answer | ✅ merged |
+| Lead fixes found in review | ✅ masked-value count per evidence item; SLI backfill days from settings |
+| Error-handling sweep, independent review, frontend smoke in a browser | ⬜ next |
+
+Summary tables of both waves with causes: [`19_HARDENING_WAVE_SUMMARY.md`](19_HARDENING_WAVE_SUMMARY.md).
+
 ### Follow-ups reported by the streams
 
 | From | Follow-up | Owner / status |
@@ -151,7 +163,7 @@ then an independent review of the combined change and a full smoke run (seed, al
 | A | Chat passes the log source scope to the validator and shows the model a "Query limits" section; offline mock no longer writes `index=*` | ✅ done by the lead after merge |
 | A | `investigation_graph.planner_node` must add `PromptSection("Query limits per service", EvidenceService.describe_query_limits_for_planner(...))` and pass its `masking_context` to `collect_change_evidence` | ✅ done by the lead after merging D (test in `tests/unit/ai/test_investigation_graph.py`) |
 | A | Chat cannot-answer path: `ChatQueryResult` allows an empty `query_text` with an `explanation`, and chat shows it instead of "The query is empty or too long." | ✅ done in wave 2 (W2-3) |
-| A | Review the SLI table list in `catalogs/query_safety.yaml` (`kql.sli_allowed_tables`) | ✅ reviewed in wave 2 (W2-3): all 20 telemetry tables verified, audit/host tables excluded |
+| A | Review the SLI table list in `catalogs/query_safety.yaml` (`kql.sli_allowed_tables`) | ✅ reviewed by the lead after wave 2: candidates to add and the broad `AzureDiagnostics` entry are listed in doc 19 (owner decision, list unchanged) |
 | B | Frontend `IntegrationCard.tsx` still shows a `credential_secret_name` field; replace it with a write-only `credentialValue` password field | ✅ done in wave 2 (W2-3) |
 | B | `catalogs/integration_field_schemas.yaml`: replace the `credential_secret_name` fields (CMDB, EI portal, knowledge) with a secret input | ✅ done in wave 2 (W2-3) |
 | B | Apply the outbound URL policy to integration `base_url` fields when the CMDB, EI portal and knowledge readers are built | ⬜ with those features |
@@ -172,9 +184,14 @@ then an independent review of the combined change and a full smoke run (seed, al
 | D | Old stored AI text is not migrated; it is sanitised again when emailed or posted | ⬜ accepted |
 | D | `create_react_agent` is deprecated in LangGraph 1.x; the agent path cannot cap tokens mid-run | ⬜ later, with the LangGraph upgrade |
 | all | New settings: `OUTBOUND_ALLOWED_HOSTS`, `OUTBOUND_DENIED_HOST_SUFFIXES`, `WORKSPACE_IDENTITY_CACHE_SECONDS`, `JOB_LEASE_DURATION_SECONDS`, `JOB_LEASE_RENEWAL_INTERVAL_SECONDS`, `WORKER_HEARTBEAT_INTERVAL_SECONDS`, `RETENTION_DELETE_BATCH_SIZE` (all in `backend/.env.example`); query limits live in `keigan/resources/catalogs/query_safety.yaml` | ✅ documented |
+| W2-1 | Soft references still without a foreign key: `alert.alert_source_id`, `alert.alert_group_id`, `alert_decision.alert_group_id`, `slo_burn_alert.alert_group_id`, `teams_incident_chat.conversation_id`, `investigation_hypothesis.matched_runbook_id`, `investigation.leading_hypothesis_id`, `monitored_service.discovered_resource_id`, `runbook.knowledge_document_id`, `predictive_signal.intelligence_report_id` | ⬜ next schema pass |
+| W2-1 | Status values are written as string literals at about 150 sites; a test scans them and the database rejects anything else, but they are not yet enum members | ⬜ owner decision (full replacement is a large mechanical change) |
+| W2-1 | On SQLite the migrations repair data but add no new keys or CHECKs (a rebuild would cascade-delete rows): existing local SQLite databases must be recreated. T-SQL (`OPENJSON`, unquoted `position`, `THROW`) was rendered, not executed | ⬜ infra go-live check against real Azure SQL |
+| W2-2 | Demo "now" is fixed at 2026-11-20 12:00 UTC; step 04 history is 425,000 rows at 5 minute grain (older history could be hourly); SQL-loaded SLIs are not backfilled by the app, so skipping step 04 leaves SLO history nearly empty | ⬜ owner decision |
 
-Schema: three Alembic revisions on top of `94692c828bd3` (`89afa8e088ba`, `1fa7018ae4d6`, `3be32fbc3e37`), Azure SQL scripts 02-04 regenerated,
-the 05 stamp moved to `3be32fbc3e37`, and delta scripts for existing databases are in `database/azure_sql/migrations/`.
+Schema: seven Alembic revisions on top of `94692c828bd3`: `89afa8e088ba`, `1fa7018ae4d6`, `3be32fbc3e37` (wave 1), then `a3f5c0d1e2b4` (association tables),
+`b7d2e9a4c6f1` (alert group links), `c9e4f1b8d3a7` (foreign keys) and `d2a6b0c5e8f9` (CHECK constraints) from wave 2. Azure SQL scripts 02-04 are regenerated,
+the 05 stamp is `d2a6b0c5e8f9`, and the delta scripts for existing databases are in `database/azure_sql/migrations/`.
 
 ### Go-live prerequisites created by the hardening (infra checklist)
 

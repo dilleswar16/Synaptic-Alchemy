@@ -114,6 +114,54 @@ Rows may carry `count_` (aggregated). Live Azure: `AzureClient` (`list_resource_
 - `ServiceNowSimulator().list_incidents(group_names, updated_since)` / `create_incident(fields)` / `update_incident(sys_id, fields)` — ServiceNow field names (`number`, `sys_id`, `short_description`, `description`, `priority`, `impact`, `urgency`, `state`, `assignment_group.display_value`, `cmdb_ci.display_value`, `opened_at`, `sys_updated_on` as `YYYY-MM-DD HH:MM:SS` UTC).
 - Scenario catalogue: `keigan.integrations.simulation.simulation_scenarios.SCENARIO_CATALOG` (8 scenarios with titles, root causes, fixes, alert rule names, change events).
 
+## How to
+
+Run these from `backend/` (`.\.venv\Scripts\python.exe -m alembic ...`). The database design is described in `03_DATABASE_DESIGN.md` sections 11 to 14.
+
+### Add or change an enum column (a column with a fixed set of values)
+
+1. Add a `StrEnum` to `keigan/entities/status_values.py` (to change a column, add or rename a member of its existing enum). The enum is the one definition of the values.
+2. In the entity, add `values_check("column_name", YourEnum)` to `__table_args__` (import it from `status_values`). It builds `CHECK (column_name IN (...))` named
+   `ck_<table>_<column>_values`. In code, write the value as an enum member, not a typed string.
+3. Write a new Alembic revision (`alembic revision -m "short description"`). For a new column, add the column and create the constraint; for a changed value set, drop
+   `ck_<table>_<column>_values` and create it again with the new list. Model it on `d2a6b0c5e8f9`: it takes the condition from the entity, checks the existing rows first and stops
+   with a message naming the column if one holds another value, and it does nothing on SQLite (see below). Give the revision a `downgrade`.
+4. Tests: add the column to the typed list in `tests/integration/entities/test_status_values.py` (it tries every member and one outside value against a fresh database, and scans the
+   code for literals written to constrained columns). `tests/integration/migrations/test_schema_drift.py` compares the CHECK columns that revision `d2a6b0c5e8f9` lists with the ones
+   the entities declare, so a new CHECK fails it until the test also reads your revision.
+5. Regenerate the Azure SQL files: `scripts\generate_azure_sql_ddl.py` and `scripts\generate_azure_sql_migration_scripts.py` (the drift test compares them with what the entities and Alembic produce).
+   Update the value list in `03_DATABASE_DESIGN.md` and its change log.
+
+If the column must stay open (values come from a catalog, an Azure resource type or free input), do not add a CHECK; the open columns are listed in the docstring of `status_values.py`.
+
+### Add a list of ids of other rows (an association list)
+
+Never add a `*_ids_json` column for ids of Keigan rows. Use an association table so the database checks every id.
+
+1. Write the association entity next to its owner. It extends `OrderedLinkColumns` (which supplies `position`) and `EntityBase`, sets `__tablename__` and `linked_id_attribute`, and has the owner id
+   column and the linked id column as the two primary-key columns. The owner key is `ForeignKey(..., ondelete="CASCADE")`. The linked key is `NO ACTION` (no `ondelete`) and indexed, because
+   the owner and the linked row both cascade from the application and SQL Server allows one cascade path; the exception is a linked row outside the application's cascade tree
+   (`conversation_application`). Copy `IncidentAffectedService` in `incident_entities.py`.
+2. On the owner: put `LinkedIdsMixin` first in the bases, set `link_relationship_names = ("affected_service_links",)`, declare
+   `affected_service_links = ordered_links_relationship("IncidentAffectedService")` and `affected_service_ids = linked_ids_property("affected_service_links")`
+   (all from `keigan/entities/linked_ids.py`).
+3. Read with the property (`incident.affected_service_ids`). Write only with `incident.replace_linked_ids("affected_service_links", ids)`: it drops duplicates and empty values, keeps
+   the order and sets `position`. Do not edit the link rows or assign the property. When a user sends the ids, check them first with `unknown_service_ids(session, application_id, ids)`
+   from `keigan/services/service_scope.py`.
+4. When a service, runbook or document can be deleted, call `await release_references(session, Model.primary_key_attribute, [ids])` from `keigan/services/reference_release.py` before the delete.
+   It finds the `NO ACTION` keys from the entity metadata, so there is no table list to update.
+5. Write the revision (model: `a3f5c0d1e2b4`): create the table and its index, copy any existing list into it in order (skipping ids of rows that do not exist), then drop the old column. Regenerate the Azure SQL files as above.
+
+### Why a new CHECK or foreign key needs its own revision
+
+- A database that is already at an older revision never re-runs it, and the DBA scripts in `database/azure_sql/migrations` are one file per revision, each run once. Editing an old revision changes nothing for them.
+- Existing rows may break the new rule. A revision checks them first (the CHECK revision stops with a message; the foreign key revision `c9e4f1b8d3a7` repairs orphans before it adds the key: delete the row
+  that belongs to the missing parent, or set an optional reference to NULL).
+- A foreign key must use `NO ACTION` unless the table has exactly one cascade path from the application (`tests/integration/entities/test_foreign_keys.py` checks this and that every reference column has a key).
+- SQLite cannot add a key or a CHECK to an existing table without rebuilding it, and a rebuild with foreign keys on cascade-deletes child rows. So the revision repairs data but skips the key or constraint on
+  SQLite and logs a warning; local SQLite demo databases are recreated, and fresh databases and Azure SQL have everything. Never use Alembic batch mode on SQLite for this.
+- Alembic's comparison does not see CHECK constraints, so only the tests above notice a forgotten revision for them.
+
 ## Conventions reminder
 
 - Descriptive names (no abbreviations), lean code, one service class per capability, all strings user-facing in the UI go through i18n.

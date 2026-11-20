@@ -9,10 +9,10 @@ Any change must be made here first (or recorded in the change log at the bottom)
 |---|---|
 | Names | `snake_case`, fully descriptive, singular table names (`incident`, not `incidents`). No abbreviations except the accepted acronyms (`id`, `url`, `sli`, `slo`, `kql`, `llm`, `ai`, `aks`, `pii`). |
 | Primary keys | `<table>_id` `VARCHAR(36)` holding a UUID v4 string, generated in Python. Exception: high-volume `sli_measurement` uses `BIGINT` autoincrement. |
-| Foreign keys | Same name as the referenced primary key (`application_id`). `ON DELETE CASCADE` only for owned children; otherwise restrict. |
+| Foreign keys | Same name as the referenced primary key (`application_id`). Every column that names an application, incident, investigation, SLI or service has a real foreign key (section 12). `ON DELETE CASCADE` only for owned children where the table has a single cascade path; otherwise `NO ACTION`. |
 | Time | `TIMESTAMP WITH TIME ZONE`, stored in UTC, columns end with `_at` (instants) or `_start` / `_end` (ranges). |
-| Enumerations | `VARCHAR(40)` with allowed values listed below (portable across SQLite and PostgreSQL; validated by Pydantic / Python `StrEnum`). |
-| Flexible data | `JSON` columns end with `_json`. Only for data that is read as a whole (configuration, AI payloads), never for data we filter on. |
+| Enumerations | `VARCHAR(40)` with allowed values listed below (portable across SQLite and PostgreSQL). Each fixed value set is one Python `StrEnum` in `keigan/entities/status_values.py` and the database enforces it with a `CHECK` constraint (section 14). |
+| Flexible data | `JSON` columns end with `_json`. Only for data that is read as a whole (configuration, AI payloads), never for data we filter on and never for lists of ids of other Keigan rows (those are association tables, section 11). |
 | Audit columns | Mixin on most tables: `created_at`, `updated_at`, `created_by_user_principal_name`, `updated_by_user_principal_name`. Marked **[audit]** below. |
 | Soft delete | Not used. Retention jobs purge by age. |
 | Secrets | Never stored in plain text. Only `credential_secret_name` (a reference into Key Vault / the local encrypted store). |
@@ -20,7 +20,7 @@ Any change must be made here first (or recorded in the change log at the bottom)
 
 Database engines: SQLite (local, WAL mode), **Azure SQL Database** (production target) and PostgreSQL 16 (still supported).
 Local schema is created with `Base.metadata.create_all`. In Azure the schema comes from the generated scripts in
-`database/azure_sql/` (run once before the first install) and Alembic migrations afterwards (baseline `94692c828bd3`).
+`database/azure_sql/` (run once before the first install) and Alembic migrations afterwards (baseline `94692c828bd3`, current head `d2a6b0c5e8f9`).
 The column types written below as `VARCHAR` / `TIMESTAMPTZ` are the logical types; on Azure SQL they are created as:
 
 | Logical type | Azure SQL type | Why |
@@ -51,6 +51,7 @@ alert:         alert_source ── alert_event · alert ── alert_decision ·
 slo:           service_level_indicator ── service_level_objective · sli_measurement · slo_burn_alert
 intelligence:  predictive_signal · intelligence_report
 notification:  stakeholder · notification_delivery · teams_incident_chat
+association:   nine tables that hold ordered id lists, named in section 11
 ```
 
 ## 3. Platform tables (`platform_entities.py`)
@@ -153,7 +154,7 @@ Local encrypted secret store (used only when `SECRET_STORE_MODE=local_encrypted`
 | primary_locale | VARCHAR(10) | |
 | time_zone_name | VARCHAR(60) | IANA, e.g. `Asia/Tokyo` |
 | criticality_tier | VARCHAR(10) | `tier_1`, `tier_2`, `tier_3` |
-| lifecycle_status | VARCHAR(20) | `requested`, `draft`, `onboarding`, `live`, `paused`, `retired` |
+| lifecycle_status | VARCHAR(20) | `requested`, `draft`, `onboarding`, `live`, `paused` |
 | admin_group_name | VARCHAR(200) | default from pattern |
 | admin_group_object_id | VARCHAR(36) | optional |
 | reader_group_name | VARCHAR(200) | |
@@ -177,7 +178,7 @@ Local encrypted secret store (used only when `SECRET_STORE_MODE=local_encrypted`
 | azure_subscription_name | VARCHAR(200) | Azure only |
 | azure_resource_group_name | VARCHAR(200) | Azure only |
 | component_configuration_json | JSON | type-specific fields (hardware category, hostname, location, CMDB CI; mainframe LPAR, subsystems, job prefixes, batch windows; SaaS vendor, instance URL, status page URL, probe URL, SLA) |
-| access_verification_status | VARCHAR(20) | `not_checked`, `checking`, `verified`, `partial`, `failed`, `not_applicable` |
+| access_verification_status | VARCHAR(20) | `not_checked`, `checking`, `verified`, `missing_roles`, `failed`, `not_applicable` |
 | access_verification_details_json | JSON | per check: name, passed, message, missing role |
 | last_verified_at | TIMESTAMPTZ | |
 | last_discovered_at | TIMESTAMPTZ | |
@@ -189,7 +190,7 @@ Local encrypted secret store (used only when `SECRET_STORE_MODE=local_encrypted`
 |---|---|---|
 | discovered_resource_id | VARCHAR(36) PK | |
 | component_id | FK application_component CASCADE | |
-| application_id | VARCHAR(36) | indexed |
+| application_id | FK application NO ACTION | indexed |
 | azure_resource_id | VARCHAR(600) | full ARM id (unique per component) |
 | resource_name | VARCHAR(260) | |
 | resource_type | VARCHAR(200) | ARM type |
@@ -214,7 +215,7 @@ Local encrypted secret store (used only when `SECRET_STORE_MODE=local_encrypted`
 | service_type | VARCHAR(40) | `aks`, `function_app`, `app_service`, `logic_app`, `api_management`, `data_factory`, `sql_database`, `server`, `network_appliance`, `storage_device`, `mainframe_subsystem`, `batch_job_stream`, `saas_service`, `other` |
 | external_resource_identifier | VARCHAR(600) | ARM id / hostname / vendor service id |
 | environment_name | VARCHAR(20) | |
-| criticality_tier | VARCHAR(10) | |
+| criticality_tier | VARCHAR(10) | `tier_1`, `tier_2`, `tier_3` |
 | is_monitoring_enabled | BOOLEAN | default true |
 | aks_namespace_filter | VARCHAR(200) | AKS only |
 | application_insights_resource_id | VARCHAR(600) | linked component |
@@ -232,7 +233,7 @@ Local encrypted secret store (used only when `SECRET_STORE_MODE=local_encrypted`
 | Column | Type | Notes |
 |---|---|---|
 | service_dependency_id | VARCHAR(36) PK | |
-| application_id | VARCHAR(36) | indexed |
+| application_id | FK application NO ACTION | indexed |
 | upstream_service_id | FK monitored_service CASCADE | the caller / consumer |
 | downstream_service_id | FK monitored_service CASCADE | the dependency |
 | dependency_kind | VARCHAR(30) | `calls`, `reads_from`, `writes_to`, `publishes_to`, `hosted_on` |
@@ -250,7 +251,7 @@ Local encrypted secret store (used only when `SECRET_STORE_MODE=local_encrypted`
 | authentication_method | VARCHAR(40) | `api_key`, `basic`, `bearer_token`, `oauth_client_credentials`, `managed_identity`, `none` |
 | credential_secret_name | VARCHAR(200) | |
 | connection_configuration_json | JSON | index patterns, field names, site, source types… |
-| connection_status | VARCHAR(30) | `not_tested`, `connected`, `failed`, `reader_not_available`, `recorded_only` |
+| connection_status | VARCHAR(30) | `not_tested`, `connected`, `failed`, `reader_not_available` |
 | last_tested_at | TIMESTAMPTZ | |
 | last_test_message | TEXT | |
 | newest_log_timestamp_seen_at | TIMESTAMPTZ | |
@@ -277,11 +278,11 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 | Column | Type | Notes |
 |---|---|---|
 | external_integration_id | VARCHAR(36) PK | |
-| application_id | VARCHAR(36) | null = platform-wide |
+| application_id | FK application CASCADE | null = platform-wide |
 | integration_kind | VARCHAR(40) | `cmdb`, `ei_portal`, `knowledge_api`, `servicenow` |
 | integration_configuration_json | JSON | rendered from `integration_field_schemas.yaml` |
 | credential_secret_name | VARCHAR(200) | |
-| integration_status | VARCHAR(30) | `not_set_up`, `details_saved`, `connected`, `failed` |
+| integration_status | VARCHAR(30) | `not_set_up`, `configured`, `saved_reader_in_development` |
 | integration_notes | TEXT | |
 | [audit] | | |
 
@@ -292,7 +293,7 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 | application_id | FK application CASCADE | |
 | record_system | VARCHAR(30) | `eai`, `cmdb` |
 | record_identifier | VARCHAR(100) | e.g. EAI `14470`, CMDB CI number |
-| link_status | VARCHAR(30) | `saved_reader_in_development`, `verified`, `not_found` |
+| link_status | VARCHAR(30) | `saved_reader_in_development` (the only value the backend writes today; no CHECK) |
 | created_at | TIMESTAMPTZ | |
 
 ## 5. Knowledge tables (`knowledge_entities.py`)
@@ -302,7 +303,7 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 |---|---|---|
 | knowledge_document_id | VARCHAR(36) PK | |
 | application_id | FK application CASCADE | indexed |
-| service_id | VARCHAR(36) | nullable (whole application) |
+| service_id | FK monitored_service NO ACTION | nullable (whole application) |
 | document_title | VARCHAR(300) | |
 | document_category | VARCHAR(40) | `code_context`, `architecture_diagram`, `design_document`, `operational_note`, `cmdb_record`, `ei_portal_record` |
 | original_file_name | VARCHAR(300) | sanitised |
@@ -313,7 +314,7 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 | extracted_text | TEXT | for Markdown/PDF; for images the vision description |
 | extracted_headings_json | JSON | |
 | ai_digest_markdown | TEXT | structured summary used for grounding |
-| ai_digest_status | VARCHAR(20) | `pending`, `processing`, `completed`, `failed` |
+| ai_digest_status | VARCHAR(20) | `pending`, `running`, `ready`, `failed` |
 | ai_digest_error_message | TEXT | |
 | estimated_token_count | INTEGER | |
 | uploaded_by_user_principal_name | VARCHAR(320) | |
@@ -325,8 +326,8 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 |---|---|---|
 | knowledge_chunk_id | VARCHAR(36) PK | |
 | knowledge_document_id | FK knowledge_document CASCADE | |
-| application_id | VARCHAR(36) | indexed |
-| service_id | VARCHAR(36) | nullable |
+| application_id | FK application NO ACTION | indexed |
+| service_id | FK monitored_service NO ACTION | nullable |
 | chunk_sequence_number | INTEGER | |
 | section_heading | VARCHAR(400) | |
 | chunk_text | TEXT | |
@@ -341,10 +342,10 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 | topology_version_number | INTEGER | |
 | topology_graph_json | JSON | `{nodes:[{node_key, label, node_type, service_id?, technology, description, criticality}], edges:[{source_node_key, target_node_key, relationship, protocol, description}]}` |
 | understanding_summary_markdown | TEXT | Keigan's narrative of how the application works |
-| generated_from_document_ids_json | JSON | |
-| generation_status | VARCHAR(20) | `building`, `completed`, `failed` |
+| source documents | association table `topology_source_document` | section 11 |
+| generation_status | VARCHAR(20) | `building`, `ready` |
 | generated_by_model_name | VARCHAR(120) | |
-| review_status | VARCHAR(30) | `awaiting_review`, `reviewed_looks_right`, `needs_correction` |
+| review_status | VARCHAR(30) | `awaiting_review`, `reviewed`, `needs_correction` |
 | is_current_version | BOOLEAN | |
 | created_at | TIMESTAMPTZ | |
 
@@ -354,7 +355,7 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 | topology_review_comment_id | VARCHAR(36) PK | |
 | topology_id | FK application_topology CASCADE | |
 | target_element_key | VARCHAR(200) | node key or `source->target` edge key; null = whole topology |
-| review_verdict | VARCHAR(30) | `looks_right`, `needs_correction` |
+| review_verdict | VARCHAR(30) | `looks_right`, `needs_correction`, `comment` |
 | review_comment_text | TEXT | |
 | reviewer_user_principal_name | VARCHAR(320) | |
 | created_at | TIMESTAMPTZ | |
@@ -368,7 +369,7 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 | trigger_symptoms_text | TEXT | when it applies: symptoms, alert names, error signatures |
 | runbook_steps_markdown | TEXT | |
 | source_url | VARCHAR(600) | |
-| applies_to_service_ids_json | JSON | empty = whole application |
+| applies to services | association table `runbook_applies_to_service` | section 11; empty = whole application |
 | knowledge_document_id | VARCHAR(36) | if uploaded as a file |
 | search_terms_json | JSON | lexical retrieval |
 | times_referenced_count | INTEGER | |
@@ -384,7 +385,7 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 | application_id | FK application CASCADE | |
 | group_name | VARCHAR(200) | exact ServiceNow name |
 | servicenow_sys_id | VARCHAR(64) | when verified |
-| verification_status | VARCHAR(20) | `verified`, `unverified`, `not_found` |
+| verification_status | VARCHAR(20) | `unverified`, `verified` |
 | created_at | TIMESTAMPTZ | |
 
 ### `incident`
@@ -392,7 +393,7 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 |---|---|---|
 | incident_id | VARCHAR(36) PK | |
 | application_id | FK application | indexed |
-| incident_source | VARCHAR(20) | `servicenow`, `alert_group`, `manual` |
+| incident_source | VARCHAR(20) | `servicenow`, `alert`, `manual` |
 | external_incident_number | VARCHAR(40) | `INC0012345`; indexed |
 | external_system_identifier | VARCHAR(64) | ServiceNow sys_id |
 | incident_title | VARCHAR(500) | |
@@ -404,7 +405,7 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 | priority_rationale | TEXT | |
 | incident_category | VARCHAR(40) | `availability`, `latency`, `errors`, `data`, `batch`, `security`, `capacity`, `dependency`, `change_related`, `unknown` |
 | incident_status | VARCHAR(20) | `new`, `investigating`, `identified`, `monitoring`, `resolved`, `closed` |
-| affected_service_ids_json | JSON | |
+| affected services | association table `incident_affected_service` | section 11; the first one is the primary service |
 | assignment_group_name | VARCHAR(200) | |
 | external_state | VARCHAR(40) | ServiceNow state label |
 | opened_at | TIMESTAMPTZ | |
@@ -422,16 +423,15 @@ UNIQUE (`application_id`, `external_incident_number`).
 | investigation_id | VARCHAR(36) PK | |
 | application_id | FK application | indexed |
 | incident_id | FK incident | nullable |
-| alert_group_id | VARCHAR(36) | nullable |
 | investigation_trigger | VARCHAR(20) | `incident`, `alert_group`, `manual`, `rerun` |
 | investigation_status | VARCHAR(30) | `queued`, `running`, `completed`, `completed_evidence_only`, `failed`, `cancelled` |
-| current_stage_name | VARCHAR(30) | `triage`, `context`, `evidence`, `hypotheses`, `synthesis`, `communications`, `done` |
+| current_stage_name | VARCHAR(30) | `triage`, `context`, `evidence`, `hypotheses`, `synthesis`, `communications`, `completed` |
 | progress_percent | INTEGER | |
 | investigation_window_start | TIMESTAMPTZ | |
 | investigation_window_end | TIMESTAMPTZ | |
 | baseline_window_start | TIMESTAMPTZ | |
 | baseline_window_end | TIMESTAMPTZ | |
-| investigated_service_ids_json | JSON | |
+| investigated services | association table `investigation_investigated_service` | section 11; in the order triage found them |
 | triage_result_json | JSON | priority, category, candidates, summary |
 | executive_summary | TEXT | 2–3 sentences |
 | what_went_wrong_markdown | TEXT | |
@@ -440,7 +440,7 @@ UNIQUE (`application_id`, `external_incident_number`).
 | overall_confidence_score | NUMERIC(4,3) | 0–1 |
 | leading_hypothesis_id | VARCHAR(36) | |
 | blast_radius_json | JSON | impacted nodes, services, SLOs, stakeholders, downstream applications, narrative |
-| matched_runbook_ids_json | JSON | |
+| matched runbooks | association table `investigation_matched_runbook` | section 11; best match first |
 | user_feedback_verdict | VARCHAR(20) | `correct`, `partially_correct`, `incorrect` |
 | user_feedback_comment | TEXT | |
 | user_feedback_by_user_principal_name | VARCHAR(320) | |
@@ -477,7 +477,7 @@ UNIQUE (`application_id`, `external_incident_number`).
 | evidence_id | VARCHAR(36) PK | |
 | investigation_id | FK investigation CASCADE | indexed |
 | evidence_code | VARCHAR(10) | `E1`, `E2`, … unique within investigation |
-| service_id | VARCHAR(36) | nullable |
+| service_id | FK monitored_service NO ACTION | nullable |
 | evidence_source_kind | VARCHAR(40) | `log_analytics`, `application_insights`, `azure_monitor_metrics`, `activity_log`, `elastic`, `splunk`, `datadog`, `synthetic_probe`, `vendor_status_page`, `knowledge`, `runbook` |
 | evidence_category | VARCHAR(40) | `errors`, `exceptions`, `failed_requests`, `dependency_failures`, `pod_events`, `metrics_anomaly`, `change_event`, `saturation`, `availability` |
 | evidence_title | VARCHAR(300) | |
@@ -498,8 +498,8 @@ UNIQUE (`application_id`, `external_incident_number`).
 | Column | Type | Notes |
 |---|---|---|
 | timeline_event_id | VARCHAR(36) PK | |
-| incident_id | VARCHAR(36) | indexed, nullable |
-| investigation_id | VARCHAR(36) | indexed, nullable |
+| incident_id | FK incident CASCADE | indexed, nullable |
+| investigation_id | FK investigation NO ACTION | indexed, nullable |
 | event_occurred_at | TIMESTAMPTZ | |
 | event_type | VARCHAR(40) | `incident_opened`, `alert_fired`, `alert_resolved`, `deployment`, `configuration_change`, `error_spike`, `investigation_started`, `investigation_completed`, `communication_sent`, `chat_fact`, `action_taken`, `priority_changed`, `resolved`, `postmortem_generated` |
 | event_title | VARCHAR(400) | |
@@ -513,14 +513,14 @@ UNIQUE (`application_id`, `external_incident_number`).
 | Column | Type | Notes |
 |---|---|---|
 | communication_id | VARCHAR(36) PK | |
-| incident_id | VARCHAR(36) | indexed |
-| investigation_id | VARCHAR(36) | |
+| incident_id | FK incident CASCADE | indexed |
+| investigation_id | FK investigation NO ACTION | |
 | communication_type | VARCHAR(30) | `initial_update`, `progress_update`, `resolution_update`, `preliminary_report`, `executive_summary` |
 | audience_type | VARCHAR(20) | `stakeholders`, `executives`, `technical` |
 | language_code | VARCHAR(10) | |
 | subject_line | VARCHAR(400) | |
 | body_markdown | TEXT | |
-| communication_status | VARCHAR(20) | `draft`, `approved`, `sent`, `discarded` |
+| communication_status | VARCHAR(20) | `draft`, `approved`, `sent` |
 | approved_by_user_principal_name | VARCHAR(320) | |
 | approved_at | TIMESTAMPTZ | |
 | sent_at | TIMESTAMPTZ | |
@@ -530,13 +530,13 @@ UNIQUE (`application_id`, `external_incident_number`).
 | Column | Type | Notes |
 |---|---|---|
 | postmortem_id | VARCHAR(36) PK | |
-| incident_id | VARCHAR(36) | indexed |
-| investigation_id | VARCHAR(36) | |
+| incident_id | FK incident CASCADE | indexed |
+| investigation_id | FK investigation NO ACTION | |
 | report_title | VARCHAR(400) | |
 | report_markdown | TEXT | |
 | report_sections_json | JSON | summary, impact, timeline, root_cause, contributing_factors, detection, response, what_went_well, what_could_be_improved, action_items[{description, owner, due_date, action_type}], lessons_learned |
 | language_code | VARCHAR(10) | |
-| report_status | VARCHAR(20) | `generating`, `draft`, `final`, `sent` |
+| report_status | VARCHAR(20) | `generating`, `draft`, `final`, `failed` |
 | generation_trigger | VARCHAR(30) | `teams_milestone`, `user_button`, `incident_resolved` |
 | finalized_by_user_principal_name | VARCHAR(320) | |
 | finalized_at | TIMESTAMPTZ | |
@@ -548,9 +548,9 @@ UNIQUE (`application_id`, `external_incident_number`).
 |---|---|---|
 | conversation_id | VARCHAR(36) PK | |
 | conversation_scope | VARCHAR(30) | `investigation`, `keigan_ai_chat`, `teams_incident_chat` |
-| application_ids_json | JSON | scope of the chat (subset of readable apps at time of question) |
-| investigation_id | VARCHAR(36) | |
-| incident_id | VARCHAR(36) | |
+| applications | association table `conversation_application` | section 11; scope of the chat (subset of readable apps at time of question); empty = every application the user can read |
+| investigation_id | FK investigation NO ACTION | |
+| incident_id | FK incident NO ACTION | |
 | owner_user_principal_name | VARCHAR(320) | indexed |
 | conversation_title | VARCHAR(300) | |
 | [audit] | | |
@@ -560,7 +560,7 @@ UNIQUE (`application_id`, `external_incident_number`).
 |---|---|---|
 | message_id | VARCHAR(36) PK | |
 | conversation_id | FK conversation CASCADE | indexed |
-| author_role | VARCHAR(20) | `user`, `assistant`, `tool`, `teams_participant`, `system_notice` |
+| author_role | VARCHAR(20) | `user`, `assistant`, `teams_participant` |
 | author_display_name | VARCHAR(200) | |
 | author_user_principal_name | VARCHAR(320) | |
 | message_text | TEXT | |
@@ -596,24 +596,24 @@ UNIQUE (`application_id`, `external_incident_number`).
 |---|---|---|
 | alert_event_id | VARCHAR(36) PK | |
 | alert_source_id | FK alert_source CASCADE | |
-| application_id | VARCHAR(36) | |
+| application_id | FK application NO ACTION | |
 | received_at | TIMESTAMPTZ | indexed |
 | raw_payload_json | JSON | |
 | payload_size_bytes | INTEGER | |
-| processing_status | VARCHAR(20) | `received`, `processed`, `failed` |
+| processing_status | VARCHAR(20) | `received`, `processed`, `failed`, `ignored_paused` |
 | processing_error_message | TEXT | |
 
 ### `alert`
 | Column | Type | Notes |
 |---|---|---|
 | alert_id | VARCHAR(36) PK | |
-| application_id | VARCHAR(36) | indexed |
+| application_id | FK application CASCADE | indexed |
 | alert_source_id | VARCHAR(36) | |
 | external_alert_identifier | VARCHAR(400) | |
 | alert_fingerprint | VARCHAR(64) | indexed |
 | rule_identifier | VARCHAR(600) | |
 | rule_name | VARCHAR(400) | |
-| service_id | VARCHAR(36) | nullable |
+| service_id | FK monitored_service NO ACTION | nullable |
 | resource_reference | VARCHAR(600) | |
 | environment_name | VARCHAR(20) | |
 | severity_level | INTEGER | 0 (most severe) – 4 |
@@ -629,7 +629,7 @@ UNIQUE (`application_id`, `external_incident_number`).
 | last_seen_at | TIMESTAMPTZ | |
 | resolved_at | TIMESTAMPTZ | |
 | alert_group_id | VARCHAR(36) | indexed |
-| final_disposition | VARCHAR(30) | `investigated`, `joined_group`, `deduplicated`, `suppressed_maintenance`, `suppressed_mute_rule`, `suppressed_environment`, `suppressed_severity`, `self_resolved`, `queued_rate_limit`, `observed_only` |
+| final_disposition | VARCHAR(30) | `settling`, `recorded_only` (what the pipeline decided at each stage is recorded in `alert_decision`) |
 | latest_alert_event_id | VARCHAR(36) | |
 
 ### `alert_decision`
@@ -648,21 +648,21 @@ UNIQUE (`application_id`, `external_incident_number`).
 | Column | Type | Notes |
 |---|---|---|
 | alert_group_id | VARCHAR(36) PK | |
-| application_id | VARCHAR(36) | indexed |
+| application_id | FK application CASCADE | indexed |
 | group_title | VARCHAR(400) | AI-written, deterministic fallback |
 | group_summary | TEXT | |
-| group_status | VARCHAR(20) | `open`, `investigating`, `resolved` |
+| group_status | VARCHAR(20) | `open`, `investigating`, `queued`, `resolved` |
 | priority_score | NUMERIC(8,2) | |
 | grouping_reason | VARCHAR(400) | |
 | member_alert_count | INTEGER | |
-| primary_service_id | VARCHAR(36) | |
-| affected_service_ids_json | JSON | |
+| primary_service_id | FK monitored_service NO ACTION | |
+| affected services | association table `alert_group_affected_service` | section 11; the first one is the group's first service |
 | highest_severity_level | INTEGER | |
 | started_at | TIMESTAMPTZ | |
 | last_activity_at | TIMESTAMPTZ | |
 | resolved_at | TIMESTAMPTZ | |
-| investigation_id | VARCHAR(36) | |
-| incident_id | VARCHAR(36) | |
+| investigation_id | FK investigation NO ACTION | |
+| incident_id | FK incident NO ACTION | |
 | servicenow_incident_suggested | BOOLEAN | |
 | user_feedback_verdict | VARCHAR(20) | `useful`, `noise` |
 | user_feedback_reason | TEXT | |
@@ -683,7 +683,7 @@ UNIQUE (`application_id`, `external_incident_number`).
 | maintenance_window_id | VARCHAR(36) PK | |
 | application_id | FK application CASCADE | |
 | window_name | VARCHAR(200) | |
-| applies_to_service_ids_json | JSON | empty = whole application |
+| applies to services | association table `maintenance_window_applies_to_service` | section 11; empty = whole application |
 | applies_to_environments_json | JSON | |
 | starts_at | TIMESTAMPTZ | |
 | ends_at | TIMESTAMPTZ | |
@@ -708,7 +708,7 @@ UNIQUE (`application_id`, `external_incident_number`).
 |---|---|---|
 | sli_id | VARCHAR(36) PK | |
 | application_id | FK application CASCADE | indexed |
-| service_id | VARCHAR(36) | null = application-level (headline) |
+| service_id | FK monitored_service NO ACTION | null = application-level (headline) |
 | catalog_entry_key | VARCHAR(120) | from `sli_catalog.yaml`, or `custom` |
 | sli_name | VARCHAR(200) | |
 | sli_kind | VARCHAR(30) | `availability`, `latency`, `run_success`, `freshness`, `dependency_success`, `custom`, `supporting_signal` |
@@ -727,7 +727,7 @@ UNIQUE (`application_id`, `external_incident_number`).
 |---|---|---|
 | slo_id | VARCHAR(36) PK | |
 | sli_id | FK service_level_indicator CASCADE | |
-| application_id | VARCHAR(36) | indexed |
+| application_id | FK application NO ACTION | indexed |
 | target_percentage | NUMERIC(7,4) | e.g. 99.9000 |
 | rolling_window_days | INTEGER | 7 / 28 / 30 |
 | burn_rate_policy_json | JSON | default multiwindow policy |
@@ -737,7 +737,7 @@ UNIQUE (`application_id`, `external_incident_number`).
 | Column | Type | Notes |
 |---|---|---|
 | sli_measurement_id | BIGINT PK autoincrement | |
-| sli_id | VARCHAR(36) | indexed with window |
+| sli_id | FK service_level_indicator CASCADE | indexed with window |
 | measurement_window_start | TIMESTAMPTZ | 5-minute bucket start |
 | good_event_count | BIGINT | null for supporting signals |
 | total_event_count | BIGINT | |
@@ -750,7 +750,7 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 |---|---|---|
 | slo_burn_alert_id | VARCHAR(36) PK | |
 | slo_id | FK service_level_objective CASCADE | |
-| application_id | VARCHAR(36) | |
+| application_id | FK application NO ACTION | |
 | burn_alert_severity | VARCHAR(10) | `page`, `ticket` |
 | long_window_burn_rate | DOUBLE | |
 | short_window_burn_rate | DOUBLE | |
@@ -764,9 +764,9 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 | Column | Type | Notes |
 |---|---|---|
 | predictive_signal_id | VARCHAR(36) PK | |
-| application_id | VARCHAR(36) | indexed |
-| service_id | VARCHAR(36) | |
-| sli_id | VARCHAR(36) | |
+| application_id | FK application CASCADE | indexed |
+| service_id | FK monitored_service NO ACTION | |
+| sli_id | FK service_level_indicator NO ACTION | |
 | detector_name | VARCHAR(40) | `seasonal_anomaly`, `error_budget_exhaustion`, `saturation_trend`, `new_error_pattern`, `recurring_incident`, `change_risk` |
 | signal_severity | VARCHAR(10) | `info`, `warning`, `critical` |
 | signal_title | VARCHAR(400) | |
@@ -787,7 +787,7 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 | Column | Type | Notes |
 |---|---|---|
 | intelligence_report_id | VARCHAR(36) PK | |
-| application_id | VARCHAR(36) | indexed |
+| application_id | FK application CASCADE | indexed |
 | report_type | VARCHAR(20) | `proactive_alert`, `weekly_digest` |
 | report_title | VARCHAR(400) | |
 | report_period_start | TIMESTAMPTZ | |
@@ -814,7 +814,7 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 | teams_team_id | VARCHAR(100) | channel destinations |
 | teams_channel_id | VARCHAR(200) | |
 | stakeholder_role | VARCHAR(30) | `sre`, `developer`, `manager`, `executive`, `business_owner`, `vendor_contact` |
-| subscribed_service_ids_json | JSON | empty = all services |
+| subscribed services | association table `stakeholder_subscribed_service` | section 11; empty = all services |
 | notification_channels_json | JSON | `["email","teams_incident_chat","teams_channel"]` |
 | minimum_priority | VARCHAR(4) | `P1`, `P2`, `P3`, `P4` |
 | subscribed_notification_types_json | JSON | `incident_detected`, `preliminary_report`, `progress_update`, `postmortem`, `intelligence_report`, `slo_burn_alert`, `alert_group` |
@@ -827,9 +827,9 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 | Column | Type | Notes |
 |---|---|---|
 | notification_delivery_id | VARCHAR(36) PK | |
-| application_id | VARCHAR(36) | indexed |
-| incident_id | VARCHAR(36) | |
-| investigation_id | VARCHAR(36) | |
+| application_id | FK application CASCADE | indexed |
+| incident_id | FK incident NO ACTION | |
+| investigation_id | FK investigation NO ACTION | |
 | notification_type | VARCHAR(40) | |
 | delivery_channel | VARCHAR(30) | `email`, `teams_incident_chat`, `teams_channel` |
 | recipient_address | VARCHAR(600) | email / chat id / channel id |
@@ -847,8 +847,8 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 | Column | Type | Notes |
 |---|---|---|
 | teams_incident_chat_id | VARCHAR(36) PK | |
-| incident_id | VARCHAR(36) | UNIQUE |
-| application_id | VARCHAR(36) | |
+| incident_id | FK incident NO ACTION | UNIQUE |
+| application_id | FK application CASCADE | |
 | teams_chat_identifier | VARCHAR(300) | Graph chat id (`simulated:{uuid}` locally) |
 | bot_conversation_reference_json | JSON | for proactive messages |
 | chat_topic | VARCHAR(300) | |
@@ -861,7 +861,152 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 | chat_status | VARCHAR(20) | `active`, `closed` |
 | created_at | TIMESTAMPTZ | |
 
-## 11. Index plan (beyond PK/FK)
+## 11. Association tables (ordered id lists)
+
+Lists of ids of other Keigan rows (affected services, subscribed services, matched runbooks, scoped applications, topology source
+documents) used to be `*_ids_json` columns. Nothing stopped such a list from naming a deleted row, and "which incidents touch this
+service?" needed a scan. Each list is now an association table and the JSON column is gone (revision `a3f5c0d1e2b4`).
+
+Every association table has the same shape:
+
+| Column | Type | Notes |
+|---|---|---|
+| `<owner>_id` | VARCHAR(36), part of the PK | FK to the owner, ON DELETE CASCADE |
+| `<linked>_id` | VARCHAR(36), part of the PK | FK to the linked row, indexed (`ix_<table>_<linked column>`) |
+| position | INTEGER NOT NULL | index in the list (0 is first); keeps the list order, so the first affected service of an incident is its primary one |
+
+The primary key is (owner id, linked id), so an id appears once per list.
+
+| Table | Owner (ON DELETE) | Linked (ON DELETE) | Replaces |
+|---|---|---|---|
+| `incident_affected_service` | `incident.incident_id` CASCADE | `monitored_service.service_id` NO ACTION | `incident.affected_service_ids_json` |
+| `investigation_investigated_service` | `investigation.investigation_id` CASCADE | `monitored_service.service_id` NO ACTION | `investigation.investigated_service_ids_json` |
+| `investigation_matched_runbook` | `investigation.investigation_id` CASCADE | `runbook.runbook_id` NO ACTION | `investigation.matched_runbook_ids_json` |
+| `conversation_application` | `conversation.conversation_id` CASCADE | `application.application_id` CASCADE | `conversation.application_ids_json` |
+| `alert_group_affected_service` | `alert_group.alert_group_id` CASCADE | `monitored_service.service_id` NO ACTION | `alert_group.affected_service_ids_json` |
+| `maintenance_window_applies_to_service` | `maintenance_window.maintenance_window_id` CASCADE | `monitored_service.service_id` NO ACTION | `maintenance_window.applies_to_service_ids_json` |
+| `runbook_applies_to_service` | `runbook.runbook_id` CASCADE | `monitored_service.service_id` NO ACTION | `runbook.applies_to_service_ids_json` |
+| `stakeholder_subscribed_service` | `stakeholder.stakeholder_id` CASCADE | `monitored_service.service_id` NO ACTION | `stakeholder.subscribed_service_ids_json` |
+| `topology_source_document` | `application_topology.topology_id` CASCADE | `knowledge_document.knowledge_document_id` NO ACTION | `application_topology.generated_from_document_ids_json` |
+
+- **Why NO ACTION on the linked side.** The owner already cascades from its application, and `monitored_service`, `runbook` and
+  `knowledge_document` cascade from it too. A cascading key on the linked side would give SQL Server a second cascade path to the
+  association table, which it rejects. Deleting the service, runbook or document first releases these rows in code (`reference_release`,
+  see [02](02_SYSTEM_ARCHITECTURE.md)). `conversation_application` is the one table whose linked side cascades: conversations are not
+  part of any application's cascade tree.
+- **How the code reads and writes a list.** An owner entity uses `LinkedIdsMixin` (`keigan/entities/linked_ids.py`). It reads the list through a
+  read-only property such as `incident.affected_service_ids` and writes it only with `incident.replace_linked_ids("affected_service_links", ids)`,
+  which drops duplicates and empty values, keeps the order and renumbers `position`.
+- **Lists that stay JSON.** Opaque external ids are not rows of Keigan, so they stay JSON: Azure resource ids of Log Analytics workspaces
+  (`discovered_resource.log_analytics_workspace_resource_ids_json`), user principal names and e-mail addresses.
+- **The data copy.** The migration copies each list into its table before dropping the column, in list order. Ids of rows that no
+  longer exist and repeated ids are skipped, so a gap in `position` means a skipped id.
+
+## 12. Foreign keys for soft references
+
+Columns that name an application, incident, investigation, SLI or service had no foreign key, so deleting the parent left orphans
+behind. Revision `c9e4f1b8d3a7` added the 35 keys below. A fresh schema has 56 tables and 85 foreign keys, counting these and the ones on the
+association tables.
+
+**ON DELETE per key.** `CASCADE` where the table has exactly one cascade path from the application; otherwise `NO ACTION`, because
+SQL Server rejects a second cascade path to the same table (a `SET NULL` key counts as a path too). Example: `investigation_timeline_event`
+reaches the application through the incident (CASCADE), so its key to the investigation is `NO ACTION`. Where a key is `NO ACTION`, Keigan
+removes or clears the referencing rows itself before the delete: `ApplicationService.delete_application` for the rows outside the cascade path,
+`reference_release` for a deleted service, runbook or document, and the retention job for expired incidents and investigations.
+
+| Table | Column | References | ON DELETE | Existing orphan row |
+|---|---|---|---|---|
+| `alert` | `application_id` | `application` | CASCADE | row deleted |
+| `alert` | `service_id` | `monitored_service` | NO ACTION | reference set to NULL |
+| `alert_event` | `application_id` | `application` | NO ACTION | row deleted |
+| `alert_group` | `application_id` | `application` | CASCADE | row deleted |
+| `alert_group` | `primary_service_id` | `monitored_service` | NO ACTION | reference set to NULL |
+| `alert_group` | `investigation_id` | `investigation` | NO ACTION | reference set to NULL |
+| `alert_group` | `incident_id` | `incident` | NO ACTION | reference set to NULL |
+| `service_level_indicator` | `service_id` | `monitored_service` | NO ACTION | reference set to NULL |
+| `service_level_objective` | `application_id` | `application` | NO ACTION | row deleted |
+| `sli_measurement` | `sli_id` | `service_level_indicator` | CASCADE | row deleted |
+| `slo_burn_alert` | `application_id` | `application` | NO ACTION | row deleted |
+| `predictive_signal` | `application_id` | `application` | CASCADE | row deleted |
+| `predictive_signal` | `service_id` | `monitored_service` | NO ACTION | reference set to NULL |
+| `predictive_signal` | `sli_id` | `service_level_indicator` | NO ACTION | reference set to NULL |
+| `intelligence_report` | `application_id` | `application` | CASCADE | row deleted |
+| `notification_delivery` | `application_id` | `application` | CASCADE | row deleted |
+| `notification_delivery` | `incident_id` | `incident` | NO ACTION | reference set to NULL |
+| `notification_delivery` | `investigation_id` | `investigation` | NO ACTION | reference set to NULL |
+| `teams_incident_chat` | `application_id` | `application` | CASCADE | row deleted |
+| `teams_incident_chat` | `incident_id` | `incident` | NO ACTION | row deleted |
+| `external_integration` | `application_id` | `application` | CASCADE | row deleted |
+| `discovered_resource` | `application_id` | `application` | NO ACTION | row deleted |
+| `service_dependency` | `application_id` | `application` | NO ACTION | row deleted |
+| `knowledge_document` | `service_id` | `monitored_service` | NO ACTION | reference set to NULL |
+| `knowledge_chunk` | `application_id` | `application` | NO ACTION | row deleted |
+| `knowledge_chunk` | `service_id` | `monitored_service` | NO ACTION | reference set to NULL |
+| `investigation_evidence` | `service_id` | `monitored_service` | NO ACTION | reference set to NULL |
+| `investigation_timeline_event` | `incident_id` | `incident` | CASCADE | row deleted |
+| `investigation_timeline_event` | `investigation_id` | `investigation` | NO ACTION | row deleted |
+| `incident_communication` | `incident_id` | `incident` | CASCADE | row deleted |
+| `incident_communication` | `investigation_id` | `investigation` | NO ACTION | row deleted |
+| `postmortem_report` | `incident_id` | `incident` | CASCADE | row deleted |
+| `postmortem_report` | `investigation_id` | `investigation` | NO ACTION | row deleted |
+| `conversation` | `incident_id` | `incident` | NO ACTION | row deleted |
+| `conversation` | `investigation_id` | `investigation` | NO ACTION | row deleted |
+
+- **Repair before the key.** The revision never invents a parent. A row of a missing parent that belongs to it (an alert of a deleted
+  application, a timeline event of a deleted incident) is deleted; a row that only mentions the parent through an optional reference
+  (an alert's service, a signal's SLI, a group's investigation) keeps its data and the reference is set to NULL. A NULL
+  `application_id` means "platform-wide" and is never touched.
+- **History is kept on purpose.** `audit_event` and `llm_usage_record` have no keys to the rows they mention.
+- **Still without a key.** Id columns outside the five parents above were not part of this revision: for example `alert.alert_source_id`,
+  `alert.alert_group_id`, `alert_decision.alert_group_id`, `slo_burn_alert.alert_group_id`, `runbook.knowledge_document_id`,
+  `teams_incident_chat.conversation_id`, `predictive_signal.intelligence_report_id`, `investigation.leading_hypothesis_id`,
+  `investigation_hypothesis.matched_runbook_id` and `monitored_service.discovered_resource_id`.
+
+## 13. Alert group, investigation and incident links (H14)
+
+An alert group, the investigation that covers it and the incident it belongs to were linked from both sides, and the two sides could
+disagree. Now there is one truth:
+
+- The alert group's own `investigation_id` and `incident_id` are the source of truth (foreign keys, nullable, `NO ACTION`). Several groups can
+  share one investigation or one incident, so the group is the side that says what covers it.
+- `investigation.alert_group_id` (and its index) no longer exists (revision `b7d2e9a4c6f1`). An investigation does not store which group
+  it came from. `investigation.incident_id` stays; the incident named by both a group and its investigation is the one remaining duplicate.
+- One service writes the link: `AlertGroupLinkService.link(alert_group, investigation_id=None, incident_id=None)` in
+  `keigan/services/alert_group_link_service.py`. It raises `NotFoundException` for an unknown row and `ConflictException` when the rows belong to
+  different applications, when the group already has another investigation, or when the group, its investigation and the incident would
+  name different incidents. Otherwise it sets the group's investigation, the investigation's incident and the group's incident together.
+  The alert pipeline (a new group of an open incident), `IncidentService` (an incident adopts a group, or is created from one) and
+  `InvestigationService` (an investigation started for a group) all go through it.
+- **Repair of existing rows** (same revision, in this order): a group without an investigation takes the oldest investigation that named it
+  as its origin; an investigation without an incident takes the lowest incident id among its groups; a group whose investigation has an
+  incident takes that incident (the investigation wins a disagreement because its key already existed and the incident room shows it).
+  An origin pointer to a group that already had another investigation is lost with the column.
+
+## 14. Status CHECK constraints (H13)
+
+Status, kind and priority columns accepted any text. Now each column with a fixed value set has a `CHECK (column IN (...))` constraint
+(revision `d2a6b0c5e8f9`): 47 constraints on 47 columns.
+
+- **One StrEnum per column** in `keigan/entities/status_values.py`. The entity declares the constraint with `values_check("column_name", EnumClass)`
+  in `__table_args__`, and the code that writes the value uses the enum member. A few enums serve several columns (`Priority`, `CriticalityTier`, `RiskLevel`).
+  The sets come from what the code writes and recognises, not from earlier versions of this document.
+- **Constraint name** `ck_<table>_<column>_values` (the naming convention in `base_entity.py` adds the prefix to the name `<column>_values`).
+  `NULL` passes, as in SQL.
+- **The migration does not retype the values.** It renders each condition from the entity metadata. Before adding a constraint it checks the
+  existing rows; if one holds another value it stops with a message that names the column and changes nothing (a `THROW` in the generated T-SQL,
+  so a DBA running the delta script by hand gets the same message).
+- **Left open on purpose** (values come from catalogs, Azure resource types or free input, so a fixed list would be wrong): `service_type`,
+  `document_category`, `sli_kind`, `data_source_kind`, `notification_type`, `decision_outcome`, `event_type`, `event_source`, `evidence_category`,
+  `evidence_source_kind`, `environment_name`, `record_system`, `tool_type` and the AI usage model fields. A value list in this document for a column
+  outside the 47 has no CHECK.
+- **To add or change a value**, see "How to" in [11 Backend foundation guide](11_BACKEND_FOUNDATION_GUIDE.md).
+
+**SQLite note.** SQLite cannot add a foreign key or a CHECK constraint to an existing table without rebuilding it, and a rebuild with foreign keys on
+cascade-deletes child rows. On SQLite the migrations therefore repair the data (orphans, link disagreements) but do not add the new keys or constraints, and
+the revisions log a warning. Local SQLite demo databases are disposable: delete the file and recreate it, and Keigan creates every table with all its keys and
+constraints from the entities. Fresh databases and Azure SQL (generated scripts or Alembic) have everything.
+
+## 15. Index plan (beyond PK/FK)
 
 - `incident (application_id, incident_status, opened_at DESC)`
 - `investigation (application_id, created_at DESC)`, `investigation (incident_id)`
@@ -872,7 +1017,7 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 - `audit_event (occurred_at DESC)`, `llm_usage_record (created_at, application_id)`
 - `knowledge_chunk (application_id)`, `predictive_signal (application_id, detected_at DESC)`
 
-## 12. Retention
+## 16. Retention
 
 | Data | Retention | Job |
 |---|---|---|
@@ -882,10 +1027,11 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 | `background_job` finished | 14 days | `retention_cleanup` |
 | `audit_event`, `llm_usage_record` | 400 days | `retention_cleanup` |
 
-## 13. Change log
+## 17. Change log
 
 | Date | Change | By |
 |---|---|---|
 | 2026-11-19 | Initial schema | Plan |
 | 2026-11-19 | Implementation: NUMERIC confidence/score/percentage columns implemented as FLOAT (portable across SQLite/PostgreSQL). Added `investigation.stage_messages_json`, `open_questions_json`, `knowledge_references_json`, `model_names_json`; `investigation_evidence.masked_value_count`, `possible_prompt_injection`. | Lead |
 | 2026-11-20 | Azure SQL support. Schema `keigan`; NVARCHAR / DATETIME2(6) / naming convention (see section 1). SQL Server allows one cascade path per table, so these foreign keys became NO ACTION and the application delete removes the rows itself first: `monitored_service.component_id` (was SET NULL), `service_dependency.downstream_service_id` (was CASCADE), `service_log_source.log_tool_connection_id` (was SET NULL), `investigation.incident_id` (was CASCADE). `incident (application_id, external_incident_number)` unique constraint became a filtered unique index `WHERE external_incident_number IS NOT NULL` (SQL Server treats NULLs as equal in unique constraints). Alembic baseline `94692c828bd3`; DDL scripts in `database/azure_sql/`. | Lead |
+| 2026-11-20 | Data model hardening (H11 to H14, revisions `a3f5c0d1e2b4`, `b7d2e9a4c6f1`, `c9e4f1b8d3a7`, `d2a6b0c5e8f9`). Nine association tables replaced the `*_ids_json` id lists (section 11). Foreign keys on every reference to an application, incident, investigation, SLI or service (section 12). The alert group's `investigation_id` and `incident_id` are the single truth and `investigation.alert_group_id` was dropped (section 13). CHECK constraints on 47 status and kind columns, built from `status_values.py` (section 14). Stale value lists corrected: `ai_digest_status`, `incident_source`, `generation_status`, `review_status`, `access_verification_status`, `integration_status`, `connection_status`, `processing_status`, `group_status` and others. | Hardening wave 2 |
