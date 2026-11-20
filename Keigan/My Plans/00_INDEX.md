@@ -25,6 +25,7 @@ record the decision in `09_LEARNINGS_LOG.md`, never silently diverge.
 | 13 | [Sequence diagrams](13_SEQUENCE_DIAGRAMS.md) | Sign-in and access, application groups, onboarding, incident → RCA, alerts, Teams postmortem, AI chat, scheduled work. |
 | 14 | [Class diagrams](14_CLASS_DIAGRAM.md) | Layers and the main classes: access, investigations, integrations, background jobs. |
 | 15 | [Entity relationship diagram](15_ENTITY_RELATIONSHIP_DIAGRAM.md) | All 47 tables by domain, generated from the entities. |
+| 16 | [Hardening plan](16_HARDENING_PLAN.md) | Review findings, agreed decisions (APIM, incremental schema, tests), and the status of every fix. |
 
 Database scripts for Azure SQL (run before the first deployment): [`database/azure_sql/`](../database/azure_sql/README.md).
 
@@ -44,8 +45,9 @@ Database scripts for Azure SQL (run before the first deployment): [`database/azu
    customer infrastructure. It reads, reasons and recommends.
 7. **Localised UI.** No user-visible string is hard-coded in a component. Every label lives in
    `frontend/src/i18n/locales/<locale>/<namespace>.json`.
-8. **Building over unit testing for now.** Ship working product end to end; a smoke run (backend boots,
-   frontend builds, seeded demo works) is mandatory before a phase is called done. Test suites come later.
+8. **Tests guard every change (from 2026-11-20).** Backend changes need passing pytest tests (`backend/tests`);
+   a smoke run (backend boots, frontend builds, seeded demo works, `capture-screens.mjs` clean) is still mandatory
+   before a phase is called done. Frontend test suites come later. See `16_HARDENING_PLAN.md`.
 
 ## Naming
 
