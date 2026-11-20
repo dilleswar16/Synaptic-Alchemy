@@ -12,6 +12,7 @@ synthetic probes — or the :class:`TelemetrySimulator` when ``TELEMETRY_MODE=si
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -20,13 +21,18 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from keigan.config.settings import IntegrationMode, Settings
-from keigan.exceptions.keigan_exceptions import BusinessValidationException, ReaderNotAvailableException
+from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, ReaderNotAvailableException
+from keigan.integrations.log_tool_endpoints import log_tool_endpoint_urls
+from keigan.utils.outbound_url_policy import OutboundUrlPolicy, OutboundUrlRejectedError
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from keigan.entities.application_entities import ApplicationComponent, LogToolConnection, MonitoredService, ServiceLogSource
     from keigan.integrations.azure_client import AzureClient
     from keigan.integrations.log_tool_clients import LogToolClientFactory
     from keigan.integrations.simulation.telemetry_simulator import TelemetrySimulator
+    from keigan.services.telemetry_access_policy import TelemetryAccessPolicy
 
 
 @dataclass
@@ -55,6 +61,7 @@ class TelemetryTarget:
     source_kind: str  # log_analytics | application_insights | azure_monitor_metrics | log_tool | synthetic_probe | vendor_status_page
     azure_tenant_id: str | None = None
     azure_resource_id: str | None = None
+    log_analytics_workspace_resource_id: str | None = None
     log_analytics_workspace_customer_id: str | None = None
     aks_namespace_filter: str | None = None
     application_insights_role_name: str | None = None
@@ -80,6 +87,7 @@ class TelemetryTarget:
             source_kind=log_source.source_kind if log_source else "azure_monitor_metrics",
             azure_tenant_id=component.azure_tenant_id if component else None,
             azure_resource_id=service.external_resource_identifier,
+            log_analytics_workspace_resource_id=log_source.log_analytics_workspace_resource_id if log_source else None,
             log_analytics_workspace_customer_id=log_source.log_analytics_workspace_customer_id if log_source else None,
             aks_namespace_filter=service.aks_namespace_filter,
             application_insights_role_name=service.application_insights_role_name,
@@ -148,22 +156,41 @@ class ProbeResult:
 
 
 class TelemetryGateway:
+    """Every telemetry read goes through here, so the access policy (approved applications, the application's own resources) and
+    the outbound URL policy are enforced in one place, in simulated mode too."""
+
     def __init__(
         self,
         settings: Settings,
         azure_client: "AzureClient",
         log_tool_client_factory: "LogToolClientFactory",
         telemetry_simulator: "TelemetrySimulator",
+        access_policy: "TelemetryAccessPolicy",
+        outbound_url_policy: OutboundUrlPolicy,
     ):
         self.settings = settings
         self.azure_client = azure_client
         self.log_tool_client_factory = log_tool_client_factory
         self.telemetry_simulator = telemetry_simulator
+        self.access_policy = access_policy
+        self.outbound_url_policy = outbound_url_policy
 
     def is_simulated(self, telemetry_target: TelemetryTarget | None = None) -> bool:
         return self.settings.telemetry_mode == IntegrationMode.SIMULATED or bool(telemetry_target and telemetry_target.use_simulation)
 
+    async def _ensure_log_tool_endpoints_allowed(self, log_tool_connection: "LogToolConnection") -> None:
+        """The stored endpoint may predate the outbound policy or have been changed in the database: check it again before calling."""
+        for _field_name, endpoint_url in log_tool_endpoint_urls(log_tool_connection.tool_type, log_tool_connection.endpoint_url, log_tool_connection.connection_configuration_json):
+            try:
+                await self.outbound_url_policy.ensure_allowed(endpoint_url)
+            except OutboundUrlRejectedError as rejection:
+                logger.warning("Refused to call the log tool connection %s: %s", log_tool_connection.log_tool_connection_id, rejection.reason)
+                raise ForbiddenException(
+                    f"Keigan will not call the {log_tool_connection.connection_name} endpoint. {rejection.reason} Ask an application admin to correct the connection."
+                ) from None
+
     async def query_logs(self, telemetry_target: TelemetryTarget, telemetry_query: TelemetryQuery) -> LogQueryResult:
+        await self.access_policy.ensure_can_read_source(telemetry_target)
         if self.is_simulated(telemetry_target):
             return await self.telemetry_simulator.query_logs(telemetry_target, telemetry_query)
         started_at = time.monotonic()
@@ -188,6 +215,7 @@ class TelemetryGateway:
                 duration_milliseconds=int((time.monotonic() - started_at) * 1000),
             )
         if telemetry_target.source_kind == "log_tool" and telemetry_target.log_tool_connection is not None:
+            await self._ensure_log_tool_endpoints_allowed(telemetry_target.log_tool_connection)
             log_tool_client = await self.log_tool_client_factory.client_for(telemetry_target.log_tool_connection)
             log_query_result = await log_tool_client.search(telemetry_query, telemetry_target.query_scope)
             log_query_result.duration_milliseconds = int((time.monotonic() - started_at) * 1000)
@@ -204,6 +232,7 @@ class TelemetryGateway:
         aggregation: str = "Average",
         metric_filter: str | None = None,
     ) -> MetricQueryResult:
+        await self.access_policy.ensure_can_read_metrics(telemetry_target)
         if self.is_simulated(telemetry_target):
             return await self.telemetry_simulator.query_metrics(telemetry_target, metric_names, time_range_start, time_range_end, interval_minutes, aggregation)
         if not telemetry_target.azure_resource_id or not telemetry_target.azure_resource_id.startswith("/subscriptions/"):
@@ -229,6 +258,7 @@ class TelemetryGateway:
         time_range_end: datetime,
         use_simulation: bool = False,
     ) -> list[ChangeEvent]:
+        await self.access_policy.ensure_can_read_activity(application_id, azure_subscription_id, azure_resource_group_name)
         if self.settings.telemetry_mode == IntegrationMode.SIMULATED or use_simulation or not azure_subscription_id:
             return await self.telemetry_simulator.query_activity_changes(application_id, time_range_start, time_range_end)
         return await self.azure_client.list_activity_changes(
@@ -236,6 +266,7 @@ class TelemetryGateway:
         )
 
     async def test_log_source(self, telemetry_target: TelemetryTarget) -> ConnectionTestResult:
+        await self.access_policy.ensure_can_read_source(telemetry_target)
         if self.is_simulated(telemetry_target):
             return ConnectionTestResult(True, "Simulated source: telemetry is readable.", newest_log_timestamp=datetime.now().astimezone())
         if telemetry_target.source_kind in ("log_analytics", "application_insights"):
@@ -245,13 +276,17 @@ class TelemetryGateway:
         if telemetry_target.source_kind == "log_tool" and telemetry_target.log_tool_connection is not None:
             return await self.test_log_tool_connection(telemetry_target.log_tool_connection)
         if telemetry_target.source_kind == "synthetic_probe":
-            probe_result = await self.probe_endpoint(str(telemetry_target.query_scope.get("probe_url", "")))
+            probe_result = await self.probe_endpoint(
+                str(telemetry_target.query_scope.get("probe_url", "")), application_id=telemetry_target.application_id, use_simulation=telemetry_target.use_simulation
+            )
             return ConnectionTestResult(probe_result.succeeded, probe_result.message)
         return ConnectionTestResult(False, f"Keigan cannot test {telemetry_target.source_kind} sources yet.")
 
     async def test_log_tool_connection(self, log_tool_connection: "LogToolConnection") -> ConnectionTestResult:
+        await self.access_policy.ensure_can_use_connection(log_tool_connection)
         if self.settings.telemetry_mode == IntegrationMode.SIMULATED:
             return ConnectionTestResult(True, "Simulated connection: Keigan can read this tool.", newest_log_timestamp=datetime.now().astimezone())
+        await self._ensure_log_tool_endpoints_allowed(log_tool_connection)
         try:
             log_tool_client = await self.log_tool_client_factory.client_for(log_tool_connection)
         except ReaderNotAvailableException as reader_error:
@@ -259,10 +294,15 @@ class TelemetryGateway:
         return await log_tool_client.test_connection()
 
     async def probe_endpoint(self, probe_url: str, timeout_seconds: float = 10.0, application_id: str | None = None, use_simulation: bool = False) -> ProbeResult:
+        if application_id is not None:
+            await self.access_policy.ensure_application_approved(application_id)
         if self.settings.telemetry_mode == IntegrationMode.SIMULATED or use_simulation:
             return await self.telemetry_simulator.probe_endpoint(probe_url, application_id)
-        if not probe_url.startswith("https://"):
-            return ProbeResult(False, None, 0, "Only HTTPS probe URLs are allowed.")
+        try:
+            await self.outbound_url_policy.ensure_allowed(probe_url)
+        except OutboundUrlRejectedError as rejection:
+            logger.warning("Refused to probe %s: %s", probe_url[:200], rejection.reason)
+            return ProbeResult(False, None, 0, f"This probe URL is not allowed. {rejection.reason}")
         started_at = time.monotonic()
         try:
             async with httpx.AsyncClient(timeout=timeout_seconds, follow_redirects=False) as http_client:

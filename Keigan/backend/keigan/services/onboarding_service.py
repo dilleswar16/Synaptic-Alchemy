@@ -39,6 +39,7 @@ from keigan.workers.job_queue import JobQueue
 
 GUID_PATTERN = re.compile(r"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
 SIMULATED_MISSING_ROLE_MARKER = "norole"  # a resource group whose name contains this fails the simulated Log Analytics check (demo of the "waiting" path)
+PROBE_URL_KEY = "synthetic_probe_url"
 HARDWARE_CATEGORIES = ("server", "network_switch", "router", "firewall", "load_balancer", "storage_array", "other")
 
 
@@ -76,6 +77,7 @@ class OnboardingService:
             await self._prepare_azure_component(component, request)
         else:
             self._validate_non_azure_component(component, request)
+            await self._ensure_probe_url_allowed(request.component_configuration)
             component.access_verification_status = "not_applicable"
             component.last_verified_at = utc_now()
         await self.component_repository.add(component)
@@ -116,6 +118,13 @@ class OnboardingService:
         component.access_verification_status = "not_checked"
 
     @staticmethod
+    async def _ensure_probe_url_allowed(component_configuration: dict[str, Any] | None) -> None:
+        """Keigan calls the synthetic probe URL itself, so it must pass the outbound URL policy (V16)."""
+        probe_url = (component_configuration or {}).get(PROBE_URL_KEY)
+        if probe_url:
+            await application_context.outbound_url_policy().ensure_allowed(str(probe_url), field_name=f"componentConfiguration.{PROBE_URL_KEY}")
+
+    @staticmethod
     def _validate_non_azure_component(component: ApplicationComponent, request: ComponentCreateRequest) -> None:
         configuration = request.component_configuration or {}
         required_fields = {
@@ -154,7 +163,7 @@ class OnboardingService:
             )
             self.session.add(service)
             await self.session.flush()
-            probe_url = configuration.get("synthetic_probe_url")
+            probe_url = configuration.get(PROBE_URL_KEY)
             if component.component_type == "saas_platform" and probe_url:
                 self.session.add(
                     ServiceLogSource(service_id=service.service_id, source_kind="synthetic_probe", query_scope_json={"probe_url": probe_url}, is_primary_source=True)
@@ -176,6 +185,7 @@ class OnboardingService:
         component = await self._get_component(application_id, component_id)
         changes = request.model_dump(exclude_unset=True)
         if "component_configuration" in changes:
+            await self._ensure_probe_url_allowed(changes["component_configuration"])
             component.component_configuration_json = {**(component.component_configuration_json or {}), **(changes.pop("component_configuration") or {})}
         for field_name, field_value in changes.items():
             if field_value is not None:

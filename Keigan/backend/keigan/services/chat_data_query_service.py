@@ -87,7 +87,10 @@ class ChatDataQueryService:
         requested_by: str,
         usage_context: LlmUsageContext,
     ) -> DataQueryOutcome:
+        # Same rule the gateway enforces, checked first so a refused question costs no LLM call and the user gets the reason.
+        await application_context.telemetry_access_policy().ensure_application_approved(service.application_id, self.session)
         target, query_language = await self._resolve_target(service)
+        await application_context.telemetry_access_policy().ensure_can_read_source(target, self.session)
         range_minutes = max(1, int((time_range_end - time_range_start).total_seconds() // 60))
         generated = await self.gateway.generate_structured(
             feature_name="ai_chat_query_generation",

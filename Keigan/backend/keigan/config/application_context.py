@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from keigan.integrations.secret_store import SecretStore
     from keigan.integrations.simulation.telemetry_simulator import TelemetrySimulator
     from keigan.integrations.telemetry_gateway import TelemetryGateway
+    from keigan.services.telemetry_access_policy import TelemetryAccessPolicy, WorkspaceCustomerIdResolver
+    from keigan.utils.outbound_url_policy import OutboundUrlPolicy
 
 
 @lru_cache
@@ -52,10 +54,42 @@ def telemetry_simulator() -> "TelemetrySimulator":
 
 
 @lru_cache
+def outbound_url_policy() -> "OutboundUrlPolicy":
+    from keigan.config.settings import IntegrationMode
+    from keigan.config.telemetry_access_settings import get_telemetry_access_settings
+    from keigan.utils.outbound_url_policy import OutboundUrlPolicy
+
+    access_settings = get_telemetry_access_settings()
+    return OutboundUrlPolicy(
+        allowed_hosts=access_settings.outbound_allowed_host_list,
+        denied_host_suffixes=access_settings.outbound_denied_host_suffix_list,
+        resolves_hostnames=get_settings().telemetry_mode != IntegrationMode.SIMULATED,  # simulated mode never makes a request
+    )
+
+
+@lru_cache
+def workspace_customer_id_resolver() -> "WorkspaceCustomerIdResolver":
+    from keigan.config.telemetry_access_settings import get_telemetry_access_settings
+    from keigan.services.telemetry_access_policy import WorkspaceCustomerIdResolver
+
+    return WorkspaceCustomerIdResolver(azure_client(), get_telemetry_access_settings().workspace_identity_cache_seconds)
+
+
+@lru_cache
+def telemetry_access_policy() -> "TelemetryAccessPolicy":
+    from keigan.config.database_config import open_session
+    from keigan.services.telemetry_access_policy import TelemetryAccessPolicy
+
+    return TelemetryAccessPolicy(open_session, get_settings(), workspace_customer_id_resolver())
+
+
+@lru_cache
 def telemetry_gateway() -> "TelemetryGateway":
     from keigan.integrations.telemetry_gateway import TelemetryGateway
 
-    return TelemetryGateway(get_settings(), azure_client(), log_tool_client_factory(), telemetry_simulator())
+    return TelemetryGateway(
+        get_settings(), azure_client(), log_tool_client_factory(), telemetry_simulator(), telemetry_access_policy(), outbound_url_policy()
+    )
 
 
 @lru_cache

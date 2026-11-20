@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from keigan.config.settings import AuthenticationMode, get_settings
 from keigan.entities.application_entities import Application
 from keigan.exceptions.keigan_exceptions import ForbiddenException, NotFoundException
 from keigan.security.current_user import CurrentUser
@@ -14,6 +16,12 @@ from keigan.security.current_user import CurrentUser
 ROLE_ADMIN = "admin"
 ROLE_READER = "reader"
 DRAFT_LIFECYCLE_STATUSES = ("requested", "draft")
+# An onboarding request stays "requested" until a Keigan admin accepts it (it then becomes "draft"). Telemetry is never read before that.
+UNAPPROVED_LIFECYCLE_STATUSES = ("requested",)
+GROUPS_NOT_LINKED_MESSAGE = (
+    "This application's access groups are not linked to Entra yet, so Keigan cannot tell who is a member. "
+    "Ask a Keigan admin to run 'Check in Entra' on the application's Access step."
+)
 
 
 @dataclass(frozen=True)
@@ -28,18 +36,28 @@ class ApplicationRole:
 class AuthorizationService:
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.settings = get_settings()
 
     @staticmethod
     def ensure_keigan_admin(current_user: CurrentUser) -> None:
         if not current_user.is_keigan_admin:
             raise ForbiddenException("Only Keigan admins can do this.")
 
+    def _group_membership_check(self, current_user: CurrentUser) -> Callable[[str | None, str | None], bool]:
+        """Entra display names are neither unique nor fixed, so with Entra sign-in only the group object id counts.
+        Local sign-in tokens carry group names only, so there (and only there) the name counts."""
+        if self.settings.auth_mode == AuthenticationMode.ENTRA:
+            user_group_object_ids = {object_id.lower() for object_id in current_user.group_object_ids}
+            return lambda _group_name, group_object_id: bool(group_object_id) and group_object_id.lower() in user_group_object_ids
+        user_group_names = {group_name.lower() for group_name in current_user.group_names}
+        return lambda group_name, _group_object_id: bool(group_name) and group_name.lower() in user_group_names
+
     async def application_roles(self, current_user: CurrentUser) -> dict[str, ApplicationRole]:
         """Every application the user can access with their strongest role. Cached on the user for the request."""
         if current_user.application_roles_by_application_id is not None:
             return current_user.application_roles_by_application_id
 
-        lowercase_group_names = {group_name.lower() for group_name in current_user.group_names}
+        is_member_of = self._group_membership_check(current_user)
         application_rows = (
             await self.session.execute(
                 select(
@@ -58,17 +76,12 @@ class AuthorizationService:
 
         roles_by_application_id: dict[str, ApplicationRole] = {}
         for application_row in application_rows:
-            is_admin_member = current_user.is_keigan_admin or (
-                (application_row.admin_group_name or "").lower() in lowercase_group_names
-                or (application_row.admin_group_object_id or "") in current_user.group_object_ids
-            )
+            is_admin_member = current_user.is_keigan_admin or is_member_of(application_row.admin_group_name, application_row.admin_group_object_id)
             is_draft_owner = (
                 application_row.lifecycle_status in DRAFT_LIFECYCLE_STATUSES
                 and application_row.created_by_user_principal_name == current_user.user_principal_name
             )
-            is_reader_member = (application_row.reader_group_name or "").lower() in lowercase_group_names or (
-                application_row.reader_group_object_id or ""
-            ) in current_user.group_object_ids
+            is_reader_member = is_member_of(application_row.reader_group_name, application_row.reader_group_object_id)
             granted_role = ROLE_ADMIN if (is_admin_member or is_draft_owner) else ROLE_READER if is_reader_member else None
             if granted_role:
                 roles_by_application_id[application_row.application_id] = ApplicationRole(
@@ -106,8 +119,11 @@ class AuthorizationService:
         if current_user.is_system_actor:
             return
         if not await self.can_read_application(current_user, application_id):
-            if await self.session.get(Application, application_id) is None:
+            application = await self.session.get(Application, application_id)
+            if application is None:
                 raise NotFoundException("The application was not found.")
+            if self.settings.auth_mode == AuthenticationMode.ENTRA and not (application.admin_group_object_id and application.reader_group_object_id):
+                raise ForbiddenException(GROUPS_NOT_LINKED_MESSAGE)
             raise ForbiddenException("You are not a member of this application's reader or admin group.")
 
     async def ensure_application_admin(self, current_user: CurrentUser, application_id: str) -> None:
