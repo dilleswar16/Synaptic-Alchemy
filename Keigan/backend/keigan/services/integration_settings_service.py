@@ -30,6 +30,7 @@ from keigan.entities.incident_entities import ServiceNowAssignmentGroup
 from keigan.entities.platform_entities import StoredSecret
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, ConflictException, NotFoundException
 from keigan.integrations.log_tool_clients import PLACEHOLDER_TOOL_TYPES
+from keigan.integrations.log_tool_endpoints import log_tool_endpoint_signature, log_tool_endpoint_urls
 from keigan.integrations.secret_store import build_secret_name
 from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
@@ -42,6 +43,7 @@ DEMO_SERVICENOW_GROUP_NAMES = [
     "Mainframe-Operations", "Cloud-Infrastructure-L2", "Application-Support-JP", "Application-Support-AU",
 ]
 MAXIMUM_SERVICENOW_GROUPS = 20
+CREDENTIAL_REMOVED_MESSAGE = "The address or sign-in method changed, so the saved credential was removed. Enter the credential again."
 
 
 def _camelize_keys(value: Any) -> Any:
@@ -75,6 +77,7 @@ class IntegrationSettingsService:
         return [await self._to_connection_response(connection) for connection in connections]
 
     async def create_log_tool_connection(self, current_user: CurrentUser, application_id: str, request: LogToolConnectionCreateRequest) -> LogToolConnectionResponse:
+        await self._ensure_endpoints_allowed(request.tool_type, request.endpoint_url, request.connection_configuration)
         connection = LogToolConnection(
             application_id=application_id,
             tool_type=request.tool_type,
@@ -103,11 +106,16 @@ class IntegrationSettingsService:
         connection = await self._get_connection(application_id, connection_id)
         changes = request.model_dump(exclude_unset=True)
         credential_value = changes.pop("credential_value", None)
+        signature_before = self._endpoint_signature(connection)
         if "connection_configuration" in changes:
             connection.connection_configuration_json = changes.pop("connection_configuration") or {}
         for field_name, field_value in changes.items():
             if field_value is not None:
                 setattr(connection, field_name, field_value)
+        credential_cleared = False
+        if self._endpoint_signature(connection) != signature_before:
+            await self._ensure_endpoints_allowed(connection.tool_type, connection.endpoint_url, connection.connection_configuration_json)
+            credential_cleared = not credential_value and await self._clear_credential(connection)
         if credential_value:
             connection.credential_secret_name = connection.credential_secret_name or build_secret_name(f"logtool-{connection.tool_type}")
             await application_context.secret_store().set_secret(connection.credential_secret_name, credential_value, f"{connection.tool_type} credential for application {application_id}")
@@ -117,7 +125,7 @@ class IntegrationSettingsService:
         await self.session.flush()
         await self.audit_service.record(
             current_user, "log_tool.update", target_entity_type="log_tool_connection", target_entity_id=connection_id, application_id=application_id,
-            action_details={"changedFields": sorted(request.model_dump(exclude_unset=True).keys() - {"credential_value"}), "credentialRotated": bool(credential_value)},
+            action_details={"changedFields": sorted(request.model_dump(exclude_unset=True).keys() - {"credential_value"}), "credentialRotated": bool(credential_value), "credentialCleared": credential_cleared},
         )
         return await self._to_connection_response(connection)
 
@@ -155,6 +163,32 @@ class IntegrationSettingsService:
             succeeded=test_result.succeeded, message=test_result.message, newest_log_timestamp=test_result.newest_log_timestamp,
             reader_not_available=bool(test_result.details.get("readerNotAvailable")),
         )
+
+    @staticmethod
+    def _endpoint_signature(connection: LogToolConnection) -> tuple:
+        return log_tool_endpoint_signature(connection.tool_type, connection.endpoint_url, connection.connection_configuration_json, connection.authentication_method)
+
+    @staticmethod
+    async def _ensure_endpoints_allowed(tool_type: str, endpoint_url: str | None, connection_configuration: dict[str, Any] | None) -> None:
+        """Keigan will call these addresses with the saved credential (V16). Tools without a reader are only stored, never called."""
+        if tool_type in PLACEHOLDER_TOOL_TYPES:
+            return
+        for field_name, url in log_tool_endpoint_urls(tool_type, endpoint_url, connection_configuration):
+            await application_context.outbound_url_policy().ensure_allowed(url, field_name=field_name)
+
+    @staticmethod
+    async def _clear_credential(connection: LogToolConnection) -> bool:
+        """The credential was entered for the old address or sign-in method: delete it so it cannot be sent somewhere else (V16)."""
+        if not connection.credential_secret_name:
+            return False
+        try:
+            await application_context.secret_store().delete_secret(connection.credential_secret_name)
+        except NotFoundException:
+            pass
+        connection.credential_secret_name = None
+        connection.last_test_message = CREDENTIAL_REMOVED_MESSAGE
+        connection.connection_status = "not_tested"
+        return True
 
     async def _get_connection(self, application_id: str, connection_id: str) -> LogToolConnection:
         connection = await self.connection_repository.get_required(connection_id, "log tool connection")
@@ -219,14 +253,16 @@ class IntegrationSettingsService:
             row = ExternalIntegration(application_id=application_id, integration_kind=integration_kind, created_by_user_principal_name=current_user.user_principal_name)
             self.session.add(row)
         row.integration_configuration_json = {key: value for key, value in configuration.items() if key != "credential_secret_name"}
-        row.credential_secret_name = request.credential_secret_name or configuration.get("credential_secret_name") or row.credential_secret_name
+        if request.credential_value:
+            row.credential_secret_name = row.credential_secret_name or build_secret_name(f"integration-{integration_kind}")
+            await application_context.secret_store().set_secret(row.credential_secret_name, request.credential_value, f"{integration_kind} credential for application {application_id}")
         row.integration_notes = request.integration_notes
         row.integration_status = "configured" if schema.get("readerAvailable") else "saved_reader_in_development"
         row.updated_by_user_principal_name = current_user.user_principal_name
         await self.session.flush()
         await self.audit_service.record(
             current_user, "integration.save", target_entity_type="external_integration", target_entity_id=row.external_integration_id, application_id=application_id,
-            action_details={"integrationKind": integration_kind},
+            action_details={"integrationKind": integration_kind, "credentialProvided": bool(request.credential_value)},
         )
         return self._to_integration_response(integration_kind, schema, row)
 

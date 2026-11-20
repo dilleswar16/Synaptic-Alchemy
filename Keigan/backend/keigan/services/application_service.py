@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
@@ -27,13 +28,15 @@ from keigan.dtos.application_dtos import (
 )
 from keigan.entities.application_entities import Application, ApplicationComponent, MonitoredService
 from keigan.entities.incident_entities import Incident
-from keigan.exceptions.keigan_exceptions import BusinessValidationException, ConflictException, ForbiddenException, NotFoundException
+from keigan.exceptions.keigan_exceptions import BusinessValidationException, ConflictException, ForbiddenException, IntegrationException, NotFoundException
 from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 from keigan.services.application_readiness_service import ApplicationReadinessService
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.onboarding_service import GUID_PATTERN
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_LOCALE_BY_REGION = {"JP": "ja", "CN": "zh-CN", "ES": "es", "MX": "es-MX", "NL": "nl", "FR": "fr"}
 DEFAULT_TIME_ZONE_BY_REGION = {"JP": "Asia/Tokyo", "AU": "Australia/Sydney", "US": "America/New_York", "NL": "Europe/Amsterdam", "FR": "Europe/Paris", "MX": "America/Mexico_City"}
@@ -136,6 +139,7 @@ class ApplicationService:
             created_by_user_principal_name=current_user.user_principal_name,
             updated_by_user_principal_name=current_user.user_principal_name,
         )
+        await self._link_groups_in_entra(application)
         await self.application_repository.add(application)
         await self.audit_service.record(
             current_user,
@@ -146,6 +150,23 @@ class ApplicationService:
             action_details={"applicationCode": application.application_code},
         )
         return self._to_response(application, current_user.is_keigan_admin)
+
+    async def _link_groups_in_entra(self, application: Application) -> None:
+        """With Entra sign-in only the group object ids grant access (H7), so look them up as soon as the application exists.
+        Groups SailPoint has not provisioned yet are linked later by 'Check in Entra'; a Graph failure never blocks the request."""
+        if self.settings.auth_mode != AuthenticationMode.ENTRA:
+            return
+        from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
+
+        graph_client = MicrosoftGraphClient(application_context.azure_credential_provider())
+        for group_name, object_id_field in ((application.admin_group_name, "admin_group_object_id"), (application.reader_group_name, "reader_group_object_id")):
+            try:
+                group = await graph_client.find_group(group_name, None)
+            except IntegrationException as lookup_error:
+                logger.warning("Could not look up the Entra group %s for application %s: %s", group_name, application.application_code, lookup_error.detail)
+                continue
+            if group is not None:
+                setattr(application, object_id_field, group["id"].lower())
 
     async def update_application(self, current_user: CurrentUser, application_id: str, request: ApplicationUpdateRequest) -> ApplicationResponse:
         await self.authorization_service.ensure_application_admin(current_user, application_id)

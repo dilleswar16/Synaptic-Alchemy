@@ -19,7 +19,6 @@ from __future__ import annotations
 import logging
 import re
 import time
-import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass, field
@@ -32,7 +31,7 @@ from keigan.config.settings import IntegrationMode, Settings
 from keigan.entities.application_entities import Application, ApplicationComponent, DiscoveredResource
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, IntegrationException, NotFoundException
 from keigan.services.authorization_service import UNAPPROVED_LIFECYCLE_STATUSES
-from keigan.services.component_discovery_service import classify_resource
+from keigan.services.component_discovery_service import classify_resource, simulated_workspace_customer_id
 
 if TYPE_CHECKING:
     from keigan.entities.application_entities import LogToolConnection
@@ -58,11 +57,6 @@ class FieldProblem:
 
     def as_field_error(self) -> dict[str, str]:
         return {"field": self.field_name, "message": self.message}
-
-
-def simulated_workspace_customer_id(workspace_resource_id: str) -> str:
-    """The stable workspace id the simulator and the demo seed use for a workspace (there is no Azure to ask)."""
-    return str(uuid.uuid5(uuid.NAMESPACE_DNS, workspace_resource_id.lower()))
 
 
 class WorkspaceCustomerIdResolver:
@@ -296,7 +290,7 @@ class TelemetryAccessPolicy:
             await rules.ensure_application_approved(connection.application_id)
 
 
-def raise_log_source_validation_error(problems: list[FieldProblem]) -> None:
-    """Save-time form of the rule: a 422 with one field error per problem."""
+def raise_if_field_problems(detail: str, problems: list[FieldProblem]) -> None:
+    """Save-time form of the rules: a 422 with one field error per problem."""
     if problems:
-        raise BusinessValidationException("This log source does not belong to the application.", field_errors=[problem.as_field_error() for problem in problems])
+        raise BusinessValidationException(detail, field_errors=[problem.as_field_error() for problem in problems])

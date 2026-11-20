@@ -5,7 +5,6 @@ All demo components carry ``{"simulated": true}`` so their telemetry comes from 
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -17,6 +16,7 @@ from keigan.config.settings import get_settings
 from keigan.entities.application_entities import (
     Application,
     ApplicationComponent,
+    DiscoveredResource,
     LogToolConnection,
     MonitoredService,
     ServiceDependency,
@@ -25,6 +25,7 @@ from keigan.entities.application_entities import (
 from keigan.entities.incident_entities import ServiceNowAssignmentGroup
 from keigan.entities.notification_entities import Stakeholder
 from keigan.integrations.simulation.telemetry_simulator import ScenarioWindow
+from keigan.services.component_discovery_service import simulated_workspace_customer_id
 from keigan.services.simulation_service import SimulationService
 
 SEED_ACTOR = "system:seed"
@@ -303,11 +304,19 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
             )
             session.add(component)
             await session.flush()
-            workspace_customer_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{application_code}-workspace"))
             workspace_resource_id = (
                 _azure_resource_id(subscription_id, resource_group_name, "Microsoft.OperationalInsights/workspaces", f"law-{application_code.lower()}-prd")
                 if subscription_id and resource_group_name else None
             )
+            workspace_customer_id = simulated_workspace_customer_id(workspace_resource_id) if workspace_resource_id else None
+
+            if component_type == "azure_resource_group":
+                # Keigan only reads workspaces that belong to the application (V2): record what discovery would have found.
+                for resource_type, resource_name in (("Microsoft.OperationalInsights/workspaces", f"law-{application_code.lower()}-prd"), ("Microsoft.Insights/components", f"appi-{application_code.lower()}-prd")):
+                    session.add(DiscoveredResource(
+                        component_id=component.component_id, application_id=application.application_id, resource_name=resource_name, resource_type=resource_type,
+                        azure_resource_id=_azure_resource_id(subscription_id, resource_group_name, resource_type, resource_name), monitoring_classification="telemetry_source",
+                    ))
 
             for service_name, service_type, provider_type, criticality_tier, namespace_filter in component_definition["services"]:
                 external_identifier = (

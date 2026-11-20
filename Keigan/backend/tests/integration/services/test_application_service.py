@@ -74,3 +74,42 @@ async def test_application_cannot_go_live_with_entra_sign_in_until_its_groups_ar
         "The application's access groups are not linked to Entra yet, so nobody could open it after go-live. "
         "Run 'Check in Entra' on the Access step first."
     )
+
+
+# ── H7: new applications get their group object ids from Entra ─────────────────
+async def test_new_application_is_linked_to_its_entra_groups_by_object_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    from keigan.dtos.application_dtos import ApplicationCreateRequest
+    from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
+
+    group_ids = {"ACC5_admin": "44444444-4444-4444-4444-444444444444", "ACC5_reader": "55555555-5555-5555-5555-555555555555"}
+
+    async def find_group(_self: object, display_name: str | None, object_id: str | None) -> dict[str, str] | None:
+        return {"id": group_ids[display_name], "displayName": display_name} if display_name in group_ids else None
+
+    monkeypatch.setattr(get_settings(), "auth_mode", AuthenticationMode.ENTRA)
+    monkeypatch.setattr(MicrosoftGraphClient, "find_group", find_group)
+    keigan_admin = user("keigan.admin@example.com", is_keigan_admin=True)
+    async with open_session() as session:
+        application = await ApplicationService(session).create_application(
+            keigan_admin, ApplicationCreateRequest(application_name="Acc five", application_code="ACC5")
+        )
+        stored = await session.get(Application, application.application_id)
+    assert (stored.admin_group_object_id, stored.reader_group_object_id) == tuple(group_ids.values())
+
+
+async def test_new_application_is_still_created_when_entra_cannot_be_reached(monkeypatch: pytest.MonkeyPatch) -> None:
+    from keigan.dtos.application_dtos import ApplicationCreateRequest
+    from keigan.exceptions.keigan_exceptions import IntegrationException
+    from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
+
+    async def find_group(_self: object, display_name: str | None, object_id: str | None) -> dict[str, str] | None:
+        raise IntegrationException("Graph is down.")
+
+    monkeypatch.setattr(get_settings(), "auth_mode", AuthenticationMode.ENTRA)
+    monkeypatch.setattr(MicrosoftGraphClient, "find_group", find_group)
+    async with open_session() as session:
+        application = await ApplicationService(session).create_application(
+            user("keigan.admin@example.com", is_keigan_admin=True), ApplicationCreateRequest(application_name="Acc six", application_code="ACC6")
+        )
+        stored = await session.get(Application, application.application_id)
+    assert (stored.admin_group_object_id, stored.reader_group_object_id) == (None, None)

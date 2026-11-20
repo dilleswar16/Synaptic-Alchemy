@@ -136,7 +136,6 @@ class ServiceUpdateRequest(ApiModel):
     repository_url: str | None = None
     repository_default_branch: str | None = None
     repository_path: str | None = None
-    repository_credential_secret_name: str | None = None
     service_description: str | None = None
 
 
@@ -274,7 +273,7 @@ class IntegrationResponse(ApiModel):
 
 class IntegrationUpdateRequest(ApiModel):
     integration_configuration: dict[str, Any] | None = None
-    credential_secret_name: str | None = None
+    credential_value: str | None = Field(default=None, repr=False, description="Write-only secret; Keigan stores it under a name it generates.")
     integration_notes: str | None = None
 
 

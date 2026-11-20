@@ -8,6 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config import application_context
+from keigan.config.settings import get_settings
 from keigan.dtos.onboarding_dtos import (
     DiagnosticSettingCommandResponse,
     LogSourceInput,
@@ -34,6 +35,7 @@ from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.component_discovery_service import load_resource_catalog
+from keigan.services.telemetry_access_policy import TelemetryAccessRules, raise_if_field_problems
 from keigan.utils.time_utils import utc_now
 
 NON_AZURE_SERVICE_TYPES = {"network_appliance", "mainframe_subsystem", "batch_job_stream", "saas_service"}
@@ -44,6 +46,7 @@ class ServiceCatalogService:
         self.session = session
         self.service_repository = BaseRepository(session, MonitoredService)
         self.audit_service = AuditService(session)
+        self.access_rules = TelemetryAccessRules(session, get_settings(), application_context.workspace_customer_id_resolver())
 
     # ── Services ───────────────────────────────────────────────────────────────
     async def list_services(self, application_id: str) -> list[ServiceResponse]:
@@ -58,6 +61,10 @@ class ServiceCatalogService:
             component = await self.session.get(ApplicationComponent, request.component_id)
             if component is None or component.application_id != application_id:
                 raise NotFoundException("The component was not found.")
+        raise_if_field_problems(
+            "The service does not belong to the application.",
+            await self.access_rules.azure_resource_problems(application_id, request.external_resource_identifier, "externalResourceIdentifier"),
+        )
         service = MonitoredService(
             application_id=application_id,
             component_id=request.component_id,
@@ -81,11 +88,13 @@ class ServiceCatalogService:
     async def update_service(self, current_user: CurrentUser, application_id: str, service_id: str, request: ServiceUpdateRequest) -> ServiceResponse:
         service = await self._get_service(application_id, service_id)
         changes = request.model_dump(exclude_unset=True)
-        credential_secret_name = changes.pop("repository_credential_secret_name", None)
+        if changes.get("application_insights_resource_id"):
+            raise_if_field_problems(
+                "The Application Insights resource does not belong to the application.",
+                await self.access_rules.azure_resource_problems(application_id, changes["application_insights_resource_id"], "applicationInsightsResourceId"),
+            )
         for field_name, field_value in changes.items():
             setattr(service, field_name, field_value)
-        if credential_secret_name is not None:
-            service.repository_credential_secret_name = credential_secret_name or None
         service.updated_by_user_principal_name = current_user.user_principal_name
         await self.session.flush()
         await self.audit_service.record(
@@ -254,12 +263,18 @@ class ServiceCatalogService:
         )
 
     async def _validate_log_source(self, application_id: str, source: LogSourceInput) -> None:
-        if source.source_kind == "log_tool":
-            connection = await self.session.get(LogToolConnection, source.log_tool_connection_id) if source.log_tool_connection_id else None
-            if connection is None or connection.application_id != application_id:
-                raise BusinessValidationException("Choose a log tool connection of this application.", field_errors=[{"field": "logToolConnectionId", "message": "Required for log tool sources."}])
+        """A log source is saved only when Keigan may read it for this application (V2) and its probe URL may be called (V16)."""
+        connection = await self.session.get(LogToolConnection, source.log_tool_connection_id) if source.log_tool_connection_id else None
         if source.source_kind == "log_analytics" and not source.log_analytics_workspace_resource_id:
             raise BusinessValidationException("Enter the workspace resource ID.", field_errors=[{"field": "logAnalyticsWorkspaceResourceId", "message": "Required."}])
+        raise_if_field_problems(
+            "This log source does not belong to the application.",
+            await self.access_rules.log_source_problems(
+                application_id, source.source_kind, source.log_analytics_workspace_resource_id, source.log_analytics_workspace_customer_id, connection
+            ),
+        )
+        if source.source_kind == "synthetic_probe":
+            await application_context.outbound_url_policy().ensure_allowed(str((source.query_scope or {}).get("probe_url", "")), field_name="queryScope.probe_url")
 
     async def _add_log_source_if_missing(self, application_id: str, service: MonitoredService, source: LogSourceInput) -> None:
         await self._validate_log_source(application_id, source)

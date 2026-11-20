@@ -59,6 +59,11 @@ def classify_resource(arm_type: str, resource_kind: str | None, resource_name: s
     return ResourceClassification(NOT_MONITORED)
 
 
+def simulated_workspace_customer_id(workspace_resource_id: str) -> str:
+    """The stable workspace id the simulator and the demo seed use for a workspace (there is no Azure to ask)."""
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, workspace_resource_id.lower()))
+
+
 def resource_type_display_name(arm_type: str) -> str:
     catalog = load_resource_catalog()
     for rule in catalog.get("monitored_types", []) + catalog.get("telemetry_sources", []):
@@ -268,7 +273,7 @@ class ComponentDiscoveryService:
 
     async def _workspace_customer_id(self, component: ApplicationComponent, workspace_resource_id: str, is_simulated: bool) -> str | None:
         if is_simulated:
-            return str(uuid.uuid5(uuid.NAMESPACE_DNS, workspace_resource_id.lower()))
+            return simulated_workspace_customer_id(workspace_resource_id)
         try:
             return await application_context.azure_client().get_workspace_customer_id(component.azure_tenant_id, workspace_resource_id)
         except IntegrationException:
