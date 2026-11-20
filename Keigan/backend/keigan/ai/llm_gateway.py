@@ -25,8 +25,10 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import func, select
 
+from keigan.ai.ai_safety_settings import get_ai_safety_settings
 from keigan.ai.prompt_safety import UNTRUSTED_DATA_POLICY, generate_boundary, spotlight
 from keigan.config.database_config import open_session
+from keigan.config.logging_config import current_correlation_id
 from keigan.config.settings import LlmProviderName, Settings
 from keigan.entities.platform_entities import LlmUsageRecord
 from keigan.exceptions.keigan_exceptions import (
@@ -58,6 +60,7 @@ class PromptSection:
     is_untrusted: bool = False
     source_label: str = ""
     maximum_characters: int = 20_000
+    is_flagged: bool = False  # the source is already known to look like a prompt-injection attempt; mark its block with a warning
 
 
 @dataclass
@@ -313,7 +316,7 @@ class LlmGateway:
         rendered_sections: list[str] = []
         for prompt_section in prompt_sections:
             section_body = (
-                spotlight(prompt_section.content, prompt_section.source_label or prompt_section.title, boundary, prompt_section.maximum_characters)
+                spotlight(prompt_section.content, prompt_section.source_label or prompt_section.title, boundary, prompt_section.maximum_characters, prompt_section.is_flagged)
                 if prompt_section.is_untrusted
                 else prompt_section.content
             )
@@ -336,7 +339,10 @@ class LlmGateway:
                 back_off_seconds = min(30.0, (2**attempt_index) + random.uniform(0, 1))
                 logger.warning("LLM call failed (%s); retrying in %.1fs", type(invocation_error).__name__, back_off_seconds)
                 await asyncio.sleep(back_off_seconds)
-        raise LlmUnavailableException(f"The AI service failed: {type(last_error).__name__}: {str(last_error)[:300]}") from last_error
+        logger.warning("LLM call failed after %s attempt(s): %s: %s", self.settings.llm_maximum_retries + 1, type(last_error).__name__, str(last_error)[:500])
+        raise LlmUnavailableException(
+            f"The AI service could not answer right now. Try again in a few minutes. If it keeps failing, quote reference {current_correlation_id() or 'none'} to a Keigan admin."
+        ) from last_error
 
     @staticmethod
     def _is_retryable(invocation_error: Exception) -> bool:
@@ -362,24 +368,40 @@ class LlmGateway:
             return "".join(part.get("text", "") if isinstance(part, dict) else str(part) for part in message_content)
         return str(message_content or "")
 
+    @staticmethod
+    def _budget_key(usage_context: LlmUsageContext) -> str | None:
+        """Calls of one application share the application's budget; calls that belong to no application (chat across several
+        applications) are charged to the asking user instead, so they cannot bypass the budget."""
+        if usage_context.application_id:
+            return usage_context.application_id
+        if usage_context.requested_by_user_principal_name:
+            return f"user:{usage_context.requested_by_user_principal_name}"
+        return None
+
     async def _ensure_budget_available(self, usage_context: LlmUsageContext) -> None:
-        if not usage_context.enforce_token_budget or not usage_context.application_id:
+        budget_key = self._budget_key(usage_context)
+        if not usage_context.enforce_token_budget or budget_key is None:
             return
-        application_id = usage_context.application_id
-        cache_entry = self._budget_cache_by_application.get(application_id)
+        cache_entry = self._budget_cache_by_application.get(budget_key)
         if cache_entry is None or time.monotonic() - cache_entry.read_at > BUDGET_CACHE_SECONDS:
             start_of_day = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+            owner_condition = (
+                LlmUsageRecord.application_id == usage_context.application_id
+                if usage_context.application_id
+                else (LlmUsageRecord.application_id.is_(None) & (LlmUsageRecord.requested_by_user_principal_name == usage_context.requested_by_user_principal_name))
+            )
             async with open_session() as session:
                 used_token_count = await session.scalar(
-                    select(func.coalesce(func.sum(LlmUsageRecord.input_token_count + LlmUsageRecord.output_token_count), 0)).where(
-                        LlmUsageRecord.application_id == application_id, LlmUsageRecord.created_at >= start_of_day
-                    )
+                    select(func.coalesce(func.sum(LlmUsageRecord.input_token_count + LlmUsageRecord.output_token_count), 0)).where(owner_condition, LlmUsageRecord.created_at >= start_of_day)
                 )
             cache_entry = _BudgetCacheEntry(int(used_token_count or 0), time.monotonic())
-            self._budget_cache_by_application[application_id] = cache_entry
-        if cache_entry.used_token_count >= self.settings.llm_daily_token_budget_per_application:
+            self._budget_cache_by_application[budget_key] = cache_entry
+        if usage_context.application_id:
+            if cache_entry.used_token_count >= self.settings.llm_daily_token_budget_per_application:
+                raise TokenBudgetExceededException(f"Today's AI token budget ({self.settings.llm_daily_token_budget_per_application:,}) for this application is used up.")
+        elif cache_entry.used_token_count >= get_ai_safety_settings().llm_daily_token_budget_per_user:
             raise TokenBudgetExceededException(
-                f"Today's AI token budget ({self.settings.llm_daily_token_budget_per_application:,}) for this application is used up."
+                f"Your AI token budget for today ({get_ai_safety_settings().llm_daily_token_budget_per_user:,}) for questions across several applications is used up. Ask about one application, or try again tomorrow."
             )
 
     async def _record_usage(
@@ -394,8 +416,9 @@ class LlmGateway:
         usage_context: LlmUsageContext,
         error_message: str | None = None,
     ) -> None:
-        if usage_context.application_id and usage_context.application_id in self._budget_cache_by_application:
-            self._budget_cache_by_application[usage_context.application_id].used_token_count += input_token_count + output_token_count
+        budget_key = self._budget_key(usage_context)
+        if budget_key and budget_key in self._budget_cache_by_application:
+            self._budget_cache_by_application[budget_key].used_token_count += input_token_count + output_token_count
         self._pending_usage_records.append(
             {
                 "application_id": usage_context.application_id,

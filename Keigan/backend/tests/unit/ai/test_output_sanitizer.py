@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
+from keigan.ai.investigation_ai_schemas import PostmortemActionItem, PostmortemResult
+from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown, sanitize_ai_model
 
 ALLOWED = frozenset({"portal.azure.com", "keigan.example.org", "*.service-now.com"})
 
@@ -133,3 +134,15 @@ class TestSingleLineFields:
 
     def test_a_subject_is_cut_to_the_maximum_length(self) -> None:
         assert len(sanitize_ai_line("a" * 600, ALLOWED, maximum_characters=400)) == 400
+
+
+class TestSanitizeAiModel:
+    def test_every_string_field_of_a_nested_model_is_sanitised(self) -> None:
+        result = PostmortemResult(
+            report_title="T [x](https://evil.example)", summary="s ![i](https://evil.example/i.png)", impact="i", root_cause="r", detection="d", response="r",
+            lessons_learned=["see <https://evil.example/a>"], action_items=[PostmortemActionItem(description="[a](https://evil.example)", owner_role="Team", action_type="prevent")],
+        )
+        cleaned = sanitize_ai_model(result, ALLOWED)
+        assert "](https://evil.example" not in cleaned.model_dump_json()
+        assert cleaned.summary == "s i"
+        assert cleaned.action_items[0].due_in_days == 14

@@ -30,10 +30,9 @@ class InvestigationAiCaller:
         return self.offline_ai or self.gateway.is_mock
 
     async def ask(self, feature_name: str, prompt_sections: list[PromptSection], output_schema: type[BaseModel], **template_variables: Any) -> Any:
-        template = self.prompt_library.load_template(feature_name)
+        model_tier = ModelTier(self.prompt_library.model_tier_for_call(feature_name))  # refuses prompts that are written for people
         system_prompt = self.prompt_library.render(feature_name, application_name=self.application_name, criticality_tier=self.criticality_tier, **template_variables)
         mock_investigation_context.set(self.mock_context)
-        model_tier = ModelTier(template.model_tier)
         if self.offline_ai:
             result = output_schema.model_validate(OFFLINE_FACTORIES[feature_name](output_schema, prompt_sections).model_dump())
             self.model_names.add("offline-factory")

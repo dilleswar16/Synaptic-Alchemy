@@ -217,6 +217,17 @@ class NotificationService:
             chat_enqueued = True
         return {"emailsQueued": queued_count, "chatRequested": chat_enqueued}
 
+    @staticmethod
+    def investigation_email_body(investigation: Investigation, *, include_fix: bool) -> str:
+        """Audience rule: the fix steps (commands, resource names) go only to engineering roles; business stakeholders get impact and likely cause."""
+        parts = [
+            investigation.executive_summary,
+            f"**What went wrong**\n{investigation.what_went_wrong_markdown}" if investigation.what_went_wrong_markdown else "",
+            f"**Likely cause**\n{investigation.why_it_happened_markdown}" if investigation.why_it_happened_markdown else "",
+            f"**Suggested fix**\n{investigation.how_to_fix_markdown}" if include_fix and investigation.how_to_fix_markdown else "",
+        ]
+        return "\n\n".join(part for part in parts if part)
+
     async def on_investigation_completed(self, investigation_id: str) -> dict[str, Any] | None:
         investigation = await self.session.get(Investigation, investigation_id)
         if investigation is None or investigation.incident_id is None:
@@ -229,11 +240,11 @@ class NotificationService:
         queued_count = 0
         if self.settings.auto_send_preliminary_report and investigation.investigation_status.startswith("completed"):
             confidence_text = f"{round((investigation.overall_confidence_score or 0) * 100)}%"
-            body_markdown = "\n\n".join(part for part in (investigation.executive_summary, f"**What went wrong**\n{investigation.what_went_wrong_markdown or ''}" if investigation.what_went_wrong_markdown else "", f"**Likely cause**\n{investigation.why_it_happened_markdown or ''}" if investigation.why_it_happened_markdown else "", f"**Suggested fix**\n{investigation.how_to_fix_markdown or ''}" if investigation.how_to_fix_markdown else "") if part)
             for stakeholder in await self.matching_stakeholders(incident.application_id, "preliminary_report", "email", priority=priority, service_ids=incident.affected_service_ids_json):
                 recipient_address = self.recipient_address_for(stakeholder, "email")
                 if not recipient_address:
                     continue
+                body_markdown = self.investigation_email_body(investigation, include_fix=stakeholder.stakeholder_role in TECHNICAL_ROLES)
                 language = stakeholder.preferred_language_code
                 facts = [(translate(language, "labels.incident"), incident.external_incident_number or ""), (translate(language, "labels.priority"), priority), (translate(language, "labels.confidence"), confidence_text)]
                 rendered = self.renderer.render_email("preliminary_report", language, application_name, incident.incident_title, facts=facts, body_markdown=body_markdown, action_path=f"/incidents/{incident.incident_id}", priority=priority)

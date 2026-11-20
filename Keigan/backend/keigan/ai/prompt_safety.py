@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 import secrets
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import lru_cache
 
@@ -146,6 +147,26 @@ def spotlight(
 # ── Citation checks ────────────────────────────────────────────────────────────
 
 _CITATION_PATTERN = re.compile(r"\[(E\d{1,3}|R\d{1,2}|K\d{1,2})\]")
+
+
+def build_valid_citation_codes(evidence_codes: Iterable[str], runbook_codes: Iterable[str], knowledge_codes: Iterable[str]) -> set[str]:
+    """The citation codes that really exist for one prompt, taken from the grounding that was actually given to the model."""
+    return {*evidence_codes, *runbook_codes, *knowledge_codes}
+
+
+FILE_NOT_IDENTIFIED = "file not identified"
+
+
+def _normalise_path_for_comparison(file_path: str) -> str:
+    return file_path.strip().replace("\\", "/").removeprefix("./")
+
+
+def restrict_to_known_file_path(file_path: str, knowledge_text: str) -> str:
+    """Keep a code-change file path only when it appears in the knowledge text; otherwise use the "file not identified" placeholder."""
+    normalised_path = _normalise_path_for_comparison(file_path)
+    if not normalised_path or normalised_path == FILE_NOT_IDENTIFIED:
+        return FILE_NOT_IDENTIFIED
+    return file_path if normalised_path in knowledge_text.replace("\\", "/") else FILE_NOT_IDENTIFIED
 
 
 def find_citation_codes(markdown_text: str | None) -> set[str]:

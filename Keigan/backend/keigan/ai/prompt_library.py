@@ -15,17 +15,30 @@ Only *trusted* values (names, ids, settings, catalogue text) may be rendered int
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
 import yaml
-from jinja2 import Environment, StrictUndefined
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+from keigan.ai.ai_safety_settings import get_ai_safety_settings
+from keigan.ai.prompt_safety import strip_invisible_characters
 from keigan.config.settings import RESOURCES_DIRECTORY
 from keigan.exceptions.keigan_exceptions import NotFoundException
 
 PROMPTS_DIRECTORY = RESOURCES_DIRECTORY / "prompts"
+# Names that users choose are rendered into system prompts, so they are cleaned to one short line of plain words (S6).
+_NAME_VARIABLES = ("application_name", "application_code")
+_PROMPT_VALUE_UNSAFE_CHARACTERS = re.compile(r"[<>{}`\\]")
+MODEL_TIERS_WITHOUT_A_MODEL = ("none",)
+
+
+def sanitize_prompt_value(value: str, maximum_characters: int = 120) -> str:
+    """One short line without markup, quotes or line breaks, so a user-chosen name cannot add instructions to a system prompt."""
+    single_line = " ".join(strip_invisible_characters(str(value)).split())
+    return _PROMPT_VALUE_UNSAFE_CHARACTERS.sub("", single_line).replace('"', "'")[:maximum_characters].strip()
 
 
 @dataclass(frozen=True)
@@ -39,7 +52,10 @@ class PromptTemplate:
 
 class PromptLibrary:
     def __init__(self) -> None:
-        self._template_environment = Environment(undefined=StrictUndefined, autoescape=False, keep_trailing_newline=True)
+        # The loader lets a prompt ``{% include "_fragment.md" %}`` a shared fragment (files starting with an underscore).
+        self._template_environment = Environment(
+            loader=FileSystemLoader(PROMPTS_DIRECTORY), undefined=StrictUndefined, autoescape=False, keep_trailing_newline=True
+        )
 
     @staticmethod
     @lru_cache(maxsize=128)
@@ -63,7 +79,18 @@ class PromptLibrary:
 
     def render(self, prompt_key: str, **trusted_variables: Any) -> str:
         prompt_template = self.load_template(prompt_key)
-        return self._template_environment.from_string(prompt_template.body_template).render(**trusted_variables)
+        for name_variable in _NAME_VARIABLES:
+            if name_variable in trusted_variables:
+                trusted_variables[name_variable] = sanitize_prompt_value(trusted_variables[name_variable])
+        trusted_variables.setdefault("organization_name", sanitize_prompt_value(get_ai_safety_settings().organization_name))
+        return self._template_environment.from_string(prompt_template.body_template).render(**trusted_variables).strip()
+
+    def model_tier_for_call(self, prompt_key: str) -> str:
+        """The model tier of a prompt that is sent to a model; prompts for humans (``model_tier: none``) are refused."""
+        model_tier = self.load_template(prompt_key).model_tier
+        if model_tier in MODEL_TIERS_WITHOUT_A_MODEL:
+            raise ValueError(f"The prompt {prompt_key} is written for people to copy and must not be sent to a model.")
+        return model_tier
 
     def version_of(self, prompt_key: str) -> str:
         return self.load_template(prompt_key).version

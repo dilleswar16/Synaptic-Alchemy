@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -19,9 +20,11 @@ from fastapi import UploadFile
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from keigan.ai.ai_safety_settings import FlaggedDocumentPolicy, get_ai_safety_settings
 from keigan.ai.knowledge_ai_schemas import DocumentDigestResult
 from keigan.ai.llm_gateway import LlmUsageContext, ModelTier, PromptSection, estimate_token_count
 from keigan.ai.prompt_safety import assess_prompt_injection
+from keigan.ai.user_facing_errors import describe_failure_for_user
 from keigan.config import application_context
 from keigan.config.settings import get_settings
 from keigan.dtos.knowledge_dtos import (
@@ -48,6 +51,7 @@ from keigan.utils.text_utils import chunk_markdown, extract_markdown_headings, r
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
 
+logger = logging.getLogger(__name__)
 STALE_AFTER_DAYS = 90
 MAXIMUM_EXTRACTED_CHARACTERS = 400_000
 DIGEST_INPUT_CHARACTERS = 24_000
@@ -77,6 +81,8 @@ class GroundingContext:
     knowledge_markdown: str = ""  # sections labelled [K1], [K2] …
     references: list[KnowledgeReference] = field(default_factory=list)
     estimated_token_count: int = 0
+    # True when a document in this text was flagged as a possible prompt injection (policy "warn"); the prompt block then carries a warning.
+    contains_flagged_content: bool = False
 
 
 @dataclass
@@ -247,7 +253,8 @@ class KnowledgeService:
             raw_text = await self._extract_text(document, file_bytes, usage_context)
         except Exception as extraction_error:  # noqa: BLE001  (any extraction problem is shown on the file card)
             document.ai_digest_status = "failed"
-            document.ai_digest_error_message = f"Keigan could not read this file: {truncate_text(str(extraction_error), 300)}"
+            logger.warning("Could not read knowledge document %s: %s", knowledge_document_id, extraction_error)
+            document.ai_digest_error_message = "Keigan could not read this file. Check that it is a valid document that is not password protected, then upload it again."
             return {"status": "failed"}
         masker = PiiMasker(MaskingContext())
         extracted_text = masker.mask_text(truncate_text(raw_text, MAXIMUM_EXTRACTED_CHARACTERS, ""))
@@ -314,10 +321,11 @@ class KnowledgeService:
             document.ai_digest_status = "ready"
         except KeiganException as digest_error:
             document.ai_digest_status = "failed"
-            document.ai_digest_error_message = f"The AI digest could not be written: {digest_error.detail}. The text is still searchable."
+            document.ai_digest_error_message = f"The AI digest could not be written: {describe_failure_for_user(digest_error)} The text is still searchable."
         except Exception as digest_error:  # noqa: BLE001
             document.ai_digest_status = "failed"
-            document.ai_digest_error_message = f"The AI digest could not be written: {truncate_text(str(digest_error), 300)}. The text is still searchable."
+            logger.warning("Digest of knowledge document %s failed: %s", document.knowledge_document_id, digest_error)
+            document.ai_digest_error_message = "The AI digest could not be written. The text is still searchable."
 
     # ── Contract: grounding, runbooks, topology graph ──────────────────────────
     async def build_grounding_context(
@@ -345,7 +353,14 @@ class KnowledgeService:
             context.topology_summary_markdown = f"[{code}] Application topology\n{topology_text}"
             remaining_budget -= estimate_token_count(context.topology_summary_markdown)
 
-        documents = await self.document_repository.find_all(KnowledgeDocument.application_id == application_id, KnowledgeDocument.ai_digest_status == "ready")
+        all_documents = await self.document_repository.find_all(KnowledgeDocument.application_id == application_id, KnowledgeDocument.ai_digest_status == "ready")
+        flagged_document_ids = {document.knowledge_document_id for document in await self.document_repository.find_all(
+            KnowledgeDocument.application_id == application_id, KnowledgeDocument.possible_prompt_injection.is_(True))}
+        if get_ai_safety_settings().ai_flagged_document_policy == FlaggedDocumentPolicy.EXCLUDE:
+            documents = [document for document in all_documents if document.knowledge_document_id not in flagged_document_ids]
+        else:
+            documents = all_documents
+        used_document_ids: set[str] = set()
         relevant_documents = [document for document in documents if document.ai_digest_markdown and (not service_id_set or document.service_id is None or document.service_id in service_id_set)]
         relevant_documents.sort(key=lambda document: (document.service_id not in service_id_set, document.uploaded_at))
         digest_budget = remaining_budget * 35 // 100
@@ -356,11 +371,16 @@ class KnowledgeService:
                 break
             code = next_reference(document.document_title, "document_digest", document.knowledge_document_id)
             knowledge_sections.append(f"[{code}] Digest of {document.document_title}\n{digest_text}")
+            used_document_ids.add(document.knowledge_document_id)
             digest_budget -= digest_tokens
             remaining_budget -= digest_tokens
 
         chunk_rows = await BaseRepository(self.session, KnowledgeChunk).find_all(KnowledgeChunk.application_id == application_id)
-        eligible_chunks = {chunk.knowledge_chunk_id: chunk for chunk in chunk_rows if chunk.search_terms_json and (not service_id_set or chunk.service_id is None or chunk.service_id in service_id_set)}
+        excluded_document_ids = flagged_document_ids if get_ai_safety_settings().ai_flagged_document_policy == FlaggedDocumentPolicy.EXCLUDE else set()
+        eligible_chunks = {
+            chunk.knowledge_chunk_id: chunk for chunk in chunk_rows
+            if chunk.search_terms_json and chunk.knowledge_document_id not in excluded_document_ids and (not service_id_set or chunk.service_id is None or chunk.service_id in service_id_set)
+        }
         if query_text.strip() and eligible_chunks:
             titles_by_document_id = {document.knowledge_document_id: document.document_title for document in documents}
             ranked_chunks = rank_with_bm25(query_text, {key: chunk.search_terms_json or {} for key, chunk in eligible_chunks.items()}, maximum_results=12)
@@ -373,8 +393,10 @@ class KnowledgeService:
                 document_title = titles_by_document_id.get(chunk.knowledge_document_id, "Knowledge document")
                 code = next_reference(document_title, "document_chunk", chunk.knowledge_document_id, chunk.section_heading)
                 knowledge_sections.append(f"[{code}] {document_title} — {chunk.section_heading or 'excerpt'}\n{chunk_text}")
+                used_document_ids.add(chunk.knowledge_document_id)
                 remaining_budget -= chunk_tokens
         context.knowledge_markdown = "\n\n".join(knowledge_sections)
+        context.contains_flagged_content = bool(used_document_ids & flagged_document_ids)
         context.estimated_token_count = estimate_token_count(context.topology_summary_markdown) + estimate_token_count(context.knowledge_markdown)
         return context
 

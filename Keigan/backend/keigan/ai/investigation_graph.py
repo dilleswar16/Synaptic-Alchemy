@@ -20,11 +20,13 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from keigan.ai.command_risk_classifier import RISK_RANK, classify_command_risk
 from keigan.ai.investigation_ai_caller import InvestigationAiCaller, build_mock_context
 from keigan.ai.investigation_ai_schemas import AdditionalQueryPlan, BlastRadiusNarrative, HypothesisResult, RcaSynthesisResult, TriageResult
 from keigan.ai.investigation_mock_responses import MockInvestigationContext, MockServiceInfo
 from keigan.ai.llm_gateway import PromptSection
-from keigan.ai.prompt_safety import DEFAULT_ALLOWED_LINK_HOSTS, classify_command_risk, find_citation_codes, neutralize_untrusted_links, remove_invalid_citations
+from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
+from keigan.ai.prompt_safety import build_valid_citation_codes, remove_invalid_citations, restrict_to_known_file_path, strip_invisible_characters
 from keigan.config import application_context
 from keigan.config.settings import get_settings
 from keigan.entities.alert_entities import Alert
@@ -73,6 +75,9 @@ class InvestigationGraphRunner:
         self.triage: TriageResult | None = None
         self.incident_text = ""
         self.knowledge_markdown = ""
+        self.resource_group_by_service_id: dict[str, str] = {}  # so prompts can name real resource groups instead of inviting guesses
+        self.knowledge_reference_codes: set[str] = set()  # the K# codes of the knowledge that was really given to the model
+        self.knowledge_contains_flagged_content = False
         self.runbook_matches: list[Any] = []
         self.recurring_issues_markdown = ""
         self.evidence_drafts: list[EvidenceDraft] = []
@@ -189,6 +194,8 @@ class InvestigationGraphRunner:
             self.evidence_only = True
             self.triage = TriageResult(suggested_priority="P3", priority_rationale="AI unavailable; priority taken from ServiceNow fields.", incident_category="errors", incident_summary=truncate_text(self.incident_text, 400))
         triage = self.triage
+        triage.incident_summary, triage.priority_rationale = sanitize_ai_markdown(triage.incident_summary), sanitize_ai_markdown(triage.priority_rationale)
+        triage.key_symptoms = [sanitize_ai_line(symptom, maximum_characters=200) for symptom in triage.key_symptoms[:8]]
         catalogue_names = {service.service_name.lower(): service for service in self.all_services}
         triage.candidate_service_names = [name for name in triage.candidate_service_names if name.lower() in catalogue_names]
         self.services = self._resolve_candidate_services(triage.candidate_service_names)
@@ -205,6 +212,8 @@ class InvestigationGraphRunner:
         if self.mock_context:
             self.mock_context.priority = final_priority
         self._add_timeline_event("investigation_started", "Keigan started investigating", f"Priority {final_priority}; category {triage.incident_category}; services: {', '.join(service.service_name for service in self.services) or 'none identified'}.")
+        if triage.contains_instruction_like_text:
+            self._add_timeline_event("note", "The incident text contained instruction-like content, which Keigan ignored", "Review the original ticket before trusting this analysis.")
         await self._update_progress("triage", f"Triage complete: priority {final_priority}, category {triage.incident_category}, {len(self.services)} service(s) to examine", 15)
         return {"evidence_only": self.evidence_only}
 
@@ -243,7 +252,9 @@ class InvestigationGraphRunner:
         for service in services:
             calls = [names_by_id[dependency.downstream_service_id] for dependency in self.dependencies if dependency.upstream_service_id == service.service_id and dependency.downstream_service_id in names_by_id]
             namespace_text = f", namespace {service.aks_namespace_filter}" if service.aks_namespace_filter else ""
-            lines.append(f"- {service.service_name} ({service.service_type}, {service.criticality_tier}{namespace_text})" + (f" calls: {', '.join(calls)}" if calls else ""))
+            resource_group = self.resource_group_by_service_id.get(service.service_id)
+            resource_text = (f", resource group {resource_group}" if resource_group else "") + (f", resource id {service.external_resource_identifier}" if service.external_resource_identifier else "")
+            lines.append(f"- {service.service_name} ({service.service_type}, {service.criticality_tier}{namespace_text}{resource_text})" + (f" calls: {', '.join(calls)}" if calls else ""))
         return "\n".join(lines)
 
     # ── Stage 2: context ───────────────────────────────────────────────────────
@@ -257,11 +268,14 @@ class InvestigationGraphRunner:
             knowledge_service = KnowledgeService(self.session)
             grounding = await knowledge_service.build_grounding_context(self.application.application_id, query_text, service_ids, self.settings.investigation_knowledge_token_budget)
             self.knowledge_markdown = f"{grounding.topology_summary_markdown}\n\n{grounding.knowledge_markdown}".strip()
+            self.knowledge_reference_codes = {reference.reference_code for reference in grounding.references}
+            self.knowledge_contains_flagged_content = grounding.contains_flagged_content
             self.investigation.knowledge_references_json = [{"referenceCode": reference.reference_code, "title": reference.title, "sourceKind": reference.source_kind, "knowledgeDocumentId": reference.knowledge_document_id} for reference in grounding.references]
             self.runbook_matches = await knowledge_service.find_matching_runbooks(self.application.application_id, query_text, service_ids, 3)
         except Exception as knowledge_error:  # noqa: BLE001 — guarded cross-slice call
             logger.info("Knowledge context not available: %s", knowledge_error)
             self.knowledge_markdown, self.runbook_matches = "", []
+            self.knowledge_reference_codes, self.knowledge_contains_flagged_content = set(), False
         previous = (
             await self.session.scalars(
                 select(Investigation).where(
@@ -271,6 +285,7 @@ class InvestigationGraphRunner:
         ).all()
         self.recurring_issues_markdown = "\n".join(f"- Confirmed earlier: {truncate_text(investigation.executive_summary, 300)}" for investigation in previous if investigation.executive_summary)
         self.service_contexts = await self.evidence_service.load_service_contexts(self.services)
+        self.resource_group_by_service_id = {context.service.service_id: context.component.azure_resource_group_name for context in self.service_contexts if context.component and context.component.azure_resource_group_name}
         if self.mock_context:
             self.mock_context.services = [
                 MockServiceInfo(
@@ -296,7 +311,10 @@ class InvestigationGraphRunner:
         if change_draft:
             self.evidence_drafts.append(change_draft)
         for change_event in change_events:
-            self._add_timeline_event("change", change_event.description, f"{change_event.operation_name} ({change_event.change_kind}) by {change_event.caller or 'unknown'}", change_event.occurred_at, "azure_activity_log")
+            self._add_timeline_event(
+                "change", self.masker.mask_text(change_event.description), self.masker.mask_text(f"{change_event.operation_name} ({change_event.change_kind}) by {change_event.caller or 'unknown'}"),
+                change_event.occurred_at, "azure_activity_log",
+            )
         strong_count = sum(1 for draft in self.evidence_drafts if draft.signal_strength in ("high", "medium") and not draft.is_rule_out)
         await self._update_progress("evidence", f"Collected {len(self.evidence_drafts)} evidence items; {strong_count} with a medium or high signal", 52)
         return {"needs_planner": strong_count < 2 and not self.has_planned_once and not self.evidence_only}
@@ -368,9 +386,9 @@ class InvestigationGraphRunner:
             sections = [
                 PromptSection("Analysis perspective", perspective),
                 PromptSection("Application and services", self._describe_services(self.services)),
-                PromptSection("Application knowledge", self.knowledge_markdown or "No knowledge documents are available for this application."),
-                PromptSection("Known issues (runbooks)", runbook_text),
-                PromptSection("Recurring issues confirmed in the past", self.recurring_issues_markdown or "None recorded."),
+                self._knowledge_section(),
+                PromptSection("Known issues (runbooks)", runbook_text, is_untrusted=True, source_label="runbooks"),
+                PromptSection("Recurring issues confirmed in the past", self.recurring_issues_markdown or "None recorded.", is_untrusted=True, source_label="earlier investigations"),
                 PromptSection("Incident", f"{self.incident_text}\n\nTriage summary: {self.triage.incident_summary if self.triage else ''}", is_untrusted=True, source_label="incident"),
                 PromptSection("Evidence index", EvidenceService.render_evidence_markdown(self.evidence_rows, service_names_by_id), is_untrusted=True, source_label="telemetry evidence", maximum_characters=60_000),
                 PromptSection("Task", f"Give your {perspective} perspective hypothesis."),
@@ -388,22 +406,52 @@ class InvestigationGraphRunner:
 
         return run_hypothesis
 
+    def _knowledge_section(self) -> PromptSection:
+        """Uploaded documents are written by people outside Keigan, so they are data, not instructions (V7)."""
+        return PromptSection(
+            "Application knowledge", self.knowledge_markdown or "No knowledge documents are available for this application.", is_untrusted=True, source_label="knowledge documents",
+            maximum_characters=60_000, is_flagged=self.knowledge_contains_flagged_content,
+        )
+
+    def _valid_citation_codes(self) -> set[str]:
+        """Codes that exist for this investigation: its evidence, its matched runbooks and the knowledge that was given to the model."""
+        return build_valid_citation_codes((row.evidence_code for row in self.evidence_rows), (match.reference_code for match in self.runbook_matches), self.knowledge_reference_codes)
+
+    def _clean_ai_text(self, markdown_text: str, valid_codes: set[str]) -> str:
+        """Citations that do not exist are removed, then links, images and HTML are neutralised (V8, V20)."""
+        return sanitize_ai_markdown(remove_invalid_citations(markdown_text, valid_codes))
+
+    def _clean_synthesis_text(self, markdown_text: str, runbook_codes: dict[str, Any]) -> str:
+        valid_codes = self._valid_citation_codes() | set(runbook_codes)
+        return self._flag_high_risk_commands(self._clean_ai_text(markdown_text, valid_codes))
+
     def _validated_hypothesis(self, perspective: str, result: HypothesisResult) -> dict[str, Any]:
-        valid_codes = {row.evidence_code for row in self.evidence_rows} | {match.reference_code for match in self.runbook_matches}
-        steps = []
-        risk_rank = {"low": 0, "medium": 1, "high": 2}
+        valid_codes = self._valid_citation_codes()
+        known_knowledge_text = f"{self.knowledge_markdown}\n" + "\n".join(f"{match.runbook_title}\n{match.runbook_steps_markdown}" for match in self.runbook_matches)
         highest_risk = result.fix_risk_level
+        steps = []
         for step in result.proposed_fix.steps:
-            command_risk = classify_command_risk(step.command_text) if step.command_text else None
-            if command_risk and risk_rank[command_risk] > risk_rank[highest_risk]:
+            command_text = strip_invisible_characters(step.command_text) if step.command_text else None
+            command_risk = classify_command_risk(command_text) if command_text else None
+            if command_risk and RISK_RANK[command_risk] > RISK_RANK[highest_risk]:
                 highest_risk = command_risk
-            steps.append({**step.model_dump(), "command_risk_level": command_risk})
-        proposed_fix = {**result.proposed_fix.model_dump(), "steps": steps}
+            steps.append({**step.model_dump(), "description": self._clean_ai_text(step.description, valid_codes), "command_text": command_text, "command_risk_level": command_risk})
+        fix = result.proposed_fix
+        proposed_fix = {
+            "summary": self._clean_ai_text(fix.summary, valid_codes), "steps": steps,
+            "code_changes": [
+                {**change.model_dump(), "file_path": restrict_to_known_file_path(change.file_path, known_knowledge_text), "change_description": self._clean_ai_text(change.change_description, valid_codes),
+                 "before_snippet": strip_invisible_characters(change.before_snippet) if change.before_snippet else None, "after_snippet": strip_invisible_characters(change.after_snippet) if change.after_snippet else None}
+                for change in fix.code_changes
+            ],
+            "verification_steps": [self._clean_ai_text(text, valid_codes) for text in fix.verification_steps],
+            "rollback_steps": [self._clean_ai_text(text, valid_codes) for text in fix.rollback_steps],
+        }
         runbook_code = result.matched_runbook_code if result.matched_runbook_code in {match.reference_code for match in self.runbook_matches} else None
         return {
-            "analysis_perspective": perspective, "hypothesis_title": result.hypothesis_title[:300],
-            "hypothesis_statement_markdown": neutralize_untrusted_links(remove_invalid_citations(result.hypothesis_statement_markdown, valid_codes), DEFAULT_ALLOWED_LINK_HOSTS),
-            "reasoning_markdown": neutralize_untrusted_links(remove_invalid_citations(result.reasoning_markdown, valid_codes), DEFAULT_ALLOWED_LINK_HOSTS),
+            "analysis_perspective": perspective, "hypothesis_title": sanitize_ai_line(result.hypothesis_title, maximum_characters=300),
+            "hypothesis_statement_markdown": self._clean_ai_text(result.hypothesis_statement_markdown, valid_codes),
+            "reasoning_markdown": self._clean_ai_text(result.reasoning_markdown, valid_codes),
             "confidence_score": max(0.0, min(1.0, result.confidence_score)),
             "supporting_evidence_codes": [code for code in result.supporting_evidence_codes if code in valid_codes], "contradicting_evidence_codes": [code for code in result.contradicting_evidence_codes if code in valid_codes],
             "proposed_fix": proposed_fix, "fix_risk_level": highest_risk, "matched_runbook_code": runbook_code,
@@ -425,9 +473,11 @@ class InvestigationGraphRunner:
         )
         service_names_by_id = {service.service_id: service.service_name for service in self.all_services}
         sections = [
+            PromptSection("Service catalogue", self._describe_services(self.services)),
             PromptSection("Hypotheses from the three analysts", hypotheses_text, is_untrusted=True, source_label="analyst hypotheses"),
             PromptSection("Evidence index", EvidenceService.render_evidence_markdown(self.evidence_rows, service_names_by_id), is_untrusted=True, source_label="telemetry evidence", maximum_characters=60_000),
-            PromptSection("Known issues (runbooks)", "\n\n".join(f"[{code}] {match.runbook_title}\n{match.runbook_steps_markdown}" for code, match in runbook_codes.items()) or "No matching runbooks."),
+            PromptSection("Known issues (runbooks)", "\n\n".join(f"[{code}] {match.runbook_title}\n{match.runbook_steps_markdown}" for code, match in runbook_codes.items()) or "No matching runbooks.", is_untrusted=True, source_label="runbooks"),
+            self._knowledge_section(),
             PromptSection("Task", "Decide the leading perspective and write the root cause analysis."),
         ]
         try:
@@ -440,12 +490,7 @@ class InvestigationGraphRunner:
                 executive_summary=best_hypothesis["hypothesis_title"], what_went_wrong_markdown=best_hypothesis["hypothesis_statement_markdown"], why_it_happened_markdown=best_hypothesis["reasoning_markdown"],
                 how_to_fix_markdown=best_hypothesis["proposed_fix"]["summary"], open_questions=[],
             )
-        valid_codes = {row.evidence_code for row in self.evidence_rows} | set(runbook_codes)
-        valid_codes |= {f"K{number}" for number in range(1, 30)} if self.knowledge_markdown else set()
-
-        def clean(markdown_text: str) -> str:
-            return self._flag_high_risk_commands(neutralize_untrusted_links(remove_invalid_citations(markdown_text, valid_codes), DEFAULT_ALLOWED_LINK_HOSTS))
-
+        clean = lambda markdown_text: self._clean_synthesis_text(markdown_text, runbook_codes)  # noqa: E731
         leading = next((hypothesis for hypothesis in hypotheses if hypothesis["analysis_perspective"] == synthesis.leading_perspective), max(hypotheses, key=lambda hypothesis: hypothesis["confidence_score"]))
         maximum_confidence = max(hypothesis["confidence_score"] for hypothesis in hypotheses)
         investigation.overall_confidence_score = round(min(synthesis.overall_confidence_score, maximum_confidence + 0.05), 2)
@@ -453,7 +498,7 @@ class InvestigationGraphRunner:
         investigation.what_went_wrong_markdown = clean(synthesis.what_went_wrong_markdown)
         investigation.why_it_happened_markdown = clean(synthesis.why_it_happened_markdown)
         investigation.how_to_fix_markdown = clean(synthesis.how_to_fix_markdown)
-        investigation.open_questions_json = synthesis.open_questions[:5]
+        investigation.open_questions_json = [sanitize_ai_line(question, maximum_characters=500) for question in synthesis.open_questions[:5]]
         applied_runbook_ids = [runbook_codes[code].runbook_id for code in synthesis.applied_runbook_codes if code in runbook_codes]
         investigation.matched_runbook_ids_json = applied_runbook_ids
         if applied_runbook_ids:
@@ -486,8 +531,8 @@ class InvestigationGraphRunner:
     @staticmethod
     def _flag_high_risk_commands(markdown_text: str) -> str:
         def annotate(block_match: re.Match[str]) -> str:
-            risky_lines = [line for line in block_match.group(1).splitlines() if line.strip() and classify_command_risk(line) == "high"]
-            return block_match.group(0) + ("\n> **High risk.** Confirm with your change process before running this command.\n" if risky_lines else "")
+            is_high_risk = classify_command_risk(block_match.group(1)) == "high"
+            return block_match.group(0) + ("\n> **High risk.** Confirm with your change process before running this command.\n" if is_high_risk else "")
 
         return _FENCED_BLOCK_PATTERN.sub(annotate, markdown_text)
 
@@ -533,9 +578,12 @@ class InvestigationGraphRunner:
         )
         if not self.evidence_only:
             try:
-                narrative: BlastRadiusNarrative = await self._ask("blast_radius_narrative", [PromptSection("Blast radius (deterministic)", deterministic_text), PromptSection("Root cause summary", self.investigation.executive_summary or "", is_untrusted=True, source_label="rca"), PromptSection("Task", "Write the impact narrative.")], BlastRadiusNarrative)
-                blast_radius["narrativeMarkdown"] = neutralize_untrusted_links(narrative.narrative_markdown, DEFAULT_ALLOWED_LINK_HOSTS)
-                blast_radius["userImpactSummary"] = narrative.user_impact_summary
+                narrative: BlastRadiusNarrative = await self._ask("blast_radius_narrative", [
+                    PromptSection("Service catalogue", self._describe_services(self.all_services)), PromptSection("Blast radius (deterministic)", deterministic_text),
+                    PromptSection("Root cause summary", self.investigation.executive_summary or "", is_untrusted=True, source_label="rca"), PromptSection("Task", "Write the impact narrative."),
+                ], BlastRadiusNarrative)
+                blast_radius["narrativeMarkdown"] = sanitize_ai_markdown(narrative.narrative_markdown)
+                blast_radius["userImpactSummary"] = sanitize_ai_markdown(narrative.user_impact_summary)
             except (TokenBudgetExceededException, LlmUnavailableException, KeiganException):
                 logger.info("Blast radius narrative skipped; using the deterministic summary")
         if not blast_radius["narrativeMarkdown"]:

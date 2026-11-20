@@ -18,14 +18,17 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Iterable
+from typing import Any, TypeVar
 from urllib.parse import urlsplit
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
+from pydantic import BaseModel
 
 from keigan.ai.ai_safety_settings import get_ai_safety_settings
 from keigan.ai.prompt_safety import strip_invisible_characters
 
+ModelType = TypeVar("ModelType", bound=BaseModel)
 _PARSER = MarkdownIt("commonmark", {"html": True}).enable(["table", "strikethrough"])
 _BARE_URL_PATTERN = re.compile(r"(?i)(?<![\w/@])(?:https?://|www\.)[^\s<>`]+")
 _TRAILING_URL_PUNCTUATION = ".,;:!?)]}'\""
@@ -274,6 +277,21 @@ def sanitize_ai_markdown(markdown_text: str | None, allowed_hosts: Iterable[str]
     effective_hosts = frozenset(allowed_hosts if allowed_hosts is not None else get_ai_safety_settings().allowed_link_hosts)
     cleaned_text = strip_invisible_characters(str(markdown_text)).replace("\r\n", "\n").replace("\r", "\n")
     return _Serializer(effective_hosts).render_blocks(_PARSER.parse(cleaned_text)).strip("\n")
+
+
+def sanitize_ai_model(model: ModelType, allowed_hosts: Iterable[str] | None = None) -> ModelType:
+    """A copy of a pydantic model (or nested lists and models) in which every string field is sanitised as markdown."""
+    return model.model_copy(update={name: _sanitize_value(value, allowed_hosts) for name, value in model if value is not None})
+
+
+def _sanitize_value(value: Any, allowed_hosts: Iterable[str] | None) -> Any:
+    if isinstance(value, str):
+        return sanitize_ai_markdown(value, allowed_hosts)
+    if isinstance(value, BaseModel):
+        return sanitize_ai_model(value, allowed_hosts)
+    if isinstance(value, list):
+        return [_sanitize_value(item, allowed_hosts) for item in value]
+    return value
 
 
 def sanitize_ai_line(text: str | None, allowed_hosts: Iterable[str] | None = None, maximum_characters: int = 400) -> str:
