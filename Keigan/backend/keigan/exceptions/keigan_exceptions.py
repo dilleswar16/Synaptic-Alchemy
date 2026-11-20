@@ -100,6 +100,30 @@ class LlmUnavailableException(KeiganException):
     title = "The AI service is unavailable"
 
 
+class LlmTimeoutException(LlmUnavailableException):
+    status_code = 504
+    error_code = "ai_timeout"
+    title = "The AI service took too long to answer"
+
+
+class LlmRateLimitedException(LlmUnavailableException):
+    status_code = 429
+    error_code = "ai_rate_limited"
+    title = "The AI service is busy"
+
+
+class LlmAuthenticationException(LlmUnavailableException):
+    status_code = 502
+    error_code = "ai_authentication_failed"
+    title = "The AI service rejected Keigan's credentials"
+
+
+class LlmRequestRejectedException(LlmUnavailableException):
+    status_code = 502
+    error_code = "ai_request_rejected"
+    title = "The AI service rejected the request"
+
+
 class LlmOutputValidationException(KeiganException):
     status_code = 502
     error_code = "ai_output_invalid"

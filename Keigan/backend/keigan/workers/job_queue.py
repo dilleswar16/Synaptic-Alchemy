@@ -16,9 +16,10 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import Update, select, update
+from sqlalchemy import Update, and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from keigan.config.database_config import open_session
 from keigan.config.logging_config import set_correlation_id
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 WORKER_HEARTBEAT_SETTING_KEY = "worker_heartbeat"
 ENQUEUE_ATTEMPTS = 3  # a winning job that finishes between our two statements frees its key again, so the insert is tried once more
+INVESTIGATION_JOB_TYPE = "run_investigation"  # must stay a key of JOB_HANDLER_REFERENCES (a test checks it)
 LEASE_CLAIM_ATTEMPTS = 5  # each lost claim means another worker took that job, so the next candidate is tried straight away
 
 
@@ -122,34 +124,58 @@ class JobWorker:
         if self._running_tasks:
             await asyncio.gather(*self._running_tasks, return_exceptions=True)
 
+    def _concurrency_limits(self) -> dict[str, int]:
+        """How many jobs of one type may run at the same time across all worker pods. Types not listed are limited only by each worker's own concurrency."""
+        return {INVESTIGATION_JOB_TYPE: self.settings.investigation_max_concurrent}
+
     @staticmethod
-    def _build_claim_statement(background_job_id: str, worker_name: str, now: datetime, lease_duration: timedelta) -> Update:
-        """Take a job for this worker, but only if it is still queued: the guard is what makes two workers unable to run one job.
+    def _under_concurrency_limits(concurrency_limits: dict[str, int]) -> Any:
+        """A condition that is false for a job whose type already has its limit of running jobs.
+
+        The running jobs are counted in the database, so the limit holds for every pod, not just this process. It is checked twice
+        (when choosing the next job and again inside the claim) because two pods can both see room before either has claimed.
+        """
+        running_job = aliased(BackgroundJob)
+        conditions = []
+        for limited_job_type, limit in concurrency_limits.items():
+            running_count = select(func.count()).select_from(running_job).where(running_job.job_type == limited_job_type, running_job.job_status == JobStatus.RUNNING).scalar_subquery()
+            conditions.append(or_(BackgroundJob.job_type != limited_job_type, running_count < limit))
+        return and_(*conditions)
+
+    @staticmethod
+    def _build_claim_statement(
+        background_job_id: str, worker_name: str, now: datetime, lease_duration: timedelta, concurrency_limits: dict[str, int] | None = None
+    ) -> Update:
+        """Take a job for this worker, but only if it is still queued and its type is under its limit: the guard is what makes two workers unable to run one job.
 
         SQL Server ignores SQLAlchemy's ``with_for_update(skip_locked=True)`` (no UPDLOCK/READPAST hint is rendered), so the
         lease must not depend on row locks. The caller checks that exactly one row was updated.
         """
+        claim_conditions = [BackgroundJob.background_job_id == background_job_id, BackgroundJob.job_status == JobStatus.QUEUED]
+        if concurrency_limits:
+            claim_conditions.append(JobWorker._under_concurrency_limits(concurrency_limits))
         return (
             update(BackgroundJob)
-            .where(BackgroundJob.background_job_id == background_job_id, BackgroundJob.job_status == JobStatus.QUEUED)
+            .where(*claim_conditions)
             .values(job_status=JobStatus.RUNNING, leased_by_worker_name=worker_name, lease_expires_at=now + lease_duration, started_at=now, attempt_count=BackgroundJob.attempt_count + 1)
             .execution_options(synchronize_session=False)
         )
 
     async def _lease_next_job(self) -> str | None:
+        concurrency_limits = self._concurrency_limits()
         for _ in range(LEASE_CLAIM_ATTEMPTS):
             now = datetime.now(UTC)
             async with open_session() as session:
                 candidate_job_id = await session.scalar(
                     select(BackgroundJob.background_job_id)
-                    .where(BackgroundJob.job_status == JobStatus.QUEUED, BackgroundJob.available_at <= now)
+                    .where(BackgroundJob.job_status == JobStatus.QUEUED, BackgroundJob.available_at <= now, self._under_concurrency_limits(concurrency_limits))
                     .order_by(BackgroundJob.priority_number, BackgroundJob.available_at)
                     .limit(1)
                 )
                 if candidate_job_id is None:
                     return None
                 claim_result = await session.execute(
-                    self._build_claim_statement(candidate_job_id, self.settings.worker_name, now, timedelta(seconds=self.worker_settings.job_lease_duration_seconds))
+                    self._build_claim_statement(candidate_job_id, self.settings.worker_name, now, timedelta(seconds=self.worker_settings.job_lease_duration_seconds), concurrency_limits)
                 )
                 if claim_result.rowcount == 1:
                     return candidate_job_id

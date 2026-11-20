@@ -15,6 +15,7 @@ from urllib.parse import quote
 
 import httpx
 
+from keigan.config.logging_config import current_correlation_id
 from keigan.exceptions.keigan_exceptions import IntegrationException
 from keigan.integrations.azure_identity_provider import AzureCredentialProvider
 from keigan.integrations.telemetry_gateway import ChangeEvent, ConnectionTestResult, MetricQueryResult, MetricSeries
@@ -30,6 +31,14 @@ MAXIMUM_PAGES = 20
 
 
 AZURE_ERROR_CODE_BY_STATUS = {403: "azure_forbidden", 404: "azure_not_found", 429: "azure_throttled", 503: "azure_throttled"}
+AZURE_ADVICE_BY_STATUS = {
+    401: "Azure did not accept Keigan's sign-in for {target}. Ask a Keigan admin to check the identity Keigan uses to reach Azure.",
+    403: "Azure refused access to {target}. Keigan's identity needs a read role on it (the check shows which one).",
+    404: "Azure could not find {target}. Check that it still exists and that the subscription and resource group names are right.",
+    429: "Azure is busy and asked Keigan to slow down while reading {target}. Try again in a minute.",
+    503: "Azure is busy and asked Keigan to slow down while reading {target}. Try again in a minute.",
+}
+AZURE_ADVICE_OTHERWISE = "Azure returned an error ({status}) for {target}. Try again; if it keeps failing, ask a Keigan admin."
 
 
 @dataclass(frozen=True)
@@ -87,14 +96,12 @@ class AzureClient:
     def _raise_for_status(response: httpx.Response, requested_url: str) -> None:
         if response.status_code < 400:
             return
-        try:
-            error_body = response.json().get("error", {})
-            error_message = f"{error_body.get('code', '')}: {error_body.get('message', '')}"
-        except ValueError:
-            error_message = response.text[:300]
+        target = requested_url.split("?")[0][-160:]
+        # Azure's own text names identities and role actions, so it goes to the log; the user gets what to do about it and a reference to quote.
+        logger.warning("Azure returned %s for %s: %s", response.status_code, target, response.text[:500])
+        advice = AZURE_ADVICE_BY_STATUS.get(response.status_code, AZURE_ADVICE_OTHERWISE).format(target=target, status=response.status_code)
         raise IntegrationException(
-            f"Azure returned {response.status_code} for {requested_url.split('?')[0][-160:]}: {error_message[:400]}",
-            error_code=AZURE_ERROR_CODE_BY_STATUS.get(response.status_code, "azure_request_failed"),
+            f"{advice} Reference {current_correlation_id() or 'none'}.", error_code=AZURE_ERROR_CODE_BY_STATUS.get(response.status_code, "azure_request_failed")
         )
 
     # ── Resource Manager ───────────────────────────────────────────────────────

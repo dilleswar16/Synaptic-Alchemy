@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
 import logging
 import random
 import time
@@ -32,7 +33,11 @@ from keigan.config.logging_config import current_correlation_id
 from keigan.config.settings import LlmProviderName, Settings
 from keigan.entities.platform_entities import LlmUsageRecord
 from keigan.exceptions.keigan_exceptions import (
+    LlmAuthenticationException,
     LlmOutputValidationException,
+    LlmRateLimitedException,
+    LlmRequestRejectedException,
+    LlmTimeoutException,
     LlmUnavailableException,
     TokenBudgetExceededException,
 )
@@ -43,6 +48,52 @@ OutputSchemaType = TypeVar("OutputSchemaType", bound=BaseModel)
 BUDGET_CACHE_SECONDS = 60
 USAGE_FLUSH_DELAY_SECONDS = 2.0
 USAGE_FLUSH_MAXIMUM_ATTEMPTS = 30
+
+
+class LlmFailureKind(StrEnum):
+    """Why an AI call failed, in the terms of what the person reading the error can do about it."""
+
+    TIMEOUT = "timeout"
+    RATE_LIMITED = "rate_limited"
+    AUTHENTICATION = "authentication"
+    REJECTED = "rejected"
+    UNAVAILABLE = "unavailable"
+
+
+# What the user is told per kind. The provider's own text is never shown (it can carry hosts, index names and keys); it goes to the log.
+LLM_FAILURE_RESPONSES: dict[LlmFailureKind, tuple[type[LlmUnavailableException], str]] = {
+    LlmFailureKind.TIMEOUT: (LlmTimeoutException, "The AI service took too long to answer. Try again; a smaller time window or a shorter question is answered faster."),
+    LlmFailureKind.RATE_LIMITED: (LlmRateLimitedException, "The AI service is busy and asked Keigan to slow down. Try again in a minute."),
+    LlmFailureKind.AUTHENTICATION: (
+        LlmAuthenticationException, "The AI service rejected Keigan's credentials. This is a setup problem that waiting will not fix: ask a Keigan admin to check the AI provider key.",
+    ),
+    LlmFailureKind.REJECTED: (
+        LlmRequestRejectedException, "The AI service rejected this request (for example an unknown model name or too much text). Ask a Keigan admin to check the AI model settings.",
+    ),
+    LlmFailureKind.UNAVAILABLE: (LlmUnavailableException, "The AI service is not responding. Try again in a few minutes."),
+}
+_AUTHENTICATION_MARKERS = ("api key", "api_key", "unauthenticated", "unauthorized", "permission denied", "invalid_api_key", "authentication")
+_RATE_LIMIT_MARKERS = ("rate limit", "resource exhausted", "resource has been exhausted", "quota", "too many requests", "429")
+_REJECTED_MARKERS = ("does not exist", "model not found", "not found", "context length", "maximum context", "too many tokens", "invalid request")
+
+
+def classify_llm_failure(invocation_error: BaseException) -> LlmFailureKind:
+    """Sort a provider SDK error into the kind that decides the advice. Works on the status code first, then on the message, because SDKs differ."""
+    if isinstance(invocation_error, TimeoutError) or "timeout" in type(invocation_error).__name__.lower():
+        return LlmFailureKind.TIMEOUT
+    status_code = (
+        getattr(invocation_error, "status_code", None)
+        or getattr(getattr(invocation_error, "response", None), "status_code", None)
+        or (code if isinstance(code := getattr(invocation_error, "code", None), int) else None)
+    )
+    error_text = str(invocation_error).lower()
+    if status_code in (401, 403) or (status_code in (400, None) and any(marker in error_text for marker in _AUTHENTICATION_MARKERS)):
+        return LlmFailureKind.AUTHENTICATION
+    if status_code == 429 or (status_code is None and any(marker in error_text for marker in _RATE_LIMIT_MARKERS)):
+        return LlmFailureKind.RATE_LIMITED
+    if status_code in (400, 404, 413, 422) or any(marker in error_text for marker in _REJECTED_MARKERS):
+        return LlmFailureKind.REJECTED
+    return LlmFailureKind.UNAVAILABLE
 
 
 class ModelTier(StrEnum):
@@ -328,6 +379,7 @@ class LlmGateway:
 
     async def _invoke_with_resilience(self, runnable: Any, messages: list[BaseMessage]) -> Any:
         last_error: Exception | None = None
+        self._log_prompt(messages)
         for attempt_index in range(self.settings.llm_maximum_retries + 1):
             try:
                 async with self._concurrency_limiter:
@@ -339,10 +391,18 @@ class LlmGateway:
                 back_off_seconds = min(30.0, (2**attempt_index) + random.uniform(0, 1))
                 logger.warning("LLM call failed (%s); retrying in %.1fs", type(invocation_error).__name__, back_off_seconds)
                 await asyncio.sleep(back_off_seconds)
-        logger.warning("LLM call failed after %s attempt(s): %s: %s", self.settings.llm_maximum_retries + 1, type(last_error).__name__, str(last_error)[:500])
-        raise LlmUnavailableException(
-            f"The AI service could not answer right now. Try again in a few minutes. If it keeps failing, quote reference {current_correlation_id() or 'none'} to a Keigan admin."
-        ) from last_error
+        assert last_error is not None  # the loop only leaves without a result after an error
+        failure_kind = classify_llm_failure(last_error)
+        logger.warning("LLM call failed (%s) after %s attempt(s): %s: %s", failure_kind, self.settings.llm_maximum_retries + 1, type(last_error).__name__, str(last_error)[:500])
+        exception_class, advice = LLM_FAILURE_RESPONSES[failure_kind]
+        raise exception_class(f"{advice} If it keeps failing, quote reference {current_correlation_id() or 'none'} to a Keigan admin.") from last_error
+
+    def _log_prompt(self, messages: list[BaseMessage]) -> None:
+        """Prompts hold customer telemetry, so they are logged as a hash (enough to tell two calls apart); the text only on a developer machine that switched it on."""
+        prompt_text = "\n\n".join(self._message_text(message) for message in messages)
+        logger.debug("LLM prompt sha256=%s characters=%s", hashlib.sha256(prompt_text.encode("utf-8")).hexdigest(), len(prompt_text))
+        if self.settings.log_prompts_for_debugging:
+            logger.info("LLM prompt text (LOG_PROMPTS_FOR_DEBUGGING is on):\n%s", prompt_text)
 
     @staticmethod
     def _is_retryable(invocation_error: Exception) -> bool:

@@ -179,3 +179,83 @@ async def test_job_with_an_expired_lease_returns_to_the_queue(seed_context) -> N
     async with open_session() as session:
         recovered = await session.get(BackgroundJob, job_id)
     assert recovered is not None and recovered.job_status == "queued"
+
+
+# ── INVESTIGATION_MAX_CONCURRENT ──────────────────────────────────────────────────────────────────
+
+
+async def _insert_job(job_type: str, job_status: str, priority_number: int = 100) -> str:
+    async with open_session() as session:
+        job = BackgroundJob(job_type=job_type, job_status=job_status, priority_number=priority_number, available_at=datetime.now(UTC) - timedelta(minutes=1),
+                            lease_expires_at=datetime.now(UTC) + timedelta(minutes=10) if job_status == "running" else None)
+        session.add(job)
+        await session.flush()
+        return job.background_job_id
+
+
+async def _finish_jobs(job_ids: list[str]) -> None:
+    async with open_session() as session:
+        await session.execute(update(BackgroundJob).where(BackgroundJob.background_job_id.in_(job_ids)).values(job_status="succeeded", finished_at=datetime.now(UTC)))
+
+
+async def _running_investigation_count() -> int:
+    async with open_session() as session:
+        return int(await session.scalar(select(func.count()).select_from(BackgroundJob).where(BackgroundJob.job_type == "run_investigation", BackgroundJob.job_status == "running")) or 0)
+
+
+async def test_investigation_waits_in_the_queue_when_the_concurrency_limit_is_reached(seed_context, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The limit protects the AI budget and the model: a burst of alerts queues investigations instead of starting them all."""
+    worker = JobWorker()
+    monkeypatch.setattr(worker.settings, "investigation_max_concurrent", await _running_investigation_count() + 1)
+    running_id = await _insert_job("run_investigation", "running")
+    waiting_investigation_id = await _insert_job("run_investigation", "queued", priority_number=-1000)
+    other_job_id = await _insert_job("retention_cleanup", "queued", priority_number=-999)
+    try:
+        leased_job_id = await worker._lease_next_job()
+        assert leased_job_id == other_job_id, "a queued investigation was started although the limit was reached, or it blocked the jobs behind it"
+        async with open_session() as session:
+            waiting_investigation = await session.get(BackgroundJob, waiting_investigation_id)
+        assert waiting_investigation is not None and waiting_investigation.job_status == "queued"
+    finally:
+        await _finish_jobs([running_id, waiting_investigation_id, other_job_id])
+
+
+async def test_investigation_starts_when_it_is_under_the_concurrency_limit(seed_context, monkeypatch: pytest.MonkeyPatch) -> None:
+    worker = JobWorker()
+    monkeypatch.setattr(worker.settings, "investigation_max_concurrent", await _running_investigation_count() + 2)
+    running_id = await _insert_job("run_investigation", "running")
+    waiting_investigation_id = await _insert_job("run_investigation", "queued", priority_number=-1000)
+    try:
+        assert await worker._lease_next_job() == waiting_investigation_id
+    finally:
+        await _finish_jobs([running_id, waiting_investigation_id])
+
+
+async def test_the_lease_itself_refuses_an_investigation_when_another_worker_just_filled_the_limit(seed_context) -> None:
+    """The candidate query and the claim are two statements; the claim must repeat the limit or two pods can both pass the first check."""
+    running_id = await _insert_job("run_investigation", "running")
+    waiting_investigation_id = await _insert_job("run_investigation", "queued", priority_number=-1000)
+    try:
+        claim = JobWorker._build_claim_statement(waiting_investigation_id, "worker-a", datetime.now(UTC), timedelta(minutes=10), {"run_investigation": await _running_investigation_count()})
+        async with open_session() as session:
+            assert (await session.execute(claim)).rowcount == 0
+    finally:
+        await _finish_jobs([running_id, waiting_investigation_id])
+
+
+def test_the_investigation_limit_is_read_from_settings() -> None:
+    worker = JobWorker()
+    assert worker._concurrency_limits() == {"run_investigation": worker.settings.investigation_max_concurrent}
+
+
+def test_the_limit_check_in_the_lease_compiles_for_sql_server_with_the_job_table_counted_under_an_alias() -> None:
+    claim_statement = JobWorker._build_claim_statement("job-1", "worker-a", datetime(2026, 11, 20, 8, 0, tzinfo=UTC), timedelta(minutes=10), {"run_investigation": 3})
+    compiled = str(claim_statement.compile(dialect=mssql.dialect()))
+    assert "count(*)" in compiled and "background_job_1.job_type" in compiled, compiled
+
+
+def test_the_limited_job_type_is_a_registered_job_handler() -> None:
+    from keigan.workers.job_handlers import JOB_HANDLER_REFERENCES
+    from keigan.workers.job_queue import INVESTIGATION_JOB_TYPE
+
+    assert INVESTIGATION_JOB_TYPE in JOB_HANDLER_REFERENCES

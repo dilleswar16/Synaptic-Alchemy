@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
+import httpx
 import yaml
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +30,8 @@ from keigan.config.settings import RESOURCES_DIRECTORY, get_settings
 from keigan.entities.application_entities import ApplicationComponent, LogToolConnection, MonitoredService, ServiceLogSource
 from keigan.entities.incident_entities import InvestigationEvidence
 from keigan.entities.status_values import CriticalityTier, RiskLevel
-from keigan.exceptions.keigan_exceptions import ReaderNotAvailableException
+from keigan.config.logging_config import current_correlation_id
+from keigan.exceptions.keigan_exceptions import ForbiddenException, IntegrationException, ReaderNotAvailableException
 from keigan.integrations.telemetry_gateway import ChangeEvent, LogQueryResult, TelemetryQuery, TelemetryTarget
 from keigan.utils.log_condenser import LEVEL_SEVERITY_ORDER, LogPattern, condense_log_records
 from keigan.utils.pii_masker import MaskingContext, PiiMasker
@@ -89,6 +91,33 @@ class ServiceTelemetryContext:
     def target_for(self, log_source: ServiceLogSource | None) -> TelemetryTarget:
         connection = self.log_tool_connections_by_id.get(log_source.log_tool_connection_id) if log_source and log_source.log_tool_connection_id else None
         return TelemetryTarget.from_entities(self.service, log_source, self.component, connection)
+
+
+# Why a source could not be read, by the error code the integration raised. The integration's own text is never copied into evidence:
+# it can name hosts and indices, and the AI and the screen both show evidence summaries.
+QUERY_FAILURE_REASON_BY_ERROR_CODE = {
+    "azure_forbidden": "Keigan's identity was refused access to this source (a read role is missing)",
+    "azure_throttled": "the source was busy and asked Keigan to slow down",
+    "azure_not_found": "the source was not found (it may have been renamed or removed)",
+}
+QUERY_FAILED_REASON = "the source returned an error"
+QUERY_TIMED_OUT_REASON = "the source took too long to answer"
+QUERY_NOT_APPROVED_REASON = "this source is not approved for this application"
+QUERY_REJECTED_REASON = "Keigan's query safety rules refused the query"
+QUERY_UNKNOWN_REASON = "for a reason Keigan could not identify"
+
+
+def describe_query_failure(query_error: Exception) -> str:
+    """One plain sentence on why an evidence query failed, so the report can say "refused access" instead of "could not be completed"."""
+    if isinstance(query_error, IntegrationException):
+        return QUERY_FAILURE_REASON_BY_ERROR_CODE.get(query_error.error_code, QUERY_FAILED_REASON)
+    if isinstance(query_error, (TimeoutError, httpx.TimeoutException)):
+        return QUERY_TIMED_OUT_REASON
+    if isinstance(query_error, ForbiddenException):
+        return QUERY_NOT_APPROVED_REASON
+    if isinstance(query_error, QueryRejectedError):
+        return QUERY_REJECTED_REASON
+    return f"the query failed {QUERY_UNKNOWN_REASON} (reference {current_correlation_id() or 'none'})"
 
 
 @lru_cache
@@ -210,7 +239,7 @@ class EvidenceService:
             draft.is_rule_out = True
         except Exception as query_error:  # noqa: BLE001 — one failing query must not stop the investigation
             logger.warning("Evidence query %s for %s failed: %s", template["template_key"], service.service_name, query_error)
-            draft.evidence_summary = "The query could not be completed. This source is inconclusive."
+            draft.evidence_summary = f"Not available: {describe_query_failure(query_error)}. Keigan cannot rule this source in or out."
             draft.is_rule_out = True
         return draft
 

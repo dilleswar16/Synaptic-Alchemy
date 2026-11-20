@@ -23,7 +23,7 @@ from keigan.entities.alert_entities import Alert, AlertDecision, AlertEvent, Ale
 from keigan.entities.application_entities import Application, MonitoredService, ServiceDependency
 from keigan.entities.platform_entities import PlatformSetting
 from keigan.entities.status_values import AlertGroupFeedbackVerdict, AlertPipelineStage, NoisePolicyMode
-from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException, ReaderNotAvailableException
+from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.security.current_user import CurrentUser
 from keigan.services import alert_rules
@@ -491,12 +491,9 @@ class AlertService:
         group = await self._readable_group(current_user, alert_group_id, require_admin=True)
         if group.incident_id:
             return group.incident_id
-        try:
-            from keigan.services.incident_service import IncidentService
+        from keigan.services.incident_service import IncidentService
 
-            incident_id = await IncidentService(self.session).create_servicenow_incident_from_alert_group(alert_group_id, current_user.user_principal_name)
-        except NotImplementedError:
-            raise ReaderNotAvailableException("Creating ServiceNow incidents from alert groups is not available yet.") from None
+        incident_id = await IncidentService(self.session).create_servicenow_incident_from_alert_group(alert_group_id, current_user.user_principal_name)
         group.servicenow_incident_suggested = False
         await AuditService(self.session).record(current_user, "alert_group.create_incident", target_entity_type="alert_group", target_entity_id=alert_group_id, application_id=group.application_id, action_details={"incident_id": incident_id})
         return incident_id

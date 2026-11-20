@@ -22,7 +22,7 @@ from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.incident_entities import Incident
 from keigan.entities.slo_entities import IntelligenceReport, PredictiveSignal, ServiceLevelIndicator, ServiceLevelObjective, SliMeasurement
 from keigan.entities.status_values import IntelligenceReportType, Priority, SignalSeverity, SignalStatus
-from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
+from keigan.exceptions.keigan_exceptions import NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
@@ -152,12 +152,9 @@ class IntelligenceService:
         from keigan.services.investigation_service import InvestigationService
 
         description = f"Predictive signal ({signal.detector_name}): {signal.signal_title}\n\n{signal.explanation_markdown or ''}"
-        try:
-            investigation_id = await InvestigationService(self.session).start_investigation(
-                signal.application_id, "manual", service_ids=[signal.service_id] if signal.service_id else None, description=description, requested_by_user_principal_name=current_user.user_principal_name,
-            )
-        except NotImplementedError as missing_error:
-            raise BusinessValidationException("Investigations are not available in this environment yet.") from missing_error
+        investigation_id = await InvestigationService(self.session).start_investigation(
+            signal.application_id, "manual", service_ids=[signal.service_id] if signal.service_id else None, description=description, requested_by_user_principal_name=current_user.user_principal_name,
+        )
         signal.signal_status, signal.status_changed_by_user_principal_name = SignalStatus.CONVERTED_TO_INCIDENT, current_user.user_principal_name
         await AuditService(self.session).record(current_user, "predictive_signal.investigate", target_entity_type="predictive_signal", target_entity_id=signal_id, application_id=signal.application_id, action_details={"investigationId": investigation_id})
         await self.session.flush()

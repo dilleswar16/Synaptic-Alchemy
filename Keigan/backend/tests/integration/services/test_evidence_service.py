@@ -6,12 +6,16 @@ import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from keigan.ai.investigation_ai_schemas import PlannedQuery
 from keigan.config.database_config import open_session
 from keigan.entities.application_entities import MonitoredService, ServiceLogSource
+from keigan.exceptions.keigan_exceptions import ForbiddenException, IntegrationException
 from keigan.integrations.telemetry_gateway import ChangeEvent, LogQueryResult, TelemetryQuery
 from keigan.services.evidence_service import EvidenceDraft, EvidenceService, ServiceTelemetryContext
 from keigan.utils.pii_masker import MaskingContext
+from keigan.utils.query_safety import QueryRejectedError
 
 WINDOW_END = datetime(2026, 11, 20, 12, 0, tzinfo=UTC)
 WINDOW_START = WINDOW_END - timedelta(hours=1)
@@ -199,3 +203,42 @@ class TestFailedPlannerQueryIsLoggedAndSkipped:
         drafts = await EvidenceService.run_planned_queries(fake_self, [planned_query], [service_context], window_start, window_end, window_start - timedelta(days=1), window_start, None)  # type: ignore[arg-type]
         assert drafts == []
         assert any(record.levelno == logging.WARNING and "claims-api" in record.getMessage() for record in caplog.records)
+
+
+class FailingGateway:
+    def __init__(self, error: Exception):
+        self.error = error
+
+    async def query_logs(self, target: object, telemetry_query: TelemetryQuery) -> LogQueryResult:
+        raise self.error
+
+
+async def _draft_for_failing_source(error: Exception) -> EvidenceDraft:
+    from keigan.services.evidence_service import load_query_templates
+
+    evidence_service = await _service(FailingGateway(error))  # type: ignore[arg-type]
+    context = _service_context()
+    template = next(template for template in load_query_templates() if template["query_language"] == "kql" and "aks" in template["service_types"] and "log_analytics" in template["source_kinds"])
+    return await evidence_service._run_template(context, context.log_sources[0], template, WINDOW_START, WINDOW_END, BASELINE_START, BASELINE_END, MaskingContext())
+
+
+class TestAFailedQueryTellsWhyTheSourceCouldNotBeRead:
+    @pytest.mark.parametrize(
+        ("error", "reason"),
+        [
+            (IntegrationException("raw es-prod.internal text", error_code="azure_forbidden"), "was refused access to this source"),
+            (IntegrationException("raw es-prod.internal text", error_code="azure_throttled"), "was busy and asked Keigan to slow down"),
+            (IntegrationException("raw es-prod.internal text", error_code="azure_not_found"), "was not found"),
+            (IntegrationException("raw es-prod.internal text"), "returned an error"),
+            (asyncio.TimeoutError(), "took too long to answer"),
+            (ForbiddenException("raw policy text"), "is not approved for this application"),
+            (QueryRejectedError("raw query text"), "safety rules refused the query"),
+            (RuntimeError("raw secret-token text"), "for a reason Keigan could not identify"),
+        ],
+    )
+    async def test_each_kind_of_failure_has_its_own_plain_reason(self, error: Exception, reason: str) -> None:
+        draft = await _draft_for_failing_source(error)
+        assert draft.evidence_summary.startswith("Not available: ") and reason in draft.evidence_summary
+        assert draft.evidence_summary.endswith("Keigan cannot rule this source in or out.")
+        assert "raw" not in draft.evidence_summary and "es-prod" not in draft.evidence_summary and "secret-token" not in draft.evidence_summary
+        assert draft.is_rule_out is True

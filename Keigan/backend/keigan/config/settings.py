@@ -11,7 +11,7 @@ from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
@@ -175,12 +175,12 @@ class Settings(BaseSettings):
     llm_daily_token_budget_per_application: int = 3_000_000
     llm_price_per_million_input_tokens: float = 1.25
     llm_price_per_million_output_tokens: float = 10.0
-    log_prompts_for_debugging: bool = False
+    log_prompts_for_debugging: bool = False  # prompts hold customer telemetry: only accepted when ENVIRONMENT=local
 
     # ── Investigations ─────────────────────────────────────────────────────────
     investigation_lookback_minutes: int = 60
     investigation_max_window_minutes: int = 240
-    investigation_max_concurrent: int = 3
+    investigation_max_concurrent: int = Field(default=3, ge=1)  # across all worker pods; more investigations wait in the queue
     investigation_max_services: int = 6
     investigation_evidence_token_budget: int = 8_000
     investigation_knowledge_token_budget: int = 6_000
@@ -232,6 +232,8 @@ class Settings(BaseSettings):
             if self.llm_provider == LlmProviderName.MOCK:
                 raise ValueError("LLM_PROVIDER=mock is not allowed when ENVIRONMENT=prod.")
         self._validate_authentication_and_secrets()
+        if self.log_prompts_for_debugging and self.environment != EnvironmentName.LOCAL:
+            raise ValueError(f"LOG_PROMPTS_FOR_DEBUGGING writes customer telemetry into the log, so it is only allowed when ENVIRONMENT=local, not {self.environment}.")
         if self.llm_provider in (LlmProviderName.GEMINI, LlmProviderName.OPENAI_COMPATIBLE) and not self.llm_api_key:
             if not (self.llm_provider == LlmProviderName.OPENAI_COMPATIBLE and self.llm_use_managed_identity):
                 raise ValueError(f"LLM_PROVIDER={self.llm_provider} requires LLM_API_KEY.")

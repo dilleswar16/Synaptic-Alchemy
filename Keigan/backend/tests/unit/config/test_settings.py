@@ -105,3 +105,18 @@ def test_allowed_app_roles_are_read_from_a_comma_separated_list() -> None:
 
 def test_no_app_roles_are_allowed_by_default() -> None:
     assert build_settings().entra_allowed_app_role_list == []
+
+
+@pytest.mark.parametrize("invalid_limit", [0, -1])
+def test_the_investigation_limit_must_allow_at_least_one_investigation(invalid_limit: int) -> None:
+    """A limit of 0 would leave every investigation queued for ever, with no error to explain it."""
+    with pytest.raises(ValidationError, match="investigation_max_concurrent"):
+        build_settings(investigation_max_concurrent=invalid_limit)
+
+
+def test_prompt_text_logging_is_only_allowed_on_a_developer_machine() -> None:
+    assert build_settings(environment="local", auth_mode="local", log_prompts_for_debugging=True).log_prompts_for_debugging is True
+    for environment_name in ("test", "dev", "prod"):
+        overrides = {"auth_mode": "local"} if environment_name == "test" else {}
+        with pytest.raises(ValidationError, match="LOG_PROMPTS_FOR_DEBUGGING"):
+            build_settings(environment=environment_name, log_prompts_for_debugging=True, **overrides)

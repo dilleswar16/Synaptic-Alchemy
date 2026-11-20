@@ -96,8 +96,6 @@ class ApplicationService:
             from keigan.services.slo_service import SloService
 
             slo_rows = await SloService(self.session).summarize_slos(application_ids)
-        except NotImplementedError:
-            return {}
         except Exception:  # noqa: BLE001  (SLO data must never break the applications list)
             logger.warning("SLO compliance for %s application(s) could not be read; the list shows none", len(application_ids), exc_info=True)
             return {}

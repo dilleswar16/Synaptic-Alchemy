@@ -199,13 +199,11 @@ class CommunicationService:
         return CommunicationSendResult(communication=CommunicationDto.model_validate(communication), deliveries_queued=deliveries, message=message)
 
     async def _deliver(self, communication: IncidentCommunication, requested_by: str) -> tuple[int, str]:
-        """Hand an approved communication to S4's notification service; keep it approved when delivery is not available yet."""
+        """Hand an approved communication to the notification service; when delivery cannot be queued it stays approved and can be sent later."""
         from keigan.services.notification_service import NotificationService
 
         try:
             deliveries = await NotificationService(self.session).send_communication(communication.communication_id, requested_by)
-        except NotImplementedError:
-            return 0, "Delivery is not enabled in this environment yet. The communication stays approved and can be sent later."
         except KeiganException as delivery_error:
             return 0, f"Delivery could not be queued: {delivery_error.detail}"
         communication.communication_status, communication.sent_at = CommunicationStatus.SENT, utc_now()
@@ -386,10 +384,7 @@ class CommunicationService:
         postmortem, application_id = await self._load_postmortem_for_admin(current_user, postmortem_id)
         if postmortem.report_status != PostmortemStatus.FINAL:
             raise BusinessValidationException("Finalise the postmortem before sending it.")
-        try:
-            deliveries = await NotificationService(self.session).send_postmortem(postmortem_id, current_user.user_principal_name)
-        except NotImplementedError:
-            return {"postmortem": self._postmortem_dto(postmortem).model_dump(by_alias=True, mode="json"), "deliveriesQueued": 0, "message": "Delivery is not enabled in this environment yet. The postmortem stays finalised and can be sent later."}
+        deliveries = await NotificationService(self.session).send_postmortem(postmortem_id, current_user.user_principal_name)
         postmortem.sent_at = utc_now()
         await AuditService(self.session).record(current_user, "postmortem.send", target_entity_type="postmortem_report", target_entity_id=postmortem_id, application_id=application_id, action_details={"deliveries": deliveries})
         await self.session.flush()

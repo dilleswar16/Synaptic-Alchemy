@@ -7,6 +7,7 @@ Re-discovery never deletes a service: resources that vanished are marked "no lon
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from dataclasses import dataclass
 from functools import lru_cache
@@ -28,6 +29,8 @@ MONITORED_SERVICE = "monitored_service"
 TELEMETRY_SOURCE = "telemetry_source"
 NOT_MONITORED = "not_monitored_type"
 SERVICES_WITH_APPLICATION_INSIGHTS = ("aks", "app_service", "function_app")
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -101,18 +104,33 @@ class DiscoveryEntry:
     service_type: str | None = None
     source_kind: str | None = None
     metric_definitions: list[dict[str, Any]] | None = None
+    diagnostics_known: bool = True  # False when Azure refused the read: the stored diagnostic settings are the last ones seen, not a fresh answer
+
+
+@dataclass
+class ReadFailures:
+    """How many reads about a resource Azure refused during one discovery run. Shown to the user so a refusal is not mistaken for "nothing configured"."""
+
+    diagnostic_settings: int = 0
+    metric_definitions: int = 0
+    workspace_lookups: int = 0
+
+    def as_summary(self) -> dict[str, int]:
+        return {"diagnosticSettings": self.diagnostic_settings, "metricDefinitions": self.metric_definitions, "workspaceLookups": self.workspace_lookups}
 
 
 class ComponentDiscoveryService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.settings = get_settings()
+        self.read_failures = ReadFailures()
 
     # ── Entry point ────────────────────────────────────────────────────────────
     async def discover(self, component: ApplicationComponent) -> dict[str, Any]:
         application = await self.session.get(Application, component.application_id)
         is_simulated = self.settings.telemetry_mode == IntegrationMode.SIMULATED or bool((component.component_configuration_json or {}).get("simulated"))
         existing_services = list((await self.session.scalars(select(MonitoredService).where(MonitoredService.component_id == component.component_id))).all())
+        self.read_failures = ReadFailures()
         if is_simulated:
             resources = self._simulate_resources(component, application.application_code if application else "APP", existing_services)
         else:
@@ -122,7 +140,7 @@ class ComponentDiscoveryService:
         entries_by_resource_id = await self._upsert_discovered_resources(component, resources, is_simulated)
         service_summary = await self._create_or_update_services(component, entries_by_resource_id, existing_services)
         await self._link_telemetry_sources(component, entries_by_resource_id, is_simulated)
-        summary = self._build_summary([entry.resource for entry in entries_by_resource_id.values()], service_summary)
+        summary = self._build_summary(list(entries_by_resource_id.values()), service_summary, self.read_failures)
         component.discovery_summary_json = summary
         component.last_discovered_at = utc_now()
         return summary
@@ -138,21 +156,29 @@ class ComponentDiscoveryService:
         entries_by_resource_id: dict[str, DiscoveryEntry] = {}
         limiter = asyncio.Semaphore(6)
 
-        async def read_diagnostics_and_metrics(resource: dict[str, Any], classification: ResourceClassification) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        async def read_diagnostics_and_metrics(
+            resource: dict[str, Any], classification: ResourceClassification
+        ) -> tuple[list[dict[str, Any]] | None, list[dict[str, Any]]]:
+            """``None`` for the diagnostic settings means Azure refused the read (an empty list means the resource has none)."""
             if classification.classification != MONITORED_SERVICE:
                 return [], []
             if is_simulated:
                 return list(resource.get("simulatedDiagnosticSettings", [])), metric_definitions_for(classification.service_type or "")
             async with limiter:
                 azure_client = application_context.azure_client()
+                diagnostic_settings: list[dict[str, Any]] | None
                 try:
                     diagnostic_settings = await azure_client.get_diagnostic_settings(component.azure_tenant_id, resource["id"])
-                except IntegrationException:
-                    diagnostic_settings = []
+                except IntegrationException as refusal:
+                    diagnostic_settings = None
+                    self.read_failures.diagnostic_settings += 1
+                    logger.warning("Azure refused the diagnostic settings of %s in component %s (%s); the stored settings are kept", resource["id"], component.component_id, refusal.error_code)
                 try:
                     metric_definitions = await azure_client.get_metric_definitions(component.azure_tenant_id, resource["id"])
-                except IntegrationException:
+                except IntegrationException as refusal:
                     metric_definitions = []
+                    self.read_failures.metric_definitions += 1
+                    logger.warning("Azure refused the metric definitions of %s in component %s (%s); the stored metrics are kept", resource["id"], component.component_id, refusal.error_code)
                 return diagnostic_settings, metric_definitions
 
         classifications = [classify_resource(resource["type"], resource.get("kind"), resource["name"]) for resource in resources]
@@ -170,20 +196,21 @@ class ComponentDiscoveryService:
             row.location_name = resource.get("location")
             row.resource_tags_json = resource.get("tags") or None
             row.monitoring_classification = classification.classification
-            row.diagnostic_settings_json = [
-                {"name": setting.get("name"), "workspaceId": (setting.get("properties") or setting).get("workspaceId"), "categories": [
-                    category.get("category") or category.get("categoryGroup") for category in ((setting.get("properties") or setting).get("logs") or [])
-                    if category.get("enabled", True)
-                ]}
-                for setting in diagnostic_settings
-            ] if classification.classification == MONITORED_SERVICE else None
-            row.has_diagnostic_setting = bool(diagnostic_settings)
-            row.log_analytics_workspace_resource_ids_json = sorted(
-                {str((setting.get("properties") or setting).get("workspaceId")) for setting in diagnostic_settings if (setting.get("properties") or setting).get("workspaceId")}
-            ) or None
+            if diagnostic_settings is not None:
+                row.diagnostic_settings_json = [
+                    {"name": setting.get("name"), "workspaceId": (setting.get("properties") or setting).get("workspaceId"), "categories": [
+                        category.get("category") or category.get("categoryGroup") for category in ((setting.get("properties") or setting).get("logs") or [])
+                        if category.get("enabled", True)
+                    ]}
+                    for setting in diagnostic_settings
+                ] if classification.classification == MONITORED_SERVICE else None
+                row.has_diagnostic_setting = bool(diagnostic_settings)
+                row.log_analytics_workspace_resource_ids_json = sorted(
+                    {str((setting.get("properties") or setting).get("workspaceId")) for setting in diagnostic_settings if (setting.get("properties") or setting).get("workspaceId")}
+                ) or None
             row.last_seen_at = now
             row.no_longer_found_at = None
-            entries_by_resource_id[resource_key] = DiscoveryEntry(row, classification.service_type, classification.source_kind, metric_definitions)
+            entries_by_resource_id[resource_key] = DiscoveryEntry(row, classification.service_type, classification.source_kind, metric_definitions, diagnostics_known=diagnostic_settings is not None)
         for resource_key, row in existing_by_resource_id.items():
             if resource_key not in seen_keys and row.no_longer_found_at is None:
                 row.no_longer_found_at = now
@@ -277,12 +304,16 @@ class ComponentDiscoveryService:
             return simulated_workspace_customer_id(workspace_resource_id)
         try:
             return await application_context.azure_client().get_workspace_customer_id(component.azure_tenant_id, workspace_resource_id)
-        except IntegrationException:
+        except IntegrationException as refusal:
+            self.read_failures.workspace_lookups += 1
+            logger.warning("Azure refused the workspace id lookup for %s in component %s (%s); the log source is saved without it", workspace_resource_id, component.component_id, refusal.error_code)
             return None
 
     # ── Summary ────────────────────────────────────────────────────────────────
     @staticmethod
-    def _build_summary(rows: list[DiscoveredResource], service_summary: dict[str, int]) -> dict[str, Any]:
+    def _build_summary(entries: list[DiscoveryEntry], service_summary: dict[str, int], read_failures: ReadFailures) -> dict[str, Any]:
+        rows = [entry.resource for entry in entries]
+        unknown_diagnostics_row_ids = {entry.resource.discovered_resource_id for entry in entries if not entry.diagnostics_known}
         present_rows = [row for row in rows if row.no_longer_found_at is None]
         monitored_rows = [row for row in present_rows if row.monitoring_classification == MONITORED_SERVICE]
         by_type: dict[str, int] = {}
@@ -292,11 +323,12 @@ class ComponentDiscoveryService:
             "resourcesFound": len(present_rows),
             "monitoredServices": len(monitored_rows),
             "telemetrySources": sum(1 for row in present_rows if row.monitoring_classification == TELEMETRY_SOURCE),
-            "withoutDiagnosticSetting": sum(1 for row in monitored_rows if not row.has_diagnostic_setting),
+            "withoutDiagnosticSetting": sum(1 for row in monitored_rows if not row.has_diagnostic_setting and row.discovered_resource_id not in unknown_diagnostics_row_ids),
             "noLongerFound": len(rows) - len(present_rows),
             "servicesCreated": service_summary["created"],
             "servicesUpdated": service_summary["updated"],
             "resourcesByType": by_type,
+            "readFailures": read_failures.as_summary(),
         }
 
     # ── Simulation ─────────────────────────────────────────────────────────────

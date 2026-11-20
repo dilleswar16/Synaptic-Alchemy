@@ -122,15 +122,21 @@ class TeamsChatService:
     async def _create_live_chat(self, topic: str, stakeholders: list[Stakeholder]) -> tuple[str, str | None]:
         graph_client = MicrosoftGraphClient(application_context.azure_credential_provider())
         object_ids: list[str] = []
+        unknown_to_entra: list[str] = []
         for stakeholder in stakeholders:
             object_id = stakeholder.entra_object_id
             if not object_id and stakeholder.user_principal_name:
                 directory_user = await graph_client.get_user_by_principal_name(stakeholder.user_principal_name)
                 object_id = directory_user.get("id") if directory_user else None
+                if not object_id:
+                    unknown_to_entra.append(stakeholder.user_principal_name)
             if object_id:
                 object_ids.append(object_id)
+        if unknown_to_entra:
+            logger.warning("Entra has no user for %s; they are left out of the incident chat", ", ".join(unknown_to_entra))
         if len(object_ids) < 2:
-            raise IntegrationException("A Teams group chat needs at least two members with Entra object ids.", error_code="teams_chat_members_missing")
+            missing_people = f" Entra does not know: {', '.join(unknown_to_entra)}. Correct their addresses on the stakeholder list." if unknown_to_entra else ""
+            raise IntegrationException(f"A Teams group chat needs at least two members with Entra object ids.{missing_people}", error_code="teams_chat_members_missing")
         chat = await graph_client.create_group_chat(topic, sorted(set(object_ids)))
         if self.settings.teams_app_catalog_id:
             try:
@@ -351,7 +357,7 @@ class TeamsChatService:
                     investigation.investigation_id, question_text, asked_by_user_principal_name=author_upn, asked_by_display_name=author_name, allow_log_queries=allow_log_queries
                 )
                 answer_text = answer.answer_markdown
-            except (NotImplementedError, KeiganException):
+            except KeiganException:
                 answer_text = None
             except Exception:  # noqa: BLE001 - a chat answer must never break the poller
                 logger.exception("Answering a Teams question failed")

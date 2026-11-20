@@ -194,3 +194,30 @@ async def test_the_digest_sees_roles_not_names_and_treats_the_summary_as_untrust
     assert comments and not any("](https://evil.example" in text or "![" in text for text in comments)
     async with open_session() as session:
         assert await session.scalar(select(InvestigationTimelineEvent.event_title).where(InvestigationTimelineEvent.incident_id == incident_id, InvestigationTimelineEvent.event_type == "chat_fact")) is None
+
+
+# ── Creating the Teams group chat: who could not be added ─────────────────────────────────────────
+
+
+class _DirectoryWithOneKnownPerson:
+    """Entra knows rui but not the other two people on the stakeholder list."""
+
+    async def get_user_by_principal_name(self, user_principal_name: str) -> dict[str, str] | None:
+        return {"id": "11111111-1111-1111-1111-111111111111"} if user_principal_name.startswith("rui") else None
+
+
+async def test_a_chat_that_cannot_be_created_names_the_stakeholders_entra_does_not_know(seed_context, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    from types import SimpleNamespace
+
+    from keigan.exceptions.keigan_exceptions import IntegrationException
+    from keigan.integrations import microsoft_graph_client
+
+    monkeypatch.setattr(microsoft_graph_client, "MicrosoftGraphClient", lambda _provider: _DirectoryWithOneKnownPerson())
+    monkeypatch.setattr("keigan.services.teams_chat_service.MicrosoftGraphClient", lambda _provider: _DirectoryWithOneKnownPerson())
+    stakeholders = [SimpleNamespace(entra_object_id=None, user_principal_name=name) for name in ("rui@example.com", "ghost1@example.com", "ghost2@example.com")]
+    with caplog.at_level("WARNING", logger="keigan.services.teams_chat_service"), pytest.raises(IntegrationException) as failure:
+        async with open_session() as session:
+            await TeamsChatService(session)._create_live_chat("Incident chat", stakeholders)  # type: ignore[arg-type]
+    assert failure.value.error_code == "teams_chat_members_missing"
+    assert "ghost1@example.com" in failure.value.detail and "ghost2@example.com" in failure.value.detail and "rui@example.com" not in failure.value.detail
+    assert any("ghost1@example.com" in record.getMessage() for record in caplog.records)

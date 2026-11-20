@@ -7,11 +7,13 @@ Only used when ``TEAMS_MODE=graph`` / ``EMAIL_MODE=graph``; simulated modes neve
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime
 from typing import Any
 
 import httpx
 
+from keigan.config.logging_config import current_correlation_id
 from keigan.config.settings import get_settings
 from keigan.exceptions.keigan_exceptions import AmbiguousGroupNameException, IntegrationException
 from keigan.integrations.azure_identity_provider import AzureCredentialProvider
@@ -19,6 +21,18 @@ from keigan.integrations.azure_identity_provider import AzureCredentialProvider
 GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 GRAPH_SCOPE = "https://graph.microsoft.com/.default"
 USER_SELECT_FIELDS = "id,displayName,mail,userPrincipalName,jobTitle"
+NOT_FOUND_STATUS = 404
+GRAPH_ERROR_CODE_BY_STATUS = {403: "graph_forbidden", 404: "graph_not_found", 429: "graph_throttled", 503: "graph_throttled"}
+GRAPH_ADVICE_BY_STATUS = {
+    401: "Microsoft Graph did not accept Keigan's sign-in. Ask a Keigan admin to check the identity Keigan uses.",
+    403: "Microsoft Graph refused the request. Ask an Entra admin to check the Graph permissions granted to Keigan.",
+    404: "Microsoft Graph could not find what Keigan asked for.",
+    429: "Microsoft Graph is busy and asked Keigan to slow down. Try again in a minute.",
+    503: "Microsoft Graph is busy and asked Keigan to slow down. Try again in a minute.",
+}
+GRAPH_ADVICE_OTHERWISE = "Microsoft Graph returned an error ({status}). Try again; if it keeps failing, ask a Keigan admin."
+
+logger = logging.getLogger(__name__)
 
 
 class MicrosoftGraphClient:
@@ -37,14 +51,20 @@ class MicrosoftGraphClient:
                 if response.status_code not in (429, 503, 504) or attempt_index == 3:
                     break
                 await asyncio.sleep(min(float(response.headers.get("Retry-After", 2 ** (attempt_index + 1))), 30))
-        if response.status_code >= 400:
-            try:
-                error_body = response.json().get("error", {})
-                error_message = f"{error_body.get('code', '')}: {error_body.get('message', '')}"
-            except ValueError:
-                error_message = response.text[:300]
-            raise IntegrationException(f"Microsoft Graph returned {response.status_code} for {method} {path[:120]}: {error_message[:400]}", error_code="graph_request_failed")
+        self._raise_for_status(response, method, path)
         return response
+
+    @staticmethod
+    def _raise_for_status(response: httpx.Response, method: str, path: str) -> None:
+        if response.status_code < 400:
+            return
+        # Graph's text and the path can name people and groups, so they go to the log; the user gets what to do about it and a reference to quote.
+        logger.warning("Microsoft Graph returned %s for %s %s: %s", response.status_code, method, path[:120], response.text[:500])
+        advice = GRAPH_ADVICE_BY_STATUS.get(response.status_code, GRAPH_ADVICE_OTHERWISE).format(status=response.status_code)
+        raise IntegrationException(
+            f"{advice} Reference {current_correlation_id() or 'none'}.", error_code=GRAPH_ERROR_CODE_BY_STATUS.get(response.status_code, "graph_request_failed"),
+            extra={"upstreamStatus": response.status_code},
+        )
 
     # ── Groups (application access) ────────────────────────────────────────────
     async def find_group(self, display_name: str | None, object_id: str | None) -> dict[str, Any] | None:
@@ -57,7 +77,7 @@ class MicrosoftGraphClient:
             escaped_name = (display_name or "").replace("'", "''")
             matching_groups = (await self._request("GET", "/groups", params={"$filter": f"displayName eq '{escaped_name}'", "$select": "id,displayName", "$top": 2})).json().get("value", [])
         except IntegrationException as lookup_error:
-            if "returned 404" in lookup_error.detail:
+            if lookup_error.extra.get("upstreamStatus") == NOT_FOUND_STATUS:
                 return None
             raise
         if len(matching_groups) > 1:
@@ -84,10 +104,13 @@ class MicrosoftGraphClient:
         return response.json().get("value", [])
 
     async def get_user_by_principal_name(self, user_principal_name: str) -> dict[str, Any] | None:
+        """The person's directory entry, or None when Entra has no such user. Any other failure (permission, outage) is raised: it must not look like a missing user."""
         try:
             response = await self._request("GET", f"/users/{user_principal_name}", params={"$select": USER_SELECT_FIELDS})
-        except IntegrationException:
-            return None
+        except IntegrationException as lookup_error:
+            if lookup_error.extra.get("upstreamStatus") == NOT_FOUND_STATUS:
+                return None
+            raise
         return response.json()
 
     # ── Teams chats ────────────────────────────────────────────────────────────
