@@ -189,6 +189,7 @@ class Settings(BaseSettings):
     # ── SLO and intelligence ───────────────────────────────────────────────────
     sli_collection_interval_minutes: int = 5
     slo_backfill_days: int = 30
+    slo_supporting_signal_backfill_days: int = 7
     predictive_analysis_interval_minutes: int = 60
     intelligence_weekly_report_weekday: int = 0  # Monday
     intelligence_weekly_report_hour: int = 8

@@ -110,6 +110,42 @@ class TestCustomSliQueryIsValidatedBeforeExecution:
         assert result == {"inserted": result["inserted"]}
 
 
+class WindowRecordingReader:
+    """Stands in for the telemetry reader and remembers which time range each backfill asked for."""
+
+    def __init__(self) -> None:
+        self.requested_ranges: list[tuple[datetime, datetime]] = []
+
+    async def read_samples(self, service_id: str, *, start: datetime, end: datetime, **_ignored: object) -> list:
+        self.requested_ranges.append((start, end))
+        return []
+
+
+class TestBackfillWindowComesFromSettings:
+    @pytest.mark.parametrize(("sli_kind", "setting_name"), [("availability", "SLO_BACKFILL_DAYS"), ("supporting_signal", "SLO_SUPPORTING_SIGNAL_BACKFILL_DAYS")])
+    async def test_backfill_reads_as_many_days_as_the_setting_says(self, sli_kind: str, setting_name: str, seed_context, monkeypatch: pytest.MonkeyPatch) -> None:
+        from keigan.config.settings import get_settings
+
+        monkeypatch.setenv(setting_name, "11")
+        get_settings.cache_clear()
+        try:
+            application_id = seed_context.application_ids_by_code["CLMJP"]
+            reader = WindowRecordingReader()
+            async with open_session() as session:
+                sli = ServiceLevelIndicator(
+                    application_id=application_id, service_id=seed_context.service_id("CLMJP", "claims-api"), catalog_entry_key="custom", sli_name=f"Pytest {sli_kind} window",
+                    sli_kind=sli_kind, data_source_kind="log_query", query_definition_json={"kql": GOOD_KQL}, created_by_user_principal_name="pytest", updated_by_user_principal_name="pytest",
+                )
+                session.add(sli)
+                await session.flush()
+                result = await SloService(session, reader=reader).backfill_sli(sli.sli_id)  # type: ignore[arg-type]
+        finally:
+            get_settings.cache_clear()
+        (start, end), = reader.requested_ranges
+        assert end - start == timedelta(days=11)
+        assert result is not None and result["days"] == 11
+
+
 class TestSliListLoadsInBulk:
     async def test_listing_slis_runs_a_constant_number_of_queries(self, client: httpx.AsyncClient, auth_headers: AuthHeaders, seed_context) -> None:
         application_id = seed_context.application_ids_by_code["CLMJP"]

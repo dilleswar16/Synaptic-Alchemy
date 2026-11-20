@@ -197,7 +197,6 @@ class EvidenceService:
             window_start=window_start, window_end=window_end, criticality_tier=service.criticality_tier,
         )
         target = service_context.target_for(log_source)
-        masked_count_before = masking_context.masked_value_count
         try:
             if template["query_language"] == "metrics_api":
                 await self._fill_metric_evidence(draft, target, template, window_start, window_end, baseline_start, baseline_end)
@@ -212,7 +211,6 @@ class EvidenceService:
             logger.warning("Evidence query %s for %s failed: %s", template["template_key"], service.service_name, query_error)
             draft.evidence_summary = f"The query could not be completed ({type(query_error).__name__}). This source is inconclusive."
             draft.is_rule_out = True
-        draft.masked_value_count = masking_context.masked_value_count - masked_count_before
         return draft
 
     # ── Logs ───────────────────────────────────────────────────────────────────
@@ -232,7 +230,13 @@ class EvidenceService:
             self.telemetry_gateway.query_logs(target, build_query(baseline_start, baseline_end, baseline_query_text or query_text)),
         )
         draft.deep_link_url = window_result.deep_link_url or self._portal_link(target)
-        masker = PiiMasker(masking_context)
+        # Masking happens only in the synchronous part below, with no await in it, so no other query can count into the
+        # shared masking context meanwhile: the difference is exactly the number of values masked for this evidence.
+        masked_count_before = masking_context.masked_value_count
+        self._summarize_log_results(draft, signal_kind, PiiMasker(masking_context), window_result, baseline_result)
+        draft.masked_value_count = masking_context.masked_value_count - masked_count_before
+
+    def _summarize_log_results(self, draft: EvidenceDraft, signal_kind: str, masker: PiiMasker, window_result: LogQueryResult, baseline_result: LogQueryResult) -> None:
         window_rows = masker.mask_rows(window_result.rows)
         baseline_rows = masker.mask_rows(baseline_result.rows)
         if signal_kind == "slow_requests":
@@ -488,13 +492,11 @@ class EvidenceService:
                 f"{service_context.service.service_name}: {template['title']}", "", language, hardened_query.query_text, window_start, window_end,
                 criticality_tier=service_context.service.criticality_tier,
             )
-            masked_count_before = masking_context.masked_value_count
             try:
                 await self._fill_log_evidence(draft, service_context.target_for(matching_source), template, hardened_query.query_text, window_start, window_end, baseline_start, baseline_end, masking_context, hardened_baseline_query.query_text)
             except Exception as query_error:  # noqa: BLE001
                 logger.info("Planner query failed: %s", query_error)
                 continue
-            draft.masked_value_count = masking_context.masked_value_count - masked_count_before
             drafts.append(draft)
         return drafts
 

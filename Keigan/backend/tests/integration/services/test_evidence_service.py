@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -9,7 +10,7 @@ from keigan.ai.investigation_ai_schemas import PlannedQuery
 from keigan.config.database_config import open_session
 from keigan.entities.application_entities import MonitoredService, ServiceLogSource
 from keigan.integrations.telemetry_gateway import ChangeEvent, LogQueryResult, TelemetryQuery
-from keigan.services.evidence_service import EvidenceService, ServiceTelemetryContext
+from keigan.services.evidence_service import EvidenceDraft, EvidenceService, ServiceTelemetryContext
 from keigan.utils.pii_masker import MaskingContext
 
 WINDOW_END = datetime(2026, 11, 20, 12, 0, tzinfo=UTC)
@@ -135,3 +136,46 @@ class TestActivityLogPeopleAreMasked:
         assert change_events[0].caller == "<EMAIL_1>"
         assert masking_context.masked_value_count >= 1
 
+
+
+class StaggeredGateway:
+    """Answers each query after a different pause, so concurrent queries finish in a different order than they started."""
+
+    def __init__(self, rows_by_scope: dict[str, list[dict]], pause_seconds_by_scope: dict[str, float]) -> None:
+        self.rows_by_scope = rows_by_scope
+        self.pause_seconds_by_scope = pause_seconds_by_scope
+
+    async def query_logs(self, target: object, telemetry_query: TelemetryQuery) -> LogQueryResult:
+        scope = telemetry_query.query_text
+        await asyncio.sleep(self.pause_seconds_by_scope[scope])
+        return LogQueryResult(["message"], self.rows_by_scope[scope], scope, telemetry_query.query_language)
+
+
+class TestMaskedValueCountBelongsToItsOwnEvidence:
+    async def test_concurrent_queries_sharing_one_masking_context_each_count_only_their_own_masked_values(self) -> None:
+        """The count stored with each evidence item used to be a before/after difference of a counter shared by all concurrent queries."""
+        slow_scope, fast_scope = "slow-source", "fast-source"
+        gateway = StaggeredGateway(
+            rows_by_scope={
+                slow_scope: [{"message": "failed for first.person@example.com"}],
+                fast_scope: [{"message": f"failed for person{index}@example.com"} for index in range(5)],
+            },
+            pause_seconds_by_scope={slow_scope: 0.05, fast_scope: 0.0},
+        )
+        evidence_service = await _service(gateway)  # type: ignore[arg-type]
+        masking_context = MaskingContext()
+        template = {"template_key": "planner_query", "query_language": "kql", "signal_kind": "generic", "evidence_category": "ai_planned_query"}
+        service_context = _service_context()
+
+        def new_draft() -> EvidenceDraft:
+            return EvidenceDraft("svc-1", "claims-api", "log_analytics", "ai_planned_query", "claims-api: x", "", "kql", "", WINDOW_START, WINDOW_END, criticality_tier="tier_2")
+
+        slow_draft, fast_draft = new_draft(), new_draft()
+        target = service_context.target_for(service_context.log_sources[0])
+        await asyncio.gather(
+            evidence_service._fill_log_evidence(slow_draft, target, template, slow_scope, WINDOW_START, WINDOW_END, BASELINE_START, BASELINE_END, masking_context),
+            evidence_service._fill_log_evidence(fast_draft, target, template, fast_scope, WINDOW_START, WINDOW_END, BASELINE_START, BASELINE_END, masking_context),
+        )
+        assert slow_draft.masked_value_count == 2  # the window query and the baseline query each return the one address
+        assert fast_draft.masked_value_count == 10
+        assert masking_context.masked_value_count == 12

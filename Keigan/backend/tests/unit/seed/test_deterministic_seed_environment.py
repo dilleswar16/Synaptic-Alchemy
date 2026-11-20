@@ -78,11 +78,3 @@ def test_datetimes_built_by_libraries_still_count_as_datetime_inside_the_run() -
         assert isinstance(datetime(2026, 1, 1), base_entity.datetime)
         assert isinstance(base_entity.datetime.now(UTC), datetime)
 
-
-def test_evidence_queries_run_one_at_a_time_inside_the_run_so_shared_counters_cannot_interleave_and_the_limit_comes_back_after() -> None:
-    from keigan.services import evidence_service
-
-    real_limit = evidence_service.MAXIMUM_CONCURRENT_QUERIES
-    with deterministic_seed_environment(REFERENCE_TIME):
-        assert evidence_service.MAXIMUM_CONCURRENT_QUERIES == 1
-    assert evidence_service.MAXIMUM_CONCURRENT_QUERIES == real_limit

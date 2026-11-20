@@ -9,9 +9,6 @@ so instead this module substitutes those sources GLOBALLY for the duration of on
 
 - ``datetime`` is replaced in every already imported ``keigan`` module that did ``from datetime import datetime``;
 - ``uuid.uuid4``, ``secrets.token_hex``, ``secrets.token_urlsafe`` and ``secrets.token_bytes`` are replaced on their modules;
-- ``evidence_service.MAXIMUM_CONCURRENT_QUERIES`` is set to 1: concurrent evidence queries share one masking counter, so with several in
-  flight the per-evidence ``masked_value_count`` depends on how the event loop interleaves them (a defect to fix in that service; until then
-  the seed runs them one at a time to stay reproducible);
 - the global ``random`` generator is re-seeded (its previous state is saved).
 
 Everything is put back when the block exits, also when it raises. Use it only in a script or test that owns the process (the demo SQL
@@ -94,9 +91,6 @@ def deterministic_seed_environment(reference_time: datetime, random_seed: int = 
         module for name, module in list(sys.modules.items())
         if (name == "keigan" or name.startswith("keigan.")) and getattr(module, "datetime", None) is _RealDatetime
     ]
-    from keigan.services import evidence_service
-
-    real_concurrent_query_limit = evidence_service.MAXIMUM_CONCURRENT_QUERIES
     real_sources = (uuid.uuid4, secrets.token_bytes, secrets.token_hex, secrets.token_urlsafe)
     saved_random_state = random.getstate()
     secret_source = random.Random(random_seed)
@@ -112,7 +106,6 @@ def deterministic_seed_environment(reference_time: datetime, random_seed: int = 
 
     for module in patched_modules:
         module.datetime = fixed_clock_datetime  # type: ignore[attr-defined]
-    evidence_service.MAXIMUM_CONCURRENT_QUERIES = 1
     uuid.uuid4 = _sequential_identifier_source()  # type: ignore[assignment]
     secrets.token_bytes, secrets.token_hex, secrets.token_urlsafe = token_bytes, token_hex, token_urlsafe
     random.seed(random_seed)
@@ -121,6 +114,5 @@ def deterministic_seed_environment(reference_time: datetime, random_seed: int = 
     finally:
         for module in patched_modules:
             module.datetime = _RealDatetime  # type: ignore[attr-defined]
-        evidence_service.MAXIMUM_CONCURRENT_QUERIES = real_concurrent_query_limit
         uuid.uuid4, secrets.token_bytes, secrets.token_hex, secrets.token_urlsafe = real_sources
         random.setstate(saved_random_state)

@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy import case, func, insert, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from keigan.config.settings import get_settings
 from keigan.dtos.slo_dtos import (
     EcosystemHeatmapResponse, HeatmapCell, HeatmapRow, SeriesPoint, SliCreateRequest, SliResponse, SliUpdateRequest, SloCreateRequest, SloResponse, SloSeriesResponse, SloSummaryResponse, SloUpdateRequest,
 )
@@ -32,8 +33,6 @@ from keigan.utils.time_utils import floor_to_interval
 
 logger = logging.getLogger(__name__)
 SAMPLE_INTERVAL_MINUTES = 5
-BACKFILL_DAYS = 30
-SUPPORTING_SIGNAL_BACKFILL_DAYS = 7
 PAGE_BURN_RATE, TICKET_BURN_RATE = 14.4, 6.0
 MINIMUM_EVENTS_IN_LONG_WINDOW = 50  # low-volume SLIs (synthetic probes, batch) need enough events before a burn rate means anything
 INSERT_CHUNK_SIZE = 800
@@ -54,7 +53,8 @@ class SloService:
         sli = await self.session.get(ServiceLevelIndicator, sli_id)
         if sli is None or not sli.service_id:
             return {"inserted": 0}
-        days = SUPPORTING_SIGNAL_BACKFILL_DAYS if sli.sli_kind == "supporting_signal" else BACKFILL_DAYS
+        settings = get_settings()
+        days = settings.slo_supporting_signal_backfill_days if sli.sli_kind == "supporting_signal" else settings.slo_backfill_days
         end = floor_to_interval(alert_rules.utc_now(), SAMPLE_INTERVAL_MINUTES)
         try:
             inserted = await self._collect(sli, end - timedelta(days=days), end)
