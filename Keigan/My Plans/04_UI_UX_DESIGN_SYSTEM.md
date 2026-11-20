@@ -48,15 +48,16 @@ white text on Blue 1 only ≥ 18 pt. Gradients only for brand moments, progress 
 | `--color-surface-hover` | `#F3F7FB` |
 | `--color-surface-selected` | `#E6F3FB` (Blue 1 at 10 %) |
 | `--color-border` | `#E3E8EE` (hairlines) |
-| `--color-border-strong` | `#D9D9D6` |
+| `--color-border-strong` | `#D9D9D6` (dividers, decorative edges) |
+| `--color-border-control` | light `#8A8F94`, dark `#6F8398`: edges of inputs, checkboxes, radios and outlined buttons; at least 3:1 against the surface (WCAG 1.4.11), checked by `npm run check:contrast` |
 | `--color-text` | `#333333` |
 | `--color-text-muted` | `#6E6E6E` |
-| `--color-text-subtle` | `#8C8F93` (≥ 16 px or non-essential only) |
+| `--color-text-subtle` | `#696D72` light, `#8799AB` dark (the code's value, which passes 4.5:1; this page once listed a lighter value that did not) |
 | `--color-text-inverse` | `#FFFFFF` |
-| `--color-action` | `#007ABC` · hover `#0061A0` · pressed `#00527F` |
+| `--color-action` | `#0072B0` · hover `#0061A0` · pressed `#00527F` (the MetLife Blue 2 `#007ABC` is darkened so link text passes 4.5:1) |
 | `--color-action-subtle` | `#E6F2F8` (secondary button fill, selected chip) |
 | `--color-focus-ring` | `0 0 0 3px rgba(0,122,188,.35)` |
-| `--color-success` | text `#528320` · fill `#A4CE4E` · bg `#F1F8E6` |
+| `--color-success` | text `#4B7A1D` · fill `#A4CE4E` · bg `#F1F8E6` (text darkened from `#528320` for 4.5:1) |
 | `--color-warning` | text `#7A5A00` · fill `#FFC600` · bg `#FFF8DB` |
 | `--color-danger` | text `#B31B1D` · fill `#D42123` · bg `#FDECEC` |
 | `--color-alert` | text `#B0084A` · fill `#DB0A5B` · bg `#FDE8F0` |
@@ -191,13 +192,13 @@ Every component supports: default, hover, focus-visible (2 px ring `--color-acti
 
 | Component | Spec |
 |---|---|
-| `Button` | Variants: `primary` (Blue 2 fill, white text, hover Dark Blue), `secondary` (white, border-strong, text), `subtle` (action-subtle fill, Dark Blue text), `ghost`, `danger`, `gradient-outline` (secondary CTA with gradient stroke). Sizes: sm 32 px / md 40 px / lg 48 px; radius 8; body 15/600 (sm 14). Icon-left/right; loading spinner replaces icon. |
+| `Button` | Variants: `primary` (Blue 2 fill, white text, hover Dark Blue), `secondary` (white, border-control, text), `subtle` (action-subtle fill, Dark Blue text), `ghost`, `danger`, `gradient-outline` (secondary CTA with gradient stroke). Sizes: sm 32 px / md 40 px / lg 48 px; radius 8; body 15/600 (sm 14). Icon-left/right; loading spinner replaces icon. |
 | `IconButton` | 36 / 40 px square, ghost by default, tooltip required, `aria-label` required. |
 | `Card` | surface, border, radius 12, shadow-xs, padding 24; optional `CardHeader` (title h3 + description + actions), `CardFooter`. `interactive` prop for hover lift. |
 | `StatTile` | icon tile (40 px rounded 10 with tinted bg), label (body-sm muted), value (kpi), delta/secondary line, sparkline optional, whole tile is a link. |
 | `StatusChip` / `Badge` | height 24, radius full, caption 13/500, icon 14, tones: neutral, info, success, warning, danger, alert, ai, brand. `PriorityChip` for P1–P4. |
 | `Tabs` | underline style: 2 px Blue 2 indicator that slides; tab text body 15/500; counts as micro badges. Also `SegmentedControl` (pill group) for small choices. |
-| `Input`, `Textarea`, `Select`, `Combobox`, `TokenInput` | 40 px, radius 8, border-strong, focus ring, label above (body-sm 14/600), helper below (caption muted), error text danger with icon. |
+| `Input`, `Textarea`, `Select`, `Combobox`, `TokenInput` | 40 px, radius 8, border-control, focus ring, label above (body-sm 14/600), helper below (caption muted), error text danger with icon. |
 | `Switch`, `Checkbox`, `Radio` | Radix-based, Blue 2 when on. |
 | `Dialog` | radius 16, max 560 (lg 760), shadow-lg, title h2, focus trap, Esc closes. |
 | `Drawer` / `Sheet` | right side, 480 / 640 / 880 widths, header sticky, footer sticky with actions. |
@@ -223,6 +224,16 @@ Every component supports: default, hover, focus-visible (2 px ring `--color-acti
 | `ChatPanel` | floating launcher (56 px circle, gradient-ai, sparkle icon) → panel 420 px (expand to 50 vw), header with context chip, message list, suggested prompts chips, composer with Enter to send / Shift+Enter newline. |
 | `ChartMessage` | renders AI chart specification with Recharts + "How I got this" disclosure. |
 | `LanguageSwitcher`, `ThemeToggle`, `ApplicationScopeSwitcher`, `CommandPalette` | top bar controls. |
+
+### 5.1 Rules added in the UI/UX pass (2026-11-21)
+
+- **Tables on a phone.** Below 640 px every `DataTable` row becomes a stacked card: the first column is the title, the other columns show their header as a label. No column is hidden behind a sideways scroll. `mobileLayout="scroll"` keeps the wide grid for matrices. The scrolling area is a focusable region named by the table caption and carries `aria-busy` while loading.
+- **Banners.** Only an error (`danger`) is announced as an alert; warnings and notices are polite status messages. A neutral notice uses the info icon, not the plain circle (it reads as an unchecked radio button).
+- **Dialogs.** The open animation only nudges the dialog; it must not translate by -50%, because the overlay's grid already centres it.
+- **Phone navigation** is a modal: focus moves into it, the page behind is `inert`, focus returns to the menu button.
+- **Commands** wrap by default: a command must be readable before it is copied.
+- **Japanese** breaks at phrase boundaries (`word-break: auto-phrase`, `line-break: strict`); Enter that confirms an IME conversion never sends a message.
+- **Form errors** are `role="alert"` so a late error is announced.
 
 ## 6. Page layouts
 

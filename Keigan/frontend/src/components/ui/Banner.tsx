@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { X } from "lucide-react";
+import { Info, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/utils/cn";
 import { defaultToneIcons, toneBorderClasses, toneSoftClasses, toneTextClasses, type StatusTone } from "./toneStyles";
@@ -20,8 +20,10 @@ export interface BannerProps {
 /** Inline message spanning its container: info notices, warnings, the local-mode banner. */
 export function Banner({ tone = "info", title, children, icon, action, onDismiss, className }: BannerProps) {
   const { t } = useTranslation("common");
-  const Icon = icon === false ? null : (icon ?? defaultToneIcons[tone]);
-  const isUrgent = tone === "danger" || tone === "warning" || tone === "alert";
+  // A neutral notice shows the info icon: the plain circle of a neutral chip reads as an unchecked radio button next to text.
+  const Icon = icon === false ? null : (icon ?? (tone === "neutral" ? Info : defaultToneIcons[tone]));
+  // Only an error interrupts a screen reader; warnings and notices are announced politely.
+  const isUrgent = tone === "danger";
   return (
     <div
       role={isUrgent ? "alert" : "status"}

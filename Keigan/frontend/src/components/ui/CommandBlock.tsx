@@ -19,7 +19,7 @@ export interface CommandBlockProps {
   title?: ReactNode;
   riskLevel?: CommandRiskLevel;
   defaultCommandKey?: string;
-  /** Wrap long lines instead of scrolling horizontally. */
+  /** Wrap long lines (the default: a command must be readable before it is copied); false scrolls sideways. */
   wrapLines?: boolean;
   /** Maximum body height before it scrolls (CSS length). */
   maximumHeight?: string;
@@ -36,7 +36,7 @@ const riskStyles: Record<CommandRiskLevel, { className: string; icon: typeof Shi
  * Dark code surface (#0F1B27, mono 13.5) for commands Keigan suggests — never runs. Tabs per tool, copy with
  * "Copied" state, risk pill (high risk reads "confirm with change process").
  */
-export function CommandBlock({ commands, title, riskLevel, defaultCommandKey, wrapLines = false, maximumHeight = "420px", className }: CommandBlockProps) {
+export function CommandBlock({ commands, title, riskLevel, defaultCommandKey, wrapLines = true, maximumHeight = "420px", className }: CommandBlockProps) {
   const { t } = useTranslation("common");
   const tabIdPrefix = useId();
   const commandVariants: CommandVariant[] = typeof commands === "string" ? [{ key: "command", label: "", content: commands }] : commands;

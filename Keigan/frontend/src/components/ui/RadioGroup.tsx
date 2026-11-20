@@ -85,7 +85,7 @@ export function RadioGroup<Value extends string = string>({
                 id={optionId}
                 value={option.value}
                 disabled={option.disabled}
-                className="mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-full border-[1.5px] border-strong bg-surface transition-colors hover:border-action data-[state=checked]:border-action"
+                className="mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-full border-[1.5px] border-control bg-surface transition-colors hover:border-action data-[state=checked]:border-action"
               >
                 <RadixRadioGroup.Indicator className="size-2.5 rounded-full bg-action" />
               </RadixRadioGroup.Item>

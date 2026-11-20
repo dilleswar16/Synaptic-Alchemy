@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { SendHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { IconButton } from "@/components/ui/IconButton";
+import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { cn } from "@/utils/cn";
 
@@ -40,7 +40,7 @@ export function ChatComposer({ onSend, isSending = false, isDisabled = false, pl
         }}
         rows={1} autoResize maximumRows={6} containerClassName="flex-1"
       />
-      <IconButton icon={SendHorizontal} label={t("composer.send")} variant="primary" size="lg" type="submit" disabled={!canSend} isLoading={isSending} className="bg-gradient-ai" />
+      <Button type="submit" size="lg" leadingIcon={SendHorizontal} disabled={!canSend} isLoading={isSending}>{t("composer.send")}</Button>
     </form>
   );
 }

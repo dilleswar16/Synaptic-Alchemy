@@ -49,7 +49,7 @@ export function Checkbox({
         aria-label={ariaProps["aria-label"]}
         aria-describedby={descriptionId}
         className={cn(
-          "mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-[5px] border-[1.5px] border-strong bg-surface text-on-action transition-colors",
+          "mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-[5px] border-[1.5px] border-control bg-surface text-on-action transition-colors",
           "hover:border-action data-[state=checked]:border-action data-[state=checked]:bg-action",
           "data-[state=indeterminate]:border-action data-[state=indeterminate]:bg-action disabled:cursor-not-allowed disabled:opacity-50",
         )}

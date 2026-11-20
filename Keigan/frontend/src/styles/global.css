@@ -56,6 +56,7 @@
   /* Borders: border-hairline, border-strong */
   --color-hairline: var(--color-border);
   --color-strong: var(--color-border-strong);
+  --color-control: var(--color-border-control);
 
   /* Text: text-default, text-muted, text-subtle, text-inverse, text-on-code, text-heading-accent */
   --color-default: var(--color-text);
@@ -359,6 +360,9 @@
   :root:lang(ja) body {
     letter-spacing: 0.02em;
     line-height: calc(var(--text-body-line-height) + 0.1em);
+    /* Break Japanese at phrase boundaries, not inside a word, and keep small kana off the start of a line. */
+    word-break: auto-phrase;
+    line-break: strict;
   }
 
   h1,

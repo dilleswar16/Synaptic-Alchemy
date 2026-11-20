@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { PageLoadingFallback } from "@/app/RouteFallbacks";
 import { Outlet, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -29,6 +29,8 @@ export function AppShell() {
   const [isCollapsed, setIsCollapsed] = useState(readCollapsedPreference);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
 
   const toggleCollapsed = useCallback(() => {
     setIsCollapsed((previousValue) => {
@@ -65,6 +67,19 @@ export function AppShell() {
     if (isDesktop) setIsOverlayOpen(false);
   }, [isDesktop]);
 
+  // The phone navigation is a modal: focus moves into it, the page behind cannot be tabbed to or read, and focus returns to the menu button on close.
+  useEffect(() => {
+    if (!isOverlayOpen) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const mainContent = mainContentRef.current;
+    mainContent?.setAttribute("inert", "");
+    drawerRef.current?.focus();
+    return () => {
+      mainContent?.removeAttribute("inert");
+      previouslyFocused?.focus();
+    };
+  }, [isOverlayOpen]);
+
   return (
     <div className="min-h-dvh bg-canvas">
       <a
@@ -81,15 +96,15 @@ export function AppShell() {
       ) : isOverlayOpen ? (
         <>
           <div className="fixed inset-0 z-40 animate-fade-in bg-overlay" onClick={() => setIsOverlayOpen(false)} aria-hidden="true" />
-          <div className="fixed inset-y-0 left-0 z-50 w-[264px] max-w-[85vw] animate-drawer-left-in shadow-lg">
+          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label={t("mainNavigation")} tabIndex={-1} className="fixed inset-y-0 left-0 z-50 w-[264px] max-w-[85vw] animate-drawer-left-in shadow-lg outline-none">
             <Sidebar isCollapsed={false} isOverlay onToggleCollapsed={toggleCollapsed} onNavigate={() => setIsOverlayOpen(false)} onClose={() => setIsOverlayOpen(false)} />
           </div>
         </>
       ) : null}
 
-      <div className={cn("flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200", isDesktop && (isCollapsed ? "pl-[72px]" : "pl-[264px]"))}>
+      <div ref={mainContentRef} className={cn("flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200", isDesktop && (isCollapsed ? "pl-[72px]" : "pl-[264px]"))}>
         <TopBar onOpenNavigation={() => setIsOverlayOpen(true)} onOpenCommandPalette={() => setIsPaletteOpen(true)} />
-        <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-6 outline-none sm:px-5 md:px-8 md:py-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 px-4 pt-6 pb-20 outline-none sm:px-5 md:px-8 md:pt-8">
           <div key={location.pathname.split("/")[1] ?? ""} className="mx-auto w-full max-w-[1440px] animate-page-enter">
             <Suspense fallback={<PageLoadingFallback />}>
               <Outlet />

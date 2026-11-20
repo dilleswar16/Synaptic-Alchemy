@@ -69,6 +69,11 @@ export interface DataTableProps<Row> {
   rowClassName?: (row: Row) => string | undefined;
   /** Render without the outer card border (when already inside a Card). */
   isFlush?: boolean;
+  /**
+   * Below the `sm` breakpoint each row becomes a stacked card: the first column is the title, the others show their header as a label. This keeps every
+   * column on a phone instead of hiding the right-hand ones behind a sideways scroll. `scroll` keeps the wide table (for matrices that only make sense as a grid).
+   */
+  mobileLayout?: "cards" | "scroll";
   className?: string;
 }
 
@@ -120,6 +125,7 @@ export function DataTable<Row>({
   serverPagination,
   rowClassName,
   isFlush = false,
+  mobileLayout = "cards",
   className,
 }: DataTableProps<Row>) {
   const { t } = useTranslation("common");
@@ -222,16 +228,18 @@ export function DataTable<Row>({
   const rowHeight = density === "dense" ? "h-10" : "h-12";
   const stickyCellClasses = "sticky left-0 z-[1] bg-surface group-hover:bg-surface-hover";
   const columnCount = columns.length + (isSelectable ? 1 : 0);
+  const isStacked = mobileLayout === "cards";
   const containerStyle: CSSProperties | undefined = maximumHeight ? { maxHeight: maximumHeight } : undefined;
   const pageStart = totalCount === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1;
   const pageEnd = Math.min(currentPage * effectivePageSize, totalCount);
 
   return (
     <div className={cn("flex min-w-0 flex-col overflow-hidden bg-surface", !isFlush && "rounded-md border border-hairline shadow-xs", className)}>
-      <div className="min-w-0 overflow-auto" style={containerStyle}>
-        <table className="w-full border-separate border-spacing-0 text-body-sm">
+      {/* A scrolling area must be reachable by keyboard, and says when it is loading. */}
+      <div className="min-w-0 overflow-auto" style={containerStyle} tabIndex={0} role="region" aria-label={caption} aria-busy={isLoading || undefined}>
+        <table className={cn("w-full border-separate border-spacing-0 text-body-sm", isStacked && "max-sm:block")}>
           <caption className="sr-only">{caption}</caption>
-          <thead>
+          <thead className={cn(isStacked && "max-sm:sr-only")}>
             <tr>
               {isSelectable ? (
                 <th scope="col" className="sticky top-0 z-[2] h-10 w-11 border-b border-hairline bg-surface-sunken px-4">
@@ -283,12 +291,12 @@ export function DataTable<Row>({
               })}
             </tr>
           </thead>
-          <tbody>
+          <tbody className={cn(isStacked && "max-sm:block")}>
             {isLoading
               ? Array.from({ length: loadingRowCount }, (_, skeletonRowIndex) => (
-                  <tr key={`skeleton-${skeletonRowIndex}`} className={rowHeight} aria-hidden="true">
+                  <tr key={`skeleton-${skeletonRowIndex}`} className={cn(rowHeight, isStacked && "max-sm:block max-sm:h-auto")} aria-hidden="true">
                     {Array.from({ length: columnCount }, (_, skeletonCellIndex) => (
-                      <td key={skeletonCellIndex} className={cn("border-b border-hairline", cellPadding)}>
+                      <td key={skeletonCellIndex} className={cn("border-b border-hairline", cellPadding, isStacked && "max-sm:block max-sm:border-b-0")}>
                         <Skeleton className={cn("h-3.5", skeletonCellIndex === 0 ? "w-3/4" : "w-1/2")} />
                       </td>
                     ))}
@@ -307,13 +315,14 @@ export function DataTable<Row>({
                       className={cn(
                         "group transition-colors hover:bg-surface-hover focus-visible:outline-offset-[-3px]",
                         rowHeight,
+                        isStacked && "max-sm:block max-sm:h-auto max-sm:border-b max-sm:border-hairline max-sm:py-2.5",
                         onRowClick && "cursor-pointer",
                         isSelected && "bg-surface-selected hover:bg-surface-selected",
                         rowClassName?.(row),
                       )}
                     >
                       {isSelectable ? (
-                        <td className={cn("w-11 border-b border-hairline group-last:border-b-0", cellPadding)}>
+                        <td className={cn("w-11 border-b border-hairline group-last:border-b-0", cellPadding, isStacked && "max-sm:block max-sm:border-b-0 max-sm:pb-0")}>
                           <Checkbox
                             aria-label={t("dataTable.selectRow")}
                             checked={isSelected}
@@ -322,10 +331,15 @@ export function DataTable<Row>({
                           />
                         </td>
                       ) : null}
-                      {columns.map((column) => (
+                      {columns.map((column, columnIndex) => (
                         <td
                           key={column.key}
+                          data-label={isStacked && columnIndex > 0 && typeof column.header === "string" ? column.header : undefined}
                           className={cn(
+                            isStacked && "max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:border-b-0 max-sm:px-4 max-sm:py-1 max-sm:text-right",
+                            isStacked && "max-sm:before:max-w-[45%] max-sm:before:shrink-0 max-sm:before:text-left max-sm:before:text-caption max-sm:before:text-muted max-sm:before:content-[attr(data-label)]",
+                            isStacked && columnIndex === 0 && "max-sm:justify-start max-sm:text-left max-sm:font-semibold",
+                            isStacked && column.isSticky && "max-sm:static",
                             "border-b border-hairline align-middle text-default group-last:border-b-0",
                             cellPadding,
                             alignClasses[column.align ?? "start"],

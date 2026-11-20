@@ -67,7 +67,7 @@ export function CopyButton({ value, label, showLabel = false, size = "sm", varia
         "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-sm font-medium transition-colors",
         size === "sm" ? "h-8 min-w-8 px-2 text-caption" : "h-9 min-w-9 px-2.5 text-body-sm",
         variant === "ghost" && "text-muted hover:bg-surface-hover hover:text-default",
-        variant === "secondary" && "border border-strong bg-surface text-default hover:bg-surface-hover",
+        variant === "secondary" && "border border-control bg-surface text-default hover:bg-surface-hover",
         variant === "onDark" && "text-white/70 hover:bg-white/10 hover:text-white",
         isCopied && (variant === "onDark" ? "text-[#B6DA6E] hover:text-[#B6DA6E]" : "text-success hover:text-success"),
         className,

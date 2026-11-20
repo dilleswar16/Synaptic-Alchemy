@@ -35,7 +35,7 @@ export function TopBar({ onOpenNavigation, onOpenCommandPalette }: TopBarProps) 
         type="button"
         onClick={onOpenCommandPalette}
         aria-label={t("commandPalette.open")}
-        className="hidden h-9 min-w-56 items-center gap-2 rounded-sm border border-strong bg-surface px-3 text-body-sm text-muted shadow-xs transition-colors hover:bg-surface-hover lg:inline-flex"
+        className="hidden h-9 min-w-56 items-center gap-2 rounded-sm border border-control bg-surface px-3 text-body-sm text-muted shadow-xs transition-colors hover:bg-surface-hover lg:inline-flex"
       >
         <Search aria-hidden="true" size={16} />
         <span className="flex-1 text-left">{t("commandPalette.trigger")}</span>

@@ -22,7 +22,7 @@ export interface ButtonProps extends ComponentProps<"button"> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: "bg-action text-on-action shadow-xs hover:bg-action-hover active:bg-action-pressed",
-  secondary: "border border-strong bg-surface text-default shadow-xs hover:bg-surface-hover active:bg-surface-sunken",
+  secondary: "border border-control bg-surface text-default shadow-xs hover:bg-surface-hover active:bg-surface-sunken",
   subtle: "bg-action-subtle text-action-subtle-text hover:bg-action-subtle-hover active:bg-action-subtle-hover",
   ghost: "bg-transparent text-default hover:bg-surface-hover active:bg-surface-sunken",
   danger: "bg-danger-fill text-white shadow-xs hover:brightness-95 active:brightness-90",

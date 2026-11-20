@@ -40,6 +40,8 @@
   /* ── Borders ─────────────────────────────────────────────────────────── */
   --color-border: #e3e8ee;
   --color-border-strong: #d9d9d6;
+  /* Edges of inputs, checkboxes and outlined buttons: at least 3:1 against the surface (WCAG 1.4.11). Decorative dividers keep the lighter tokens. */
+  --color-border-control: #8a8f94;
 
   /* ── Text ────────────────────────────────────────────────────────────── */
   --color-text: #333333;
@@ -196,8 +198,9 @@
   --color-surface-code: #08121c;
   --color-surface-tooltip: #24384d;
 
-  --color-border: #1e3044;
-  --color-border-strong: #2a415a;
+  --color-border: #25384d;
+  --color-border-strong: #35506c;
+  --color-border-control: #6f8398;
 
   --color-text: #e7edf3;
   --color-text-muted: #a3b3c2;

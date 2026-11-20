@@ -23,7 +23,7 @@ export interface IconButtonProps extends Omit<ComponentProps<"button">, "childre
 
 const variantClasses: Record<IconButtonVariant, string> = {
   ghost: "text-muted hover:bg-surface-hover hover:text-default active:bg-surface-sunken",
-  secondary: "border border-strong bg-surface text-default shadow-xs hover:bg-surface-hover",
+  secondary: "border border-control bg-surface text-default shadow-xs hover:bg-surface-hover",
   subtle: "bg-action-subtle text-action-subtle-text hover:bg-action-subtle-hover",
   primary: "bg-action text-on-action hover:bg-action-hover active:bg-action-pressed",
 };

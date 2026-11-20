@@ -80,7 +80,7 @@ export function FormField({
       ) : null}
       {children}
       {errorMessage ? (
-        <p id={fieldIds.errorId} className="flex items-start gap-1.5 text-caption text-danger">
+        <p id={fieldIds.errorId} role="alert" className="flex items-start gap-1.5 text-caption text-danger">
           <CircleExclamationPoint aria-hidden="true" size={14} strokeWidth={2} className="mt-0.5 shrink-0" />
           <span>{errorMessage}</span>
         </p>
@@ -94,10 +94,10 @@ export function FormField({
   );
 }
 
-/** Classes for an input-like box: 40 px, radius 8, border-strong, focus ring, invalid state. */
+/** Classes for an input-like box: 40 px, radius 8, border-control, focus ring, invalid state. */
 export function controlBoxClassName(size: "sm" | "md" = "md"): string {
   return cn(
-    "w-full min-w-0 rounded-sm border border-strong bg-surface text-default shadow-xs transition-[border-color,box-shadow]",
+    "w-full min-w-0 rounded-sm border border-control bg-surface text-default shadow-xs transition-[border-color,box-shadow]",
     "placeholder:text-subtle hover:border-subtle focus-visible:border-action",
     "disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-muted disabled:shadow-none",
     "aria-[invalid=true]:border-danger-fill",

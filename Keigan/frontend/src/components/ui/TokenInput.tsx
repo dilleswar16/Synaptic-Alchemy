@@ -126,7 +126,7 @@ export function TokenInput({
         onClick={() => inputRef.current?.focus()}
         aria-disabled={disabled || undefined}
         className={cn(
-          "flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-sm border border-strong bg-surface px-2 py-1.5 shadow-xs transition-[border-color,box-shadow]",
+          "flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-sm border border-control bg-surface px-2 py-1.5 shadow-xs transition-[border-color,box-shadow]",
           "cursor-text hover:border-subtle focus-within:border-action focus-within:outline-3 focus-within:outline-focus focus-within:outline-offset-1",
           hasError && "border-danger-fill",
           disabled && "pointer-events-none bg-surface-sunken opacity-70",

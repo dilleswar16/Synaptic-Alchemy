@@ -19,7 +19,7 @@ export function SectionHeader({ title, description, eyebrow, actions, level = 2,
   const HeadingElement = level === 2 ? "h2" : "h3";
   return (
     <div className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-3", className)}>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-64">
         {eyebrow ? <p className="eyebrow mb-1">{eyebrow}</p> : null}
         <HeadingElement id={id} className={cn("font-display text-default", level === 2 ? "text-h2" : "text-h3")}>
           {title}

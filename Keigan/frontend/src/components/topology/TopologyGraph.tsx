@@ -48,6 +48,8 @@ export interface TopologyGraphProps {
   onNodeSelect?: (nodeKey: string) => void;
   height?: number | string;
   showMiniMap?: boolean;
+  /** `overlay` (default) puts the legend on the canvas; `below` puts it under the canvas so it can never cover a node. */
+  legendPlacement?: "overlay" | "below";
   className?: string;
 }
 
@@ -144,7 +146,7 @@ function ServiceNode({ data }: NodeProps<Node<ServiceNodeData>>) {
 const nodeTypes = { service: ServiceNode };
 
 /** Service dependency graph (React Flow). Impacted nodes get a red / berry ring; edges between impacted nodes animate. */
-export function TopologyGraph({ nodes, edges, highlightedNodeKeys = {}, onNodeSelect, height = 480, showMiniMap = true, className }: TopologyGraphProps) {
+export function TopologyGraph({ nodes, edges, highlightedNodeKeys = {}, onNodeSelect, height = 480, showMiniMap = true, legendPlacement = "overlay", className }: TopologyGraphProps) {
   const { t } = useTranslation("common");
 
   const flowNodes = useMemo<Node<ServiceNodeData>[]>(() => {
@@ -189,8 +191,21 @@ export function TopologyGraph({ nodes, edges, highlightedNodeKeys = {}, onNodeSe
     return <EmptyState icon={Network} title={t("topology.emptyTitle")} description={t("topology.emptyDescription")} isBordered className={className} />;
   }
 
-  return (
-    <div className={cn("keigan-topology overflow-hidden rounded-md border border-hairline bg-surface-sunken", className)} style={{ height }} role="group" aria-label={t("topology.label")}>
+  const legend = (
+    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted" aria-label={t("topology.legend")}>
+      <li className="flex items-center gap-2">
+        <span aria-hidden="true" className="size-2.5 rounded-full bg-danger-fill" />
+        {t("topology.impactDirect")}
+      </li>
+      <li className="flex items-center gap-2">
+        <span aria-hidden="true" className="size-2.5 rounded-full bg-alert-fill" />
+        {t("topology.impactIndirect")}
+      </li>
+    </ul>
+  );
+
+  const canvas = (
+    <div className={cn("keigan-topology overflow-hidden rounded-md border border-hairline bg-surface-sunken", legendPlacement === "overlay" && className)} style={{ height }} role="group" aria-label={t("topology.label")}>
       <ReactFlow
         nodes={flowNodes}
         edges={flowEdges}
@@ -207,19 +222,29 @@ export function TopologyGraph({ nodes, edges, highlightedNodeKeys = {}, onNodeSe
         <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="var(--color-border-strong)" />
         <Controls showInteractive={false} position="bottom-left" />
         {showMiniMap ? <MiniMap pannable zoomable ariaLabel={t("topology.minimap")} nodeColor={(node) => (node.data?.impact === "direct" ? "var(--color-danger-fill)" : node.data?.impact === "indirect" ? "var(--color-alert-fill)" : "var(--chart-1)")} /> : null}
-        <Panel position="top-left">
-          <ul className="flex flex-col gap-1 rounded-sm border border-hairline bg-surface px-2.5 py-2 text-caption text-muted shadow-xs" aria-label={t("topology.legend")}>
-            <li className="flex items-center gap-2">
-              <span aria-hidden="true" className="size-2.5 rounded-full bg-danger-fill" />
-              {t("topology.impactDirect")}
-            </li>
-            <li className="flex items-center gap-2">
-              <span aria-hidden="true" className="size-2.5 rounded-full bg-alert-fill" />
-              {t("topology.impactIndirect")}
-            </li>
-          </ul>
-        </Panel>
+        {legendPlacement === "overlay" ? (
+          <Panel position="top-left">
+            <ul className="flex flex-col gap-1 rounded-sm border border-hairline bg-surface px-2.5 py-2 text-caption text-muted shadow-xs" aria-label={t("topology.legend")}>
+              <li className="flex items-center gap-2">
+                <span aria-hidden="true" className="size-2.5 rounded-full bg-danger-fill" />
+                {t("topology.impactDirect")}
+              </li>
+              <li className="flex items-center gap-2">
+                <span aria-hidden="true" className="size-2.5 rounded-full bg-alert-fill" />
+                {t("topology.impactIndirect")}
+              </li>
+            </ul>
+          </Panel>
+        ) : null}
       </ReactFlow>
+    </div>
+  );
+
+  if (legendPlacement === "overlay") return canvas;
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      {canvas}
+      {legend}
     </div>
   );
 }

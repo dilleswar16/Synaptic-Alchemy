@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
-import { CircleCheck, Clock, TriangleExclamationPoint } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ChevronDown, CircleCheck, Clock, TriangleExclamationPoint } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/utils/cn";
+import { Drawer } from "./Drawer";
 
 /** Step status derived from the backend readiness object (doc 01 §6.2). */
 export type StepStatus = "not_started" | "in_progress" | "waiting" | "blocked" | "done";
@@ -147,5 +148,47 @@ export function Stepper({
         </div>
       ))}
     </nav>
+  );
+}
+
+export interface StepperCompactProps extends Omit<StepperProps, "subStepVisibility" | "currentSubStepKey"> {
+  /** What the bar says, e.g. "Step 3 of 11 · Log and monitoring tools". */
+  summary: ReactNode;
+}
+
+/** Narrow screens: one bar with the current step that opens the full {@link Stepper} in a sheet. */
+export function StepperCompact({ summary, stages, currentStepKey, onStepSelect, className, ...ariaProps }: StepperCompactProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const currentStatus = stages.flatMap((stage) => stage.steps).find((step) => step.key === currentStepKey)?.status ?? "not_started";
+  return (
+    <Drawer
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      size="sm"
+      title={ariaProps["aria-label"]}
+      trigger={
+        <button
+          type="button"
+          className={cn(
+            "flex w-full items-center gap-3 rounded-md border border-hairline bg-surface px-4 py-3 text-left text-body font-medium text-default transition-colors hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-action focus-visible:outline-none",
+            className,
+          )}
+        >
+          <StepStatusIcon status={currentStatus} />
+          <span className="min-w-0 flex-1 truncate">{summary}</span>
+          <ChevronDown aria-hidden="true" size={18} className="shrink-0 text-muted" />
+        </button>
+      }
+    >
+      <Stepper
+        aria-label={ariaProps["aria-label"]}
+        stages={stages}
+        currentStepKey={currentStepKey}
+        onStepSelect={(stepKey, subStepKey) => {
+          setIsOpen(false);
+          onStepSelect?.(stepKey, subStepKey);
+        }}
+      />
+    </Drawer>
   );
 }

@@ -45,6 +45,8 @@ function documentedPairs() {
   pairs.push(['white-80', 'metlife-purple', TEXT_MINIMUM, 'text on the end of the Ask Keigan gradient']);
   pairs.push(['chart-axis', 'color-surface', TEXT_MINIMUM, 'chart axis labels']);
   pairs.push(['color-action', 'color-surface', GRAPHIC_MINIMUM, 'action graphics']);
+  pairs.push(['color-border-control', 'color-surface', GRAPHIC_MINIMUM, 'form control border']);
+  pairs.push(['color-border-control', 'color-canvas', GRAPHIC_MINIMUM, 'form control border on the page background']);
   pairs.push(['color-focus-ring-color', 'color-surface', GRAPHIC_MINIMUM, 'focus indicator']);
   pairs.push(['color-focus-ring-color', 'color-canvas', GRAPHIC_MINIMUM, 'focus indicator on the page background']);
   return pairs;
