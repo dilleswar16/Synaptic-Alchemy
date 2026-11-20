@@ -36,13 +36,14 @@ from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.onboarding_service import GUID_PATTERN
 from keigan.services.reference_release import release_references
+from keigan.entities.status_values import ApplicationLifecycleStatus
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_LOCALE_BY_REGION = {"JP": "ja", "CN": "zh-CN", "ES": "es", "MX": "es-MX", "NL": "nl", "FR": "fr"}
 DEFAULT_TIME_ZONE_BY_REGION = {"JP": "Asia/Tokyo", "AU": "Australia/Sydney", "US": "America/New_York", "NL": "Europe/Amsterdam", "FR": "Europe/Paris", "MX": "America/Mexico_City"}
 CLOSED_INCIDENT_STATUSES = ("resolved", "closed", "cancelled", "canceled")
-LIVE_LIFECYCLE_STATUSES = ("live", "paused")
+LIVE_LIFECYCLE_STATUSES = (ApplicationLifecycleStatus.LIVE, ApplicationLifecycleStatus.PAUSED)
 
 
 class ApplicationService:
@@ -123,7 +124,7 @@ class ApplicationService:
         if await self.application_repository.exists(Application.application_code == request.application_code):
             raise ConflictException(f"The application code {request.application_code} is already used.")
         region_code = (request.region_code or "").upper() or None
-        lifecycle_status = "draft" if current_user.is_keigan_admin and request.lifecycle_status != "requested" else "requested"
+        lifecycle_status = ApplicationLifecycleStatus.DRAFT if current_user.is_keigan_admin and request.lifecycle_status != ApplicationLifecycleStatus.REQUESTED else ApplicationLifecycleStatus.REQUESTED
         application = Application(
             application_name=request.application_name.strip(),
             application_code=request.application_code,
@@ -144,7 +145,7 @@ class ApplicationService:
         await self.application_repository.add(application)
         await self.audit_service.record(
             current_user,
-            "application.request" if lifecycle_status == "requested" else "application.create",
+            "application.request" if lifecycle_status == ApplicationLifecycleStatus.REQUESTED else "application.create",
             target_entity_type="application",
             target_entity_id=application.application_id,
             application_id=application.application_id,
@@ -196,14 +197,14 @@ class ApplicationService:
     def _apply_lifecycle_change(self, current_user: CurrentUser, application: Application, new_status: str) -> None:
         if application.lifecycle_status in LIVE_LIFECYCLE_STATUSES:
             raise BusinessValidationException("A live application changes status through pause and resume.")
-        if application.lifecycle_status == "requested" and not current_user.is_keigan_admin:
+        if application.lifecycle_status == ApplicationLifecycleStatus.REQUESTED and not current_user.is_keigan_admin:
             raise ForbiddenException("Only Keigan admins can accept an onboarding request.")
         application.lifecycle_status = new_status
 
     async def delete_application(self, current_user: CurrentUser, application_id: str) -> None:
         await self.authorization_service.ensure_application_admin(current_user, application_id)
         application = await self.application_repository.get_required(application_id, "application")
-        if application.lifecycle_status == "live" or (application.lifecycle_status in LIVE_LIFECYCLE_STATUSES and not current_user.is_keigan_admin):
+        if application.lifecycle_status == ApplicationLifecycleStatus.LIVE or (application.lifecycle_status in LIVE_LIFECYCLE_STATUSES and not current_user.is_keigan_admin):
             raise BusinessValidationException("A live application cannot be deleted. Pause it first; a Keigan admin can then delete it.")
         await self.audit_service.record(
             current_user, "application.delete", target_entity_type="application", target_entity_id=application_id, application_id=application_id,
@@ -240,7 +241,7 @@ class ApplicationService:
     async def go_live(self, current_user: CurrentUser, application_id: str) -> ApplicationResponse:
         await self.authorization_service.ensure_application_admin(current_user, application_id)
         application = await self.application_repository.get_required(application_id, "application")
-        if application.lifecycle_status == "live":
+        if application.lifecycle_status == ApplicationLifecycleStatus.LIVE:
             return self._to_response(application, True)
         if self.settings.auth_mode == AuthenticationMode.ENTRA and not (application.admin_group_object_id and application.reader_group_object_id):
             raise BusinessValidationException(
@@ -253,7 +254,7 @@ class ApplicationService:
                 "The application is not ready to go live yet.",
                 field_errors=[{"field": requirement_key, "message": "Required step is not complete."} for requirement_key in missing_keys],
             )
-        application.lifecycle_status = "live"
+        application.lifecycle_status = ApplicationLifecycleStatus.LIVE
         application.went_live_at = application.went_live_at or datetime.now(UTC)
         application.went_live_by_user_principal_name = application.went_live_by_user_principal_name or current_user.user_principal_name
         await self.session.flush()

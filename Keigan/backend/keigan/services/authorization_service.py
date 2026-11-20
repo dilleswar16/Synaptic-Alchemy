@@ -12,10 +12,11 @@ from keigan.config.settings import AuthenticationMode, get_settings
 from keigan.entities.application_entities import Application
 from keigan.exceptions.keigan_exceptions import ForbiddenException, NotFoundException
 from keigan.security.current_user import CurrentUser
+from keigan.entities.status_values import ApplicationLifecycleStatus
 
 ROLE_ADMIN = "admin"
 ROLE_READER = "reader"
-DRAFT_LIFECYCLE_STATUSES = ("requested", "draft")
+DRAFT_LIFECYCLE_STATUSES = (ApplicationLifecycleStatus.REQUESTED, ApplicationLifecycleStatus.DRAFT)
 # An onboarding request stays "requested" until a Keigan admin accepts it (it then becomes "draft"). Telemetry is never read before that.
 UNAPPROVED_LIFECYCLE_STATUSES = ("requested",)
 GROUPS_NOT_LINKED_MESSAGE = (

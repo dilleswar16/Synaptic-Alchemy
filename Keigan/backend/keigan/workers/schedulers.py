@@ -18,6 +18,7 @@ from keigan.entities.incident_entities import ServiceNowAssignmentGroup
 from keigan.entities.notification_entities import TeamsIncidentChat
 from keigan.entities.slo_entities import ServiceLevelIndicator
 from keigan.workers.job_queue import JobQueue
+from keigan.entities.status_values import ApplicationLifecycleStatus, IntelligenceReportType, TeamsChatStatus
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class IntervalSchedule:
 
 
 async def _live_application_ids(session: AsyncSession) -> list[str]:
-    return list((await session.scalars(select(Application.application_id).where(Application.lifecycle_status == "live"))).all())
+    return list((await session.scalars(select(Application.application_id).where(Application.lifecycle_status == ApplicationLifecycleStatus.LIVE))).all())
 
 
 async def enqueue_servicenow_polls(session: AsyncSession) -> None:
@@ -61,7 +62,7 @@ async def enqueue_predictive_analysis(session: AsyncSession) -> None:
 async def enqueue_teams_chat_polls(session: AsyncSession) -> None:
     if get_settings().teams_mode == IntegrationMode.DISABLED:
         return
-    active_chat_ids = (await session.scalars(select(TeamsIncidentChat.teams_incident_chat_id).where(TeamsIncidentChat.chat_status == "active"))).all()
+    active_chat_ids = (await session.scalars(select(TeamsIncidentChat.teams_incident_chat_id).where(TeamsIncidentChat.chat_status == TeamsChatStatus.ACTIVE))).all()
     for teams_incident_chat_id in active_chat_ids:
         await JobQueue(session).enqueue(
             "poll_incident_chat", {"teams_incident_chat_id": teams_incident_chat_id}, deduplication_key=f"poll_chat:{teams_incident_chat_id}", priority_number=40
@@ -76,7 +77,7 @@ async def enqueue_weekly_reports(session: AsyncSession) -> None:
     iso_year, iso_week, _ = now.isocalendar()
     for application_id in await _live_application_ids(session):
         await JobQueue(session).enqueue(
-            "send_intelligence_report", {"application_id": application_id, "report_type": "weekly_digest"}, deduplication_key=f"weekly_report:{application_id}:{iso_year}-{iso_week}"
+            "send_intelligence_report", {"application_id": application_id, "report_type": IntelligenceReportType.WEEKLY_DIGEST}, deduplication_key=f"weekly_report:{application_id}:{iso_year}-{iso_week}"
         )
         await JobQueue(session).enqueue("weekly_noise_report", {"application_id": application_id}, deduplication_key=f"noise_report:{application_id}:{iso_year}-{iso_week}")
 

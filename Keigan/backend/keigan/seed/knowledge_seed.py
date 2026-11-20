@@ -19,6 +19,7 @@ from keigan.services.knowledge_service import KnowledgeService
 from keigan.services.runbook_service import RunbookService
 from keigan.services.topology_service import TopologyService
 from keigan.utils.time_utils import utc_now
+from keigan.entities.status_values import DocumentDigestStatus, IntegrationStatus, TopologyReviewStatus, TopologyReviewVerdict
 
 SEED_ORDER = 10
 SEED_ACTOR = "system:seed"
@@ -56,7 +57,7 @@ async def _seed_documents(session: AsyncSession, seed_context: SeedContext) -> N
             file_size_bytes=len(file_bytes),
             storage_path=storage_path,
             file_sha256_hash=file_hash,
-            ai_digest_status="pending",
+            ai_digest_status=DocumentDigestStatus.PENDING,
             uploaded_by_user_principal_name=REVIEWER,
             uploaded_at=uploaded_at,
             stale_after_at=uploaded_at + timedelta(days=90),
@@ -67,7 +68,7 @@ async def _seed_documents(session: AsyncSession, seed_context: SeedContext) -> N
             await knowledge_service.digest_document(document.knowledge_document_id)
         except Exception:  # noqa: BLE001  (a missing LLM key must not stop seeding)
             logger.exception("Digest of seeded document %s failed", file_name)
-            document.ai_digest_status = "failed"
+            document.ai_digest_status = DocumentDigestStatus.FAILED
 
 
 async def _seed_runbooks(session: AsyncSession, seed_context: SeedContext) -> None:
@@ -104,9 +105,9 @@ async def _seed_topologies(session: AsyncSession, seed_context: SeedContext) -> 
         if application_code == "CLMJP":
             topology = await session.scalar(select(ApplicationTopology).where(ApplicationTopology.application_id == application_id, ApplicationTopology.is_current_version.is_(True)))
             if topology is not None:
-                topology.review_status = "reviewed"
+                topology.review_status = TopologyReviewStatus.REVIEWED
                 for node in (topology.topology_graph_json or {}).get("nodes", [])[:3]:
-                    session.add(TopologyReviewComment(topology_id=topology.topology_id, target_element_key=node["node_key"], review_verdict="looks_right", reviewer_user_principal_name=REVIEWER))
+                    session.add(TopologyReviewComment(topology_id=topology.topology_id, target_element_key=node["node_key"], review_verdict=TopologyReviewVerdict.LOOKS_RIGHT, reviewer_user_principal_name=REVIEWER))
     await session.flush()
 
 
@@ -133,7 +134,7 @@ async def _seed_record_links_and_integrations(session: AsyncSession, seed_contex
                         application_id=application_id,
                         integration_kind=integration_kind,
                         integration_configuration_json={"base_url": base_url, "authentication_method": "managed_identity"},
-                        integration_status="saved_reader_in_development",
+                        integration_status=IntegrationStatus.SAVED_READER_IN_DEVELOPMENT,
                         integration_notes="Details saved; the reader is not available yet.",
                         created_by_user_principal_name=SEED_ACTOR,
                     )

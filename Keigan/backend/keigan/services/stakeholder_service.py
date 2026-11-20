@@ -21,6 +21,7 @@ from keigan.services.audit_service import AuditService
 from keigan.services.notification_renderer import translate
 from keigan.services.notification_service import NotificationService
 from keigan.services.service_scope import unknown_service_ids
+from keigan.entities.status_values import StakeholderRecipientType
 
 FIELD_NAMES_WITH_JSON_LISTS = {"notification_channels": "notification_channels_json", "subscribed_notification_types": "subscribed_notification_types_json"}
 
@@ -98,7 +99,7 @@ class StakeholderService:
         for user in load_local_users():
             if lowered_query in user.display_name.lower() or lowered_query in user.email_address.lower():
                 results[user.email_address.lower()] = DirectoryUserResponse(display_name=user.display_name, email_address=user.email_address, user_principal_name=user.user_principal_name, job_title=user.role_description or None, source="local")
-        for stakeholder in (await self.session.scalars(select(Stakeholder).where(Stakeholder.recipient_type == "person"))).all():
+        for stakeholder in (await self.session.scalars(select(Stakeholder).where(Stakeholder.recipient_type == StakeholderRecipientType.PERSON))).all():
             address = (stakeholder.email_address or "").lower()
             if address and address not in results and (lowered_query in stakeholder.display_name.lower() or lowered_query in address):
                 results[address] = DirectoryUserResponse(display_name=stakeholder.display_name, email_address=stakeholder.email_address, user_principal_name=stakeholder.user_principal_name, entra_object_id=stakeholder.entra_object_id, source="stakeholder")
@@ -128,9 +129,9 @@ class StakeholderService:
         if await unknown_service_ids(self.session, application_id, values.get("subscribed_service_ids")):
             errors.append({"field": "subscribedServiceIds", "message": "A selected service does not belong to this application."})
         recipient_type = values.get("recipient_type")
-        if not partial and recipient_type in (None, "person", "distribution_list") and not (values.get("email_address") or values.get("user_principal_name")):
+        if not partial and recipient_type in (None, StakeholderRecipientType.PERSON, StakeholderRecipientType.DISTRIBUTION_LIST) and not (values.get("email_address") or values.get("user_principal_name")):
             errors.append({"field": "emailAddress", "message": "An email address is required for people and distribution lists."})
-        if not partial and recipient_type == "teams_channel" and not (values.get("teams_team_id") and values.get("teams_channel_id")):
+        if not partial and recipient_type == StakeholderRecipientType.TEAMS_CHANNEL and not (values.get("teams_team_id") and values.get("teams_channel_id")):
             errors.append({"field": "teamsChannelId", "message": "A Teams team id and channel id are required for channel destinations."})
         if errors:
             raise BusinessValidationException("The stakeholder is not valid.", field_errors=errors)

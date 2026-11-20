@@ -28,6 +28,7 @@ from keigan.services.incident_retention import purge_expired_incidents
 from keigan.services.simulation_service import SimulationService
 from keigan.utils.time_utils import utc_now
 from keigan.workers.worker_settings import get_worker_settings
+from keigan.entities.status_values import AlertGroupStatus, JobStatus
 
 logger = logging.getLogger(__name__)
 SETTING_GROUPS: list[tuple[str, str, tuple[str, ...]]] = [
@@ -187,7 +188,7 @@ class AdministrationService:
     async def get_job_stats(self) -> JobStatsResponse:
         by_status = dict((await self.session.execute(select(BackgroundJob.job_status, func.count()).group_by(BackgroundJob.job_status))).all())
         by_type = dict((await self.session.execute(select(BackgroundJob.job_type, func.count()).group_by(BackgroundJob.job_type))).all())
-        dead = (await self.session.scalars(select(BackgroundJob).where(BackgroundJob.job_status == "dead_lettered").order_by(BackgroundJob.created_at.desc()).limit(50))).all()
+        dead = (await self.session.scalars(select(BackgroundJob).where(BackgroundJob.job_status == JobStatus.DEAD_LETTERED).order_by(BackgroundJob.created_at.desc()).limit(50))).all()
         recent = (await self.session.scalars(select(BackgroundJob).order_by(BackgroundJob.created_at.desc()).limit(25))).all()
         return JobStatsResponse(counts_by_status=by_status, counts_by_type=by_type, dead_letters=[self._to_job(item) for item in dead], recent_jobs=[self._to_job(item) for item in recent])
 
@@ -195,9 +196,9 @@ class AdministrationService:
         job = await self.session.get(BackgroundJob, job_id)
         if job is None:
             raise NotFoundException("That job does not exist.")
-        if job.job_status not in ("dead_lettered", "failed"):
+        if job.job_status not in (JobStatus.DEAD_LETTERED, JobStatus.FAILED):
             raise BusinessValidationException("Only failed or dead-lettered jobs can be retried.")
-        job.job_status, job.attempt_count, job.available_at, job.last_error_message, job.finished_at = "queued", 0, utc_now(), None, None
+        job.job_status, job.attempt_count, job.available_at, job.last_error_message, job.finished_at = JobStatus.QUEUED, 0, utc_now(), None, None
         await AuditService(self.session).record(current_user, "administration.job_retry", target_entity_type="background_job", target_entity_id=job_id, action_details={"jobType": job.job_type})
         return self._to_job(job)
 
@@ -231,9 +232,9 @@ class AdministrationService:
         old_alert_ids = select(Alert.alert_id).where(Alert.last_seen_at < incident_cutoff, Alert.resolved_at.is_not(None))
         await purge("alertDecisions", delete(AlertDecision).where(AlertDecision.alert_id.in_(old_alert_ids)))
         await purge("alerts", delete(Alert).where(Alert.last_seen_at < incident_cutoff, Alert.resolved_at.is_not(None)))
-        await purge("alertGroups", delete(AlertGroup).where(AlertGroup.group_status == "resolved", AlertGroup.last_activity_at < incident_cutoff))
+        await purge("alertGroups", delete(AlertGroup).where(AlertGroup.group_status == AlertGroupStatus.RESOLVED, AlertGroup.last_activity_at < incident_cutoff))
         removed.update(await purge_expired_incidents(self.session, incident_cutoff, get_worker_settings().retention_delete_batch_size))
-        await purge("finishedJobs", delete(BackgroundJob).where(BackgroundJob.job_status.in_(("succeeded", "completed", "cancelled")), BackgroundJob.finished_at < now - timedelta(days=RETENTION_FINISHED_JOB_DAYS)))
+        await purge("finishedJobs", delete(BackgroundJob).where(BackgroundJob.job_status.in_((JobStatus.SUCCEEDED, "completed", JobStatus.CANCELLED)), BackgroundJob.finished_at < now - timedelta(days=RETENTION_FINISHED_JOB_DAYS)))
         await purge("auditEvents", delete(AuditEvent).where(AuditEvent.occurred_at < now - timedelta(days=RETENTION_AUDIT_AND_USAGE_DAYS)))
         await purge("llmUsageRecords", delete(LlmUsageRecord).where(LlmUsageRecord.created_at < now - timedelta(days=RETENTION_AUDIT_AND_USAGE_DAYS)))
         logger.info("Retention cleanup removed %s", removed)

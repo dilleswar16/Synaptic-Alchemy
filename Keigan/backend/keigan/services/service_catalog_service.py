@@ -38,6 +38,7 @@ from keigan.services.component_discovery_service import load_resource_catalog
 from keigan.services.reference_release import release_references
 from keigan.services.telemetry_access_policy import TelemetryAccessRules, raise_if_field_problems
 from keigan.utils.time_utils import utc_now
+from keigan.entities.status_values import ReadTestStatus
 
 NON_AZURE_SERVICE_TYPES = {"network_appliance", "mainframe_subsystem", "batch_job_stream", "saas_service"}
 
@@ -178,7 +179,7 @@ class ServiceCatalogService:
         connection = await self.session.get(LogToolConnection, log_source.log_tool_connection_id) if log_source.log_tool_connection_id else None
         target = TelemetryTarget.from_entities(service, log_source, component, connection)
         test_result = await application_context.telemetry_gateway().test_log_source(target)
-        log_source.last_read_test_status = "passed" if test_result.succeeded else "failed"
+        log_source.last_read_test_status = ReadTestStatus.PASSED if test_result.succeeded else ReadTestStatus.FAILED
         log_source.last_read_test_at = utc_now()
         await self.audit_service.record(
             current_user, "service.log_source_test", target_entity_type="service_log_source", target_entity_id=log_source_id, application_id=application_id,

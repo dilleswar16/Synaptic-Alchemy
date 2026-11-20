@@ -28,12 +28,13 @@ from keigan.services.authorization_service import AuthorizationService
 from keigan.services.intelligence_detectors import DetectedSignal, PredictiveDetectors
 from keigan.services.notification_renderer import translate
 from keigan.utils.time_utils import utc_now
+from keigan.entities.status_values import IntelligenceReportType, Priority, SignalSeverity, SignalStatus
 
 logger = logging.getLogger(__name__)
-SEVERITY_ORDER = {"critical": 0, "warning": 1, "info": 2}
+SEVERITY_ORDER = {SignalSeverity.CRITICAL: 0, SignalSeverity.WARNING: 1, SignalSeverity.INFO: 2}
 SLO_STATUS_POINTS = {"healthy": 1.0, "at_risk": 0.6, "breached": 0.2}
 PROACTIVE_CONFIDENCE_THRESHOLD = 0.8
-OPEN_SIGNAL_STATUSES = ("open", "acknowledged")
+OPEN_SIGNAL_STATUSES = (SignalStatus.OPEN, SignalStatus.ACKNOWLEDGED)
 
 
 def compute_health_score(slo_ratio: float | None, critical_signals: int, warning_signals: int, incident_penalty: float) -> tuple[int, float, float, float]:
@@ -45,7 +46,7 @@ def compute_health_score(slo_ratio: float | None, critical_signals: int, warning
 
 
 def incident_penalty_for(priorities: list[str | None]) -> float:
-    return sum({"P1": 8.0, "P2": 4.0}.get(priority or "", 1.5) for priority in priorities)
+    return sum({Priority.P1: 8.0, Priority.P2: 4.0}.get(priority or "", 1.5) for priority in priorities)
 
 
 class IntelligenceService:
@@ -75,15 +76,15 @@ class IntelligenceService:
             created_signals.append(signal)
         expired_count = 0
         for identity, signal in existing_by_identity.items():
-            if identity not in refreshed_identities and signal.detector_name in completed_detectors and signal.signal_status == "open" and signal.detected_at < utc_now() - timedelta(hours=1):
-                signal.signal_status = "expired"
+            if identity not in refreshed_identities and signal.detector_name in completed_detectors and signal.signal_status == SignalStatus.OPEN and signal.detected_at < utc_now() - timedelta(hours=1):
+                signal.signal_status = SignalStatus.EXPIRED
                 expired_count += 1
         await self.session.flush()
-        proactive_signal_ids = [signal.predictive_signal_id for signal in created_signals if signal.signal_severity == "critical" and signal.confidence_score >= PROACTIVE_CONFIDENCE_THRESHOLD]
+        proactive_signal_ids = [signal.predictive_signal_id for signal in created_signals if signal.signal_severity == SignalSeverity.CRITICAL and signal.confidence_score >= PROACTIVE_CONFIDENCE_THRESHOLD]
         if proactive_signal_ids:
             from keigan.workers.job_queue import JobQueue
 
-            await JobQueue(self.session).enqueue("send_intelligence_report", {"application_id": application_id, "report_type": "proactive_alert", "signal_ids": proactive_signal_ids}, deduplication_key=f"proactive:{application_id}:{utc_now():%Y%m%d%H}")
+            await JobQueue(self.session).enqueue("send_intelligence_report", {"application_id": application_id, "report_type": IntelligenceReportType.PROACTIVE_ALERT, "signal_ids": proactive_signal_ids}, deduplication_key=f"proactive:{application_id}:{utc_now():%Y%m%d%H}")
         return {"detected": len(detected), "created": len(created_signals), "expired": expired_count}
 
     @staticmethod
@@ -156,7 +157,7 @@ class IntelligenceService:
             )
         except NotImplementedError as missing_error:
             raise BusinessValidationException("Investigations are not available in this environment yet.") from missing_error
-        signal.signal_status, signal.status_changed_by_user_principal_name = "converted_to_incident", current_user.user_principal_name
+        signal.signal_status, signal.status_changed_by_user_principal_name = SignalStatus.CONVERTED_TO_INCIDENT, current_user.user_principal_name
         await AuditService(self.session).record(current_user, "predictive_signal.investigate", target_entity_type="predictive_signal", target_entity_id=signal_id, application_id=signal.application_id, action_details={"investigationId": investigation_id})
         await self.session.flush()
         return SignalInvestigationResponse(investigation_id=investigation_id, predictive_signal_id=signal_id)
@@ -174,7 +175,7 @@ class IntelligenceService:
         signals = (await self.session.scalars(select(PredictiveSignal).where(PredictiveSignal.application_id == application_id, PredictiveSignal.signal_status.in_(OPEN_SIGNAL_STATUSES)))).all()
         priorities = (await self.session.scalars(select(Incident.keigan_priority).where(Incident.application_id == application_id, Incident.opened_at >= now - timedelta(days=7)))).all()
         score, slo_component, signal_component, incident_component = compute_health_score(
-            await self._slo_ratio(application_id), sum(1 for signal in signals if signal.signal_severity == "critical"), sum(1 for signal in signals if signal.signal_severity == "warning"), incident_penalty_for(list(priorities)),
+            await self._slo_ratio(application_id), sum(1 for signal in signals if signal.signal_severity == SignalSeverity.CRITICAL), sum(1 for signal in signals if signal.signal_severity == SignalSeverity.WARNING), incident_penalty_for(list(priorities)),
         )
         return score, {"slo": slo_component, "signals": signal_component, "incidents": incident_component}
 
@@ -206,7 +207,7 @@ class IntelligenceService:
             active_signals = [signal for signal in signals if day_start - timedelta(days=3) <= signal.detected_at < day_start + timedelta(days=1)]
             recent_priorities = [priority for opened_at, priority in incidents if day_start - timedelta(days=6) <= opened_at < day_start + timedelta(days=1)]
             score, slo_component, signal_component, incident_component = compute_health_score(
-                sum(ratios) / len(ratios) if ratios else None, sum(1 for signal in active_signals if signal.signal_severity == "critical"), sum(1 for signal in active_signals if signal.signal_severity == "warning"), incident_penalty_for(recent_priorities),
+                sum(ratios) / len(ratios) if ratios else None, sum(1 for signal in active_signals if signal.signal_severity == SignalSeverity.CRITICAL), sum(1 for signal in active_signals if signal.signal_severity == SignalSeverity.WARNING), incident_penalty_for(recent_priorities),
             )
             points.append(HealthScorePoint(day=day_key, health_score=score, slo_component=slo_component, signal_component=signal_component, incident_component=incident_component))
         current_score, _ = await self.current_health_score(application_id)
@@ -227,7 +228,7 @@ class IntelligenceService:
         from keigan.services.slo_service import SloService
 
         period_end = period_end or utc_now()
-        period_start = period_end - timedelta(days=7 if report_type == "weekly_digest" else 1)
+        period_start = period_end - timedelta(days=7 if report_type == IntelligenceReportType.WEEKLY_DIGEST else 1)
         signal_conditions = [PredictiveSignal.application_id == application.application_id]
         signal_conditions.append(PredictiveSignal.predictive_signal_id.in_(signal_ids) if signal_ids else PredictiveSignal.signal_status.in_(OPEN_SIGNAL_STATUSES))
         signals = sorted((await self.session.scalars(select(PredictiveSignal).where(*signal_conditions))).all(), key=lambda signal: SEVERITY_ORDER.get(signal.signal_severity, 3))
@@ -239,7 +240,7 @@ class IntelligenceService:
         slo_rows = [{"sliName": item["sliName"], "serviceName": item.get("serviceName"), "target": item["targetPercentage"], "compliance": item.get("compliancePercentage"), "budgetRemainingPercent": item.get("errorBudgetRemainingPercentage"), "status": item["status"]} for item in summaries]
         incident_counts: dict[str, int] = defaultdict(int)
         for incident in incidents:
-            incident_counts[incident.keigan_priority or "P3"] += 1
+            incident_counts[incident.keigan_priority or Priority.P3] += 1
         facts = [
             f"Application: {application.application_name}; period {period_start:%Y-%m-%d} to {period_end:%Y-%m-%d}.", f"Health score {health_score}/100 (SLOs {components['slo']}/50, signals {components['signals']}/25, incidents {components['incidents']}/25).",
             "SLOs: " + ("; ".join(f"{row['sliName']} {row['compliance']}% vs {row['target']}% ({row['status']})" for row in slo_rows[:8]) or "none defined"),
@@ -247,7 +248,7 @@ class IntelligenceService:
             f"Incidents: {len(incidents)} ({', '.join(f'{count} x {priority}' for priority, count in sorted(incident_counts.items())) or 'none'}).", f"Alert noise: {alert_count} alerts reduced to {group_count} groups.",
         ]
         summary_text, recommendations = await self._narrate_report(application, report_type, "\n".join(f"- {fact}" for fact in facts))
-        report_type_label = "weekly digest" if report_type == "weekly_digest" else "proactive alert"
+        report_type_label = "weekly digest" if report_type == IntelligenceReportType.WEEKLY_DIGEST else "proactive alert"
         title = f"Keigan Intelligence Report: {application.application_name} ({report_type_label}, {period_end:%Y-%m-%d})"
         sections = {
             "healthScore": health_score, "healthComponents": components, "executiveSummary": summary_text, "slos": slo_rows, "recommendations": recommendations, "incidents": {"total": len(incidents), "byPriority": dict(incident_counts)},
@@ -263,7 +264,7 @@ class IntelligenceService:
 
     async def _narrate_report(self, application: Application, report_type: str, facts_text: str) -> tuple[str, list[str]]:
         try:
-            prompt = application_context.prompt_library().render("intelligence_report", application_name=application.application_name, report_type_label="weekly digest" if report_type == "weekly_digest" else "proactive alert")
+            prompt = application_context.prompt_library().render("intelligence_report", application_name=application.application_name, report_type_label="weekly digest" if report_type == IntelligenceReportType.WEEKLY_DIGEST else "proactive alert")
             result = await application_context.llm_gateway().generate_structured(
                 feature_name="intelligence_report", model_tier=ModelTier.FAST, system_prompt=prompt, prompt_sections=[PromptSection("Report facts", facts_text), PromptSection("Task", "Write the summary and recommendations.")],
                 output_schema=IntelligenceReportResult, usage_context=LlmUsageContext(application_id=application.application_id),

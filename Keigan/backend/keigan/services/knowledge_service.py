@@ -51,6 +51,7 @@ from keigan.utils.pii_masker import MaskingContext, PiiMasker
 from keigan.utils.text_utils import chunk_markdown, extract_markdown_headings, rank_with_bm25, term_frequencies, truncate_text
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
+from keigan.entities.status_values import DocumentDigestStatus, TopologyGenerationStatus
 
 logger = logging.getLogger(__name__)
 STALE_AFTER_DAYS = 90
@@ -209,7 +210,7 @@ class KnowledgeService:
                 file_size_bytes=len(file_bytes),
                 storage_path=storage_path,
                 file_sha256_hash=file_hash,
-                ai_digest_status="pending",
+                ai_digest_status=DocumentDigestStatus.PENDING,
                 uploaded_by_user_principal_name=current_user.user_principal_name,
                 uploaded_at=now,
                 stale_after_at=now + timedelta(days=STALE_AFTER_DAYS),
@@ -246,7 +247,7 @@ class KnowledgeService:
         document = await self.document_repository.get_by_id(knowledge_document_id)
         if document is None:
             return None
-        document.ai_digest_status = "running"
+        document.ai_digest_status = DocumentDigestStatus.RUNNING
         document.ai_digest_error_message = None
         await self.session.flush()
         usage_context = LlmUsageContext(application_id=document.application_id, requested_by_user_principal_name=document.uploaded_by_user_principal_name)
@@ -254,14 +255,14 @@ class KnowledgeService:
             file_bytes = await application_context.file_storage().read_file(document.storage_path)
             raw_text = await self._extract_text(document, file_bytes, usage_context)
         except Exception as extraction_error:  # noqa: BLE001  (any extraction problem is shown on the file card)
-            document.ai_digest_status = "failed"
+            document.ai_digest_status = DocumentDigestStatus.FAILED
             logger.warning("Could not read knowledge document %s: %s", knowledge_document_id, extraction_error)
             document.ai_digest_error_message = "Keigan could not read this file. Check that it is a valid document that is not password protected, then upload it again."
             return {"status": "failed"}
         masker = PiiMasker(MaskingContext())
         extracted_text = masker.mask_text(truncate_text(raw_text, MAXIMUM_EXTRACTED_CHARACTERS, ""))
         if not extracted_text.strip():
-            document.ai_digest_status = "failed"
+            document.ai_digest_status = DocumentDigestStatus.FAILED
             document.ai_digest_error_message = "No readable text was found in this file."
             return {"status": "failed"}
         document.extracted_text = extracted_text
@@ -320,12 +321,12 @@ class KnowledgeService:
                 usage_context=usage_context,
             )
             document.ai_digest_markdown = format_digest_markdown(digest)
-            document.ai_digest_status = "ready"
+            document.ai_digest_status = DocumentDigestStatus.READY
         except KeiganException as digest_error:
-            document.ai_digest_status = "failed"
+            document.ai_digest_status = DocumentDigestStatus.FAILED
             document.ai_digest_error_message = f"The AI digest could not be written: {describe_failure_for_user(digest_error)} The text is still searchable."
         except Exception as digest_error:  # noqa: BLE001
-            document.ai_digest_status = "failed"
+            document.ai_digest_status = DocumentDigestStatus.FAILED
             logger.warning("Digest of knowledge document %s failed: %s", document.knowledge_document_id, digest_error)
             document.ai_digest_error_message = "The AI digest could not be written. The text is still searchable."
 
@@ -348,14 +349,14 @@ class KnowledgeService:
 
         topology = await self._current_topology(application_id)
         knowledge_sections: list[str] = []
-        if topology is not None and topology.generation_status == "ready":
+        if topology is not None and topology.generation_status == TopologyGenerationStatus.READY:
             topology_text = self._topology_summary_text(topology)
             topology_text = truncate_text(topology_text, max(400, remaining_budget // 4) * 4)
             code = next_reference("Application topology", "topology")
             context.topology_summary_markdown = f"[{code}] Application topology\n{topology_text}"
             remaining_budget -= estimate_token_count(context.topology_summary_markdown)
 
-        all_documents = await self.document_repository.find_all(KnowledgeDocument.application_id == application_id, KnowledgeDocument.ai_digest_status == "ready")
+        all_documents = await self.document_repository.find_all(KnowledgeDocument.application_id == application_id, KnowledgeDocument.ai_digest_status == DocumentDigestStatus.READY)
         flagged_document_ids = {document.knowledge_document_id for document in await self.document_repository.find_all(
             KnowledgeDocument.application_id == application_id, KnowledgeDocument.possible_prompt_injection.is_(True))}
         if get_ai_safety_settings().ai_flagged_document_policy == FlaggedDocumentPolicy.EXCLUDE:

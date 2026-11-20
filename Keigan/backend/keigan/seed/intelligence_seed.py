@@ -19,6 +19,7 @@ from keigan.services.notification_service import NotificationService
 from keigan.services.notification_renderer import translate
 from keigan.services.teams_chat_service import KEIGAN_DISPLAY_NAME, TeamsChatService
 from keigan.utils.time_utils import utc_now
+from keigan.entities.status_values import CommunicationStatus, DeliveryChannel, DeliveryStatus, IncidentStatus, JobStatus, Priority, SignalStatus
 
 SEED_ORDER = 40
 logger = logging.getLogger(__name__)
@@ -41,18 +42,18 @@ async def _seed_signals_and_reports(session: AsyncSession, seed_context: SeedCon
         weekly_report = await intelligence_service._build_report(application, "weekly_digest", None, period_end=utc_now() - timedelta(days=1))
         weekly_report.created_at = weekly_report.report_period_end
         await intelligence_service._send_report(application, weekly_report)
-        open_signal_ids = list((await session.scalars(select(PredictiveSignal.predictive_signal_id).where(PredictiveSignal.application_id == application_id, PredictiveSignal.signal_status == "open").order_by(PredictiveSignal.confidence_score.desc()).limit(3))).all())
+        open_signal_ids = list((await session.scalars(select(PredictiveSignal.predictive_signal_id).where(PredictiveSignal.application_id == application_id, PredictiveSignal.signal_status == SignalStatus.OPEN).order_by(PredictiveSignal.confidence_score.desc()).limit(3))).all())
         if open_signal_ids:
             alert_report = await intelligence_service._build_report(application, "proactive_alert", open_signal_ids)
             await intelligence_service._send_report(application, alert_report)
     # Seeded emails count as already delivered (simulated); drop the queued jobs that would deliver or regenerate them.
-    await session.execute(update(NotificationDelivery).where(NotificationDelivery.delivery_status == "pending").values(delivery_status="simulated", attempt_count=1, sent_at=utc_now()))
-    await session.execute(delete(BackgroundJob).where(BackgroundJob.job_type.in_(("deliver_notification", "send_intelligence_report")), BackgroundJob.job_status == "queued"))
+    await session.execute(update(NotificationDelivery).where(NotificationDelivery.delivery_status == DeliveryStatus.PENDING).values(delivery_status=DeliveryStatus.SIMULATED, attempt_count=1, sent_at=utc_now()))
+    await session.execute(delete(BackgroundJob).where(BackgroundJob.job_type.in_(("deliver_notification", "send_intelligence_report")), BackgroundJob.job_status == JobStatus.QUEUED))
 
 
 async def _seed_communication_outbox(session: AsyncSession) -> None:
     """Historical communications were 'sent' by the incident seed; give them outbox rows so the outbox page and the room look real."""
-    communications = (await session.scalars(select(IncidentCommunication).where(IncidentCommunication.communication_status == "sent"))).all()
+    communications = (await session.scalars(select(IncidentCommunication).where(IncidentCommunication.communication_status == CommunicationStatus.SENT))).all()
     notification_service = NotificationService(session)
     for communication in communications:
         if communication.incident_id is None or await session.scalar(select(func.count()).select_from(NotificationDelivery).where(NotificationDelivery.incident_id == communication.incident_id, NotificationDelivery.subject_line == communication.subject_line)):
@@ -62,17 +63,17 @@ async def _seed_communication_outbox(session: AsyncSession) -> None:
             continue
         application_name = await notification_service._application_name(incident.application_id)
         notification_type = "preliminary_report" if communication.communication_type == "preliminary_report" else "progress_update"
-        for stakeholder in await notification_service.matching_stakeholders(incident.application_id, notification_type, "email", priority=incident.keigan_priority or "P3", service_ids=incident.affected_service_ids):
+        for stakeholder in await notification_service.matching_stakeholders(incident.application_id, notification_type, "email", priority=incident.keigan_priority or Priority.P3, service_ids=incident.affected_service_ids):
             recipient_language = stakeholder.preferred_language_code.split("-")[0]
             if recipient_language != communication.language_code.split("-")[0] and not (communication.language_code == "en" and recipient_language not in ("en", "ja")):
                 continue
             rendered = notification_service.renderer.render_email(
                 "progress_update", communication.language_code, application_name, incident.incident_title, facts=[(translate(communication.language_code, "labels.incident"), incident.external_incident_number or "")],
-                body_markdown=communication.body_markdown, action_path=f"/incidents/{incident.incident_id}", subject_override=communication.subject_line, priority=incident.keigan_priority or "P3",
+                body_markdown=communication.body_markdown, action_path=f"/incidents/{incident.incident_id}", subject_override=communication.subject_line, priority=incident.keigan_priority or Priority.P3,
             )
             session.add(NotificationDelivery(
-                application_id=incident.application_id, incident_id=incident.incident_id, notification_type=notification_type, delivery_channel="email", recipient_address=stakeholder.email_address or stakeholder.display_name,
-                subject_line=rendered.subject_line, body_html=rendered.body_html, body_text=rendered.body_text, delivery_status="simulated", attempt_count=1, created_at=communication.sent_at or utc_now(), sent_at=communication.sent_at,
+                application_id=incident.application_id, incident_id=incident.incident_id, notification_type=notification_type, delivery_channel=DeliveryChannel.EMAIL, recipient_address=stakeholder.email_address or stakeholder.display_name,
+                subject_line=rendered.subject_line, body_html=rendered.body_html, body_text=rendered.body_text, delivery_status=DeliveryStatus.SIMULATED, attempt_count=1, created_at=communication.sent_at or utc_now(), sent_at=communication.sent_at,
             ))
     await session.flush()
 
@@ -81,7 +82,7 @@ async def _seed_simulated_chat(session: AsyncSession, seed_context: SeedContext)
     application_id = seed_context.application_ids_by_code.get("CLMJP")
     if application_id is None:
         return
-    incident = await session.scalar(select(Incident).where(Incident.application_id == application_id, Incident.incident_status.in_(("resolved", "closed"))).order_by(Incident.opened_at.desc()).limit(1))
+    incident = await session.scalar(select(Incident).where(Incident.application_id == application_id, Incident.incident_status.in_((IncidentStatus.RESOLVED, IncidentStatus.CLOSED))).order_by(Incident.opened_at.desc()).limit(1))
     if incident is None or await session.scalar(select(TeamsIncidentChat.teams_incident_chat_id).where(TeamsIncidentChat.incident_id == incident.incident_id)):
         return
     chat_service = TeamsChatService(session)

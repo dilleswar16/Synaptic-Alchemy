@@ -22,6 +22,7 @@ from keigan.exceptions.keigan_exceptions import KeiganException
 from keigan.services.sli_measurement_reader import LATENCY_METRIC_NAMES, SliMeasurementReader
 from keigan.utils.statistics_utils import linear_trend, robust_baseline
 from keigan.utils.time_utils import hour_of_week, utc_now
+from keigan.entities.status_values import SignalSeverity
 
 logger = logging.getLogger(__name__)
 ROBUST_Z_THRESHOLD = 3.5
@@ -119,7 +120,7 @@ class PredictiveDetectors:
                 observed = error_ratio_by_hour[recent_buckets[-1]]
                 signals.append(DetectedSignal(
                     detector_name="seasonal_anomaly", signal_title=f"{sli.sli_name if sli.sli_name.lower().startswith(service_names.get(sli.service_id or '', '~').lower()) else service_names.get(sli.service_id or '', 'Service') + ': ' + sli.sli_name} is unusually bad for this hour of the week",
-                    signal_severity="critical" if min(z_scores) > 10 else "warning", confidence_score=min(0.95, 0.6 + 0.03 * min(z_scores)), metric_name=f"{sli.sli_name} error ratio", service_id=sli.service_id, sli_id=sli.sli_id,
+                    signal_severity=SignalSeverity.CRITICAL if min(z_scores) > 10 else SignalSeverity.WARNING, confidence_score=min(0.95, 0.6 + 0.03 * min(z_scores)), metric_name=f"{sli.sli_name} error ratio", service_id=sli.service_id, sli_id=sli.sli_id,
                     observed_value=round(observed * 100, 3), expected_value=round(expected_values[-1] * 100, 3), deviation_score=round(min(z_scores), 2),
                     evidence_series=_series_points([(bucket, error_ratio_by_hour[bucket] * 100) for bucket in sorted(error_ratio_by_hour)[-72:]]),
                     facts_text=f"SLI {sli.sli_name}: error ratio {observed * 100:.3f}% against {expected_values[-1] * 100:.3f}% usual for this hour of the week; robust z-score {min(z_scores):.1f} for {CONSECUTIVE_SAMPLES} consecutive hours.",
@@ -231,7 +232,7 @@ class PredictiveDetectors:
             return None
         rise_percentage = (end_fit - start_fit) / start_fit * 100
         return DetectedSignal(
-            detector_name="saturation_trend", signal_title=f"{service.service_name}: latency is creeping up ({rise_percentage:.0f}% over 7 days)", signal_severity="warning" if rise_percentage < 60 else "critical",
+            detector_name="saturation_trend", signal_title=f"{service.service_name}: latency is creeping up ({rise_percentage:.0f}% over 7 days)", signal_severity=SignalSeverity.WARNING if rise_percentage < 60 else SignalSeverity.CRITICAL,
             confidence_score=round(min(0.9, 0.4 + 0.6 * trend.r_squared), 2), metric_name=f"{metric_name} (latency)", service_id=service.service_id, observed_value=round(end_fit, 1), expected_value=round(start_fit, 1),
             deviation_score=round(trend.slope_per_hour * HOURS_PER_DAY, 2), evidence_series=_series_points(points),
             facts_text=f"Latency of {service.service_name} ({metric_name}) rose from about {start_fit:.0f} ms to {end_fit:.0f} ms in seven days (+{rise_percentage:.0f}%, +{trend.slope_per_hour * HOURS_PER_DAY:.1f} ms per day, R2 {trend.r_squared:.2f}).",
@@ -253,7 +254,7 @@ class PredictiveDetectors:
             service_label = service_names.get(service_id, "the service")
             numbers = ", ".join(incident.external_incident_number or incident.incident_id[:8] for incident in grouped_incidents[:6])
             signals.append(DetectedSignal(
-                detector_name="recurring_incident", signal_title=f"{service_label}: {len(grouped_incidents)} '{category.replace('_', ' ')}' incidents in 30 days", signal_severity="warning" if len(grouped_incidents) >= 3 else "info",
+                detector_name="recurring_incident", signal_title=f"{service_label}: {len(grouped_incidents)} '{category.replace('_', ' ')}' incidents in 30 days", signal_severity=SignalSeverity.WARNING if len(grouped_incidents) >= 3 else SignalSeverity.INFO,
                 confidence_score=min(0.9, 0.6 + 0.1 * len(grouped_incidents)), metric_name=f"incidents:{category}", service_id=service_id, observed_value=float(len(grouped_incidents)), expected_value=1.0,
                 evidence_series=[{"t": incident.opened_at.isoformat(), "v": index + 1} for index, incident in enumerate(grouped_incidents)],
                 facts_text=f"{len(grouped_incidents)} incidents of category {category} affected {service_label} within 30 days ({numbers}). A permanent fix is probably cheaper than repeated response.",
@@ -280,7 +281,7 @@ class PredictiveDetectors:
             if before_ratio is None or after_ratio is None or after_ratio < 0.002 or after_ratio < 2 * max(before_ratio, 1e-6):
                 continue
             signals.append(DetectedSignal(
-                detector_name="change_risk", signal_title=f"Error rate rose {after_ratio / max(before_ratio, 1e-6):.1f}x after: {change.operation_name}"[:400], signal_severity="warning", confidence_score=0.65,
+                detector_name="change_risk", signal_title=f"Error rate rose {after_ratio / max(before_ratio, 1e-6):.1f}x after: {change.operation_name}"[:400], signal_severity=SignalSeverity.WARNING, confidence_score=0.65,
                 metric_name=f"change:{change.operation_name}"[:200], observed_value=round(after_ratio * 100, 3), expected_value=round(before_ratio * 100, 3), deviation_score=round(after_ratio / max(before_ratio, 1e-6), 2),
                 evidence_series=[{"t": (change.occurred_at - timedelta(hours=2)).isoformat(), "v": round(before_ratio * 100, 3)}, {"t": change.occurred_at.isoformat(), "v": round(after_ratio * 100, 3)}],
                 facts_text=f"{change.description} at {change.occurred_at:%Y-%m-%d %H:%M} UTC ({change.operation_name}). Error ratio two hours before {before_ratio * 100:.3f}%, two hours after {after_ratio * 100:.3f}%.",

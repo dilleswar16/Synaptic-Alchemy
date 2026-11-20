@@ -30,6 +30,7 @@ from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.utils.text_utils import slugify, truncate_text
 from keigan.workers.job_queue import JobQueue
+from keigan.entities.status_values import DocumentDigestStatus, TopologyGenerationStatus, TopologyReviewStatus, TopologyReviewVerdict
 
 NODE_TYPE_BY_SERVICE_TYPE = {
     "network_appliance": "hardware",
@@ -59,14 +60,14 @@ class TopologyService:
         return TopologyResponse(
             current=await self._to_detail(current) if current else None,
             versions=[self._to_version(version) for version in versions],
-            build_in_progress=any(version.generation_status == "building" for version in versions),
+            build_in_progress=any(version.generation_status == TopologyGenerationStatus.BUILDING for version in versions),
         )
 
     # ── Starting a build ───────────────────────────────────────────────────────
     async def start_build(self, current_user: CurrentUser, application_id: str) -> JobAcceptedResponse:
         if not await BaseRepository(self.session, MonitoredService).exists(MonitoredService.application_id == application_id):
             raise BusinessValidationException("Add at least one service before building the topology.")
-        building_version = await self.topology_repository.find_one(ApplicationTopology.application_id == application_id, ApplicationTopology.generation_status == "building")
+        building_version = await self.topology_repository.find_one(ApplicationTopology.application_id == application_id, ApplicationTopology.generation_status == TopologyGenerationStatus.BUILDING)
         if building_version is None:
             await self._create_building_version(application_id)
         job_id = await JobQueue(self.session).enqueue(
@@ -80,7 +81,7 @@ class TopologyService:
     async def _create_building_version(self, application_id: str) -> ApplicationTopology:
         latest_number = await self.session.scalar(select(ApplicationTopology.topology_version_number).where(ApplicationTopology.application_id == application_id).order_by(ApplicationTopology.topology_version_number.desc()).limit(1))
         return await self.topology_repository.add(
-            ApplicationTopology(application_id=application_id, topology_version_number=(latest_number or 0) + 1, generation_status="building", review_status="awaiting_review", is_current_version=False)
+            ApplicationTopology(application_id=application_id, topology_version_number=(latest_number or 0) + 1, generation_status=TopologyGenerationStatus.BUILDING, review_status=TopologyReviewStatus.AWAITING_REVIEW, is_current_version=False)
         )
 
     # ── Job: build ─────────────────────────────────────────────────────────────
@@ -88,12 +89,12 @@ class TopologyService:
         application = await self.session.get(Application, application_id)
         if application is None:
             return None
-        topology = await self.topology_repository.find_one(ApplicationTopology.application_id == application_id, ApplicationTopology.generation_status == "building")
+        topology = await self.topology_repository.find_one(ApplicationTopology.application_id == application_id, ApplicationTopology.generation_status == TopologyGenerationStatus.BUILDING)
         if topology is None:
             topology = await self._create_building_version(application_id)
         services = await BaseRepository(self.session, MonitoredService).find_all(MonitoredService.application_id == application_id, order_by=MonitoredService.service_name)
         dependencies = await BaseRepository(self.session, ServiceDependency).find_all(ServiceDependency.application_id == application_id)
-        documents = await BaseRepository(self.session, KnowledgeDocument).find_all(KnowledgeDocument.application_id == application_id, KnowledgeDocument.ai_digest_status == "ready")
+        documents = await BaseRepository(self.session, KnowledgeDocument).find_all(KnowledgeDocument.application_id == application_id, KnowledgeDocument.ai_digest_status == DocumentDigestStatus.READY)
         corrections = await self._open_corrections(application_id)
         gateway = application_context.llm_gateway()
         generated_by_model_name = "deterministic"
@@ -114,8 +115,8 @@ class TopologyService:
         topology.understanding_summary_markdown = sanitize_ai_markdown(result.narrative_markdown)
         topology.replace_linked_ids("source_document_links", [document.knowledge_document_id for document in documents])
         topology.generated_by_model_name = generated_by_model_name
-        topology.generation_status = "ready"
-        topology.review_status = "awaiting_review"
+        topology.generation_status = TopologyGenerationStatus.READY
+        topology.review_status = TopologyReviewStatus.AWAITING_REVIEW
         topology.is_current_version = True
         await self.session.flush()
         return {"topologyId": topology.topology_id, "versionNumber": topology.topology_version_number, "nodeCount": len(graph["nodes"]), "edgeCount": len(graph["edges"]), "generatedBy": generated_by_model_name}
@@ -126,7 +127,7 @@ class TopologyService:
             return []
         return list(
             (await self.session.scalars(
-                select(TopologyReviewComment).where(TopologyReviewComment.topology_id.in_(topology_ids), TopologyReviewComment.review_verdict == "needs_correction").order_by(TopologyReviewComment.created_at)
+                select(TopologyReviewComment).where(TopologyReviewComment.topology_id.in_(topology_ids), TopologyReviewComment.review_verdict == TopologyReviewVerdict.NEEDS_CORRECTION).order_by(TopologyReviewComment.created_at)
             )).all()
         )
 
@@ -250,7 +251,7 @@ class TopologyService:
             raise NotFoundException("The topology was not found.")
         if request.target_element_key and not self._element_exists(topology, request.target_element_key):
             raise BusinessValidationException("That element is not part of this topology.", field_errors=[{"field": "targetElementKey", "message": "Unknown node or edge."}])
-        if request.review_verdict != "looks_right" and not (request.review_comment_text or "").strip():
+        if request.review_verdict != TopologyReviewVerdict.LOOKS_RIGHT and not (request.review_comment_text or "").strip():
             raise BusinessValidationException("Add a short comment so the next build can use it.", field_errors=[{"field": "reviewCommentText", "message": "Required."}])
         review = TopologyReviewComment(
             topology_id=topology_id, target_element_key=request.target_element_key, review_verdict=request.review_verdict,
@@ -280,8 +281,8 @@ class TopologyService:
         """Latest verdict per element wins; any open correction → needs_correction; otherwise any review → reviewed."""
         reviews = await self._latest_reviews(topology.topology_id)
         if not reviews:
-            return "awaiting_review"
-        return "needs_correction" if any(review.review_verdict == "needs_correction" for review in reviews.values()) else "reviewed"
+            return TopologyReviewStatus.AWAITING_REVIEW
+        return TopologyReviewStatus.NEEDS_CORRECTION if any(review.review_verdict == TopologyReviewVerdict.NEEDS_CORRECTION for review in reviews.values()) else TopologyReviewStatus.REVIEWED
 
     async def _latest_reviews(self, topology_id: str) -> dict[str | None, TopologyReviewComment]:
         rows = await self.session.scalars(select(TopologyReviewComment).where(TopologyReviewComment.topology_id == topology_id).order_by(TopologyReviewComment.created_at))

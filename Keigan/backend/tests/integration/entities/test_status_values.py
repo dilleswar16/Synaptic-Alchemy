@@ -114,18 +114,63 @@ def test_a_database_with_no_value_in_the_column_is_still_allowed_where_the_colum
 
 
 COLUMN_NAMES = {column for _, column, _ in CONSTRAINED_COLUMNS}
+ENUM_NAMES = {enum_class.__name__ for _, _, enum_class in CONSTRAINED_COLUMNS}
 ALLOWED_BY_COLUMN: dict[str, set[str]] = {}
 for _table, _column, _enum in CONSTRAINED_COLUMNS:
     ALLOWED_BY_COLUMN.setdefault(_column, set()).update(member.value for member in _enum)
 
 
 def string_constants_in(expression: ast.expr) -> list[str]:
-    """Literals a value expression can evaluate to directly: the constant itself or either branch of ``a if cond else b``."""
+    """Literals a value expression can evaluate to directly: the constant itself, either branch of ``a if cond else b``, or a member of a literal tuple, list or set."""
     if isinstance(expression, ast.Constant) and isinstance(expression.value, str):
         return [expression.value]
     if isinstance(expression, ast.IfExp):
         return [*string_constants_in(expression.body), *string_constants_in(expression.orelse)]
+    if isinstance(expression, (ast.Tuple, ast.List, ast.Set)):
+        return [literal for element in expression.elts for literal in string_constants_in(element)]
     return []
+
+
+def column_name_of(expression: ast.expr) -> str | None:
+    """The constrained column a target or operand names: ``row.incident_status`` or a local called ``incident_status``."""
+    name = expression.attr if isinstance(expression, ast.Attribute) else expression.id if isinstance(expression, ast.Name) else None
+    return name if name in COLUMN_NAMES else None
+
+
+def value_expressions_for_constrained_columns(node: ast.AST) -> list[tuple[str, ast.expr]]:
+    """(column, value expression) pairs where code writes, compares or filters a constrained column."""
+    if isinstance(node, ast.keyword) and node.arg in COLUMN_NAMES:
+        return [(node.arg, node.value)]
+    if isinstance(node, ast.Assign):
+        pairs: list[tuple[str, ast.expr]] = []
+        for target in node.targets:
+            if column_name_of(target) is not None:
+                pairs.append((column_name_of(target), node.value))
+            if isinstance(target, ast.Tuple) and isinstance(node.value, ast.Tuple) and len(target.elts) == len(node.value.elts):
+                pairs.extend((column_name_of(element), value) for element, value in zip(target.elts, node.value.elts, strict=True) if column_name_of(element) is not None)
+        return pairs
+    if isinstance(node, ast.Compare) and column_name_of(node.left) is not None:
+        return [(column_name_of(node.left), comparator) for comparator in node.comparators]
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in ("in_", "not_in") and node.args:
+        if isinstance(node.func.value, ast.Attribute) and node.func.value.attr in COLUMN_NAMES:
+            return [(node.func.value.attr, node.args[0])]
+    if isinstance(node, ast.Dict):
+        return [(key.value, value) for key, value in zip(node.keys, node.values, strict=True) if isinstance(key, ast.Constant) and key.value in COLUMN_NAMES]
+    return []
+
+
+def bare_status_literals_in_the_code() -> list[str]:
+    """Every string literal that writes, compares or filters a constrained column with its raw text. Enum members must be used instead."""
+    found: list[str] = []
+    for path in sorted(KEIGAN_DIRECTORY.rglob("*.py")):
+        if path.parts[-2:] == ("entities", "status_values.py") or "dtos" in path.parts:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            for column, expression in value_expressions_for_constrained_columns(node):
+                for literal in string_constants_in(expression):
+                    if literal in ALLOWED_BY_COLUMN[column]:
+                        found.append(f"{path.relative_to(KEIGAN_DIRECTORY)}:{node.lineno} {column}={literal!r}")
+    return found
 
 
 def literals_written_to_constrained_columns() -> list[tuple[str, int, str, str]]:
@@ -149,10 +194,76 @@ def test_every_literal_the_code_writes_to_a_constrained_column_is_an_allowed_val
     assert not_allowed == []
 
 
+def enum_members_written_to_constrained_columns() -> set[tuple[str, str]]:
+    """(column, 'EnumName.MEMBER') for every enum member the code writes, compares or filters a constrained column with."""
+    members: set[tuple[str, str]] = set()
+    for path in sorted(KEIGAN_DIRECTORY.rglob("*.py")):
+        if path.parts[-2:] == ("entities", "status_values.py") or "dtos" in path.parts:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            for column, expression in value_expressions_for_constrained_columns(node):
+                for member in ast.walk(expression):
+                    if isinstance(member, ast.Attribute) and isinstance(member.value, ast.Name) and member.value.id in ENUM_NAMES:
+                        members.add((column, f"{member.value.id}.{member.attr}"))
+    return members
+
+
 def test_the_scan_sees_the_known_writers() -> None:
-    """Guards the scan itself: it must find ordinary writers, or the test above proves nothing."""
-    written = {(column, literal) for _, _, column, literal in literals_written_to_constrained_columns()}
-    assert {("alert_status", "resolved"), ("group_status", "queued"), ("job_status", "dead_lettered"), ("investigation_status", "cancelled"), ("delivery_status", "simulated")} <= written
+    """Guards the scan itself: it must find ordinary writers (as enum members now), or the test above proves nothing."""
+    assert {
+        ("alert_status", "AlertStatus.RESOLVED"), ("group_status", "AlertGroupStatus.QUEUED"), ("job_status", "JobStatus.DEAD_LETTERED"),
+        ("investigation_status", "InvestigationStatus.CANCELLED"), ("delivery_status", "DeliveryStatus.SIMULATED"),
+    } <= enum_members_written_to_constrained_columns()
+
+
+def test_the_code_uses_enum_members_not_status_words_for_constrained_columns() -> None:
+    """Writes, comparisons, filters and tuple assignments of a constrained column use the StrEnum member (a typo is then a name error, not a silent string)."""
+    assert bare_status_literals_in_the_code() == []
+
+
+def literal_members_of_a_set(value: ast.expr) -> list[str]:
+    """The string members of a module-level collection: a tuple, list, set, ``frozenset({...})``, or the keys of a dict literal."""
+    if isinstance(value, ast.Call) and isinstance(value.func, ast.Name) and value.func.id in ("frozenset", "set") and value.args:
+        value = value.args[0]
+    if isinstance(value, ast.Dict):
+        return [key.value for key in value.keys if isinstance(key, ast.Constant) and isinstance(key.value, str)]
+    return string_constants_in(value)
+
+
+def module_level_status_sets_written_as_strings() -> list[str]:
+    """Module-level collections (``OPEN_STATUSES = ('open', 'queued')``) whose words all belong to one constrained column."""
+    found: list[str] = []
+    for path in sorted(KEIGAN_DIRECTORY.rglob("*.py")):
+        if path.parts[-2:] == ("entities", "status_values.py") or "dtos" in path.parts:
+            continue
+        for statement in ast.parse(path.read_text(encoding="utf-8")).body:
+            if not (isinstance(statement, ast.Assign) and len(statement.targets) == 1 and isinstance(statement.targets[0], ast.Name)):
+                continue
+            words = literal_members_of_a_set(statement.value)
+            if len(words) < 2:
+                continue
+            columns = [column for column in sorted(COLUMN_NAMES) if all(word in ALLOWED_BY_COLUMN[column] for word in words)]
+            if columns:
+                found.append(f"{path.relative_to(KEIGAN_DIRECTORY)}:{statement.lineno} {statement.targets[0].id} ({', '.join(columns)})")
+    return found
+
+
+def test_module_level_status_sets_hold_enum_members() -> None:
+    assert module_level_status_sets_written_as_strings() == []
+
+
+def test_the_bare_literal_scan_sees_comparisons_filters_and_tuple_assignments() -> None:
+    """Guards the new scan: each context it claims to cover must be found in a snippet, or the test above proves nothing."""
+    snippets = {
+        "job.job_status == 'queued'": ("job_status", "queued"),
+        "Model.group_status.in_(['open', 'queued'])": ("group_status", "open"),
+        "row.incident_status, row.closed_at = ('closed', None)": ("incident_status", "closed"),
+        "row(incident_status='resolved')": ("incident_status", "resolved"),
+        "{'incident_status': 'new'}": ("incident_status", "new"),
+    }
+    for snippet, (column, literal) in snippets.items():
+        found = [value for node in ast.walk(ast.parse(snippet)) for value in value_expressions_for_constrained_columns(node)]
+        assert any(name == column and literal in string_constants_in(expression) for name, expression in found), snippet
 
 
 def literal_values(annotation: object) -> set[str]:

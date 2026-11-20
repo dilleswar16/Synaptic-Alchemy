@@ -24,7 +24,7 @@ from keigan.dtos.alert_dtos import (
 from keigan.dtos.common_dtos import ApiModel
 from keigan.entities.alert_entities import Alert, AlertEvent, AlertGroup, AlertSource
 from keigan.entities.application_entities import Application, ApplicationComponent, MonitoredService
-from keigan.entities.status_values import AlertSourceTool
+from keigan.entities.status_values import AlertEventProcessingStatus, AlertSourceStatus, AlertSourceTool, ComponentType
 from keigan.exceptions.keigan_exceptions import AuthenticationException, BusinessValidationException, NotFoundException
 from keigan.integrations.secret_store import build_secret_name
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
@@ -121,7 +121,7 @@ class AlertSourceService:
         if "service_mapping" in provided:
             source.service_mapping_json = request.service_mapping
         if request.is_paused is not None:
-            source.source_status = "paused" if request.is_paused else ("receiving" if source.last_received_at else "waiting_for_first_alert")
+            source.source_status = AlertSourceStatus.PAUSED if request.is_paused else (AlertSourceStatus.RECEIVING if source.last_received_at else AlertSourceStatus.WAITING_FOR_FIRST_ALERT)
         source.updated_by_user_principal_name = current_user.user_principal_name
         await AuditService(self.session).record(current_user, "alert_source.update", target_entity_type="alert_source", target_entity_id=alert_source_id, application_id=application_id, action_details=request.model_dump(exclude_none=True, by_alias=False))
         return await self._to_response(source)
@@ -158,15 +158,15 @@ class AlertSourceService:
     async def get_or_create_internal_source(self, application_id: str) -> AlertSource:
         source = await self.session.scalar(select(AlertSource).where(AlertSource.application_id == application_id, AlertSource.source_tool == INTERNAL_SOURCE_TOOL).limit(1))
         if source is None:
-            source = AlertSource(application_id=application_id, source_tool=INTERNAL_SOURCE_TOOL, source_name="Keigan SLO burn alerts", webhook_secret_hash=hash_secret(secrets.token_urlsafe(32)), source_status="receiving", created_by_user_principal_name="system:keigan")
+            source = AlertSource(application_id=application_id, source_tool=INTERNAL_SOURCE_TOOL, source_name="Keigan SLO burn alerts", webhook_secret_hash=hash_secret(secrets.token_urlsafe(32)), source_status=AlertSourceStatus.RECEIVING, created_by_user_principal_name="system:keigan")
             self.session.add(source)
             await self.session.flush()
         return source
 
     async def get_or_create_simulation_source(self, application_id: str) -> AlertSource:
-        source = await self.session.scalar(select(AlertSource).where(AlertSource.application_id == application_id, AlertSource.source_tool == "azure_monitor").order_by(AlertSource.created_at).limit(1))
+        source = await self.session.scalar(select(AlertSource).where(AlertSource.application_id == application_id, AlertSource.source_tool == AlertSourceTool.AZURE_MONITOR).order_by(AlertSource.created_at).limit(1))
         if source is None:
-            source = AlertSource(application_id=application_id, source_tool="azure_monitor", source_name="Azure Monitor (simulated)", webhook_secret_hash=hash_secret(secrets.token_urlsafe(32)), created_by_user_principal_name="system:keigan")
+            source = AlertSource(application_id=application_id, source_tool=AlertSourceTool.AZURE_MONITOR, source_name="Azure Monitor (simulated)", webhook_secret_hash=hash_secret(secrets.token_urlsafe(32)), created_by_user_principal_name="system:keigan")
             self.session.add(source)
             await self.session.flush()
         return source
@@ -181,8 +181,8 @@ class AlertSourceService:
         if not self._credentials_are_valid(source, body_bytes, supplied_token, supplied_signature, signing_secrets):
             if source is not None:
                 source.authentication_failure_count += 1
-                if source.source_status != "paused":
-                    source.source_status = "authentication_failures"
+                if source.source_status != AlertSourceStatus.PAUSED:
+                    source.source_status = AlertSourceStatus.AUTHENTICATION_FAILURES
                 await self.session.commit()
             raise AuthenticationException("The alert source token is missing or not valid.")
         if len(body_bytes) > self.settings.alert_intake_max_payload_bytes:
@@ -197,11 +197,11 @@ class AlertSourceService:
         source.received_alert_count += 1
         event = AlertEvent(
             alert_source_id=source.alert_source_id, application_id=source.application_id, received_at=alert_rules.utc_now(), raw_payload_json=payload, payload_size_bytes=len(body_bytes),
-            processing_status="ignored_paused" if source.source_status == "paused" else "received",
+            processing_status=AlertEventProcessingStatus.IGNORED_PAUSED if source.source_status == AlertSourceStatus.PAUSED else AlertEventProcessingStatus.RECEIVED,
         )
         self.session.add(event)
         await self.session.flush()
-        if event.processing_status == "received":
+        if event.processing_status == AlertEventProcessingStatus.RECEIVED:
             await JobQueue(self.session).enqueue("process_alert_event", {"alert_event_id": event.alert_event_id}, deduplication_key=f"alert_event:{event.alert_event_id}", priority_number=10)
         return event.alert_event_id
 
@@ -267,7 +267,7 @@ class AlertSourceService:
             "externalId": "alert-1042", "ruleId": "checkout-error-rate", "ruleName": "Checkout error rate > 5%", "status": "firing", "severity": 2, "resourceRef": "aks-prod-01",
             "service": "checkout-api", "environment": "prod", "startedAt": "2026-11-19T04:12:00Z", "summary": "Error rate is 7.4% over 5 minutes", "description": "Optional longer text", "link": "https://monitoring.example/alerts/1042", "labels": {"team": "checkout"},
         }
-        if source.source_tool == "azure_monitor":
+        if source.source_tool == AlertSourceTool.AZURE_MONITOR:
             tabs = [
                 SetupTab(tab_key="cli", tab_title="Azure CLI", steps=["Create an action group with a webhook receiver that has the common alert schema enabled.", "Attach the action group to the alert rules you want analysed (the list in Keigan shows which rules already send here).", "Verify the exact flags against the current az documentation."],
                          code_blocks=[
@@ -280,7 +280,7 @@ class AlertSourceService:
                          code_blocks=[SetupCodeBlock(title="azurerm_monitor_action_group", language="hcl", content=f'resource "azurerm_monitor_action_group" "keigan" {{\n  name                = "keigan-alerts"\n  resource_group_name = "{resource_group}"\n  short_name          = "keigan"\n\n  webhook_receiver {{\n    name                    = "keigan"\n    service_uri             = "{url_with_token}"\n    use_common_alert_schema = true\n  }}\n}}')]),
                 SetupTab(tab_key="portal", tab_title="Azure portal", steps=["Open Monitor, then Alerts, then Action groups, and choose Create.", f'Name it "keigan-alerts" in resource group {resource_group}.', "On the Actions tab choose Webhook, paste the URL below, and switch Enable the common alert schema to Yes.", "Open each alert rule you want analysed and add this action group.", f"Webhook URL: {url_with_token}", "Azure Monitor basic webhooks cannot send custom headers, so the token travels in the URL. Entra ID secure webhook is a later hardening option."]),
             ]
-        elif source.source_tool == "elastic":
+        elif source.source_tool == AlertSourceTool.ELASTIC:
             body_template = json.dumps({
                 "ruleId": "{{rule.id}}", "ruleName": "{{rule.name}}", "externalId": "{{alert.id}}", "status": "{{alert.actionGroup}}", "severity": 2, "service": "{{context.service}}", "environment": "prod",
                 "startedAt": "{{date}}", "summary": "{{context.reason}}", "link": "{{kibanaBaseUrl}}", "labels": {"tags": "{{rule.tags}}"},
@@ -381,14 +381,14 @@ class AlertSourceService:
         now_text = alert_rules.utc_now().strftime("%Y-%m-%dT%H:%M:%SZ")
         identifier = f"keigan-test-{uuid.uuid4().hex[:8]}"
         resource_reference = (service.external_resource_identifier if service and service.external_resource_identifier else "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/keigan-test/providers/Microsoft.Web/sites/keigan-test")
-        if source.source_tool == "azure_monitor":
+        if source.source_tool == AlertSourceTool.AZURE_MONITOR:
             return {"schemaId": "azureMonitorCommonAlertSchema", "data": {"essentials": {
                 "alertId": f"/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.AlertsManagement/alerts/{identifier}", "alertRule": "Keigan test alert", "severity": "Sev3",
                 "signalType": "Metric", "monitorCondition": "Fired", "monitoringService": "Platform", "alertTargetIDs": [resource_reference], "firedDateTime": now_text,
                 "description": "Test alert sent from Keigan to verify the connection."}, "alertContext": {"condition": {"allOf": [{"metricName": "Percentage CPU", "operator": "GreaterThan", "threshold": "90", "metricValue": "93"}]}}}}
         base_values = {"externalId": identifier, "ruleId": "keigan-test-alert", "ruleName": "Keigan test alert", "status": "firing", "severity": 3, "resourceRef": resource_reference, "service": service.service_name if service else "",
                        "environment": "prod", "startedAt": now_text, "summary": "Test alert sent from Keigan to verify the connection.", "labels": {"keiganTest": "true"}}
-        mapping = {**alert_rules.DEFAULT_GENERIC_FIELD_MAPPING, **(source.field_mapping_json or {})} if source.source_tool == "generic" else {}
+        mapping = {**alert_rules.DEFAULT_GENERIC_FIELD_MAPPING, **(source.field_mapping_json or {})} if source.source_tool == AlertSourceTool.GENERIC else {}
         if not mapping or mapping == alert_rules.DEFAULT_GENERIC_FIELD_MAPPING:
             return base_values
         payload: dict[str, Any] = {}
@@ -426,7 +426,7 @@ class AlertSourceService:
         seen_rule_names = set((await self.session.scalars(select(Alert.rule_name).where(Alert.application_id == application_id).distinct())).all())
         gateway = application_context.telemetry_gateway()
         services = list((await self.session.scalars(select(MonitoredService).where(MonitoredService.application_id == application_id))).all())
-        components = list((await self.session.scalars(select(ApplicationComponent).where(ApplicationComponent.application_id == application_id, ApplicationComponent.component_type == "azure_resource_group"))).all())
+        components = list((await self.session.scalars(select(ApplicationComponent).where(ApplicationComponent.application_id == application_id, ApplicationComponent.component_type == ComponentType.AZURE_RESOURCE_GROUP))).all())
         is_simulated = gateway.is_simulated()
         rules: list[AzureAlertRuleResponse] = []
         if is_simulated:

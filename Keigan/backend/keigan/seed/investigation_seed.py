@@ -21,6 +21,7 @@ from keigan.seed.foundation_seed import SeedContext
 from keigan.services.communication_service import CommunicationService
 from keigan.services.investigation_service import InvestigationService
 from keigan.utils.pii_masker import PiiMasker
+from keigan.entities.status_values import CommunicationStatus, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStatus, InvestigationTrigger, PostmortemStatus
 
 SEED_ORDER = 30
 SEED_ACTOR = "system:seed"
@@ -59,11 +60,11 @@ async def _seed_historical_incident(session: AsyncSession, window: dict[str, Any
     assignment_group = await session.scalar(select(ServiceNowAssignmentGroup.group_name).where(ServiceNowAssignmentGroup.application_id == application_id).limit(1))
     masker = PiiMasker()
     incident = Incident(
-        application_id=application_id, incident_source="servicenow", external_incident_number=incident_number, external_system_identifier=f"seed-{incident_number}",
+        application_id=application_id, incident_source=IncidentSource.SERVICENOW, external_incident_number=incident_number, external_system_identifier=f"seed-{incident_number}",
         incident_title=scenario.servicenow_short_description.format(application_name=application.application_name, service_name=primary_service.service_name),
         incident_description=masker.mask_text(scenario.servicenow_description.format(started_at_local=started_at.strftime("%H:%M UTC"))),
         servicenow_priority=scenario.servicenow_priority, servicenow_impact="2", servicenow_urgency="1" if scenario.servicenow_priority in ("1", "2") else "2",
-        keigan_priority=f"P{min(int(scenario.servicenow_priority), 4)}", incident_category=scenario.incident_category, incident_status="resolved", external_state="resolved",
+        keigan_priority=f"P{min(int(scenario.servicenow_priority), 4)}", incident_category=scenario.incident_category, incident_status=IncidentStatus.RESOLVED, external_state="resolved",
         assignment_group_name=assignment_group, opened_at=opened_at, detected_by_keigan_at=opened_at + timedelta(minutes=1),
         resolved_at=ended_at, external_last_updated_at=ended_at, created_by_user_principal_name=SEED_ACTOR,
     )
@@ -72,7 +73,7 @@ async def _seed_historical_incident(session: AsyncSession, window: dict[str, Any
     await session.flush()
     window_start = opened_at - timedelta(minutes=60)
     investigation = Investigation(
-        application_id=application_id, incident_id=incident.incident_id, investigation_trigger="incident", investigation_status="queued", investigation_window_start=window_start,
+        application_id=application_id, incident_id=incident.incident_id, investigation_trigger=InvestigationTrigger.INCIDENT, investigation_status=InvestigationStatus.QUEUED, investigation_window_start=window_start,
         investigation_window_end=min(ended_at + timedelta(minutes=5), window_start + timedelta(minutes=240)), requested_by_user_principal_name=SEED_ACTOR, created_by_user_principal_name=SEED_ACTOR,
     )
     session.add(investigation)
@@ -85,7 +86,7 @@ async def _seed_historical_incident(session: AsyncSession, window: dict[str, Any
 
     # Historical timestamps so the incident room, timers and timeline look lived-in.
     investigation.created_at, investigation.started_at, investigation.completed_at = opened_at + timedelta(minutes=1), opened_at + timedelta(minutes=1), opened_at + timedelta(minutes=4)
-    investigation.user_feedback_verdict = "partially_correct" if index == 3 else "correct"
+    investigation.user_feedback_verdict = InvestigationFeedbackVerdict.PARTIALLY_CORRECT if index == 3 else InvestigationFeedbackVerdict.CORRECT
     investigation.user_feedback_by_user_principal_name = ADMIN_UPN
     offsets = {"investigation_started": 1, "evidence_collected": 3, "rca_completed": 4, "communications_drafted": 5}
     timeline_events = (await session.scalars(select(InvestigationTimelineEvent).where(InvestigationTimelineEvent.investigation_id == investigation.investigation_id))).all()
@@ -104,7 +105,7 @@ async def _seed_historical_incident(session: AsyncSession, window: dict[str, Any
     await comms_service.generate_communications(investigation.investigation_id, ["resolution_update"], ["en", "ja"], offline_ai=True)
     communications = (await session.scalars(select(IncidentCommunication).where(IncidentCommunication.investigation_id == investigation.investigation_id))).all()
     for communication in communications:
-        communication.communication_status = "sent"
+        communication.communication_status = CommunicationStatus.SENT
         communication.approved_by_user_principal_name = ADMIN_UPN
         communication.approved_at = opened_at + timedelta(minutes=6)
         communication.sent_at = ended_at + timedelta(minutes=2) if communication.communication_type == "resolution_update" else opened_at + timedelta(minutes=7)
@@ -116,8 +117,8 @@ async def _seed_historical_incident(session: AsyncSession, window: dict[str, Any
     postmortem = await session.scalar(select(PostmortemReport).where(PostmortemReport.incident_id == incident.incident_id))
     if postmortem is not None:
         postmortem.created_at = ended_at + timedelta(hours=1)
-        if postmortem.report_status == "draft" and not is_recent:
-            postmortem.report_status = "final"
+        if postmortem.report_status == PostmortemStatus.DRAFT and not is_recent:
+            postmortem.report_status = PostmortemStatus.FINAL
             postmortem.finalized_by_user_principal_name, postmortem.finalized_at = ADMIN_UPN, min(ended_at + timedelta(days=1), now_utc())
             postmortem.sent_at = postmortem.finalized_at + timedelta(minutes=5)
     await session.flush()

@@ -25,6 +25,7 @@ from keigan.config.logging_config import set_correlation_id
 from keigan.config.settings import get_settings
 from keigan.entities.platform_entities import ACTIVE_JOB_STATUSES, BackgroundJob, PlatformSetting
 from keigan.workers.worker_settings import WorkerSettings, get_worker_settings
+from keigan.entities.status_values import JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -130,8 +131,8 @@ class JobWorker:
         """
         return (
             update(BackgroundJob)
-            .where(BackgroundJob.background_job_id == background_job_id, BackgroundJob.job_status == "queued")
-            .values(job_status="running", leased_by_worker_name=worker_name, lease_expires_at=now + lease_duration, started_at=now, attempt_count=BackgroundJob.attempt_count + 1)
+            .where(BackgroundJob.background_job_id == background_job_id, BackgroundJob.job_status == JobStatus.QUEUED)
+            .values(job_status=JobStatus.RUNNING, leased_by_worker_name=worker_name, lease_expires_at=now + lease_duration, started_at=now, attempt_count=BackgroundJob.attempt_count + 1)
             .execution_options(synchronize_session=False)
         )
 
@@ -141,7 +142,7 @@ class JobWorker:
             async with open_session() as session:
                 candidate_job_id = await session.scalar(
                     select(BackgroundJob.background_job_id)
-                    .where(BackgroundJob.job_status == "queued", BackgroundJob.available_at <= now)
+                    .where(BackgroundJob.job_status == JobStatus.QUEUED, BackgroundJob.available_at <= now)
                     .order_by(BackgroundJob.priority_number, BackgroundJob.available_at)
                     .limit(1)
                 )
@@ -161,7 +162,7 @@ class JobWorker:
         async with open_session() as session:
             renewal_result = await session.execute(
                 update(BackgroundJob)
-                .where(BackgroundJob.background_job_id == background_job_id, BackgroundJob.job_status == "running", BackgroundJob.leased_by_worker_name == self.settings.worker_name)
+                .where(BackgroundJob.background_job_id == background_job_id, BackgroundJob.job_status == JobStatus.RUNNING, BackgroundJob.leased_by_worker_name == self.settings.worker_name)
                 .values(lease_expires_at=new_expiry)
                 .execution_options(synchronize_session=False)
             )
@@ -204,7 +205,7 @@ class JobWorker:
             async with open_session() as session:
                 background_job = await session.get(BackgroundJob, background_job_id)
                 if background_job is not None:
-                    background_job.job_status = "succeeded"
+                    background_job.job_status = JobStatus.SUCCEEDED
                     background_job.finished_at = datetime.now(UTC)
                     background_job.result_summary_json = job_result if isinstance(job_result, dict) else None
         finally:
@@ -218,11 +219,11 @@ class JobWorker:
             error_message = f"{type(job_error).__name__}: {str(job_error)[:1500]}"
             background_job.last_error_message = error_message
             if isinstance(job_error, NotImplementedError) or background_job.attempt_count >= background_job.maximum_attempt_count:
-                background_job.job_status = "dead_lettered"
+                background_job.job_status = JobStatus.DEAD_LETTERED
                 background_job.finished_at = datetime.now(UTC)
                 logger.error("Job %s (%s) dead-lettered: %s", background_job_id, background_job.job_type, error_message)
             else:
-                background_job.job_status = "queued"
+                background_job.job_status = JobStatus.QUEUED
                 background_job.available_at = datetime.now(UTC) + timedelta(seconds=15 * 2 ** background_job.attempt_count)
                 logger.warning("Job %s (%s) failed, retry %s scheduled: %s", background_job_id, background_job.job_type, background_job.attempt_count, error_message)
 
@@ -235,8 +236,8 @@ class JobWorker:
         async with open_session() as session:
             await session.execute(
                 update(BackgroundJob)
-                .where(BackgroundJob.job_status == "running", BackgroundJob.lease_expires_at < now)
-                .values(job_status="queued", leased_by_worker_name=None, available_at=now)
+                .where(BackgroundJob.job_status == JobStatus.RUNNING, BackgroundJob.lease_expires_at < now)
+                .values(job_status=JobStatus.QUEUED, leased_by_worker_name=None, available_at=now)
             )
             heartbeat_setting = await session.get(PlatformSetting, WORKER_HEARTBEAT_SETTING_KEY)
             heartbeat_value = {"workerName": self.settings.worker_name, "heartbeatAt": now.isoformat()}

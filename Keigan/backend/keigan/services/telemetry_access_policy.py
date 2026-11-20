@@ -32,6 +32,7 @@ from keigan.entities.application_entities import Application, ApplicationCompone
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, IntegrationException, NotFoundException
 from keigan.services.authorization_service import UNAPPROVED_LIFECYCLE_STATUSES
 from keigan.services.component_discovery_service import classify_resource, simulated_workspace_customer_id
+from keigan.entities.status_values import AccessVerificationStatus, ComponentType
 
 if TYPE_CHECKING:
     from keigan.entities.application_entities import LogToolConnection
@@ -138,8 +139,8 @@ class TelemetryAccessRules:
             await self.session.scalars(
                 select(ApplicationComponent).where(
                     ApplicationComponent.application_id == application_id,
-                    ApplicationComponent.component_type == "azure_resource_group",
-                    ApplicationComponent.access_verification_status == "verified",
+                    ApplicationComponent.component_type == ComponentType.AZURE_RESOURCE_GROUP,
+                    ApplicationComponent.access_verification_status == AccessVerificationStatus.VERIFIED,
                 )
             )
         ).all()

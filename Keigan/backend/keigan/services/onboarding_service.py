@@ -36,6 +36,7 @@ from keigan.services.reference_release import release_references
 from keigan.services.role_command_builder import RoleCommandBuilder
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
+from keigan.entities.status_values import AccessVerificationStatus, ComponentType
 
 GUID_PATTERN = re.compile(r"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
 SIMULATED_MISSING_ROLE_MARKER = "norole"  # a resource group whose name contains this fails the simulated Log Analytics check (demo of the "waiting" path)
@@ -73,15 +74,15 @@ class OnboardingService:
             created_by_user_principal_name=current_user.user_principal_name,
             updated_by_user_principal_name=current_user.user_principal_name,
         )
-        if request.component_type == "azure_resource_group":
+        if request.component_type == ComponentType.AZURE_RESOURCE_GROUP:
             await self._prepare_azure_component(component, request)
         else:
             self._validate_non_azure_component(component, request)
             await self._ensure_probe_url_allowed(request.component_configuration)
-            component.access_verification_status = "not_applicable"
+            component.access_verification_status = AccessVerificationStatus.NOT_APPLICABLE
             component.last_verified_at = utc_now()
         await self.component_repository.add(component)
-        if request.component_type != "azure_resource_group":
+        if request.component_type != ComponentType.AZURE_RESOURCE_GROUP:
             await self._create_services_for_non_azure_component(component)
         await self.audit_service.record(
             current_user, "component.add", target_entity_type="application_component", target_entity_id=component.component_id, application_id=application_id,
@@ -115,7 +116,7 @@ class OnboardingService:
         component.azure_subscription_name = request.azure_subscription_name
         component.azure_resource_group_name = resource_group_name
         component.component_name = component.component_name or resource_group_name
-        component.access_verification_status = "not_checked"
+        component.access_verification_status = AccessVerificationStatus.NOT_CHECKED
 
     @staticmethod
     async def _ensure_probe_url_allowed(component_configuration: dict[str, Any] | None) -> None:
@@ -133,7 +134,7 @@ class OnboardingService:
             "saas_platform": ["vendor_name"],
         }[request.component_type]
         field_errors = [{"field": f"componentConfiguration.{field}", "message": "This field is required."} for field in required_fields if not configuration.get(field)]
-        if request.component_type == "hardware" and configuration.get("device_category") not in (None, *HARDWARE_CATEGORIES):
+        if request.component_type == ComponentType.HARDWARE and configuration.get("device_category") not in (None, *HARDWARE_CATEGORIES):
             field_errors.append({"field": "componentConfiguration.device_category", "message": f"Use one of {', '.join(HARDWARE_CATEGORIES)}."})
         if field_errors:
             raise BusinessValidationException("Some component details are missing.", field_errors=field_errors)
@@ -142,9 +143,9 @@ class OnboardingService:
         """Hardware device, mainframe subsystems and SaaS product each become a monitored service so SLOs and incidents can point at them."""
         configuration = component.component_configuration_json or {}
         service_definitions: list[tuple[str, str]] = []
-        if component.component_type == "hardware":
+        if component.component_type == ComponentType.HARDWARE:
             service_definitions.append((component.component_name, "network_appliance"))
-        elif component.component_type == "mainframe":
+        elif component.component_type == ComponentType.MAINFRAME:
             for subsystem in configuration.get("subsystems") or []:
                 subsystem_name = str(subsystem).strip()
                 if subsystem_name:
@@ -164,7 +165,7 @@ class OnboardingService:
             self.session.add(service)
             await self.session.flush()
             probe_url = configuration.get(PROBE_URL_KEY)
-            if component.component_type == "saas_platform" and probe_url:
+            if component.component_type == ComponentType.SAAS_PLATFORM and probe_url:
                 self.session.add(
                     ServiceLogSource(service_id=service.service_id, source_kind="synthetic_probe", query_scope_json={"probe_url": probe_url}, is_primary_source=True)
                 )
@@ -215,7 +216,7 @@ class OnboardingService:
     # ── Role commands, resources ───────────────────────────────────────────────
     async def get_role_commands(self, application_id: str, component_id: str) -> RoleCommandsResponse:
         component = await self._get_component(application_id, component_id)
-        if component.component_type != "azure_resource_group":
+        if component.component_type != ComponentType.AZURE_RESOURCE_GROUP:
             raise BusinessValidationException("Role grants apply to Azure resource groups only.")
         keigan_identity = await application_context.azure_credential_provider().resolve_keigan_identity()
         return RoleCommandBuilder(self.settings, keigan_identity).build(component)
@@ -252,9 +253,9 @@ class OnboardingService:
     # ── Starting jobs ──────────────────────────────────────────────────────────
     async def start_verification(self, current_user: CurrentUser, application_id: str, component_id: str) -> JobAcceptedResponse:
         component = await self._get_component(application_id, component_id)
-        if component.component_type != "azure_resource_group":
+        if component.component_type != ComponentType.AZURE_RESOURCE_GROUP:
             raise BusinessValidationException("Only Azure resource groups need access verification.")
-        component.access_verification_status = "checking"
+        component.access_verification_status = AccessVerificationStatus.CHECKING
         await self.session.flush()
         job_id = await JobQueue(self.session).enqueue("verify_component_access", {"component_id": component_id}, deduplication_key=f"verify:{component_id}")
         await self.audit_service.record(current_user, "component.verify", target_entity_type="application_component", target_entity_id=component_id, application_id=application_id)
@@ -262,7 +263,7 @@ class OnboardingService:
 
     async def start_discovery(self, current_user: CurrentUser, application_id: str, component_id: str) -> JobAcceptedResponse:
         component = await self._get_component(application_id, component_id)
-        if component.component_type != "azure_resource_group":
+        if component.component_type != ComponentType.AZURE_RESOURCE_GROUP:
             raise BusinessValidationException("Discovery applies to Azure resource groups only.")
         job_id = await JobQueue(self.session).enqueue("discover_component", {"component_id": component_id}, deduplication_key=f"discover:{component_id}")
         await self.audit_service.record(current_user, "component.discover", target_entity_type="application_component", target_entity_id=component_id, application_id=application_id)
@@ -285,14 +286,14 @@ class OnboardingService:
                     {"checkName": check.check_name, "passed": check.passed, "message": check.message, "missingRoleName": check.missing_role_name} for check in access_checks
                 ]
             except IntegrationException as verification_error:
-                component.access_verification_status = "failed"
+                component.access_verification_status = AccessVerificationStatus.FAILED
                 component.access_verification_details_json = [{"checkName": "list_resources", "passed": False, "message": verification_error.detail, "missingRoleName": "Reader"}]
                 component.last_verified_at = utc_now()
                 return {"status": "failed"}
         component.access_verification_details_json = check_results
-        component.access_verification_status = "verified" if all(check["passed"] for check in check_results) else "missing_roles"
+        component.access_verification_status = AccessVerificationStatus.VERIFIED if all(check["passed"] for check in check_results) else AccessVerificationStatus.MISSING_ROLES
         component.last_verified_at = utc_now()
-        if component.access_verification_status == "verified" and component.last_discovered_at is None:
+        if component.access_verification_status == AccessVerificationStatus.VERIFIED and component.last_discovered_at is None:
             await JobQueue(self.session).enqueue("discover_component", {"component_id": component_id}, deduplication_key=f"discover:{component_id}")
         return {"status": component.access_verification_status, "passedChecks": sum(1 for check in check_results if check["passed"]), "totalChecks": len(check_results)}
 

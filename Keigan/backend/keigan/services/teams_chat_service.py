@@ -33,6 +33,7 @@ from keigan.services.notification_renderer import NotificationRenderer, translat
 from keigan.services.teams_sender_authorizer import TeamsSenderAuthorizer
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
+from keigan.entities.status_values import DeliveryStatus, IncidentStatus, MessageAuthorRole, Priority, TeamsChatStatus
 
 logger = logging.getLogger(__name__)
 CHAT_SCOPE = "teams_incident_chat"
@@ -74,7 +75,7 @@ class TeamsChatService:
     async def _chat_stakeholders(self, incident: Incident) -> list[Stakeholder]:
         from keigan.services.notification_service import NotificationService
 
-        return await NotificationService(self.session).matching_stakeholders(incident.application_id, "incident_detected", "teams_incident_chat", priority=incident.keigan_priority or "P3", service_ids=incident.affected_service_ids)
+        return await NotificationService(self.session).matching_stakeholders(incident.application_id, "incident_detected", "teams_incident_chat", priority=incident.keigan_priority or Priority.P3, service_ids=incident.affected_service_ids)
 
     # ── Creation ───────────────────────────────────────────────────────────────
     async def create_incident_chat(self, incident_id: str) -> dict[str, Any] | None:
@@ -87,7 +88,7 @@ class TeamsChatService:
         stakeholders = await self._chat_stakeholders(incident)
         if not stakeholders:
             return {"created": False, "reason": "no chat-subscribed stakeholders"}
-        topic = f"[{incident.keigan_priority or 'P3'}] {incident.external_incident_number or ''} {incident.incident_title}".replace("  ", " ").strip()[:250]
+        topic = f"[{incident.keigan_priority or Priority.P3}] {incident.external_incident_number or ''} {incident.incident_title}".replace("  ", " ").strip()[:250]
         member_names = sorted({stakeholder.user_principal_name or stakeholder.email_address or stakeholder.display_name for stakeholder in stakeholders})
         chat_web_url, conversation_reference = None, None
         if self.is_live:
@@ -141,12 +142,12 @@ class TeamsChatService:
     # ── Posting ────────────────────────────────────────────────────────────────
     async def post_card_if_chat_exists(self, incident_id: str, subject_text: str, message_markdown: str, adaptive_card: dict[str, Any] | None) -> bool:
         chat = await self._chat_for_incident(incident_id)
-        if chat is None or chat.chat_status != "active":
+        if chat is None or chat.chat_status != TeamsChatStatus.ACTIVE:
             return False
         message_text = message_markdown or subject_text
         already_posted = await self.session.scalar(
             select(func.count()).select_from(ConversationMessage).where(
-                ConversationMessage.conversation_id == chat.conversation_id, ConversationMessage.author_role == "assistant",
+                ConversationMessage.conversation_id == chat.conversation_id, ConversationMessage.author_role == MessageAuthorRole.ASSISTANT,
                 ConversationMessage.message_text == self._outgoing_text(message_text),
             )
         )
@@ -165,15 +166,15 @@ class TeamsChatService:
 
         masked_text = self._outgoing_text(message_text)
         self.session.add(ConversationMessage(
-            conversation_id=chat.conversation_id, author_role="assistant", author_display_name=KEIGAN_DISPLAY_NAME, message_text=masked_text, message_payload_json={"adaptiveCard": adaptive_card} if adaptive_card else None,
+            conversation_id=chat.conversation_id, author_role=MessageAuthorRole.ASSISTANT, author_display_name=KEIGAN_DISPLAY_NAME, message_text=masked_text, message_payload_json={"adaptiveCard": adaptive_card} if adaptive_card else None,
         ))
-        status, error_message = "simulated", None
+        status, error_message = DeliveryStatus.SIMULATED, None
         if self.is_live:
             try:
                 await self._send_live_activity(chat, masked_text, adaptive_card)
-                status = "sent"
+                status = DeliveryStatus.SENT
             except IntegrationException as send_error:
-                status, error_message = "failed", send_error.detail
+                status, error_message = DeliveryStatus.FAILED, send_error.detail
         await NotificationService(self.session).record_chat_delivery(chat.application_id, chat.incident_id, notification_type, chat.teams_chat_identifier, masked_text.splitlines()[0] if masked_text else "Keigan message", masked_text, status, error_message)
         await self.session.flush()
 
@@ -210,7 +211,7 @@ class TeamsChatService:
         return TeamsChatResponse(
             incident_id=incident_id, chat_exists=True, is_simulated=is_simulated, chat_topic=chat.chat_topic, chat_web_url=chat.chat_web_url, chat_status=chat.chat_status, participants=participants, messages=messages,
             facts=[TeamsChatFactResponse(timeline_event_id=row.timeline_event_id, event_title=row.event_title, event_details_markdown=row.event_details_markdown, event_occurred_at=row.event_occurred_at, actor_display_name=row.actor_display_name) for row in fact_rows],
-            can_post=is_simulated and chat.chat_status == "active",
+            can_post=is_simulated and chat.chat_status == TeamsChatStatus.ACTIVE,
         )
 
     async def post_user_message(self, incident_id: str, current_user: CurrentUser, message_text: str) -> TeamsChatResponse:
@@ -221,7 +222,7 @@ class TeamsChatService:
             raise BusinessValidationException("Messages can only be posted from Keigan in the simulated Teams mode. Write in Teams instead.")
         masked_text = PiiMasker().mask_text(message_text)
         message = ConversationMessage(
-            conversation_id=chat.conversation_id, author_role="teams_participant", author_display_name=current_user.display_name, author_user_principal_name=current_user.user_principal_name, message_text=masked_text,
+            conversation_id=chat.conversation_id, author_role=MessageAuthorRole.TEAMS_PARTICIPANT, author_display_name=current_user.display_name, author_user_principal_name=current_user.user_principal_name, message_text=masked_text,
         )
         self.session.add(message)
         await self.session.flush()
@@ -236,11 +237,11 @@ class TeamsChatService:
     # ── Polling and processing ─────────────────────────────────────────────────
     async def poll_incident_chat(self, teams_incident_chat_id: str) -> dict[str, Any] | None:
         chat = await self.session.get(TeamsIncidentChat, teams_incident_chat_id)
-        if chat is None or chat.chat_status != "active":
+        if chat is None or chat.chat_status != TeamsChatStatus.ACTIVE:
             return None
         incident = await self.session.get(Incident, chat.incident_id)
-        if incident is not None and incident.incident_status in ("closed",) and incident.closed_at and incident.closed_at < utc_now() - timedelta(hours=24):
-            chat.chat_status = "closed"
+        if incident is not None and incident.incident_status in (IncidentStatus.CLOSED,) and incident.closed_at and incident.closed_at < utc_now() - timedelta(hours=24):
+            chat.chat_status = TeamsChatStatus.CLOSED
             return {"closed": True}
         incoming: list[tuple[str, str | None, str, str]] = []
         if chat.teams_chat_identifier.startswith("simulated:"):
@@ -254,7 +255,7 @@ class TeamsChatService:
         return {"processed": len(incoming)}
 
     async def _unprocessed_simulated_messages(self, chat: TeamsIncidentChat) -> list[tuple[str, str | None, str, str]]:
-        conditions = [ConversationMessage.conversation_id == chat.conversation_id, ConversationMessage.author_role == "teams_participant"]
+        conditions = [ConversationMessage.conversation_id == chat.conversation_id, ConversationMessage.author_role == MessageAuthorRole.TEAMS_PARTICIPANT]
         if chat.last_processed_message_identifier:
             last_message = await self.session.get(ConversationMessage, chat.last_processed_message_identifier)
             if last_message is not None:
@@ -280,7 +281,7 @@ class TeamsChatService:
             plain_text = HTML_TAG_PATTERN.sub(" ", (graph_message.get("body") or {}).get("content", "")).strip()
             masked_text = masker.mask_text(plain_text)
             row = ConversationMessage(
-                conversation_id=chat.conversation_id, author_role="teams_participant", author_display_name=sender.get("displayName"), message_text=masked_text, external_message_identifier=message_identifier,
+                conversation_id=chat.conversation_id, author_role=MessageAuthorRole.TEAMS_PARTICIPANT, author_display_name=sender.get("displayName"), message_text=masked_text, external_message_identifier=message_identifier,
                 created_at=self._parse_graph_time(graph_message.get("createdDateTime")),
             )
             self.session.add(row)
@@ -438,7 +439,7 @@ class TeamsChatService:
                 await self._post_keigan_message(chat, NOT_AUTHORIZED_REPLY, None)  # the bot only receives messages that address it
                 return
             message = ConversationMessage(
-                conversation_id=chat.conversation_id, author_role="teams_participant", author_display_name=sender.get("name"), message_text=plain_text, external_message_identifier=activity.get("id"),
+                conversation_id=chat.conversation_id, author_role=MessageAuthorRole.TEAMS_PARTICIPANT, author_display_name=sender.get("name"), message_text=plain_text, external_message_identifier=activity.get("id"),
             )
             self.session.add(message)
             await self.session.flush()

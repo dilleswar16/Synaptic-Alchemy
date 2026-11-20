@@ -12,6 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from keigan.entities.status_values import RiskLevel
 
 _NORMALIZATION_RULES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(rule_pattern, re.IGNORECASE), replacement_token)
@@ -91,11 +92,11 @@ class CondensedLogs:
         for log_pattern in self.patterns:
             severity_rank = LEVEL_SEVERITY_ORDER.get(log_pattern.level.lower(), 3)
             if severity_rank <= 1 and log_pattern.count >= 5 and (log_pattern.is_new_pattern or (log_pattern.change_ratio or 0) >= 5):
-                return "high"
+                return RiskLevel.HIGH
         for log_pattern in self.patterns:
             if LEVEL_SEVERITY_ORDER.get(log_pattern.level.lower(), 3) <= 2 and (log_pattern.is_new_pattern or (log_pattern.change_ratio or 0) >= 2):
-                return "medium"
-        return "low"
+                return RiskLevel.MEDIUM
+        return RiskLevel.LOW
 
 
 def _record_message(record: dict[str, Any], message_fields: tuple[str, ...]) -> str:

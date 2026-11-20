@@ -36,7 +36,7 @@ class Stakeholder(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
     subscribed_service_links: Mapped[list[StakeholderSubscribedService]] = ordered_links_relationship("StakeholderSubscribedService")
     subscribed_service_ids = linked_ids_property("subscribed_service_links")
     notification_channels_json: Mapped[list[str] | None] = mapped_column()
-    minimum_priority: Mapped[str] = mapped_column(String(4), default="P2")
+    minimum_priority: Mapped[str] = mapped_column(String(4), default=Priority.P2)
     subscribed_notification_types_json: Mapped[list[str] | None] = mapped_column()
     preferred_language_code: Mapped[str] = mapped_column(String(10), default="en")
     quiet_hours_json: Mapped[dict[str, Any] | None] = mapped_column()

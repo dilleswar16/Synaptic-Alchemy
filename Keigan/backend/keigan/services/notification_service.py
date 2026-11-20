@@ -20,7 +20,7 @@ from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.incident_entities import Incident, IncidentCommunication, Investigation, PostmortemReport
 from keigan.entities.notification_entities import NotificationDelivery, Stakeholder, TeamsIncidentChat
 from keigan.entities.slo_entities import ServiceLevelIndicator, ServiceLevelObjective, SloBurnAlert
-from keigan.entities.status_values import Priority
+from keigan.entities.status_values import BurnAlertSeverity, CommunicationStatus, DeliveryChannel, DeliveryStatus, Priority, StakeholderRole, TeamsChatStatus
 from keigan.exceptions.keigan_exceptions import IntegrationException, NotFoundException
 from keigan.integrations.email_sender import SmtpEmailSender
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
@@ -30,13 +30,13 @@ from keigan.utils.time_utils import utc_now
 logger = logging.getLogger(__name__)
 PRIORITY_RANK = {priority.value: rank for rank, priority in enumerate(Priority, start=1)}
 COMMUNICATION_TO_NOTIFICATION_TYPE = {"preliminary_report": "preliminary_report", "initial_update": "incident_detected"}
-EXECUTIVE_ROLES = {"manager", "executive", "business_owner"}
-TECHNICAL_ROLES = {"sre", "developer", "vendor_contact"}
+EXECUTIVE_ROLES = {StakeholderRole.MANAGER, StakeholderRole.EXECUTIVE, StakeholderRole.BUSINESS_OWNER}
+TECHNICAL_ROLES = {StakeholderRole.SRE, StakeholderRole.DEVELOPER, StakeholderRole.VENDOR_CONTACT}
 MAXIMUM_DELIVERY_ATTEMPTS = 3
 
 
 def priority_rank(priority_code: str | None) -> int:
-    return PRIORITY_RANK.get((priority_code or "P3").upper(), 3)
+    return PRIORITY_RANK.get((priority_code or Priority.P3).upper(), 3)
 
 
 class NotificationService:
@@ -96,7 +96,7 @@ class NotificationService:
                 return None
         delivery = NotificationDelivery(
             application_id=application_id, incident_id=incident_id, investigation_id=investigation_id, notification_type=notification_type, delivery_channel=channel,
-            recipient_address=recipient_address, subject_line=rendered.subject_line, body_html=rendered.body_html, body_text=rendered.body_text, delivery_status="pending",
+            recipient_address=recipient_address, subject_line=rendered.subject_line, body_html=rendered.body_html, body_text=rendered.body_text, delivery_status=DeliveryStatus.PENDING,
         )
         self.session.add(delivery)
         await self.session.flush()
@@ -107,15 +107,15 @@ class NotificationService:
 
     async def record_chat_delivery(self, application_id: str, incident_id: str, notification_type: str, chat_identifier: str, subject_line: str, body_text: str, delivery_status: str, error_message: str | None = None) -> None:
         self.session.add(NotificationDelivery(
-            application_id=application_id, incident_id=incident_id, notification_type=notification_type, delivery_channel="teams_incident_chat", recipient_address=chat_identifier,
-            subject_line=subject_line[:400], body_text=body_text, delivery_status=delivery_status, attempt_count=1, last_error_message=error_message, sent_at=utc_now() if delivery_status in ("sent", "simulated") else None,
+            application_id=application_id, incident_id=incident_id, notification_type=notification_type, delivery_channel=DeliveryChannel.TEAMS_INCIDENT_CHAT, recipient_address=chat_identifier,
+            subject_line=subject_line[:400], body_text=body_text, delivery_status=delivery_status, attempt_count=1, last_error_message=error_message, sent_at=utc_now() if delivery_status in (DeliveryStatus.SENT, DeliveryStatus.SIMULATED) else None,
         ))
         await self.session.flush()
 
     async def deliver(self, notification_delivery_id: str) -> dict[str, Any] | None:
         """Job handler: send one outbox row through Graph, SMTP or the simulator."""
         delivery = await self.session.get(NotificationDelivery, notification_delivery_id)
-        if delivery is None or delivery.delivery_status in ("sent", "simulated", "skipped"):
+        if delivery is None or delivery.delivery_status in (DeliveryStatus.SENT, DeliveryStatus.SIMULATED, DeliveryStatus.SKIPPED):
             return None
         delivery.attempt_count += 1
         try:
@@ -123,10 +123,10 @@ class NotificationService:
         except IntegrationException as delivery_error:
             delivery.last_error_message = delivery_error.detail[:1000]
             if delivery.attempt_count >= MAXIMUM_DELIVERY_ATTEMPTS:
-                delivery.delivery_status = "failed"
+                delivery.delivery_status = DeliveryStatus.FAILED
                 await self.session.flush()
                 return {"status": "failed", "error": delivery.last_error_message}
-            delivery.delivery_status = "pending"
+            delivery.delivery_status = DeliveryStatus.PENDING
             await self.session.flush()
             await self.session.commit()  # keep the attempt counter, then let the queue retry
             raise
@@ -137,27 +137,27 @@ class NotificationService:
         return {"status": delivery.delivery_status}
 
     async def _send_through_provider(self, delivery: NotificationDelivery) -> str | None:
-        if delivery.delivery_channel == "email":
+        if delivery.delivery_channel == DeliveryChannel.EMAIL:
             if self.settings.email_mode == EmailMode.GRAPH:
                 await MicrosoftGraphClient(application_context.azure_credential_provider()).send_mail(delivery.recipient_address, delivery.subject_line or "", delivery.body_html or "")
-                delivery.delivery_status = "sent"
+                delivery.delivery_status = DeliveryStatus.SENT
                 return "graph-sendMail"
             if self.settings.email_mode == EmailMode.SMTP:
                 provider_identifier = await SmtpEmailSender(self.settings, application_context.secret_store()).send(delivery.recipient_address, delivery.subject_line or "", delivery.body_html or "", delivery.body_text or "")
-                delivery.delivery_status = "sent"
+                delivery.delivery_status = DeliveryStatus.SENT
                 return provider_identifier
-            delivery.delivery_status = "skipped" if self.settings.email_mode == EmailMode.DISABLED else "simulated"
+            delivery.delivery_status = DeliveryStatus.SKIPPED if self.settings.email_mode == EmailMode.DISABLED else DeliveryStatus.SIMULATED
             return f"simulated:{delivery.notification_delivery_id}"
-        if delivery.delivery_channel == "teams_channel":
+        if delivery.delivery_channel == DeliveryChannel.TEAMS_CHANNEL:
             if self.settings.teams_mode != IntegrationMode.LIVE:
-                delivery.delivery_status = "simulated"
+                delivery.delivery_status = DeliveryStatus.SIMULATED
                 return f"simulated:{delivery.notification_delivery_id}"
             from keigan.services.teams_chat_service import TeamsChatService
 
             provider_identifier = await TeamsChatService(self.session).send_to_channel(delivery.recipient_address, delivery.subject_line or "", delivery.body_text or "")
-            delivery.delivery_status = "sent"
+            delivery.delivery_status = DeliveryStatus.SENT
             return provider_identifier
-        delivery.delivery_status = "simulated"
+        delivery.delivery_status = DeliveryStatus.SIMULATED
         return f"simulated:{delivery.notification_delivery_id}"
 
     async def list_outbox(self, application_id: str | None, notification_type: str | None, delivery_status: str | None, page: int, page_size: int) -> PagedResult[NotificationDeliverySummary]:
@@ -195,7 +195,7 @@ class NotificationService:
         if incident is None:
             return None
         application_name = await self._application_name(incident.application_id)
-        priority = incident.keigan_priority or "P3"
+        priority = incident.keigan_priority or Priority.P3
         facts_services = await self._service_names(incident.affected_service_ids)
         queued_count = 0
         for stakeholder in await self.matching_stakeholders(incident.application_id, "incident_detected", "email", priority=priority, service_ids=incident.affected_service_ids):
@@ -237,7 +237,7 @@ class NotificationService:
         if incident is None:
             return None
         application_name = await self._application_name(incident.application_id)
-        priority = incident.keigan_priority or "P3"
+        priority = incident.keigan_priority or Priority.P3
         queued_count = 0
         if self.settings.auto_send_preliminary_report and investigation.investigation_status.startswith("completed"):
             confidence_text = f"{round((investigation.overall_confidence_score or 0) * 100)}%"
@@ -272,10 +272,10 @@ class NotificationService:
         if incident is None:
             raise NotFoundException("Incident not found.")
         application_name = await self._application_name(incident.application_id)
-        priority = incident.keigan_priority or "P3"
+        priority = incident.keigan_priority or Priority.P3
         notification_type = COMMUNICATION_TO_NOTIFICATION_TYPE.get(communication.communication_type, "progress_update")
         sibling_languages = set((await self.session.scalars(select(IncidentCommunication.language_code).where(
-            IncidentCommunication.incident_id == communication.incident_id, IncidentCommunication.communication_type == communication.communication_type, IncidentCommunication.communication_status.in_(("approved", "sent", "draft"))))).all())
+            IncidentCommunication.incident_id == communication.incident_id, IncidentCommunication.communication_type == communication.communication_type, IncidentCommunication.communication_status.in_((CommunicationStatus.APPROVED, CommunicationStatus.SENT, CommunicationStatus.DRAFT))))).all())
         sibling_languages = {resolve_language_code(code) for code in sibling_languages}
         own_language = resolve_language_code(communication.language_code)
         queued_count = 0
@@ -340,7 +340,7 @@ class NotificationService:
             return 0
         application_name = await self._application_name(burn_alert.application_id)
         service_ids = [sli.service_id] if sli.service_id else None
-        priority = "P1" if burn_alert.burn_alert_severity in ("page", "critical") else "P3"
+        priority = Priority.P1 if burn_alert.burn_alert_severity == BurnAlertSeverity.PAGE else Priority.P3
         queued_count = 0
         for stakeholder in await self.matching_stakeholders(burn_alert.application_id, "slo_burn_alert", "email", priority=priority, service_ids=service_ids):
             recipient_address = self.recipient_address_for(stakeholder, "email")
@@ -368,5 +368,5 @@ class NotificationService:
         return await TeamsChatService(self.session).poll_incident_chat(teams_incident_chat_id)
 
     async def has_active_chat(self, incident_id: str) -> bool:
-        return await self.session.scalar(select(TeamsIncidentChat.teams_incident_chat_id).where(TeamsIncidentChat.incident_id == incident_id, TeamsIncidentChat.chat_status == "active")) is not None
+        return await self.session.scalar(select(TeamsIncidentChat.teams_incident_chat_id).where(TeamsIncidentChat.incident_id == incident_id, TeamsIncidentChat.chat_status == TeamsChatStatus.ACTIVE)) is not None
 

@@ -27,6 +27,7 @@ from keigan.entities.notification_entities import Stakeholder
 from keigan.integrations.simulation.telemetry_simulator import ScenarioWindow
 from keigan.services.component_discovery_service import simulated_workspace_customer_id
 from keigan.services.simulation_service import SimulationService
+from keigan.entities.status_values import AccessVerificationStatus, ApplicationLifecycleStatus, AssignmentGroupVerificationStatus, ComponentType, CriticalityTier, LogToolConnectionStatus, Priority, ReadTestStatus, StakeholderRecipientType
 
 SEED_ACTOR = "system:seed"
 
@@ -56,11 +57,11 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
         "region_code": "JP",
         "primary_locale": "ja",
         "time_zone_name": "Asia/Tokyo",
-        "criticality_tier": "tier_1",
+        "criticality_tier": CriticalityTier.TIER_1,
         "servicenow_groups": ["JP-Claims-L2-Support", "JP-Claims-DevOps"],
         "components": [
             {
-                "component_type": "azure_resource_group",
+                "component_type": ComponentType.AZURE_RESOURCE_GROUP,
                 "component_name": "RG_21530_CLMJP_PRD01",
                 "azure_subscription_id": "8d1c3f2a-4b6e-4c1d-9a7f-21530c1a0001",
                 "azure_subscription_name": "MetLife-JP-Prod-01",
@@ -84,10 +85,10 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
             ("claims-nightly-etl", "claims-sql", "reads_from"),
         ],
         "stakeholders": [
-            ("Aiko AppAdmin", "aiko.appadmin@keigan.local", "sre", "P3", "ja", ["email", "teams_incident_chat"]),
-            ("Rui Reader", "rui.reader@keigan.local", "developer", "P2", "en", ["email", "teams_incident_chat"]),
-            ("Haruto Manager", "haruto.manager@keigan.local", "manager", "P2", "ja", ["email"]),
-            ("Yui Executive", "yui.executive@keigan.local", "executive", "P1", "ja", ["email"]),
+            ("Aiko AppAdmin", "aiko.appadmin@keigan.local", "sre", Priority.P3, "ja", ["email", "teams_incident_chat"]),
+            ("Rui Reader", "rui.reader@keigan.local", "developer", Priority.P2, "en", ["email", "teams_incident_chat"]),
+            ("Haruto Manager", "haruto.manager@keigan.local", "manager", Priority.P2, "ja", ["email"]),
+            ("Yui Executive", "yui.executive@keigan.local", "executive", Priority.P1, "ja", ["email"]),
         ],
     },
     {
@@ -98,12 +99,12 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
         "region_code": "AU",
         "primary_locale": "en",
         "time_zone_name": "Australia/Sydney",
-        "criticality_tier": "tier_1",
+        "criticality_tier": CriticalityTier.TIER_1,
         "servicenow_groups": ["AU-Digital-Channels-Support"],
         "log_tools": [("elastic", "ChAD Elastic", "https://chad-elastic.es.australiaeast.azure.elastic-cloud.com", {"index_pattern": "logs-chad-*", "service_field": "service.name"})],
         "components": [
             {
-                "component_type": "azure_resource_group",
+                "component_type": ComponentType.AZURE_RESOURCE_GROUP,
                 "component_name": "RG_14470_AUCHAD_PRD01",
                 "azure_subscription_id": "d5fe3f1f-7c2b-4e8a-b0d1-14470d7c0004",
                 "azure_subscription_name": "MetLife-AU-Digital-Prod",
@@ -121,8 +122,8 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
             ("azaustaekub14470pr0101", "chad-notifications-func", "publishes_to"),
         ],
         "stakeholders": [
-            ("Kai Admin", "keigan.admin@keigan.local", "sre", "P3", "en", ["email", "teams_incident_chat"]),
-            ("Aiko AppAdmin", "aiko.appadmin@keigan.local", "developer", "P2", "ja", ["email"]),
+            ("Kai Admin", "keigan.admin@keigan.local", "sre", Priority.P3, "en", ["email", "teams_incident_chat"]),
+            ("Aiko AppAdmin", "aiko.appadmin@keigan.local", "developer", Priority.P2, "ja", ["email"]),
         ],
     },
     {
@@ -133,12 +134,12 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
         "region_code": "AU",
         "primary_locale": "en",
         "time_zone_name": "Australia/Sydney",
-        "criticality_tier": "tier_1",
+        "criticality_tier": CriticalityTier.TIER_1,
         "servicenow_groups": ["AU-Payments-Support"],
         "log_tools": [("solarwinds", "SolarWinds Orion (SYD DC)", "https://orion.syd.metlife.example:17778", {"node_group": "PAY-EDGE"})],
         "components": [
             {
-                "component_type": "azure_resource_group",
+                "component_type": ComponentType.AZURE_RESOURCE_GROUP,
                 "component_name": "RG_30211_PAYAU_PRD01",
                 "azure_subscription_id": "4f7a2b91-3c5d-4e6f-8a9b-30211a7b0002",
                 "azure_subscription_name": "MetLife-AU-Finance-Prod",
@@ -149,7 +150,7 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
                 ],
             },
             {
-                "component_type": "hardware",
+                "component_type": ComponentType.HARDWARE,
                 "component_name": "Sydney data centre network edge",
                 "configuration": {"device_category": "network", "location": "SYD-DC2", "cmdb_ci": "CI0091422", "monitored_by": "solarwinds"},
                 "services": [
@@ -165,8 +166,8 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
             ("syd-f5-ltm-01", "payments-apim", "hosted_on"),
         ],
         "stakeholders": [
-            ("Rui Reader", "rui.reader@keigan.local", "sre", "P2", "en", ["email", "teams_incident_chat"]),
-            ("Mia Finance Owner", "mia.owner@keigan.local", "business_owner", "P1", "en", ["email"]),
+            ("Rui Reader", "rui.reader@keigan.local", "sre", Priority.P2, "en", ["email", "teams_incident_chat"]),
+            ("Mia Finance Owner", "mia.owner@keigan.local", "business_owner", Priority.P1, "en", ["email"]),
         ],
     },
     {
@@ -177,12 +178,12 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
         "region_code": "US",
         "primary_locale": "en",
         "time_zone_name": "America/New_York",
-        "criticality_tier": "tier_1",
+        "criticality_tier": CriticalityTier.TIER_1,
         "servicenow_groups": ["US-Mainframe-Batch-Ops"],
         "log_tools": [("splunk", "Splunk Mainframe", "https://splunk-mf.us.metlife.example:8089", {"indexes": ["zos_syslog", "zos_smf"], "source_types": ["syslog:zos"]})],
         "components": [
             {
-                "component_type": "mainframe",
+                "component_type": ComponentType.MAINFRAME,
                 "component_name": "SYSB sysplex — LPAR PRD1",
                 "configuration": {"lpar": "PRD1", "subsystems": ["CICS", "DB2", "MQ", "batch"], "job_name_prefixes": ["PBIL", "PADM"], "batch_window": "01:00-05:00 ET"},
                 "services": [
@@ -192,7 +193,7 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
             }
         ],
         "dependencies": [("premium-billing-batch", "cics-policy-online", "reads_from")],
-        "stakeholders": [("Kai Admin", "keigan.admin@keigan.local", "sre", "P2", "en", ["email"])],
+        "stakeholders": [("Kai Admin", "keigan.admin@keigan.local", "sre", Priority.P2, "en", ["email"])],
     },
     {
         "application_code": "BENSA",
@@ -202,12 +203,12 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
         "region_code": "JP",
         "primary_locale": "ja",
         "time_zone_name": "Asia/Tokyo",
-        "criticality_tier": "tier_2",
+        "criticality_tier": CriticalityTier.TIER_2,
         "servicenow_groups": ["JP-Benefits-Vendor-Mgmt"],
         "log_tools": [("vendor_api", "BenefitsCloud audit API", "https://api.benefitscloud.example/v2", {"vendor": "BenefitsCloud"})],
         "components": [
             {
-                "component_type": "saas_platform",
+                "component_type": ComponentType.SAAS_PLATFORM,
                 "component_name": "BenefitsCloud tenant metlife-jp",
                 "configuration": {
                     "vendor_name": "BenefitsCloud",
@@ -221,7 +222,7 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
             }
         ],
         "dependencies": [],
-        "stakeholders": [("Aiko AppAdmin", "aiko.appadmin@keigan.local", "sre", "P3", "ja", ["email"])],
+        "stakeholders": [("Aiko AppAdmin", "aiko.appadmin@keigan.local", "sre", Priority.P3, "ja", ["email"])],
     },
 ]
 
@@ -247,7 +248,7 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
             primary_locale=application_definition["primary_locale"],
             time_zone_name=application_definition["time_zone_name"],
             criticality_tier=application_definition["criticality_tier"],
-            lifecycle_status="live",
+            lifecycle_status=ApplicationLifecycleStatus.LIVE,
             admin_group_name=settings.application_admin_group_name_for(application_code),
             reader_group_name=settings.application_reader_group_name_for(application_code),
             incident_creation_policy_json={"mode": "suggest", "minimum_score": 30, "assignment_group_name": application_definition["servicenow_groups"][0]},
@@ -268,7 +269,7 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
                 endpoint_url=endpoint_url,
                 authentication_method="api_key",
                 connection_configuration_json=connection_configuration,
-                connection_status="connected" if tool_type in ("elastic", "splunk", "datadog") else "reader_not_available",
+                connection_status=LogToolConnectionStatus.CONNECTED if tool_type in ("elastic", "splunk", "datadog") else LogToolConnectionStatus.READER_NOT_AVAILABLE,
                 last_tested_at=now - timedelta(hours=3),
                 last_test_message="Simulated connection verified." if tool_type in ("elastic", "splunk", "datadog") else "Reader in development — details saved.",
                 created_by_user_principal_name=SEED_ACTOR,
@@ -280,24 +281,24 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
         for component_definition in application_definition["components"]:
             component_type = component_definition["component_type"]
             subscription_id = component_definition.get("azure_subscription_id")
-            resource_group_name = component_definition["component_name"] if component_type == "azure_resource_group" else None
+            resource_group_name = component_definition["component_name"] if component_type == ComponentType.AZURE_RESOURCE_GROUP else None
             component = ApplicationComponent(
                 application_id=application.application_id,
                 component_type=component_type,
                 component_name=component_definition["component_name"],
                 environment_name="prod",
-                azure_tenant_id=settings.azure_tenant_id if component_type == "azure_resource_group" else None,
+                azure_tenant_id=settings.azure_tenant_id if component_type == ComponentType.AZURE_RESOURCE_GROUP else None,
                 azure_subscription_id=subscription_id,
                 azure_subscription_name=component_definition.get("azure_subscription_name"),
                 azure_resource_group_name=resource_group_name,
                 component_configuration_json={"simulated": True, **component_definition.get("configuration", {})},
-                access_verification_status="verified" if component_type == "azure_resource_group" else "not_applicable",
+                access_verification_status=AccessVerificationStatus.VERIFIED if component_type == ComponentType.AZURE_RESOURCE_GROUP else AccessVerificationStatus.NOT_APPLICABLE,
                 access_verification_details_json=[
                     {"checkName": "list_resources", "passed": True, "message": "Simulated: resources visible."},
                     {"checkName": "read_activity_log", "passed": True, "message": "Simulated: activity log readable."},
                     {"checkName": "read_metrics", "passed": True, "message": "Simulated: metrics readable."},
                     {"checkName": "query_workspace", "passed": True, "message": "Simulated: workspace queryable."},
-                ] if component_type == "azure_resource_group" else None,
+                ] if component_type == ComponentType.AZURE_RESOURCE_GROUP else None,
                 last_verified_at=now - timedelta(hours=2),
                 last_discovered_at=now - timedelta(hours=2),
                 created_by_user_principal_name=SEED_ACTOR,
@@ -310,7 +311,7 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
             )
             workspace_customer_id = simulated_workspace_customer_id(workspace_resource_id) if workspace_resource_id else None
 
-            if component_type == "azure_resource_group":
+            if component_type == ComponentType.AZURE_RESOURCE_GROUP:
                 # Keigan only reads workspaces that belong to the application (V2): record what discovery would have found.
                 for resource_type, resource_name in (("Microsoft.OperationalInsights/workspaces", f"law-{application_code.lower()}-prd"), ("Microsoft.Insights/components", f"appi-{application_code.lower()}-prd")):
                     session.add(DiscoveredResource(
@@ -345,14 +346,14 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
                 await session.flush()
                 seed_context.service_ids_by_key[f"{application_code}/{service_name}"] = service.service_id
 
-                if component_type == "azure_resource_group":
+                if component_type == ComponentType.AZURE_RESOURCE_GROUP:
                     session.add(
                         ServiceLogSource(
                             service_id=service.service_id,
                             source_kind="azure_monitor_metrics",
                             is_primary_source=False,
                             was_auto_detected=True,
-                            last_read_test_status="passed",
+                            last_read_test_status=ReadTestStatus.PASSED,
                             last_read_test_at=now - timedelta(hours=2),
                         )
                     )
@@ -365,7 +366,7 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
                                 log_analytics_workspace_customer_id=workspace_customer_id,
                                 is_primary_source=True,
                                 was_auto_detected=True,
-                                last_read_test_status="passed",
+                                last_read_test_status=ReadTestStatus.PASSED,
                                 last_read_test_at=now - timedelta(hours=2),
                             )
                         )
@@ -376,32 +377,32 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
                                 source_kind="log_tool",
                                 log_tool_connection_id=log_tool_connections_by_type["elastic"].log_tool_connection_id,
                                 query_scope_json={"index_pattern": "logs-chad-*", "service_field_value": service_name, "namespace": namespace_filter},
-                                last_read_test_status="passed",
+                                last_read_test_status=ReadTestStatus.PASSED,
                                 last_read_test_at=now - timedelta(hours=3),
                             )
                         )
-                elif component_type == "saas_platform":
+                elif component_type == ComponentType.SAAS_PLATFORM:
                     session.add(
                         ServiceLogSource(
                             service_id=service.service_id,
                             source_kind="synthetic_probe",
                             query_scope_json={"probe_url": component_definition["configuration"]["probe_url"]},
                             is_primary_source=True,
-                            last_read_test_status="passed",
+                            last_read_test_status=ReadTestStatus.PASSED,
                             last_read_test_at=now - timedelta(hours=1),
                         )
                     )
                 else:
-                    connection_type = "splunk" if component_type == "mainframe" else "solarwinds"
+                    connection_type = "splunk" if component_type == ComponentType.MAINFRAME else "solarwinds"
                     if connection_type in log_tool_connections_by_type:
                         session.add(
                             ServiceLogSource(
                                 service_id=service.service_id,
                                 source_kind="log_tool",
                                 log_tool_connection_id=log_tool_connections_by_type[connection_type].log_tool_connection_id,
-                                query_scope_json={"host": service_name, "index": "zos_syslog"} if component_type == "mainframe" else {"node_name": service_name},
+                                query_scope_json={"host": service_name, "index": "zos_syslog"} if component_type == ComponentType.MAINFRAME else {"node_name": service_name},
                                 is_primary_source=True,
-                                last_read_test_status="passed" if connection_type == "splunk" else "not_tested",
+                                last_read_test_status=ReadTestStatus.PASSED if connection_type == "splunk" else ReadTestStatus.NOT_TESTED,
                             )
                         )
         await session.flush()
@@ -417,12 +418,12 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
                 )
             )
         for group_name in application_definition["servicenow_groups"]:
-            session.add(ServiceNowAssignmentGroup(application_id=application.application_id, group_name=group_name, verification_status="verified"))
+            session.add(ServiceNowAssignmentGroup(application_id=application.application_id, group_name=group_name, verification_status=AssignmentGroupVerificationStatus.VERIFIED))
         for display_name, email_address, stakeholder_role, minimum_priority, language_code, channels in application_definition["stakeholders"]:
             session.add(
                 Stakeholder(
                     application_id=application.application_id,
-                    recipient_type="person",
+                    recipient_type=StakeholderRecipientType.PERSON,
                     display_name=display_name,
                     email_address=email_address,
                     user_principal_name=email_address,

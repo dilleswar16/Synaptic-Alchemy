@@ -27,10 +27,11 @@ from keigan.services.alert_group_link_service import AlertGroupLinkService
 from keigan.services.alert_rules import CanonicalAlert
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.json_path_utils import read_json_path
+from keigan.entities.status_values import AlertEventProcessingStatus, AlertFinalDisposition, AlertGroupStatus, AlertPipelineStage, AlertSourceStatus, AlertStatus, IncidentStatus, NoisePolicyMode
 
 logger = logging.getLogger(__name__)
 _application_locks: dict[str, asyncio.Lock] = {}
-OPEN_GROUP_STATUSES = ("open", "queued")
+OPEN_GROUP_STATUSES = (AlertGroupStatus.OPEN, AlertGroupStatus.QUEUED)
 ACTIVE_INVESTIGATION_OUTCOMES = ("investigation_started", "investigation_replayed")
 
 
@@ -65,7 +66,7 @@ class AlertPipelineService:
         application = await self.session.get(Application, application_id)
         policy_entity = await self.session.get(NoiseReductionPolicy, application_id)
         if policy_entity is None:
-            policy_entity = NoiseReductionPolicy(application_id=application_id, policy_settings_json=dict(alert_rules.DEFAULT_NOISE_POLICY), policy_mode="observe", observe_mode_started_at=alert_rules.utc_now())
+            policy_entity = NoiseReductionPolicy(application_id=application_id, policy_settings_json=dict(alert_rules.DEFAULT_NOISE_POLICY), policy_mode=NoisePolicyMode.OBSERVE, observe_mode_started_at=alert_rules.utc_now())
             self.session.add(policy_entity)
             await self.session.flush()
         services = list((await self.session.scalars(select(MonitoredService).where(MonitoredService.application_id == application_id))).all())
@@ -101,23 +102,23 @@ class AlertPipelineService:
 
     async def _process_event_locked(self, event: AlertEvent) -> dict[str, Any]:
         alert_event_id = event.alert_event_id
-        if event.processing_status != "received":
+        if event.processing_status != AlertEventProcessingStatus.RECEIVED:
             return {"skipped": True, "reason": "already processed"}
         source = await self.session.get(AlertSource, event.alert_source_id)
         context = await self.load_context(event.application_id)
         try:
             canonical = alert_rules.normalise_payload(source.source_tool, event.raw_payload_json or {}, source.field_mapping_json, source.severity_mapping_json)
         except ValueError as parse_error:
-            event.processing_status = "failed"
+            event.processing_status = AlertEventProcessingStatus.FAILED
             event.processing_error_message = str(parse_error)[:1000]
             return {"failed": True, "error": str(parse_error)}
         alert_rules.mask_alert_text(canonical)
-        if source.source_status in ("waiting_for_first_alert", "authentication_failures"):
-            source.source_status = "receiving"
+        if source.source_status in (AlertSourceStatus.WAITING_FOR_FIRST_ALERT, AlertSourceStatus.AUTHENTICATION_FAILURES):
+            source.source_status = AlertSourceStatus.RECEIVING
         service = self._resolve_service(context, source, canonical, event.raw_payload_json or {})
         reference_time = event.received_at
         fingerprint = alert_rules.compute_fingerprint(source.alert_source_id, canonical.rule_id, canonical.resource_ref or (service.service_id if service else None), canonical.labels)
-        event.processing_status = "processed"
+        event.processing_status = AlertEventProcessingStatus.PROCESSED
         if canonical.status == "resolved":
             open_alert = await self._find_alert(context, fingerprint, only_open=True)
             if open_alert is None:
@@ -137,14 +138,14 @@ class AlertPipelineService:
 
     async def complete_settle_stage(self, alert_id: str) -> dict[str, Any] | None:
         alert = await self.session.get(Alert, alert_id)
-        if alert is None or alert.final_disposition != "settling":
+        if alert is None or alert.final_disposition != AlertFinalDisposition.SETTLING:
             return {"skipped": True}
         context = await self.load_context(alert.application_id)
         delay = timedelta(minutes=context.policy["settle_delay_minutes"])
         due_time = alert.first_seen_at + delay
         reference_time = due_time if self.replay_mode else max(alert_rules.utc_now(), due_time)
         if alert.resolved_at is not None and alert.resolved_at - alert.first_seen_at <= delay:
-            alert.final_disposition = "recorded_only"
+            alert.final_disposition = AlertFinalDisposition.RECORDED_ONLY
             await self._record(alert, "settle", "resolved_before_settle", f"Not investigated: resolved by itself after {alert_rules.seconds_text((alert.resolved_at - alert.first_seen_at).total_seconds())} (settle delay {context.policy['settle_delay_minutes']} min).", reference_time)
             return {"outcome": "resolved_before_settle"}
         await self._record(alert, "settle", "settled", f"Still firing after {context.policy['settle_delay_minutes']} min, so it continues to grouping.", reference_time)
@@ -197,7 +198,7 @@ class AlertPipelineService:
         latest_alert = await self.session.scalar(select(Alert).where(*conditions).order_by(Alert.last_seen_at.desc()).limit(1))
         if latest_alert is None:
             return None
-        if latest_alert.alert_status == "firing":
+        if latest_alert.alert_status == AlertStatus.FIRING:
             return latest_alert
         if only_open:
             return None
@@ -228,7 +229,7 @@ class AlertPipelineService:
         alert = Alert(
             application_id=context.application.application_id, alert_source_id=source.alert_source_id, external_alert_identifier=canonical.external_id[:400], alert_fingerprint=fingerprint,
             rule_identifier=canonical.rule_id[:600], rule_name=canonical.rule_name, service_id=service.service_id if service else None, resource_reference=(canonical.resource_ref or "")[:600] or None,
-            environment_name=environment_name, severity_level=canonical.severity, alert_status="firing", alert_summary=canonical.summary, alert_description=canonical.description,
+            environment_name=environment_name, severity_level=canonical.severity, alert_status=AlertStatus.FIRING, alert_summary=canonical.summary, alert_description=canonical.description,
             alert_link_url=canonical.link, alert_labels_json=canonical.labels, occurrence_count=1, state_change_count=1, first_seen_at=reference_time, last_seen_at=reference_time,
             latest_alert_event_id=event.alert_event_id,
         )
@@ -244,17 +245,17 @@ class AlertPipelineService:
         alert.occurrence_count += 1
         alert.last_seen_at = max(alert.last_seen_at, reference_time)
         alert.latest_alert_event_id = event.alert_event_id
-        was_resolved = alert.alert_status == "resolved"
+        was_resolved = alert.alert_status == AlertStatus.RESOLVED
         if was_resolved:
-            alert.alert_status = "firing"
+            alert.alert_status = AlertStatus.FIRING
             alert.resolved_at = None
             alert.state_change_count += 1
             await self._record(alert, "lifecycle", "reopened", f"Fired again within the {context.policy['reopen_window_minutes']} min re-open window, so the same alert was re-opened (seen {alert.occurrence_count} times).", reference_time)
             await self._evaluate_flapping(context, alert, reference_time)
             if alert.alert_group_id:
                 group = await self.session.get(AlertGroup, alert.alert_group_id)
-                if group is not None and group.group_status == "resolved":
-                    group.group_status = "open"
+                if group is not None and group.group_status == AlertGroupStatus.RESOLVED:
+                    group.group_status = AlertGroupStatus.OPEN
                     group.resolved_at = None
         else:
             await self._upsert_dedupe_decision(alert, f"Repeat of {alert.rule_name} (seen {alert.occurrence_count} times); counted on the existing alert, no new alert.", reference_time)
@@ -265,7 +266,7 @@ class AlertPipelineService:
 
     async def _upsert_dedupe_decision(self, alert: Alert, reason: str, reference_time: datetime) -> None:
         dedupe_decision = await self.session.scalar(
-            select(AlertDecision).where(AlertDecision.alert_id == alert.alert_id, AlertDecision.pipeline_stage == "deduplicate", AlertDecision.decision_outcome == "repeat").limit(1)
+            select(AlertDecision).where(AlertDecision.alert_id == alert.alert_id, AlertDecision.pipeline_stage == AlertPipelineStage.DEDUPLICATE, AlertDecision.decision_outcome == "repeat").limit(1)
         )
         if dedupe_decision is None:
             await self._record(alert, "deduplicate", "repeat", reason, reference_time)
@@ -282,7 +283,7 @@ class AlertPipelineService:
         if alert.is_flapping:
             await self._record(alert, "lifecycle", "kept_open_flapping", f"Flapping alert: the recovery was noted but it stays one open alert until it is quiet for {context.policy['flap_window_minutes']} min.", resolved_time)
             return
-        alert.alert_status = "resolved"
+        alert.alert_status = AlertStatus.RESOLVED
         alert.resolved_at = resolved_time
         duration = alert_rules.seconds_text((resolved_time - alert.first_seen_at).total_seconds())
         await self._record(alert, "lifecycle", "resolved", f"Resolved after {duration}.", resolved_time)
@@ -297,7 +298,7 @@ class AlertPipelineService:
         duration = resolved_time - alert.first_seen_at
         if alert.severity_level in context.policy["no_delay_severities"] or duration > delay:
             return
-        settle_decision = await self.session.scalar(select(AlertDecision).where(AlertDecision.alert_id == alert.alert_id, AlertDecision.pipeline_stage == "settle").limit(1))
+        settle_decision = await self.session.scalar(select(AlertDecision).where(AlertDecision.alert_id == alert.alert_id, AlertDecision.pipeline_stage == AlertPipelineStage.SETTLE).limit(1))
         if settle_decision is not None:
             settle_decision.would_have_outcome_in_active_mode = "resolved_before_settle"
             settle_decision.decision_reason = f"Observe mode: not waiting. It resolved by itself after {alert_rules.seconds_text(duration.total_seconds())}, so Active mode would have recorded it without investigating."[:600]
@@ -306,22 +307,22 @@ class AlertPipelineService:
         window_start = reference_time - timedelta(minutes=context.policy["flap_window_minutes"])
         change_count = await self.session.scalar(
             select(func.count()).select_from(AlertDecision).where(
-                AlertDecision.alert_id == alert.alert_id, AlertDecision.pipeline_stage == "lifecycle", AlertDecision.decision_outcome.in_(("resolved", "reopened")), AlertDecision.decided_at >= window_start
+                AlertDecision.alert_id == alert.alert_id, AlertDecision.pipeline_stage == AlertPipelineStage.LIFECYCLE, AlertDecision.decision_outcome.in_(("resolved", "reopened")), AlertDecision.decided_at >= window_start
             )
         )
         if (change_count or 0) >= context.policy["flap_count"] and not alert.is_flapping:
             alert.is_flapping = True
-            alert.alert_status = "firing"
+            alert.alert_status = AlertStatus.FIRING
             alert.resolved_at = None
             await self._record(alert, "lifecycle", "flapping", f"Changed state {change_count} times in {context.policy['flap_window_minutes']} min, so it is treated as flapping and kept as one continuously open alert.", reference_time)
 
     async def close_quiet_flapping_alerts(self, application_id: str, reference_time: datetime) -> None:
         context = await self.load_context(application_id)
         quiet_before = reference_time - timedelta(minutes=context.policy["flap_window_minutes"])
-        quiet_alerts = (await self.session.scalars(select(Alert).where(Alert.application_id == application_id, Alert.is_flapping.is_(True), Alert.alert_status == "firing", Alert.last_seen_at < quiet_before))).all()
+        quiet_alerts = (await self.session.scalars(select(Alert).where(Alert.application_id == application_id, Alert.is_flapping.is_(True), Alert.alert_status == AlertStatus.FIRING, Alert.last_seen_at < quiet_before))).all()
         for alert in quiet_alerts:
             alert.is_flapping = False
-            alert.alert_status = "resolved"
+            alert.alert_status = AlertStatus.RESOLVED
             alert.resolved_at = alert.last_seen_at
             await self._record(alert, "lifecycle", "resolved", f"Quiet for {context.policy['flap_window_minutes']} min after flapping, so it was closed.", reference_time)
             if alert.alert_group_id:
@@ -329,10 +330,10 @@ class AlertPipelineService:
 
     async def _resolve_group_if_complete(self, alert_group_id: str, reference_time: datetime) -> None:
         await self.session.flush()  # sessions do not autoflush: write the alert's new status before counting firing members
-        still_firing = await self.session.scalar(select(func.count()).select_from(Alert).where(Alert.alert_group_id == alert_group_id, Alert.alert_status == "firing"))
+        still_firing = await self.session.scalar(select(func.count()).select_from(Alert).where(Alert.alert_group_id == alert_group_id, Alert.alert_status == AlertStatus.FIRING))
         group = await self.session.get(AlertGroup, alert_group_id)
-        if group is not None and not still_firing and group.group_status != "resolved":
-            group.group_status = "resolved"
+        if group is not None and not still_firing and group.group_status != AlertGroupStatus.RESOLVED:
+            group.group_status = AlertGroupStatus.RESOLVED
             group.resolved_at = reference_time
             group.last_activity_at = max(group.last_activity_at, reference_time)
 
@@ -344,7 +345,7 @@ class AlertPipelineService:
             outcome, reason = suppression
             is_always_applied = outcome == "suppressed_severity"
             if mode == "active" or is_always_applied:
-                alert.final_disposition = "recorded_only"
+                alert.final_disposition = AlertFinalDisposition.RECORDED_ONLY
                 await self._record(alert, "suppress", outcome, reason, reference_time)
                 return
             await self._record(alert, "suppress", "passed", f"Observe mode: not suppressed. Active mode would have recorded it only ({reason})", reference_time, would_have=outcome)
@@ -356,7 +357,7 @@ class AlertPipelineService:
         elif mode == "observe":
             await self._record(alert, "settle", "skipped_wait", f"Observe mode: not waiting. Active mode would wait {delay_minutes} min in case it clears by itself.", reference_time, would_have="waiting")
         else:
-            alert.final_disposition = "settling"
+            alert.final_disposition = AlertFinalDisposition.SETTLING
             await self._record(alert, "settle", "waiting", f"Waiting {delay_minutes} min before investigating, in case it clears by itself.", reference_time)
             if self.replay_mode:
                 context.deferred_settle_alert_ids.append(alert.alert_id)
@@ -430,7 +431,7 @@ class AlertPipelineService:
             if same_rule_group_id:
                 return next(group for group in candidates if group.alert_group_id == same_rule_group_id), True, f"same rule '{alert.rule_name}' within {window_text}", None
         open_incident = await self.session.scalar(
-            select(Incident).where(Incident.application_id == alert.application_id, Incident.incident_status.not_in(("resolved", "closed")), Incident.opened_at >= reference_time - window, Incident.opened_at <= reference_time).order_by(Incident.opened_at.desc()).limit(1)
+            select(Incident).where(Incident.application_id == alert.application_id, Incident.incident_status.not_in((IncidentStatus.RESOLVED, IncidentStatus.CLOSED)), Incident.opened_at >= reference_time - window, Incident.opened_at <= reference_time).order_by(Incident.opened_at.desc()).limit(1)
         )
         if open_incident is not None:
             investigation_id = await self.session.scalar(select(Investigation.investigation_id).where(Investigation.incident_id == open_incident.incident_id).limit(1))
@@ -463,7 +464,7 @@ class AlertPipelineService:
     async def _create_group(self, context: ApplicationAlertContext, alert: Alert, service: MonitoredService | None, score: float, grouping_reason: str, reference_time: datetime) -> AlertGroup:
         title, summary = await self._generate_title(context, [service.service_name] if service else [], [alert.rule_name], 1, alert.severity_level)
         group = AlertGroup(
-            application_id=alert.application_id, group_title=title, group_summary=summary, group_status="open", priority_score=score, grouping_reason=grouping_reason[:400], member_alert_count=1,
+            application_id=alert.application_id, group_title=title, group_summary=summary, group_status=AlertGroupStatus.OPEN, priority_score=score, grouping_reason=grouping_reason[:400], member_alert_count=1,
             primary_service_id=alert.service_id, highest_severity_level=alert.severity_level, started_at=reference_time, last_activity_at=reference_time,
         )
         group.replace_linked_ids("affected_service_links", [alert.service_id])
@@ -516,7 +517,7 @@ class AlertPipelineService:
             except Exception as attach_error:  # noqa: BLE001
                 await self._record(alert, "decide", "joined_group", f"Joined {code}, which is already being investigated (evidence attach unavailable: {type(attach_error).__name__}).", reference_time, group_id=group.alert_group_id)
             return
-        if joined and group.investigation_id is None and group.group_status != "queued" and group.priority_score < context.policy["investigate_score_threshold"]:
+        if joined and group.investigation_id is None and group.group_status != AlertGroupStatus.QUEUED and group.priority_score < context.policy["investigate_score_threshold"]:
             await self._record(alert, "decide", "joined_group", f"Joined {code}; its score {group.priority_score} is still below the investigation threshold {context.policy['investigate_score_threshold']}.", reference_time, group_id=group.alert_group_id)
             return
         await self._try_start_investigation(context, group, alert, reference_time)
@@ -532,13 +533,13 @@ class AlertPipelineService:
             return
         started_in_last_hour = await self.session.scalar(
             select(func.count(func.distinct(AlertDecision.alert_group_id))).select_from(AlertDecision).join(Alert, Alert.alert_id == AlertDecision.alert_id).where(
-                Alert.application_id == context.application.application_id, AlertDecision.pipeline_stage == "decide", AlertDecision.decision_outcome.in_(ACTIVE_INVESTIGATION_OUTCOMES),
+                Alert.application_id == context.application.application_id, AlertDecision.pipeline_stage == AlertPipelineStage.DECIDE, AlertDecision.decision_outcome.in_(ACTIVE_INVESTIGATION_OUTCOMES),
                 AlertDecision.decided_at >= reference_time - timedelta(hours=1), AlertDecision.decided_at <= reference_time,
             )
         )
         maximum = context.policy["max_investigations_per_hour"]
         if (started_in_last_hour or 0) >= maximum:
-            group.group_status = "queued"
+            group.group_status = AlertGroupStatus.QUEUED
             await self._record(alert, "decide", "queued", f"Queued: {started_in_last_hour} investigations were already started in the last hour (limit {maximum}); highest score goes first.", reference_time, group_id=group.alert_group_id)
             return
         if self.replay_mode:
@@ -552,10 +553,10 @@ class AlertPipelineService:
                     context.application.application_id, "alert_group", alert_group_id=group.alert_group_id, service_ids=group.affected_service_ids,
                     description=f"Alert group {code}: {group.group_title}",
                 )
-            group.group_status = "open"
+            group.group_status = AlertGroupStatus.OPEN
             await self._record(alert, "decide", "investigation_started", f"Investigation started: new group {code} scored {group.priority_score} (threshold {threshold}).", reference_time, group_id=group.alert_group_id)
         except Exception as start_error:  # noqa: BLE001
-            group.group_status = "queued"
+            group.group_status = AlertGroupStatus.QUEUED
             logger.warning("Could not start an investigation for %s: %s", code, start_error)
             await self._record(alert, "decide", "queued", f"Group {code} is queued: the investigation engine is not available right now ({type(start_error).__name__}).", reference_time, group_id=group.alert_group_id)
 
@@ -564,7 +565,7 @@ class AlertPipelineService:
         context = await self.load_context(application_id)
         reference_time = alert_rules.utc_now()
         started = 0
-        queued_groups = (await self.session.scalars(select(AlertGroup).where(AlertGroup.application_id == application_id, AlertGroup.group_status == "queued", AlertGroup.investigation_id.is_(None)).order_by(AlertGroup.priority_score.desc()))).all()
+        queued_groups = (await self.session.scalars(select(AlertGroup).where(AlertGroup.application_id == application_id, AlertGroup.group_status == AlertGroupStatus.QUEUED, AlertGroup.investigation_id.is_(None)).order_by(AlertGroup.priority_score.desc()))).all()
         for group in queued_groups:
             anchor_alert = await self.session.scalar(select(Alert).where(Alert.alert_group_id == group.alert_group_id).order_by(Alert.first_seen_at).limit(1))
             if anchor_alert is None:
@@ -572,7 +573,7 @@ class AlertPipelineService:
             await self._try_start_investigation(context, group, anchor_alert, reference_time)
             if group.investigation_id:
                 started += 1
-            elif group.group_status == "queued":
+            elif group.group_status == AlertGroupStatus.QUEUED:
                 break
         return started
 

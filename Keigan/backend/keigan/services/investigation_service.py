@@ -34,6 +34,7 @@ from keigan.services.service_scope import unknown_service_ids
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
+from keigan.entities.status_values import InvestigationStage, InvestigationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +63,8 @@ class InvestigationService:
     ) -> str:
         """Create a queued investigation and enqueue ``run_investigation``. Returns investigation_id."""
         investigation = Investigation(
-            application_id=application_id, incident_id=incident_id, investigation_trigger=investigation_trigger, investigation_status="queued",
-            current_stage_name="triage", progress_percent=0, stage_messages_json=[{"at": utc_now().isoformat(), "stage": "queued", "message": "Investigation queued"}],
+            application_id=application_id, incident_id=incident_id, investigation_trigger=investigation_trigger, investigation_status=InvestigationStatus.QUEUED,
+            current_stage_name=InvestigationStage.TRIAGE, progress_percent=0, stage_messages_json=[{"at": utc_now().isoformat(), "stage": "queued", "message": "Investigation queued"}],
             investigation_window_start=window_start, investigation_window_end=window_end,
             triage_result_json={"manual_description": PiiMasker().mask_text(description)} if description else None,
             requested_by_user_principal_name=requested_by_user_principal_name, created_by_user_principal_name=requested_by_user_principal_name,
@@ -106,7 +107,7 @@ class InvestigationService:
 
     async def _run(self, investigation_id: str, offline_ai: bool) -> dict[str, Any] | None:
         investigation = await self.session.get(Investigation, investigation_id)
-        if investigation is None or investigation.investigation_status in ("completed", "completed_evidence_only", "cancelled"):
+        if investigation is None or investigation.investigation_status in (InvestigationStatus.COMPLETED, InvestigationStatus.COMPLETED_EVIDENCE_ONLY, InvestigationStatus.CANCELLED):
             return None
         runner = InvestigationGraphRunner(self.session, investigation, offline_ai=offline_ai, auto_send_communications=not offline_ai)
         try:
@@ -117,7 +118,7 @@ class InvestigationService:
             investigation = await self.session.get(Investigation, investigation_id)
             assert investigation is not None
             # The technical detail is in the log above; users only see a generic reason and the correlation id (V19).
-            investigation.investigation_status, investigation.failure_reason = "failed", f"The investigation could not finish because of an internal problem. Reference {current_correlation_id() or 'none'}."
+            investigation.investigation_status, investigation.failure_reason = InvestigationStatus.FAILED, f"The investigation could not finish because of an internal problem. Reference {current_correlation_id() or 'none'}."
             investigation.stage_messages_json = [*(investigation.stage_messages_json or []), {"at": utc_now().isoformat(), "stage": "failed", "message": "The investigation failed. Re-run it, or contact a Keigan admin."}]
             return {"investigationId": investigation_id, "status": "failed"}
         if not offline_ai:
@@ -146,7 +147,7 @@ class InvestigationService:
 
     async def rerun(self, current_user: CurrentUser, investigation_id: str) -> JobAcceptedResponse:
         original = await self.load_readable_investigation(current_user, investigation_id, require_admin=True)
-        if original.investigation_status in ("queued", "running"):
+        if original.investigation_status in (InvestigationStatus.QUEUED, InvestigationStatus.RUNNING):
             raise BusinessValidationException("This investigation is still running.")
         new_investigation_id = await self.start_investigation(
             original.application_id, "rerun", incident_id=original.incident_id, alert_group_id=None, service_ids=original.investigated_service_ids,
@@ -258,7 +259,7 @@ class InvestigationService:
             evidence=[self._evidence_dto(row, names_by_id) for row in evidence_rows], blast_radius=investigation.blast_radius_json,
             matched_runbooks=[RunbookReference(runbook_id=runbook_id, runbook_title=runbooks[runbook_id].runbook_title) for runbook_id in investigation.matched_runbook_ids if runbook_id in runbooks],
             knowledge_references=investigation.knowledge_references_json or [], alert_group=await self._alert_group_payload(investigation.investigation_id), stage_messages=investigation.stage_messages_json or [],
-            is_evidence_only=investigation.investigation_status == "completed_evidence_only", failure_reason=investigation.failure_reason, user_feedback_verdict=investigation.user_feedback_verdict,
+            is_evidence_only=investigation.investigation_status == InvestigationStatus.COMPLETED_EVIDENCE_ONLY, failure_reason=investigation.failure_reason, user_feedback_verdict=investigation.user_feedback_verdict,
             user_feedback_comment=investigation.user_feedback_comment, total_input_token_count=investigation.total_input_token_count, total_output_token_count=investigation.total_output_token_count,
             model_names=investigation.model_names_json or [], detected_at=incident.detected_by_keigan_at if incident else investigation.created_at, first_update_sent_at=incident.first_update_sent_at if incident else None,
         )

@@ -21,10 +21,11 @@ from keigan.security.current_user import CurrentUser
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.slo_service import SloService
 from keigan.utils.time_utils import utc_now
+from keigan.entities.status_values import AlertGroupStatus, IncidentStatus, Priority, SignalStatus
 
 logger = logging.getLogger(__name__)
-OPEN_INCIDENT_STATUSES = ("new", "investigating", "identified", "monitoring")
-PRIORITY_PENALTY = {"P1": 30, "P2": 15, "P3": 6, "P4": 2}
+OPEN_INCIDENT_STATUSES = (IncidentStatus.NEW, IncidentStatus.INVESTIGATING, IncidentStatus.IDENTIFIED, IncidentStatus.MONITORING)
+PRIORITY_PENALTY = {Priority.P1: 30, Priority.P2: 15, Priority.P3: 6, Priority.P4: 2}
 SEVERITY_RANK = {"critical": 0, "high": 1, "warning": 2, "medium": 2, "info": 3, "low": 3}
 
 
@@ -57,12 +58,12 @@ class DashboardService:
     async def _kpis(self, application_ids: list[str], incidents: list[Incident], slo_summaries: list[dict[str, Any]], now: Any) -> HomeKpiResponse:
         by_priority: dict[str, int] = defaultdict(int)
         for incident in incidents:
-            by_priority[incident.keigan_priority or incident.servicenow_priority or "P3"] += 1
+            by_priority[incident.keigan_priority or incident.servicenow_priority or Priority.P3] += 1
         day_ago = now - timedelta(hours=24)
         active_groups = alerts_24h = groups_24h = investigations_24h = 0
         mean_minutes = None
         if application_ids:
-            active_groups = await self.session.scalar(select(func.count()).select_from(AlertGroup).where(AlertGroup.application_id.in_(application_ids), AlertGroup.group_status != "resolved")) or 0
+            active_groups = await self.session.scalar(select(func.count()).select_from(AlertGroup).where(AlertGroup.application_id.in_(application_ids), AlertGroup.group_status != AlertGroupStatus.RESOLVED)) or 0
             alerts_24h = await self.session.scalar(select(func.count()).select_from(Alert).where(Alert.application_id.in_(application_ids), Alert.first_seen_at >= day_ago)) or 0
             groups_24h = await self.session.scalar(select(func.count()).select_from(AlertGroup).where(AlertGroup.application_id.in_(application_ids), AlertGroup.started_at >= day_ago)) or 0
             investigations_24h = await self.session.scalar(select(func.count()).select_from(Investigation).where(Investigation.application_id.in_(application_ids), Investigation.created_at >= day_ago)) or 0
@@ -82,7 +83,7 @@ class DashboardService:
         if not incidents:
             risk = f" {kpis.slos_at_risk_count} SLO{'s' if kpis.slos_at_risk_count != 1 else ''} need attention." if kpis.slos_at_risk_count else ""
             return f"All {application_count} application{'s' if application_count != 1 else ''} look healthy, with no open incidents.{risk}"
-        critical = sum(1 for incident in incidents if (incident.keigan_priority or incident.servicenow_priority) in ("P1", "P2"))
+        critical = sum(1 for incident in incidents if (incident.keigan_priority or incident.servicenow_priority) in (Priority.P1, Priority.P2))
         lead = f"{len(incidents)} open incident{'s' if len(incidents) != 1 else ''}"
         return f"{lead}, {critical} high priority. Keigan is investigating." if critical else f"{lead}, none high priority."
 
@@ -97,7 +98,7 @@ class DashboardService:
         for report in (await self.session.scalars(select(IntelligenceReport).where(IntelligenceReport.application_id.in_(application_ids), IntelligenceReport.overall_health_score.is_not(None)).order_by(IntelligenceReport.created_at))).all():
             latest_scores[report.application_id] = report.overall_health_score  # type: ignore[assignment]
         signals: dict[str, PredictiveSignal] = {}
-        for signal in (await self.session.scalars(select(PredictiveSignal).where(PredictiveSignal.application_id.in_(application_ids), PredictiveSignal.signal_status == "open").order_by(PredictiveSignal.detected_at))).all():
+        for signal in (await self.session.scalars(select(PredictiveSignal).where(PredictiveSignal.application_id.in_(application_ids), PredictiveSignal.signal_status == SignalStatus.OPEN).order_by(PredictiveSignal.detected_at))).all():
             signals[signal.application_id] = signal  # newest wins
         sparklines = await self._availability_sparklines(application_ids, now)
         cards: list[ApplicationHealthCard] = []
@@ -105,7 +106,7 @@ class DashboardService:
             application_incidents = [item for item in incidents if item.application_id == application.application_id]
             application_slos = [item for item in slo_summaries if item["applicationId"] == application.application_id and item.get("errorBudgetRemainingPercentage") is not None]
             worst = min(application_slos, key=lambda item: item["errorBudgetRemainingPercentage"], default=None)
-            penalty = sum(PRIORITY_PENALTY.get(item.keigan_priority or item.servicenow_priority or "P3", 6) for item in application_incidents)
+            penalty = sum(PRIORITY_PENALTY.get(item.keigan_priority or item.servicenow_priority or Priority.P3, 6) for item in application_incidents)
             health = latest_scores.get(application.application_id, 100)
             health = max(0, min(100, health - penalty if application_incidents else health))
             if worst is not None and worst["errorBudgetRemainingPercentage"] < 0:
@@ -152,7 +153,7 @@ class DashboardService:
     async def _intelligence_feed(self, application_ids: list[str], names: dict[str, str]) -> list[IntelligenceFeedItem]:
         if not application_ids:
             return []
-        signals = (await self.session.scalars(select(PredictiveSignal).where(PredictiveSignal.application_id.in_(application_ids), PredictiveSignal.signal_status == "open").order_by(PredictiveSignal.detected_at.desc()).limit(30))).all()
+        signals = (await self.session.scalars(select(PredictiveSignal).where(PredictiveSignal.application_id.in_(application_ids), PredictiveSignal.signal_status == SignalStatus.OPEN).order_by(PredictiveSignal.detected_at.desc()).limit(30))).all()
         ranked = sorted(signals, key=lambda item: SEVERITY_RANK.get(item.signal_severity, 4))[:6]
         return [IntelligenceFeedItem(signal_id=item.predictive_signal_id, application_id=item.application_id, application_name=names.get(item.application_id, ""), signal_title=item.signal_title,
                                      signal_severity=item.signal_severity, forecast_breach_at=item.forecast_breach_at, detected_at=item.detected_at) for item in ranked]

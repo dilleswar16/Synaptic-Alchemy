@@ -19,11 +19,12 @@ from keigan.entities.incident_entities import (
     Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, PostmortemReport,
 )
 from keigan.entities.notification_entities import NotificationDelivery, TeamsIncidentChat
+from keigan.entities.status_values import IncidentStatus, InvestigationStatus
 
 logger = logging.getLogger(__name__)
 
-FINISHED_INCIDENT_STATUSES = ("resolved", "closed")
-ACTIVE_INVESTIGATION_STATUSES = ("queued", "running")
+FINISHED_INCIDENT_STATUSES = (IncidentStatus.RESOLVED, IncidentStatus.CLOSED)
+ACTIVE_INVESTIGATION_STATUSES = (InvestigationStatus.QUEUED, InvestigationStatus.RUNNING)
 
 
 def _expired_incident_ids(cutoff: datetime, batch_size: int) -> Any:

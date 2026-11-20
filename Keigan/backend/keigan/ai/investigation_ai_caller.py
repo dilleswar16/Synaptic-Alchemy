@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from keigan.ai.investigation_mock_responses import OFFLINE_FACTORIES, MockInvestigationContext, mock_investigation_context
 from keigan.ai.llm_gateway import LlmUsageContext, ModelTier, PromptSection, estimate_token_count
 from keigan.config import application_context
+from keigan.entities.status_values import Priority
 
 
 class InvestigationAiCaller:
@@ -78,6 +79,6 @@ async def build_mock_context(
         scenario_key=scenario_window.scenario_key if scenario_window else None,
         primary_service_name=names_by_id.get(scenario_window.primary_service_ids[0]) if scenario_window and scenario_window.primary_service_ids else None,
         dependency_service_name=names_by_id.get(scenario_window.dependency_service_ids[0]) if scenario_window and scenario_window.dependency_service_ids else None,
-        priority=(incident.keigan_priority or map_servicenow_priority(incident.servicenow_impact, incident.servicenow_urgency, incident.servicenow_priority)) if incident else "P3",
+        priority=(incident.keigan_priority or map_servicenow_priority(incident.servicenow_impact, incident.servicenow_urgency, incident.servicenow_priority)) if incident else Priority.P3,
         incident_title=(incident.incident_title if incident else None) or (SCENARIO_CATALOG[scenario_window.scenario_key].title if scenario_window else "Manual investigation"),
     )

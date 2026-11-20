@@ -33,6 +33,7 @@ from keigan.services.authorization_service import AuthorizationService
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
+from keigan.entities.status_values import CommunicationStatus, PostmortemStatus, Priority
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ class CommunicationService:
         # Audience rule: updates go to business and technical stakeholders by email, so the fix steps (commands, resource names) are
         # not given to the writer at all. Engineers read the fix on the investigation page and in the incident's Teams room.
         findings_text = (
-            f"Priority: {(incident.keigan_priority if incident else None) or 'P3'}\nExecutive summary: {investigation.executive_summary}\nWhat went wrong: {investigation.what_went_wrong_markdown}\n"
+            f"Priority: {(incident.keigan_priority if incident else None) or Priority.P3}\nExecutive summary: {investigation.executive_summary}\nWhat went wrong: {investigation.what_went_wrong_markdown}\n"
             f"Why it happened: {investigation.why_it_happened_markdown}\nConfidence: {investigation.overall_confidence_score}\n"
             f"Incident opened: {incident.opened_at.isoformat() if incident else 'n/a'}; resolved: {incident.resolved_at.isoformat() if incident and incident.resolved_at else 'not yet'}"
         )
@@ -92,7 +93,7 @@ class CommunicationService:
         existing_drafts = (
             await self.session.scalars(
                 select(IncidentCommunication).where(
-                    IncidentCommunication.investigation_id == investigation.investigation_id, IncidentCommunication.communication_status == "draft",
+                    IncidentCommunication.investigation_id == investigation.investigation_id, IncidentCommunication.communication_status == CommunicationStatus.DRAFT,
                     IncidentCommunication.communication_type.in_(communication_types),
                 )
             )
@@ -106,7 +107,7 @@ class CommunicationService:
             communication = IncidentCommunication(
                 incident_id=investigation.incident_id, investigation_id=investigation.investigation_id, communication_type=draft.communication_type,
                 audience_type=AUDIENCE_BY_TYPE.get(draft.communication_type, "stakeholders"), language_code=draft.language_code, subject_line=sanitize_ai_line(draft.subject_line),
-                body_markdown=sanitize_ai_markdown(draft.body_markdown), communication_status="draft", created_by_user_principal_name="system:keigan",
+                body_markdown=sanitize_ai_markdown(draft.body_markdown), communication_status=CommunicationStatus.DRAFT, created_by_user_principal_name="system:keigan",
             )
             self.session.add(communication)
             created.append(communication)
@@ -120,7 +121,7 @@ class CommunicationService:
         if auto_send and self.settings.auto_send_preliminary_report:
             for communication in created:
                 if communication.communication_type == "preliminary_report":
-                    communication.communication_status, communication.approved_by_user_principal_name, communication.approved_at = "approved", "system:auto-send", utc_now()
+                    communication.communication_status, communication.approved_by_user_principal_name, communication.approved_at = CommunicationStatus.APPROVED, "system:auto-send", utc_now()
                     await self._deliver(communication, "system:keigan")
         return created
 
@@ -164,14 +165,14 @@ class CommunicationService:
 
     async def update_communication(self, current_user: CurrentUser, communication_id: str, request: CommunicationUpdateRequest) -> CommunicationDto:
         communication, application_id = await self._load_communication(current_user, communication_id)
-        if communication.communication_status == "sent":
+        if communication.communication_status == CommunicationStatus.SENT:
             raise BusinessValidationException("A sent communication can no longer be edited.")
         masker = PiiMasker()
         if request.subject_line is not None:
             communication.subject_line = sanitize_ai_line(masker.mask_text(request.subject_line))
         if request.body_markdown is not None:
             communication.body_markdown = sanitize_ai_markdown(masker.mask_text(request.body_markdown))
-        communication.communication_status, communication.approved_by_user_principal_name, communication.approved_at = "draft", None, None  # edits need a fresh approval
+        communication.communication_status, communication.approved_by_user_principal_name, communication.approved_at = CommunicationStatus.DRAFT, None, None  # edits need a fresh approval
         communication.updated_by_user_principal_name = current_user.user_principal_name
         await AuditService(self.session).record(current_user, "communication.edit", target_entity_type="incident_communication", target_entity_id=communication_id, application_id=application_id)
         await self.session.flush()
@@ -179,18 +180,18 @@ class CommunicationService:
 
     async def approve_communication(self, current_user: CurrentUser, communication_id: str) -> CommunicationDto:
         communication, application_id = await self._load_communication(current_user, communication_id)
-        if communication.communication_status == "sent":
+        if communication.communication_status == CommunicationStatus.SENT:
             raise BusinessValidationException("This communication was already sent.")
-        communication.communication_status, communication.approved_by_user_principal_name, communication.approved_at = "approved", current_user.user_principal_name, utc_now()
+        communication.communication_status, communication.approved_by_user_principal_name, communication.approved_at = CommunicationStatus.APPROVED, current_user.user_principal_name, utc_now()
         await AuditService(self.session).record(current_user, "communication.approve", target_entity_type="incident_communication", target_entity_id=communication_id, application_id=application_id)
         await self.session.flush()
         return CommunicationDto.model_validate(communication)
 
     async def send_communication(self, current_user: CurrentUser, communication_id: str) -> CommunicationSendResult:
         communication, application_id = await self._load_communication(current_user, communication_id)
-        if communication.communication_status == "sent":
+        if communication.communication_status == CommunicationStatus.SENT:
             raise BusinessValidationException("This communication was already sent.")
-        if communication.communication_status != "approved":
+        if communication.communication_status != CommunicationStatus.APPROVED:
             raise BusinessValidationException("Approve the communication before sending it.")
         deliveries, message = await self._deliver(communication, current_user.user_principal_name)
         await AuditService(self.session).record(current_user, "communication.send", target_entity_type="incident_communication", target_entity_id=communication_id, application_id=application_id, action_details={"deliveries": deliveries})
@@ -207,7 +208,7 @@ class CommunicationService:
             return 0, "Delivery is not enabled in this environment yet. The communication stays approved and can be sent later."
         except KeiganException as delivery_error:
             return 0, f"Delivery could not be queued: {delivery_error.detail}"
-        communication.communication_status, communication.sent_at = "sent", utc_now()
+        communication.communication_status, communication.sent_at = CommunicationStatus.SENT, utc_now()
         incident = await self.session.get(Incident, communication.incident_id) if communication.incident_id else None
         if incident is not None and incident.first_update_sent_at is None:
             incident.first_update_sent_at = communication.sent_at
@@ -226,13 +227,13 @@ class CommunicationService:
             raise NotFoundException("The incident was not found.")
         await AuthorizationService(self.session).ensure_application_admin(current_user, incident.application_id)
         postmortem = await self._postmortem_for_incident(incident_id)
-        if postmortem is not None and postmortem.report_status == "final":
+        if postmortem is not None and postmortem.report_status == PostmortemStatus.FINAL:
             raise BusinessValidationException("The postmortem was finalised. It can no longer be regenerated.")
         if postmortem is None:
-            postmortem = PostmortemReport(incident_id=incident_id, report_title=f"Postmortem: {incident.incident_title}", report_status="generating", generation_trigger=generation_trigger, created_by_user_principal_name=current_user.user_principal_name)
+            postmortem = PostmortemReport(incident_id=incident_id, report_title=f"Postmortem: {incident.incident_title}", report_status=PostmortemStatus.GENERATING, generation_trigger=generation_trigger, created_by_user_principal_name=current_user.user_principal_name)
             self.session.add(postmortem)
         else:
-            postmortem.report_status = "generating"
+            postmortem.report_status = PostmortemStatus.GENERATING
         await self.session.flush()
         job_id = await JobQueue(self.session).enqueue(
             "generate_postmortem", {"incident_id": incident_id, "generation_trigger": generation_trigger, "requested_by_user_principal_name": current_user.user_principal_name},
@@ -260,10 +261,10 @@ class CommunicationService:
         assert application is not None
         postmortem = await self._postmortem_for_incident(incident_id)
         if postmortem is None:
-            postmortem = PostmortemReport(incident_id=incident_id, report_title=f"Postmortem: {incident.incident_title}", report_status="generating", generation_trigger=generation_trigger, created_by_user_principal_name=requested_by)
+            postmortem = PostmortemReport(incident_id=incident_id, report_title=f"Postmortem: {incident.incident_title}", report_status=PostmortemStatus.GENERATING, generation_trigger=generation_trigger, created_by_user_principal_name=requested_by)
             self.session.add(postmortem)
             await self.session.flush()
-        elif postmortem.report_status == "final":
+        elif postmortem.report_status == PostmortemStatus.FINAL:
             return {"postmortemId": postmortem.postmortem_id}
         investigation = await self.session.scalar(select(Investigation).where(Investigation.incident_id == incident_id, Investigation.investigation_status.like("completed%")).order_by(Investigation.created_at.desc()).limit(1))
         postmortem.investigation_id = investigation.investigation_id if investigation else None
@@ -280,7 +281,7 @@ class CommunicationService:
         person_names = {message.author_display_name for message in chat_messages if message.author_display_name} | {event.actor_display_name for event in timeline_events if event.actor_display_name}
         timeline_lines = [(time_text, mask_known_names(masker, title, person_names)) for time_text, title in timeline_lines]
         chat_facts = [mask_known_names(masker, fact, person_names) for fact in chat_facts]
-        sent_communications = (await self.session.scalars(select(IncidentCommunication).where(IncidentCommunication.incident_id == incident_id, IncidentCommunication.communication_status == "sent"))).all()
+        sent_communications = (await self.session.scalars(select(IncidentCommunication).where(IncidentCommunication.incident_id == incident_id, IncidentCommunication.communication_status == CommunicationStatus.SENT))).all()
         resolution_note = next((event.event_details_markdown for event in reversed(timeline_events) if event.event_type == "incident_resolved" and event.event_details_markdown), None)
         sections = [
             PromptSection("Application", f"{application.application_name} ({application.application_code}), tier {application.criticality_tier}"),
@@ -303,7 +304,7 @@ class CommunicationService:
         try:
             result: PostmortemResult = await caller.ask("postmortem_report", sections, PostmortemResult)
         except KeiganException as ai_error:
-            postmortem.report_status = "failed"
+            postmortem.report_status = PostmortemStatus.FAILED
             postmortem.report_markdown = f"The postmortem could not be generated: {describe_failure_for_user(ai_error)} Try again later or write it manually."
             return {"postmortemId": postmortem.postmortem_id, "status": "failed"}
         result = sanitize_ai_model(result)
@@ -312,7 +313,7 @@ class CommunicationService:
         postmortem.report_title = sanitize_ai_line(result.report_title)
         postmortem.report_sections_json = sections_payload
         postmortem.report_markdown = sanitize_ai_markdown(self.render_postmortem_markdown(result, incident))
-        postmortem.report_status, postmortem.generation_trigger = "draft", generation_trigger
+        postmortem.report_status, postmortem.generation_trigger = PostmortemStatus.DRAFT, generation_trigger
         self.session.add(InvestigationTimelineEvent(incident_id=incident_id, investigation_id=postmortem.investigation_id, event_type="postmortem_drafted", event_title="Postmortem draft prepared", event_source="keigan"))
         return {"postmortemId": postmortem.postmortem_id}
 
@@ -357,9 +358,9 @@ class CommunicationService:
 
     async def update_postmortem(self, current_user: CurrentUser, postmortem_id: str, request: PostmortemUpdateRequest) -> PostmortemDto:
         postmortem, application_id = await self._load_postmortem_for_admin(current_user, postmortem_id)
-        if postmortem.report_status == "final":
+        if postmortem.report_status == PostmortemStatus.FINAL:
             raise BusinessValidationException("A finalised postmortem cannot be edited.")
-        if postmortem.report_status == "generating":
+        if postmortem.report_status == PostmortemStatus.GENERATING:
             raise BusinessValidationException("The postmortem is still being generated.")
         if request.report_title is not None:
             postmortem.report_title = sanitize_ai_line(PiiMasker().mask_text(request.report_title))
@@ -372,9 +373,9 @@ class CommunicationService:
 
     async def finalize_postmortem(self, current_user: CurrentUser, postmortem_id: str) -> PostmortemDto:
         postmortem, application_id = await self._load_postmortem_for_admin(current_user, postmortem_id)
-        if postmortem.report_status not in ("draft",):
+        if postmortem.report_status not in (PostmortemStatus.DRAFT,):
             raise BusinessValidationException("Only a draft postmortem can be finalised.")
-        postmortem.report_status, postmortem.finalized_by_user_principal_name, postmortem.finalized_at = "final", current_user.user_principal_name, utc_now()
+        postmortem.report_status, postmortem.finalized_by_user_principal_name, postmortem.finalized_at = PostmortemStatus.FINAL, current_user.user_principal_name, utc_now()
         await AuditService(self.session).record(current_user, "postmortem.finalize", target_entity_type="postmortem_report", target_entity_id=postmortem_id, application_id=application_id)
         await self.session.flush()
         return self._postmortem_dto(postmortem)
@@ -383,7 +384,7 @@ class CommunicationService:
         from keigan.services.notification_service import NotificationService
 
         postmortem, application_id = await self._load_postmortem_for_admin(current_user, postmortem_id)
-        if postmortem.report_status != "final":
+        if postmortem.report_status != PostmortemStatus.FINAL:
             raise BusinessValidationException("Finalise the postmortem before sending it.")
         try:
             deliveries = await NotificationService(self.session).send_postmortem(postmortem_id, current_user.user_principal_name)

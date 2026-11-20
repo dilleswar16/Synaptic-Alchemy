@@ -22,6 +22,7 @@ from keigan.ai.investigation_ai_schemas import (
 from keigan.ai.llm_gateway import PromptSection, register_mock_response
 from keigan.ai.prompt_safety import assess_prompt_injection
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
+from keigan.entities.status_values import Priority, RiskLevel
 
 
 @dataclass
@@ -42,7 +43,7 @@ class MockInvestigationContext:
     scenario_key: str | None = None
     primary_service_name: str | None = None
     dependency_service_name: str | None = None
-    priority: str = "P3"
+    priority: str = Priority.P3
     incident_title: str = ""
     # filled progressively by the graph / postmortem writer
     synthesis: dict[str, Any] = field(default_factory=dict)
@@ -494,12 +495,12 @@ def _section_text(prompt_sections: list[PromptSection], title: str) -> str:
 def build_triage(output_schema: type[BaseModel], prompt_sections: list[PromptSection]) -> BaseModel:
     context = mock_investigation_context.get()
     if context is None:
-        return output_schema.model_validate({"suggested_priority": "P3", "priority_rationale": "No context", "incident_category": "errors", "incident_summary": "No context available."})
+        return output_schema.model_validate({"suggested_priority": Priority.P3, "priority_rationale": "No context", "incident_category": "errors", "incident_summary": "No context available."})
     scenario = SCENARIO_CATALOG.get(context.scenario_key or "")
     names = [name for name in (context.primary_service_name, context.dependency_service_name) if name]
     has_injection = assess_prompt_injection(_section_text(prompt_sections, "Incident from ServiceNow")).is_suspicious
     return TriageResult(
-        suggested_priority=context.priority if context.priority in ("P1", "P2", "P3", "P4") else "P3",  # type: ignore[arg-type]
+        suggested_priority=context.priority if context.priority in (Priority.P1, Priority.P2, Priority.P3, Priority.P4) else Priority.P3,  # type: ignore[arg-type]
         priority_rationale=f"Customer-facing impact on a {context.application_name} journey with a recent onset; priority follows the reported impact and urgency.",
         incident_category=scenario.incident_category if scenario else "errors",  # type: ignore[arg-type]
         contains_instruction_like_text=has_injection,
@@ -530,7 +531,7 @@ def build_hypothesis(output_schema: type[BaseModel], prompt_sections: list[Promp
     return HypothesisResult(
         hypothesis_title=script["title"][perspective], hypothesis_statement_markdown=_fill(script["statement"][perspective], context), reasoning_markdown=_fill(script["reasoning"][perspective], context),
         confidence_score=confidence, supporting_evidence_codes=list(dict.fromkeys(supporting)), contradicting_evidence_codes=list(dict.fromkeys(contradicting)), proposed_fix=fix,
-        fix_risk_level="medium" if perspective == script["lead"] else "low",
+        fix_risk_level=RiskLevel.MEDIUM if perspective == script["lead"] else RiskLevel.LOW,
         matched_runbook_code=_top_runbook_code(prompt_sections) if perspective == script["lead"] else None,
     )
 

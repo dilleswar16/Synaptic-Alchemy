@@ -40,6 +40,7 @@ from keigan.services.knowledge_service import KnowledgeService
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import utc_now
+from keigan.entities.status_values import MessageAuthorRole
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +193,7 @@ class ChatService:
         masker = PiiMasker()
         masked_message_text = masker.mask_text(request.message_text)  # personal data is masked before it is stored, not only before the model call (V12)
         self.session.add(ConversationMessage(
-            conversation_id=conversation_id, author_role="user", author_display_name=current_user.display_name, author_user_principal_name=current_user.user_principal_name,
+            conversation_id=conversation_id, author_role=MessageAuthorRole.USER, author_display_name=current_user.display_name, author_user_principal_name=current_user.user_principal_name,
             message_text=masked_message_text, input_token_count=estimate_token_count(masked_message_text), output_token_count=0, created_at=utc_now()))
         await self.session.flush()
         try:
@@ -200,7 +201,7 @@ class ChatService:
                 answer = await self.answer_investigation_question(
                     conversation.investigation_id or "", masked_message_text, asked_by_user_principal_name=current_user.user_principal_name,
                     asked_by_display_name=current_user.display_name,
-                    conversation_history=[{"role": "user" if item.author_role == "user" else "assistant", "content": masker.mask_text(item.message_text)} for item in history])
+                    conversation_history=[{"role": "user" if item.author_role == MessageAuthorRole.USER else "assistant", "content": masker.mask_text(item.message_text)} for item in history])
             else:
                 answer = await self._answer_keigan_question(current_user, conversation, request, history)
         except _SELF_HANDLED_ERRORS as chat_error:
@@ -208,7 +209,7 @@ class ChatService:
                 raise
             answer = AssistantAnswer(f"I couldn't complete that. {describe_failure_for_user(chat_error)}", message_payload={"answerKind": "text", "failed": True})
         assistant_message = ConversationMessage(
-            conversation_id=conversation_id, author_role="assistant", author_display_name="Keigan", message_text=answer.answer_markdown,
+            conversation_id=conversation_id, author_role=MessageAuthorRole.ASSISTANT, author_display_name="Keigan", message_text=answer.answer_markdown,
             message_payload_json=answer.message_payload or {"answerKind": "text", "citations": answer.citations}, input_token_count=answer.input_token_count,
             output_token_count=answer.output_token_count, created_at=utc_now() + timedelta(milliseconds=1))
         self.session.add(assistant_message)
@@ -228,13 +229,13 @@ class ChatService:
         if not applications:
             return AssistantAnswer("You don't have access to any applications yet, so there is nothing for me to look at.", message_payload={"answerKind": "text"})
         services = list((await self.session.scalars(select(MonitoredService).where(MonitoredService.application_id.in_(scope_ids), MonitoredService.is_monitoring_enabled.is_(True)))).all())
-        previous = next((item.message_payload_json.get("conversationContext") for item in reversed(history) if item.author_role == "assistant" and (item.message_payload_json or {}).get("conversationContext")), None)
+        previous = next((item.message_payload_json.get("conversationContext") for item in reversed(history) if item.author_role == MessageAuthorRole.ASSISTANT and (item.message_payload_json or {}).get("conversationContext")), None)
 
         question_text = request.message_text
         forced_minutes: int | None = None
         if request.clarification_response:
             forced_minutes = int(re.sub(r"\D", "", request.clarification_response) or 1440)
-            question_text = next((item.message_text for item in reversed(history) if item.author_role == "user"), request.message_text)
+            question_text = next((item.message_text for item in reversed(history) if item.author_role == MessageAuthorRole.USER), request.message_text)
         masked_question = PiiMasker().mask_text(question_text)
         usage_context = LlmUsageContext(application_id=applications[0].application_id if len(applications) == 1 else None, conversation_id=conversation.conversation_id, requested_by_user_principal_name=current_user.user_principal_name)
 

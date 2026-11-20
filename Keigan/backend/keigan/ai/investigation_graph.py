@@ -41,11 +41,12 @@ from keigan.services.incident_priority_rules import map_servicenow_priority, mos
 from keigan.utils.pii_masker import MaskingContext, PiiMasker
 from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import utc_now
+from keigan.entities.status_values import AnalysisPerspective, CriticalityTier, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStage, InvestigationStatus, Priority, RiskLevel
 
 logger = logging.getLogger(__name__)
 
-PERSPECTIVES = ("application", "dependencies", "infrastructure")
-STAGE_PERCENT = {"triage": 8, "context": 22, "evidence": 35, "hypotheses": 62, "synthesis": 82, "communications": 94}
+PERSPECTIVES = (AnalysisPerspective.APPLICATION, AnalysisPerspective.DEPENDENCIES, AnalysisPerspective.INFRASTRUCTURE)
+STAGE_PERCENT = {InvestigationStage.TRIAGE: 8, InvestigationStage.CONTEXT: 22, InvestigationStage.EVIDENCE: 35, InvestigationStage.HYPOTHESES: 62, InvestigationStage.SYNTHESIS: 82, InvestigationStage.COMMUNICATIONS: 94}
 _FENCED_BLOCK_PATTERN = re.compile(r"```[a-z]*\n(.*?)```", re.DOTALL)
 
 
@@ -143,7 +144,7 @@ class InvestigationGraphRunner:
         window_length = investigation.investigation_window_end - investigation.investigation_window_start
         investigation.baseline_window_end = investigation.investigation_window_start
         investigation.baseline_window_start = investigation.investigation_window_start - window_length
-        investigation.investigation_status = "running"
+        investigation.investigation_status = InvestigationStatus.RUNNING
         investigation.started_at = investigation.started_at or utc_now()
         investigation.stage_messages_json = []
         await self._build_initial_mock_context()
@@ -196,7 +197,7 @@ class InvestigationGraphRunner:
         except (TokenBudgetExceededException, LlmUnavailableException) as unavailable:
             logger.info("Triage fell back to deterministic mode: %s", unavailable)
             self.evidence_only = True
-            self.triage = TriageResult(suggested_priority="P3", priority_rationale="AI unavailable; priority taken from ServiceNow fields.", incident_category="errors", incident_summary=truncate_text(self.incident_text, 400))
+            self.triage = TriageResult(suggested_priority=Priority.P3, priority_rationale="AI unavailable; priority taken from ServiceNow fields.", incident_category="errors", incident_summary=truncate_text(self.incident_text, 400))
         triage = self.triage
         triage.incident_summary, triage.priority_rationale = sanitize_ai_markdown(triage.incident_summary), sanitize_ai_markdown(triage.priority_rationale)
         triage.key_symptoms = [sanitize_ai_line(symptom, maximum_characters=200) for symptom in triage.key_symptoms[:8]]
@@ -211,7 +212,7 @@ class InvestigationGraphRunner:
             incident.keigan_priority, incident.priority_rationale = final_priority, triage.priority_rationale
             incident.incident_category = triage.incident_category
             incident.replace_linked_ids("affected_service_links", investigation.investigated_service_ids)
-            incident.incident_status = "investigating" if incident.incident_status in ("new", "investigating") else incident.incident_status
+            incident.incident_status = IncidentStatus.INVESTIGATING if incident.incident_status in (IncidentStatus.NEW, IncidentStatus.INVESTIGATING) else incident.incident_status
         investigation.triage_result_json = {**(investigation.triage_result_json or {}), **triage.model_dump(), "final_priority": final_priority, "guardrail_priority": guardrail_priority, "mapped_servicenow_priority": mapped_priority}
         if self.mock_context:
             self.mock_context.priority = final_priority
@@ -239,7 +240,7 @@ class InvestigationGraphRunner:
         return [services_by_id[service_id] for service_id in unique_ids[: self.settings.investigation_max_services]]
 
     async def _guardrail_priority(self) -> str | None:
-        if self.application.criticality_tier != "tier_1":
+        if self.application.criticality_tier != CriticalityTier.TIER_1:
             return None
         try:
             from keigan.services.slo_service import SloService
@@ -248,7 +249,7 @@ class InvestigationGraphRunner:
         except Exception as slo_error:  # noqa: BLE001 — S3 may not be implemented yet
             logger.debug("SLO guardrail skipped: %s", slo_error)
             return None
-        return "P2" if any((summary.get("burnRateOneHour") or 0) > 6 for summary in summaries) else None
+        return Priority.P2 if any((summary.get("burnRateOneHour") or 0) > 6 for summary in summaries) else None
 
     def _describe_services(self, services: list[MonitoredService]) -> str:
         names_by_id = {service.service_id: service.service_name for service in self.all_services}
@@ -283,7 +284,7 @@ class InvestigationGraphRunner:
         previous = (
             await self.session.scalars(
                 select(Investigation).where(
-                    Investigation.application_id == self.application.application_id, Investigation.user_feedback_verdict == "correct", Investigation.investigation_id != self.investigation.investigation_id
+                    Investigation.application_id == self.application.application_id, Investigation.user_feedback_verdict == InvestigationFeedbackVerdict.CORRECT, Investigation.investigation_id != self.investigation.investigation_id
                 ).order_by(Investigation.completed_at.desc()).limit(3)
             )
         ).all()
@@ -320,7 +321,7 @@ class InvestigationGraphRunner:
                 "change", self.masker.mask_text(change_event.description), self.masker.mask_text(f"{change_event.operation_name} ({change_event.change_kind}) by {change_event.caller or 'unknown'}"),
                 change_event.occurred_at, "azure_activity_log",
             )
-        strong_count = sum(1 for draft in self.evidence_drafts if draft.signal_strength in ("high", "medium") and not draft.is_rule_out)
+        strong_count = sum(1 for draft in self.evidence_drafts if draft.signal_strength in (RiskLevel.HIGH, RiskLevel.MEDIUM) and not draft.is_rule_out)
         await self._update_progress("evidence", f"Collected {len(self.evidence_drafts)} evidence items; {strong_count} with a medium or high signal", 52)
         return {"needs_planner": strong_count < 2 and not self.has_planned_once and not self.evidence_only}
 
@@ -356,7 +357,7 @@ class InvestigationGraphRunner:
                 {"code": row.evidence_code, "service_name": names_by_id.get(row.service_id or "", "Azure Activity Log"), "category": row.evidence_category, "strength": row.signal_strength, "title": row.evidence_title, "summary": row.evidence_summary or "", "is_rule_out": row.matched_record_count == 0 or (row.evidence_summary or "").startswith(("Rule-out", "Not available"))}
                 for row in self.evidence_rows
             ]
-        strong_rows = [row for row in self.evidence_rows if row.signal_strength in ("high", "medium")]
+        strong_rows = [row for row in self.evidence_rows if row.signal_strength in (RiskLevel.HIGH, RiskLevel.MEDIUM)]
         self._add_timeline_event("evidence_collected", f"Evidence collected: {len(self.evidence_rows)} items, {len(strong_rows)} strong", "Top signals: " + "; ".join(truncate_text(row.evidence_title, 80) for row in strong_rows[:3]))
         if self.evidence_only:
             await self._update_progress("hypotheses", "AI is unavailable; continuing in evidence-only mode", 70)
@@ -367,7 +368,7 @@ class InvestigationGraphRunner:
     # ── Stage 4: hypotheses (three perspectives in parallel) ───────────────────
     async def _refine_runbook_matches(self) -> None:
         """Re-rank runbooks against the error signatures actually observed; runbooks describe log messages, not ticket wording."""
-        signature_lines = [row.evidence_title for row in self.evidence_rows if row.signal_strength in ("high", "medium")][:8]
+        signature_lines = [row.evidence_title for row in self.evidence_rows if row.signal_strength in (RiskLevel.HIGH, RiskLevel.MEDIUM)][:8]
         for evidence_row in self.evidence_rows[:8]:
             signature_lines.extend(str(pattern.get("template", ""))[:200] for pattern in (evidence_row.condensed_patterns_json or [])[:2])
         if not signature_lines:
@@ -537,7 +538,7 @@ class InvestigationGraphRunner:
     @staticmethod
     def _flag_high_risk_commands(markdown_text: str) -> str:
         def annotate(block_match: re.Match[str]) -> str:
-            is_high_risk = classify_command_risk(block_match.group(1)) == "high"
+            is_high_risk = classify_command_risk(block_match.group(1)) == RiskLevel.HIGH
             return block_match.group(0) + ("\n> **High risk.** Confirm with your change process before running this command.\n" if is_high_risk else "")
 
         return _FENCED_BLOCK_PATTERN.sub(annotate, markdown_text)
@@ -546,7 +547,7 @@ class InvestigationGraphRunner:
     async def blast_radius_node(self, state: InvestigationState) -> dict[str, Any]:
         services_by_id = {service.service_id: service for service in self.all_services}
         names_by_id = {service_id: service.service_name for service_id, service in services_by_id.items()}
-        strong_service_ids = {row.service_id for row in self.evidence_rows if row.service_id and row.signal_strength in ("high", "medium") and row.matched_record_count > 0 and row.evidence_category != "change_event"}
+        strong_service_ids = {row.service_id for row in self.evidence_rows if row.service_id and row.signal_strength in (RiskLevel.HIGH, RiskLevel.MEDIUM) and row.matched_record_count > 0 and row.evidence_category != "change_event"}
         direct_ids = [service.service_id for service in self.services if service.service_id in strong_service_ids] or [service.service_id for service in self.services[:1]]
         indirect_ids: list[str] = []
         frontier = list(direct_ids)
@@ -619,8 +620,8 @@ class InvestigationGraphRunner:
     # ── Completion ─────────────────────────────────────────────────────────────
     async def _complete(self, evidence_only: bool) -> None:
         investigation = self.investigation
-        investigation.investigation_status = "completed_evidence_only" if evidence_only or self.evidence_only else "completed"
-        investigation.progress_percent, investigation.current_stage_name, investigation.completed_at = 100, "completed", utc_now()
+        investigation.investigation_status = InvestigationStatus.COMPLETED_EVIDENCE_ONLY if evidence_only or self.evidence_only else InvestigationStatus.COMPLETED
+        investigation.progress_percent, investigation.current_stage_name, investigation.completed_at = 100, InvestigationStage.COMPLETED, utc_now()
         model_names = set(self.ai_caller.model_names)
         if self.ai_caller.uses_estimated_tokens:
             investigation.total_input_token_count, investigation.total_output_token_count = self.ai_caller.estimated_input_tokens, self.ai_caller.estimated_output_tokens
@@ -630,8 +631,8 @@ class InvestigationGraphRunner:
             investigation.total_output_token_count = sum(row.output_token_count for row in token_rows)
             model_names |= {row.model_name for row in token_rows}
         investigation.model_names_json = sorted(model_names)
-        if self.incident and self.incident.incident_status in ("new", "investigating") and investigation.investigation_status == "completed":
-            self.incident.incident_status = "identified"
-        message = "Investigation complete" + (" (evidence only: AI was unavailable)" if investigation.investigation_status == "completed_evidence_only" else "")
+        if self.incident and self.incident.incident_status in (IncidentStatus.NEW, IncidentStatus.INVESTIGATING) and investigation.investigation_status == InvestigationStatus.COMPLETED:
+            self.incident.incident_status = IncidentStatus.IDENTIFIED
+        message = "Investigation complete" + (" (evidence only: AI was unavailable)" if investigation.investigation_status == InvestigationStatus.COMPLETED_EVIDENCE_ONLY else "")
         investigation.stage_messages_json = [*(investigation.stage_messages_json or []), {"at": utc_now().isoformat(), "stage": "completed", "message": message}]
         await self.session.commit()

@@ -36,6 +36,7 @@ from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.utils.time_utils import utc_now
+from keigan.entities.status_values import AssignmentGroupVerificationStatus, IntegrationStatus, LogToolConnectionStatus
 
 FIELD_SCHEMA_PATH = RESOURCES_DIRECTORY / "catalogs" / "integration_field_schemas.yaml"
 # The field types the onboarding form knows how to draw; a catalog entry with another type is a mistake caught at load time.
@@ -92,7 +93,7 @@ class IntegrationSettingsService:
             endpoint_url=request.endpoint_url,
             authentication_method=request.authentication_method,
             connection_configuration_json=request.connection_configuration or {},
-            connection_status="reader_not_available" if request.tool_type in PLACEHOLDER_TOOL_TYPES else "not_tested",
+            connection_status=LogToolConnectionStatus.READER_NOT_AVAILABLE if request.tool_type in PLACEHOLDER_TOOL_TYPES else LogToolConnectionStatus.NOT_TESTED,
             last_test_message="Reader in development — details saved." if request.tool_type in PLACEHOLDER_TOOL_TYPES else None,
             created_by_user_principal_name=current_user.user_principal_name,
             updated_by_user_principal_name=current_user.user_principal_name,
@@ -127,7 +128,7 @@ class IntegrationSettingsService:
             connection.credential_secret_name = connection.credential_secret_name or build_secret_name(f"logtool-{connection.tool_type}")
             await application_context.secret_store().set_secret(connection.credential_secret_name, credential_value, f"{connection.tool_type} credential for application {application_id}")
         if connection.tool_type not in PLACEHOLDER_TOOL_TYPES:
-            connection.connection_status = "not_tested"
+            connection.connection_status = LogToolConnectionStatus.NOT_TESTED
         connection.updated_by_user_principal_name = current_user.user_principal_name
         await self.session.flush()
         await self.audit_service.record(
@@ -155,10 +156,10 @@ class IntegrationSettingsService:
     async def test_log_tool_connection(self, current_user: CurrentUser, application_id: str, connection_id: str) -> ConnectionTestResponse:
         connection = await self._get_connection(application_id, connection_id)
         if connection.tool_type in PLACEHOLDER_TOOL_TYPES:
-            connection.connection_status = "reader_not_available"
+            connection.connection_status = LogToolConnectionStatus.READER_NOT_AVAILABLE
             return ConnectionTestResponse(succeeded=False, message="Reader in development — details are saved, testing is not available yet.", reader_not_available=True)
         test_result = await application_context.telemetry_gateway().test_log_tool_connection(connection)
-        connection.connection_status = "connected" if test_result.succeeded else "failed"
+        connection.connection_status = LogToolConnectionStatus.CONNECTED if test_result.succeeded else LogToolConnectionStatus.FAILED
         connection.last_tested_at = utc_now()
         connection.last_test_message = test_result.message
         connection.newest_log_timestamp_seen_at = test_result.newest_log_timestamp or connection.newest_log_timestamp_seen_at
@@ -194,7 +195,7 @@ class IntegrationSettingsService:
             pass
         connection.credential_secret_name = None
         connection.last_test_message = CREDENTIAL_REMOVED_MESSAGE
-        connection.connection_status = "not_tested"
+        connection.connection_status = LogToolConnectionStatus.NOT_TESTED
         return True
 
     async def _get_connection(self, application_id: str, connection_id: str) -> LogToolConnection:
@@ -266,7 +267,7 @@ class IntegrationSettingsService:
             row.credential_secret_name = row.credential_secret_name or build_secret_name(f"integration-{integration_kind}")
             await application_context.secret_store().set_secret(row.credential_secret_name, request.credential_value, f"{integration_kind} credential for application {application_id}")
         row.integration_notes = request.integration_notes
-        row.integration_status = "configured" if schema.get("readerAvailable") else "saved_reader_in_development"
+        row.integration_status = IntegrationStatus.CONFIGURED if schema.get("readerAvailable") else IntegrationStatus.SAVED_READER_IN_DEVELOPMENT
         row.updated_by_user_principal_name = current_user.user_principal_name
         await self.session.flush()
         await self.audit_service.record(
@@ -292,7 +293,7 @@ class IntegrationSettingsService:
             fields=schema["fields"],
             integration_configuration=(row.integration_configuration_json or {}) if row else {},
             has_credential=bool(row and row.credential_secret_name),
-            integration_status=row.integration_status if row else "not_set_up",
+            integration_status=row.integration_status if row else IntegrationStatus.NOT_SET_UP,
             integration_notes=row.integration_notes if row else None,
             updated_at=row.updated_at if row else None,
         )
@@ -344,7 +345,7 @@ class IntegrationSettingsService:
         for name in desired_names:
             if name.lower() not in existing_by_name:
                 is_verified = self.settings.servicenow_mode == IntegrationMode.SIMULATED and name.lower() in known_names
-                self.session.add(ServiceNowAssignmentGroup(application_id=application_id, group_name=name, verification_status="verified" if is_verified else "unverified"))
+                self.session.add(ServiceNowAssignmentGroup(application_id=application_id, group_name=name, verification_status=AssignmentGroupVerificationStatus.VERIFIED if is_verified else AssignmentGroupVerificationStatus.UNVERIFIED))
         await self.session.flush()
         await self.audit_service.record(current_user, "servicenow_groups.update", application_id=application_id, action_details={"groupNames": desired_names})
         return await self.list_servicenow_groups(application_id)

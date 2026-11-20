@@ -14,6 +14,7 @@ from typing import Any
 
 from keigan.utils.json_path_utils import read_json_path
 from keigan.utils.pii_masker import PiiMasker
+from keigan.entities.status_values import AlertSourceTool, AlertStatus, CriticalityTier
 
 DEFAULT_NOISE_POLICY: dict[str, Any] = {
     "min_severity": 2,
@@ -29,7 +30,7 @@ DEFAULT_NOISE_POLICY: dict[str, Any] = {
 }
 
 SEVERITY_WEIGHTS = {0: 5.0, 1: 4.0, 2: 3.0, 3: 2.0, 4: 1.0}
-CRITICALITY_WEIGHTS = {"tier_1": 3.0, "tier_2": 2.0, "tier_3": 1.0}
+CRITICALITY_WEIGHTS = {CriticalityTier.TIER_1: 3.0, CriticalityTier.TIER_2: 2.0, CriticalityTier.TIER_3: 1.0}
 ENVIRONMENT_WEIGHTS = {"prod": 3.0, "uat": 1.5, "test": 1.0, "dev": 1.0}
 SLO_BURN_BOOST = 1.5
 RARE_RULE_BOOST = 1.3
@@ -137,7 +138,7 @@ def parse_severity(value: Any, severity_mapping: dict[str, Any] | None = None, d
 
 
 def parse_status(value: Any) -> str:
-    return "resolved" if str(value or "").strip().lower() in ("resolved", "recovered", "ok", "closed", "cleared", "normal", "inactive", "recover") else "firing"
+    return AlertStatus.RESOLVED if str(value or "").strip().lower() in ("resolved", "recovered", "ok", "closed", "cleared", "normal", "inactive", "recover") else AlertStatus.FIRING
 
 
 def _first_value(payload: Any, paths: list[str]) -> Any:
@@ -160,9 +161,9 @@ def normalise_payload(source_tool: str, payload: dict[str, Any], field_mapping: 
     """Turn one raw payload into a :class:`CanonicalAlert`. Raises ``ValueError`` with a readable message when it cannot."""
     if not isinstance(payload, dict):
         raise ValueError("The payload is not a JSON object.")
-    if source_tool == "azure_monitor":
+    if source_tool == AlertSourceTool.AZURE_MONITOR:
         return _normalise_azure_common_schema(payload)
-    if source_tool == "elastic":
+    if source_tool == AlertSourceTool.ELASTIC:
         extracted = {name: _first_value(payload, paths) for name, paths in ELASTIC_FALLBACK_PATHS.items()}
         extracted.update({name: read_json_path(payload, path) for name, path in (field_mapping or {}).items() if path and name in CANONICAL_FIELDS})
     else:  # generic and keigan_slo
@@ -178,7 +179,7 @@ def normalise_payload(source_tool: str, payload: dict[str, Any], field_mapping: 
         external_id=external_id, rule_id=str(extracted.get("ruleId") or rule_name), rule_name=rule_name[:400], status=status,
         severity=parse_severity(extracted.get("severity"), severity_mapping), resource_ref=_text_or_none(extracted.get("resourceRef")),
         service_hint=_text_or_none(extracted.get("serviceHint")), environment=_text_or_none(extracted.get("environment")),
-        started_at=started_at, resolved_at=parse_timestamp(extracted.get("resolvedAt")) or (started_at if status == "resolved" else None),
+        started_at=started_at, resolved_at=parse_timestamp(extracted.get("resolvedAt")) or (started_at if status == AlertStatus.RESOLVED else None),
         summary=str(extracted.get("summary") or rule_name)[:1000], description=_text_or_none(extracted.get("description")), link=_text_or_none(extracted.get("link")),
         labels=_label_dictionary(extracted.get("labels")),
     )
@@ -211,7 +212,7 @@ def _normalise_azure_common_schema(payload: dict[str, Any]) -> CanonicalAlert:
     resolved_at = parse_timestamp(essentials.get("resolvedDateTime"))
     return CanonicalAlert(
         external_id=str(essentials.get("alertId") or ""), rule_id=str(essentials.get("alertRule") or rule_name), rule_name=rule_name[:400],
-        status="resolved" if monitor_condition.lower() == "resolved" else "firing", severity=parse_severity(essentials.get("severity")),
+        status=AlertStatus.RESOLVED if monitor_condition.lower() == "resolved" else AlertStatus.FIRING, severity=parse_severity(essentials.get("severity")),
         resource_ref=resource_ref, started_at=parse_timestamp(essentials.get("firedDateTime")), resolved_at=resolved_at,
         summary=(f"{rule_name}: {condition_description}" if condition_description else str(essentials.get("description") or rule_name))[:1000],
         description=_text_or_none(essentials.get("description")),

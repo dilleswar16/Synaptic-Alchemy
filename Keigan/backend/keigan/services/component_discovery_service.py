@@ -21,6 +21,7 @@ from keigan.config.settings import RESOURCES_DIRECTORY, IntegrationMode, get_set
 from keigan.entities.application_entities import Application, ApplicationComponent, DiscoveredResource, MonitoredService, ServiceLogSource
 from keigan.exceptions.keigan_exceptions import IntegrationException
 from keigan.utils.time_utils import utc_now
+from keigan.entities.status_values import CriticalityTier, ReadTestStatus
 
 CATALOG_PATH = RESOURCES_DIRECTORY / "catalogs" / "monitored_resource_types.yaml"
 MONITORED_SERVICE = "monitored_service"
@@ -212,7 +213,7 @@ class ComponentDiscoveryService:
                     service_name=service_name,
                     service_type=service_type,
                     environment_name=component.environment_name,
-                    criticality_tier="tier_2",
+                    criticality_tier=CriticalityTier.TIER_2,
                     created_by_user_principal_name="system:discovery",
                 )
                 self.session.add(service)
@@ -266,7 +267,7 @@ class ComponentDiscoveryService:
                 log_analytics_workspace_customer_id=customer_id,
                 is_primary_source=is_primary,
                 was_auto_detected=True,
-                last_read_test_status="passed" if is_simulated else "not_tested",
+                last_read_test_status=ReadTestStatus.PASSED if is_simulated else ReadTestStatus.NOT_TESTED,
                 last_read_test_at=utc_now() if is_simulated else None,
             )
         )

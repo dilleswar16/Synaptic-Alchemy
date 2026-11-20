@@ -35,15 +35,16 @@ from keigan.utils.pii_masker import MaskingContext, PiiMasker
 from keigan.utils.query_safety import QueryRejectedError, describe_query_limits, validate_generated_query
 from keigan.utils.statistics_utils import robust_baseline
 from keigan.utils.text_utils import truncate_text
+from keigan.entities.status_values import CriticalityTier, RiskLevel
 
 logger = logging.getLogger(__name__)
 
 QUERY_TEMPLATES_PATH = RESOURCES_DIRECTORY / "catalogs" / "query_templates.yaml"
 MAXIMUM_TEMPLATES_PER_SERVICE = 7
 MAXIMUM_CONCURRENT_QUERIES = 4
-STRENGTH_RANK = {"high": 0, "medium": 1, "low": 2}
+STRENGTH_RANK = {RiskLevel.HIGH: 0, RiskLevel.MEDIUM: 1, RiskLevel.LOW: 2}
 DISCRETE_EVENT_CATEGORIES = {"kubernetes_events", "pod_restarts", "batch_failures", "hardware_status", "synthetic_probe", "change_event"}
-CRITICALITY_RANK = {"tier_1": 0, "tier_2": 1, "tier_3": 2}
+CRITICALITY_RANK = {CriticalityTier.TIER_1: 0, CriticalityTier.TIER_2: 1, CriticalityTier.TIER_3: 2}
 SAFE_VARIABLE_PATTERN = re.compile(r"[^A-Za-z0-9_.\-/ ]")
 
 
@@ -65,11 +66,11 @@ class EvidenceDraft:
     baseline_record_count: int | None = None
     condensed_patterns: list[dict[str, Any]] = field(default_factory=list)
     metric_series: list[dict[str, Any]] = field(default_factory=list)
-    signal_strength: str = "low"
+    signal_strength: str = RiskLevel.LOW
     masked_value_count: int = 0
     possible_prompt_injection: bool = False
     deep_link_url: str | None = None
-    criticality_tier: str = "tier_2"
+    criticality_tier: str = CriticalityTier.TIER_2
     latest_activity_at: datetime | None = None
     is_rule_out: bool = False
 
@@ -289,15 +290,15 @@ class EvidenceService:
     @staticmethod
     def _signal_strength(log_patterns: list[LogPattern], evidence_category: str) -> str:
         high_minimum_count = 5 if evidence_category in DISCRETE_EVENT_CATEGORIES else 20
-        strongest = "low"
+        strongest = RiskLevel.LOW
         for log_pattern in log_patterns:
             if LEVEL_SEVERITY_ORDER.get(log_pattern.level.lower(), 3) > 2:
                 continue
             change_ratio = log_pattern.change_ratio or 0
             if (log_pattern.is_new_pattern or change_ratio >= 5) and log_pattern.count >= high_minimum_count:
-                return "high"
+                return RiskLevel.HIGH
             if (log_pattern.is_new_pattern and log_pattern.count >= 3) or (change_ratio >= 2 and log_pattern.count >= 5):
-                strongest = "medium"
+                strongest = RiskLevel.MEDIUM
         return strongest
 
     def _neutralized_pattern(self, log_pattern: LogPattern, draft: EvidenceDraft) -> dict[str, Any]:
@@ -329,15 +330,15 @@ class EvidenceService:
     def _summarize_slow_requests(draft: EvidenceDraft, window_rows: list[dict[str, Any]], baseline_rows: list[dict[str, Any]]) -> None:
         baseline_by_operation = {row.get("OperationName"): float(row.get("P95DurationMs", 0) or 0) for row in baseline_rows}
         patterns: list[dict[str, Any]] = []
-        strongest = "low"
+        strongest = RiskLevel.LOW
         for row in sorted(window_rows, key=lambda candidate: -float(candidate.get("P95DurationMs", 0) or 0))[:8]:
             current_p95 = float(row.get("P95DurationMs", 0) or 0)
             baseline_p95 = baseline_by_operation.get(row.get("OperationName"), 0.0)
             ratio = round(current_p95 / baseline_p95, 2) if baseline_p95 else None
             if ratio and ratio >= 3:
-                strongest = "high"
-            elif ratio and ratio >= 1.6 and strongest != "high":
-                strongest = "medium"
+                strongest = RiskLevel.HIGH
+            elif ratio and ratio >= 1.6 and strongest != RiskLevel.HIGH:
+                strongest = RiskLevel.MEDIUM
             patterns.append(
                 {
                     "template": f"{row.get('OperationName')}: p95 duration {current_p95:.0f} ms (baseline {baseline_p95:.0f} ms)", "level": "warning",
@@ -349,9 +350,9 @@ class EvidenceService:
         draft.matched_record_count = sum(pattern["count"] for pattern in patterns)
         draft.signal_strength = strongest
         draft.evidence_summary = (
-            f"Slowest operation {patterns[0]['template']}." if patterns and strongest != "low" else "Rule-out: request latency is in line with the baseline."
+            f"Slowest operation {patterns[0]['template']}." if patterns and strongest != RiskLevel.LOW else "Rule-out: request latency is in line with the baseline."
         )
-        draft.is_rule_out = strongest == "low"
+        draft.is_rule_out = strongest == RiskLevel.LOW
 
     @staticmethod
     def _portal_link(target: TelemetryTarget) -> str | None:
@@ -370,7 +371,7 @@ class EvidenceService:
         baseline_series_by_name = {series.metric_name: series for series in baseline_result.series}
         series_summaries: list[dict[str, Any]] = []
         descriptions: list[str] = []
-        strongest = "low"
+        strongest = RiskLevel.LOW
         for series in window_result.series:
             window_values = [value for _, value in series.points if value is not None]
             if not window_values:
@@ -382,7 +383,7 @@ class EvidenceService:
             baseline_median = baseline_statistics.median if baseline_statistics else 0.0
             z_score = min(99.0, baseline_statistics.robust_z_score(peak_value)) if baseline_statistics else 0.0
             ratio = peak_value / baseline_median if baseline_median else (99.0 if peak_value > 0 else 1.0)
-            series_strength = "high" if z_score > 3 and ratio >= 1.3 else "medium" if z_score > 2 and ratio >= 1.15 else "low"
+            series_strength = RiskLevel.HIGH if z_score > 3 and ratio >= 1.3 else RiskLevel.MEDIUM if z_score > 2 and ratio >= 1.15 else RiskLevel.LOW
             if STRENGTH_RANK[series_strength] < STRENGTH_RANK[strongest]:
                 strongest = series_strength
             step = max(1, len(series.points) // 48)
@@ -393,14 +394,14 @@ class EvidenceService:
                     "points": [{"t": timestamp.isoformat(), "v": value} for timestamp, value in series.points[::step]],
                 }
             )
-            if series_strength != "low":
+            if series_strength != RiskLevel.LOW:
                 descriptions.append(f"{series.metric_name} peaked at {peak_value:.1f} {series.unit.lower()} (baseline median {baseline_median:.1f}, robust z {z_score:.1f})")
         draft.metric_series = series_summaries
         draft.signal_strength = strongest
         draft.matched_record_count = len(series_summaries)
-        draft.latest_activity_at = window_end if strongest != "low" else None
+        draft.latest_activity_at = window_end if strongest != RiskLevel.LOW else None
         draft.evidence_summary = "; ".join(descriptions) + "." if descriptions else f"Rule-out: {', '.join(metric_names)} stayed within the baseline range."
-        draft.is_rule_out = strongest == "low"
+        draft.is_rule_out = strongest == RiskLevel.LOW
         draft.deep_link_url = self._portal_link(target)
 
     async def _fill_probe_evidence(self, draft: EvidenceDraft, target: TelemetryTarget) -> None:
@@ -417,7 +418,7 @@ class EvidenceService:
             for probe_result in probe_results
             if not probe_result.succeeded
         ][:3]
-        draft.signal_strength = "high" if failure_count >= 3 else "medium" if failure_count else "low"
+        draft.signal_strength = RiskLevel.HIGH if failure_count >= 3 else RiskLevel.MEDIUM if failure_count else RiskLevel.LOW
         draft.evidence_summary = f"{failure_count} of {len(probe_results)} synthetic probes failed." if failure_count else "Rule-out: all synthetic probes succeeded."
         draft.is_rule_out = failure_count == 0
 
@@ -457,7 +458,7 @@ class EvidenceService:
             for change_event in change_events[-10:]
         ]
         non_routine = [event for event in change_events if "outine" not in event.description]
-        draft.signal_strength = "high" if non_routine else "medium"
+        draft.signal_strength = RiskLevel.HIGH if non_routine else RiskLevel.MEDIUM
         newest_event = max(change_events, key=lambda event: event.occurred_at)
         draft.evidence_summary = f"{len(change_events)} change(s) in the window and the 24 hours before. Most recent: {newest_event.description} at {newest_event.occurred_at.strftime('%Y-%m-%d %H:%M')} UTC."
         return change_events, draft
@@ -535,7 +536,7 @@ class EvidenceService:
         used_tokens = 0
         for draft in ranked_drafts:
             draft_tokens = estimate_token_count(EvidenceService.render_draft_markdown(draft, "E0"))
-            if used_tokens + draft_tokens > token_budget and draft.signal_strength == "low":
+            if used_tokens + draft_tokens > token_budget and draft.signal_strength == RiskLevel.LOW:
                 continue
             used_tokens += draft_tokens
             kept.append(draft)
@@ -584,6 +585,6 @@ class EvidenceService:
             for sample_line in pattern.get("sampleLinesMasked", [])[:1]:
                 lines.append(f"      sample: {truncate_text(sample_line, 200)}")
         for metric in metrics:
-            if metric.get("signalStrength") != "low":
+            if metric.get("signalStrength") != RiskLevel.LOW:
                 lines.append(f"  - metric {metric['metricName']}: peak {metric['windowPeak']} {metric['unit']} at {metric['windowPeakAt']} (baseline median {metric['baselineMedian']}, robust z {metric['robustZScore']})")
         return "\n".join(lines)

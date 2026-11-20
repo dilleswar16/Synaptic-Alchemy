@@ -31,13 +31,14 @@ from keigan.services.investigation_service import InvestigationService
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
+from keigan.entities.status_values import AlertGroupStatus, IncidentSource, IncidentStatus, InvestigationStatus, Priority
 
 ALERT_GROUP_ADOPTION_WINDOW_MINUTES = 60
 
 logger = logging.getLogger(__name__)
 
 FIRST_POLL_LOOKBACK = timedelta(hours=24)
-OPEN_STATUSES = ("new", "investigating", "identified")
+OPEN_STATUSES = (IncidentStatus.NEW, IncidentStatus.INVESTIGATING, IncidentStatus.IDENTIFIED)
 RESOLVED_SERVICENOW_STATES = ("resolved",)
 CLOSED_SERVICENOW_STATES = ("closed", "canceled")
 
@@ -100,7 +101,7 @@ class IncidentService:
         configuration_item = read_field_display(record, "cmdb_ci").strip().lower()
         title_text = read_field_value(record, "short_description")
         matched_services = [service for service in services if service.service_name.lower() == configuration_item or (configuration_item == "" and service.service_name.lower() in title_text.lower())]
-        incident_status = "closed" if state_name in CLOSED_SERVICENOW_STATES else "resolved" if state_name in RESOLVED_SERVICENOW_STATES else "new"
+        incident_status = IncidentStatus.CLOSED if state_name in CLOSED_SERVICENOW_STATES else IncidentStatus.RESOLVED if state_name in RESOLVED_SERVICENOW_STATES else IncidentStatus.NEW
         now = utc_now()
         incident = Incident(
             application_id=application.application_id, incident_source=source, external_incident_number=incident_number, external_system_identifier=read_field_value(record, "sys_id"),
@@ -109,7 +110,7 @@ class IncidentService:
             keigan_priority=map_servicenow_priority(impact_text, urgency_text, priority_text), incident_status=incident_status,
             assignment_group_name=read_field_display(record, "assignment_group") or None,
             external_state=state_name, opened_at=parse_servicenow_timestamp(read_field_value(record, "opened_at")) or now, detected_by_keigan_at=now,
-            resolved_at=now if incident_status in ("resolved", "closed") else None, external_last_updated_at=updated_at, created_by_user_principal_name="system:poller",
+            resolved_at=now if incident_status in (IncidentStatus.RESOLVED, IncidentStatus.CLOSED) else None, external_last_updated_at=updated_at, created_by_user_principal_name="system:poller",
         )
         incident.replace_linked_ids("affected_service_links", [service.service_id for service in matched_services])
         self.session.add(incident)
@@ -120,7 +121,7 @@ class IncidentService:
                 event_details_markdown=f"Priority {priority_label_from_servicenow(priority_text) or 'n/a'}; assignment group {incident.assignment_group_name or 'n/a'}.", event_source="servicenow", source_reference=incident_number,
             )
         )
-        if incident_status == "new":
+        if incident_status == IncidentStatus.NEW:
             if not await self._adopt_open_alert_group_investigation(incident):
                 await InvestigationService(self.session).start_investigation(application.application_id, "incident", incident_id=incident.incident_id, requested_by_user_principal_name="system:poller")
             await JobQueue(self.session).enqueue("notify_incident_detected", {"incident_id": incident.incident_id}, deduplication_key=f"notify_incident_detected:{incident.incident_id}", priority_number=15)
@@ -135,7 +136,7 @@ class IncidentService:
                 await self.session.scalars(
                     select(AlertGroup)
                     .where(
-                        AlertGroup.application_id == incident.application_id, AlertGroup.group_status.in_(("open", "investigating", "queued")),
+                        AlertGroup.application_id == incident.application_id, AlertGroup.group_status.in_((AlertGroupStatus.OPEN, AlertGroupStatus.INVESTIGATING, AlertGroupStatus.QUEUED)),
                         AlertGroup.incident_id.is_(None), AlertGroup.investigation_id.is_not(None), AlertGroup.last_activity_at >= recent_activity_since,
                     )
                     .order_by(AlertGroup.priority_score.desc(), AlertGroup.last_activity_at.desc())
@@ -173,12 +174,12 @@ class IncidentService:
             add_event("state_changed", f"ServiceNow state changed to {state_name}")
             incident.external_state = state_name
             if state_name in CLOSED_SERVICENOW_STATES:
-                incident.incident_status, incident.closed_at = "closed", utc_now()
+                incident.incident_status, incident.closed_at = IncidentStatus.CLOSED, utc_now()
                 incident.resolved_at = incident.resolved_at or utc_now()
             elif state_name in RESOLVED_SERVICENOW_STATES:
-                incident.incident_status, incident.resolved_at = "resolved", incident.resolved_at or utc_now()
-            elif incident.incident_status in ("resolved", "closed"):
-                incident.incident_status, incident.resolved_at, incident.closed_at = "investigating", None, None
+                incident.incident_status, incident.resolved_at = IncidentStatus.RESOLVED, incident.resolved_at or utc_now()
+            elif incident.incident_status in (IncidentStatus.RESOLVED, IncidentStatus.CLOSED):
+                incident.incident_status, incident.resolved_at, incident.closed_at = IncidentStatus.INVESTIGATING, None, None
                 add_event("incident_reopened", "Incident reopened in ServiceNow")
         assignment_group = read_field_display(record, "assignment_group")
         if assignment_group and assignment_group != incident.assignment_group_name:
@@ -214,9 +215,9 @@ class IncidentService:
         assert incident is not None
         await AlertGroupLinkService(self.session).link(alert_group, incident_id=incident.incident_id)  # also gives the investigation that already analysed the group this incident
         if alert_group.investigation_id:
-            pending_investigations = await self.session.scalars(select(Investigation).where(Investigation.incident_id == incident.incident_id, Investigation.investigation_id != alert_group.investigation_id, Investigation.investigation_status == "queued"))
+            pending_investigations = await self.session.scalars(select(Investigation).where(Investigation.incident_id == incident.incident_id, Investigation.investigation_id != alert_group.investigation_id, Investigation.investigation_status == InvestigationStatus.QUEUED))
             for pending_investigation in pending_investigations:
-                pending_investigation.investigation_status = "cancelled"
+                pending_investigation.investigation_status = InvestigationStatus.CANCELLED
         await AuditService(self.session).record(requested_by_user_principal_name or "system:worker", "incident.create_from_alert_group", target_entity_type="incident", target_entity_id=incident.incident_id, application_id=application.application_id, action_details={"alertGroupId": alert_group_id, "number": incident.external_incident_number})
         return incident.incident_id
 
@@ -228,7 +229,7 @@ class IncidentService:
         scoped_ids = await AuthorizationService(self.session).scoped_application_ids(current_user, application_ids)
         conditions: list[Any] = [Incident.application_id.in_(scoped_ids or ["none"])]
         if priorities:
-            conditions.append(func.coalesce(Incident.keigan_priority, "P3").in_(priorities))
+            conditions.append(func.coalesce(Incident.keigan_priority, Priority.P3).in_(priorities))
         if statuses:
             conditions.append(Incident.incident_status.in_(statuses))
         if sources:
@@ -274,10 +275,10 @@ class IncidentService:
 
     async def resolve_incident(self, current_user: CurrentUser, incident_id: str, request: ResolveIncidentRequest) -> IncidentDetailDto:
         incident = await self.load_readable_incident(current_user, incident_id, require_admin=True)
-        if incident.incident_status in ("resolved", "closed"):
+        if incident.incident_status in (IncidentStatus.RESOLVED, IncidentStatus.CLOSED):
             raise BusinessValidationException("This incident is already resolved.")
         now = utc_now()
-        incident.incident_status, incident.resolved_at, incident.updated_by_user_principal_name = "resolved", now, current_user.user_principal_name
+        incident.incident_status, incident.resolved_at, incident.updated_by_user_principal_name = IncidentStatus.RESOLVED, now, current_user.user_principal_name
         note_text = PiiMasker().mask_text(request.resolution_note or "")
         self.session.add(
             InvestigationTimelineEvent(
@@ -336,7 +337,7 @@ class IncidentService:
                     assignment_group_name=incident.assignment_group_name, opened_at=incident.opened_at, detected_by_keigan_at=incident.detected_by_keigan_at, resolved_at=incident.resolved_at,
                     duration_minutes=max(0, int((end_time - incident.opened_at).total_seconds() // 60)), keigan_confidence=investigation.overall_confidence_score if investigation else None,
                     latest_investigation_id=investigation.investigation_id if investigation else None, latest_investigation_status=investigation.investigation_status if investigation else None,
-                    servicenow_url=self.servicenow_client.incident_url(incident.external_incident_number) if incident.incident_source != "manual" else None,
+                    servicenow_url=self.servicenow_client.incident_url(incident.external_incident_number) if incident.incident_source != IncidentSource.MANUAL else None,
                 )
             )
         return summaries

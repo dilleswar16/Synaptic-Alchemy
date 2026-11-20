@@ -32,6 +32,7 @@ from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.noise_preview_service import NoisePreviewService
 from keigan.services.service_scope import unknown_service_ids
+from keigan.entities.status_values import AlertGroupFeedbackVerdict, AlertPipelineStage, NoisePolicyMode
 
 OBSERVE_MODE_DAYS = 14
 
@@ -167,7 +168,7 @@ class AlertService:
             quick = sum(1 for alert in rule_alerts if alert.resolved_at and alert.resolved_at - alert.first_seen_at <= delay)
             quick_percentage = round(100 * quick / len(rule_alerts))
             flapping = sum(1 for alert in rule_alerts if alert.is_flapping)
-            led_to_action = any((groups.get(alert.alert_group_id or "") and (groups[alert.alert_group_id].investigation_id or groups[alert.alert_group_id].incident_id or groups[alert.alert_group_id].user_feedback_verdict == "useful")) for alert in rule_alerts)
+            led_to_action = any((groups.get(alert.alert_group_id or "") and (groups[alert.alert_group_id].investigation_id or groups[alert.alert_group_id].incident_id or groups[alert.alert_group_id].user_feedback_verdict == AlertGroupFeedbackVerdict.USEFUL)) for alert in rule_alerts)
             if quick_percentage >= 80 and occurrences >= 10:
                 suggestion = f"'{rule_name}' fired {occurrences} times; {quick_percentage} % cleared within {policy['settle_delay_minutes']} minutes. Consider raising the threshold or lengthening its evaluation window."
             elif flapping:
@@ -194,7 +195,7 @@ class AlertService:
     async def _get_policy_entity(self, application_id: str) -> NoiseReductionPolicy:
         entity = await self.session.get(NoiseReductionPolicy, application_id)
         if entity is None:
-            entity = NoiseReductionPolicy(application_id=application_id, policy_settings_json=dict(alert_rules.DEFAULT_NOISE_POLICY), policy_mode="observe", observe_mode_started_at=alert_rules.utc_now())
+            entity = NoiseReductionPolicy(application_id=application_id, policy_settings_json=dict(alert_rules.DEFAULT_NOISE_POLICY), policy_mode=NoisePolicyMode.OBSERVE, observe_mode_started_at=alert_rules.utc_now())
             self.session.add(entity)
             await self.session.flush()
         return entity
@@ -203,8 +204,8 @@ class AlertService:
         entity = await self._get_policy_entity(application_id)
         settings = alert_rules.merge_policy(entity.policy_settings_json)
         started_at = entity.observe_mode_started_at
-        days_remaining = max(0, OBSERVE_MODE_DAYS - (alert_rules.utc_now() - started_at).days) if entity.policy_mode == "observe" and started_at else None
-        observed_effect = await self.build_funnel([application_id], started_at or alert_rules.utc_now() - timedelta(days=OBSERVE_MODE_DAYS), alert_rules.utc_now(), settings) if entity.policy_mode == "observe" else None
+        days_remaining = max(0, OBSERVE_MODE_DAYS - (alert_rules.utc_now() - started_at).days) if entity.policy_mode == NoisePolicyMode.OBSERVE and started_at else None
+        observed_effect = await self.build_funnel([application_id], started_at or alert_rules.utc_now() - timedelta(days=OBSERVE_MODE_DAYS), alert_rules.utc_now(), settings) if entity.policy_mode == NoisePolicyMode.OBSERVE else None
         total_services = await self.session.scalar(select(func.count()).select_from(MonitoredService).where(MonitoredService.application_id == application_id)) or 0
         with_dependencies = len(set((await self.session.scalars(select(ServiceDependency.upstream_service_id).where(ServiceDependency.application_id == application_id))).all())
                                 | set((await self.session.scalars(select(ServiceDependency.downstream_service_id).where(ServiceDependency.application_id == application_id))).all()))
@@ -221,7 +222,7 @@ class AlertService:
         elif request.policy_settings is not None:
             entity.policy_settings_json = alert_rules.merge_policy(request.policy_settings.model_dump(by_alias=False))
         if request.policy_mode is not None:
-            if request.policy_mode == "observe" and entity.policy_mode != "observe":
+            if request.policy_mode == NoisePolicyMode.OBSERVE and entity.policy_mode != NoisePolicyMode.OBSERVE:
                 entity.observe_mode_started_at = alert_rules.utc_now()
             entity.policy_mode = request.policy_mode
         entity.updated_by_user_principal_name = current_user.user_principal_name
@@ -369,7 +370,7 @@ class AlertService:
             chunk = alert_ids[chunk_start:chunk_start + 500]
             rows = (await self.session.execute(
                 select(AlertDecision.alert_id, AlertDecision.pipeline_stage, AlertDecision.decision_outcome, AlertDecision.would_have_outcome_in_active_mode, AlertDecision.alert_group_id)
-                .where(AlertDecision.alert_id.in_(chunk), AlertDecision.pipeline_stage.in_(("suppress", "settle", "group", "decide")))
+                .where(AlertDecision.alert_id.in_(chunk), AlertDecision.pipeline_stage.in_((AlertPipelineStage.SUPPRESS, AlertPipelineStage.SETTLE, AlertPipelineStage.GROUP, AlertPipelineStage.DECIDE)))
             )).all()
             for alert_id, stage, outcome, would_have, group_id in rows:
                 decisions_by_alert.setdefault(alert_id, {})[stage] = would_have or outcome
@@ -432,7 +433,7 @@ class AlertService:
         application_names = {app.application_id: app.application_name for app in (await self.session.scalars(select(Application).where(Application.application_id.in_({group.application_id for group in groups})))).all()}
         occurrence_totals = dict((await self.session.execute(select(Alert.alert_group_id, func.sum(Alert.occurrence_count)).where(Alert.alert_group_id.in_(group_ids)).group_by(Alert.alert_group_id))).all())
         latest_decisions: dict[str, AlertDecision] = {}
-        for decision in (await self.session.scalars(select(AlertDecision).where(AlertDecision.alert_group_id.in_(group_ids), AlertDecision.pipeline_stage == "decide", AlertDecision.decision_outcome.not_like("servicenow_%")).order_by(AlertDecision.decided_at))).all():
+        for decision in (await self.session.scalars(select(AlertDecision).where(AlertDecision.alert_group_id.in_(group_ids), AlertDecision.pipeline_stage == AlertPipelineStage.DECIDE, AlertDecision.decision_outcome.not_like("servicenow_%")).order_by(AlertDecision.decided_at))).all():
             latest_decisions[decision.alert_group_id or ""] = decision
         summaries = []
         for group in groups:
