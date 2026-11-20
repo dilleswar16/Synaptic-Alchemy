@@ -49,7 +49,7 @@ DEMO_DATA_FILE_DECLARATIONS: tuple[DemoDataFileDeclaration, ...] = (
     ),
     DemoDataFileDeclaration(
         "04_sli_measurements.sql",
-        "Demo data 4 of 6: 30 days of SLI measurements (large; generated on demand, optional)",
+        "Demo data 4 of 6: 30 days of SLI measurements (5-minute rows for the newest days, one row per hour before them; large, generated on demand, optional)",
         ("sli_measurement",),
         committed=False,
     ),

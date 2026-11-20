@@ -15,7 +15,7 @@ unless you pass `-v ConfirmDemoData=yes`, and the data is only useful with `TELE
 | 1 | `01_applications_and_topology.sql` | Applications, components, services, dependencies, log sources, assignment groups, stakeholders |
 | 2 | `02_knowledge.sql` | Knowledge documents and chunks, runbooks, topologies and review comments, record links, integrations |
 | 3 | `03_alerts_and_slos.sql` | Alert sources, noise policies, maintenance window, mute rule, historical alerts and decisions, SLIs and SLOs |
-| 4 | `04_sli_measurements.sql` | 30 days of SLI measurements. **Not committed** (tens of MB, hundreds of thousands of rows); see "Step 4" below |
+| 4 | `04_sli_measurements.sql` | 30 days of SLI measurements (about 82,000 rows, 10 MB). **Not committed**; see "Step 4" below |
 | 5 | `05_incidents_and_investigations.sql` | Incidents, communications, investigations, hypotheses, evidence, timelines, postmortems, alert groups (they point at incidents and investigations, so they load here) |
 | 6 | `06_intelligence_and_collaboration.sql` | Predictive signals, intelligence reports, incident chat, notification history, simulation settings |
 | runner | `run_all_demo_data.sql` | Runs the committed steps (1, 2, 3, 5, 6) in order with `:r`. Never include it from `run_all.sql` |
@@ -54,6 +54,9 @@ sqlcmd -S <server>.database.windows.net -d <database> \
    and leaves `04_sli_measurements.sql` ignored by git), then run it after step 3:
    `sqlcmd ... -b -f 65001 -v ConfirmDemoData=yes -i 04_sli_measurements.sql`.
    Order against steps 5 and 6 does not matter. It does not insert the generated ids; SQL Server assigns them, and a row is matched by SLI and window start.
+   The history is thinned for size: the newest two days keep every 5-minute window (what the 1-hour and 6-hour burn rates and the dashboard read),
+   and each older hour is one row with the good and total counts summed, so error budgets and burn rates match the full history. The measured value is
+   left empty on those hourly rows. Without thinning the file would hold 424,512 rows (53 MB).
 
 `MANIFEST.json` records the row count and SHA-256 of this file. After you generate it, compare: `(Get-FileHash 04_sli_measurements.sql).Hash`
 must equal the `sha256` listed there (case does not matter).

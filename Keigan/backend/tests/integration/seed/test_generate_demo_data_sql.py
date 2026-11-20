@@ -11,10 +11,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from keigan.entities import all_entities  # noqa: F401  (registers every table)
 from keigan.entities.base_entity import EntityBase
+from keigan.seed.alert_and_slo_seed import DEMO_FINE_GRAINED_HISTORY_DAYS
 
 BACKEND_DIRECTORY = Path(__file__).resolve().parents[3]
 AZURE_SQL_DIRECTORY = BACKEND_DIRECTORY.parent / "database" / "azure_sql"
@@ -74,7 +76,22 @@ def test_the_large_measurement_file_is_not_committed_but_a_fresh_one_matches_its
     assert "04_sli_measurements.sql" in (DEMO_DATA_DIRECTORY / ".gitignore").read_text(encoding="utf-8").splitlines()
     fresh_bytes = (generated_demo_data_directory / "04_sli_measurements.sql").read_bytes()
     assert hashlib.sha256(fresh_bytes).hexdigest() == entry["sha256"]
-    assert entry["rows"]["sli_measurement"] > 100_000
+    # Thinned: 5-minute rows for the newest days, one row per hour before them (424,512 rows at 5-minute grain before the thinning).
+    assert 50_000 < entry["rows"]["sli_measurement"] < 100_000
+
+
+DEMO_REFERENCE_TIME = datetime(2026, 11, 20, 12, 0)  # the fixed "now" of the demo seed (the file header says so too)
+
+
+def test_demo_sli_history_has_every_five_minute_window_for_the_newest_days_and_one_row_per_hour_before_them(generated_demo_data_directory: Path) -> None:
+    text = (generated_demo_data_directory / "04_sli_measurements.sql").read_text(encoding="utf-8")
+    windows = [datetime.fromisoformat(value) for value in re.findall(r"\(N'[0-9a-f-]{36}', '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\.\d{6}'", text)]
+    boundary = DEMO_REFERENCE_TIME - timedelta(days=DEMO_FINE_GRAINED_HISTORY_DAYS)
+    older = [window for window in windows if window < boundary]
+    newer = [window for window in windows if window >= boundary]
+    assert older and newer
+    assert all(window.minute == 0 and window.second == 0 for window in older)
+    assert all(window.minute % 5 == 0 and window.second == 0 for window in newer)
 
 
 def test_every_table_is_accounted_for_exactly_once_as_demo_data_excluded_or_empty(generated_demo_data_directory: Path) -> None:

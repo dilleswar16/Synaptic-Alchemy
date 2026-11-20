@@ -54,9 +54,9 @@
     "04_sli_measurements.sql": {
       "committed": false,
       "rows": {
-        "sli_measurement": 424512
+        "sli_measurement": 82368
       },
-      "sha256": "26158457cf56e2101348569ccf98704256503cb451cef56c6de1b64f5b0c1b89"
+      "sha256": "c8c2d064145f7ddeb3f580a4ccc7248124c72398a80669fe2874cb629f07a91e"
     },
     "05_incidents_and_investigations.sql": {
       "committed": true,
@@ -120,7 +120,7 @@
         "service_level_indicator": 89,
         "alert_decision": 160,
         "service_level_objective": 37,
-        "sli_measurement": 424512,
+        "sli_measurement": 82368,
         "incident": 7,
         "investigation": 7,
         "alert_group": 13,

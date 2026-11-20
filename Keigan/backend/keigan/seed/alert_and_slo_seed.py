@@ -1,16 +1,17 @@
-"""Demo alert sources, noise policies, maintenance window, mute rule, historical alerts (through the real pipeline) and SLIs/SLOs with 30-day backfill."""
+"""Demo alert sources, noise policies, maintenance window, mute rule, historical alerts (through the real pipeline) and SLIs/SLOs with 30-day backfill, thinned to hourly rows before the newest days."""
 
 from __future__ import annotations
 
 import logging
 import secrets
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.entities.alert_entities import Alert, AlertMuteRule, AlertSource, MaintenanceWindow, NoiseReductionPolicy
-from keigan.entities.slo_entities import ServiceLevelIndicator
+from keigan.entities.slo_entities import ServiceLevelIndicator, SliMeasurement
 from keigan.seed.foundation_seed import SeedContext
 from keigan.services import alert_rules
 from keigan.services.alert_service import AlertService
@@ -18,10 +19,14 @@ from keigan.services.alert_source_service import hash_secret
 from keigan.services.sli_measurement_reader import SliMeasurementReader
 from keigan.services.sli_proposal_service import SliProposalService
 from keigan.services.slo_service import SloService
+from keigan.utils.time_utils import floor_to_interval
+from keigan.entities.status_values import NoisePolicyMode
 
 SEED_ORDER = 20
 logger = logging.getLogger(__name__)
 SYSTEM_ACTOR = "system:seed"
+# The newest days keep one row per 5-minute window (the 1-hour and 6-hour burn windows and the dashboard read those). Older history is one row per hour.
+DEMO_FINE_GRAINED_HISTORY_DAYS = 2
 
 
 async def _ensure_source(session: AsyncSession, application_id: str, tool: str, name: str, service_mapping: dict | None = None) -> None:
@@ -42,7 +47,7 @@ async def _seed_alert_configuration(session: AsyncSession, seed_context: SeedCon
         if await session.get(NoiseReductionPolicy, application_id) is None:
             is_active = code == "CLMJP"
             session.add(NoiseReductionPolicy(
-                application_id=application_id, policy_settings_json=dict(alert_rules.DEFAULT_NOISE_POLICY), policy_mode="active" if is_active else "observe",
+                application_id=application_id, policy_settings_json=dict(alert_rules.DEFAULT_NOISE_POLICY), policy_mode=NoisePolicyMode.ACTIVE if is_active else NoisePolicyMode.OBSERVE,
                 observe_mode_started_at=now - timedelta(days=16 if is_active else 10), created_by_user_principal_name=SYSTEM_ACTOR, updated_by_user_principal_name=SYSTEM_ACTOR,
             ))
     await session.flush()
@@ -76,6 +81,48 @@ async def _seed_historical_alerts(session: AsyncSession, seed_context: SeedConte
         await session.flush()
 
 
+@dataclass
+class _HourSummary:
+    good: int | None
+    total: int | None
+    collected_at: datetime
+
+
+def _sum_or_none(current: int | None, value: int | None) -> int | None:
+    """Add two counts, where None means 'no count' (kept as None only when both sides are None)."""
+    if value is None:
+        return current
+    return value if current is None else current + value
+
+
+async def thin_older_measurements(session: AsyncSession, sli_id: str, now: datetime, fine_grained_days: int = DEMO_FINE_GRAINED_HISTORY_DAYS) -> int:
+    """Replace the 5-minute rows older than ``fine_grained_days`` with one row per whole hour. Returns the number of hourly rows.
+
+    Good and total counts are summed, so every reader that adds them up (error budget, burn rate, daily sums, hour-of-week buckets) gets
+    the same answer as before. The measured value is dropped: a mean of 5-minute values is not a percentile, and nothing reads that column.
+    """
+    boundary = floor_to_interval(now - timedelta(days=fine_grained_days), 60)
+    old_rows = (await session.execute(select(
+        SliMeasurement.measurement_window_start, SliMeasurement.good_event_count, SliMeasurement.total_event_count, SliMeasurement.collected_at,
+    ).where(SliMeasurement.sli_id == sli_id, SliMeasurement.measurement_window_start < boundary))).all()
+    if not old_rows:
+        return 0
+    hours: dict[datetime, _HourSummary] = {}
+    for window_start, good, total, collected_at in old_rows:
+        hour = window_start.replace(minute=0, second=0, microsecond=0)
+        summary = hours.setdefault(hour, _HourSummary(good=None, total=None, collected_at=collected_at))
+        summary.good = _sum_or_none(summary.good, good)
+        summary.total = _sum_or_none(summary.total, total)
+        summary.collected_at = max(summary.collected_at, collected_at)
+    await session.execute(delete(SliMeasurement).where(SliMeasurement.sli_id == sli_id, SliMeasurement.measurement_window_start < boundary))
+    session.add_all(
+        SliMeasurement(sli_id=sli_id, measurement_window_start=hour, good_event_count=summary.good, total_event_count=summary.total, measured_value=None, collected_at=summary.collected_at)
+        for hour, summary in sorted(hours.items())
+    )
+    await session.flush()
+    return len(hours)
+
+
 async def _seed_slos(session: AsyncSession, seed_context: SeedContext) -> None:
     reader = SliMeasurementReader(session)
     proposal_service = SliProposalService(session, reader)
@@ -92,6 +139,7 @@ async def _seed_slos(session: AsyncSession, seed_context: SeedContext) -> None:
         _, new_sli_ids = await proposal_service.accept(SYSTEM_ACTOR, application_id, accept_request, enqueue_backfill=False)
         for sli_id in new_sli_ids:
             await slo_service.backfill_sli(sli_id)
+            await thin_older_measurements(session, sli_id, alert_rules.utc_now())
         await session.flush()
         logger.info("Seeded %s SLIs for %s", len(new_sli_ids), code)
 
