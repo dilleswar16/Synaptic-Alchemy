@@ -127,7 +127,7 @@ Run these from `backend/` (`.\.venv\Scripts\python.exe -m alembic ...`). The dat
    `ck_<table>_<column>_values` and create it again with the new list. Model it on `d2a6b0c5e8f9`: it takes the condition from the entity, checks the existing rows first and stops
    with a message naming the column if one holds another value, and it does nothing on SQLite (see below). Give the revision a `downgrade`.
 4. Tests: add the column to the typed list in `tests/integration/entities/test_status_values.py` (it tries every member and one outside value against a fresh database, and scans the
-   code for literals written to constrained columns). `tests/integration/migrations/test_schema_drift.py` compares the CHECK columns that revision `d2a6b0c5e8f9` lists with the ones
+   code: a status word must not be written, compared or filtered as text on a constrained column, nor sit in a module-level set of such words; use the enum member). `tests/integration/migrations/test_schema_drift.py` compares the CHECK columns that revision `d2a6b0c5e8f9` lists with the ones
    the entities declare, so a new CHECK fails it until the test also reads your revision.
 5. Regenerate the Azure SQL files: `scripts\generate_azure_sql_ddl.py` and `scripts\generate_azure_sql_migration_scripts.py` (the drift test compares them with what the entities and Alembic produce).
    Update the value list in `03_DATABASE_DESIGN.md` and its change log.

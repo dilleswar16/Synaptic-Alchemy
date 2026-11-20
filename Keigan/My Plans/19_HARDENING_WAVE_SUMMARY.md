@@ -57,11 +57,27 @@ After the merge: 1090 backend tests pass, the real seed runs, and the live API (
 - Helm `lint` and `template`, the Docker build, the forwarded-header CIDR and the egress CIDRs.
 - The UI after all merges was built and contrast-checked but not looked at in a browser in this session. The API was smoke-tested live; the browser walk-through (`capture-screens.mjs`) is still to run.
 
+## Final pass after wave 2: enum literals, SLI table list, demo history
+
+Done in one pass over the code, so the files were read once. Each item had a failing test before the change.
+
+| Item | What changed | Proof |
+|---|---|---|
+| Status words as enum members | About 520 sites in about 40 files now use the `StrEnum` member: writes (keyword, attribute, tuple), comparisons, `in_`/`not_in` filters, module-level sets such as `OPEN_INCIDENT_STATUSES`, the `P1`–`P4` priorities, the `low`/`medium`/`high` risk levels, and the statuses that functions return. Kept as text on purpose: DTO `Literal` types and their defaults (the API contract), the mock LLM payloads, external severity names in `alert_rules`, and log or search vocabulary. | Guard tests in `test_status_values.py` (no bare status word in a write, comparison, filter or module set of a constrained column). The regenerated demo SQL equals the committed one, so no stored value changed. |
+| Burn-alert check | Compared with `"critical"`, which that column never holds. Now `== BurnAlertSeverity.PAGE`; the behaviour is the same. | Code review; the full suite passes |
+| Found, not changed | Application readiness maps the topology status `"failed"` to `"blocked"`, but topology generation has no failed state, so that branch can never match. A rule decision is needed first. | Code review |
+| SLI table list (`kql.sli_allowed_tables`) | Added `traces`, `customEvents`, `customMetrics`, `AppServiceAppLogs`, `AzureMetrics` and `ADFTriggerRun` (26 tables). Not added: `AppServiceConsoleLogs`, which the test lists as host-level and never readable by an SLI. `AzureDiagnostics` and `AzureMetrics` are the broadest entries (any resource type in the workspace). They stay because the telemetry access policy limits the workspace to the application's verified components. | `test_query_safety.py` expected set changed first (red), then the YAML (green) |
+| Demo SLI history | Newest two days at 5-minute grain. Older days are one row per whole hour, with good and total counts summed and `measured_value` left empty (nothing reads it, and a mean of 5-minute values is not a percentile). Production collection and backfill are unchanged (5-minute grain); production hourly roll-ups remain a separate decision. | Four unit tests (boundary, totals kept, newest rows untouched, repeat run changes nothing). The generator test checks the rule on the generated SQL. The drift test passes with the new manifest. 82,368 rows and 10.5 MB, instead of 424,512 and 53 MB. |
+| Live smoke | Seeded the full demo into a fresh SQLite folder, signed in as the application admin, called 78 GET routes in-process. | 57 × 200, 0 × 5xx. The 403s are all administration routes (Keigan admin only). The 404s come from sample ids that belong to another application. |
+| Frontend | Unchanged. Re-run anyway. | Typecheck, 5 locales × 15 namespaces, 218 contrast pairs, production build, 0 diagram failures |
+
+Not in this pass: the error-handling sweep across the remaining services. It is still its own job.
+
 ## Follow-ups noted during wave 2
 
 | Item | Detail |
 |---|---|
-| SLI table list (`kql.sli_allowed_tables`) | Present in the general list but not the SLI list: `traces`, `customEvents`, `customMetrics` (classic App Insights tables whose siblings `requests`, `dependencies`, `exceptions` are allowed), `AppServiceConsoleLogs`, `AppServiceAppLogs`, `AzureMetrics`, `ADFTriggerRun`. Candidates to add when a real SLI needs them. `AzureDiagnostics` is the broadest entry: one table holds diagnostics of every resource type in the workspace. It is allowed today because the telemetry access policy already limits the workspace to the application's verified components; keep that in mind when adding SLIs. Not changed: needs the owner's decision. |
+| SLI table list (`kql.sli_allowed_tables`) | Present in the general list but not the SLI list: `traces`, `customEvents`, `customMetrics` (classic App Insights tables whose siblings `requests`, `dependencies`, `exceptions` are allowed), `AppServiceConsoleLogs`, `AppServiceAppLogs`, `AzureMetrics`, `ADFTriggerRun`. Candidates to add when a real SLI needs them. `AzureDiagnostics` is the broadest entry: one table holds diagnostics of every resource type in the workspace. It is allowed today because the telemetry access policy already limits the workspace to the application's verified components; keep that in mind when adding SLIs. Changed in the final pass (section below). |
 | Demo data "now" | The generated demo data is fixed at 2026-11-20 12:00 UTC, so dashboards that look at the last 30 days will look old if loaded much later. Refresh by changing the reference time in the generator and regenerating. |
-| Demo SLI history volume | 425,000 measurements at a 5-minute grain. Older history could be hourly to cut the file about 10 times. Owner's decision. |
+| Demo SLI history volume | Done in the final pass: 82,368 measurements (was 424,512 at a 5-minute grain). The newest two days stay at 5 minutes, older days are hourly. |
 | Frontend hard-coded lists | Sidebar structure and admin-only flags, log source kinds and reader tool types are still written in the frontend. Handled in the feature audit (`18_FEATURE_AUDIT.md`). |
