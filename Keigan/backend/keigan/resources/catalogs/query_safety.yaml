@@ -1,0 +1,179 @@
+# Policy for validating generated and user-written telemetry queries (read by keigan/utils/query_safety.py).
+# Everything that decides what a query may touch lives here, so a security review reads one file and a change needs no code edit.
+
+limits:
+  maximum_query_characters: 8000
+  maximum_result_rows: 500
+  elastic_default_size: 100
+  # Largest "size" accepted on any aggregation (terms, composite, top_hits, ...).
+  elastic_maximum_aggregation_size: 100
+  elastic_maximum_json_depth: 30
+  elastic_maximum_index_pattern_characters: 255
+
+kql:
+  # Tables an AI-written query (chat, planner) may read.
+  allowed_tables:
+    - AppRequests
+    - AppDependencies
+    - AppExceptions
+    - AppTraces
+    - AppAvailabilityResults
+    - AppPageViews
+    - AppMetrics
+    - AppEvents
+    - requests
+    - dependencies
+    - exceptions
+    - traces
+    - availabilityResults
+    - customEvents
+    - customMetrics
+    - ContainerLogV2
+    - ContainerLog
+    - KubeEvents
+    - KubePodInventory
+    - KubeNodeInventory
+    - KubeServices
+    - InsightsMetrics
+    - Perf
+    - FunctionAppLogs
+    - AppServiceHTTPLogs
+    - AppServiceConsoleLogs
+    - AppServiceAppLogs
+    - AppServicePlatformLogs
+    - ApiManagementGatewayLogs
+    - AzureDiagnostics
+    - AzureMetrics
+    - AzureActivity
+    - ADFPipelineRun
+    - ADFActivityRun
+    - ADFTriggerRun
+    - LogicAppWorkflowRuntime
+    - AzureDiagnosticsSql
+    - Syslog
+    - Event
+    - Heartbeat
+  # Tables a custom SLI query (stored by an application admin, run on a schedule with Keigan's identity) may read.
+  # Narrower than the list above: only request, dependency and availability style data, no activity, syslog or event logs.
+  sli_allowed_tables:
+    - AppRequests
+    - AppDependencies
+    - AppExceptions
+    - AppTraces
+    - AppAvailabilityResults
+    - AppPageViews
+    - AppMetrics
+    - AppEvents
+    - requests
+    - dependencies
+    - exceptions
+    - availabilityResults
+    - ContainerLogV2
+    - FunctionAppLogs
+    - AppServiceHTTPLogs
+    - ApiManagementGatewayLogs
+    - AzureDiagnostics
+    - ADFPipelineRun
+    - ADFActivityRun
+    - LogicAppWorkflowRuntime
+  # Words that are refused wherever they appear outside strings and comments (as a keyword: value is the reason shown to the user).
+  forbidden_keywords:
+    externaldata: external data is not allowed
+    evaluate: plugins that call out or run code are not allowed
+    invoke: invoking functions is not allowed
+    find: searching across tables is not allowed
+    search: searching across tables is not allowed
+  # Functions that reach another workspace, cluster, database or service (refused when followed by an opening parenthesis).
+  forbidden_functions:
+    - workspace
+    - app
+    - resource
+    - cluster
+    - database
+    - adx
+    - arg
+    - external_table
+    - materialized_view
+    - stored_query_result
+    - graph
+    - entity_group
+  # Statement keywords that may not start a query (query options and declarations).
+  forbidden_leading_keywords: [let, set, declare, restrict, alias, pattern]
+  # Tabular operators. Inside a parenthesised sub-query such as fork (take 1), one of these is an operator, not a table name.
+  tabular_operators:
+    - as
+    - consume
+    - count
+    - distinct
+    - extend
+    - facet
+    - fork
+    - getschema
+    - join
+    - limit
+    - lookup
+    - make
+    - mv
+    - order
+    - parse
+    - partition
+    - project
+    - range
+    - reduce
+    - render
+    - sample
+    - scan
+    - serialize
+    - sort
+    - summarize
+    - take
+    - top
+    - union
+    - where
+
+spl:
+  # The only commands a generated Splunk query may use. Read-only, no lookups, no joins to other searches, no writes, no scripts.
+  allowed_commands:
+    - search
+    - where
+    - stats
+    - eventstats
+    - streamstats
+    - timechart
+    - chart
+    - top
+    - rare
+    - head
+    - tail
+    - eval
+    - rex
+    - regex
+    - fields
+    - table
+    - sort
+    - dedup
+    - bin
+    - bucket
+    - rename
+    - fillnull
+    - tstats
+  # Commands that may start a query with a leading pipe.
+  allowed_generating_commands: [tstats]
+  # Commands after which the result is already small, so Keigan does not append a row limit.
+  row_limiting_commands: [head, stats, tstats, timechart, top, chart, rare, tail]
+
+elastic:
+  allowed_top_level_keys: [query, aggs, aggregations, size, sort, _source, track_total_hits]
+  # Keys refused anywhere in the query tree. Scripts cost CPU and can leak through error messages; the others read other
+  # indices (lookups) or hide a whole query inside an encoded string (wrapper).
+  forbidden_keys:
+    - script
+    - scripted_metric
+    - script_fields
+    - script_score
+    - runtime_mappings
+    - _script
+    - indexed_shape
+    - percolate
+    - _index
+    - wrapper
