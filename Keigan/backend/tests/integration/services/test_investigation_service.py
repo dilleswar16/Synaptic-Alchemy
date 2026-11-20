@@ -54,3 +54,59 @@ async def test_reader_of_the_application_can_open_the_investigation(client: http
 async def test_non_member_cannot_open_the_investigation(client: httpx.AsyncClient, auth_headers: AuthHeaders, completed_investigation_id: str) -> None:
     response = await client.get(f"/api/investigations/{completed_investigation_id}", headers=await auth_headers(users.NO_ACCESS))
     assert response.status_code == 403
+
+
+async def test_a_reader_cannot_mark_an_investigation_correct(client: httpx.AsyncClient, auth_headers: AuthHeaders, completed_investigation_id: str) -> None:
+    response = await client.post(f"/api/investigations/{completed_investigation_id}/feedback", headers=await auth_headers(users.CLMJP_AND_PAYAU_READER), json={"verdict": "correct"})
+    assert response.status_code == 403
+    assert "admin" in response.json()["detail"].lower()
+
+
+async def test_a_reader_can_still_say_an_investigation_was_incorrect(client: httpx.AsyncClient, auth_headers: AuthHeaders, completed_investigation_id: str) -> None:
+    response = await client.post(f"/api/investigations/{completed_investigation_id}/feedback", headers=await auth_headers(users.CLMJP_AND_PAYAU_READER), json={"verdict": "incorrect", "comment": "Not the cause."})
+    assert response.status_code == 200
+
+
+async def test_an_application_admin_can_mark_an_investigation_correct(client: httpx.AsyncClient, auth_headers: AuthHeaders, completed_investigation_id: str) -> None:
+    response = await client.post(f"/api/investigations/{completed_investigation_id}/feedback", headers=await auth_headers(users.CLMJP_ADMIN_CHAD_READER), json={"verdict": "correct"})
+    assert response.status_code == 200
+    assert response.json()["investigationId"] == completed_investigation_id
+
+
+async def test_a_manual_investigation_window_longer_than_the_maximum_is_rejected_with_a_clear_message(client: httpx.AsyncClient, auth_headers: AuthHeaders, seed_context) -> None:
+    response = await client.post(
+        "/api/investigations", headers=await auth_headers(users.CLMJP_ADMIN_CHAD_READER),
+        json={"applicationId": seed_context.application_ids_by_code["CLMJP"], "description": "Looking at five years of data.", "windowStart": "2021-01-01T00:00:00Z", "windowEnd": "2026-01-01T00:00:00Z"},
+    )
+    assert response.status_code == 422
+    assert "at most 240 minutes" in response.json()["detail"]
+    assert response.json()["fieldErrors"][0]["field"] == "windowEnd"
+
+
+async def test_a_manual_investigation_window_within_the_maximum_is_accepted(client: httpx.AsyncClient, auth_headers: AuthHeaders, seed_context) -> None:
+    response = await client.post(
+        "/api/investigations", headers=await auth_headers(users.CLMJP_ADMIN_CHAD_READER),
+        json={"applicationId": seed_context.application_ids_by_code["CLMJP"], "description": "Looking at the last two hours.", "windowStart": "2026-11-20T08:00:00Z", "windowEnd": "2026-11-20T10:00:00Z"},
+    )
+    assert response.status_code == 202, response.text
+
+
+async def test_a_failed_investigation_shows_users_no_internal_error_text(seed_context, monkeypatch: pytest.MonkeyPatch) -> None:
+    from keigan.ai import investigation_graph
+    from keigan.config.logging_config import set_correlation_id
+    from keigan.services.investigation_service import InvestigationService
+
+    async def explode(self: object) -> dict:
+        raise RuntimeError("connection to sql-prod-01.internal.corp:1433 refused (password=hunter2)")
+
+    monkeypatch.setattr(investigation_graph.InvestigationGraphRunner, "run", explode)
+    set_correlation_id("corr-fail-42")
+    async with open_session() as session:
+        investigation_id = await InvestigationService(session).start_investigation(seed_context.application_ids_by_code["CLMJP"], "manual", description="This run will fail on purpose.")
+    async with open_session() as session:
+        await InvestigationService(session).run_investigation(investigation_id)
+    async with open_session() as session:
+        investigation = await session.get(Investigation, investigation_id)
+    assert investigation.investigation_status == "failed"
+    assert "internal.corp" not in investigation.failure_reason and "hunter2" not in investigation.failure_reason and "RuntimeError" not in investigation.failure_reason
+    assert "corr-fail-42" in investigation.failure_reason

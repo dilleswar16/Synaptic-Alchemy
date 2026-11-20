@@ -18,7 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.chat_ai_schemas import DATA_INTENTS, ChatAnswerResult, ChatIntentResult, build_answer_offline, plan_intent_offline
 from keigan.ai.llm_gateway import LlmUsageContext, ModelTier, PromptSection, estimate_token_count
+from keigan.ai.output_sanitizer import sanitize_ai_markdown
 from keigan.ai.prompt_safety import find_citation_codes, remove_invalid_citations
+from keigan.ai.user_facing_errors import describe_failure_for_user
 from keigan.config import application_context
 from keigan.config.settings import get_settings
 from keigan.dtos.chat_dtos import (
@@ -101,10 +103,11 @@ class ChatService:
         asked_by_user_principal_name: str | None = None,
         asked_by_display_name: str | None = None,
         conversation_history: list[dict[str, str]] | None = None,
+        allow_log_queries: bool = True,
     ) -> AssistantAnswer:
-        """Grounded answer about one investigation (may run read-only follow-up queries). Used by the Teams bot (S4)."""
+        """Grounded answer about one investigation (may run read-only follow-up queries unless ``allow_log_queries`` is False). Used by the Teams bot (S4)."""
         answer_text, citations, input_tokens, output_tokens = await InvestigationChatService(self.session).answer(
-            investigation_id, question_text, asked_by_user_principal_name, conversation_history
+            investigation_id, question_text, asked_by_user_principal_name, conversation_history, allow_log_queries=allow_log_queries
         )
         return AssistantAnswer(answer_text, citations, {"answerKind": "text", "citations": citations}, input_tokens, output_tokens)
 
@@ -152,7 +155,7 @@ class ChatService:
     async def update_conversation(self, current_user: CurrentUser, conversation_id: str, request: ConversationUpdateRequest) -> ConversationResponse:
         conversation = await self._owned_conversation(current_user, conversation_id)
         if request.conversation_title is not None:
-            conversation.conversation_title = request.conversation_title.strip() or DEFAULT_TITLE
+            conversation.conversation_title = PiiMasker().mask_text(request.conversation_title).strip() or DEFAULT_TITLE
         if request.application_ids is not None and conversation.conversation_scope == KEIGAN_SCOPE:
             conversation.application_ids_json = await AuthorizationService(self.session).scoped_application_ids(current_user, request.application_ids) if request.application_ids else []
         conversation.updated_by_user_principal_name = current_user.user_principal_name
@@ -184,28 +187,31 @@ class ChatService:
         conversation = await self._owned_conversation(current_user, conversation_id)
         rate_limiter.check(f"chat:{current_user.user_principal_name}", self.settings.chat_rate_limit_per_minute)
         history = await self._messages(conversation_id)
+        masker = PiiMasker()
+        masked_message_text = masker.mask_text(request.message_text)  # personal data is masked before it is stored, not only before the model call (V12)
         self.session.add(ConversationMessage(
             conversation_id=conversation_id, author_role="user", author_display_name=current_user.display_name, author_user_principal_name=current_user.user_principal_name,
-            message_text=request.message_text, input_token_count=estimate_token_count(request.message_text), output_token_count=0, created_at=utc_now()))
+            message_text=masked_message_text, input_token_count=estimate_token_count(masked_message_text), output_token_count=0, created_at=utc_now()))
         await self.session.flush()
         try:
             if conversation.conversation_scope == INVESTIGATION_SCOPE:
                 answer = await self.answer_investigation_question(
-                    conversation.investigation_id or "", request.message_text, asked_by_user_principal_name=current_user.user_principal_name,
-                    asked_by_display_name=current_user.display_name, conversation_history=[{"role": "user" if item.author_role == "user" else "assistant", "content": item.message_text} for item in history])
+                    conversation.investigation_id or "", masked_message_text, asked_by_user_principal_name=current_user.user_principal_name,
+                    asked_by_display_name=current_user.display_name,
+                    conversation_history=[{"role": "user" if item.author_role == "user" else "assistant", "content": masker.mask_text(item.message_text)} for item in history])
             else:
                 answer = await self._answer_keigan_question(current_user, conversation, request, history)
         except _SELF_HANDLED_ERRORS as chat_error:
             if isinstance(chat_error, (ForbiddenException, NotFoundException)):
                 raise
-            answer = AssistantAnswer(f"I couldn't complete that: {chat_error}", message_payload={"answerKind": "text", "failed": True})
+            answer = AssistantAnswer(f"I couldn't complete that. {describe_failure_for_user(chat_error)}", message_payload={"answerKind": "text", "failed": True})
         assistant_message = ConversationMessage(
             conversation_id=conversation_id, author_role="assistant", author_display_name="Keigan", message_text=answer.answer_markdown,
             message_payload_json=answer.message_payload or {"answerKind": "text", "citations": answer.citations}, input_token_count=answer.input_token_count,
             output_token_count=answer.output_token_count, created_at=utc_now() + timedelta(milliseconds=1))
         self.session.add(assistant_message)
         if conversation.conversation_title == DEFAULT_TITLE:
-            conversation.conversation_title = truncate_text(request.message_text.strip(), 60)
+            conversation.conversation_title = truncate_text(masked_message_text.strip(), 60)
         conversation.updated_by_user_principal_name = current_user.user_principal_name
         conversation.updated_at = utc_now()
         await self.session.flush()
@@ -267,6 +273,7 @@ class ChatService:
         targets = [application] if application else applications[:3]
         markdown_parts: list[str] = []
         references: dict[str, str] = {}
+        contains_flagged_content = False
         for target in targets:
             try:
                 grounding = await knowledge_service.build_grounding_context(target.application_id, question, token_budget=3000)
@@ -274,8 +281,12 @@ class ChatService:
                 logger.info("Knowledge grounding unavailable for %s: %s", target.application_id, grounding_error)
                 continue
             if grounding.knowledge_markdown.strip() or grounding.topology_summary_markdown.strip():
-                markdown_parts.append(f"## {target.application_name}\n{grounding.topology_summary_markdown}\n{grounding.knowledge_markdown}")
-                references.update({reference.reference_code: reference.title for reference in grounding.references})
+                # Every application numbers its knowledge from K1, so codes are shifted to stay unique across applications.
+                offset = len(references)
+                shift = lambda text: re.sub(r"\[K(\d+)\]", lambda match: f"[K{int(match.group(1)) + offset}]", text)  # noqa: E731
+                markdown_parts.append(f"## {target.application_name}\n{shift(grounding.topology_summary_markdown)}\n{shift(grounding.knowledge_markdown)}")
+                references.update({f"K{int(reference.reference_code[1:]) + offset}": reference.title for reference in grounding.references})
+                contains_flagged_content = contains_flagged_content or grounding.contains_flagged_content
         if not markdown_parts:
             return AssistantAnswer("I couldn't find anything about that in the knowledge Keigan holds for your applications. Uploading the relevant document or runbook to the application's knowledge base would let me answer it.", message_payload={"answerKind": "text"})
         knowledge_markdown = "\n\n".join(markdown_parts)
@@ -283,10 +294,14 @@ class ChatService:
             answer_text = "Here is what the application knowledge says:\n\n" + truncate_text(knowledge_markdown.replace("## ", "**").strip(), 900)
         else:
             result = await self.gateway.generate_text(
-                feature_name="ai_chat_answer", model_tier=ModelTier.FAST,
-                system_prompt="You are Keigan, a calm site reliability assistant. Answer the question using only the application knowledge provided. Cite sources as [K1]. If the knowledge does not answer it, say so. Be concise.",
-                prompt_sections=[PromptSection("Application knowledge", knowledge_markdown), PromptSection("Question", question, is_untrusted=True, source_label="chat:user-question")], usage_context=usage_context)
+                feature_name="ai_chat_knowledge_answer", model_tier=ModelTier(application_context.prompt_library().model_tier_for_call("ai_chat_knowledge_answer")),
+                system_prompt=application_context.prompt_library().render("ai_chat_knowledge_answer"),
+                prompt_sections=[
+                    PromptSection("Application knowledge", knowledge_markdown, is_untrusted=True, source_label="knowledge documents", is_flagged=contains_flagged_content),
+                    PromptSection("Question", question, is_untrusted=True, source_label="chat:user-question"),
+                ], usage_context=usage_context)
             answer_text = remove_invalid_citations(result.text, set(references))
+        answer_text = sanitize_ai_markdown(answer_text)
         citations = [{"kind": "knowledge", "title": references[code], "reference": code} for code in sorted(find_citation_codes(answer_text)) if code in references]
         context = {"applicationId": application.application_id} if application else None
         return AssistantAnswer(answer_text, citations, {"answerKind": "text", "citations": citations, "conversationContext": context}, estimate_token_count(knowledge_markdown + question), estimate_token_count(answer_text))
@@ -320,7 +335,7 @@ class ChatService:
                 service=service, question_text=question, wants_failures=wants_failures, wants_pattern=wants_pattern, time_range_start=start, time_range_end=end,
                 requested_by=current_user.user_principal_name, usage_context=usage_context)
         except KeiganException as query_error:
-            return AssistantAnswer(f"I couldn't query {service.service_name}: {query_error}", message_payload={"answerKind": "text", "failed": True})
+            return AssistantAnswer(f"I couldn't query {service.service_name}. {describe_failure_for_user(query_error)}", message_payload={"answerKind": "text", "failed": True})
         return await self._compose_data_answer(service, outcome, wants_pattern, wants_failures, lookback_minutes, usage_context, question)
 
     async def _compose_data_answer(self, service: MonitoredService, outcome: DataQueryOutcome, wants_pattern: bool, wants_failures: bool, lookback_minutes: int, usage_context: LlmUsageContext, question: str) -> AssistantAnswer:
@@ -335,6 +350,7 @@ class ChatService:
                 output_schema=ChatAnswerResult, usage_context=usage_context)).answer_text
         except KeiganException:
             answer_text = build_answer_offline(facts)
+        answer_text = sanitize_ai_markdown(answer_text)
         payload: dict[str, Any] = {
             "answerKind": "chart" if series else "number", "numberValue": outcome.total,
             "queryDetails": {"serviceName": service.service_name, "sourceKind": outcome.source_kind, "queryLanguage": outcome.query_language, "queryText": outcome.query_text,

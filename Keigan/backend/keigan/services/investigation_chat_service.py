@@ -14,8 +14,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from keigan.ai.ai_safety_settings import get_ai_safety_settings
 from keigan.ai.llm_gateway import LlmUsageContext, ModelTier, PromptSection, estimate_token_count
-from keigan.ai.prompt_safety import find_citation_codes, remove_invalid_citations, spotlight
+from keigan.ai.output_sanitizer import sanitize_ai_markdown
+from keigan.ai.prompt_safety import UNTRUSTED_DATA_POLICY, build_valid_citation_codes, find_citation_codes, remove_invalid_citations, spotlight
+from keigan.ai.user_facing_errors import describe_failure_for_user
 from keigan.config import application_context
 from keigan.entities.all_entities import (
     Application, Incident, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, MonitoredService, Runbook,
@@ -47,27 +50,34 @@ class InvestigationChatService:
         self.session = session
         self.gateway = application_context.llm_gateway()
 
-    async def answer(self, investigation_id: str, question_text: str, requested_by: str | None, conversation_history: list[dict[str, str]] | None) -> tuple[str, list[dict[str, Any]], int, int]:
+    async def answer(
+        self, investigation_id: str, question_text: str, requested_by: str | None, conversation_history: list[dict[str, str]] | None, *, allow_log_queries: bool = True
+    ) -> tuple[str, list[dict[str, Any]], int, int]:
+        """``allow_log_queries=False`` withholds the log-query tool (the Teams room only lets application admins trigger queries, V13)."""
         context = await self._load_context(investigation_id)
-        masked_question = PiiMasker().mask_text(question_text)
+        masker = PiiMasker()  # one masker, so a person keeps one placeholder across the question and the history
+        masked_question = masker.mask_text(question_text)
+        masked_history = [{"role": turn["role"], "content": masker.mask_text(turn["content"])} for turn in (conversation_history or [])]
         input_tokens = estimate_token_count(context.context_markdown) + estimate_token_count(masked_question)
         usage_context = LlmUsageContext(application_id=context.application.application_id, investigation_id=investigation_id, requested_by_user_principal_name=requested_by)
         answer_text: str | None = None
+        knowledge_titles: dict[str, str] = {}  # knowledge codes the model really saw in this answer (from search_knowledge)
         if not self.gateway.is_mock:
+            await self.gateway.ensure_budget_available(usage_context)  # the agent drives the model directly, so the budget is checked here (V17)
             try:
-                answer_text = await self._run_agent(context, masked_question, conversation_history or [], usage_context, requested_by or "system:chat")
+                answer_text = await self._run_agent(context, masked_question, masked_history, usage_context, requested_by or "system:chat", knowledge_titles, allow_log_queries)
             except KeiganException:
                 raise
             except Exception as agent_error:  # noqa: BLE001 — fall back to a plain grounded answer instead of failing the chat
                 logger.warning("Investigation chat agent failed, using plain answer: %s", agent_error)
-                answer_text = await self._plain_answer(context, masked_question, conversation_history or [], usage_context)
+                answer_text = await self._plain_answer(context, masked_question, masked_history, usage_context)
         if answer_text is None:
             answer_text = self._deterministic_answer(context, masked_question)
-        valid_codes = set(context.evidence_by_code) | {f"R{index + 1}" for index in range(len(context.runbook_titles))}
-        answer_text = remove_invalid_citations(answer_text, valid_codes)
-        citations = [
-            {"kind": "evidence", "title": context.evidence_by_code[code].evidence_title, "reference": code} for code in sorted(find_citation_codes(answer_text)) if code in context.evidence_by_code
-        ]
+        valid_codes = build_valid_citation_codes(context.evidence_by_code, (f"R{index + 1}" for index in range(len(context.runbook_titles))), knowledge_titles)
+        answer_text = sanitize_ai_markdown(remove_invalid_citations(answer_text, valid_codes))
+        used_codes = sorted(find_citation_codes(answer_text))
+        citations = [{"kind": "evidence", "title": context.evidence_by_code[code].evidence_title, "reference": code} for code in used_codes if code in context.evidence_by_code]
+        citations += [{"kind": "knowledge", "title": knowledge_titles[code], "reference": code} for code in used_codes if code in knowledge_titles]
         return answer_text, citations, input_tokens, estimate_token_count(answer_text)
 
     # ── Context ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -119,20 +129,30 @@ class InvestigationChatService:
     def _system_prompt(self, application_name: str) -> str:
         return application_context.prompt_library().render("investigation_chat", application_name=application_name)
 
+    @staticmethod
+    def _history_text(history: list[dict[str, str]]) -> str:
+        """Earlier turns (including earlier assistant answers) as one block of text; the caller marks it untrusted."""
+        safety_settings = get_ai_safety_settings()
+        recent_turns = history[-safety_settings.chat_history_turn_limit:]
+        return "\n".join(f"{turn['role']}: {truncate_text(turn['content'], safety_settings.chat_history_turn_characters)}" for turn in recent_turns) or "(none)"
+
     async def _plain_answer(self, context: InvestigationContext, question: str, history: list[dict[str, str]], usage_context: LlmUsageContext) -> str:
         result = await self.gateway.generate_text(
             feature_name="investigation_chat", model_tier=ModelTier.DEEP, system_prompt=self._system_prompt(context.application.application_name),
             prompt_sections=[
                 PromptSection("Investigation context", context.context_markdown, is_untrusted=True, source_label=f"investigation:{context.investigation.investigation_id}"),
-                PromptSection("Conversation so far", "\n".join(f"{turn['role']}: {truncate_text(turn['content'], 600)}" for turn in history[-8:]) or "(none)", is_untrusted=True, source_label="chat:history"),
+                PromptSection("Conversation so far", self._history_text(history), is_untrusted=True, source_label="chat:history"),
                 PromptSection("Question", question, is_untrusted=True, source_label="chat:user-question"),
             ],
             usage_context=usage_context,
         )
         return result.text
 
-    async def _run_agent(self, context: InvestigationContext, question: str, history: list[dict[str, str]], usage_context: LlmUsageContext, requested_by: str) -> str:
-        from langchain_core.messages import AIMessage, HumanMessage
+    async def _run_agent(
+        self, context: InvestigationContext, question: str, history: list[dict[str, str]], usage_context: LlmUsageContext, requested_by: str,
+        knowledge_titles: dict[str, str], allow_log_queries: bool,
+    ) -> str:
+        from langchain_core.messages import HumanMessage
         from langchain_core.tools import StructuredTool
         from langgraph.prebuilt import create_react_agent
 
@@ -156,7 +176,8 @@ class InvestigationChatService:
             if not within_budget():
                 return "Tool budget used up; answer with what you have."
             grounding = await KnowledgeService(self.session).build_grounding_context(application_id, query, token_budget=2500)
-            return spotlight(grounding.knowledge_markdown or "No matching knowledge found.", "knowledge:search")
+            knowledge_titles.update({reference.reference_code: reference.title for reference in grounding.references})
+            return spotlight(grounding.knowledge_markdown or "No matching knowledge found.", "knowledge:search", force_warning=grounding.contains_flagged_content)
 
         async def run_log_query(service_name: str, question: str, lookback_minutes: int = 60) -> str:  # noqa: A002 — tool argument name shown to the model
             if not within_budget():
@@ -171,18 +192,20 @@ class InvestigationChatService:
                     time_range_end=end, requested_by=requested_by, usage_context=usage_context,
                 )
             except KeiganException as query_error:
-                return f"The query could not run: {query_error}"
+                return f"The query could not run: {describe_failure_for_user(query_error)}"
             return spotlight(f"Query: {outcome.query_text}\nRows: {outcome.row_count}\nTotal: {outcome.total}\nSample: {outcome.rows[:10]}", f"query:{service_name}")
 
         tools = [
             StructuredTool.from_function(coroutine=get_evidence, name="get_evidence", description="Return one evidence item by code, for example E3."),
             StructuredTool.from_function(coroutine=search_knowledge, name="search_knowledge", description="Search this application's knowledge base (runbooks, architecture, documents)."),
-            StructuredTool.from_function(coroutine=run_log_query, name="run_log_query", description="Run a read-only log query for one service of this application over the last N minutes."),
         ]
-        agent = create_react_agent(self.gateway.chat_model(ModelTier.DEEP), tools, prompt=f"{self._system_prompt(context.application.application_name)}")
+        if allow_log_queries:
+            tools.append(StructuredTool.from_function(coroutine=run_log_query, name="run_log_query", description="Run a read-only log query for one service of this application over the last N minutes."))
+        # The agent gets the same security rules as every gateway call; its prompt is not built by the gateway (V7).
+        agent = create_react_agent(self.gateway.chat_model(ModelTier.DEEP), tools, prompt=f"{self._system_prompt(context.application.application_name)}\n\n{UNTRUSTED_DATA_POLICY}")
         messages: list[Any] = [
             HumanMessage(content=spotlight(context.context_markdown, f"investigation:{context.investigation.investigation_id}")),
-            *[(HumanMessage if turn["role"] == "user" else AIMessage)(content=truncate_text(turn["content"], 800)) for turn in history[-6:]],
+            HumanMessage(content=spotlight(self._history_text(history), "chat:history")),  # earlier answers are data, not instructions
             HumanMessage(content=spotlight(question, "chat:user-question")),
         ]
         result = await agent.ainvoke({"messages": messages}, {"recursion_limit": 2 * MAXIMUM_TOOL_CALLS + 3})

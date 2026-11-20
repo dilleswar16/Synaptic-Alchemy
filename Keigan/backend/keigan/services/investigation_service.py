@@ -6,13 +6,15 @@ Slice S2. Contract methods (used by S3 alert groups and S4 predictive signals) k
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.investigation_graph import InvestigationGraphRunner
+from keigan.config.logging_config import current_correlation_id
+from keigan.config.settings import get_settings
 from keigan.dtos.common_dtos import JobAcceptedResponse, PagedResult
 from keigan.dtos.incident_dtos import ApplicationReference
 from keigan.dtos.investigation_dtos import (
@@ -111,7 +113,8 @@ class InvestigationService:
             await self.session.rollback()
             investigation = await self.session.get(Investigation, investigation_id)
             assert investigation is not None
-            investigation.investigation_status, investigation.failure_reason = "failed", f"{type(run_error).__name__}: {str(run_error)[:500]}"
+            # The technical detail is in the log above; users only see a generic reason and the correlation id (V19).
+            investigation.investigation_status, investigation.failure_reason = "failed", f"The investigation could not finish because of an internal problem. Reference {current_correlation_id() or 'none'}."
             investigation.stage_messages_json = [*(investigation.stage_messages_json or []), {"at": utc_now().isoformat(), "stage": "failed", "message": "The investigation failed. Re-run it, or contact a Keigan admin."}]
             return {"investigationId": investigation_id, "status": "failed"}
         if not offline_ai:
@@ -128,6 +131,12 @@ class InvestigationService:
             raise BusinessValidationException("One or more services do not belong to this application.", field_errors=[{"field": "serviceIds", "message": "Unknown service."}])
         if request.window_start and request.window_end and request.window_end <= request.window_start:
             raise BusinessValidationException("The window end must be after the window start.")
+        maximum_window_minutes = get_settings().investigation_max_window_minutes
+        if request.window_start and request.window_end and request.window_end - request.window_start > timedelta(minutes=maximum_window_minutes):
+            raise BusinessValidationException(
+                f"The time window can be at most {maximum_window_minutes} minutes ({maximum_window_minutes / 60:g} hours). Choose a shorter window.",
+                field_errors=[{"field": "windowEnd", "message": f"At most {maximum_window_minutes} minutes after the window start."}],
+            )
         investigation_id = await self.start_investigation(
             request.application_id, "manual", service_ids=request.service_ids, window_start=request.window_start, window_end=request.window_end,
             description=request.description, requested_by_user_principal_name=current_user.user_principal_name,
@@ -148,7 +157,8 @@ class InvestigationService:
         return JobAcceptedResponse(job_id=new_investigation_id, status="queued", message="A new run was queued; open the new investigation to follow it.")
 
     async def submit_feedback(self, current_user: CurrentUser, investigation_id: str, request: InvestigationFeedbackRequest) -> InvestigationSummaryDto:
-        investigation = await self.load_readable_investigation(current_user, investigation_id)
+        # "correct" feeds later investigations as a confirmed past issue, so only an application admin may say it (V7).
+        investigation = await self.load_readable_investigation(current_user, investigation_id, require_admin=request.verdict == "correct")
         investigation.user_feedback_verdict, investigation.user_feedback_comment = request.verdict, PiiMasker().mask_text(request.comment)
         investigation.user_feedback_by_user_principal_name = current_user.user_principal_name
         await AuditService(self.session).record(current_user, "investigation.feedback", target_entity_type="investigation", target_entity_id=investigation_id, application_id=investigation.application_id, action_details={"verdict": request.verdict})

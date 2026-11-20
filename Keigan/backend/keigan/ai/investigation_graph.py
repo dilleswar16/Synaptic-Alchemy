@@ -137,6 +137,9 @@ class InvestigationGraphRunner:
             window_start = anchor - timedelta(minutes=self.settings.investigation_lookback_minutes)
             window_end = min(utc_now(), window_start + timedelta(minutes=self.settings.investigation_max_window_minutes))
             investigation.investigation_window_start, investigation.investigation_window_end = window_start, window_end
+        maximum_window = timedelta(minutes=self.settings.investigation_max_window_minutes)  # also for callers other than the manual form (V17)
+        if investigation.investigation_window_end - investigation.investigation_window_start > maximum_window:
+            investigation.investigation_window_start = investigation.investigation_window_end - maximum_window
         window_length = investigation.investigation_window_end - investigation.investigation_window_start
         investigation.baseline_window_end = investigation.investigation_window_start
         investigation.baseline_window_start = investigation.investigation_window_start - window_length
