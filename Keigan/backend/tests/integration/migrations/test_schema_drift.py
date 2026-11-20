@@ -68,3 +68,16 @@ def test_azure_sql_scripts_match_what_the_generator_produces_from_the_entities(t
         committed = _without_generation_timestamp((AZURE_SQL_DIRECTORY / script_name).read_text(encoding="utf-8"))
         regenerated = _without_generation_timestamp((tmp_path / script_name).read_text(encoding="utf-8"))
         assert committed == regenerated, f"database/azure_sql/{script_name} is out of date: run backend/scripts/generate_azure_sql_ddl.py and commit the result"
+
+
+def test_azure_sql_delta_scripts_match_what_alembic_offline_mode_produces(tmp_path: Path) -> None:
+    child_environment = {key: value for key, value in os.environ.items() if key not in ("DATABASE_URL", "DATABASE_SCHEMA")}
+    generator = str(BACKEND_DIRECTORY / "scripts" / "generate_azure_sql_migration_scripts.py")
+    completed = subprocess.run([sys.executable, generator, str(tmp_path), "keigan"], cwd=BACKEND_DIRECTORY, env=child_environment, capture_output=True, text=True, timeout=180)
+    assert completed.returncode == 0, completed.stderr
+    regenerated_names = sorted(path.name for path in tmp_path.glob("*.sql"))
+    committed_names = sorted(path.name for path in (AZURE_SQL_DIRECTORY / "migrations").glob("*.sql"))
+    assert regenerated_names == committed_names, "database/azure_sql/migrations is missing a revision or holds a stale one: run backend/scripts/generate_azure_sql_migration_scripts.py"
+    for script_name in regenerated_names:
+        committed = (AZURE_SQL_DIRECTORY / "migrations" / script_name).read_text(encoding="utf-8")
+        assert committed == (tmp_path / script_name).read_text(encoding="utf-8"), f"{script_name} is stale: run backend/scripts/generate_azure_sql_migration_scripts.py"

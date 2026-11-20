@@ -24,8 +24,10 @@ from keigan.entities.all_entities import (
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
+from keigan.services.incident_retention import purge_expired_incidents
 from keigan.services.simulation_service import SimulationService
 from keigan.utils.time_utils import utc_now
+from keigan.workers.worker_settings import get_worker_settings
 
 logger = logging.getLogger(__name__)
 SETTING_GROUPS: list[tuple[str, str, tuple[str, ...]]] = [
@@ -230,6 +232,7 @@ class AdministrationService:
         await purge("alertDecisions", delete(AlertDecision).where(AlertDecision.alert_id.in_(old_alert_ids)))
         await purge("alerts", delete(Alert).where(Alert.last_seen_at < incident_cutoff, Alert.resolved_at.is_not(None)))
         await purge("alertGroups", delete(AlertGroup).where(AlertGroup.group_status == "resolved", AlertGroup.last_activity_at < incident_cutoff))
+        removed.update(await purge_expired_incidents(self.session, incident_cutoff, get_worker_settings().retention_delete_batch_size))
         await purge("finishedJobs", delete(BackgroundJob).where(BackgroundJob.job_status.in_(("succeeded", "completed", "cancelled")), BackgroundJob.finished_at < now - timedelta(days=RETENTION_FINISHED_JOB_DAYS)))
         await purge("auditEvents", delete(AuditEvent).where(AuditEvent.occurred_at < now - timedelta(days=RETENTION_AUDIT_AND_USAGE_DAYS)))
         await purge("llmUsageRecords", delete(LlmUsageRecord).where(LlmUsageRecord.created_at < now - timedelta(days=RETENTION_AUDIT_AND_USAGE_DAYS)))

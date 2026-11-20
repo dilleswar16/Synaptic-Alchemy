@@ -1,7 +1,7 @@
 # Keigan — Azure SQL database scripts
 
 Run these once on an empty Azure SQL database **before** the first Helm install of Keigan.
-They create the `keigan` schema, 47 tables, 32 foreign keys, 62 indexes, the migration baseline and a
+They create the `keigan` schema, 47 tables, 32 foreign keys, 64 indexes, the migration baseline and a
 database user for Keigan's managed identity. Keigan stores no demo data in Azure: applications, users' access
 and everything else are created through the Keigan UI.
 
@@ -10,8 +10,8 @@ and everything else are created through the Keigan UI.
 | 1 | `01_create_schema.sql` | Creates schema `keigan` |
 | 2 | `02_create_tables.sql` | Creates every table with its primary key and unique constraints |
 | 3 | `03_create_foreign_keys.sql` | Adds foreign keys (after all tables exist, so order never matters) |
-| 4 | `04_create_indexes.sql` | Adds indexes, including the filtered unique index on ServiceNow incident numbers |
-| 5 | `05_reference_data.sql` | Creates `keigan.alembic_version` = `94692c828bd3` (so later releases apply only newer migrations) and a schema marker row |
+| 4 | `04_create_indexes.sql` | Adds indexes, including the filtered unique indexes (ServiceNow incident numbers, one open alert per fingerprint, one active job per deduplication key) |
+| 5 | `05_reference_data.sql` | Creates `keigan.alembic_version` = `3be32fbc3e37` (so later releases apply only newer migrations) and a schema marker row |
 | 6 | `06_grant_keigan_identity.sql` | Creates the database user for Keigan's managed identity and grants read/write on schema `keigan` |
 | — | `run_all.sql` | Runs 1–6 in order with `sqlcmd` |
 
@@ -44,7 +44,7 @@ sqlcmd -S <server>.database.windows.net -d <database> \
 
 ```sql
 SELECT COUNT(*) AS table_count FROM sys.tables WHERE schema_id = SCHEMA_ID(N'keigan');   -- 48 (47 + alembic_version)
-SELECT version_num FROM keigan.alembic_version;                                          -- 94692c828bd3
+SELECT version_num FROM keigan.alembic_version;                                          -- 3be32fbc3e37
 SELECT name, type_desc FROM sys.database_principals WHERE name = N'id-keigan-prod';     -- EXTERNAL_USER
 ```
 
@@ -68,7 +68,10 @@ Two options; pick one per environment:
 - **Keigan applies them (default).** The Helm pre-upgrade job runs `alembic upgrade head`. Uncomment the three
   optional `GRANT` lines at the end of `06_grant_keigan_identity.sql` so the identity may alter tables.
 - **DBAs apply them.** Set `databaseMigration.enabled: false` in the Helm values. For each release, review the SQL of
-  the new migrations with `alembic upgrade <old>:<new> --sql` (from `backend/`) and run it.
+  the new migrations with `alembic upgrade <old>:<new> --sql` (from `backend/`) and run it. The ready-made, generated
+  result is in `migrations/<revision>_<name>.sql`: one file per revision after the baseline, run in order, each once, on a
+  database whose `keigan.alembic_version` is the revision named in the file header. A database created from steps 1-6 of the
+  current release already includes them. Never edit these files; they are produced from Alembic offline mode.
 
 ## Regenerating these files
 
@@ -78,7 +81,11 @@ The scripts are generated from the backend entities, which are the single source
 ```powershell
 .\.venv\Scripts\python.exe scripts\generate_azure_sql_ddl.py            # writes ../database/azure_sql
 .\.venv\Scripts\python.exe scripts\generate_azure_sql_ddl.py <folder> <schema>   # other folder or schema name
+.\.venv\Scripts\python.exe scripts\generate_azure_sql_migration_scripts.py       # writes ../database/azure_sql/migrations
 ```
+
+`backend/tests/integration/migrations/test_schema_drift.py` fails when the entities, the Alembic migrations or these
+scripts disagree, so a forgotten migration or a forgotten regeneration is caught by the test suite.
 
 ## SQL Server rules the entities follow
 
