@@ -1,0 +1,163 @@
+{
+  "generated_with": {
+    "reference_time": "2026-11-20T12:00:00+00:00",
+    "random_seed": 0,
+    "schema_name": "keigan"
+  },
+  "files": {
+    "01_applications_and_topology.sql": {
+      "committed": true,
+      "rows": {
+        "application": 5,
+        "application_component": 6,
+        "log_tool_connection": 4,
+        "servicenow_assignment_group": 6,
+        "stakeholder": 10,
+        "discovered_resource": 6,
+        "monitored_service": 19,
+        "service_dependency": 14,
+        "service_log_source": 34
+      },
+      "sha256": "1cbf00a7a7dbdcbab8785b0c54c1837c6ac713b60851a649c0f882fda0dc0411"
+    },
+    "02_knowledge.sql": {
+      "committed": true,
+      "rows": {
+        "external_integration": 4,
+        "application_record_link": 8,
+        "application_topology": 5,
+        "knowledge_document": 4,
+        "runbook": 8,
+        "knowledge_chunk": 42,
+        "topology_review_comment": 3
+      },
+      "sha256": "9d2c287383896ad8650fb3214345153c256d1621a2ba77641a57e29cb13aefc7"
+    },
+    "03_alerts_and_slos.sql": {
+      "committed": true,
+      "rows": {
+        "alert": 15,
+        "alert_group": 13,
+        "alert_decision": 160,
+        "alert_mute_rule": 1,
+        "alert_source": 7,
+        "maintenance_window": 1,
+        "noise_reduction_policy": 5,
+        "service_level_indicator": 89,
+        "alert_event": 175,
+        "service_level_objective": 37
+      },
+      "sha256": "40c7cca894b47bc1c284fa74b0a1d09a9347857d741363f54d9faf226848e62f"
+    },
+    "04_sli_measurements.sql": {
+      "committed": false,
+      "rows": {
+        "sli_measurement": 424512
+      },
+      "sha256": "26158457cf56e2101348569ccf98704256503cb451cef56c6de1b64f5b0c1b89"
+    },
+    "05_incidents_and_investigations.sql": {
+      "committed": true,
+      "rows": {
+        "incident_communication": 56,
+        "investigation_timeline_event": 68,
+        "postmortem_report": 7,
+        "incident": 7,
+        "investigation": 7,
+        "investigation_evidence": 103,
+        "investigation_hypothesis": 21
+      },
+      "sha256": "a6eadd488ebbd5cb32af59bfa9d097bf73586553eacb77ea9ca26df6cfd944c8"
+    },
+    "06_intelligence_and_collaboration.sql": {
+      "committed": true,
+      "rows": {
+        "conversation": 1,
+        "intelligence_report": 4,
+        "notification_delivery": 58,
+        "platform_setting": 7,
+        "predictive_signal": 7,
+        "teams_incident_chat": 1,
+        "conversation_message": 9
+      },
+      "sha256": "f698b7c2cf463a0f8c27d4f83efd6c3d7a6d867262ac4b7b0dbbf103d7f88f8d"
+    },
+    "99_remove_demo_data.sql": {
+      "committed": true,
+      "rows": {
+        "application": 5,
+        "application_component": 6,
+        "log_tool_connection": 4,
+        "servicenow_assignment_group": 6,
+        "stakeholder": 10,
+        "discovered_resource": 6,
+        "monitored_service": 19,
+        "service_dependency": 14,
+        "service_log_source": 34,
+        "external_integration": 4,
+        "application_record_link": 8,
+        "application_topology": 5,
+        "knowledge_document": 4,
+        "runbook": 8,
+        "knowledge_chunk": 42,
+        "topology_review_comment": 3,
+        "alert": 15,
+        "alert_group": 13,
+        "alert_decision": 160,
+        "alert_mute_rule": 1,
+        "alert_source": 7,
+        "maintenance_window": 1,
+        "noise_reduction_policy": 5,
+        "service_level_indicator": 89,
+        "alert_event": 175,
+        "service_level_objective": 37,
+        "sli_measurement": 424512,
+        "incident_communication": 56,
+        "investigation_timeline_event": 68,
+        "postmortem_report": 7,
+        "incident": 7,
+        "investigation": 7,
+        "investigation_evidence": 103,
+        "investigation_hypothesis": 21,
+        "conversation": 1,
+        "intelligence_report": 4,
+        "notification_delivery": 58,
+        "platform_setting": 7,
+        "predictive_signal": 7,
+        "teams_incident_chat": 1,
+        "conversation_message": 9
+      },
+      "sha256": "6ddde39dfb4e4c926c8b4bb8db0332a7f81edab39966ec7ac3e8d758c87a3edf"
+    },
+    "run_all_demo_data.sql": {
+      "committed": true,
+      "rows": {},
+      "sha256": "e09937de9d8203c298644bb4a5b489b1d4ef31c8b1bf38c1b6b130373caaa8bd"
+    }
+  },
+  "tables_without_seeded_rows": [
+    "slo_burn_alert"
+  ],
+  "excluded_tables": {
+    "background_job": {
+      "reason": "Job queue rows are picked up and run by the workers (for example a queued simulate_alerts_for_scenario); seeded jobs would run in Azure.",
+      "seeded_rows": 1
+    },
+    "stored_secret": {
+      "reason": "Holds secret values; secrets are created through the Keigan UI or Key Vault, never from a script in the repository.",
+      "seeded_rows": 0
+    },
+    "platform_user": {
+      "reason": "Real people sign in and are created on first sign-in; a seeded identity row could grant or block access to a real person.",
+      "seeded_rows": 0
+    },
+    "llm_usage_record": {
+      "reason": "Records of real model calls and their cost; demo rows would distort usage reporting and budgets.",
+      "seeded_rows": 0
+    },
+    "audit_event": {
+      "reason": "The audit trail is append-only evidence of what really happened; seeded or deleted audit rows would make it untrustworthy.",
+      "seeded_rows": 5
+    }
+  }
+}
