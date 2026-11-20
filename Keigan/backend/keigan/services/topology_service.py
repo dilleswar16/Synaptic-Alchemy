@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.knowledge_ai_schemas import TopologyEdgeResult, TopologyNodeResult, TopologyResult
 from keigan.ai.llm_gateway import LlmUsageContext, ModelTier, PromptSection
+from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
 from keigan.config import application_context
 from keigan.dtos.common_dtos import JobAcceptedResponse
 from keigan.dtos.knowledge_dtos import (
@@ -110,7 +111,7 @@ class TopologyService:
         graph = self._validated_graph(result, services)
         await self.session.execute(update(ApplicationTopology).where(ApplicationTopology.application_id == application_id).values(is_current_version=False))
         topology.topology_graph_json = graph
-        topology.understanding_summary_markdown = result.narrative_markdown
+        topology.understanding_summary_markdown = sanitize_ai_markdown(result.narrative_markdown)
         topology.generated_from_document_ids_json = [document.knowledge_document_id for document in documents]
         topology.generated_by_model_name = generated_by_model_name
         topology.generation_status = "ready"
@@ -199,8 +200,20 @@ class TopologyService:
         return TopologyResult(nodes=nodes, edges=edges, narrative_markdown="\n\n".join(narrative_lines), uncertainties=uncertainties)
 
     @staticmethod
+    def _sanitized_result(result: TopologyResult) -> TopologyResult:
+        """Model-written text (labels, descriptions, narrative, uncertainties) has no links, images or HTML; keys and ids are left alone (V8)."""
+        return result.model_copy(update={
+            "nodes": [node.model_copy(update={"label": sanitize_ai_line(node.label, maximum_characters=200), "technology": sanitize_ai_line(node.technology, maximum_characters=200),
+                                              "description": sanitize_ai_markdown(node.description)}) for node in result.nodes],
+            "edges": [edge.model_copy(update={"protocol": sanitize_ai_line(edge.protocol, maximum_characters=100), "description": sanitize_ai_markdown(edge.description)}) for edge in result.edges],
+            "narrative_markdown": sanitize_ai_markdown(result.narrative_markdown),
+            "uncertainties": [sanitize_ai_line(item, maximum_characters=500) for item in result.uncertainties],
+        })
+
+    @staticmethod
     def _validated_graph(result: TopologyResult, services: list[MonitoredService]) -> dict[str, Any]:
         """Unique node keys, real service ids only (unknown nodes become ``external``), every service present, edges between existing nodes."""
+        result = TopologyService._sanitized_result(result)
         valid_service_ids = {service.service_id: service for service in services}
         nodes: dict[str, dict[str, Any]] = {}
         for node in result.nodes:

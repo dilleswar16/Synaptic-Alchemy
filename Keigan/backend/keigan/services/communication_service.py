@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from keigan.ai.investigation_ai_caller import InvestigationAiCaller, build_mock_context
 from keigan.ai.investigation_ai_schemas import CommunicationDraftSet, PostmortemResult
 from keigan.ai.llm_gateway import PromptSection
-from keigan.ai.author_labels import mask_author_name
+from keigan.ai.author_labels import mask_author_name, mask_known_names
 from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown, sanitize_ai_model
 from keigan.ai.user_facing_errors import describe_failure_for_user
 from keigan.config.settings import get_settings
@@ -276,6 +276,10 @@ class CommunicationService:
             list((await self.session.scalars(select(ConversationMessage).where(ConversationMessage.conversation_id == chat.conversation_id).order_by(ConversationMessage.created_at).limit(80))).all())
             if chat and chat.conversation_id else []
         )
+        # Postmortems name roles, not people: every known person name is replaced by a stable placeholder before the model sees it (V12).
+        person_names = {message.author_display_name for message in chat_messages if message.author_display_name} | {event.actor_display_name for event in timeline_events if event.actor_display_name}
+        timeline_lines = [(time_text, mask_known_names(masker, title, person_names)) for time_text, title in timeline_lines]
+        chat_facts = [mask_known_names(masker, fact, person_names) for fact in chat_facts]
         sent_communications = (await self.session.scalars(select(IncidentCommunication).where(IncidentCommunication.incident_id == incident_id, IncidentCommunication.communication_status == "sent"))).all()
         resolution_note = next((event.event_details_markdown for event in reversed(timeline_events) if event.event_type == "incident_resolved" and event.event_details_markdown), None)
         sections = [
@@ -284,8 +288,7 @@ class CommunicationService:
             PromptSection("Investigation", f"{investigation.executive_summary}\n\nWhat went wrong: {investigation.what_went_wrong_markdown}\n\nWhy: {investigation.why_it_happened_markdown}\n\nFix: {investigation.how_to_fix_markdown}" if investigation else "No investigation was completed.", is_untrusted=True, source_label="investigation"),
             PromptSection("Timeline", "\n".join(f"{time_text} {title}" for time_text, title in timeline_lines), is_untrusted=True, source_label="timeline"),
             PromptSection("Facts from the responders' chat", "\n".join(chat_facts) or "None recorded.", is_untrusted=True, source_label="teams chat facts"),
-            # Postmortems name roles, not people: author names are replaced by stable placeholders before the model sees them (V12).
-            PromptSection("Teams conversation", masker.mask_text("\n".join(f"{mask_author_name(masker, message.author_display_name or message.author_role)}: {message.message_text}" for message in chat_messages)) or "None.", is_untrusted=True, source_label="teams chat"),
+            PromptSection("Teams conversation", masker.mask_text("\n".join(f"{mask_author_name(masker, message.author_display_name or message.author_role)}: {mask_known_names(masker, message.message_text, person_names)}" for message in chat_messages)) or "None.", is_untrusted=True, source_label="teams chat"),
             PromptSection("Communications sent", "\n".join(f"{communication.sent_at}: {communication.subject_line}" for communication in sent_communications) or "None sent.", is_untrusted=True, source_label="communications"),
             PromptSection("Task", "Write the blameless postmortem."),
         ]
