@@ -1,4 +1,5 @@
 {
+  "stepPosition": "Stap {{index}} van {{total}}",
   "pageTitle": "Applicaties",
   "pageDescription": "De applicaties die Keigan bewaakt en hoever elke applicatie is met onboarding.",
   "onboardApplication": "Applicatie onboarden",
@@ -125,6 +126,8 @@
     "readOnly": "U hebt alleen-lezentoegang tot deze applicatie. Vraag een beheerder om wijzigingen door te voeren."
   },
   "review": {
+    "moreDetails": "Toon de volledige checklist en de samenvatting per stap",
+    "showSummary": "Toon de samenvatting per stap",
     "edit": "Bewerken",
     "requiredTitle": "Vereist om live te gaan",
     "requiredDescription": "Alleen deze punten blokkeren het live zetten.",

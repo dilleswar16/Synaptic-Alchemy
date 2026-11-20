@@ -94,11 +94,15 @@
     "beforeSwitch": "Measured effect before you switch to Active"
   },
   "windows": {
+    "deleteTitle": "Delete this maintenance window?",
+    "deleteDescription": "\"{{name}}\" will be removed. Alerts that arrive during that time will be investigated as usual.",
     "title": "Maintenance windows", "description": "Alerts inside a window are recorded and labelled, not investigated.", "add": "Add window", "create": "Create window", "name": "Name", "scope": "Services",
     "wholeApplication": "Whole application", "when": "When", "repeat": "Repeat", "weekly": "Repeats weekly", "once": "Once", "state": "State", "active": "Active now", "delete": "Delete window",
     "starts": "Starts", "ends": "Ends", "empty": "No maintenance windows"
   },
   "mute": {
+    "deleteTitle": "Delete this mute rule?",
+    "deleteDescription": "\"{{name}}\" will be removed. The alerts it matches will be investigated again from now on.",
     "title": "Mute rules", "description": "Expiry and reason are required. Expired rules are shown as expired, never deleted silently.", "add": "Add mute rule", "create": "Create mute rule", "name": "Name",
     "matcher": "Matches", "reason": "Reason", "expires": "Expires", "expired": "Expired", "delete": "Delete mute rule", "ruleContains": "Rule name contains", "severity": "Severity", "anySeverity": "Any severity",
     "expiresHelp": "Mute rules always end.", "empty": "No mute rules"

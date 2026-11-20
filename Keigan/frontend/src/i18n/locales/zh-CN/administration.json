@@ -3,6 +3,12 @@
   "pageDescription": "面向 Keigan 管理员的平台设置、用量和投递记录。",
   "tabs": { "usage": "AI 用量", "audit": "审计日志", "jobs": "后台作业" },
   "settings": {
+    "searchLabel": "筛选设置",
+    "searchPlaceholder": "按名称筛选设置",
+    "noMatches": "没有名称包含“{{query}}”的设置。",
+    "hiddenValue": "值已隐藏",
+    "showValue": "显示值",
+    "hideValue": "隐藏值",
     "pageTitle": "平台设置",
     "pageDescription": "生效配置、身份和连接测试。",
     "integrationsTitle": "集成",
@@ -84,6 +90,10 @@
     "columns": { "type": "作业", "status": "状态", "attempts": "尝试次数", "created": "创建时间", "error": "最近错误" }
   },
   "outbox": {
+    "filterSearch": "搜索收件人或主题",
+    "filterAllStatuses": "所有状态",
+    "noMatchTitle": "没有匹配的消息",
+    "noMatchDescription": "清除筛选即可查看全部。搜索仅针对当前页的消息。",
     "status": { "pending": "待发送", "sent": "已发送", "simulated": "模拟", "failed": "失败", "skipped": "已跳过" },
     "pageTitle": "发件箱",
     "pageDescription": "Keigan 已发送或模拟发送的邮件和 Teams 消息。",

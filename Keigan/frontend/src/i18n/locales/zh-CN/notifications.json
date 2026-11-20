@@ -2,6 +2,9 @@
   "pageTitle": "通知",
   "pageDescription": "谁会收到事件、报告和 SLO 燃烧通知，以及通过什么方式接收。",
   "stakeholders": {
+    "lead": "相关人员会收到其订阅的事件通知。",
+    "howItWorks": "工作方式",
+    "emailSimulatedChip": "邮件为模拟",
     "intro": "相关方只会收到其订阅的内容。Keigan 仅向此处列出的人员发送，并按受影响的服务和事件优先级进行匹配，且使用每个人的语言撰写（英语或日语，其他语言的用户将收到英语）。",
     "addTitle": "添加相关方",
     "addButton": "添加相关方",

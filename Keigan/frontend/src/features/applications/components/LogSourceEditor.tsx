@@ -11,6 +11,7 @@ import {
   type MonitoredServiceRow,
 } from "@/api/applicationsApi";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -94,6 +95,7 @@ export function LogSourceEditor({ applicationId, service, canEdit }: { applicati
   const replaceLogSources = useReplaceLogSources(applicationId);
   const testLogSource = useTestLogSource(applicationId);
   const [isAdding, setIsAdding] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<LogSource | null>(null);
   const sources = service.logSources;
 
   const save = (next: LogSourceInput[]) => replaceLogSources.mutate({ serviceId: service.serviceId, sources: next }, { onSuccess: () => setIsAdding(false) });
@@ -125,7 +127,7 @@ export function LogSourceEditor({ applicationId, service, canEdit }: { applicati
               {canEdit ? (
                 <>
                   <Button size="sm" variant="ghost" leadingIcon={Play} isLoading={testLogSource.isPending && testLogSource.variables?.logSourceId === source.serviceLogSourceId} onClick={() => runTest(source)}>{t("logSource.test")}</Button>
-                  <Button size="sm" variant="ghost" leadingIcon={Trash2} aria-label={t("logSource.remove")} onClick={() => save(sources.filter((candidate) => candidate.serviceLogSourceId !== source.serviceLogSourceId).map(toInput))} />
+                  <Button size="sm" variant="ghost" leadingIcon={Trash2} aria-label={t("logSource.remove")} onClick={() => setPendingRemoval(source)} />
                 </>
               ) : null}
             </li>
@@ -139,6 +141,16 @@ export function LogSourceEditor({ applicationId, service, canEdit }: { applicati
           <Button className="self-start" size="sm" variant="secondary" leadingIcon={Plus} onClick={() => setIsAdding(true)}>{t("logSource.addSource")}</Button>
         )
       ) : null}
+      <ConfirmDialog
+        open={pendingRemoval !== null}
+        onOpenChange={(isOpen) => !isOpen && setPendingRemoval(null)}
+        title={t("logSource.removeTitle")}
+        description={t("logSource.removeDescription", { source: pendingRemoval ? t(`logSource.kinds.${pendingRemoval.sourceKind}`) : "", service: service.serviceName })}
+        confirmLabel={t("logSource.remove")}
+        onConfirm={() => {
+          if (pendingRemoval) save(sources.filter((candidate) => candidate.serviceLogSourceId !== pendingRemoval.serviceLogSourceId).map(toInput));
+        }}
+      />
     </div>
   );
 }

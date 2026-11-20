@@ -94,11 +94,15 @@
     "beforeSwitch": "Effet mesuré avant de passer en mode Actif"
   },
   "windows": {
+    "deleteTitle": "Supprimer cette fenêtre de maintenance ?",
+    "deleteDescription": "« {{name}} » sera supprimée. Les alertes reçues pendant cette période seront analysées normalement.",
     "title": "Fenêtres de maintenance", "description": "Les alertes pendant une fenêtre sont enregistrées et étiquetées, mais non investiguées.", "add": "Ajouter une fenêtre", "create": "Créer la fenêtre", "name": "Nom", "scope": "Services",
     "wholeApplication": "Application entière", "when": "Quand", "repeat": "Répétition", "weekly": "Se répète chaque semaine", "once": "Une fois", "state": "État", "active": "Active maintenant", "delete": "Supprimer la fenêtre",
     "starts": "Début", "ends": "Fin", "empty": "Aucune fenêtre de maintenance"
   },
   "mute": {
+    "deleteTitle": "Supprimer cette règle de mise en sourdine ?",
+    "deleteDescription": "« {{name}} » sera supprimée. Les alertes qu’elle couvrait seront de nouveau analysées à partir de maintenant.",
     "title": "Règles de sourdine", "description": "L'expiration et la raison sont obligatoires. Les règles expirées sont affichées comme expirées, jamais supprimées silencieusement.", "add": "Ajouter une règle de sourdine", "create": "Créer la règle de sourdine", "name": "Nom",
     "matcher": "Correspond à", "reason": "Raison", "expires": "Expire", "expired": "Expirée", "delete": "Supprimer la règle de sourdine", "ruleContains": "Le nom de la règle contient", "severity": "Gravité", "anySeverity": "Toute gravité",
     "expiresHelp": "Les règles de sourdine prennent toujours fin.", "empty": "Aucune règle de sourdine"

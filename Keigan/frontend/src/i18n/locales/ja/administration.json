@@ -3,6 +3,12 @@
   "pageDescription": "Keigan 管理者向けのプラットフォーム設定、利用状況、配信記録です。",
   "tabs": { "usage": "AI 利用状況", "audit": "監査ログ", "jobs": "バックグラウンドジョブ" },
   "settings": {
+    "searchLabel": "設定を絞り込む",
+    "searchPlaceholder": "設定名で絞り込み",
+    "noMatches": "「{{query}}」に一致する設定はありません。",
+    "hiddenValue": "値は非表示",
+    "showValue": "値を表示",
+    "hideValue": "値を非表示",
     "pageTitle": "プラットフォーム設定",
     "pageDescription": "有効な設定、ID、接続テストです。",
     "integrationsTitle": "連携",
@@ -84,6 +90,10 @@
     "columns": { "type": "ジョブ", "status": "ステータス", "attempts": "試行回数", "created": "作成日時", "error": "直近のエラー" }
   },
   "outbox": {
+    "filterSearch": "宛先または件名を検索",
+    "filterAllStatuses": "すべてのステータス",
+    "noMatchTitle": "一致するメッセージはありません",
+    "noMatchDescription": "フィルターを解除するとすべて表示されます。検索はこのページのメッセージが対象です。",
     "status": { "pending": "保留中", "sent": "送信済み", "simulated": "シミュレーション", "failed": "失敗", "skipped": "スキップ" },
     "pageTitle": "送信トレイ",
     "pageDescription": "Keigan が送信またはシミュレートしたメールと Teams メッセージです。",

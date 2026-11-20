@@ -3,6 +3,12 @@
   "pageDescription": "Paramètres de la plateforme, utilisation et enregistrements de livraison pour les administrateurs Keigan.",
   "tabs": { "usage": "Utilisation de l'IA", "audit": "Journal d'audit", "jobs": "Tâches en arrière-plan" },
   "settings": {
+    "searchLabel": "Filtrer les paramètres",
+    "searchPlaceholder": "Filtrer les paramètres par nom",
+    "noMatches": "Aucun paramètre ne correspond à « {{query}} ».",
+    "hiddenValue": "Valeur masquée",
+    "showValue": "Afficher la valeur",
+    "hideValue": "Masquer la valeur",
     "pageTitle": "Paramètres de la plateforme",
     "pageDescription": "Configuration effective, identités et tests de connexion.",
     "integrationsTitle": "Intégrations",
@@ -84,6 +90,10 @@
     "columns": { "type": "Tâche", "status": "Statut", "attempts": "Tentatives", "created": "Créée", "error": "Dernière erreur" }
   },
   "outbox": {
+    "filterSearch": "Rechercher un destinataire ou un objet",
+    "filterAllStatuses": "Tous les statuts",
+    "noMatchTitle": "Aucun message ne correspond",
+    "noMatchDescription": "Effacez les filtres pour tout voir. La recherche porte sur les messages de cette page.",
     "status": { "pending": "En attente", "sent": "Envoyé", "simulated": "Simulé", "failed": "Échec", "skipped": "Ignoré" },
     "pageTitle": "Boîte d'envoi",
     "pageDescription": "E-mails et messages Teams que Keigan a envoyés ou simulés.",

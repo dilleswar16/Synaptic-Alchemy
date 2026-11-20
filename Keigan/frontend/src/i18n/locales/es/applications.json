@@ -1,4 +1,5 @@
 {
+  "stepPosition": "Paso {{index}} de {{total}}",
   "pageTitle": "Aplicaciones",
   "pageDescription": "Las aplicaciones que Keigan vigila y cuánto han avanzado en la incorporación.",
   "onboardApplication": "Incorporar aplicación",
@@ -125,6 +126,8 @@
     "readOnly": "Tiene acceso de solo lectura a esta aplicación. Pida a un administrador que haga los cambios."
   },
   "review": {
+    "moreDetails": "Mostrar la lista completa y el resumen por paso",
+    "showSummary": "Mostrar el resumen por paso",
     "edit": "Editar",
     "requiredTitle": "Obligatorio para poner en producción",
     "requiredDescription": "Solo esto impide la puesta en producción.",

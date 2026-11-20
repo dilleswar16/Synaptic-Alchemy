@@ -2,6 +2,9 @@
   "pageTitle": "Notificaties",
   "pageDescription": "Wie incidenten, rapporten en SLO-burn te horen krijgt, en hoe.",
   "stakeholders": {
+    "lead": "Belanghebbenden ontvangen de incidentmeldingen waarop ze zijn geabonneerd.",
+    "howItWorks": "Hoe dit werkt",
+    "emailSimulatedChip": "E-mail gesimuleerd",
     "intro": "Belanghebbenden ontvangen waarop ze zijn geabonneerd. Keigan verstuurt alleen naar de personen die hier staan, op basis van de getroffen services en de incidentprioriteit, en schrijft in de taal van elke persoon (Engels of Japans, andere talen ontvangen Engels).",
     "addTitle": "Een belanghebbende toevoegen",
     "addButton": "Belanghebbende toevoegen",

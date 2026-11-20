@@ -3,6 +3,12 @@
   "pageDescription": "Platforminstellingen, gebruik en bezorgrecords voor Keigan-beheerders.",
   "tabs": { "usage": "AI-gebruik", "audit": "Auditlogboek", "jobs": "Achtergrondtaken" },
   "settings": {
+    "searchLabel": "Instellingen filteren",
+    "searchPlaceholder": "Filter instellingen op naam",
+    "noMatches": "Geen instelling heet zoals \"{{query}}\".",
+    "hiddenValue": "Waarde verborgen",
+    "showValue": "Waarde tonen",
+    "hideValue": "Waarde verbergen",
     "pageTitle": "Platforminstellingen",
     "pageDescription": "Effectieve configuratie, identiteiten en verbindingstests.",
     "integrationsTitle": "Integraties",
@@ -84,6 +90,10 @@
     "columns": { "type": "Taak", "status": "Status", "attempts": "Pogingen", "created": "Aangemaakt", "error": "Laatste fout" }
   },
   "outbox": {
+    "filterSearch": "Zoek op ontvanger of onderwerp",
+    "filterAllStatuses": "Alle statussen",
+    "noMatchTitle": "Geen berichten gevonden",
+    "noMatchDescription": "Wis de filters om alles te zien. Zoeken gebeurt op de berichten van deze pagina.",
     "status": { "pending": "In behandeling", "sent": "Verzonden", "simulated": "Gesimuleerd", "failed": "Mislukt", "skipped": "Overgeslagen" },
     "pageTitle": "Postvak uit",
     "pageDescription": "E-mails en Teams-berichten die Keigan heeft verzonden of gesimuleerd.",

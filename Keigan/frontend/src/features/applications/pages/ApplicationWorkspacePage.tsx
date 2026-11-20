@@ -12,7 +12,7 @@ import { ReadinessBar } from "@/components/ui/ReadinessBar";
 import { SaveIndicator } from "@/components/ui/SaveIndicator";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusChip } from "@/components/ui/StatusChip";
-import { Stepper, type StepperStage } from "@/components/ui/Stepper";
+import { Stepper, StepperCompact, type StepperStage } from "@/components/ui/Stepper";
 import { cn } from "@/utils/cn";
 import { lifecycleTone } from "../components/lifecycle";
 import { useSaveStatus } from "../hooks/useSaveStatus";
@@ -77,7 +77,11 @@ export default function ApplicationWorkspacePage() {
     [readiness, t],
   );
 
-  if (!stepKey || !isStepKey(stepKey)) return <Navigate to={`/applications/${applicationId}/components`} replace />;
+  if (!stepKey || !isStepKey(stepKey)) {
+    // A bare application link opens the first unfinished step (the readiness "next step"), not always the first one.
+    if (readinessQuery.isLoading) return <Skeleton className="h-96 rounded-lg" />;
+    return <Navigate to={`/applications/${applicationId}/${readinessQuery.data?.nextStepKey ?? "components"}`} replace />;
+  }
   if (applicationQuery.isError) return <ErrorState error={applicationQuery.error} onRetry={() => void applicationQuery.refetch()} />;
   if (applicationQuery.isLoading || !applicationQuery.data) return <Skeleton className="h-96 rounded-lg" />;
 
@@ -126,7 +130,15 @@ export default function ApplicationWorkspacePage() {
 
       <div className="grid items-start gap-8 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="lg:sticky lg:top-20">
-          <Stepper aria-label={t("stepperLabel")} stages={stages} currentStepKey={stepKey} onStepSelect={(selectedKey) => goToStep(selectedKey)} />
+          <StepperCompact
+            className="lg:hidden"
+            aria-label={t("stepperLabel")}
+            summary={`${t("stepPosition", { index: stepIndex + 1, total: stepDefinitions.length })} · ${t(`steps.${stepKey}.label`)}`}
+            stages={stages}
+            currentStepKey={stepKey}
+            onStepSelect={(selectedKey) => goToStep(selectedKey)}
+          />
+          <Stepper className="max-lg:hidden" aria-label={t("stepperLabel")} stages={stages} currentStepKey={stepKey} onStepSelect={(selectedKey) => goToStep(selectedKey)} />
         </aside>
         <section aria-live="polite" className="min-w-0">
           <div className={cn("pb-24", currentDefinition.isWide ? "" : "max-w-[760px]")}>

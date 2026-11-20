@@ -1,4 +1,5 @@
 {
+  "stepPosition": "ステップ {{index}} / {{total}}",
   "pageTitle": "アプリケーション",
   "pageDescription": "Keigan が監視しているアプリケーションと、各アプリケーションのオンボーディングの進捗です。",
   "onboardApplication": "アプリケーションをオンボード",
@@ -125,6 +126,8 @@
     "readOnly": "このアプリケーションへのアクセスは読み取り専用です。変更が必要な場合は管理者に依頼してください。"
   },
   "review": {
+    "moreDetails": "チェックリスト全体とステップ別の概要を表示",
+    "showSummary": "ステップ別の概要を表示",
     "edit": "編集",
     "requiredTitle": "稼働開始に必須",
     "requiredDescription": "稼働開始を妨げるのはこれらだけです。",

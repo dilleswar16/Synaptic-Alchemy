@@ -94,11 +94,15 @@
     "beforeSwitch": "アクティブに切り替える前の測定効果"
   },
   "windows": {
+    "deleteTitle": "このメンテナンスウィンドウを削除しますか？",
+    "deleteDescription": "「{{name}}」を削除します。その時間帯に届くアラートは通常どおり調査されます。",
     "title": "メンテナンスウィンドウ", "description": "ウィンドウ内のアラートは記録とラベル付けのみで、調査されません。", "add": "ウィンドウを追加", "create": "ウィンドウを作成", "name": "名前", "scope": "サービス",
     "wholeApplication": "アプリケーション全体", "when": "日時", "repeat": "繰り返し", "weekly": "毎週繰り返す", "once": "1 回のみ", "state": "状態", "active": "現在有効", "delete": "ウィンドウを削除",
     "starts": "開始", "ends": "終了", "empty": "メンテナンスウィンドウはありません"
   },
   "mute": {
+    "deleteTitle": "このミュートルールを削除しますか？",
+    "deleteDescription": "「{{name}}」を削除します。このルールに一致していたアラートは、今後再び調査されます。",
     "title": "ミュートルール", "description": "有効期限と理由は必須です。期限切れのルールは、黙って削除されず、期限切れとして表示されます。", "add": "ミュートルールを追加", "create": "ミュートルールを作成", "name": "名前",
     "matcher": "一致条件", "reason": "理由", "expires": "有効期限", "expired": "期限切れ", "delete": "ミュートルールを削除", "ruleContains": "ルール名に含まれる文字列", "severity": "重大度", "anySeverity": "すべての重大度",
     "expiresHelp": "ミュートルールは必ず終了します。", "empty": "ミュートルールはありません"

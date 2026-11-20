@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { CheckCircle2, Circle, Info, PauseCircle, PlayCircle, Rocket } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { CheckCircle2, ChevronDown, Circle, Info, PauseCircle, PlayCircle, Rocket } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { isApiError } from "@/api/httpClient";
@@ -31,6 +31,19 @@ function RequirementRow({ requirement, applicationId, isNeutral }: { requirement
   );
 }
 
+/** Collapsed by default: the full checklist and the per-step summary are reference, not what the reader has to act on. */
+function Disclosure({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <details className="group">
+      <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-xs text-body-sm font-medium text-action outline-none hover:underline focus-visible:ring-2 focus-visible:ring-action [&::-webkit-details-marker]:hidden">
+        <ChevronDown aria-hidden="true" size={16} className="transition-transform group-open:rotate-180" />
+        {label}
+      </summary>
+      <div className="mt-4 flex flex-col gap-6">{children}</div>
+    </details>
+  );
+}
+
 /** Step 11: read-only summary per step with Edit links, the required checklist (only these block go-live) and the go-live confirmation. */
 export function ReviewStep({ applicationId, canEdit, onStatusChange }: StepProps) {
   const { t } = useTranslation("applications");
@@ -46,6 +59,45 @@ export function ReviewStep({ applicationId, canEdit, onStatusChange }: StepProps
 
   const isLive = application.lifecycleStatus === "live";
   const isPaused = application.lifecycleStatus === "paused";
+  const blockers = readiness.required.filter((requirement) => !requirement.isDone);
+  const hasBlockers = blockers.length > 0;
+  const requirementsCard = (requirements: Requirement[]) => (
+    <Card>
+      <CardHeader title={t("review.requiredTitle")} description={t("review.requiredDescription")} />
+      <CardBody><ul className="divide-y divide-hairline">{requirements.map((requirement) => <RequirementRow key={requirement.requirementKey} requirement={requirement} applicationId={applicationId} isNeutral={false} />)}</ul></CardBody>
+    </Card>
+  );
+  const goodToKnowCard = (
+    <Card>
+      <CardHeader title={t("review.goodToKnowTitle")} description={t("review.goodToKnowDescription")} />
+      <CardBody><ul className="divide-y divide-hairline">{readiness.goodToKnow.map((requirement) => <RequirementRow key={requirement.requirementKey} requirement={requirement} applicationId={applicationId} isNeutral />)}</ul></CardBody>
+    </Card>
+  );
+  const summaryCard = (
+    <Card>
+      <CardHeader title={t("review.summaryTitle")} />
+      <CardBody>
+        <ul className="divide-y divide-hairline">
+          {stepDefinitions.filter((definition) => definition.key !== "review").map((definition) => {
+            const status = readiness.steps.find((entry) => entry.stepKey === definition.key)?.status ?? "not_started";
+            return (
+              <li key={definition.key} className="flex items-center justify-between gap-3 py-2">
+                <span className="flex items-center gap-2.5 text-body-sm"><StepStatusIcon status={status} size={18} />{t(`steps.${definition.key}.label`)}<span className="text-muted">· {t(`status.${status}`)}</span></span>
+                <Link className="text-body-sm text-action hover:underline" to={`/applications/${applicationId}/${definition.key}`}>{t("review.edit")}</Link>
+              </li>
+            );
+          })}
+        </ul>
+      </CardBody>
+    </Card>
+  );
+  const goLiveBar =
+    !isLive && !isPaused && canEdit ? (
+      <div className="flex flex-col items-start gap-2">
+        <Button size="lg" leadingIcon={Rocket} disabled={!readiness.canGoLive} onClick={() => setIsConfirmingGoLive(true)}>{t("actions.goLive")}</Button>
+        {!readiness.canGoLive ? <p className="text-body-sm text-muted">{t("review.goLiveBlocked")}</p> : null}
+      </div>
+    ) : null;
 
   return (
     <StepFrame stepKey="review">
@@ -61,39 +113,24 @@ export function ReviewStep({ applicationId, canEdit, onStatusChange }: StepProps
         </Banner>
       ) : null}
 
-      <Card>
-        <CardHeader title={t("review.requiredTitle")} description={t("review.requiredDescription")} />
-        <CardBody><ul className="divide-y divide-hairline">{readiness.required.map((requirement) => <RequirementRow key={requirement.requirementKey} requirement={requirement} applicationId={applicationId} isNeutral={false} />)}</ul></CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader title={t("review.goodToKnowTitle")} description={t("review.goodToKnowDescription")} />
-        <CardBody><ul className="divide-y divide-hairline">{readiness.goodToKnow.map((requirement) => <RequirementRow key={requirement.requirementKey} requirement={requirement} applicationId={applicationId} isNeutral />)}</ul></CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader title={t("review.summaryTitle")} />
-        <CardBody>
-          <ul className="divide-y divide-hairline">
-            {stepDefinitions.filter((definition) => definition.key !== "review").map((definition) => {
-              const status = readiness.steps.find((entry) => entry.stepKey === definition.key)?.status ?? "not_started";
-              return (
-                <li key={definition.key} className="flex items-center justify-between gap-3 py-2">
-                  <span className="flex items-center gap-2.5 text-body-sm"><StepStatusIcon status={status} size={18} />{t(`steps.${definition.key}.label`)}<span className="text-muted">· {t(`status.${status}`)}</span></span>
-                  <Link className="text-body-sm text-action hover:underline" to={`/applications/${applicationId}/${definition.key}`}>{t("review.edit")}</Link>
-                </li>
-              );
-            })}
-          </ul>
-        </CardBody>
-      </Card>
-
-      {!isLive && !isPaused && canEdit ? (
-        <div className="flex flex-col items-start gap-2">
-          <Button size="lg" leadingIcon={Rocket} disabled={!readiness.canGoLive} onClick={() => setIsConfirmingGoLive(true)}>{t("actions.goLive")}</Button>
-          {!readiness.canGoLive ? <p className="text-body-sm text-muted">{t("review.goLiveBlocked")}</p> : null}
-        </div>
-      ) : null}
+      {hasBlockers ? (
+        <>
+          {requirementsCard(blockers)}
+          {goLiveBar}
+          <Disclosure label={t("review.moreDetails")}>
+            {requirementsCard(readiness.required)}
+            {goodToKnowCard}
+            {summaryCard}
+          </Disclosure>
+        </>
+      ) : (
+        <>
+          {requirementsCard(readiness.required)}
+          {goodToKnowCard}
+          {goLiveBar}
+          <Disclosure label={t("review.showSummary")}>{summaryCard}</Disclosure>
+        </>
+      )}
       {lifecycleAction.isError ? <Banner tone="danger">{isApiError(lifecycleAction.error) ? lifecycleAction.error.detail : t("review.actionFailed")}</Banner> : null}
 
       <ConfirmDialog

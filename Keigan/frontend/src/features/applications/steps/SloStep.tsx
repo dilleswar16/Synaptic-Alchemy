@@ -87,27 +87,34 @@ export function SloStep({ applicationId, canEdit, onStatusChange }: StepProps) {
               <summary className="cursor-pointer px-4 py-3 font-semibold">{group.serviceName} <span className="text-caption font-normal text-muted">{translateOnboarding(`serviceTypes.${group.serviceType}`, { defaultValue: group.serviceType })}</span></summary>
               <div className="overflow-x-auto">
                 <table className="w-full text-body-sm">
-                  <thead><tr className="text-left text-caption text-muted"><th className="px-4 py-2" /><th>{t("proposals.columns.sli")}</th><th>{t("proposals.columns.source")}</th><th>{t("proposals.columns.measured")}</th><th>{t("proposals.columns.target")}</th><th>{t("proposals.columns.window")}</th><th>{t("proposals.columns.budget")}</th></tr></thead>
+                  <thead><tr className="text-left text-caption text-muted"><th className="px-4 py-2" /><th>{t("proposals.columns.sli")}</th><th>{t("proposals.columns.measured")}</th><th>{t("proposals.columns.target")}</th></tr></thead>
                   <tbody>
                     {group.proposals.map((proposal) => {
                       const row = rows[proposal.proposalKey];
                       return (
-                        <tr key={proposal.proposalKey} className="border-t border-hairline align-middle">
-                          <td className="px-4 py-2"><Checkbox aria-label={proposal.sliName} checked={Boolean(row?.isChecked) && !proposal.alreadyAccepted} disabled={!canEdit || !proposal.isAvailable || proposal.alreadyAccepted} onCheckedChange={(value) => update(proposal.proposalKey, { isChecked: value === true })} /></td>
-                          <td className="py-2 pr-3">
-                            <span className="flex items-center gap-1.5 font-semibold">{proposal.sliName}
+                        <tr key={proposal.proposalKey} className="border-t border-hairline align-top">
+                          <td className="px-4 py-3"><Checkbox aria-label={proposal.sliName} checked={Boolean(row?.isChecked) && !proposal.alreadyAccepted} disabled={!canEdit || !proposal.isAvailable || proposal.alreadyAccepted} onCheckedChange={(value) => update(proposal.proposalKey, { isChecked: value === true })} /></td>
+                          <td className="py-3 pr-3">
+                            <span className="flex flex-wrap items-center gap-1.5 font-semibold">{proposal.sliName}
                               <Tooltip content={proposal.explanation}><button type="button" aria-label={t("proposals.explain")} className="text-muted"><Info className="size-3.5" /></button></Tooltip>
                               {proposal.isApproximate ? <StatusChip tone="neutral" size="sm" variant="outline" icon={false}>{t("proposals.approximate")}</StatusChip> : null}
                               {proposal.alreadyAccepted ? <StatusChip tone="success" size="sm" icon={false}>{t("proposals.alreadyAccepted")}</StatusChip> : null}
                             </span>
-                            {proposal.disabledReason ? <span className="text-caption text-muted">{proposal.disabledReason}</span> : null}
+                            <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 font-normal">
+                              <StatusChip tone="neutral" size="sm" variant="outline" icon={false}>{proposal.sourceChip}</StatusChip>
+                              {proposal.isAvailable && row ? (
+                                <span className="flex items-center gap-1.5 text-caption text-muted">
+                                  {t("proposals.columns.window")}
+                                  <Select size="sm" aria-label={t("proposals.columns.window")} disabled={!canEdit || proposal.alreadyAccepted} value={String(row.windowDays)} onValueChange={(value) => update(proposal.proposalKey, { windowDays: Number(value) as 7 | 28 | 30 })} options={["7", "28", "30"].map((days) => ({ value: days, label: t("proposals.days", { days }) }))} className="w-28" />
+                                </span>
+                              ) : null}
+                              {proposal.errorBudgetText ? <span className="text-caption text-muted">{t("proposals.columns.budget")}: {proposal.errorBudgetText}</span> : null}
+                            </span>
+                            {proposal.disabledReason ? <span className="mt-1 block text-caption text-muted">{proposal.disabledReason}</span> : null}
                             {proposal.warning ? <span className="block text-caption text-warning">{proposal.warning}</span> : null}
                           </td>
-                          <td className="pr-3"><StatusChip tone="neutral" size="sm" variant="outline" icon={false}>{proposal.sourceChip}</StatusChip></td>
-                          <td className="pr-3">{proposal.measuredPercentage === null ? "–" : <span className="flex items-center gap-2">{formatNumber(proposal.measuredPercentage, { maximumFractionDigits: 3 })} %<Sparkline values={proposal.sparkline} width={72} height={22} ariaLabel={t("proposals.sparkline", { name: proposal.sliName })} /></span>}</td>
-                          <td className="pr-3">{proposal.isAvailable && row ? <Input size="sm" type="number" step="0.01" aria-label={t("proposals.columns.target")} disabled={!canEdit || proposal.alreadyAccepted} value={row.target} onChange={(event) => update(proposal.proposalKey, { target: Number(event.target.value) })} containerClassName="w-28" trailingContent="%" /> : "–"}</td>
-                          <td className="pr-3">{proposal.isAvailable && row ? <Select size="sm" aria-label={t("proposals.columns.window")} disabled={!canEdit || proposal.alreadyAccepted} value={String(row.windowDays)} onValueChange={(value) => update(proposal.proposalKey, { windowDays: Number(value) as 7 | 28 | 30 })} options={["7", "28", "30"].map((days) => ({ value: days, label: t("proposals.days", { days }) }))} className="w-28" /> : "–"}</td>
-                          <td className="pr-3 text-muted">{proposal.errorBudgetText ?? "–"}</td>
+                          <td className="py-3 pr-3">{proposal.measuredPercentage === null ? "–" : <span className="flex items-center gap-2 whitespace-nowrap">{formatNumber(proposal.measuredPercentage, { maximumFractionDigits: 3 })} %<Sparkline values={proposal.sparkline} width={72} height={22} ariaLabel={t("proposals.sparkline", { name: proposal.sliName })} /></span>}</td>
+                          <td className="py-3 pr-3">{proposal.isAvailable && row ? <Input size="sm" type="number" step="0.01" aria-label={t("proposals.columns.target")} disabled={!canEdit || proposal.alreadyAccepted} value={row.target} onChange={(event) => update(proposal.proposalKey, { target: Number(event.target.value) })} containerClassName="w-28" trailingContent="%" /> : "–"}</td>
                         </tr>
                       );
                     })}

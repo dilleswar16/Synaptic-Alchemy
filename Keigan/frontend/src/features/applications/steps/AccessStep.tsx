@@ -37,7 +37,7 @@ function GroupCard({ title, groupName, objectId, canEditNames, canEdit, onSave }
         <div className="grid gap-3 sm:grid-cols-2">
           <Input label={t("access.groupName")} disabled={!canEditNames} value={name} onChange={(event) => setName(event.target.value)} />
           <Input label={t("access.objectId")} isOptional helperText={t("access.objectIdHelp")} value={identifier} onChange={(event) => setIdentifier(event.target.value)} />
-          <Button className="self-start sm:col-span-2" size="sm" disabled={!hasChanges} onClick={() => onSave({ name, objectId: identifier })}>{t("access.save")}</Button>
+          {hasChanges ? <Button className="justify-self-start sm:col-span-2" size="sm" onClick={() => onSave({ name, objectId: identifier })}>{t("access.save")}</Button> : null}
         </div>
       ) : objectId ? (
         <div className="text-body-sm text-muted">{t("access.objectId")}: <span className="font-mono">{objectId}</span></div>
@@ -112,8 +112,11 @@ export function AccessStep({ applicationId, canEdit, onStatusChange }: StepProps
         <Skeleton className="h-48 rounded-lg" />
       ) : (
         <div className="flex flex-col gap-4">
-          <Banner tone="info" title={t("access.howItWorksTitle")}>{t("access.howItWorksBody")}</Banner>
-          <Banner tone="info" title={t("access.sailpointTitle")}>{access.sailpointInstructions}</Banner>
+          <Banner tone="info" title={t("access.howItWorksTitle")}>
+            <p>{t("access.howItWorksBody")}</p>
+            <p className="mt-2 font-semibold">{t("access.sailpointTitle")}</p>
+            <p>{access.sailpointInstructions}</p>
+          </Banner>
           <GroupCard
             key={`admin-${access.adminGroupName}-${access.adminGroupObjectId}`}
             title={t("access.adminGroup")}

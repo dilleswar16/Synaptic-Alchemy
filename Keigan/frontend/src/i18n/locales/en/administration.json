@@ -3,6 +3,12 @@
   "pageDescription": "Platform settings, usage and delivery records for Keigan admins.",
   "tabs": { "usage": "AI usage", "audit": "Audit log", "jobs": "Background jobs" },
   "settings": {
+    "searchLabel": "Filter settings",
+    "searchPlaceholder": "Filter settings by name",
+    "noMatches": "No setting is named like \"{{query}}\".",
+    "hiddenValue": "Value hidden",
+    "showValue": "Show value",
+    "hideValue": "Hide value",
     "pageTitle": "Platform settings",
     "pageDescription": "Effective configuration, identities and connection tests.",
     "integrationsTitle": "Integrations",
@@ -84,6 +90,10 @@
     "columns": { "type": "Job", "status": "Status", "attempts": "Attempts", "created": "Created", "error": "Last error" }
   },
   "outbox": {
+    "filterSearch": "Search recipient or subject",
+    "filterAllStatuses": "All statuses",
+    "noMatchTitle": "No messages match",
+    "noMatchDescription": "Clear the filters to see everything. Search looks at the messages on this page.",
     "status": { "pending": "Pending", "sent": "Sent", "simulated": "Simulated", "failed": "Failed", "skipped": "Skipped" },
     "pageTitle": "Outbox",
     "pageDescription": "Emails and Teams messages Keigan sent or simulated.",

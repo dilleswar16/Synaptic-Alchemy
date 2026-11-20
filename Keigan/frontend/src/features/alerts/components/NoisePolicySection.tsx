@@ -10,6 +10,7 @@ import { FunnelChart } from "@/components/charts";
 import { Banner } from "@/components/ui/Banner";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -20,6 +21,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { Switch } from "@/components/ui/Switch";
 import { Textarea } from "@/components/ui/Textarea";
+import { useToast } from "@/components/ui/Toast";
 import { formatDateTime } from "@/utils/formatters";
 import { useFunnelStepLabel } from "./AlertBadges";
 
@@ -45,6 +47,9 @@ export function NoisePolicySection({ applicationId, canEdit, onChanged }: { appl
   const deleteWindow = useDeleteMaintenanceWindow(applicationId);
   const deleteMuteRule = useDeleteMuteRule(applicationId);
   const stepLabel = useFunnelStepLabel();
+  const { showToast } = useToast();
+  const [pendingWindow, setPendingWindow] = useState<MaintenanceWindow | null>(null);
+  const [pendingMuteRule, setPendingMuteRule] = useState<MuteRule | null>(null);
   const [draft, setDraft] = useState<NoisePolicySettings | null>(null);
   const [preview, setPreview] = useState<Funnel | null>(null);
   const [isWindowOpen, setIsWindowOpen] = useState(false);
@@ -79,14 +84,15 @@ export function NoisePolicySection({ applicationId, canEdit, onChanged }: { appl
     { key: "when", header: t("windows.when"), cell: (row) => `${formatDateTime(row.startsAt)} – ${formatDateTime(row.endsAt)}` },
     { key: "repeat", header: t("windows.repeat"), cell: (row) => (row.repeatsWeekly ? t("windows.weekly") : t("windows.once")) },
     { key: "active", header: t("windows.state"), cell: (row) => (row.isActiveNow ? <StatusChip tone="warning" size="sm" dot>{t("windows.active")}</StatusChip> : null) },
-    { key: "actions", header: "", cell: (row) => canEdit ? <Button variant="ghost" size="sm" aria-label={t("windows.delete")} leadingIcon={Trash2} onClick={() => deleteWindow.mutate(row.maintenanceWindowId)} /> : null },
+    { key: "actions", header: "", cell: (row) => canEdit ? <Button variant="ghost" size="sm" aria-label={t("windows.delete")} leadingIcon={Trash2} onClick={() => setPendingWindow(row)} /> : null },
   ];
+  const reportDeleteFailure = () => void showToast({ tone: "danger", title: translateCommon("errors.genericTitle"), description: translateCommon("errors.genericDescription") });
   const muteColumns: DataTableColumn<MuteRule>[] = [
     { key: "name", header: t("mute.name"), cell: (row) => <span className="font-semibold">{row.ruleName}</span> },
     { key: "matcher", header: t("mute.matcher"), cell: (row) => Object.entries(row.matcher).map(([key, value]) => `${key}: ${String(value)}`).join(", ") },
     { key: "reason", header: t("mute.reason"), cell: (row) => <span className="line-clamp-2 text-body-sm">{row.muteReason}</span> },
     { key: "expires", header: t("mute.expires"), cell: (row) => (row.isExpired ? <StatusChip tone="neutral" size="sm" icon={false}>{t("mute.expired")}</StatusChip> : formatDateTime(row.expiresAt)) },
-    { key: "actions", header: "", cell: (row) => canEdit ? <Button variant="ghost" size="sm" aria-label={t("mute.delete")} leadingIcon={Trash2} onClick={() => deleteMuteRule.mutate(row.muteRuleId)} /> : null },
+    { key: "actions", header: "", cell: (row) => canEdit ? <Button variant="ghost" size="sm" aria-label={t("mute.delete")} leadingIcon={Trash2} onClick={() => setPendingMuteRule(row)} /> : null },
   ];
 
   return (
@@ -120,6 +126,22 @@ export function NoisePolicySection({ applicationId, canEdit, onChanged }: { appl
           </div>
         ) : null}
       </div>
+      <ConfirmDialog
+        open={pendingWindow !== null}
+        onOpenChange={(isOpen) => !isOpen && setPendingWindow(null)}
+        title={t("windows.deleteTitle")}
+        description={t("windows.deleteDescription", { name: pendingWindow?.windowName ?? "" })}
+        confirmLabel={t("windows.delete")}
+        onConfirm={() => (pendingWindow ? deleteWindow.mutateAsync(pendingWindow.maintenanceWindowId).then(() => undefined, reportDeleteFailure) : undefined)}
+      />
+      <ConfirmDialog
+        open={pendingMuteRule !== null}
+        onOpenChange={(isOpen) => !isOpen && setPendingMuteRule(null)}
+        title={t("mute.deleteTitle")}
+        description={t("mute.deleteDescription", { name: pendingMuteRule?.ruleName ?? "" })}
+        confirmLabel={t("mute.delete")}
+        onConfirm={() => (pendingMuteRule ? deleteMuteRule.mutateAsync(pendingMuteRule.muteRuleId).then(() => undefined, reportDeleteFailure) : undefined)}
+      />
       <MaintenanceWindowDialog applicationId={applicationId} open={isWindowOpen} onOpenChange={setIsWindowOpen} />
       <MuteRuleDialog applicationId={applicationId} open={isMuteOpen} onOpenChange={setIsMuteOpen} />
     </section>

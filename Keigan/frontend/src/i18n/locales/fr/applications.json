@@ -1,4 +1,5 @@
 {
+  "stepPosition": "Étape {{index}} sur {{total}}",
   "pageTitle": "Applications",
   "pageDescription": "Les applications surveillées par Keigan et l'avancement de l'intégration de chacune.",
   "onboardApplication": "Intégrer une application",
@@ -125,6 +126,8 @@
     "readOnly": "Vous avez un accès en lecture seule à cette application. Demandez à un administrateur d'effectuer les modifications."
   },
   "review": {
+    "moreDetails": "Afficher la liste complète et le résumé par étape",
+    "showSummary": "Afficher le résumé par étape",
     "edit": "Modifier",
     "requiredTitle": "Requis pour la mise en production",
     "requiredDescription": "Seuls ces éléments bloquent la mise en production.",

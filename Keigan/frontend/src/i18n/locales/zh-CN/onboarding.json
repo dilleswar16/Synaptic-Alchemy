@@ -278,6 +278,8 @@
     "other": "其他"
   },
   "logSource": {
+    "removeTitle": "移除此日志源？",
+    "removeDescription": "Keigan 将停止读取 {{service}} 的 {{source}}。在重新添加该日志源之前，此服务的调查将缺少这部分证据。",
     "none": "尚无日志源。有指标可用时将使用指标。",
     "kind": "来源",
     "kinds": {
@@ -322,6 +324,8 @@
     }
   },
   "logTools": {
+    "comingSoon": "即将推出",
+    "comingSoonNote": "仅保存详细信息，暂时无法读取日志。",
     "tools": {
       "elastic": {
         "title": "Elastic",
@@ -389,7 +393,6 @@
     "saveConnection": "保存连接",
     "saveChanges": "保存更改",
     "placeholderBanner": "此工具的读取器正在开发中。Keigan 现在先保存详情，待读取器发布后再使用。",
-    "readerInDevelopment": "读取器开发中",
     "status": {
       "not_tested": "未测试",
       "connected": "已连接",

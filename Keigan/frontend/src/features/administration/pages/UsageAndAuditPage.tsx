@@ -38,6 +38,8 @@ function UsageTab() {
   const usage = useUsage("day", days);
   if (usage.isError) return <ErrorState error={usage.error} onRetry={() => void usage.refetch()} />;
   const data = usage.data;
+  // Averages are meaningless without calls, and one notice says it instead of every chart and table repeating it.
+  const hasNoUsage = data !== undefined && data.totalCallCount === 0 && data.buckets.length === 0;
   return (
     <div className="flex flex-col gap-6">
       <SegmentedControl<string> aria-label={t("usage.range")} value={String(days)} onValueChange={(value) => setDays(Number(value) as 7 | 14 | 30)} options={[{ value: "7", label: t("usage.days", { count: 7 }) }, { value: "14", label: t("usage.days", { count: 14 }) }, { value: "30", label: t("usage.days", { count: 30 }) }]} />
@@ -47,22 +49,28 @@ function UsageTab() {
             <StatTile icon={Sigma} label={t("usage.tiles.tokens")} value={formatCompactNumber(data.totalInputTokenCount + data.totalOutputTokenCount)} secondaryText={t("usage.tiles.tokenSplit", { input: formatCompactNumber(data.totalInputTokenCount), output: formatCompactNumber(data.totalOutputTokenCount) })} />
             <StatTile icon={Coins} iconTone="success" label={t("usage.tiles.cost")} value={currencyFormatter.format(data.totalEstimatedCost)} secondaryText={t("usage.tiles.costNote")} />
             <StatTile icon={Zap} iconTone="ai" label={t("usage.tiles.calls")} value={formatNumber(data.totalCallCount)} secondaryText={t("usage.tiles.failedCalls", { count: data.failedCallCount })} secondaryTone={data.failedCallCount ? "negative" : "default"} />
-            <StatTile icon={Cpu} iconTone="info" label={t("usage.tiles.perInvestigation")} value={data.averageTokensPerInvestigation === null ? "—" : formatCompactNumber(data.averageTokensPerInvestigation)} secondaryText={t("usage.tiles.perInvestigationNote")} />
+            <StatTile icon={Cpu} iconTone="info" label={t("usage.tiles.perInvestigation")} value={data.averageTokensPerInvestigation === null || data.totalCallCount === 0 ? "—" : formatCompactNumber(data.averageTokensPerInvestigation)} secondaryText={t("usage.tiles.perInvestigationNote")} />
           </>
         )}
       </div>
-      <Card>
-        <CardHeader title={t("usage.chartTitle")} description={t("usage.chartDescription")} />
-        <CardBody>
-          {!data ? <Skeleton className="h-56" /> : data.buckets.length === 0 ? <p className="text-body-sm text-muted">{t("usage.empty")}</p> : (
-            <BarChart ariaLabel={t("usage.chartTitle")} data={data.buckets.map((bucket) => ({ ...bucket }))} categoryKey="bucketLabel" stacked height={240} valueFormatter={(value) => formatCompactNumber(value)} series={[{ key: "inputTokenCount", label: t("usage.columns.input") }, { key: "outputTokenCount", label: t("usage.columns.output") }]} />
-          )}
-        </CardBody>
-      </Card>
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <Card><CardHeader title={t("usage.byApplication")} /><CardBody><UsageBucketTable groupBy="application" caption={t("usage.byApplication")} /></CardBody></Card>
-        <Card><CardHeader title={t("usage.byFeature")} /><CardBody><UsageBucketTable groupBy="feature" caption={t("usage.byFeature")} /></CardBody></Card>
-      </div>
+      {hasNoUsage ? (
+        <Card><CardBody><p className="text-body-sm text-muted">{t("usage.empty")}</p></CardBody></Card>
+      ) : (
+        <>
+          <Card>
+            <CardHeader title={t("usage.chartTitle")} description={t("usage.chartDescription")} />
+            <CardBody>
+              {!data ? <Skeleton className="h-56" /> : (
+                <BarChart ariaLabel={t("usage.chartTitle")} data={data.buckets.map((bucket) => ({ ...bucket }))} categoryKey="bucketLabel" stacked height={240} valueFormatter={(value) => formatCompactNumber(value)} series={[{ key: "inputTokenCount", label: t("usage.columns.input") }, { key: "outputTokenCount", label: t("usage.columns.output") }]} />
+              )}
+            </CardBody>
+          </Card>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <Card><CardHeader title={t("usage.byApplication")} /><CardBody><UsageBucketTable groupBy="application" caption={t("usage.byApplication")} /></CardBody></Card>
+            <Card><CardHeader title={t("usage.byFeature")} /><CardBody><UsageBucketTable groupBy="feature" caption={t("usage.byFeature")} /></CardBody></Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }

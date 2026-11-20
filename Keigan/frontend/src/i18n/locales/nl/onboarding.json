@@ -278,6 +278,8 @@
     "other": "Overig"
   },
   "logSource": {
+    "removeTitle": "Deze logbron verwijderen?",
+    "removeDescription": "Keigan stopt met het lezen van {{source}} voor {{service}}. Onderzoeken van deze service missen dat bewijs totdat je de bron opnieuw toevoegt.",
     "none": "Nog geen logbron. Metrieken worden gebruikt wanneer ze beschikbaar zijn.",
     "kind": "Bron",
     "kinds": {
@@ -322,6 +324,8 @@
     }
   },
   "logTools": {
+    "comingSoon": "Binnenkort",
+    "comingSoonNote": "Slaat alleen gegevens op; logs kunnen nog niet worden gelezen.",
     "tools": {
       "elastic": {
         "title": "Elastic",
@@ -389,7 +393,6 @@
     "saveConnection": "Verbinding opslaan",
     "saveChanges": "Wijzigingen opslaan",
     "placeholderBanner": "De reader voor deze tool is in ontwikkeling. Keigan slaat de gegevens nu op en gebruikt ze zodra de reader beschikbaar komt.",
-    "readerInDevelopment": "Reader in ontwikkeling",
     "status": {
       "not_tested": "Niet getest",
       "connected": "Verbonden",

@@ -1,4 +1,5 @@
 {
+  "stepPosition": "Step {{index}} of {{total}}",
   "pageTitle": "Applications",
   "pageDescription": "The applications Keigan watches, and how far each one is through onboarding.",
   "onboardApplication": "Onboard application",
@@ -125,6 +126,8 @@
     "readOnly": "You have read-only access to this application. Ask an admin to make changes."
   },
   "review": {
+    "moreDetails": "Show the full checklist and the summary by step",
+    "showSummary": "Show the summary by step",
     "edit": "Edit",
     "requiredTitle": "Required to go live",
     "requiredDescription": "Only these block go-live.",

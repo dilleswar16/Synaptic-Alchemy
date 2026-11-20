@@ -3,6 +3,12 @@
   "pageDescription": "Configuración de la plataforma, uso y registros de entrega para administradores de Keigan.",
   "tabs": { "usage": "Uso de IA", "audit": "Registro de auditoría", "jobs": "Trabajos en segundo plano" },
   "settings": {
+    "searchLabel": "Filtrar ajustes",
+    "searchPlaceholder": "Filtrar ajustes por nombre",
+    "noMatches": "Ningún ajuste se llama como «{{query}}».",
+    "hiddenValue": "Valor oculto",
+    "showValue": "Mostrar valor",
+    "hideValue": "Ocultar valor",
     "pageTitle": "Configuración de la plataforma",
     "pageDescription": "Configuración efectiva, identidades y pruebas de conexión.",
     "integrationsTitle": "Integraciones",
@@ -84,6 +90,10 @@
     "columns": { "type": "Trabajo", "status": "Estado", "attempts": "Intentos", "created": "Creado", "error": "Último error" }
   },
   "outbox": {
+    "filterSearch": "Buscar destinatario o asunto",
+    "filterAllStatuses": "Todos los estados",
+    "noMatchTitle": "Ningún mensaje coincide",
+    "noMatchDescription": "Quita los filtros para verlo todo. La búsqueda mira los mensajes de esta página.",
     "status": { "pending": "Pendiente", "sent": "Enviado", "simulated": "Simulado", "failed": "Fallido", "skipped": "Omitido" },
     "pageTitle": "Bandeja de salida",
     "pageDescription": "Correos y mensajes de Teams que Keigan envió o simuló.",

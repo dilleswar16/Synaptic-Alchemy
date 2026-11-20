@@ -2,6 +2,9 @@
   "pageTitle": "Notifications",
   "pageDescription": "Who hears about incidents, reports and SLO burn, and how.",
   "stakeholders": {
+    "lead": "Stakeholders receive the incident notifications they subscribe to.",
+    "howItWorks": "How this works",
+    "emailSimulatedChip": "Email simulated",
     "intro": "Stakeholders receive what they subscribe to. Keigan sends only to people listed here, matches the affected services and the incident priority, and writes in each person's language (English or Japanese, other languages receive English).",
     "addTitle": "Add a stakeholder",
     "addButton": "Add stakeholder",

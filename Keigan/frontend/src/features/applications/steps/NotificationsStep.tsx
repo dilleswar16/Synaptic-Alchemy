@@ -185,20 +185,21 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
         <div className="flex flex-col">
           <span className="font-semibold">{row.displayName}</span>
           <span className="text-caption text-muted">{row.emailAddress ?? (row.teamsChannelId ? t("recipientTypes.teams_channel") : "")}</span>
+          <span className="text-caption text-subtle" title={row.subscribedServiceIds.map((serviceId) => serviceNames.get(serviceId) ?? serviceId).join(", ") || undefined}>
+            {row.subscribedServiceIds.length === 0 ? t("stakeholders.allServices") : t("stakeholders.serviceCount", { count: row.subscribedServiceIds.length })}
+          </span>
         </div>
       ),
     },
-    { key: "role", header: t("stakeholders.columns.role"), cell: (row) => t(`roles.${row.stakeholderRole}`) },
-    { key: "status", header: t("stakeholders.columns.status"), cell: (row) => <MemberStatusCell row={row} /> },
     {
-      key: "services",
-      header: t("stakeholders.columns.services"),
-      cell: (row) =>
-        row.subscribedServiceIds.length === 0 ? (
-          <StatusChip size="sm" tone="neutral" icon={false}>{t("stakeholders.allServices")}</StatusChip>
-        ) : (
-          <span title={row.subscribedServiceIds.map((serviceId) => serviceNames.get(serviceId) ?? serviceId).join(", ")}>{t("stakeholders.serviceCount", { count: row.subscribedServiceIds.length })}</span>
-        ),
+      key: "role",
+      header: t("stakeholders.columns.role"),
+      cell: (row) => (
+        <div className="flex flex-col items-start gap-1">
+          <span>{t(`roles.${row.stakeholderRole}`)}</span>
+          <MemberStatusCell row={row} />
+        </div>
+      ),
     },
     {
       key: "channels",
@@ -211,8 +212,16 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
         </div>
       ),
     },
-    { key: "priority", header: t("stakeholders.columns.priority"), cell: (row) => row.minimumPriority },
-    { key: "language", header: t("stakeholders.columns.language"), cell: (row) => t(`languages.${row.preferredLanguageCode.split("-")[0]}`, { defaultValue: row.preferredLanguageCode }) },
+    {
+      key: "priority",
+      header: t("stakeholders.columns.priority"),
+      cell: (row) => (
+        <div className="flex flex-col">
+          <span>{row.minimumPriority}</span>
+          <span className="text-caption text-muted">{t(`languages.${row.preferredLanguageCode.split("-")[0]}`, { defaultValue: row.preferredLanguageCode })}</span>
+        </div>
+      ),
+    },
     {
       key: "actions",
       header: <span className="sr-only">{t("stakeholders.columns.actions")}</span>,
@@ -276,10 +285,20 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
       stepKey="notifications"
       actions={canEdit && !editorOpen ? <Button leadingIcon={UserPlus} onClick={() => openEditor()}>{t("stakeholders.addButton")}</Button> : undefined}
     >
-      <Banner tone="info">{t("stakeholders.intro")}</Banner>
-      <Banner tone="neutral">{t("stakeholders.accessNote")}</Banner>
-      {isEmailSimulated ? <Banner tone="warning">{t("stakeholders.emailSimulated")}</Banner> : null}
-      {!canEdit ? <Banner tone="neutral">{t("stakeholders.readOnly")}</Banner> : null}
+      <Banner tone="info">
+        <p>{t("stakeholders.lead")}</p>
+        {!canEdit ? <p className="mt-1">{t("stakeholders.readOnly")}</p> : null}
+        <details className="group mt-1.5">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-xs font-medium text-action outline-none hover:underline focus-visible:ring-2 focus-visible:ring-action [&::-webkit-details-marker]:hidden">
+            <ChevronDown aria-hidden="true" size={16} className="transition-transform group-open:rotate-180" />
+            {t("stakeholders.howItWorks")}
+          </summary>
+          <div className="mt-1.5 flex flex-col gap-1.5">
+            <p>{t("stakeholders.intro")}</p>
+            <p>{t("stakeholders.accessNote")}</p>
+          </div>
+        </details>
+      </Banner>
 
       {editorOpen ? (
         <Card>
@@ -310,6 +329,11 @@ export function NotificationsStep({ applicationId, canEdit, onStatusChange }: St
           description={t("stakeholders.emptyDescription")}
           action={canEdit ? <Button leadingIcon={UserPlus} onClick={() => openEditor()}>{t("stakeholders.addButton")}</Button> : undefined}
         />
+      ) : null}
+      {isEmailSimulated ? (
+        <div className="-mb-3 flex justify-end">
+          <StatusChip size="sm" tone="warning" title={t("stakeholders.emailSimulated")}>{t("stakeholders.emailSimulatedChip")}</StatusChip>
+        </div>
       ) : null}
       {stakeholdersQuery.isLoading || stakeholders.length > 0 ? (
         <DataTable columns={columns} rows={stakeholders} getRowId={(row) => row.stakeholderId} caption={t("stakeholders.tableCaption")} isLoading={stakeholdersQuery.isLoading} defaultSort={{ columnKey: "name", direction: "ascending" }} />

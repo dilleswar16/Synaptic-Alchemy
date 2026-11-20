@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { FlaskConical, PlugZap, Play } from "lucide-react";
+import { ChevronRight, Eye, EyeOff, FlaskConical, PlugZap, Play, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useAdministrationSettings, useConnectionTest, useSimulationScenarios, useTriggerScenario, type ConnectionTestOutcome, type IntegrationStatus } from "@/api/administrationApi";
+import { useAdministrationSettings, useConnectionTest, useSimulationScenarios, useTriggerScenario, type ConnectionTestOutcome, type IntegrationStatus, type SettingsGroup } from "@/api/administrationApi";
 import { isApiError } from "@/api/httpClient";
 import { useApplicationScope } from "@/auth/applicationScope";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -9,12 +9,15 @@ import { Banner } from "@/components/ui/Banner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { IconButton } from "@/components/ui/IconButton";
+import { Input } from "@/components/ui/Input";
 import { KeyValueList } from "@/components/ui/KeyValueList";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useToast } from "@/components/ui/Toast";
 import { useFeatureFlag } from "@/config/runtimeConfiguration";
+import { cn } from "@/utils/cn";
 
 /** Integrations that have a connection test, keyed by the integration card they belong to. */
 const testableIntegrations: Record<string, string> = { servicenow: "servicenow", llm: "llm", azure: "azure", email: "email", teams: "graph" };
@@ -22,6 +25,77 @@ const testableIntegrations: Record<string, string> = { servicenow: "servicenow",
 function displaySettingValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+/** The backend already replaces values of fields named like a secret with "•••• set" / "not set"; these are shown as they are. */
+const backendMaskedValues = new Set(["•••• set", "not set"]);
+const secretNamePattern = /secret|password|passphrase|token|credential|private_key|api_key|extra_headers/;
+const connectionStringNamePattern = /database_url|connection_string|connection/;
+const connectionStringValuePattern = /^[a-z][a-z0-9+.-]*:\/\/[^\s/]*@|(?:^|;)\s*(?:server|data source|host|user id|uid|pwd|password|accountkey|sharedaccesskey)\s*=/i;
+const pathNamePattern = /_(?:directory|dir|path)$/;
+const pathValuePattern = /^(?:[A-Za-z]:[\\/]|\\\\|\/(?:[^\s/]+\/)+|~\/|file:)/;
+
+/**
+ * Secret-like values are hidden for good; connection strings and file paths are hidden until someone asks to see them.
+ * Only text is considered: numbers and flags are never sensitive.
+ */
+function sensitivityOf(name: string, value: unknown): "secret" | "sensitive" | null {
+  if (typeof value !== "string" || value.trim() === "" || ["{}", "[]"].includes(value.trim()) || backendMaskedValues.has(value)) return null;
+  if (secretNamePattern.test(name)) return "secret";
+  if (connectionStringNamePattern.test(name) || connectionStringValuePattern.test(value) || pathNamePattern.test(name) || pathValuePattern.test(value)) return "sensitive";
+  return null;
+}
+
+function SettingValue({ name, value }: { name: string; value: unknown }) {
+  const { t } = useTranslation("administration");
+  const [isRevealed, setIsRevealed] = useState(false);
+  const sensitivity = sensitivityOf(name, value);
+  if (!sensitivity) return <>{displaySettingValue(value)}</>;
+  if (isRevealed) {
+    return (
+      <span className="flex items-start gap-1">
+        <span className="min-w-0 flex-1 break-all">{displaySettingValue(value)}</span>
+        <IconButton icon={EyeOff} label={t("settings.hideValue")} variant="ghost" size="sm" className="-my-1" onClick={() => setIsRevealed(false)} />
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1 text-muted">
+      <span aria-hidden="true">••••••••</span>
+      <span className="sr-only">{t("settings.hiddenValue")}</span>
+      {sensitivity === "sensitive" ? <IconButton icon={Eye} label={t("settings.showValue")} variant="ghost" size="sm" className="-my-1" onClick={() => setIsRevealed(true)} /> : null}
+    </span>
+  );
+}
+
+/** One group of raw settings: collapsed unless it is the first group or a search is narrowing the list. */
+function SettingsGroupCard({ group, entries, isOpenByDefault, isFiltering }: { group: SettingsGroup; entries: Array<[string, unknown]>; isOpenByDefault: boolean; isFiltering: boolean }) {
+  const { t } = useTranslation("administration");
+  const [isOpenState, setIsOpenState] = useState(isOpenByDefault);
+  const isOpen = isFiltering || isOpenState;
+  const bodyId = `settings-group-${group.groupKey}`;
+  return (
+    <Card>
+      <h3>
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          aria-controls={bodyId}
+          onClick={() => setIsOpenState(!isOpenState)}
+          className="flex w-full items-center gap-3 rounded-md px-[var(--card-padding)] py-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-action"
+        >
+          <ChevronRight aria-hidden="true" size={18} className={cn("shrink-0 text-muted transition-transform", isOpen && "rotate-90")} />
+          <span className="min-w-0 flex-1 font-display text-h3 text-default">{t(`settings.groups.${group.groupKey}`, { defaultValue: group.groupTitle })}</span>
+          <StatusChip size="sm" tone="neutral" icon={false}>{entries.length}</StatusChip>
+        </button>
+      </h3>
+      {isOpen ? (
+        <CardBody id={bodyId} className="pt-0">
+          <KeyValueList dense items={entries.map(([name, value]) => ({ key: name, label: <span className="font-mono text-caption">{name.toUpperCase()}</span>, value: <SettingValue name={name} value={value} /> }))} />
+        </CardBody>
+      ) : null}
+    </Card>
+  );
 }
 
 function IntegrationCard({ integration }: { integration: IntegrationStatus }) {
@@ -78,8 +152,13 @@ export default function PlatformSettingsPage() {
   const { t } = useTranslation("administration");
   const settings = useAdministrationSettings();
   const isSimulationEnabled = useFeatureFlag("simulationControls");
+  const [query, setQuery] = useState("");
   if (settings.isError) return <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />;
   const data = settings.data;
+  const needle = query.trim().toLowerCase();
+  const visibleGroups = (data?.groups ?? [])
+    .map((group) => ({ group, entries: Object.entries(group.settings).filter(([name]) => !needle || name.toLowerCase().includes(needle)) }))
+    .filter(({ entries }) => entries.length > 0);
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title={t("settings.pageTitle")} description={t("settings.pageDescription")} />
@@ -101,14 +180,11 @@ export default function PlatformSettingsPage() {
               ]} />
             </CardBody>
           </Card>
-          {data.groups.map((group) => (
-            <Card key={group.groupKey}>
-              <CardHeader title={t(`settings.groups.${group.groupKey}`, { defaultValue: group.groupTitle })} />
-              <CardBody>
-                <KeyValueList dense items={Object.entries(group.settings).map(([name, value]) => ({ key: name, label: <span className="font-mono text-caption">{name.toUpperCase()}</span>, value: displaySettingValue(value) }))} />
-              </CardBody>
-            </Card>
+          <Input aria-label={t("settings.searchLabel")} placeholder={t("settings.searchPlaceholder")} leadingIcon={Search} size="sm" value={query} onChange={(event) => setQuery(event.target.value)} containerClassName="w-72 max-w-full" />
+          {visibleGroups.map(({ group, entries }) => (
+            <SettingsGroupCard key={group.groupKey} group={group} entries={entries} isOpenByDefault={group.groupKey === data.groups[0]?.groupKey} isFiltering={needle !== ""} />
           ))}
+          {needle && visibleGroups.length === 0 ? <p className="text-body-sm text-muted">{t("settings.noMatches", { query: query.trim() })}</p> : null}
         </>
       )}
     </div>

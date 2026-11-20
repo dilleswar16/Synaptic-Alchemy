@@ -278,6 +278,8 @@
     "other": "Otro"
   },
   "logSource": {
+    "removeTitle": "¿Quitar esta fuente de registros?",
+    "removeDescription": "Keigan deja de leer {{source}} para {{service}}. Las investigaciones de este servicio pierden esa evidencia hasta que vuelvas a añadir la fuente.",
     "none": "Aún no hay fuente de registros. Se usan las métricas cuando están disponibles.",
     "kind": "Origen",
     "kinds": {
@@ -322,6 +324,8 @@
     }
   },
   "logTools": {
+    "comingSoon": "Próximamente",
+    "comingSoonNote": "Solo guarda los datos; aún no se pueden leer registros.",
     "tools": {
       "elastic": {
         "title": "Elastic",
@@ -389,7 +393,6 @@
     "saveConnection": "Guardar conexión",
     "saveChanges": "Guardar cambios",
     "placeholderBanner": "El lector de esta herramienta está en desarrollo. Keigan guarda ahora los detalles y los usará cuando se publique el lector.",
-    "readerInDevelopment": "Lector en desarrollo",
     "status": {
       "not_tested": "Sin probar",
       "connected": "Conectado",

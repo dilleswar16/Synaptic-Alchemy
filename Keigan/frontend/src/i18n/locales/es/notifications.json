@@ -2,6 +2,9 @@
   "pageTitle": "Notificaciones",
   "pageDescription": "Quién se entera de los incidentes, informes y consumo de SLO, y cómo.",
   "stakeholders": {
+    "lead": "Los interesados reciben las notificaciones de incidentes a las que se suscriben.",
+    "howItWorks": "Cómo funciona",
+    "emailSimulatedChip": "Correo simulado",
     "intro": "Las partes interesadas reciben lo que han suscrito. Keigan envía únicamente a las personas de esta lista, según los servicios afectados y la prioridad del incidente, y escribe en el idioma de cada persona (inglés o japonés; el resto de idiomas recibe inglés).",
     "addTitle": "Añadir una parte interesada",
     "addButton": "Añadir parte interesada",

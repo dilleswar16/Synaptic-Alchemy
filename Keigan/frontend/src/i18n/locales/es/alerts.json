@@ -94,11 +94,15 @@
     "beforeSwitch": "Efecto medido antes de pasar a Activo"
   },
   "windows": {
+    "deleteTitle": "¿Eliminar esta ventana de mantenimiento?",
+    "deleteDescription": "«{{name}}» se eliminará. Las alertas que lleguen en ese periodo se investigarán con normalidad.",
     "title": "Ventanas de mantenimiento", "description": "Las alertas dentro de una ventana se registran y etiquetan, no se investigan.", "add": "Añadir ventana", "create": "Crear ventana", "name": "Nombre", "scope": "Servicios",
     "wholeApplication": "Toda la aplicación", "when": "Cuándo", "repeat": "Repetición", "weekly": "Se repite semanalmente", "once": "Una vez", "state": "Estado", "active": "Activa ahora", "delete": "Eliminar ventana",
     "starts": "Inicio", "ends": "Fin", "empty": "No hay ventanas de mantenimiento"
   },
   "mute": {
+    "deleteTitle": "¿Eliminar esta regla de silencio?",
+    "deleteDescription": "«{{name}}» se eliminará. Las alertas que coincidían con ella volverán a investigarse a partir de ahora.",
     "title": "Reglas de silencio", "description": "Se requieren caducidad y motivo. Las reglas caducadas se muestran como caducadas, nunca se eliminan en silencio.", "add": "Añadir regla de silencio", "create": "Crear regla de silencio", "name": "Nombre",
     "matcher": "Coincide con", "reason": "Motivo", "expires": "Caduca", "expired": "Caducada", "delete": "Eliminar regla de silencio", "ruleContains": "El nombre de la regla contiene", "severity": "Gravedad", "anySeverity": "Cualquier gravedad",
     "expiresHelp": "Las reglas de silencio siempre terminan.", "empty": "No hay reglas de silencio"

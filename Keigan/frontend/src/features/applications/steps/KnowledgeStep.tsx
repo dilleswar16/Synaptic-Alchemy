@@ -94,7 +94,7 @@ function CaptureAndUpload({ applicationId, canEdit }: { applicationId: string; c
       {promptQuery.isError ? (
         <ErrorState size="sm" error={promptQuery.error} onRetry={() => void promptQuery.refetch()} />
       ) : promptQuery.data ? (
-        <CommandBlock title={t("capture.promptTitle", { version: promptQuery.data.version, lines: promptQuery.data.lineCount })} commands={promptQuery.data.promptMarkdown} wrapLines maximumHeight="260px" />
+        <CommandBlock title={t("capture.promptTitle", { version: promptQuery.data.version, lines: promptQuery.data.lineCount })} commands={promptQuery.data.promptMarkdown} wrapLines maximumHeight="240px" className="mb-2" />
       ) : (
         <Skeleton className="h-40 rounded-lg" />
       )}
@@ -165,10 +165,10 @@ function DocumentsList({ applicationId, canEdit, onChanged }: { applicationId: s
         <EmptyState isBordered icon={FileText} size="sm" title={t("documents.emptyTitle")} description={t("documents.emptyDescription")} />
       ) : (
         documentsQuery.data?.map((document) => (
-          <Card key={document.knowledgeDocumentId} dense className="p-[var(--card-padding)] flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
+          <Card key={document.knowledgeDocumentId} dense className="flex-row flex-wrap items-center justify-between gap-3 p-[var(--card-padding)]">
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" className="truncate text-body font-semibold text-action hover:underline" onClick={() => setOpenDocumentId(document.knowledgeDocumentId)}>{document.documentTitle}</button>
+                <button type="button" className="truncate text-left text-body font-semibold text-action hover:underline" onClick={() => setOpenDocumentId(document.knowledgeDocumentId)}>{document.documentTitle}</button>
                 <StatusChip size="sm" tone={digestTones[document.aiDigestStatus]} dot pulse={document.aiDigestStatus === "pending" || document.aiDigestStatus === "running"}>{t(`digest.status.${document.aiDigestStatus}`)}</StatusChip>
                 {document.isStale ? <StatusChip size="sm" icon={false} tone="neutral">{t("documents.stale")}</StatusChip> : null}
               </div>
@@ -178,7 +178,7 @@ function DocumentsList({ applicationId, canEdit, onChanged }: { applicationId: s
                 {document.uploadedByUserPrincipalName} <RelativeTime value={document.uploadedAt} />
               </p>
             </div>
-            <div className="flex gap-1">
+            <div className="flex shrink-0 gap-1">
               <Button size="sm" variant="secondary" onClick={() => setOpenDocumentId(document.knowledgeDocumentId)}>{t("documents.viewDigest")}</Button>
               {canEdit ? <Button size="sm" variant="ghost" leadingIcon={Trash2} aria-label={t("documents.delete")} onClick={() => setDocumentToDelete(document)} /> : null}
             </div>

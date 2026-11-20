@@ -2,6 +2,9 @@
   "pageTitle": "Notifications",
   "pageDescription": "Qui est informé des incidents, des rapports et de la consommation des SLO, et comment.",
   "stakeholders": {
+    "lead": "Les parties prenantes reçoivent les notifications d'incident auxquelles elles sont abonnées.",
+    "howItWorks": "Comment ça marche",
+    "emailSimulatedChip": "E-mail simulé",
     "intro": "Les parties prenantes reçoivent ce auquel elles sont abonnées. Keigan n'envoie qu'aux personnes listées ici, en fonction des services touchés et de la priorité de l'incident, et rédige dans la langue de chacune (anglais ou japonais ; les autres langues reçoivent l'anglais).",
     "addTitle": "Ajouter une partie prenante",
     "addButton": "Ajouter une partie prenante",

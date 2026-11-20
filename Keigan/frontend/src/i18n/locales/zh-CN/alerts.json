@@ -94,11 +94,15 @@
     "beforeSwitch": "切换到“生效”之前的实测效果"
   },
   "windows": {
+    "deleteTitle": "删除此维护窗口？",
+    "deleteDescription": "将删除“{{name}}”。该时段内到达的告警将照常调查。",
     "title": "维护窗口", "description": "窗口内的告警会被记录并标记，但不会被调查。", "add": "添加窗口", "create": "创建窗口", "name": "名称", "scope": "服务",
     "wholeApplication": "整个应用", "when": "时间", "repeat": "重复", "weekly": "每周重复", "once": "仅一次", "state": "状态", "active": "当前生效", "delete": "删除窗口",
     "starts": "开始", "ends": "结束", "empty": "暂无维护窗口"
   },
   "mute": {
+    "deleteTitle": "删除此静音规则？",
+    "deleteDescription": "将删除“{{name}}”。它所匹配的告警今后将重新调查。",
     "title": "静音规则", "description": "必须填写有效期和原因。过期的规则会显示为已过期，绝不会被悄悄删除。", "add": "添加静音规则", "create": "创建静音规则", "name": "名称",
     "matcher": "匹配条件", "reason": "原因", "expires": "到期时间", "expired": "已过期", "delete": "删除静音规则", "ruleContains": "规则名称包含", "severity": "严重程度", "anySeverity": "任意严重程度",
     "expiresHelp": "静音规则一定会结束。", "empty": "暂无静音规则"

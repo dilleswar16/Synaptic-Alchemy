@@ -1,4 +1,5 @@
 {
+  "stepPosition": "第 {{index}} 步，共 {{total}} 步",
   "pageTitle": "应用",
   "pageDescription": "Keigan 监控的应用，以及每个应用的接入进度。",
   "onboardApplication": "接入应用",
@@ -125,6 +126,8 @@
     "readOnly": "您对此应用只有只读权限。如需更改，请联系管理员。"
   },
   "review": {
+    "moreDetails": "显示完整清单和分步摘要",
+    "showSummary": "显示分步摘要",
     "edit": "编辑",
     "requiredTitle": "上线所需",
     "requiredDescription": "只有这些项会阻止上线。",

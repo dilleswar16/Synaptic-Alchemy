@@ -94,11 +94,15 @@
     "beforeSwitch": "Gemeten effect voordat u overschakelt naar Actief"
   },
   "windows": {
+    "deleteTitle": "Dit onderhoudsvenster verwijderen?",
+    "deleteDescription": "\"{{name}}\" wordt verwijderd. Meldingen die in die periode binnenkomen, worden gewoon onderzocht.",
     "title": "Onderhoudsvensters", "description": "Meldingen binnen een venster worden vastgelegd en gelabeld, niet onderzocht.", "add": "Venster toevoegen", "create": "Venster aanmaken", "name": "Naam", "scope": "Services",
     "wholeApplication": "Hele applicatie", "when": "Wanneer", "repeat": "Herhalen", "weekly": "Herhaalt wekelijks", "once": "Eenmalig", "state": "Status", "active": "Nu actief", "delete": "Venster verwijderen",
     "starts": "Begint", "ends": "Eindigt", "empty": "Geen onderhoudsvensters"
   },
   "mute": {
+    "deleteTitle": "Deze demperegel verwijderen?",
+    "deleteDescription": "\"{{name}}\" wordt verwijderd. De meldingen die ermee overeenkwamen, worden vanaf nu weer onderzocht.",
     "title": "Dempregels", "description": "Vervaldatum en reden zijn verplicht. Verlopen regels worden als verlopen getoond en nooit stilzwijgend verwijderd.", "add": "Dempregel toevoegen", "create": "Dempregel aanmaken", "name": "Naam",
     "matcher": "Komt overeen met", "reason": "Reden", "expires": "Verloopt", "expired": "Verlopen", "delete": "Dempregel verwijderen", "ruleContains": "Regelnaam bevat", "severity": "Ernst", "anySeverity": "Elke ernst",
     "expiresHelp": "Dempregels eindigen altijd.", "empty": "Geen dempregels"

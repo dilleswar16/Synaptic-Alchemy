@@ -71,7 +71,8 @@ export default function ApplicationsPage() {
     );
   }, [applicationsQuery.data, searchText]);
 
-  const openWorkspace = (application: ApplicationSummary) => navigate(`/applications/${application.applicationId}/${application.lifecycleStatus === "live" ? "review" : "components"}`);
+  const workspacePath = (application: ApplicationSummary) => `/applications/${application.applicationId}${application.lifecycleStatus === "live" ? "/review" : ""}`;
+  const openWorkspace = (application: ApplicationSummary) => navigate(workspacePath(application));
 
   const columns: DataTableColumn<ApplicationSummary>[] = [
     { key: "name", header: t("columns.application"), isSticky: true, sortValue: (row) => row.applicationName, cell: (row) => <span className="font-semibold">{row.applicationName}</span> },
@@ -128,7 +129,7 @@ export default function ApplicationsPage() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredApplications.map((application) => (
             <Card key={application.applicationId} interactive className="h-full">
-              <Link to={`/applications/${application.applicationId}/${application.lifecycleStatus === "live" ? "review" : "components"}`} className="flex h-full flex-col gap-4 rounded-md p-[var(--card-padding)] outline-none focus-visible:ring-2 focus-visible:ring-action">
+              <Link to={workspacePath(application)} className="flex h-full flex-col gap-4 rounded-md p-[var(--card-padding)] outline-none focus-visible:ring-2 focus-visible:ring-action">
                 <div className="flex items-start justify-between gap-3">
                   <h3 title={application.applicationName} className="line-clamp-2 min-w-0 break-words font-display text-h3 font-semibold text-default">{application.applicationName}</h3>
                   <StatusChip tone={lifecycleTone[application.lifecycleStatus]} dot className="shrink-0">{t(`lifecycle.${application.lifecycleStatus}`)}</StatusChip>

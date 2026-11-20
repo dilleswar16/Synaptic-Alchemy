@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { Textarea } from "@/components/ui/Textarea";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { cn } from "@/utils/cn";
 import { formatDate } from "@/utils/formatters";
 import { StepFrame } from "../components/StepFrame";
 import type { StepProps } from "../stepRegistry";
@@ -78,6 +79,8 @@ const toolFields: Record<LogToolType, ToolField[]> = {
   other: [{ key: "holds", kind: "textarea" }],
 };
 const toolTypes = Object.keys(toolFields) as LogToolType[];
+/** Tools Keigan can already read; the others save their details and wait for a reader. */
+const readerToolTypes: LogToolType[] = ["elastic", "splunk", "datadog"];
 const statusTones = { not_tested: "neutral", connected: "success", failed: "danger", reader_not_available: "ai" } as const;
 
 function ConnectionDrawer({ applicationId, toolType, connection, onClose }: { applicationId: string; toolType: LogToolType | null; connection: LogToolConnection | null; onClose: () => void }) {
@@ -93,7 +96,7 @@ function ConnectionDrawer({ applicationId, toolType, connection, onClose }: { ap
     return initial;
   });
   const [credentialValue, setCredentialValue] = useState("");
-  const isPlaceholder = toolType ? !["elastic", "splunk", "datadog"].includes(toolType) : false;
+  const isPlaceholder = toolType ? !readerToolTypes.includes(toolType) : false;
 
   const submit = () => {
     if (!toolType) return;
@@ -177,18 +180,29 @@ export function LogToolsStep({ applicationId, canEdit, onStatusChange }: StepPro
     <StepFrame stepKey="log_tools">
       {canEdit ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {toolTypes.map((toolType) => (
-            <button
-              key={toolType}
-              type="button"
-              onClick={() => setEditor({ toolType, connection: null })}
-              className="flex flex-col items-start gap-2 rounded-lg border border-hairline bg-surface p-4 text-left transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-action"
-            >
-              <span className="flex size-9 items-center justify-center rounded-lg bg-brand-soft text-action"><Database size={18} aria-hidden="true" /></span>
-              <span className="text-body-sm font-semibold">{t(`logTools.tools.${toolType}.title`)}</span>
-              {["elastic", "splunk", "datadog"].includes(toolType) ? null : <StatusChip size="sm" tone="ai" icon={false}>{t("logTools.readerInDevelopment")}</StatusChip>}
-            </button>
-          ))}
+          {toolTypes.map((toolType) => {
+            const isReaderAvailable = readerToolTypes.includes(toolType);
+            return (
+              <button
+                key={toolType}
+                type="button"
+                onClick={() => setEditor({ toolType, connection: null })}
+                className={cn(
+                  "flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-action",
+                  isReaderAvailable ? "border-hairline bg-surface" : "border-dashed border-hairline bg-sunken",
+                )}
+              >
+                <span className={cn("flex size-9 items-center justify-center rounded-lg", isReaderAvailable ? "bg-brand-soft text-action" : "bg-neutral-soft text-muted")}><Database size={18} aria-hidden="true" /></span>
+                <span className="text-body-sm font-semibold">{t(`logTools.tools.${toolType}.title`)}</span>
+                {isReaderAvailable ? null : (
+                  <>
+                    <StatusChip size="sm" tone="neutral" icon={false}>{t("logTools.comingSoon")}</StatusChip>
+                    <span className="text-caption text-muted">{t("logTools.comingSoonNote")}</span>
+                  </>
+                )}
+              </button>
+            );
+          })}
         </div>
       ) : null}
 
