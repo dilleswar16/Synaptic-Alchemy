@@ -85,6 +85,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | D15 | Alert sources and noise policy step | ✅ | HTML nesting bug fixed |
 | D16 | SLO proposals step | ✅ | |
 | D17 | Notifications step (stakeholders, service checkboxes) | ✅ | |
+| D19 | Application team: roles lead / developer / infra / devops / tester, status and invitations, team entered when an application is created | ✅ | Design in `20_TEAM_MEMBERS_DESIGN.md`. Real email delivery and Entra sign-in matching need a real tenant |
 | D18 | Access step (AD group names for SailPoint) | ✅ | "Check in Entra" confirms both groups, shows member counts, saves object IDs. Verified with local users; Entra path needs `GroupMember.Read.All` on Keigan's identity |
 
 ## E. Incidents and investigations (RCA)

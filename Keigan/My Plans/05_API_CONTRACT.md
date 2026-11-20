@@ -41,7 +41,7 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | Method | Path | Description |
 |---|---|---|
 | GET | `/applications` | readable applications with summary (counts, compliance, open incidents, readiness) |
-| POST | `/applications` | create (Keigan admin) or request (`lifecycleStatus: requested`) |
+| POST | `/applications` | create (Keigan admin) or request (`lifecycleStatus: requested`). Optional `teamMembers: [{ displayName, emailAddress, stakeholderRole }]` are saved in the same transaction (all or nothing); a duplicate or invalid address is a 422. Invitations are queued only when the application is created, not requested |
 | GET/PATCH/DELETE | `/applications/{id}` | detail / update / delete (admin; delete only if not live) |
 | GET | `/applications/{id}/readiness` | `{ required: Requirement[], goodToKnow: Requirement[], canGoLive, steps: [{ stepKey, status }] }` |
 | POST | `/applications/{id}/go-live` | requires `canGoLive` |
@@ -178,8 +178,9 @@ Chart specification (shared with frontend `ChartMessage`):
 
 | Method | Path | Description |
 |---|---|---|
-| GET/POST | `/applications/{id}/stakeholders` | |
-| PATCH/DELETE | `/applications/{id}/stakeholders/{stakeholderId}` | |
+| GET/POST | `/applications/{id}/stakeholders` | The application's team and recipients. POST takes `sendInvitation` (people only). Roles: `lead`, `developer`, `infra`, `devops`, `tester`, `sre`, `manager`, `executive`, `business_owner`, `vendor_contact`. Addresses are checked and stored lower case; one person per address per application (422 with a `fieldErrors` entry for `emailAddress`). Each row carries `teamMemberStatus` (`listed`, `invited`, `active`, `inactive`), `invitedAt`, `lastInvitationSentAt`, `joinedAt`, `invitationIsStale`, `canSendInvitation`, `nextInvitationAllowedAt` |
+| PATCH/DELETE | `/applications/{id}/stakeholders/{stakeholderId}` | The only active team lead cannot be removed, switched off or given another role (422) |
+| POST | `/applications/{id}/stakeholders/{stakeholderId}/invitation` | Admin only. Sends or resends the invitation email; returns `{ teamMember, deliveryId, message }`. 429 inside the cooldown (`TEAM_INVITATION_RESEND_COOLDOWN_MINUTES`), 422 for lists and channels, for someone who already signed in, or who is switched off. An invitation never grants access: access comes from the AD groups |
 | POST | `/applications/{id}/stakeholders/{stakeholderId}/test` | |
 | GET | `/directory/users/search?query=` | Entra people search (Graph) / local users in local mode |
 | GET | `/outbox` | Keigan admins (filters) |

@@ -98,16 +98,25 @@ Follow-up fixed in the same session:
 - **Admin screen.** The alerts page shows a warning banner with each group, its subscription and a plain reason in all seven locales.
 - **Messages with exception names.** Four user-visible texts showed Python exception names (for example `ValueError`). They now read in plain words. The exception stays in the server log. Job errors still show the class name, on purpose, for admins in the Jobs view.
 
-Still open on the backend (not changed in this pass, each needs its own test):
+## Backend gaps closed, and the team feature (final pass 2)
 
-| Place | What happens now | What it should do |
+The four items left open above, the two settings nobody read, the generic messages and the team feature were done in one pass. Every row has a test that failed first.
+
+| Place | Before | Now |
 |---|---|---|
-| Component discovery: diagnostic settings and metric definitions per resource (`component_discovery_service`) | A failed read is returned as an empty list, so the admin sees "no diagnostic setting" for a resource Keigan could not read | Log a warning with the resource id, and report the group as unreadable |
-| Component discovery: workspace customer id (`component_discovery_service`) | A failed read returns `None`, which looks like "not configured" | Log a warning with the workspace id, and report it |
-| Graph user lookup (`microsoft_graph_client.get_user_by_principal_name`) | Any error returns `None`, the same as "user not found" | Return `None` only for 404; log and raise other errors |
-| Connection test (`administration_service`) | Shows raw exception text to admins | Keep for admins (they need detail), but add the correlation id |
+| `INVESTIGATION_MAX_CONCURRENT` | Read by no code; the docs promised a limit | Enforced when a job is leased and counted in the database, so it holds across all worker pods. The candidate query skips a full job type so other jobs keep running; the lease repeats the check. Must be at least 1 |
+| `LOG_PROMPTS_FOR_DEBUGGING` | Read by no code | Prompts are logged as a SHA-256 and length at DEBUG; the flag adds the text. Keigan refuses to start with the flag unless `ENVIRONMENT=local` |
+| AI provider failures | One message for everything | Five kinds, each with its own error code and advice: timeout (504), rate limit (429), credentials (502), rejected request (502), unavailable (503). The provider's text goes to the log only; credentials and rejected requests are not retried |
+| Evidence summaries | "The query could not be completed" | Says why: access refused, source busy, source not found, took too long, not approved, refused by the safety rules, or an unknown reason with a reference |
+| Component discovery | A refused diagnostic, metric or workspace read looked like "nothing configured" | The summary carries `readFailures`; a refused diagnostic read keeps what was known and is not counted as "no diagnostic setting"; each refusal is logged with the resource |
+| Graph user lookup | Any error meant "no such user" | `None` only for 404; every other failure is raised. The Teams chat error names the people Entra does not know |
+| Azure and Graph error text | Provider text with identities and role actions shown to users | Plain advice per status plus a reference; the provider text is logged |
+| Six `NotImplementedError` fallbacks | Could never run | Removed |
+| SolarWinds, IBM Z, vendor log tools; CMDB, EI portal, knowledge integrations | Saved; reading not built | Unchanged on purpose: they are features, and the screens already say "reader in development" |
 
-Infra checks still needed: a real Azure tenant, to confirm the 403, 404 and throttling codes against Azure's real responses.
+Team members: roles `lead`, `infra`, `devops`, `tester` added; people can be entered when an application is created; a team status and invitation emails; duplicate and invalid addresses refused; the only lead cannot be removed. Design and the calls made are in `20_TEAM_MEMBERS_DESIGN.md`. Migration `e4c8a1d7b2f6` is generated into the Azure SQL scripts and the delta script. The frontend treats a configuration without an environment name as production (developer pages stay hidden), and the screens show when email is simulated.
+
+Not verified: real email delivery, Entra sign-in matching of invited people on a real tenant, the real Azure 403, 404 and throttling answers, and T-SQL on a real SQL Server.
 
 ## Follow-ups noted during wave 2
 

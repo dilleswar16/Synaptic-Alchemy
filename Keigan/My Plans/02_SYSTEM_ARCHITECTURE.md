@@ -384,7 +384,7 @@ User question → ChatService: intent (fast model) → service + source resoluti
 3. **Model tiering:** fast model for triage, intent, titles, comms, narratives; deep model only for hypotheses, synthesis, query generation, topology.
 4. **Prompt caching friendliness:** static system prompt and application knowledge first, incident-specific content last, so provider-side prefix caching applies.
 5. **Deduplicated work:** noise reduction ensures one investigation per alert group; re-runs reuse collected evidence when the window is unchanged.
-6. **Limits:** `LLM_MAX_CONCURRENT_REQUESTS` (global semaphore), `INVESTIGATION_MAX_CONCURRENT` (worker), `max_investigations_per_hour` (per application policy), `LLM_DAILY_TOKEN_BUDGET_PER_APPLICATION`
+6. **Limits:** `LLM_MAX_CONCURRENT_REQUESTS` (global semaphore), `INVESTIGATION_MAX_CONCURRENT` (all worker pods together: the job lease counts running investigations in the database, so more wait in the queue; must be at least 1), `max_investigations_per_hour` (per application policy), `LLM_DAILY_TOKEN_BUDGET_PER_APPLICATION`
    (at 80 % notify admins; at 100 % new investigations run in *evidence-only* mode: deterministic evidence and blast radius without AI narrative, clearly labelled).
 7. **Accounting:** every call writes `llm_usage_record`; the usage page shows tokens and estimated cost per application, feature and day.
 

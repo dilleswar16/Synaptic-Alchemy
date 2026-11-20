@@ -90,7 +90,7 @@ application must have its group object IDs saved, and "Check in Entra" reports t
 
 - Probes: `/api/public/health` (liveness), `/api/public/readiness` (readiness).
 - Logs: JSON to stdout → Container Insights; correlation ID per request and per job.
-- Scaling: investigations are bounded by `INVESTIGATION_MAX_CONCURRENT` per worker pod; add worker replicas for throughput.
+- Scaling: running investigations are bounded by `INVESTIGATION_MAX_CONCURRENT` across all worker pods together (counted in the database when a job is leased); extra investigations wait in the queue. Adding worker replicas raises throughput only up to that limit, so raise the limit with them.
 - Database migrations: Helm pre-install/pre-upgrade job runs `python -m alembic upgrade head` (`databaseMigration.enabled`).
   The baseline (`94692c828bd3`) is already recorded by the SQL scripts, so the first install is a no-op and later releases
   apply only their new migrations. Turn the job off if DBAs apply changes themselves (`alembic upgrade <from>:<to> --sql`).

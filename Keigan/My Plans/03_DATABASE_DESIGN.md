@@ -20,7 +20,7 @@ Any change must be made here first (or recorded in the change log at the bottom)
 
 Database engines: SQLite (local, WAL mode), **Azure SQL Database** (production target) and PostgreSQL 16 (still supported).
 Local schema is created with `Base.metadata.create_all`. In Azure the schema comes from the generated scripts in
-`database/azure_sql/` (run once before the first install) and Alembic migrations afterwards (baseline `94692c828bd3`, current head `d2a6b0c5e8f9`).
+`database/azure_sql/` (run once before the first install) and Alembic migrations afterwards (baseline `94692c828bd3`, current head `e4c8a1d7b2f6`).
 The column types written below as `VARCHAR` / `TIMESTAMPTZ` are the logical types; on Azure SQL they are created as:
 
 | Logical type | Azure SQL type | Why |
@@ -813,7 +813,7 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 | entra_object_id | VARCHAR(36) | needed to add to Teams chats |
 | teams_team_id | VARCHAR(100) | channel destinations |
 | teams_channel_id | VARCHAR(200) | |
-| stakeholder_role | VARCHAR(30) | `sre`, `developer`, `manager`, `executive`, `business_owner`, `vendor_contact` |
+| stakeholder_role | VARCHAR(30) | `sre`, `developer`, `manager`, `executive`, `business_owner`, `vendor_contact`, `lead`, `infra`, `devops`, `tester` |
 | subscribed services | association table `stakeholder_subscribed_service` | section 11; empty = all services |
 | notification_channels_json | JSON | `["email","teams_incident_chat","teams_channel"]` |
 | minimum_priority | VARCHAR(4) | `P1`, `P2`, `P3`, `P4` |
@@ -821,7 +821,13 @@ UNIQUE (`sli_id`, `measurement_window_start`). Hourly roll-ups (later) in `sli_m
 | preferred_language_code | VARCHAR(10) | |
 | quiet_hours_json | JSON | optional |
 | is_active | BOOLEAN | |
+| invited_at | TIMESTAMPTZ | first invitation sent; null = never invited |
+| invited_by_user_principal_name | VARCHAR(320) | who sent the first invitation |
+| last_invitation_sent_at | TIMESTAMPTZ | drives the resend cooldown |
+| joined_at | TIMESTAMPTZ | first sign-in of this person (set from `/api/auth/me`) |
 | [audit] | | |
+
+A person's team status (`listed`, `invited`, `active`, `inactive`) is worked out from `is_active`, `joined_at` and `invited_at`; it is not stored. Unique index `uq_stakeholder_application_email` (application, email address) where the row is a person with an address: one person per application, stored in lower case. See `20_TEAM_MEMBERS_DESIGN.md`.
 
 ### `notification_delivery` (outbox)
 | Column | Type | Notes |
@@ -1034,4 +1040,5 @@ constraints from the entities. Fresh databases and Azure SQL (generated scripts 
 | 2026-11-19 | Initial schema | Plan |
 | 2026-11-19 | Implementation: NUMERIC confidence/score/percentage columns implemented as FLOAT (portable across SQLite/PostgreSQL). Added `investigation.stage_messages_json`, `open_questions_json`, `knowledge_references_json`, `model_names_json`; `investigation_evidence.masked_value_count`, `possible_prompt_injection`. | Lead |
 | 2026-11-20 | Azure SQL support. Schema `keigan`; NVARCHAR / DATETIME2(6) / naming convention (see section 1). SQL Server allows one cascade path per table, so these foreign keys became NO ACTION and the application delete removes the rows itself first: `monitored_service.component_id` (was SET NULL), `service_dependency.downstream_service_id` (was CASCADE), `service_log_source.log_tool_connection_id` (was SET NULL), `investigation.incident_id` (was CASCADE). `incident (application_id, external_incident_number)` unique constraint became a filtered unique index `WHERE external_incident_number IS NOT NULL` (SQL Server treats NULLs as equal in unique constraints). Alembic baseline `94692c828bd3`; DDL scripts in `database/azure_sql/`. | Lead |
+| 2026-11-21 | Team members (revision `e4c8a1d7b2f6`): four invitation columns on `stakeholder`, roles `lead`, `infra`, `devops`, `tester` added to its CHECK, and the filtered unique index `uq_stakeholder_application_email`. The migration stops with a message when two people of one application already share an address. | Final pass |
 | 2026-11-20 | Data model hardening (H11 to H14, revisions `a3f5c0d1e2b4`, `b7d2e9a4c6f1`, `c9e4f1b8d3a7`, `d2a6b0c5e8f9`). Nine association tables replaced the `*_ids_json` id lists (section 11). Foreign keys on every reference to an application, incident, investigation, SLI or service (section 12). The alert group's `investigation_id` and `incident_id` are the single truth and `investigation.alert_group_id` was dropped (section 13). CHECK constraints on 47 status and kind columns, built from `status_values.py` (section 14). Stale value lists corrected: `ai_digest_status`, `incident_source`, `generation_status`, `review_status`, `access_verification_status`, `integration_status`, `connection_status`, `processing_status`, `group_status` and others. | Hardening wave 2 |

@@ -28,6 +28,7 @@ record the decision in `09_LEARNINGS_LOG.md`, never silently diverge.
 | 16 | [Hardening plan](16_HARDENING_PLAN.md) | Review findings, agreed decisions (APIM, incremental schema, tests), and the status of every fix. |
 | 17 | [Security and prompt review](17_SECURITY_AND_PROMPT_REVIEW.md) | Independent review: verified findings with proofs, prompt-quality notes, what was not checked. |
 | 19 | [Hardening wave summary](19_HARDENING_WAVE_SUMMARY.md) | Plain tables of what waves 1 and 2 changed, the real cause of each fix, and how it was proven. |
+| 20 | [Application team members: design](20_TEAM_MEMBERS_DESIGN.md) | Roles, invitations, statuses and the rules behind them, with the calls made and why. |
 
 Database scripts for Azure SQL (run before the first deployment): [`database/azure_sql/`](../database/azure_sql/README.md).
 
