@@ -16,7 +16,7 @@ unless you pass `-v ConfirmDemoData=yes`, and the data is only useful with `TELE
 | 2 | `02_knowledge.sql` | Knowledge documents and chunks, runbooks, topologies and review comments, record links, integrations |
 | 3 | `03_alerts_and_slos.sql` | Alert sources, noise policies, maintenance window, mute rule, historical alerts and decisions, SLIs and SLOs |
 | 4 | `04_sli_measurements.sql` | 30 days of SLI measurements. **Not committed** (tens of MB, hundreds of thousands of rows); see "Step 4" below |
-| 5 | `05_incidents_and_investigations.sql` | Incidents, communications, investigations, hypotheses, evidence, timelines, postmortems |
+| 5 | `05_incidents_and_investigations.sql` | Incidents, communications, investigations, hypotheses, evidence, timelines, postmortems, alert groups (they point at incidents and investigations, so they load here) |
 | 6 | `06_intelligence_and_collaboration.sql` | Predictive signals, intelligence reports, incident chat, notification history, simulation settings |
 | runner | `run_all_demo_data.sql` | Runs the committed steps (1, 2, 3, 5, 6) in order with `:r`. Never include it from `run_all.sql` |
 | removal | `99_remove_demo_data.sql` | Deletes the demo rows again (see "Remove demo data") |

@@ -1,0 +1,61 @@
+# Hardening summary: wave 1 and wave 2
+
+Written 2026-11-20. This is the "what did we change and why" page. The tracking page with every finding and its status is
+[`16_HARDENING_PLAN.md`](16_HARDENING_PLAN.md); the security findings in full are in [`17_SECURITY_AND_PROMPT_REVIEW.md`](17_SECURITY_AND_PROMPT_REVIEW.md).
+
+How to read the tables:
+
+- **Cause** is what was really wrong in the code (a place in the code you can open), not a guess.
+- **Proof** says how we know: `test` means a test that failed before the fix and passes now; `prevention` means the code was not failing today but would
+  break or be unsafe on real infrastructure (Azure SQL, Entra, several pods), so it was made safe before go-live.
+- Nothing here ran against real Azure SQL, real Entra or a real LLM. Those need the infra team (see "Not verified" at the end).
+
+## Wave 1: security, correctness under load, accessibility (seven streams, all merged)
+
+| Stream | Area | What was wrong (cause) | What we did | Proof |
+|---|---|---|---|---|
+| A | Query safety (KQL, SPL, Elastic) | The KQL check only looked at tables before the first `\|`, so a later `\| union SecurityEvent` or `join` read tables nobody approved (H2, V4). A `"//"` inside a string hid the rest of the line from every check. SPL used a deny-list, so `index=*` and unbounded `tstats` ran (V5). Elastic script check could be bypassed with JSON unicode escapes (V6). Custom SLI queries ran with no check at all (H1, V14). The baseline query reused the incident window, so everything looked "new" (V10). The SLI list ran two queries per SLI (H15). | New tokenizer-based KQL validator, SPL allow-list with one index per log source, Elastic checked as parsed JSON, SLI queries validated on save and before every run, baseline hardened against the baseline window, SLI list in 3 queries. All rules live in `resources/catalogs/query_safety.yaml`, not in code. | test |
+| B | Who may read which telemetry | A `requested` application's creator could point log sources at another team's workspace (V2). In Entra mode roles matched group display names, which are not unique and can be renamed (H7). Changing a log tool endpoint kept the stored credential, so a credential could be sent to a new host (V16). Request bodies could set secret-name pointers (V22). | Telemetry is read only for approved applications and only from resources inside the application's verified components (`telemetry_access_policy.py`). Entra roles match group object ids only; an app without ids is denied with a message to run "Check in Entra". Outbound URL policy (https only, no private addresses after DNS). Changing the endpoint deletes the credential. Credentials are write-only and stored under a generated name. | test |
+| C | Sign-in, secrets, deployment | Local sign-in (any user, including admin) was blocked only when `ENVIRONMENT=prod`, and the default signing secret was accepted (H6, V15). An Entra token without a `tid` was accepted (H8). A token without Keigan's delegated scope, or an app-only token, was accepted as a user (S5). The Teams token's `serviceurl` was not tied to the activity, so Keigan's bot token could be sent to any host (S1). Uvicorn trusted forwarded headers from any IP (H9). No dependency lock, so Docker built from version ranges (H16). | Local auth and default secrets only in `local` or `test`. `tid` must match. Scope or allowed app role required. `serviceurl` must match and be on the allowed host list. Forwarded-for trust is a setting that refuses `*`. `requirements.lock` with hashes, and a test that fails if the code imports a package the lock does not have. | test (H9 and H16 are prevention: Helm render and Docker build not run yet) |
+| D | AI prompts and AI output | Uploaded knowledge, runbooks, old RCAs and chat were put into prompts as trusted text (V7). Links in AI text could point anywhere and markdown images rendered (V8). The command risk check missed `kubectl -n x delete`, `terraform destroy`, SQL `DELETE` (V9). Chat history, Teams names and activity-log callers reached the LLM unmasked (V12). The Teams bot answered anyone in a chat and did not check the tenant (V13). Token budget was skipped in chat (V17). Error text from upstream systems was shown to users (V19). Citations `[K#]` were not checked against real sources (V20). | Untrusted prompt sections with forged tags neutralised; flagged documents follow a policy setting. `output_sanitizer.py` rewrites links and images from the markdown parse tree on every AI output and again before email and Teams. Tokenising command classifier with rules in a catalog. Masking added on every path that reached the LLM. Teams sender is resolved to groups (fail closed). Per-user daily budget. Messages tell the user what to do and quote the correlation id. Citations and file paths validated. | test |
+| E | Many pods, retries, leftovers | Duplicate alerts: dedup used an in-process lock and the fingerprint index was not unique (H3). Job dedup was check-then-insert (H4). A job lease of 10 minutes was never renewed, so a long investigation could run twice (H5). Retention never removed incidents or investigations (H10). Webhook signing used the stored hash as the key, so database read access was enough to forge alerts (V1b). A forged all-zero signature was accepted (V1). Nothing checked that Alembic, the entities and the Azure SQL scripts agree (H21). | Unique indexes for one open alert per fingerprint and one active job per dedup key. Guarded UPDATE for the lease (SQLAlchemy emits no row lock for SQL Server) plus a heartbeat that renews it. Retention in batches. Webhook signing uses the plaintext secret from the secret store. `test_schema_drift.py` compares the three copies of the schema. | test (SQL Server paths compiled, not executed) |
+| F | PII masking | Masker missed full-width text, Japanese phone numbers without separators, tokens, snake_case keys (V11). | Unicode normalisation, new patterns in `pii_patterns.yaml`, My Number check digit, 47 tests. | test |
+| G | Frontend accessibility and copy | `text-subtle` contrast 3.25:1 and success text 4.17:1, below WCAG AA (H17). Phone width scrolled sideways (H18). Raw enum values ("tier_2") and "1 occurrences" shown (H18). `es-MX` locale missing namespaces (H20). Dead files (H19). | Colours darkened, 218 contrast pairs checked in light and dark, no overflow at 390 px on 31 screens, enum labels and plurals through i18n, locale check covers es-MX, dead files removed. UI applies the same link allow-list as the server (published in client configuration). | test (build, locale and contrast scripts; screen capture) |
+
+### Fixes after merging wave 1 (found when the streams met)
+
+| Problem | Cause | Fix |
+|---|---|---|
+| Splunk chat broke after stream A | A required one index per Splunk source, but chat never passed the source's scope to the validator | Chat passes `query_scope` and shows the model a "Query limits" section; offline mock no longer writes `index=*` |
+| Two Teams tests failed after stream D | Stream B had made Entra roles depend on group object ids, stream D's tests still used names | Tests use group object ids on a linked application |
+| App would not run in a clean install | Stream D imported `markdown-it-py` but `pyproject.toml` and the lock did not list it | Added to both; new test compares the code's imports with the lock |
+| Browser and server disagreed on allowed link hosts | Frontend allowed a host plus all subdomains and had a `github.com` default; backend allowed exact host or `*.suffix` | Backend publishes the list; frontend uses the same matching rule |
+| Planner did not see query limits | Stream A's planner section and stream D's masking context were never connected | Planner node adds the "Query limits per service" section and passes the shared masking context |
+
+## Wave 2: data model, demo-data SQL, integration credentials
+
+Wave 2 was first built in separate working copies by a different agent (Gemini). Each part was reviewed here against the real diff and tests
+before merging. Two of the three parts were rejected and redone; the table says why.
+
+| Part | Review result | What was wrong or what changed (cause) | Fix | Proof |
+|---|---|---|---|---|
+| W2-3 Integration credentials, Entra duplicate groups, chat cannot-answer | Accepted as delivered | Integration cards still showed a `credential_secret_name` text box although wave 1 removed client-set secret names (V22). `find_group` took the first Entra group with a matching name, so access could go to the wrong group. When the model returned no query with an explanation, chat said "The query is empty or too long." | Catalog field type `secret` (write-only password field, "a credential is saved" hint, API returns only `hasCredential`); unknown field types fail at load; two groups with one name raise a clear 409 and the admin links by object id in "Check in Entra"; chat shows the model's explanation. | test (18 new) |
+| W2-2 Demo-data SQL for the DBA | Rejected, redone | First version: a 56 MB file in git; a cleanup script that ran `DELETE FROM` on every table (would destroy real data); table groups typed by hand; seeded a queued `background_job` that Azure workers would run; only the first key of each chunk was checked for "already exists". | New generator reads tables, keys and order from the entities. One exclusion list with a reason per table (jobs, secrets, users, LLM usage, audit). Every row is guarded by its own key. `99_remove_demo_data.sql` deletes only the seeded keys, children first. Step 04 (425,000 measurements, 53 MB) is generated on demand; `MANIFEST.json` holds row counts and hashes so a test still catches drift. Every script needs `-v ConfirmDemoData=yes`. | test (95 new) |
+| Found while reviewing W2-2 | Fixed here | The masked-value count stored with each evidence item was a before/after difference of one counter shared by up to four concurrent queries, so it changed with event-loop timing. `SLO_BACKFILL_DAYS` existed in settings but `slo_service.py` hard-coded 30 and 7. | Count measured only around the synchronous masking step. Backfill days read from `SLO_BACKFILL_DAYS` and the new `SLO_SUPPORTING_SIGNAL_BACKFILL_DAYS`. The seed environment no longer needs a one-query-at-a-time workaround. | test |
+| W2-1 Data model integrity (H11 to H14) | Rejected, redone | WAITING FOR THE REDO REPORT | | |
+
+## Not verified (needs the infra team or a real environment)
+
+- All T-SQL (`database/azure_sql`, delta scripts, demo data) was compiled or text-checked and run on SQLite only. The DBA's first run on a non-production Azure SQL database is the real test.
+- Real Entra sign-in and groups, real Log Analytics, Splunk and Elastic, a real LLM: only simulated or mocked here.
+- Helm `lint` and `template`, the Docker build, the forwarded-header CIDR and the egress CIDRs.
+- The UI after all merges was built and contrast-checked but not looked at in a browser in this session.
+
+## Follow-ups noted during wave 2
+
+| Item | Detail |
+|---|---|
+| SLI table list (`kql.sli_allowed_tables`) | Present in the general list but not the SLI list: `traces`, `customEvents`, `customMetrics` (classic App Insights tables whose siblings `requests`, `dependencies`, `exceptions` are allowed), `AppServiceConsoleLogs`, `AppServiceAppLogs`, `AzureMetrics`, `ADFTriggerRun`. Candidates to add when a real SLI needs them. `AzureDiagnostics` is the broadest entry: one table holds diagnostics of every resource type in the workspace. It is allowed today because the telemetry access policy already limits the workspace to the application's verified components; keep that in mind when adding SLIs. Not changed: needs the owner's decision. |
+| Demo data "now" | The generated demo data is fixed at 2026-11-20 12:00 UTC, so dashboards that look at the last 30 days will look old if loaded much later. Refresh by changing the reference time in the generator and regenerating. |
+| Demo SLI history volume | 425,000 measurements at a 5-minute grain. Older history could be hourly to cut the file about 10 times. Owner's decision. |
+| Frontend hard-coded lists | Sidebar structure and admin-only flags, log source kinds and reader tool types are still written in the frontend. Handled in the feature audit (`18_FEATURE_AUDIT.md`). |

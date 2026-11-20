@@ -35,17 +35,17 @@ DEMO_DATA_FILE_DECLARATIONS: tuple[DemoDataFileDeclaration, ...] = (
     DemoDataFileDeclaration(
         "01_applications_and_topology.sql",
         "Demo data 1 of 6: applications, components, services, topology, stakeholders",
-        ("application", "application_component", "log_tool_connection", "monitored_service", "service_dependency", "service_log_source", "discovered_resource", "servicenow_assignment_group", "stakeholder"),
+        ("application", "application_component", "log_tool_connection", "monitored_service", "service_dependency", "service_log_source", "discovered_resource", "servicenow_assignment_group", "stakeholder", "stakeholder_subscribed_service"),
     ),
     DemoDataFileDeclaration(
         "02_knowledge.sql",
         "Demo data 2 of 6: knowledge documents, runbooks, topology reviews, record links, integrations",
-        ("knowledge_document", "knowledge_chunk", "runbook", "application_topology", "topology_review_comment", "application_record_link", "external_integration"),
+        ("knowledge_document", "knowledge_chunk", "runbook", "application_topology", "topology_review_comment", "application_record_link", "external_integration", "runbook_applies_to_service", "topology_source_document"),
     ),
     DemoDataFileDeclaration(
         "03_alerts_and_slos.sql",
         "Demo data 3 of 6: alert sources, noise policies, historical alerts, SLIs and SLOs",
-        ("alert_source", "noise_reduction_policy", "maintenance_window", "alert_mute_rule", "alert", "alert_group", "alert_event", "alert_decision", "service_level_indicator", "service_level_objective", "slo_burn_alert"),
+        ("alert_source", "noise_reduction_policy", "maintenance_window", "alert_mute_rule", "alert", "alert_event", "alert_decision", "service_level_indicator", "service_level_objective", "slo_burn_alert", "maintenance_window_applies_to_service"),
     ),
     DemoDataFileDeclaration(
         "04_sli_measurements.sql",
@@ -55,13 +55,13 @@ DEMO_DATA_FILE_DECLARATIONS: tuple[DemoDataFileDeclaration, ...] = (
     ),
     DemoDataFileDeclaration(
         "05_incidents_and_investigations.sql",
-        "Demo data 5 of 6: incidents, investigations, evidence, postmortems",
-        ("incident", "incident_communication", "investigation", "investigation_hypothesis", "investigation_evidence", "investigation_timeline_event", "postmortem_report"),
+        "Demo data 5 of 6: incidents, investigations, evidence, postmortems, alert groups (alert groups point at incidents and investigations, so they load after them)",
+        ("incident", "incident_communication", "investigation", "investigation_hypothesis", "investigation_evidence", "investigation_timeline_event", "postmortem_report", "incident_affected_service", "investigation_investigated_service", "investigation_matched_runbook", "alert_group", "alert_group_affected_service"),
     ),
     DemoDataFileDeclaration(
         "06_intelligence_and_collaboration.sql",
         "Demo data 6 of 6: predictive signals, reports, incident chat, notification history, simulation settings",
-        ("predictive_signal", "intelligence_report", "teams_incident_chat", "conversation", "conversation_message", "notification_delivery", "platform_setting"),
+        ("predictive_signal", "intelligence_report", "teams_incident_chat", "conversation", "conversation_application", "conversation_message", "notification_delivery", "platform_setting"),
     ),
 )
 

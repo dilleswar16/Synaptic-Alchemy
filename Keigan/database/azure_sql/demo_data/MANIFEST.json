@@ -18,36 +18,38 @@
         "service_dependency": 14,
         "service_log_source": 34
       },
-      "sha256": "fff3b4f3d46cce0db468869d3d1e10a6e5f8bca2c3e63ab94043e5d9de5bfc44"
+      "sha256": "e2704911058dc3221ac794080eb53ecd2ca7386e42d6f110c5498fd2a19d032e"
     },
     "02_knowledge.sql": {
       "committed": true,
       "rows": {
-        "external_integration": 4,
         "application_record_link": 8,
         "application_topology": 5,
-        "knowledge_document": 4,
+        "external_integration": 4,
         "runbook": 8,
+        "topology_review_comment": 3,
+        "knowledge_document": 4,
+        "runbook_applies_to_service": 11,
         "knowledge_chunk": 42,
-        "topology_review_comment": 3
+        "topology_source_document": 4
       },
-      "sha256": "9d2c287383896ad8650fb3214345153c256d1621a2ba77641a57e29cb13aefc7"
+      "sha256": "2f78c783a752d872a76a2a6ca496c744e148c250adc10019ee41aaed04379db1"
     },
     "03_alerts_and_slos.sql": {
       "committed": true,
       "rows": {
-        "alert": 15,
-        "alert_group": 13,
-        "alert_decision": 160,
         "alert_mute_rule": 1,
         "alert_source": 7,
         "maintenance_window": 1,
         "noise_reduction_policy": 5,
-        "service_level_indicator": 89,
         "alert_event": 175,
+        "alert": 15,
+        "maintenance_window_applies_to_service": 1,
+        "service_level_indicator": 89,
+        "alert_decision": 160,
         "service_level_objective": 37
       },
-      "sha256": "40c7cca894b47bc1c284fa74b0a1d09a9347857d741363f54d9faf226848e62f"
+      "sha256": "f5930b9e2f0b055565709a2232f4266d2470cb40c384ca0015bc5b4f5cb56ea0"
     },
     "04_sli_measurements.sql": {
       "committed": false,
@@ -59,28 +61,33 @@
     "05_incidents_and_investigations.sql": {
       "committed": true,
       "rows": {
-        "incident_communication": 56,
-        "investigation_timeline_event": 68,
-        "postmortem_report": 7,
         "incident": 7,
         "investigation": 7,
+        "alert_group": 13,
+        "incident_affected_service": 20,
+        "incident_communication": 56,
         "investigation_evidence": 103,
-        "investigation_hypothesis": 21
+        "investigation_hypothesis": 21,
+        "investigation_investigated_service": 22,
+        "investigation_matched_runbook": 7,
+        "investigation_timeline_event": 68,
+        "postmortem_report": 7,
+        "alert_group_affected_service": 14
       },
-      "sha256": "a6eadd488ebbd5cb32af59bfa9d097bf73586553eacb77ea9ca26df6cfd944c8"
+      "sha256": "05c7e927fec54392724ddf1797d35eb618e883ee3aa88a3316f42cad6e12bb82"
     },
     "06_intelligence_and_collaboration.sql": {
       "committed": true,
       "rows": {
-        "conversation": 1,
-        "intelligence_report": 4,
-        "notification_delivery": 58,
         "platform_setting": 7,
-        "predictive_signal": 7,
+        "intelligence_report": 4,
         "teams_incident_chat": 1,
-        "conversation_message": 9
+        "conversation": 1,
+        "notification_delivery": 58,
+        "conversation_message": 9,
+        "predictive_signal": 7
       },
-      "sha256": "f698b7c2cf463a0f8c27d4f83efd6c3d7a6d867262ac4b7b0dbbf103d7f88f8d"
+      "sha256": "6b877dbe9c2e673f1efb7a8278a653c86dd76b54090b39945b4badc3183746be"
     },
     "99_remove_demo_data.sql": {
       "committed": true,
@@ -94,40 +101,47 @@
         "monitored_service": 19,
         "service_dependency": 14,
         "service_log_source": 34,
-        "external_integration": 4,
         "application_record_link": 8,
         "application_topology": 5,
-        "knowledge_document": 4,
+        "external_integration": 4,
         "runbook": 8,
-        "knowledge_chunk": 42,
         "topology_review_comment": 3,
-        "alert": 15,
-        "alert_group": 13,
-        "alert_decision": 160,
+        "knowledge_document": 4,
+        "runbook_applies_to_service": 11,
+        "knowledge_chunk": 42,
+        "topology_source_document": 4,
         "alert_mute_rule": 1,
         "alert_source": 7,
         "maintenance_window": 1,
         "noise_reduction_policy": 5,
-        "service_level_indicator": 89,
         "alert_event": 175,
+        "alert": 15,
+        "maintenance_window_applies_to_service": 1,
+        "service_level_indicator": 89,
+        "alert_decision": 160,
         "service_level_objective": 37,
         "sli_measurement": 424512,
-        "incident_communication": 56,
-        "investigation_timeline_event": 68,
-        "postmortem_report": 7,
         "incident": 7,
         "investigation": 7,
+        "alert_group": 13,
+        "incident_affected_service": 20,
+        "incident_communication": 56,
         "investigation_evidence": 103,
         "investigation_hypothesis": 21,
-        "conversation": 1,
-        "intelligence_report": 4,
-        "notification_delivery": 58,
+        "investigation_investigated_service": 22,
+        "investigation_matched_runbook": 7,
+        "investigation_timeline_event": 68,
+        "postmortem_report": 7,
+        "alert_group_affected_service": 14,
         "platform_setting": 7,
-        "predictive_signal": 7,
+        "intelligence_report": 4,
         "teams_incident_chat": 1,
-        "conversation_message": 9
+        "conversation": 1,
+        "notification_delivery": 58,
+        "conversation_message": 9,
+        "predictive_signal": 7
       },
-      "sha256": "6ddde39dfb4e4c926c8b4bb8db0332a7f81edab39966ec7ac3e8d758c87a3edf"
+      "sha256": "7b56b3eb48d90c347ccc54dcb6f4f0ce894831aec57c7e837b58b8193fe27291"
     },
     "run_all_demo_data.sql": {
       "committed": true,
@@ -136,7 +150,9 @@
     }
   },
   "tables_without_seeded_rows": [
-    "slo_burn_alert"
+    "conversation_application",
+    "slo_burn_alert",
+    "stakeholder_subscribed_service"
   ],
   "excluded_tables": {
     "background_job": {
