@@ -129,3 +129,40 @@ into `keigan-hardening` by the lead after review. Only the lead edits `My Plans/
 **Wave 2** (after wave 1 is merged): data model H11-H14 (join tables, foreign keys, CHECK constraints, soft links),
 an error-handling sweep across the remaining services, wiring any cross-stream follow-ups the wave-1 reports list,
 then an independent review of the combined change and a full smoke run (seed, all screens, test suite).
+
+## After hardening: roadmap
+
+Agreed 2026-11-20. Each phase starts when the previous one is done, except where noted.
+
+| # | Phase | Goal | Starts when |
+|---|---|---|---|
+| 1 | Hardening wave 1 and 2 | Every H and V finding fixed with a test, accepted by design, or waiting on infra | In progress |
+| 2 | **Feature audit** | Confirm every existing feature is correctly conceived, configured, architected, access-controlled and labelled before anything new is built | Wave 2 merged and green |
+| 3 | New features | Build the next features on a verified base | Feature audit findings fixed |
+| 4 | UI/UX polish | Design polish beyond the hardening fixes | Mostly after the features it touches |
+| 5 | Frontend tests | Vitest unit tests and Playwright end-to-end tests | Any time (not blocked) |
+| 6 | Infra go-live checks | Run against real Azure SQL, Entra, ServiceNow, Teams, Log Analytics; APIM and ingress log redaction (V21) | Infra team ready |
+| 7 | Live prompt evaluation | Evaluate prompts on real model output with a small RCA eval set | An LLM endpoint or key is available |
+
+### Feature audit (phase 2): method
+
+Scope: every feature in `12_FEATURE_TRACKER.md` (sections A to O). Output: `18_FEATURE_AUDIT.md` with one row per feature,
+an access matrix, and a findings list that feeds the same status workflow as this plan.
+
+For each feature the audit answers, with file:line evidence:
+
+1. **Idea.** Does the behaviour match the product specification (`01_PRODUCT_SPECIFICATION.md`), and does it solve the user's real problem?
+   Gaps, contradictions, or behaviour nobody asked for.
+2. **Access (RBAC).** Who can see it and who can change it: Keigan admin, application admin, application reader, no access.
+   One matrix row per API route (method, path, required role, object-level check) and per screen or button (shown or hidden,
+   enabled or disabled). The backend check and the UI gating must agree; the backend is the source of truth.
+3. **Configuration.** Every threshold, interval, model and mode comes from settings or a catalog with a safe default and an
+   `.env.example` entry. Simulated and live modes behave the same apart from the data source.
+4. **Architecture.** Logic sits in the right layer (controller, service, integration, worker); one owner per capability; no
+   duplicated rules; data model and jobs fit the flow; works with more than one pod.
+5. **Labelling.** Names, terms and statuses are consistent across UI, API and docs; no raw enum values; every string in all locales.
+6. **Errors and empty states.** Clear messages for every failure and permission case; useful empty and loading states.
+7. **Tests.** The behaviour and its access rules are covered by tests.
+
+Verdict per feature: ✅ correct · 🟡 works but needs changes · 🔴 wrong idea or design, rethink before building on it.
+New features are planned only after the 🔴 and 🟡 items are resolved or explicitly accepted.
