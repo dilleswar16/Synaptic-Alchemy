@@ -84,7 +84,11 @@
     "notes": "Notas",
     "save": "Guardar detalles",
     "saveFailed": "No se pudieron guardar los detalles. Inténtelo de nuevo.",
-    "fields": {}
+    "credentialSaved": "Hay una credencial guardada. Deje el campo vacío para conservarla o escriba una nueva para reemplazarla.",
+    "credentialSavedPlaceholder": "•••••••• guardada",
+    "fields": {
+      "credential_value": "Credencial"
+    }
   },
   "topology": {
     "build": "Crear topología",

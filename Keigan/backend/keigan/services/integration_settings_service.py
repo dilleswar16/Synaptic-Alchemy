@@ -38,6 +38,8 @@ from keigan.services.audit_service import AuditService
 from keigan.utils.time_utils import utc_now
 
 FIELD_SCHEMA_PATH = RESOURCES_DIRECTORY / "catalogs" / "integration_field_schemas.yaml"
+# The field types the onboarding form knows how to draw; a catalog entry with another type is a mistake caught at load time.
+KNOWN_INTEGRATION_FIELD_TYPES = frozenset({"text", "url", "select", "secret", "key_value_list", "textarea"})
 DEMO_SERVICENOW_GROUP_NAMES = [
     "Global-Service-Desk", "Network-Operations-L2", "Database-Support-L2", "Platform-Engineering-SRE",
     "Mainframe-Operations", "Cloud-Infrastructure-L2", "Application-Support-JP", "Application-Support-AU",
@@ -58,10 +60,15 @@ def _camelize_keys(value: Any) -> Any:
 @lru_cache(maxsize=1)
 def load_integration_field_schemas() -> dict[str, Any]:
     raw_kinds = (yaml.safe_load(FIELD_SCHEMA_PATH.read_text(encoding="utf-8")) or {}).get("integration_kinds", {})
-    return {
+    field_schemas = {
         integration_kind: {**{to_camel(key): _camelize_keys(value) for key, value in schema.items() if key != "fields"}, "fields": [_camelize_keys(field) for field in schema.get("fields", [])]}
         for integration_kind, schema in raw_kinds.items()
     }
+    for integration_kind, schema in field_schemas.items():
+        for field in schema["fields"]:
+            if field.get("fieldType") not in KNOWN_INTEGRATION_FIELD_TYPES:
+                raise ValueError(f"{FIELD_SCHEMA_PATH.name}: field '{field.get('key')}' of '{integration_kind}' has the unknown type '{field.get('fieldType')}'.")
+    return field_schemas
 
 
 class IntegrationSettingsService:
@@ -252,7 +259,9 @@ class IntegrationSettingsService:
         if row is None:
             row = ExternalIntegration(application_id=application_id, integration_kind=integration_kind, created_by_user_principal_name=current_user.user_principal_name)
             self.session.add(row)
-        row.integration_configuration_json = {key: value for key, value in configuration.items() if key != "credential_secret_name"}
+        # Only plain fields from the catalog are kept: a secret never lands in the configuration JSON, and unknown keys carry no meaning.
+        stored_keys = {field["key"] for field in schema["fields"] if field["fieldType"] != "secret"}
+        row.integration_configuration_json = {key: value for key, value in configuration.items() if key in stored_keys}
         if request.credential_value:
             row.credential_secret_name = row.credential_secret_name or build_secret_name(f"integration-{integration_kind}")
             await application_context.secret_store().set_secret(row.credential_secret_name, request.credential_value, f"{integration_kind} credential for application {application_id}")
@@ -282,7 +291,7 @@ class IntegrationSettingsService:
             reader_available=bool(schema.get("readerAvailable")),
             fields=schema["fields"],
             integration_configuration=(row.integration_configuration_json or {}) if row else {},
-            credential_secret_name=row.credential_secret_name if row else None,
+            has_credential=bool(row and row.credential_secret_name),
             integration_status=row.integration_status if row else "not_set_up",
             integration_notes=row.integration_notes if row else None,
             updated_at=row.updated_at if row else None,

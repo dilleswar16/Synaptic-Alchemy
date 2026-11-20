@@ -15,6 +15,7 @@ from keigan.utils.query_safety import (
     configured_splunk_index,
     describe_query_limits,
     load_query_safety_policy,
+    sli_allowed_kql_tables,
     validate_elastic_index_pattern,
     validate_elastic_query,
     validate_generated_query,
@@ -466,3 +467,49 @@ class TestPromptsMatchTheValidator:
     @pytest.mark.parametrize("prompt_key", ["ai_chat_query_generation", "evidence_query_planner"])
     def test_the_prompts_do_not_teach_a_search_over_every_index(self, prompt_key: str) -> None:
         assert "index=*" not in PromptLibrary().render(prompt_key, application_name="Claims")
+
+
+class TestSliAllowedTablesPolicy:
+    """W2-3: SLI table list review verification (kql.sli_allowed_tables)."""
+
+    def test_sli_allowed_tables_count_and_composition(self) -> None:
+        sli_tables = sli_allowed_kql_tables()
+        assert len(sli_tables) == 20
+        # Must only include telemetry, requests, dependencies, exceptions, availability, and container/job runtime logs
+        expected_tables = {
+            "AppRequests", "AppDependencies", "AppExceptions", "AppTraces", "AppAvailabilityResults",
+            "AppPageViews", "AppMetrics", "AppEvents", "requests", "dependencies", "exceptions",
+            "availabilityResults", "ContainerLogV2", "FunctionAppLogs", "AppServiceHTTPLogs",
+            "ApiManagementGatewayLogs", "AzureDiagnostics", "ADFPipelineRun", "ADFActivityRun",
+            "LogicAppWorkflowRuntime",
+        }
+        assert sli_tables == expected_tables
+
+    def test_sli_allowed_tables_is_a_subset_of_general_allowed_kql_tables(self) -> None:
+        policy = load_query_safety_policy()
+        assert sli_allowed_kql_tables() <= policy.allowed_kql_tables
+
+    def test_sensitive_audit_and_host_tables_are_excluded_from_sli_queries(self) -> None:
+        policy = load_query_safety_policy()
+        sli_tables = sli_allowed_kql_tables()
+        # Security/control plane audit logs and host-level OS logs must NEVER be readable by scheduled SLI queries
+        sensitive_audit_and_host_tables = {
+            "AzureActivity", "Syslog", "Event", "Heartbeat", "AzureDiagnosticsSql",
+            "KubeEvents", "KubePodInventory", "KubeNodeInventory", "KubeServices",
+            "Perf", "InsightsMetrics", "AppServicePlatformLogs", "AppServiceConsoleLogs",
+        }
+        assert sensitive_audit_and_host_tables <= policy.allowed_kql_tables
+        assert not (sensitive_audit_and_host_tables & sli_tables)
+
+    def test_validate_kql_with_sli_allowed_tables_enforces_allowlist(self) -> None:
+        # Valid SLI telemetry query passes
+        hardened = validate_kql("AppRequests | where Success == false | summarize count()", WINDOW_START, WINDOW_END, allowed_tables=sli_allowed_kql_tables())
+        assert "AppRequests" in hardened.query_text
+
+        # Audit/control-plane query rejected even though it exists in general allowed_kql_tables
+        with pytest.raises(QueryRejectedError):
+            validate_kql("AzureActivity | summarize count()", WINDOW_START, WINDOW_END, allowed_tables=sli_allowed_kql_tables())
+
+        with pytest.raises(QueryRejectedError):
+            validate_kql("Syslog | take 10", WINDOW_START, WINDOW_END, allowed_tables=sli_allowed_kql_tables())
+

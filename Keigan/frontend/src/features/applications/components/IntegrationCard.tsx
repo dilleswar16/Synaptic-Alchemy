@@ -21,8 +21,8 @@ function initialValues(integration: Integration): Record<string, string> {
   for (const field of integration.fields) {
     const stored = integration.integrationConfiguration[field.key];
     values[field.key] =
-      field.fieldType === "key_value_list" ? keyValueToText(stored)
-        : field.key === "credential_secret_name" ? (integration.credentialSecretName ?? "")
+      field.fieldType === "secret" ? "" // write-only: a stored credential is never sent back, so the box starts empty
+        : field.fieldType === "key_value_list" ? keyValueToText(stored)
           : stored !== undefined ? String(stored) : (field.defaultValue ?? "");
   }
   return values;
@@ -37,17 +37,25 @@ export function IntegrationCard({ applicationId, integration, canEdit }: { appli
   const [notes, setNotes] = useState(integration.integrationNotes ?? "");
   const isSaved = integration.integrationStatus !== "not_set_up";
 
+  const secretFieldKey = integration.fields.find((field) => field.fieldType === "secret")?.key;
+
   const save = () =>
-    saveIntegration.mutate({
-      integrationKind: integration.integrationKind,
-      integrationConfiguration: Object.fromEntries(
-        integration.fields
-          .map((field) => [field, (values[field.key] ?? "").trim()] as const)
-          .filter(([, text]) => text)
-          .map(([field, text]) => [field.key, field.fieldType === "key_value_list" ? textToKeyValue(text) : text]),
-      ),
-      integrationNotes: notes || undefined,
-    });
+    saveIntegration.mutate(
+      {
+        integrationKind: integration.integrationKind,
+        integrationConfiguration: Object.fromEntries(
+          integration.fields
+            .filter((field) => field.fieldType !== "secret")
+            .map((field) => [field, (values[field.key] ?? "").trim()] as const)
+            .filter(([, text]) => text)
+            .map(([field, text]) => [field.key, field.fieldType === "key_value_list" ? textToKeyValue(text) : text]),
+        ),
+        // Sent only when the user typed one; leaving the box empty keeps the saved credential.
+        credentialValue: secretFieldKey ? (values[secretFieldKey] ?? "").trim() || undefined : undefined,
+        integrationNotes: notes || undefined,
+      },
+      { onSuccess: () => secretFieldKey && setValues((previous) => ({ ...previous, [secretFieldKey]: "" })) },
+    );
 
   const renderField = (field: IntegrationField) => {
     const label = t(`integrations.fields.${field.key}`, { defaultValue: field.label });
@@ -57,6 +65,21 @@ export function IntegrationCard({ applicationId, integration, canEdit }: { appli
     }
     if (field.fieldType === "textarea" || field.fieldType === "key_value_list") {
       return <Textarea key={field.key} {...common} disabled={!canEdit} isMonospace={field.fieldType === "key_value_list"} rows={3} placeholder={field.fieldType === "key_value_list" ? "key=value" : field.placeholder} value={values[field.key] ?? ""} onChange={(event) => setValues({ ...values, [field.key]: event.target.value })} />;
+    }
+    if (field.fieldType === "secret") {
+      return (
+        <Input
+          key={field.key}
+          {...common}
+          helperText={integration.hasCredential ? t("integrations.credentialSaved") : field.helpText}
+          disabled={!canEdit}
+          type="password"
+          autoComplete="new-password"
+          placeholder={integration.hasCredential ? t("integrations.credentialSavedPlaceholder") : field.placeholder}
+          value={values[field.key] ?? ""}
+          onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
+        />
+      );
     }
     return (
       <Input

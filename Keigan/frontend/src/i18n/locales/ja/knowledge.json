@@ -84,7 +84,11 @@
     "notes": "メモ",
     "save": "詳細を保存",
     "saveFailed": "詳細を保存できませんでした。もう一度お試しください。",
-    "fields": {}
+    "credentialSaved": "資格情報は保存済みです。そのまま空欄にすると保持され、新しい値を入力すると置き換えられます。",
+    "credentialSavedPlaceholder": "•••••••• 保存済み",
+    "fields": {
+      "credential_value": "資格情報"
+    }
   },
   "topology": {
     "build": "トポロジーを作成",

@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 import pytest
+from keigan.ai.chat_ai_schemas import ChatQueryResult
 from keigan.ai.llm_gateway import LlmCallResult, LlmGateway, LlmUsageContext
 from keigan.config.database_config import open_session
 from keigan.entities.all_entities import Application, ConversationMessage
@@ -48,6 +49,22 @@ async def test_a_failure_while_answering_shows_the_user_no_internal_error_text(c
     assert response.status_code == 200
     assert "es-prod.internal" not in response.text and "claims-secret" not in response.text
     assert "reference" in response.json()["messageText"]
+
+
+async def test_a_question_the_model_cannot_turn_into_a_query_shows_the_models_explanation(client: httpx.AsyncClient, auth_headers: AuthHeaders, monkeypatch: pytest.MonkeyPatch) -> None:
+    original_generate_structured = LlmGateway.generate_structured
+
+    async def generate_structured_without_a_query(self: LlmGateway, **kwargs: Any) -> Any:
+        if kwargs["feature_name"] == "ai_chat_query_generation":
+            return ChatQueryResult(query_text="", explanation="Sign-up counts are not in the logs of this service.")
+        return await original_generate_structured(self, **kwargs)
+
+    monkeypatch.setattr(LlmGateway, "generate_structured", generate_structured_without_a_query)
+    headers = await auth_headers(users.CLMJP_ADMIN_CHAD_READER)
+    conversation_id = await new_conversation(client, headers)
+    response = await client.post(f"/api/chat/conversations/{conversation_id}/messages", headers=headers, json={"messageText": "How many requests failed on claims-api in the last 3 hours?"})
+    assert response.status_code == 200, response.text
+    assert response.json()["messageText"] == "I can't answer that from the logs of claims-api. Sign-up counts are not in the logs of this service."
 
 
 async def add_document(application_id: str, marker: str, chunk_text: str) -> None:

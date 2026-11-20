@@ -113,3 +113,44 @@ async def test_new_application_is_still_created_when_entra_cannot_be_reached(mon
         )
         stored = await session.get(Application, application.application_id)
     assert (stored.admin_group_object_id, stored.reader_group_object_id) == (None, None)
+
+
+# ── Two Entra groups with the same name are never guessed between ───────────────
+AMBIGUOUS_GROUP_MESSAGE = "Two or more Entra groups are named 'ACC7_admin'. An admin must link the right group by its object ID in 'Check in Entra'."
+
+
+async def test_new_application_is_still_created_when_two_entra_groups_share_a_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    from keigan.dtos.application_dtos import ApplicationCreateRequest
+    from keigan.exceptions.keigan_exceptions import AmbiguousGroupNameException
+    from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
+
+    async def find_group(_self: object, display_name: str | None, object_id: str | None) -> dict[str, str] | None:
+        raise AmbiguousGroupNameException(AMBIGUOUS_GROUP_MESSAGE)
+
+    monkeypatch.setattr(get_settings(), "auth_mode", AuthenticationMode.ENTRA)
+    monkeypatch.setattr(MicrosoftGraphClient, "find_group", find_group)
+    async with open_session() as session:
+        application = await ApplicationService(session).create_application(
+            user("keigan.admin@example.com", is_keigan_admin=True), ApplicationCreateRequest(application_name="Acc seven", application_code="ACC7")
+        )
+        stored = await session.get(Application, application.application_id)
+    assert (stored.admin_group_object_id, stored.reader_group_object_id) == (None, None)
+
+
+async def test_check_in_entra_tells_the_admin_to_link_by_object_id_when_two_groups_share_a_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    from keigan.exceptions.keigan_exceptions import AmbiguousGroupNameException
+    from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
+
+    async def find_group(_self: object, display_name: str | None, object_id: str | None) -> dict[str, str] | None:
+        raise AmbiguousGroupNameException(AMBIGUOUS_GROUP_MESSAGE)
+
+    monkeypatch.setattr(get_settings(), "auth_mode", AuthenticationMode.ENTRA)
+    monkeypatch.setattr(MicrosoftGraphClient, "find_group", find_group)
+    application_id = await create_application("ACC8")
+    async with open_session() as session:
+        response = await ApplicationService(session).verify_access_groups(user("keigan.admin@example.com", is_keigan_admin=True), application_id)
+        stored = await session.get(Application, application_id)
+    assert [(result.role, result.exists, result.message) for result in response.results] == [
+        ("admin", None, AMBIGUOUS_GROUP_MESSAGE), ("reader", None, AMBIGUOUS_GROUP_MESSAGE),
+    ]
+    assert (stored.admin_group_object_id, stored.reader_group_object_id) == (None, None)

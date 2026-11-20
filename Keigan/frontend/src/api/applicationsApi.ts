@@ -317,7 +317,7 @@ export interface LogToolConnectionBody {
 export interface IntegrationField {
   key: string;
   label: string;
-  fieldType: "text" | "url" | "select" | "secret_reference" | "key_value_list" | "textarea";
+  fieldType: "text" | "url" | "select" | "secret" | "key_value_list" | "textarea";
   required?: boolean;
   placeholder?: string;
   helpText?: string;
@@ -331,7 +331,7 @@ export interface Integration {
   readerAvailable: boolean;
   fields: IntegrationField[];
   integrationConfiguration: Record<string, unknown>;
-  credentialSecretName: string | null;
+  hasCredential: boolean;
   integrationStatus: string;
   integrationNotes: string | null;
 }
@@ -491,9 +491,10 @@ export const useTestLogToolConnection = (applicationId: string) =>
   useApplicationMutation(applicationId, (connectionId: string) => apiPost<TestResult>(`${applicationPath(applicationId)}/log-tool-connections/${connectionId}/test`));
 
 export const useSaveIntegration = (applicationId: string) =>
-  useApplicationMutation(applicationId, (variables: { integrationKind: string; integrationConfiguration: Record<string, unknown>; integrationNotes?: string }) =>
+  useApplicationMutation(applicationId, (variables: { integrationKind: string; integrationConfiguration: Record<string, unknown>; credentialValue?: string; integrationNotes?: string }) =>
     apiPut<Integration>(`${applicationPath(applicationId)}/integrations/${variables.integrationKind}`, {
       integrationConfiguration: variables.integrationConfiguration,
+      credentialValue: variables.credentialValue,
       integrationNotes: variables.integrationNotes,
     }));
 export const useAddRecordLink = (applicationId: string) =>

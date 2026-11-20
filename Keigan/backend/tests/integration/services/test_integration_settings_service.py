@@ -128,8 +128,8 @@ async def test_integration_secret_name_sent_by_the_client_is_ignored() -> None:
                 "integrationConfiguration": {**INTEGRATION_CONFIGURATION, "credential_secret_name": "teams-bot-secret"},
             }),
         )
-    assert response.credential_secret_name is None
-    assert "credential_secret_name" not in response.integration_configuration
+    assert response.has_credential is False
+    assert response.integration_configuration == INTEGRATION_CONFIGURATION
 
 
 async def test_integration_credential_is_stored_under_a_generated_name_and_never_returned() -> None:
@@ -140,6 +140,31 @@ async def test_integration_credential_is_stored_under_a_generated_name_and_never
             IntegrationUpdateRequest(integration_configuration=INTEGRATION_CONFIGURATION, credential_value="cmdb-secret"),
         )
         row = await session.scalar(select(ExternalIntegration).where(ExternalIntegration.application_id == application.application_id))
-    assert response.credential_secret_name.startswith("integration-cmdb-")
+    assert response.has_credential is True
+    assert row.credential_secret_name.startswith("integration-cmdb-")
     assert await application_context.secret_store().get_secret_or_none(row.credential_secret_name) == "cmdb-secret"
     assert "cmdb-secret" not in response.model_dump_json()
+    assert row.credential_secret_name not in response.model_dump_json()
+
+
+async def test_saving_an_integration_without_a_credential_keeps_the_stored_one() -> None:
+    application = await create_scoped_application()
+    async with open_session() as session:
+        service = IntegrationSettingsService(session)
+        await service.save_integration(APPLICATION_ADMIN, application.application_id, "cmdb", IntegrationUpdateRequest(integration_configuration=INTEGRATION_CONFIGURATION, credential_value="first-secret"))
+        response = await service.save_integration(APPLICATION_ADMIN, application.application_id, "cmdb", IntegrationUpdateRequest(integration_configuration=INTEGRATION_CONFIGURATION))
+        row = await session.scalar(select(ExternalIntegration).where(ExternalIntegration.application_id == application.application_id))
+    assert response.has_credential is True
+    assert await application_context.secret_store().get_secret_or_none(row.credential_secret_name) == "first-secret"
+
+
+async def test_secret_typed_into_the_configuration_is_not_stored_with_the_configuration() -> None:
+    application = await create_scoped_application()
+    async with open_session() as session:
+        response = await IntegrationSettingsService(session).save_integration(
+            APPLICATION_ADMIN, application.application_id, "cmdb",
+            IntegrationUpdateRequest(integration_configuration={**INTEGRATION_CONFIGURATION, "credential_value": "plain-text-secret", "unknown_key": "x"}),
+        )
+        row = await session.scalar(select(ExternalIntegration).where(ExternalIntegration.application_id == application.application_id))
+    assert row.integration_configuration_json == INTEGRATION_CONFIGURATION
+    assert response.has_credential is False

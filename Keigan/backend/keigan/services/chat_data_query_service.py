@@ -16,11 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.chat_ai_schemas import ChatQueryResult
 from keigan.ai.llm_gateway import LlmUsageContext, ModelTier, PromptSection
+from keigan.ai.output_sanitizer import sanitize_ai_line
 from keigan.config import application_context
 from keigan.entities.all_entities import (
     ApplicationComponent, LogToolConnection, MonitoredService, ServiceLogSource,
 )
-from keigan.exceptions.keigan_exceptions import ReaderNotAvailableException
+from keigan.exceptions.keigan_exceptions import BusinessValidationException, ReaderNotAvailableException
 from keigan.integrations.telemetry_gateway import TelemetryQuery, TelemetryTarget
 from keigan.services.audit_service import AuditService
 from keigan.utils.pii_masker import PiiMasker
@@ -28,6 +29,13 @@ from keigan.utils.query_safety import describe_query_limits, validate_generated_
 
 _TIME_KEYS = ("TimeGenerated", "timestamp", "@timestamp", "window_start", "key_as_string", "_time")
 _LOG_TOOL_LANGUAGES = {"elastic": "elastic_dsl", "splunk": "spl"}
+
+
+class QueryNotAnswerableError(BusinessValidationException):
+    """The model could not write a query for this question on this log source; the message is the explanation shown to the user."""
+
+    error_code = "query_not_answerable"
+    title = "Keigan cannot answer this from the logs"
 
 
 @dataclass
@@ -108,6 +116,7 @@ class ChatDataQueryService:
             output_schema=ChatQueryResult,
             usage_context=usage_context,
         )
+        self._ensure_query_was_written(generated, service.service_name)
         hardened_query = validate_generated_query(query_language, generated.query_text, time_range_start, time_range_end, query_scope=target.query_scope)
         query_result = await application_context.telemetry_gateway().query_logs(
             target,
@@ -126,6 +135,14 @@ class ChatDataQueryService:
             time_range_start=time_range_start, time_range_end=time_range_end, rows=PiiMasker().mask_rows(query_result.rows), row_count=query_result.row_count,
             is_simulated=query_result.is_simulated,
         )
+
+    @staticmethod
+    def _ensure_query_was_written(generated: ChatQueryResult, service_name: str) -> None:
+        """The prompt lets the model return an empty query with an explanation when the question is outside the log source; that is an answer, not a rejection."""
+        if generated.query_text.strip():
+            return
+        reason = sanitize_ai_line(generated.explanation) or "Try asking about the requests, errors or latency of this service."
+        raise QueryNotAnswerableError(f"I can't answer that from the logs of {service_name}. {reason}")
 
     @staticmethod
     def _query_limits(target: TelemetryTarget, query_language: str) -> dict[str, object]:

@@ -150,12 +150,12 @@ then an independent review of the combined change and a full smoke run (seed, al
 |---|---|---|
 | A | Chat passes the log source scope to the validator and shows the model a "Query limits" section; offline mock no longer writes `index=*` | ✅ done by the lead after merge |
 | A | `investigation_graph.planner_node` must add `PromptSection("Query limits per service", EvidenceService.describe_query_limits_for_planner(...))` and pass its `masking_context` to `collect_change_evidence` | ✅ done by the lead after merging D (test in `tests/unit/ai/test_investigation_graph.py`) |
-| A | Chat cannot-answer path: `ChatQueryResult` allows an empty `query_text` with an `explanation`, and chat shows it instead of "The query is empty or too long." | ⬜ wave 2 |
-| A | Review the SLI table list in `catalogs/query_safety.yaml` (`kql.sli_allowed_tables`) | ⬜ owner review |
-| B | Frontend `IntegrationCard.tsx` still shows a `credential_secret_name` field; replace it with a write-only `credentialValue` password field | ⬜ frontend task after stream G merges |
-| B | `catalogs/integration_field_schemas.yaml`: replace the `credential_secret_name` fields (CMDB, EI portal, knowledge) with a secret input | ⬜ wave 2 |
+| A | Chat cannot-answer path: `ChatQueryResult` allows an empty `query_text` with an `explanation`, and chat shows it instead of "The query is empty or too long." | ✅ done in wave 2 (W2-3) |
+| A | Review the SLI table list in `catalogs/query_safety.yaml` (`kql.sli_allowed_tables`) | ✅ reviewed in wave 2 (W2-3): all 20 telemetry tables verified, audit/host tables excluded |
+| B | Frontend `IntegrationCard.tsx` still shows a `credential_secret_name` field; replace it with a write-only `credentialValue` password field | ✅ done in wave 2 (W2-3) |
+| B | `catalogs/integration_field_schemas.yaml`: replace the `credential_secret_name` fields (CMDB, EI portal, knowledge) with a secret input | ✅ done in wave 2 (W2-3) |
 | B | Apply the outbound URL policy to integration `base_url` fields when the CMDB, EI portal and knowledge readers are built | ⬜ with those features |
-| B | `MicrosoftGraphClient.find_group` takes the first group with a matching name; it must refuse to link when two groups share the name | ⬜ wave 2 |
+| B | `MicrosoftGraphClient.find_group` takes the first group with a matching name; it must refuse to link when two groups share the name | ✅ done in wave 2 (W2-3) |
 | B | The access policy opens a short DB session per telemetry call; consider a per-request scope cache | ⬜ optional, measure first |
 | E | `03_DATABASE_DESIGN.md`, `15_ENTITY_RELATIONSHIP_DIAGRAM.md`, `05_API_CONTRACT.md` still describe the old `alert_source` columns and signature wording | ⬜ docs pass at the end of wave 2 |
 | E | SQL Server leasing and the H3 race were verified by compiling for mssql and on SQLite only | ⬜ infra go-live check against real Azure SQL |

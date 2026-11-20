@@ -84,7 +84,11 @@
     "notes": "备注",
     "save": "保存详情",
     "saveFailed": "无法保存详情，请重试。",
-    "fields": {}
+    "credentialSaved": "已保存凭据。留空表示保留，输入新值则替换。",
+    "credentialSavedPlaceholder": "•••••••• 已保存",
+    "fields": {
+      "credential_value": "凭据"
+    }
   },
   "topology": {
     "build": "构建拓扑",

@@ -10,7 +10,7 @@ from keigan.ai.llm_gateway import LlmUsageContext
 from keigan.config.database_config import open_session
 from keigan.entities.application_entities import MonitoredService, ServiceLogSource
 from keigan.exceptions.keigan_exceptions import ForbiddenException
-from keigan.services.chat_data_query_service import ChatDataQueryService
+from keigan.services.chat_data_query_service import ChatDataQueryService, QueryNotAnswerableError
 from support.telemetry_scope import OWN_WORKSPACE_CUSTOMER_ID, OWN_WORKSPACE_RESOURCE_ID, create_log_tool_connection, create_scoped_application
 
 pytestmark = pytest.mark.usefixtures("seed_context")
@@ -89,6 +89,48 @@ async def test_chat_search_on_a_splunk_service_is_limited_to_the_index_of_its_lo
     assert outcome.query_language == "spl"
     assert "index=payments_prod" in outcome.query_text
     assert "index=*" not in outcome.query_text
+
+
+class LlmGatewayThatCannotWriteAQuery:
+    """Answers the query-writing call the way the prompt allows: an empty query and a sentence on what is missing."""
+
+    async def generate_structured(self, *, output_schema: type, **_arguments: object) -> object:
+        return output_schema(query_text="", explanation="The question asks about user accounts, which are not in the logs of this service.")
+
+
+async def test_chat_explains_why_it_cannot_write_a_query_instead_of_reporting_an_empty_query() -> None:
+    approved = await create_scoped_application()
+    service = await create_splunk_service(approved.application_id, "payments_prod")
+    now = datetime.now(UTC)
+    async with open_session() as session:
+        chat_query_service = ChatDataQueryService(session)
+        chat_query_service.gateway = LlmGatewayThatCannotWriteAQuery()  # type: ignore[assignment]
+        with pytest.raises(QueryNotAnswerableError) as refusal:
+            await chat_query_service.run(
+                service=service, question_text="how many users signed up", wants_failures=False, wants_pattern=False, time_range_start=now - timedelta(hours=1), time_range_end=now,
+                requested_by="reader@example.com", usage_context=LlmUsageContext(),
+            )
+    assert refusal.value.detail == "I can't answer that from the logs of polaris-batch. The question asks about user accounts, which are not in the logs of this service."
+
+
+async def test_chat_gives_a_generic_reason_when_the_model_returns_an_empty_query_without_an_explanation() -> None:
+    approved = await create_scoped_application()
+    service = await create_splunk_service(approved.application_id, "payments_prod")
+    now = datetime.now(UTC)
+
+    class LlmGatewayReturningNothing:
+        async def generate_structured(self, *, output_schema: type, **_arguments: object) -> object:
+            return output_schema(query_text="  ")
+
+    async with open_session() as session:
+        chat_query_service = ChatDataQueryService(session)
+        chat_query_service.gateway = LlmGatewayReturningNothing()  # type: ignore[assignment]
+        with pytest.raises(QueryNotAnswerableError) as refusal:
+            await chat_query_service.run(
+                service=service, question_text="anything", wants_failures=False, wants_pattern=False, time_range_start=now - timedelta(hours=1), time_range_end=now,
+                requested_by="reader@example.com", usage_context=LlmUsageContext(),
+            )
+    assert refusal.value.detail == "I can't answer that from the logs of polaris-batch. Try asking about the requests, errors or latency of this service."
 
 
 async def test_chat_query_prompt_tells_the_model_the_limits_of_the_log_source() -> None:

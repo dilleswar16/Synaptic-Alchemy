@@ -28,7 +28,7 @@ from keigan.dtos.application_dtos import (
 )
 from keigan.entities.application_entities import Application, ApplicationComponent, MonitoredService
 from keigan.entities.incident_entities import Incident
-from keigan.exceptions.keigan_exceptions import BusinessValidationException, ConflictException, ForbiddenException, IntegrationException, NotFoundException
+from keigan.exceptions.keigan_exceptions import AmbiguousGroupNameException, BusinessValidationException, ConflictException, ForbiddenException, IntegrationException, NotFoundException
 from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
 from keigan.services.application_readiness_service import ApplicationReadinessService
@@ -373,6 +373,8 @@ class ApplicationService:
                     role=role, group_name=group_name, exists=True, object_id=group["id"], member_count=member_count, sample_member_names=member_names,
                     object_id_saved=object_id_saved, message=f"Found in Entra ID with {member_count} member(s).{name_note}",
                 ))
+            except AmbiguousGroupNameException as ambiguous_name:
+                results.append(GroupVerificationResult(role=role, group_name=group_name, exists=None, object_id=stored_object_id, message=ambiguous_name.detail))
             except Exception as graph_error:  # noqa: BLE001 — reported to the admin, not a server error
                 results.append(GroupVerificationResult(
                     role=role, group_name=group_name, exists=None, object_id=stored_object_id,

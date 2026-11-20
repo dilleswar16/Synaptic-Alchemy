@@ -84,7 +84,11 @@
     "notes": "Notes",
     "save": "Enregistrer les informations",
     "saveFailed": "Impossible d'enregistrer les informations. Réessayez.",
-    "fields": {}
+    "credentialSaved": "Un identifiant est enregistré. Laissez ce champ vide pour le conserver ou saisissez-en un nouveau pour le remplacer.",
+    "credentialSavedPlaceholder": "•••••••• enregistré",
+    "fields": {
+      "credential_value": "Identifiant"
+    }
   },
   "topology": {
     "build": "Construire la topologie",
