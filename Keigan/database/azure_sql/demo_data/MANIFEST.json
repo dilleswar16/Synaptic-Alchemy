@@ -12,13 +12,13 @@
         "application_component": 6,
         "log_tool_connection": 4,
         "servicenow_assignment_group": 6,
-        "stakeholder": 10,
+        "stakeholder": 13,
         "discovered_resource": 6,
         "monitored_service": 19,
         "service_dependency": 14,
         "service_log_source": 34
       },
-      "sha256": "7789c97af4f64ce0f4f8b5444fc9c0653055093d201440840b8d22dc28c928a7"
+      "sha256": "2b780328c89d72d3cbe9a8d9dc61854dcc604d70b9d44064fc17cc1b3ddfd45a"
     },
     "02_knowledge.sql": {
       "committed": true,
@@ -33,7 +33,7 @@
         "knowledge_chunk": 42,
         "topology_source_document": 4
       },
-      "sha256": "2f78c783a752d872a76a2a6ca496c744e148c250adc10019ee41aaed04379db1"
+      "sha256": "cf9739735e2612a8ff907783bd9f02414e77f77781c16d95a4fc298edbad36ec"
     },
     "03_alerts_and_slos.sql": {
       "committed": true,
@@ -49,14 +49,14 @@
         "alert_decision": 160,
         "service_level_objective": 37
       },
-      "sha256": "f5930b9e2f0b055565709a2232f4266d2470cb40c384ca0015bc5b4f5cb56ea0"
+      "sha256": "c07866801ab7b80e5163faf3a479967940f92d744baaaed06e6e7ee65b422ace"
     },
     "04_sli_measurements.sql": {
       "committed": false,
       "rows": {
         "sli_measurement": 82368
       },
-      "sha256": "c8c2d064145f7ddeb3f580a4ccc7248124c72398a80669fe2874cb629f07a91e"
+      "sha256": "26809987bf039d855b20e54e734cebf9475c08c297dc7fbba6a2d61ba8adb3f9"
     },
     "05_incidents_and_investigations.sql": {
       "committed": true,
@@ -64,17 +64,17 @@
         "incident": 7,
         "investigation": 7,
         "alert_group": 13,
-        "incident_affected_service": 20,
+        "incident_affected_service": 19,
         "incident_communication": 56,
         "investigation_evidence": 103,
         "investigation_hypothesis": 21,
         "investigation_investigated_service": 22,
         "investigation_matched_runbook": 7,
-        "investigation_timeline_event": 68,
+        "investigation_timeline_event": 70,
         "postmortem_report": 7,
         "alert_group_affected_service": 14
       },
-      "sha256": "05c7e927fec54392724ddf1797d35eb618e883ee3aa88a3316f42cad6e12bb82"
+      "sha256": "d69bf9885103c085a7ccf0d5a0311f2af50222b75e1e11eb19769b570a7653a6"
     },
     "06_intelligence_and_collaboration.sql": {
       "committed": true,
@@ -83,11 +83,11 @@
         "intelligence_report": 4,
         "teams_incident_chat": 1,
         "conversation": 1,
-        "notification_delivery": 58,
+        "notification_delivery": 78,
         "conversation_message": 9,
-        "predictive_signal": 7
+        "predictive_signal": 8
       },
-      "sha256": "7d449d90daa4fa3c99f044a8d91f005ffe36734d08244d413b5abd7a77845266"
+      "sha256": "edc636398c57f25dfbd347cbd41a9bf30d12f5c003269c6580b39c20e5ed4b23"
     },
     "99_remove_demo_data.sql": {
       "committed": true,
@@ -96,7 +96,7 @@
         "application_component": 6,
         "log_tool_connection": 4,
         "servicenow_assignment_group": 6,
-        "stakeholder": 10,
+        "stakeholder": 13,
         "discovered_resource": 6,
         "monitored_service": 19,
         "service_dependency": 14,
@@ -124,24 +124,24 @@
         "incident": 7,
         "investigation": 7,
         "alert_group": 13,
-        "incident_affected_service": 20,
+        "incident_affected_service": 19,
         "incident_communication": 56,
         "investigation_evidence": 103,
         "investigation_hypothesis": 21,
         "investigation_investigated_service": 22,
         "investigation_matched_runbook": 7,
-        "investigation_timeline_event": 68,
+        "investigation_timeline_event": 70,
         "postmortem_report": 7,
         "alert_group_affected_service": 14,
         "platform_setting": 7,
         "intelligence_report": 4,
         "teams_incident_chat": 1,
         "conversation": 1,
-        "notification_delivery": 58,
+        "notification_delivery": 78,
         "conversation_message": 9,
-        "predictive_signal": 7
+        "predictive_signal": 8
       },
-      "sha256": "7b56b3eb48d90c347ccc54dcb6f4f0ce894831aec57c7e837b58b8193fe27291"
+      "sha256": "9d75ce1ffae78db49d9604f0c3a39bee230a52965ac6bfb59c8657ad81d4cc86"
     },
     "run_all_demo_data.sql": {
       "committed": true,

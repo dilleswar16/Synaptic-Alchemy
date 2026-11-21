@@ -48,3 +48,7 @@ Invalid or missing email; same email twice in one request; same email already on
 ## Verification
 
 Backend: pytest for every rule above (unit for the email check, integration for the service, the creation flow and the sign-in hook), a drift test for the migration, the AST status-literal guard. Frontend: typecheck, locale check, production build. Not verifiable here: real email delivery and Entra sign-in matching on a real tenant.
+
+## Demo data
+
+The demo seed (`keigan/seed/foundation_seed.py`, generated into `database/azure_sql/demo_data/`) shows every team status: Claims (CLMJP) has a lead and a developer who have signed in (active), one person invited two days ago, one whose invitation is 12 days old (stale), two people only listed, and one switched off. Chad (CHAD) has a lead who has signed in and a developer who was invited. Delete `backend/data/keigan.db` and run `python -m keigan.seed_main` to see them locally.

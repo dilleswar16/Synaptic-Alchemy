@@ -85,10 +85,13 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
             ("claims-nightly-etl", "claims-sql", "reads_from"),
         ],
         "stakeholders": [
-            ("Aiko AppAdmin", "aiko.appadmin@keigan.local", "sre", Priority.P3, "ja", ["email", "teams_incident_chat"]),
-            ("Rui Reader", "rui.reader@keigan.local", "developer", Priority.P2, "en", ["email", "teams_incident_chat"]),
+            ("Aiko AppAdmin", "aiko.appadmin@keigan.local", "lead", Priority.P3, "ja", ["email", "teams_incident_chat"], {"invited_days_ago": 30, "joined_days_ago": 29}),
+            ("Rui Reader", "rui.reader@keigan.local", "developer", Priority.P2, "en", ["email", "teams_incident_chat"], {"invited_days_ago": 30, "joined_days_ago": 21}),
             ("Haruto Manager", "haruto.manager@keigan.local", "manager", Priority.P2, "ja", ["email"]),
             ("Yui Executive", "yui.executive@keigan.local", "executive", Priority.P1, "ja", ["email"]),
+            ("Nao Infra", "nao.infra@keigan.local", "infra", Priority.P2, "ja", ["email"], {"invited_days_ago": 2}),
+            ("Sora DevOps", "sora.devops@keigan.local", "devops", Priority.P3, "en", ["email"], {"invited_days_ago": 12}),
+            ("Mio Tester", "mio.tester@keigan.local", "tester", Priority.P3, "ja", ["email"], {"is_active": False}),
         ],
     },
     {
@@ -122,8 +125,8 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
             ("azaustaekub14470pr0101", "chad-notifications-func", "publishes_to"),
         ],
         "stakeholders": [
-            ("Kai Admin", "keigan.admin@keigan.local", "sre", Priority.P3, "en", ["email", "teams_incident_chat"]),
-            ("Aiko AppAdmin", "aiko.appadmin@keigan.local", "developer", Priority.P2, "ja", ["email"]),
+            ("Kai Admin", "keigan.admin@keigan.local", "lead", Priority.P3, "en", ["email", "teams_incident_chat"], {"invited_days_ago": 25, "joined_days_ago": 25}),
+            ("Aiko AppAdmin", "aiko.appadmin@keigan.local", "developer", Priority.P2, "ja", ["email"], {"invited_days_ago": 5}),
         ],
     },
     {
@@ -419,7 +422,9 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
             )
         for group_name in application_definition["servicenow_groups"]:
             session.add(ServiceNowAssignmentGroup(application_id=application.application_id, group_name=group_name, verification_status=AssignmentGroupVerificationStatus.VERIFIED))
-        for display_name, email_address, stakeholder_role, minimum_priority, language_code, channels in application_definition["stakeholders"]:
+        for display_name, email_address, stakeholder_role, minimum_priority, language_code, channels, *team_history in application_definition["stakeholders"]:
+            history = team_history[0] if team_history else {}
+            invited_at = now - timedelta(days=history["invited_days_ago"]) if "invited_days_ago" in history else None
             session.add(
                 Stakeholder(
                     application_id=application.application_id,
@@ -434,6 +439,11 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
                         "incident_detected", "preliminary_report", "progress_update", "postmortem", "intelligence_report", "slo_burn_alert",
                     ],
                     preferred_language_code=language_code,
+                    is_active=history.get("is_active", True),
+                    invited_at=invited_at,
+                    invited_by_user_principal_name=SEED_ACTOR if invited_at else None,
+                    last_invitation_sent_at=invited_at,
+                    joined_at=now - timedelta(days=history["joined_days_ago"]) if "joined_days_ago" in history else None,
                     created_by_user_principal_name=SEED_ACTOR,
                 )
             )
