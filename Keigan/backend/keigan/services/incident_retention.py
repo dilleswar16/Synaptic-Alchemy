@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from keigan.entities.action_item_entities import ActionItem
 from keigan.entities.alert_entities import AlertGroup
 from keigan.entities.incident_entities import (
     ChatAnswerRun, Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationCoverageGap, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, InvestigationTraceStep, PostmortemReport,
@@ -68,6 +69,8 @@ async def _delete_investigations(session: AsyncSession, investigation_ids: list[
     removed["conversations"] += await _count_deleted(session, delete(Conversation).where(Conversation.investigation_id.in_(investigation_ids)))
     removed["investigationTimelineEvents"] += await _count_deleted(session, delete(InvestigationTimelineEvent).where(InvestigationTimelineEvent.investigation_id.in_(investigation_ids)))
     removed["incidentCommunications"] += await _count_deleted(session, delete(IncidentCommunication).where(IncidentCommunication.investigation_id.in_(investigation_ids)))
+    # An action item outlives its postmortem and incident (it is a commitment, not a record of the incident): it keeps the incident number as text and drops the links.
+    await session.execute(update(ActionItem).where(ActionItem.postmortem_id.in_(select(PostmortemReport.postmortem_id).where(PostmortemReport.investigation_id.in_(investigation_ids)))).values(postmortem_id=None))
     removed["postmortems"] += await _count_deleted(session, delete(PostmortemReport).where(PostmortemReport.investigation_id.in_(investigation_ids)))
     removed["notificationDeliveries"] += await _count_deleted(session, delete(NotificationDelivery).where(NotificationDelivery.investigation_id.in_(investigation_ids)))
     removed["hypotheses"] += await _count_deleted(session, delete(InvestigationHypothesis).where(InvestigationHypothesis.investigation_id.in_(investigation_ids)))
@@ -89,6 +92,8 @@ async def _delete_incident_batch(session: AsyncSession, incident_ids: list[str],
     removed["investigationTimelineEvents"] += await _count_deleted(session, delete(InvestigationTimelineEvent).where(InvestigationTimelineEvent.incident_id.in_(incident_ids)))
     removed["incidentCommunications"] += await _count_deleted(session, delete(IncidentCommunication).where(IncidentCommunication.incident_id.in_(incident_ids)))
     removed["notificationDeliveries"] += await _count_deleted(session, delete(NotificationDelivery).where(NotificationDelivery.incident_id.in_(incident_ids)))
+    await session.execute(update(ActionItem).where(ActionItem.postmortem_id.in_(select(PostmortemReport.postmortem_id).where(PostmortemReport.incident_id.in_(incident_ids)))).values(postmortem_id=None))
+    await session.execute(update(ActionItem).where(ActionItem.incident_id.in_(incident_ids)).values(incident_id=None))
     removed["postmortems"] += await _count_deleted(session, delete(PostmortemReport).where(PostmortemReport.incident_id.in_(incident_ids)))
     removed["teamsIncidentChats"] += await _count_deleted(session, delete(TeamsIncidentChat).where(TeamsIncidentChat.incident_id.in_(incident_ids)))
     await session.execute(update(AlertGroup).where(AlertGroup.incident_id.in_(incident_ids)).values(incident_id=None))

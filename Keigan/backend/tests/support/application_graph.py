@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from keigan.config.database_config import open_session
+from keigan.entities.action_item_entities import ActionItem
 from keigan.entities.alert_entities import Alert, AlertDecision, AlertEvent, AlertGroup, AlertMuteRule, AlertSource, MaintenanceWindow, NoiseReductionPolicy
 from keigan.entities.application_entities import (
     Application,
@@ -143,6 +144,13 @@ async def create_application_graph() -> ApplicationGraph:
         conversation.replace_linked_ids("application_links", [application_id])
         session.add(conversation)
         await session.flush()
+        postmortem = PostmortemReport(incident_id=incident.incident_id, investigation_id=investigation.investigation_id, report_title="postmortem")
+        session.add(postmortem)
+        await session.flush()
+        session.add(ActionItem(
+            application_id=application_id, incident_id=incident.incident_id, postmortem_id=postmortem.postmortem_id, owner_stakeholder_id=stakeholder.stakeholder_id, item_source_kind="postmortem", item_title="follow-up",
+            action_type="prevent", item_status="open",
+        ))
         session.add_all([
             ConversationMessage(conversation_id=conversation.conversation_id, author_role="user", message_text="hi"),
             InvestigationEvidence(
@@ -151,7 +159,7 @@ async def create_application_graph() -> ApplicationGraph:
             InvestigationHypothesis(investigation_id=investigation.investigation_id, analysis_perspective="application", hypothesis_title="hypothesis"),
             InvestigationTimelineEvent(incident_id=incident.incident_id, investigation_id=investigation.investigation_id, event_type="note", event_title="timeline"),
             IncidentCommunication(incident_id=incident.incident_id, investigation_id=investigation.investigation_id, communication_type="initial_update", subject_line="subject", body_markdown="body"),
-            PostmortemReport(incident_id=incident.incident_id, investigation_id=investigation.investigation_id, report_title="postmortem"),
+            postmortem,
             NotificationDelivery(
                 application_id=application_id, incident_id=incident.incident_id, investigation_id=investigation.investigation_id, notification_type="incident_detected", delivery_channel="email", recipient_address="a@example.com",
             ),

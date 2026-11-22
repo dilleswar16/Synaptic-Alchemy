@@ -31,6 +31,7 @@ from keigan.exceptions.keigan_exceptions import BusinessValidationException, Kei
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
+from keigan.services.postmortem_action_items import ensure_none_proposed, render_action_items_table, render_final_table, replace_action_items_section, replace_proposed_items
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
@@ -301,7 +302,7 @@ class CommunicationService:
         mock_context.duration_minutes = max(0, int(((incident.resolved_at or utc_now()) - incident.opened_at).total_seconds() // 60))
         caller = InvestigationAiCaller(application.application_id, application.application_name, application.criticality_tier, investigation.investigation_id if investigation else None, requested_by, mock_context, offline_ai)
         try:
-            result: PostmortemResult = await caller.ask("postmortem_report", sections, PostmortemResult)
+            result: PostmortemResult = await caller.ask("postmortem_report", sections, PostmortemResult, maximum_action_items=self.settings.action_items_maximum_per_postmortem)
         except KeiganException as ai_error:
             postmortem.report_status = PostmortemStatus.FAILED
             postmortem.report_markdown = f"The postmortem could not be generated: {describe_failure_for_user(ai_error)} Try again later or write it manually."
@@ -311,19 +312,17 @@ class CommunicationService:
         sections_payload["incident_resolved_at"] = incident.resolved_at.isoformat() if incident.resolved_at else None
         postmortem.report_title = sanitize_ai_line(result.report_title)
         postmortem.report_sections_json = sections_payload
-        postmortem.report_markdown = sanitize_ai_markdown(self.render_postmortem_markdown(result, incident))
+        action_items = await replace_proposed_items(self.session, postmortem, incident, application, result.action_items, self.settings)
+        action_table = render_action_items_table(action_items, {})  # the draft shows the AI's suggested roles; finalising renders the accepted items
+        postmortem.report_markdown = sanitize_ai_markdown(self.render_postmortem_markdown(result, action_table))
         postmortem.report_status, postmortem.generation_trigger = PostmortemStatus.DRAFT, generation_trigger
         self.session.add(InvestigationTimelineEvent(incident_id=incident_id, investigation_id=postmortem.investigation_id, event_type="postmortem_drafted", event_title="Postmortem draft prepared", event_source="keigan"))
         return {"postmortemId": postmortem.postmortem_id}
 
     @staticmethod
-    def render_postmortem_markdown(result: PostmortemResult, incident: Incident) -> str:
-        due_base = incident.resolved_at or utc_now()
+    def render_postmortem_markdown(result: PostmortemResult, action_table: str) -> str:
         bullet = lambda items: "\n".join(f"- {item}" for item in items) or "- None recorded."  # noqa: E731
         timeline_table = "| Time | Event |\n|---|---|\n" + "\n".join(f"| {entry.time_text} | {entry.description} |" for entry in result.timeline) if result.timeline else "No timeline entries recorded."
-        action_table = "| Action | Owner | Due | Type |\n|---|---|---|---|\n" + "\n".join(
-            f"| {item.description} | {item.owner_role} | {(due_base + timedelta(days=item.due_in_days)).strftime('%Y-%m-%d')} | {item.action_type} |" for item in result.action_items
-        ) if result.action_items else "No action items recorded."
         return (
             f"# {result.report_title}\n\n## Summary\n{result.summary}\n\n## Impact\n{result.impact}\n\n## Timeline\n{timeline_table}\n\n## Root cause\n{result.root_cause}\n\n"
             f"## Contributing factors\n{bullet(result.contributing_factors)}\n\n## Detection\n{result.detection}\n\n## Response\n{result.response}\n\n## What went well\n{bullet(result.what_went_well)}\n\n"
@@ -374,6 +373,8 @@ class CommunicationService:
         postmortem, application_id = await self._load_postmortem_for_admin(current_user, postmortem_id)
         if postmortem.report_status not in (PostmortemStatus.DRAFT,):
             raise BusinessValidationException("Only a draft postmortem can be finalised.")
+        await ensure_none_proposed(self.session, postmortem_id)
+        postmortem.report_markdown = replace_action_items_section(postmortem.report_markdown or "", await render_final_table(self.session, postmortem_id))  # the rows are the truth
         postmortem.report_status, postmortem.finalized_by_user_principal_name, postmortem.finalized_at = PostmortemStatus.FINAL, current_user.user_principal_name, utc_now()
         await AuditService(self.session).record(current_user, "postmortem.finalize", target_entity_type="postmortem_report", target_entity_id=postmortem_id, application_id=application_id)
         await self.session.flush()

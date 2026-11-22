@@ -9,7 +9,7 @@ from keigan.ai.prompt_library import PROMPTS_DIRECTORY, PromptLibrary
 
 LIBRARY = PromptLibrary()
 HYPOTHESIS_KEYS = ("hypothesis_application", "hypothesis_dependencies", "hypothesis_infrastructure")
-HYPOTHESIS_THRESHOLDS = {"supported_minimum_confidence": 0.5, "ruled_out_maximum_confidence": 0.2}  # what the graph passes from the settings
+HYPOTHESIS_THRESHOLDS = {"supported_minimum_confidence": 0.5, "ruled_out_maximum_confidence": 0.2, "maximum_action_items": 8}  # what the graph passes from the settings
 ASK_KEIGAN_VARIABLES = {
     "maximum_tool_calls": 6, "follow_up_limit": 3, "follow_up_marker": "<<follow-ups>>", "outside_scope_answer": "That is outside what I can answer from Keigan's data.",
     "application_list": "CLMJP — Claims Processing (JP)\nPAYAU — Payments (AU)", "current_date": "2026-11-22",
@@ -161,3 +161,9 @@ def test_a_change_in_an_included_fragment_changes_every_prompt_that_includes_it(
 def test_the_three_hypothesis_prompts_each_have_their_own_hash_but_all_depend_on_the_shared_body() -> None:
     hashes = {key: LIBRARY.template_sha256(key) for key in HYPOTHESIS_KEYS}
     assert len(set(hashes.values())) == 3
+
+
+def test_the_postmortem_prompt_carries_the_action_item_maximum_and_the_priority_rule() -> None:
+    rendered = LIBRARY.render("postmortem_report", application_name="Claims", criticality_tier="tier_1", maximum_action_items=5)
+    assert LIBRARY.version_of("postmortem_report") == "3"
+    assert "at most 5 in total" in rendered and "never a person's name" in rendered and "top only for an item" in rendered

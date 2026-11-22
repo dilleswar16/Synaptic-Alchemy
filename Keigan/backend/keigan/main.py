@@ -30,6 +30,7 @@ CONTROLLER_MODULES = (
     "keigan.controllers.knowledge_controller",
     "keigan.controllers.incident_controller",
     "keigan.controllers.investigation_controller",
+    "keigan.controllers.action_item_controller",
     "keigan.controllers.alert_controller",
     "keigan.controllers.alert_intake_controller",
     "keigan.controllers.slo_controller",

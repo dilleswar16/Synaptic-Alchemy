@@ -670,7 +670,8 @@ def build_postmortem(output_schema: type[BaseModel], prompt_sections: list[Promp
         response=f"Responders followed the investigation's proposed fix. Total time to restore service: {duration}.",
         what_went_well=["Keigan assembled evidence and a ranked root cause hypothesis before responders joined.", "Stakeholders received bilingual updates early."],
         what_could_be_improved=["Detection depended on a user-visible symptom; an earlier signal would shorten time to detect.", "The fix steps were manual and should be rehearsed."],
-        action_items=[PostmortemActionItem(description=description, owner_role=owner, due_in_days=days, action_type=kind) for description, owner, days, kind in script["actions"]],  # type: ignore[arg-type]
+        # The first item of every scenario is a prevent item and is top priority, so the demo has one that the error-budget policy (spec 30) accepts.
+        action_items=[PostmortemActionItem(description=description, owner_role=owner, due_in_days=days, action_type=kind, priority="top" if position == 0 else "normal") for position, (description, owner, days, kind) in enumerate(script["actions"])],  # type: ignore[arg-type]
         lessons_learned=script["lessons"],
     )
 

@@ -109,9 +109,10 @@ class PostmortemTimelineEntry(BaseModel):
 
 class PostmortemActionItem(BaseModel):
     description: str
-    owner_role: str
+    owner_role: str = Field(description="A role or team, never a person's name.")
     due_in_days: int = 14
     action_type: Literal["prevent", "detect", "mitigate"]
+    priority: Literal["top", "high", "normal", "low"] = "normal"
 
 
 class PostmortemResult(BaseModel):

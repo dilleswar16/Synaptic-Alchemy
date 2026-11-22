@@ -23,6 +23,7 @@ from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.notification_renderer import translate
 from keigan.services.notification_service import NotificationService
+from keigan.services.reference_release import release_references
 from keigan.services.service_scope import unknown_service_ids
 from keigan.services.team_invitation_service import TeamInvitationService, describe_invitation
 from keigan.utils.time_utils import utc_now
@@ -88,6 +89,7 @@ class StakeholderService:
     async def delete_stakeholder(self, current_user: CurrentUser, application_id: str, stakeholder_id: str) -> None:
         stakeholder = await self._load(application_id, stakeholder_id)
         await self._ensure_not_the_only_lead(stakeholder)
+        await release_references(self.session, Stakeholder.stakeholder_id, [stakeholder_id])  # their action items stay, unassigned
         await self.session.delete(stakeholder)
         await AuditService(self.session).record(current_user, "stakeholder.delete", target_entity_type="stakeholder", target_entity_id=stakeholder_id, application_id=application_id, action_details={"displayName": stakeholder.display_name})
 

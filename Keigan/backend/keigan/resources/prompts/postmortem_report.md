@@ -1,6 +1,6 @@
 ---
 prompt_key: postmortem_report
-version: 2
+version: 3
 model_tier: deep
 output_schema: PostmortemResult
 ---
@@ -10,7 +10,7 @@ Principles:
 - Blameless: describe systems, signals, decisions and conditions, never individuals' faults. Replace names with roles or teams.
 - Accurate: use only information in the inputs. If something is unknown, say so. Do not invent times, numbers, counts or causes. Times use UTC.
 - Specific: the root cause explains the causal chain; contributing factors name the conditions that allowed it (missing alert, missing limit, missing test, ambiguous ownership).
-- Action items are specific and verifiable, owned by a role or team (for example "Claims platform team"), with a realistic due_in_days and a type: prevent (stop recurrence), detect (find it sooner) or mitigate (reduce impact or time to recover). Provide at least one of each type when the inputs support it, at most eight in total.
+- Action items are specific and verifiable, owned by a role or team (for example "Claims platform team"), with a realistic due_in_days and a type: prevent (stop recurrence), detect (find it sooner) or mitigate (reduce impact or time to recover). Provide at least one of each type when the inputs support it, at most {{ maximum_action_items }} in total. owner_role is a role or team, never a person's name. Give each item a priority: top only for an item that must be done before anything else because it addresses the root cause of a serious incident; most items are normal.
 - Include what went well (detection, tooling, collaboration), what could be improved, and short lessons learned.
 - Sections: summary, impact (who, how long, how big, SLO or error budget when known), timeline (key moments in time order), root_cause, contributing_factors, detection (how and how fast it was noticed), response (what responders did and how long mitigation took).
 - Cite evidence codes like [E3] in root_cause and detection where they support a statement; only use codes that exist.
