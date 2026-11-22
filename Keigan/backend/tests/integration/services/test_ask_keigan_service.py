@@ -34,7 +34,7 @@ from keigan.services.ask_keigan_run_snapshot import AnswerRunSnapshotBuilder
 from keigan.services.ask_keigan_service import AskKeiganService, StartedAnswer
 from keigan.services.ask_keigan_trace import TRUNCATED_OUTPUT_KEY
 from keigan.utils.time_utils import utc_now
-from support.ask_keigan_conversations import SeededInvestigation, open_investigation_chat, running_runs_of, runs_of, seed_investigation, stored_run
+from support.ask_keigan_conversations import SeededInvestigation, open_global_chat, open_investigation_chat, running_runs_of, runs_of, seed_investigation, stored_run
 from support.ask_keigan_runs import ScriptedGateway, Turn, request_for, user
 from support.chat_answer_runs import OWNER as OWNER_OF_STORED_RUNS, store_answer_run
 
@@ -69,9 +69,10 @@ def question(text: str = "Show me evidence E2", client_request_id: uuid.UUID | N
     return AnswerRequest(message_text=text, client_request_id=client_request_id or uuid.uuid4())
 
 
-async def start(setup: Setup, gateway: ScriptedGateway, current_user=CLMJP_READER, request: AnswerRequest | None = None) -> StartedAnswer:
+async def start(setup: Setup, gateway: ScriptedGateway | None, current_user=CLMJP_READER, request: AnswerRequest | None = None) -> StartedAnswer:
+    """``gateway`` None: the engine uses the configured model (the offline mock provider in tests)."""
     async with open_session() as session:
-        return await AskKeiganService(session, setup.registry, AskKeiganEngine(gateway)).start(current_user, setup.conversation_id, request or question())
+        return await AskKeiganService(session, setup.registry, AskKeiganEngine(gateway) if gateway else AskKeiganEngine()).start(current_user, setup.conversation_id, request or question())
 
 
 async def finish(setup: Setup, started: StartedAnswer) -> None:
@@ -80,7 +81,7 @@ async def finish(setup: Setup, started: StartedAnswer) -> None:
         await asyncio.wait_for(live_run.task, timeout=10)
 
 
-async def ask_and_finish(setup: Setup, gateway: ScriptedGateway, **options) -> StartedAnswer:
+async def ask_and_finish(setup: Setup, gateway: ScriptedGateway | None, **options) -> StartedAnswer:
     started = await start(setup, gateway, **options)
     await finish(setup, started)
     return started
@@ -784,3 +785,150 @@ async def test_a_reload_words_a_failed_run_from_the_parameters_stored_with_it(se
     error = (await snapshot_of_stored_run(setup, answer_run_id)).error
     assert 'while running "Checked recent changes"' in error.detail and "corr-9" in error.detail
     assert error.parameters == {"stepDescription": "running \"Checked recent changes\"", "reference": "corr-9"}
+
+
+# ── The global scope: the Keigan AI chat page answers through the same engine ──────────────────────────────────────────────────
+RUI = user("rui.global@keigan.local", "CLMJP_reader", "PAYAU_reader")
+RUI_WITHOUT_PAYAU = user(RUI.user_principal_name, "CLMJP_reader")  # the same person after losing one application
+RUI_WITHOUT_CLMJP = user(RUI.user_principal_name, "PAYAU_reader")
+LOST_EVERYTHING = user(RUI.user_principal_name)
+SLO_QUESTION = "How are the SLOs doing?"
+
+
+def slo_status_of(application_code: str, request_id: str):
+    return request_for("get_slo_status", {"application_codes": [application_code]}, request_id)
+
+
+async def in_a_global_chat(setup: Setup, current_user=RUI, application_ids: tuple[str, ...] = ()) -> Setup:
+    return replace(setup, conversation_id=await open_global_chat(current_user, application_ids))
+
+
+async def test_a_global_answer_runs_end_to_end_with_the_mock_provider(setup: Setup, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "llm_provider", LlmProviderName.MOCK)
+    monkeypatch.setattr(get_settings(), "ask_keigan_max_tool_calls_global", 3)
+    chat = await in_a_global_chat(setup)
+    started = await ask_and_finish(chat, None, current_user=RUI, request=question(SLO_QUESTION))
+    run = await stored_run(started.answer_run_id)
+    assert (run.run_status, run.stop_reason, run.conversation_scope, run.investigation_id, run.prompt_key) == (ChatAnswerRunStatus.COMPLETED, ChatAnswerStopReason.ANSWERED, "keigan_ai_chat", None, "ask_keigan_global")
+    snapshot = await read_snapshot(chat, started.answer_run_id, current_user=RUI)
+    assert (snapshot.scope, snapshot.maximum_tool_calls, snapshot.tool_call_count) == ("global", 3, 1)
+    (tool_step,) = [step for step in snapshot.steps if step.tool]
+    assert (tool_step.tool.name, tool_step.tool.citation_code, tool_step.status, tool_step.tool.bound_argument_names) == ("get_slo_status", "T1", "succeeded", [])
+    assert "[T1]" in snapshot.answer.markdown and snapshot.answer.is_refusal is False
+
+
+async def test_a_global_answer_is_told_its_applications_and_chooses_its_own_arguments(setup: Setup) -> None:
+    chat = await in_a_global_chat(setup)
+    gateway = ScriptedGateway([Turn(requests=(slo_status_of("PAYAU", "call_1"),)), Turn(text="PAYAU has SLOs [T1].")])
+    started = await ask_and_finish(chat, gateway, current_user=RUI, request=question(SLO_QUESTION))
+    system_prompt = gateway.calls[0]["system_prompt"]
+    assert "CLMJP — " in system_prompt and "PAYAU — " in system_prompt and "CHAD — " not in system_prompt and "Today's date is" in system_prompt
+    assert {tool.name for tool in gateway.offered_tools} >= {"query_logs", "list_recent_changes", "search_knowledge", "get_slo_status"}
+    snapshot = await read_snapshot(chat, started.answer_run_id, current_user=RUI)
+    tool = next(step.tool for step in snapshot.steps if step.tool)
+    assert tool.arguments == {"application_codes": ["PAYAU"]} and tool.bound_argument_names == []
+
+
+async def test_a_global_conversation_scoped_to_one_application_offers_only_that_application(setup: Setup, seed_context) -> None:
+    chat = await in_a_global_chat(setup, application_ids=(seed_context.application_ids_by_code["CLMJP"],))
+    gateway = ScriptedGateway([Turn(text="Nothing to look up.")])
+    await ask_and_finish(chat, gateway, current_user=RUI, request=question("Is there a runbook?"))
+    runbooks = next(tool for tool in gateway.offered_tools if tool.name == "find_runbooks")
+    assert runbooks.parameters_schema["properties"]["application_code"]["enum"] == ["CLMJP"]
+
+
+async def test_a_global_answer_cannot_read_an_application_the_person_cannot(setup: Setup) -> None:
+    chat = await in_a_global_chat(setup)
+    gateway = ScriptedGateway([Turn(requests=(request_for("find_runbooks", {"application_code": "CHAD", "symptoms": "timeouts"}),)), Turn(text="I could not check that.")])
+    started = await ask_and_finish(chat, gateway, current_user=RUI, request=question("Is there a runbook for CHAD timeouts?"))
+    snapshot = await read_snapshot(chat, started.answer_run_id, current_user=RUI)
+    step = next(step for step in snapshot.steps if step.tool)
+    assert (step.status, step.tool.outcome_code, step.tool.output_preview) == ("refused", "access_denied", None)
+    assert (await stored_run(started.answer_run_id)).used_application_ids_json == []
+
+
+async def test_a_person_with_no_application_gets_the_fixed_answer_and_no_model_is_called(setup: Setup) -> None:
+    async with open_session() as session:
+        usage_before = await session.scalar(select(func.count()).select_from(LlmUsageRecord))
+    chat = await in_a_global_chat(setup, NO_ACCESS)
+    gateway = ScriptedGateway([])
+    started = await ask_and_finish(chat, gateway, current_user=NO_ACCESS, request=question(SLO_QUESTION))
+    snapshot = await read_snapshot(chat, started.answer_run_id, current_user=NO_ACCESS)
+    async with open_session() as session:
+        usage_after = await session.scalar(select(func.count()).select_from(LlmUsageRecord))
+    assert gateway.calls == [] and usage_after == usage_before
+    assert snapshot.status == "completed" and snapshot.answer.is_refusal is True and "don't have access to any applications" in snapshot.answer.markdown
+
+
+async def test_an_investigation_conversation_is_still_answered_with_the_investigation_scope(setup: Setup) -> None:
+    started = await ask_and_finish(setup, ScriptedGateway(answer_after_evidence()))
+    run = await stored_run(started.answer_run_id)
+    assert (run.conversation_scope, run.prompt_key, run.scope_snapshot_json["scope"]) == ("investigation", "ask_keigan_investigation", "investigation")
+
+
+async def test_a_global_conversation_of_someone_else_is_refused(setup: Setup) -> None:
+    chat = await in_a_global_chat(setup, RUI)
+    gateway = ScriptedGateway([])
+    with pytest.raises(ForbiddenException):
+        await start(chat, gateway, current_user=user("someone.else@keigan.local", "CLMJP_reader", "PAYAU_reader"))
+    assert gateway.calls == []
+
+
+# ── The access gap: an answer that used an application the person has since lost ────────────────────────────────────────────────
+async def answered_across_two_applications(setup: Setup) -> tuple[Setup, StartedAnswer]:
+    chat = await in_a_global_chat(setup)
+    gateway = ScriptedGateway([
+        Turn(requests=(slo_status_of("CLMJP", "call_1"), slo_status_of("PAYAU", "call_2")), text="Checking both applications."),
+        Turn(text="CLMJP and PAYAU both have SLOs [T1] [T2]."),
+    ])
+    return chat, await ask_and_finish(chat, gateway, current_user=RUI, request=question(SLO_QUESTION))
+
+
+async def read_step_output(setup: Setup, current_user, answer_run_id: str, run_step_id: str):
+    async with open_session() as session:
+        return await AskKeiganService(session, setup.registry, AskKeiganEngine(ScriptedGateway([]))).step_output(current_user, answer_run_id, run_step_id)
+
+
+async def test_a_global_answer_records_every_application_its_tools_read(setup: Setup, seed_context) -> None:
+    _, started = await answered_across_two_applications(setup)
+    expected = sorted([seed_context.application_ids_by_code["CLMJP"], seed_context.application_ids_by_code["PAYAU"]])
+    assert (await stored_run(started.answer_run_id)).used_application_ids_json == expected
+
+
+async def test_the_person_who_still_reads_both_applications_reads_the_answer_and_its_steps(setup: Setup) -> None:
+    chat, started = await answered_across_two_applications(setup)
+    snapshot = await read_snapshot(chat, started.answer_run_id, current_user=RUI)
+    assert snapshot.answer.markdown == "CLMJP and PAYAU both have SLOs [T1] [T2]." and [step.tool.is_redacted for step in snapshot.steps if step.tool] == [False, False]
+    assert (await read_step_output(chat, RUI, started.answer_run_id, next(step.run_step_id for step in snapshot.steps if step.tool))).output["summary"]
+
+
+@pytest.mark.parametrize("person_after_the_loss", [RUI_WITHOUT_PAYAU, RUI_WITHOUT_CLMJP, LOST_EVERYTHING], ids=["lost PAYAU", "lost CLMJP", "lost both"])
+async def test_a_person_who_lost_any_application_the_answer_used_cannot_read_its_snapshot(setup: Setup, person_after_the_loss) -> None:
+    chat, started = await answered_across_two_applications(setup)
+    with pytest.raises(ForbiddenException) as refused:
+        await read_snapshot(chat, started.answer_run_id, current_user=person_after_the_loss)
+    shown_to_the_person = f"{refused.value.detail} {refused.value}"
+    assert "SLO" not in shown_to_the_person and "Checking both" not in shown_to_the_person and "Checked SLO status" not in shown_to_the_person
+
+
+@pytest.mark.parametrize("person_after_the_loss", [RUI_WITHOUT_PAYAU, RUI_WITHOUT_CLMJP], ids=["lost PAYAU", "lost CLMJP"])
+async def test_a_person_who_lost_one_of_two_applications_cannot_read_any_step_output_of_the_answer(setup: Setup, person_after_the_loss) -> None:
+    chat, started = await answered_across_two_applications(setup)
+    snapshot = await read_snapshot(chat, started.answer_run_id, current_user=RUI)
+    for step in (step for step in snapshot.steps if step.tool):  # also the step on the application the person can still read: the answer joins them
+        with pytest.raises(ForbiddenException):
+            await read_step_output(chat, person_after_the_loss, started.answer_run_id, step.run_step_id)
+
+
+async def test_losing_an_application_an_answer_did_not_use_does_not_hide_it(setup: Setup) -> None:
+    chat = await in_a_global_chat(setup)
+    started = await ask_and_finish(chat, ScriptedGateway([Turn(requests=(slo_status_of("CLMJP", "call_1"),)), Turn(text="CLMJP has SLOs [T1].")]), current_user=RUI, request=question(SLO_QUESTION))
+    assert (await read_snapshot(chat, started.answer_run_id, current_user=RUI_WITHOUT_PAYAU)).answer.markdown == "CLMJP has SLOs [T1]."
+
+
+async def test_the_answers_the_person_lost_are_not_sent_to_the_model_as_history_of_their_next_question(setup: Setup) -> None:
+    chat, _ = await answered_across_two_applications(setup)
+    gateway = ScriptedGateway([Turn(text="Nothing to look up.")])
+    await ask_and_finish(chat, gateway, current_user=RUI_WITHOUT_PAYAU, request=question("And the runbooks?"))
+    history = next(entry.section.content for entry in gateway.calls[0]["transcript"] if entry.section and entry.section.title == HISTORY_SECTION_TITLE)
+    assert "How are the SLOs doing?" in history and "CLMJP and PAYAU both have SLOs" not in history

@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 
 import pytest
@@ -152,6 +152,36 @@ async def test_beginning_a_run_stores_a_running_row_with_everything_known_before
     assert (run.user_message_id, run.conversation_id, run.correlation_id, run.cancel_requested_at) == (started.user_message_id, started.conversation_id, "corr-trace-test", None)
     assert (run.model_turn_count, run.tool_call_count, run.total_input_token_count, run.total_output_token_count) == (0, 0, 0, 0)
     assert started.recorder.answer_run_id == run.answer_run_id
+
+
+async def test_a_run_begins_with_no_application_used_and_each_succeeded_call_adds_the_applications_it_read() -> None:
+    started = await begin_run()
+    assert (await load_run(started.run_id)).used_application_ids_json == []
+    await run_one_tool_call(started, replace(succeeded(SampleOutput(summary="x", detail="y")), applications_read=frozenset({"app-2", "app-1"})))
+    assert (await load_run(started.run_id)).used_application_ids_json == ["app-1", "app-2"]
+    turn = await started.recorder.start_model_turn(2)
+    second = await started.recorder.start_tool_call(
+        parent=turn, request_id="call_2", tool=EVIDENCE_TOOL, citation_code="T2", requested_arguments={}, effective_arguments={}, target=TARGET, bound_argument_names=(),
+    )
+    await started.recorder.finish_tool_call(second, replace(succeeded(SampleOutput(summary="x", detail="y")), applications_read=frozenset({"app-3", "app-1"})), masked_value_count=0)
+    assert (await load_run(started.run_id)).used_application_ids_json == ["app-1", "app-2", "app-3"]
+
+
+async def test_a_call_that_gave_no_data_and_a_skipped_request_use_no_application() -> None:
+    started = await begin_run()
+    refused = ToolOutcome(
+        status=ChatRunStepStatus.REFUSED, output=None, application_id="app-9", records=[], outcome_code="access_denied", outcome_message="You can't read that.", model_message="refused",
+        applications_read=frozenset({"app-9"}),  # a refusal names the application it concerned, but no data of it reached the model
+    )
+    turn = await started.recorder.start_model_turn(1)
+    step = await started.recorder.start_tool_call(
+        parent=turn, request_id="call_1", tool=EVIDENCE_TOOL, citation_code="T1", requested_arguments={}, effective_arguments={}, target=TARGET, bound_argument_names=(),
+    )
+    await started.recorder.finish_tool_call(step, refused, masked_value_count=0)
+    await started.recorder.record_skipped_tool_call(
+        parent=turn, request_id="call_2", tool=EVIDENCE_TOOL, requested_arguments={}, target=TARGET, bound_argument_names=(), reason=SkipReason.TOOL_LIMIT_REACHED,
+    )
+    assert (await load_run(started.run_id)).used_application_ids_json == []
 
 
 async def test_the_start_event_tells_the_screen_the_question_the_tools_and_the_limit() -> None:

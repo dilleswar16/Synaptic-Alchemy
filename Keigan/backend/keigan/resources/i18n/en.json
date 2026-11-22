@@ -199,6 +199,7 @@
   },
   "ask_keigan_answers": {
     "no_access": "You don't have access to any applications yet, so there is nothing for me to look at.",
+    "access_lost": "You no longer have access to an application this answer used.",
     "outside_scope": "That is outside what I can answer from Keigan's data.",
     "limit_reached": {
       "tool_limit": "I stopped at the limit of {maximum} tool calls before I could write a full answer. This is what the checks found:",

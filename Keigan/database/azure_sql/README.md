@@ -12,7 +12,7 @@ Optional demo data for non-production databases is kept apart in `demo_data/` (s
 | 2 | `02_create_tables.sql` | Creates every table with its primary key, unique and CHECK constraints (status and kind columns accept only the values in `keigan/entities/status_values.py`) |
 | 3 | `03_create_foreign_keys.sql` | Adds foreign keys (after all tables exist, so order never matters) |
 | 4 | `04_create_indexes.sql` | Adds indexes, including the filtered unique indexes (ServiceNow incident numbers, one open alert per fingerprint, one active job per deduplication key, one running Ask Keigan answer per conversation) |
-| 5 | `05_reference_data.sql` | Creates `keigan.alembic_version` = `c5e7a9b3d1f4` (so later releases apply only newer migrations) and a schema marker row |
+| 5 | `05_reference_data.sql` | Creates `keigan.alembic_version` = `b8d4f2a6c0e3` (so later releases apply only newer migrations) and a schema marker row |
 | 6 | `06_grant_keigan_identity.sql` | Creates the database user for Keigan's managed identity and grants read/write on schema `keigan` |
 | — | `run_all.sql` | Runs 1–6 in order with `sqlcmd` |
 
@@ -45,7 +45,7 @@ sqlcmd -S <server>.database.windows.net -d <database> \
 
 ```sql
 SELECT COUNT(*) AS table_count FROM sys.tables WHERE schema_id = SCHEMA_ID(N'keigan');   -- 59 (58 + alembic_version)
-SELECT version_num FROM keigan.alembic_version;                                          -- c5e7a9b3d1f4
+SELECT version_num FROM keigan.alembic_version;                                          -- b8d4f2a6c0e3
 SELECT name, type_desc FROM sys.database_principals WHERE name = N'id-keigan-prod';     -- EXTERNAL_USER
 ```
 

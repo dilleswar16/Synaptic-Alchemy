@@ -509,6 +509,7 @@ async def _get_slo_status(context: ToolContext, arguments: GetSloStatusInput) ->
     applications = _applications_to_check(context, arguments.application_codes)
     for application in applications:
         await context.ensure_application_reader(application.id)  # the dashboard would quietly leave out an application the person lost, which must not read as "no SLOs"
+        context.read_application_ids.add(application.id)  # every application checked is read, whether or not it has an SLO to show
     summaries: list[SloSummaryResponse] = await SloService(context.session).get_dashboard(context.current_user, [application.id for application in applications]) if applications else []
     wanted = [summary for summary in summaries if not arguments.statuses or summary.status in arguments.statuses]
     worst_first = sorted(wanted, key=lambda summary: _SLO_WORST_FIRST.index(summary.status))

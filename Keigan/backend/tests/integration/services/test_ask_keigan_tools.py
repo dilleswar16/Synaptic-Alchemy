@@ -808,6 +808,37 @@ async def test_slo_status_of_a_person_with_no_readable_application_is_the_empty_
     assert outcome.status is ChatRunStepStatus.SUCCEEDED and outcome.output.summary == "No SLOs found"
 
 
+# ── The applications a call read (who may still see the answer that used them) ─────────────────────────────────────────────────
+async def test_a_tool_that_names_one_application_reports_it_as_read() -> None:
+    scoped = await create_scoped_application()
+    await add_runbook(scoped.application_id, "Database connection timeouts", "connection pool exhausted", "1. Check the pool size.")
+    found = await run_tool("find_runbooks", {"symptoms": "database connection timeouts"}, ADMIN, bound={"application_code": scoped.application_code})
+    nothing_found = await run_tool("find_runbooks", {"symptoms": "certificate"}, ADMIN, bound={"application_code": scoped.application_code})
+    assert found.applications_read == frozenset({scoped.application_id})
+    assert nothing_found.applications_read == frozenset({scoped.application_id})  # an empty result still says something about the application
+
+
+async def test_a_tool_that_opens_a_record_reports_the_application_the_record_belongs_to(seeded: Seeded) -> None:
+    outcome = await run_tool("get_evidence", {"evidence_code": "E1"}, CLMJP_READER, bound=bound_to(seeded))
+    assert outcome.applications_read == frozenset({seeded.clmjp_application_id})
+
+
+async def test_the_slo_status_of_several_applications_reports_every_application_it_covered() -> None:
+    first, second = await create_slo_application(), await create_scoped_application()  # the second has no SLO at all
+    reader_of_both = user("covers.reader@keigan.local", f"{first.application_code}_reader", f"{second.application_code}_reader")
+    everything = await run_tool("get_slo_status", {}, reader_of_both, scope=AskKeiganScope.GLOBAL)
+    one_named = await run_tool("get_slo_status", {"application_codes": [second.application_code]}, reader_of_both, scope=AskKeiganScope.GLOBAL)
+    assert everything.applications_read == frozenset({first.application_id, second.application_id})
+    assert one_named.applications_read == frozenset({second.application_id}) and one_named.output.summary == "No SLOs found"
+
+
+async def test_a_call_that_gave_no_data_reports_no_application_as_read(seeded: Seeded) -> None:
+    refused = await run_tool("get_slo_status", {"application_codes": ["NOPE"]}, CLMJP_READER, scope=AskKeiganScope.GLOBAL)
+    failed = await run_tool("get_evidence", {"evidence_code": "E9"}, CLMJP_READER, bound=bound_to(seeded))
+    assert refused.status is ChatRunStepStatus.REFUSED and failed.status is ChatRunStepStatus.FAILED
+    assert refused.applications_read == frozenset() and failed.applications_read == frozenset()
+
+
 # ── Access: other applications, removed access ────────────────────────────────────────────────────────────────────────────────
 async def row_counts() -> dict[str, int]:
     async with open_session() as session:

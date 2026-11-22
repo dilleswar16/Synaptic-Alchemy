@@ -15,7 +15,7 @@ import logging
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Literal, Protocol
@@ -191,6 +191,7 @@ class ToolContext:
     citation_code: str = "T0"  # the T<n> of this call, used in the untrusted-data label
     language_code: str | None = None  # the person's language: every message of the outcome is worded in it (English when the server has no table for it)
     resolved_application_id: str | None = None  # set by execute() when the tool names an application
+    read_application_ids: set[str] = field(default_factory=set)  # the applications whose data the call read: execute() adds the one the tool names, a tool that covers several adds each of them
     deadline: float = 0.0  # monotonic time by which the tool must finish; set by execute()
 
 
@@ -241,6 +242,7 @@ class ToolOutcome:
     model_view_sha256: str | None = None
     model_message: str = ""  # exactly what the model receives: the wrapped model view, or a one-line outcome for a failed call
     injection_flagged: bool = False
+    applications_read: frozenset[str] = frozenset()  # every application whose data reached the model through this call (a call that gave no data read none): who may see the answer follows from it
 
 
 # The list field of each list-like presentation; the registry caps it and keeps item_count and is_truncated honest.
@@ -347,6 +349,7 @@ class ToolRegistry:
             return _failed_outcome(definition, ChatRunStepStatus.REFUSED, ToolOutcomeCode.INVALID_ARGUMENTS, _invalid_arguments_message(definition, validation_error, context.language_code))
         # 3. The application the tool names must be one the person may read; the check is repeated here, whatever the model-facing schema listed.
         context.resolved_application_id = None
+        context.read_application_ids = set()
         if definition.application_argument:
             application_code = getattr(validated_arguments, definition.application_argument, None)
             application = next((candidate for candidate in context.profile.readable_applications if candidate.code == application_code), None)
@@ -357,6 +360,7 @@ class ToolRegistry:
             except KeiganException as denial:  # ForbiddenException when access was removed; classified like any other failure of the tool
                 return _outcome_for_failure(definition, denial, context)
             context.resolved_application_id = application.id
+            context.read_application_ids.add(application.id)
         # 4. Run it inside the read-only guard, under the per-call time limit (this stops one hung call, never a long answer).
         timeout_seconds = get_settings().ask_keigan_tool_timeout_seconds
         context.deadline = asyncio.get_running_loop().time() + timeout_seconds
@@ -607,6 +611,7 @@ def _successful_outcome(definition: ToolDefinition, context: ToolContext, output
         status=ChatRunStepStatus.SUCCEEDED, output=masked_output, application_id=context.resolved_application_id or (records[0].application_id if records else None), records=records,
         outcome_code=None, outcome_message=None, model_view_text=model_view, model_view_sha256=hashlib.sha256(model_view.encode("utf-8")).hexdigest(),
         model_message=spotlight(model_view, f"tool:{definition.name}:{context.citation_code}", maximum_characters=len(model_view) + 1, force_warning=is_flagged), injection_flagged=is_flagged,
+        applications_read=frozenset(context.read_application_ids | {record.application_id for record in records}),
     )
 
 

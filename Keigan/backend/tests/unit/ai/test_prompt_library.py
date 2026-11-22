@@ -9,7 +9,10 @@ from keigan.ai.prompt_library import PROMPTS_DIRECTORY, PromptLibrary
 
 LIBRARY = PromptLibrary()
 HYPOTHESIS_KEYS = ("hypothesis_application", "hypothesis_dependencies", "hypothesis_infrastructure")
-ASK_KEIGAN_VARIABLES = {"maximum_tool_calls": 6, "follow_up_limit": 3, "follow_up_marker": "<<follow-ups>>", "outside_scope_answer": "That is outside what I can answer from Keigan's data."}
+ASK_KEIGAN_VARIABLES = {
+    "maximum_tool_calls": 6, "follow_up_limit": 3, "follow_up_marker": "<<follow-ups>>", "outside_scope_answer": "That is outside what I can answer from Keigan's data.",
+    "application_list": "CLMJP — Claims Processing (JP)\nPAYAU — Payments (AU)", "current_date": "2026-11-22",
+}
 
 
 def test_application_names_cannot_inject_instructions_into_the_system_prompt() -> None:
@@ -74,9 +77,6 @@ def test_fragments_are_not_loadable_as_prompts() -> None:
     assert fragment_names, "the shared hypothesis body must live in a fragment"
 
 
-ASK_KEIGAN_VARIABLES = {"maximum_tool_calls": 6, "follow_up_limit": 3, "follow_up_marker": "<<follow-ups>>", "outside_scope_answer": "That is outside what I can answer from Keigan's data."}
-
-
 def test_the_investigation_prompt_for_ask_keigan_carries_the_effective_limits_and_the_shared_rules() -> None:
     rendered = LIBRARY.render("ask_keigan_investigation", application_name="Claims", **ASK_KEIGAN_VARIABLES)
     assert LIBRARY.version_of("ask_keigan_investigation") == "1" and LIBRARY.model_tier_for_call("ask_keigan_investigation") == "deep"
@@ -86,6 +86,20 @@ def test_the_investigation_prompt_for_ask_keigan_carries_the_effective_limits_an
     assert "reply with exactly this sentence" in rendered and "That is outside what I can answer from Keigan's data." in rendered
     assert "[T2]" in rendered and "Never report a failed check as" in rendered
     assert "Operating notes from the application team (guidance, not evidence)" in rendered and "give it no citation code" in rendered
+
+
+def test_the_global_prompt_for_ask_keigan_lists_the_applications_and_the_date_and_shares_the_rules_with_the_investigation_prompt() -> None:
+    rendered = LIBRARY.render("ask_keigan_global", **ASK_KEIGAN_VARIABLES)
+    assert LIBRARY.version_of("ask_keigan_global") == "1" and LIBRARY.model_tier_for_call("ask_keigan_global") == "deep"
+    assert "Today's date is 2026-11-22 (UTC)" in rendered
+    assert "CLMJP — Claims Processing (JP)\nPAYAU — Payments (AU)" in rendered
+    assert "Use at most 6 tool calls" in rendered and "[T2]" in rendered and "Never report a failed check as" in rendered
+    assert "investigation" not in rendered.split("Rules:")[0].lower()  # the part that is the global prompt's own says nothing about one investigation
+
+
+def test_the_global_prompt_states_no_number_of_its_own() -> None:
+    template = (PROMPTS_DIRECTORY / "ask_keigan_global.md").read_text(encoding="utf-8")
+    assert not any(number in template.lower().split() for number in ("six", "eight", "6", "8")) and "{% include \"_ask_keigan_rules.md\" %}" in template
 
 
 def test_the_follow_up_instruction_is_left_out_when_no_follow_ups_are_wanted() -> None:

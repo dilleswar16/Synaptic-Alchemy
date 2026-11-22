@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 from typing import Any
 
 import httpx
@@ -10,11 +11,12 @@ import pytest
 from keigan.ai.chat_ai_schemas import ChatQueryResult
 from keigan.ai.llm_gateway import LlmCallResult, LlmGateway, LlmUsageContext
 from keigan.config.database_config import open_session
-from keigan.entities.all_entities import Application, ConversationMessage
+from keigan.entities.all_entities import Application, Conversation, ConversationMessage
 from keigan.entities.knowledge_entities import KnowledgeChunk, KnowledgeDocument
 from keigan.exceptions.keigan_exceptions import IntegrationException
 from keigan.services.chat_service import ChatService
 from keigan.utils.text_utils import term_frequencies
+from keigan.utils.time_utils import utc_now
 from support import users
 from support.http import AuthHeaders
 from support.chat_answer_runs import store_answer_run
@@ -220,3 +222,86 @@ async def test_the_contract_the_teams_bot_uses_answers_from_the_investigation_wi
     ]
     assert answer.message_payload == {"answerKind": "text", "citations": answer.citations}
     assert answer.input_token_count > 0 and answer.output_token_count > 0
+
+
+async def test_the_suggested_prompts_show_the_breadth_of_what_the_chat_can_answer_for_the_selected_application(seed_context, client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    from sqlalchemy import select
+
+    from keigan.entities.all_entities import MonitoredService
+
+    clmjp_id = seed_context.application_ids_by_code["CLMJP"]
+    async with open_session() as session:
+        application_name = (await session.get(Application, clmjp_id)).application_name
+        service_name = (await session.scalar(select(MonitoredService.service_name).where(MonitoredService.application_id == clmjp_id).order_by(MonitoredService.service_name).limit(1)))
+    response = await client.get("/api/chat/suggested-prompts", params={"applicationId": clmjp_id}, headers=await auth_headers(users.CLMJP_AND_PAYAU_READER))
+    assert response.status_code == 200, response.text
+    assert [(prompt["promptText"], prompt["category"]) for prompt in response.json()] == [
+        ("Which SLOs are at risk right now?", "data"), ("Are there open P1 or P2 incidents?", "data"), (f"What changed on {application_name} in the last day?", "data"),
+        (f"Show failed requests on {service_name} in the last 24 hours", "data"), ("Which predictive signals are open?", "data"),
+        ("What is the runbook for a database connection failure?", "knowledge"),
+    ]
+
+
+# ── A person who lost access to an application no longer re-reads the answers that used it (the access gap of the Keigan AI chat) ──
+ACCESS_LOST_NOTICE = "You no longer have access to an application this answer used."
+
+
+async def global_conversation_with_an_answer(seed_context, owner: str, used_codes: list[str], answer_text: str = "CLMJP and PAYAU both have SLOs at risk [T1] [T2].") -> Any:
+    used_application_ids = [seed_context.application_ids_by_code[code] for code in used_codes]
+    async with open_session() as session:
+        return await store_answer_run(session, owner=owner, used_application_ids=used_application_ids, answer_text=answer_text, run_status="completed")
+
+
+async def read_conversation(client: httpx.AsyncClient, headers: dict[str, str], conversation_id: str) -> list[dict[str, Any]]:
+    response = await client.get(f"/api/chat/conversations/{conversation_id}", headers=headers)
+    assert response.status_code == 200, response.text
+    return response.json()["messages"]
+
+
+async def test_a_person_who_cannot_read_an_application_an_earlier_global_answer_used_sees_a_notice_instead_of_the_answer(seed_context, client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    owner = users.CLMJP_AND_PAYAU_READER  # reads CLMJP and PAYAU, not CHAD
+    stored = await global_conversation_with_an_answer(seed_context, owner, ["CLMJP", "CHAD"])
+    question, answer = await read_conversation(client, await auth_headers(owner), stored.conversation_id)
+    assert question["messageText"] == "Which SLOs are at risk?" and question["authorRole"] == "user"
+    assert answer["authorRole"] == "assistant" and answer["messageText"] == ACCESS_LOST_NOTICE
+    assert answer["messagePayload"] == {"answerRunId": stored.answer_run_id}
+    assert "SLOs at risk [T1]" not in str(answer) and "Checked SLO status" not in str(answer) and "Which alerts fired" not in str(answer)
+
+
+async def test_a_person_who_can_still_read_every_application_the_answer_used_sees_the_whole_answer(seed_context, client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    owner = users.CLMJP_ADMIN_CHAD_READER  # reads CLMJP and CHAD
+    stored = await global_conversation_with_an_answer(seed_context, owner, ["CLMJP", "CHAD"])
+    _, answer = await read_conversation(client, await auth_headers(owner), stored.conversation_id)
+    assert answer["messageText"] == "CLMJP and PAYAU both have SLOs at risk [T1] [T2]."
+    assert answer["messagePayload"]["citations"] == [{"code": "T1", "title": "Checked SLO status"}] and answer["messagePayload"]["followUps"] == ["Which alerts fired?"]
+
+
+async def test_an_answer_that_used_only_applications_the_person_can_read_stays_even_when_they_lost_others(seed_context, client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    owner = users.CLMJP_AND_PAYAU_READER
+    stored = await global_conversation_with_an_answer(seed_context, owner, ["CLMJP"], "CLMJP has 2 SLOs at risk [T1].")
+    _, answer = await read_conversation(client, await auth_headers(owner), stored.conversation_id)
+    assert answer["messageText"] == "CLMJP has 2 SLOs at risk [T1]."
+
+
+async def test_a_person_with_no_access_at_all_sees_a_notice_for_every_answer_that_used_an_application(seed_context, client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    stored = await global_conversation_with_an_answer(seed_context, users.NO_ACCESS, ["CLMJP"], "CLMJP has 2 SLOs at risk [T1].")
+    _, answer = await read_conversation(client, await auth_headers(users.NO_ACCESS), stored.conversation_id)
+    assert answer["messageText"] == ACCESS_LOST_NOTICE and "SLOs" not in str(answer["messagePayload"])
+
+
+async def test_an_answer_of_the_old_router_that_was_about_a_lost_application_is_hidden_and_one_about_no_application_is_not(seed_context, client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    owner = users.CLMJP_AND_PAYAU_READER
+    async with open_session() as session:
+        conversation = Conversation(conversation_scope="keigan_ai_chat", owner_user_principal_name=owner)
+        session.add(conversation)
+        await session.flush()
+        chad_id = seed_context.application_ids_by_code["CHAD"]
+        session.add_all([
+            ConversationMessage(conversation_id=conversation.conversation_id, author_role="assistant", message_text="CHAD served 4,100 requests.", created_at=utc_now(),
+                                message_payload_json={"answerKind": "number", "numberValue": 4100, "conversationContext": {"applicationId": chad_id}}),
+            ConversationMessage(conversation_id=conversation.conversation_id, author_role="assistant", message_text="Which service do you mean?", created_at=utc_now() + timedelta(milliseconds=1),
+                                message_payload_json={"answerKind": "text"}),
+        ])
+        conversation_id = conversation.conversation_id
+    hidden, kept = await read_conversation(client, await auth_headers(owner), conversation_id)
+    assert (hidden["messageText"], hidden["messagePayload"]) == (ACCESS_LOST_NOTICE, None) and kept["messageText"] == "Which service do you mean?"

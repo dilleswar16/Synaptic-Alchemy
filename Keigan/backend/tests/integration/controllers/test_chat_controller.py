@@ -314,13 +314,40 @@ async def test_the_old_message_endpoint_still_answers_the_global_chat(client: ht
     assert response.status_code == 200 and response.json()["authorRole"] == "assistant"
 
 
-async def test_the_answers_endpoint_is_for_investigation_chats_in_this_phase(client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
-    headers = await auth_headers(READER)
+async def global_chat(client: httpx.AsyncClient, headers: dict[str, str]) -> Chat:
     created = await client.post("/api/chat/conversations", headers=headers, json={"conversationScope": "keigan_ai_chat"})
-    response = await client.post(
-        f"/api/chat/conversations/{created.json()['conversationId']}/answers", headers={**headers, **EVENT_STREAM}, json={"messageText": "Hi", "clientRequestId": str(uuid.uuid4())},
-    )
-    assert response.status_code == 422 and "investigation" in response.json()["detail"]
+    assert created.status_code == 201, created.text
+    return Chat(created.json()["conversationId"], "", headers)
+
+
+async def test_the_answers_endpoint_answers_a_global_conversation_with_the_global_scope(client: httpx.AsyncClient, auth_headers: AuthHeaders, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "llm_provider", LlmProviderName.MOCK)
+    chat = await global_chat(client, await auth_headers(READER))
+    response = await ask(client, chat, "How are the SLOs doing?")
+    assert response.status_code == 200, response.text
+    frames = parse_frames(response.text)
+    assert frames[0].event == "answer.started" and frames[0].data["scope"] == "global" and frames[-1].event == "answer.completed"
+    assert [frame.data["tool"]["name"] for frame in frames if frame.event == "tool.started"] == ["get_slo_status"]
+    assert "[T1]" in frames[-1].data["answer"]["markdown"]
+
+
+async def test_a_global_answer_is_hidden_on_every_read_path_once_the_person_cannot_read_an_application_it_used(
+    client: httpx.AsyncClient, auth_headers: AuthHeaders, seed_context, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(get_settings(), "llm_provider", LlmProviderName.MOCK)
+    chat = await global_chat(client, await auth_headers(READER))
+    run_id = parse_frames((await ask(client, chat, "How are the SLOs doing?")).text)[0].data["answerRunId"]
+    snapshot = await client.get(f"/api/chat/answer-runs/{run_id}", headers=chat.headers)
+    tool_step_id = next(step["runStepId"] for step in snapshot.json()["steps"] if step["kind"] == "tool_call")
+    assert snapshot.status_code == 200 and (await client.get(f"/api/chat/answer-runs/{run_id}/steps/{tool_step_id}/output", headers=chat.headers)).status_code == 200
+    async with open_session() as session:  # the run used CHAD too, which this reader cannot read: the same state as a reader who has since lost it
+        await session.execute(update(ChatAnswerRun).where(ChatAnswerRun.answer_run_id == run_id).values(used_application_ids_json=[seed_context.application_ids_by_code["CHAD"]]))
+    for path in (f"/api/chat/answer-runs/{run_id}", f"/api/chat/answer-runs/{run_id}/steps/{tool_step_id}/output"):
+        refused = await client.get(path, headers=chat.headers)
+        assert refused.status_code == 403 and "SLO" not in refused.text
+    conversation = await client.get(f"/api/chat/conversations/{chat.conversation_id}", headers=chat.headers)
+    answer = next(message for message in conversation.json()["messages"] if message["authorRole"] == "assistant")
+    assert answer["messageText"] == "You no longer have access to an application this answer used." and answer["messagePayload"] == {"answerRunId": run_id}
 
 
 # ── AC-23 and AC-24: through a real server ───────────────────────────────────────────────────────────────────────────────────

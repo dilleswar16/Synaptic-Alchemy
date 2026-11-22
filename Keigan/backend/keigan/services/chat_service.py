@@ -35,6 +35,7 @@ from keigan.exceptions.keigan_exceptions import (
 from keigan.security.current_user import CurrentUser
 from keigan.security.security_middleware import rate_limiter
 from keigan.services.answer_run_retention import delete_answer_runs
+from keigan.services.ask_keigan_answer_access import AnswerAccess, WithheldAnswer
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.chat_data_query_service import ChatDataQueryService, DataQueryOutcome, QueryNotAnswerableError
@@ -138,7 +139,7 @@ class ChatService:
                 Conversation.conversation_scope == INVESTIGATION_SCOPE, Conversation.investigation_id == request.investigation_id,
                 Conversation.owner_user_principal_name == current_user.user_principal_name).limit(1))
             if existing is not None:
-                return await self._to_detail(existing)
+                return await self._to_detail(existing, current_user)
             conversation = Conversation(conversation_scope=INVESTIGATION_SCOPE, investigation_id=request.investigation_id, incident_id=investigation.incident_id,
                                         owner_user_principal_name=current_user.user_principal_name, conversation_title="Investigation chat",
                                         created_by_user_principal_name=current_user.user_principal_name)
@@ -152,10 +153,10 @@ class ChatService:
             raise BusinessValidationException("conversationScope must be keigan_ai_chat or investigation.")
         self.session.add(conversation)
         await self.session.flush()
-        return await self._to_detail(conversation)
+        return await self._to_detail(conversation, current_user)
 
     async def get_conversation(self, current_user: CurrentUser, conversation_id: str) -> ConversationDetailResponse:
-        return await self._to_detail(await self.open_conversation(current_user, conversation_id))
+        return await self._to_detail(await self.open_conversation(current_user, conversation_id), current_user)
 
     async def update_conversation(self, current_user: CurrentUser, conversation_id: str, request: ConversationUpdateRequest) -> ConversationResponse:
         conversation = await self.owned_conversation(current_user, conversation_id)
@@ -175,17 +176,19 @@ class ChatService:
     async def suggested_prompts(self, current_user: CurrentUser, application_id: str | None) -> list[SuggestedPromptResponse]:
         readable = await AuthorizationService(self.session).readable_application_ids(current_user)
         scoped = [application_id] if application_id and application_id in readable else sorted(readable)[:1]
-        service_name = "claims-api"
+        application_name, service_name = "my application", "claims-api"
         if scoped:
+            application = await self.session.get(Application, scoped[0])
+            application_name = application.application_name if application else application_name
             service = await self.session.scalar(select(MonitoredService).where(MonitoredService.application_id == scoped[0]).order_by(MonitoredService.service_name).limit(1))
             service_name = service.service_name if service else service_name
-        return [
-            SuggestedPromptResponse(prompt_text=f"How many requests failed in the last 24 hours on {service_name}?", category="data"),
-            SuggestedPromptResponse(prompt_text=f"Show me the pattern of errors on {service_name} over the last 7 days", category="data"),
-            SuggestedPromptResponse(prompt_text="Which services does this application depend on?", category="knowledge"),
+        return [  # one for each kind of question the tools can answer: SLOs, incidents, changes, logs, predictive signals, runbooks
+            SuggestedPromptResponse(prompt_text="Which SLOs are at risk right now?", category="data"),
+            SuggestedPromptResponse(prompt_text="Are there open P1 or P2 incidents?", category="data"),
+            SuggestedPromptResponse(prompt_text=f"What changed on {application_name} in the last day?", category="data"),
+            SuggestedPromptResponse(prompt_text=f"Show failed requests on {service_name} in the last 24 hours", category="data"),
+            SuggestedPromptResponse(prompt_text="Which predictive signals are open?", category="data"),
             SuggestedPromptResponse(prompt_text="What is the runbook for a database connection failure?", category="knowledge"),
-            SuggestedPromptResponse(prompt_text=f"Is {service_name} slower than usual today?", category="data"),
-            SuggestedPromptResponse(prompt_text="Summarise what changed in the last day", category="knowledge"),
         ]
 
     # ── Messages ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -404,10 +407,12 @@ class ChatService:
     async def conversation_messages(self, conversation_id: str) -> list[ConversationMessage]:
         return list((await self.session.scalars(select(ConversationMessage).where(ConversationMessage.conversation_id == conversation_id).order_by(ConversationMessage.created_at))).all())
 
-    async def _to_detail(self, conversation: Conversation) -> ConversationDetailResponse:
+    async def _to_detail(self, conversation: Conversation, current_user: CurrentUser) -> ConversationDetailResponse:
+        """The conversation with its messages, where an answer that used an application the person can no longer read is replaced by a notice (``AnswerAccess``)."""
         messages = await self.conversation_messages(conversation.conversation_id)
+        withheld = await AnswerAccess(self.session).withheld_answers(current_user, conversation.conversation_id, messages)
         base = self._to_response(conversation, len(messages))
-        return ConversationDetailResponse(**base.model_dump(), messages=[self._to_message_response(item) for item in messages])
+        return ConversationDetailResponse(**base.model_dump(), messages=[self._to_message_response(item, withheld.get(item.message_id)) for item in messages])
 
     @staticmethod
     def _to_response(conversation: Conversation, message_count: int) -> ConversationResponse:
@@ -417,7 +422,8 @@ class ChatService:
             created_at=conversation.created_at, updated_at=conversation.updated_at)
 
     @staticmethod
-    def _to_message_response(message: ConversationMessage) -> ChatMessageResponse:
+    def _to_message_response(message: ConversationMessage, withheld: WithheldAnswer | None = None) -> ChatMessageResponse:
         return ChatMessageResponse(
             message_id=message.message_id, conversation_id=message.conversation_id, author_role=message.author_role, author_display_name=message.author_display_name,
-            message_text=message.message_text, message_payload=message.message_payload_json, created_at=message.created_at)
+            message_text=withheld.message_text if withheld else message.message_text, message_payload=withheld.message_payload if withheld else message.message_payload_json,
+            created_at=message.created_at)

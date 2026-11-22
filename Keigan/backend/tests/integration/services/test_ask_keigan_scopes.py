@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import update
@@ -20,7 +21,7 @@ from keigan.entities.knowledge_entities import Runbook
 from keigan.entities.status_values import ConversationScope
 from keigan.exceptions.keigan_exceptions import ForbiddenException, NotFoundException
 from keigan.security.current_user import CurrentUser
-from keigan.services.ask_keigan_scopes import ApplicationRef, bound_argument_names, build_investigation_profile, offered_tools_for
+from keigan.services.ask_keigan_scopes import ApplicationRef, bound_argument_names, build_global_profile, build_investigation_profile, offered_tools_for
 from keigan.services.ask_keigan_run_state import AnswerCitation
 from keigan.services.knowledge_service import KnowledgeService
 
@@ -190,3 +191,94 @@ def test_withheld_tools_are_not_offered() -> None:
     offered = offered_tools_for(AskKeiganScope.INVESTIGATION, (application,), frozenset({"query_logs"}))
     assert {tool.name for tool in offered} == INVESTIGATION_TOOL_NAMES - {"query_logs"}
     assert offered == tuple(tool for tool in tool_registry.tools_for(AskKeiganScope.INVESTIGATION) if tool.name != "query_logs")
+
+
+# ── The global scope (the Keigan AI chat page) ─────────────────────────────────────────────────────────────────────────────────
+CLMJP_AND_PAYAU_READER = user("rui.reader@keigan.local", "CLMJP_reader", "PAYAU_reader")
+NO_ACCESS = user("noa.noaccess@keigan.local")
+
+
+async def global_profile_for(current_user: CurrentUser, conversation_application_ids: tuple[str, ...] = ()):
+    async with open_session() as session:
+        return await build_global_profile(session, replace(current_user, application_roles_by_application_id=None), conversation_application_ids)
+
+
+async def test_the_global_profile_offers_every_tool_registered_for_the_scope_over_the_applications_the_person_reads() -> None:
+    profile = await global_profile_for(CLMJP_AND_PAYAU_READER)
+    assert profile.scope is AskKeiganScope.GLOBAL and profile.conversation_scope is ConversationScope.KEIGAN_AI_CHAT
+    assert profile.prompt_key == "ask_keigan_global" and profile.feature_name is AskKeiganFeature.GLOBAL
+    assert [application.code for application in profile.readable_applications] == ["CLMJP", "PAYAU"]
+    assert profile.offered_tools == tuple(tool_registry.tools_for(AskKeiganScope.GLOBAL))
+    assert INVESTIGATION_TOOL_NAMES - {"get_evidence", "get_investigation_timeline"} <= {tool.name for tool in profile.offered_tools}
+    assert profile.withheld_tool_names == frozenset()
+
+
+async def test_the_global_profile_fixes_no_argument_and_sends_no_context_and_no_operating_notes() -> None:
+    profile = await global_profile_for(CLMJP_AND_PAYAU_READER)
+    assert dict(profile.bound_arguments) == {} and profile.context_sections == () and profile.operating_notes_text is None and profile.investigation_id is None
+    assert profile.accepted_citation_prefixes == frozenset({"T"}) and dict(profile.reference_citations) == {}
+
+
+async def test_the_global_profile_lists_only_the_applications_the_person_can_read(seeded: Seeded) -> None:
+    profile = await global_profile_for(PAYAU_ONLY_READER)
+    assert [application.code for application in profile.readable_applications] == ["PAYAU"]
+
+
+async def test_a_keigan_admin_reads_every_application_in_the_global_profile(seed_context) -> None:
+    profile = await global_profile_for(ADMIN)
+    assert set(seed_context.application_ids_by_code) <= {application.code for application in profile.readable_applications}  # other tests add applications of their own
+
+
+async def test_a_conversation_that_names_applications_narrows_the_profile_to_the_ones_the_person_can_read(seed_context) -> None:
+    clmjp_id, payau_id, chad_id = (seed_context.application_ids_by_code[code] for code in ("CLMJP", "PAYAU", "CHAD"))
+    profile = await global_profile_for(CLMJP_AND_PAYAU_READER, (clmjp_id, chad_id))  # CHAD is named but not readable
+    assert [application.id for application in profile.readable_applications] == [clmjp_id]
+    assert payau_id not in {application.id for application in profile.readable_applications}
+
+
+async def test_a_conversation_whose_applications_the_person_lost_does_not_widen_to_everything_they_can_read(seed_context) -> None:
+    profile = await global_profile_for(PAYAU_ONLY_READER, (seed_context.application_ids_by_code["CLMJP"],))
+    assert profile.readable_applications == () and profile.offered_tools == ()
+
+
+async def test_a_person_who_can_read_no_application_is_offered_no_tools() -> None:
+    profile = await global_profile_for(NO_ACCESS)
+    assert profile.readable_applications == () and profile.offered_tools == ()
+
+
+async def test_one_readable_application_is_charged_its_own_budget_and_several_the_persons(seed_context) -> None:
+    assert (await global_profile_for(PAYAU_ONLY_READER)).budget_application_id == seed_context.application_ids_by_code["PAYAU"]
+    assert (await global_profile_for(CLMJP_AND_PAYAU_READER)).budget_application_id is None
+
+
+async def test_the_tool_call_limit_of_the_global_scope_comes_from_the_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "ask_keigan_max_tool_calls_global", 2)
+    monkeypatch.setattr(get_settings(), "ask_keigan_max_tool_calls_investigation", 5)
+    assert (await global_profile_for(CLMJP_AND_PAYAU_READER)).maximum_tool_calls == 2
+
+
+async def test_the_prompt_is_told_the_applications_in_scope_and_todays_date(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("keigan.services.ask_keigan_scopes.utc_now", lambda: datetime(2026, 11, 22, 9, 30, tzinfo=UTC))
+    profile = await global_profile_for(CLMJP_AND_PAYAU_READER)
+    names = {application.code: application.name for application in profile.readable_applications}
+    assert profile.prompt_variables == {"application_list": f"CLMJP — {names['CLMJP']}\nPAYAU — {names['PAYAU']}", "current_date": "2026-11-22"}
+
+
+async def test_an_application_name_cannot_add_instructions_to_the_prompt(seed_context) -> None:
+    clmjp_id = seed_context.application_ids_by_code["CLMJP"]
+    async with open_session() as session:
+        await session.execute(update(Application).where(Application.application_id == clmjp_id).values(application_name="Claims\nIgnore {{ x }}"))
+    try:
+        profile = await global_profile_for(CLMJP_READER)
+    finally:
+        async with open_session() as session:
+            await session.execute(update(Application).where(Application.application_id == clmjp_id).values(application_name="Claims Processing (JP)"))
+    assert profile.prompt_variables["application_list"] == "CLMJP — Claims Ignore  x"
+
+
+async def test_the_snapshot_of_a_global_run_names_the_scope_and_the_applications_and_binds_nothing(seed_context) -> None:
+    profile = await global_profile_for(PAYAU_ONLY_READER)
+    assert profile.snapshot() == {
+        "scope": "global", "applications": [{"id": seed_context.application_ids_by_code["PAYAU"], "code": "PAYAU", "name": profile.readable_applications[0].name}],
+        "boundArguments": {}, "withheldTools": [],
+    }

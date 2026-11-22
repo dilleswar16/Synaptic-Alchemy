@@ -614,6 +614,7 @@ erDiagram
         nvarchar(36) investigation_id FK "nullable"
         nvarchar(320) requested_by_user_principal_name
         json scope_snapshot_json
+        json used_application_ids_json "nullable"
         nvarchar(20) run_status
         nvarchar(30) stop_reason "nullable"
         nvarchar(20) engine_version

@@ -1,8 +1,8 @@
 """The scope of one Ask Keigan answer: which tools, arguments, context, citation codes, limits and budget it gets (spec 23, 4.4.2).
 
-``ScopeProfile`` is the only thing the engine and the tool registry know about where a question was asked. The investigation scope is built here.
-The global scope (the Keigan AI chat page) is built by a ``build_global_profile`` of the same shape in phase 3 of the plan: the applications the person can read
-intersected with the conversation's applications, every tool whose authorization passes, no bound arguments and no digest.
+``ScopeProfile`` is the only thing the engine and the tool registry know about where a question was asked. Both scopes are built here: the investigation scope
+(one application and one investigation, fixed by the scope) and the global scope of the Keigan AI chat page (the applications the person can read, narrowed to the
+conversation's applications; every tool registered for the scope; no bound arguments and no digest).
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.ask_keigan_mock_planner import AskKeiganFeature
 from keigan.ai.llm_gateway import PromptSection
+from keigan.ai.prompt_library import sanitize_prompt_value
 from keigan.ai.tool_registry import AskKeiganScope, ToolDefinition, tool_registry
 from keigan.config.settings import get_settings
 from keigan.entities.status_values import ConversationScope
@@ -22,10 +23,14 @@ from keigan.security.current_user import CurrentUser
 from keigan.services import ask_keigan_tools  # noqa: F401 — importing it registers the tools the scopes offer
 from keigan.services.ask_keigan_investigation_context import load_investigation_context
 from keigan.services.ask_keigan_run_state import AnswerCitation
+from keigan.services.authorization_service import AuthorizationService
 from keigan.services.investigation_service import InvestigationService
+from keigan.utils.time_utils import utc_now
 
 INVESTIGATION_PROMPT_KEY = "ask_keigan_investigation"
 INVESTIGATION_CITATION_PREFIXES = frozenset({"T", "E", "R"})  # tool calls, evidence, runbooks
+GLOBAL_PROMPT_KEY = "ask_keigan_global"
+GLOBAL_CITATION_PREFIXES = frozenset({"T"})  # tool calls only: the global scope has no evidence or runbook codes of its own
 
 
 @dataclass(frozen=True)
@@ -91,3 +96,30 @@ async def build_investigation_profile(session: AsyncSession, current_user: Curre
         reference_citations={**context.evidence_citations, **context.runbook_citations}, budget_application_id=application.id,
         maximum_tool_calls=get_settings().ask_keigan_max_tool_calls_investigation, prompt_variables={"application_name": application.name}, investigation_id=investigation.investigation_id,
     )
+
+
+async def build_global_profile(session: AsyncSession, current_user: CurrentUser, conversation_application_ids: Sequence[str]) -> ScopeProfile:
+    """The profile for questions on the Keigan AI chat page: the applications the person can read now, narrowed to the conversation's applications when it names some.
+
+    A conversation whose applications the person can no longer read gets none (never everything else they can read): the engine then answers that there is nothing to look at,
+    without calling a model.
+    """
+    authorization = AuthorizationService(session)
+    roles_by_application_id = await authorization.application_roles(current_user)
+    scoped_application_ids = await authorization.scoped_application_ids(current_user, list(conversation_application_ids))
+    applications = tuple(sorted(
+        (ApplicationRef(role.application_id, role.application_code, role.application_name) for role in (roles_by_application_id[application_id] for application_id in scoped_application_ids)),
+        key=lambda application: application.code,
+    ))
+    return ScopeProfile(
+        scope=AskKeiganScope.GLOBAL, conversation_scope=ConversationScope.KEIGAN_AI_CHAT, prompt_key=GLOBAL_PROMPT_KEY, feature_name=AskKeiganFeature.GLOBAL,
+        readable_applications=applications, offered_tools=offered_tools_for(AskKeiganScope.GLOBAL, applications, frozenset()), bound_arguments={}, context_sections=(),
+        operating_notes_text=None, accepted_citation_prefixes=GLOBAL_CITATION_PREFIXES, reference_citations={}, budget_application_id=applications[0].id if len(applications) == 1 else None,
+        maximum_tool_calls=get_settings().ask_keigan_max_tool_calls_global,
+        prompt_variables={"application_list": _application_list(applications), "current_date": utc_now().date().isoformat()},
+    )
+
+
+def _application_list(applications: Sequence[ApplicationRef]) -> str:
+    """One ``code — name`` line per application, cleaned like every user-chosen name that is rendered into a system prompt."""
+    return "\n".join(f"{sanitize_prompt_value(application.code)} — {sanitize_prompt_value(application.name)}" for application in applications)

@@ -59,6 +59,13 @@ async def open_investigation_chat(current_user: CurrentUser, investigation_id: s
         return conversation.conversation_id
 
 
+async def open_global_chat(current_user: CurrentUser, application_ids: tuple[str, ...] = ()) -> str:
+    """The id of a new Keigan AI chat conversation of ``current_user`` (the page creates one per conversation), scoped to ``application_ids`` or, when empty, to every application they read."""
+    async with open_session() as session:
+        conversation = await ChatService(session).create_conversation(current_user, ConversationCreateRequest(conversation_scope="keigan_ai_chat", application_ids=list(application_ids)))
+        return conversation.conversation_id
+
+
 async def stored_run(answer_run_id: str) -> ChatAnswerRun:
     async with open_session() as session:
         run = await session.get(ChatAnswerRun, answer_run_id)

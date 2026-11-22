@@ -223,7 +223,8 @@ class TraceRecorder:
             session.add(ChatAnswerRun(
                 answer_run_id=registration.answer_run_id, conversation_id=registration.conversation_id, user_message_id=question.message_id,
                 client_request_id=registration.client_request_id, conversation_scope=registration.conversation_scope, investigation_id=registration.investigation_id,
-                requested_by_user_principal_name=registration.requested_by_user_principal_name, scope_snapshot_json=registration.scope_snapshot, run_status=ChatAnswerRunStatus.RUNNING,
+                requested_by_user_principal_name=registration.requested_by_user_principal_name, scope_snapshot_json=registration.scope_snapshot, used_application_ids_json=[],
+                run_status=ChatAnswerRunStatus.RUNNING,
                 engine_version=setup.engine_version, prompt_key=setup.prompt_key, prompt_version=setup.prompt_version, system_prompt_sha256=setup.system_prompt_sha256,
                 tool_catalog_sha256=setup.tool_catalog_sha256, offered_tools_json=setup.offered_tools, provider_name=setup.provider_name, model_name=setup.model_name,
                 model_tier=setup.model_tier, tool_calling_mode=setup.tool_calling_mode, limits_json=setup.limits, correlation_id=current_correlation_id() or None,
@@ -319,7 +320,10 @@ class TraceRecorder:
                 model_view_text=outcome.model_view_text, model_view_sha256=outcome.model_view_sha256, masked_value_count=masked_value_count, injection_flagged=outcome.injection_flagged,
                 outcome_code=outcome.outcome_code, outcome_message=masked_outcome_message,
             ))
-            (await self._run_row(session)).tool_call_count = self._totals.tool_call_count
+            run = await self._run_row(session)
+            run.tool_call_count = self._totals.tool_call_count
+            if outcome.status is ChatRunStepStatus.SUCCEEDED:  # only a call that gave data put the data of an application in front of the model
+                run.used_application_ids_json = sorted({*(run.used_application_ids_json or ()), *outcome.applications_read})
             await self._touch(session)
         self._publish_tool_finished(handle, outcome.status, duration_milliseconds, stored, records, masked_value_count, outcome.injection_flagged, outcome.outcome_code, masked_outcome_message)
 

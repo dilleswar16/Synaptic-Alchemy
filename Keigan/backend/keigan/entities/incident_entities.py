@@ -350,6 +350,9 @@ class ChatAnswerRun(EntityBase):
     requested_by_user_principal_name: Mapped[str] = mapped_column(String(320))
     # A point-in-time audit snapshot of the applications, bound arguments and withheld tools: not a relationship, so not an association table.
     scope_snapshot_json: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    # The applications whose data reached the model through this run's tool calls, kept up to date as the calls finish. Who may still see the answer follows from it: a person who can no
+    # longer read any one of them sees none of the run. Null for a run stored before this column existed (an investigation chat, whose access is the investigation's application).
+    used_application_ids_json: Mapped[list[str] | None] = mapped_column()
     run_status: Mapped[str] = mapped_column(String(20))
     stop_reason: Mapped[str | None] = mapped_column(String(30))
     engine_version: Mapped[str] = mapped_column(String(20))

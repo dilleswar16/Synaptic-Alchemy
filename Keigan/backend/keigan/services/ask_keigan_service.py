@@ -1,7 +1,8 @@
 """Ask Keigan answers as a service: start one, follow it, read its trace, stop it (spec 23, 4.4.1 and 7.5).
 
 ``start`` does everything that must be right before the answer begins, in the request session: who may ask (the conversation's owner, who must still be able to read
-the investigation), the rate limit, a repeated request, one answer at a time per conversation, the scope profile and the model's ability to use tools. It then begins the
+the investigation), the rate limit, a repeated request, one answer at a time per conversation, the scope profile (the scope of the answer is the scope of its conversation: an
+investigation chat gets the investigation profile, the Keigan AI chat the global one) and the model's ability to use tools. It then begins the
 trace (the masked question and the run row are one transaction) and hands the answer to a detached task (it outlives the request); the request only reads the task's
 event channel. Everything the task does afterwards uses its own short sessions. A run is ended by the engine, by a stop request, or (when its process is gone) by
 ``RunInterruption``.
@@ -10,7 +11,8 @@ The checks of ``start`` are the fast path: with several processes only the datab
 conversation are enforced by it, and a refused run is explained afterwards as ``duplicate_request`` or ``answer_in_progress``.
 
 Who may read what: the snapshot and the output of a step show an answer, so they need the same access as reading the conversation (``ChatService.open_conversation``:
-the owner who can still read the investigation's application). Stopping and deleting need ownership only: they reveal nothing and end work the person started.
+the owner who can still read the investigation's application) and, besides, that the person can still read every application the answer used (``AnswerAccess``).
+Stopping and deleting need ownership only: they reveal nothing and end work the person started.
 """
 
 from __future__ import annotations
@@ -36,6 +38,7 @@ from keigan.exceptions.keigan_exceptions import (
 )
 from keigan.security.current_user import CurrentUser
 from keigan.security.security_middleware import rate_limiter
+from keigan.services.ask_keigan_answer_access import AnswerAccess
 from keigan.services.ask_keigan_cancellation import CancellationFlag
 from keigan.services.ask_keigan_engine import AnswerOutcome, AnswerRequest as EngineAnswerRequest, AskKeiganEngine
 from keigan.services.ask_keigan_events import RunEventChannel
@@ -43,7 +46,7 @@ from keigan.services.ask_keigan_interruption import RunInterruption
 from keigan.services.ask_keigan_prepared_run import PreparedRun
 from keigan.services.ask_keigan_run_registry import AnswerRunRegistry, ConversationBusyError, LiveAnswerRun
 from keigan.services.ask_keigan_run_snapshot import AnswerRunSnapshotBuilder
-from keigan.services.ask_keigan_scopes import ScopeProfile, build_investigation_profile
+from keigan.services.ask_keigan_scopes import ScopeProfile, build_global_profile, build_investigation_profile
 from keigan.services.ask_keigan_stream import event_frames
 from keigan.services.ask_keigan_trace import QuestionToStore, RunRegistration, TraceRecorder
 from keigan.services.ask_keigan_transcript import ConversationTurn
@@ -52,7 +55,7 @@ from keigan.services.chat_service import ChatService
 from keigan.utils.pii_masker import PiiMasker
 
 logger = logging.getLogger(__name__)
-GLOBAL_SCOPE_NOT_SUPPORTED_MESSAGE = "Ask Keigan answers are available in investigation chats for now. Use the investigation page to ask a question."
+CONVERSATION_NOT_ANSWERABLE_MESSAGE = "This conversation is neither a Keigan AI chat nor an investigation chat with an investigation, so Keigan cannot answer in it."
 STEP_REDACTED_MESSAGE = "You no longer have access to the application this step read."
 _ASSISTANT_HISTORY_ROLE = "assistant"
 _USER_HISTORY_ROLE = "user"
@@ -73,6 +76,7 @@ class AskKeiganService:
         self.registry = registry or application_context.answer_run_registry()
         self._engine = engine
         self.chat_service = ChatService(session)
+        self.answer_access = AnswerAccess(session)
         self.interruption = RunInterruption(self.registry)
 
     # ── Starting an answer ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -93,7 +97,7 @@ class AskKeiganService:
             profile = await self._build_profile(engine_user, conversation)
             prepared = engine.prepare(profile, language_code)
             masker = PiiMasker()
-            history = await self._masked_history(conversation_id, masker)
+            history = await self._masked_history(current_user, conversation_id, masker)
             masked_question = masker.mask_text(request.message_text)
             recorder = await self._begin_run(
                 RunRegistration(
@@ -163,9 +167,10 @@ class AskKeiganService:
         return run
 
     async def _readable_run(self, current_user: CurrentUser, answer_run_id: str) -> ChatAnswerRun:
-        """The run of the owner who may still read its conversation: the rule of ``ChatService.open_conversation``, not a copy of it."""
+        """The run of the owner who may still read its conversation (the rule of ``ChatService.open_conversation``, not a copy of it) and every application the answer used."""
         run = await self._owned_run(current_user, answer_run_id)
         await self.chat_service.open_conversation(current_user, run.conversation_id)
+        await self.answer_access.ensure_run_readable(current_user, run)
         return run
 
     async def _request_stop(self, answer_run_id: str) -> bool:
@@ -239,14 +244,20 @@ class AskKeiganService:
             raise RateLimitedException(AskKeiganErrorCatalogue.describe("rate_limited", language_code=language_code).detail) from limited
 
     async def _build_profile(self, current_user: CurrentUser, conversation: Conversation) -> ScopeProfile:
-        if conversation.conversation_scope != ConversationScope.INVESTIGATION or conversation.investigation_id is None:
-            raise BusinessValidationException(GLOBAL_SCOPE_NOT_SUPPORTED_MESSAGE)
-        return await build_investigation_profile(self.session, current_user, conversation.investigation_id)
+        """The scope of the answer is the scope of its conversation, and nothing else decides it."""
+        if conversation.conversation_scope == ConversationScope.KEIGAN_AI_CHAT:
+            return await build_global_profile(self.session, current_user, conversation.application_ids)
+        if conversation.conversation_scope == ConversationScope.INVESTIGATION and conversation.investigation_id is not None:
+            return await build_investigation_profile(self.session, current_user, conversation.investigation_id)
+        raise BusinessValidationException(CONVERSATION_NOT_ANSWERABLE_MESSAGE)
 
-    async def _masked_history(self, conversation_id: str, masker: PiiMasker) -> list[ConversationTurn]:
+    async def _masked_history(self, current_user: CurrentUser, conversation_id: str, masker: PiiMasker) -> list[ConversationTurn]:
+        """The earlier exchange for the model, without the answers the person may no longer see: what they may not read must not come back through the next answer."""
         messages = await self.chat_service.conversation_messages(conversation_id)
+        withheld = await self.answer_access.withheld_answers(current_user, conversation_id, messages)
         return [
-            ConversationTurn(_USER_HISTORY_ROLE if message.author_role == MessageAuthorRole.USER else _ASSISTANT_HISTORY_ROLE, masker.mask_text(message.message_text)) for message in messages
+            ConversationTurn(_USER_HISTORY_ROLE if message.author_role == MessageAuthorRole.USER else _ASSISTANT_HISTORY_ROLE, masker.mask_text(message.message_text))
+            for message in messages if message.message_id not in withheld
         ]
 
 
