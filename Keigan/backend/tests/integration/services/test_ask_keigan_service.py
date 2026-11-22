@@ -33,6 +33,7 @@ from keigan.services.ask_keigan_run_registry import AnswerRunRegistry
 from keigan.services.ask_keigan_run_snapshot import AnswerRunSnapshotBuilder
 from keigan.services.ask_keigan_service import AskKeiganService, StartedAnswer
 from keigan.services.ask_keigan_trace import TRUNCATED_OUTPUT_KEY
+from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import utc_now
 from support.ask_keigan_conversations import SeededInvestigation, open_global_chat, open_investigation_chat, running_runs_of, runs_of, seed_investigation, stored_run
 from support.ask_keigan_runs import ScriptedGateway, Turn, request_for, user
@@ -815,6 +816,16 @@ async def test_a_global_answer_runs_end_to_end_with_the_mock_provider(setup: Set
     (tool_step,) = [step for step in snapshot.steps if step.tool]
     assert (tool_step.tool.name, tool_step.tool.citation_code, tool_step.status, tool_step.tool.bound_argument_names) == ("get_slo_status", "T1", "succeeded", [])
     assert "[T1]" in snapshot.answer.markdown and snapshot.answer.is_refusal is False
+
+
+async def test_a_new_global_conversation_is_titled_by_its_first_question_only(setup: Setup) -> None:
+    chat = await in_a_global_chat(setup)
+    long_question = "Which of my applications had the most failed requests over the last week, and what changed just before the worst day began?"
+    await ask_and_finish(chat, ScriptedGateway([Turn(text="Nothing to look up.")]), current_user=RUI, request=question(long_question))
+    await ask_and_finish(chat, ScriptedGateway([Turn(text="Still nothing.")]), current_user=RUI, request=question("And yesterday?"))
+    async with open_session() as session:
+        title = (await session.get(Conversation, chat.conversation_id)).conversation_title
+    assert title == truncate_text(long_question, 60) and len(title) == 60
 
 
 async def test_a_global_answer_is_told_its_applications_and_chooses_its_own_arguments(setup: Setup) -> None:

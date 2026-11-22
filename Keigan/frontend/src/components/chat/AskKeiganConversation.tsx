@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { ArrowDown } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -27,38 +27,60 @@ import { useTranscriptScroll } from "./useTranscriptScroll";
  */
 export const askKeiganTranslationNamespaces = ["chat", "onboarding"] as const;
 
-export interface AskKeiganConversationProps {
-  conversationId: string;
+/** Which conversation the questions go to: an existing one, or none yet (a new chat), which `startConversation` creates when the first question is asked and returns its id. */
+type ConversationBinding = { conversationId: string; startConversation?: undefined } | { conversationId: null; startConversation: () => Promise<string> };
+
+export type AskKeiganConversationProps = ConversationBinding & {
   /** Narrow container (the investigation panel): smaller type, no Keigan mark, stacked input lists. */
   isCompact?: boolean;
   /** Shown above the suggested prompts while the conversation is empty. */
   introText?: string;
   /** Questions offered as buttons while the conversation is empty. */
   suggestedPrompts?: readonly string[];
+  /** Replaces the intro and the prompt buttons while the conversation is empty (the chat page has a larger empty state); it asks through the function it is given. */
+  renderEmptyState?: (ask: (messageText: string) => void) => ReactNode;
+  /** A question to ask once, as soon as the conversation is shown (the one typed on Home). */
+  initialQuestion?: string;
   composerPlaceholder?: string;
   /** An `[E#]` citation was chosen (investigation page): show that evidence. */
   onSelectEvidence?: (evidenceCode: string) => void;
   /** An `[R#]` citation was chosen (investigation page): show that runbook. */
   onSelectRunbook?: (runbookId: string) => void;
   className?: string;
-}
+};
 
 /**
  * Ask Keigan (spec 23): the stored conversation, the answers asked in this session with their live trace, the Stop button and the
  * specific error messages. The one component both chat screens use; it fills its container, so the caller provides the frame and header.
  * It carries the "Show tool details" switch in a bar of its own on top.
  */
-export function AskKeiganConversation({ conversationId, isCompact = false, introText, suggestedPrompts = [], composerPlaceholder, onSelectEvidence, onSelectRunbook, className }: AskKeiganConversationProps) {
+export function AskKeiganConversation(props: AskKeiganConversationProps) {
+  const { conversationId, isCompact = false, introText, suggestedPrompts = [], renderEmptyState, initialQuestion, composerPlaceholder, onSelectEvidence, onSelectRunbook, className } = props;
   const { t } = useTranslation(askKeiganTranslationNamespaces);
   const queryClient = useQueryClient();
-  const conversation = useConversation(conversationId);
+  const conversation = useConversation(conversationId ?? undefined);
+  // Read when a question is asked, so a page may pass a new `startConversation` on every render without every answer on screen being redrawn for it.
+  const bindingReference = useRef<ConversationBinding>(props);
+  useEffect(() => {
+    bindingReference.current = props;
+  }, [props]);
+  const resolveConversationId = useCallback(async () => {
+    const binding = bindingReference.current;
+    return binding.conversationId === null ? binding.startConversation() : binding.conversationId;
+  }, []);
   const { state, failure, isBusy, send, stop, performFailureAction } = useAnswerStream({
-    conversationId,
-    onSettled: () => queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversation(conversationId) }),
+    resolveConversationId,
+    onSettled: async () => {
+      // The list of conversations is read again too: a chat that was just asked in moves to the top of it with its new time.
+      await Promise.all([
+        conversationId === null ? undefined : queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversation(conversationId) }),
+        queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversations }),
+      ]);
+    },
   });
 
   const turns = useMemo(() => buildConversationTurns(conversation.data?.messages ?? [], state.runs, state.pendingQuestion), [conversation.data?.messages, state.runs, state.pendingQuestion]);
-  const activityKey = transcriptActivityKey(turns.length, state.pendingQuestion, state.runs);
+  const activityKey = turns.length === 0 ? null : transcriptActivityKey(turns.length, state.pendingQuestion, state.runs);
   const { scrollReference, onScroll, hasNewActivity, scrollToBottom } = useTranscriptScroll(activityKey);
 
   const latestRun = state.runs.at(-1);
@@ -72,6 +94,18 @@ export function AskKeiganConversation({ conversationId, isCompact = false, intro
     },
     [scrollToBottom, send],
   );
+  // A timer rather than a flag: it is cleared with the effect, so React's development double mount asks once, and the question is not lost to the stream's cleanup.
+  const askReference = useRef(ask);
+  useEffect(() => {
+    askReference.current = ask;
+  }, [ask]);
+  useEffect(() => {
+    if (initialQuestion === undefined) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => askReference.current(initialQuestion), 0);
+    return () => window.clearTimeout(timer);
+  }, [initialQuestion]);
   const areToolsUnsupported = failure?.errorCode === toolsUnsupportedErrorCode;
   const failureAction = failure ? failureActionFor(failure) : null;
 
@@ -92,19 +126,23 @@ export function AskKeiganConversation({ conversationId, isCompact = false, intro
       <div className="relative flex min-h-0 flex-1 flex-col">
         {/* Streaming text must not be read token by token: the transcript is not live, the announcer below speaks the milestones. */}
         <div ref={scrollReference} onScroll={onScroll} role="log" aria-live="off" className={cn("flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto", isCompact ? "px-4 py-4" : "px-5 py-5")}>
-          {conversation.isLoading ? <Spinner className="m-auto" /> : null}
+          {conversation.isLoading && turns.length === 0 ? <Spinner className="m-auto" /> : null}
           {conversation.isError ? <ErrorState size="sm" error={conversation.error} onRetry={() => void conversation.refetch()} isRetrying={conversation.isFetching} /> : null}
-          {conversation.isSuccess && turns.length === 0 ? (
-            <div className="flex flex-col gap-3">
-              {introText ? <p className="text-body-sm text-muted">{introText}</p> : null}
-              <div className="flex flex-col items-start gap-2">
-                {suggestedPrompts.map((promptText) => (
-                  <button key={promptText} type="button" onClick={() => ask(promptText)} className={chatPillClassName}>
-                    {promptText}
-                  </button>
-                ))}
+          {(conversationId === null || conversation.isSuccess) && turns.length === 0 ? (
+            renderEmptyState ? (
+              renderEmptyState(ask)
+            ) : (
+              <div className="flex flex-col gap-3">
+                {introText ? <p className="text-body-sm text-muted">{introText}</p> : null}
+                <div className="flex flex-col items-start gap-2">
+                  {suggestedPrompts.map((promptText) => (
+                    <button key={promptText} type="button" onClick={() => ask(promptText)} className={chatPillClassName}>
+                      {promptText}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )
           ) : null}
           {turns.map((turn, turnIndex) => (
             <ConversationTurnView key={turn.key} turn={turn} isCompact={isCompact} isLatest={turnIndex === turns.length - 1} isBusy={isBusy} onSelectEvidence={onSelectEvidence} onSelectRunbook={onSelectRunbook} onAsk={ask} />

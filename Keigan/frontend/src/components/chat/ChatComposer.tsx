@@ -16,6 +16,9 @@ export interface ChatComposerProps {
   className?: string;
 }
 
+/** On a phone the button is a 44 px square with the icon alone; its word stays in the accessible name (spec 8.2). */
+const phoneIconButtonClassName = "max-sm:size-11 max-sm:gap-0 max-sm:px-0";
+
 /** Multi-line composer: Enter sends, Shift+Enter adds a line (max 6 lines). */
 export function ChatComposer({ onSend, isSending = false, onStop, isDisabled = false, placeholder, className }: ChatComposerProps) {
   const { t } = useTranslation("chat");
@@ -47,9 +50,9 @@ export function ChatComposer({ onSend, isSending = false, onStop, isDisabled = f
         rows={1} autoResize maximumRows={6} containerClassName="flex-1"
       />
       {isStoppable ? (
-        <Button type="button" variant="secondary" size="lg" leadingIcon={Square} onClick={onStop}>{t("composer.stop")}</Button>
+        <Button type="button" variant="secondary" size="lg" leadingIcon={Square} onClick={onStop} className={phoneIconButtonClassName}><span className="max-sm:sr-only">{t("composer.stop")}</span></Button>
       ) : (
-        <Button type="submit" size="lg" leadingIcon={SendHorizontal} disabled={!canSend} isLoading={isSending}>{t("composer.send")}</Button>
+        <Button type="submit" size="lg" leadingIcon={SendHorizontal} disabled={!canSend} isLoading={isSending} className={phoneIconButtonClassName}><span className="max-sm:sr-only">{t("composer.send")}</span></Button>
       )}
     </form>
   );

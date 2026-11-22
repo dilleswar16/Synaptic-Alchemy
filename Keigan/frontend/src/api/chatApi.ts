@@ -3,7 +3,8 @@ import { apiDelete, apiGet, apiPatch, apiPost } from "@/api/httpClient";
 import type { Identifier, IsoDateTimeString } from "@/api/types/common";
 
 /* ── Types (doc 05 §7) ─────────────────────────────────────────────── */
-export type ChatAnswerKind = "text" | "number" | "chart" | "table" | "clarification";
+/** The kinds of answer the old chat router stored (history before Ask Keigan); answers of Ask Keigan carry a run instead (`answerRunId`). */
+export type ChatAnswerKind ="text" | "number" | "chart" | "table" | "clarification";
 export type ChartType = "line" | "area" | "bar" | "stacked_bar" | "pie" | "table";
 
 export interface ChartSeriesSpecification {
@@ -38,11 +39,6 @@ export interface ChatCitation {
   reference: string;
 }
 
-export interface ClarificationOption {
-  label: string;
-  value: string;
-}
-
 export interface ChatMessagePayload {
   answerKind: ChatAnswerKind;
   numberValue?: number;
@@ -50,7 +46,6 @@ export interface ChatMessagePayload {
   tableRows?: Array<Record<string, unknown>>;
   queryDetails?: ChatQueryDetails;
   citations?: ChatCitation[];
-  clarificationOptions?: ClarificationOption[];
   failed?: boolean;
   /** Set on the answers of Ask Keigan and on their questions (spec 7.1): the stored run with the steps behind the answer. */
   answerRunId?: Identifier;
@@ -86,11 +81,6 @@ export interface SuggestedPrompt {
   category: "data" | "knowledge";
 }
 
-export interface SendMessageRequest {
-  messageText: string;
-  clarificationResponse?: string;
-}
-
 export const chatQueryKeys = {
   conversations: ["chat", "conversations"] as const,
   conversation: (conversationId: string) => ["chat", "conversation", conversationId] as const,
@@ -119,7 +109,11 @@ export function useCreateConversation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (applicationIds: string[]) => apiPost<ConversationDetail, { conversationScope: string; applicationIds: string[] }>("/chat/conversations", { conversationScope: "keigan_ai_chat", applicationIds }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversations }),
+    onSuccess: (created) => {
+      // The new conversation is already what the server would send when asked for it: the screen that opens it does not ask again (and cannot catch the first question half stored).
+      queryClient.setQueryData(chatQueryKeys.conversation(created.conversationId), created);
+      void queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversations });
+    },
   });
 }
 
@@ -147,8 +141,4 @@ export function useInvestigationConversation(investigationId: string, enabled: b
     enabled,
     staleTime: Infinity,
   });
-}
-
-export function sendChatMessage(conversationId: string, request: SendMessageRequest): Promise<ChatMessage> {
-  return apiPost<ChatMessage, SendMessageRequest>(`/chat/conversations/${conversationId}/messages`, request);
 }

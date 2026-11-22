@@ -36,6 +36,7 @@ from keigan.entities.status_values import ChatAnswerRunStatus, ChatAnswerStopRea
 from keigan.services.ask_keigan_events import AnswerEventName, RunEventChannel
 from keigan.services.ask_keigan_run_state import AnswerCitation
 from keigan.services.audit_service import AuditService
+from keigan.services.conversation_titles import title_after_question
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import ensure_utc, utc_now
 
@@ -220,6 +221,8 @@ class TraceRecorder:
             )
             session.add(question)
             await session.flush()
+            conversation = cls._existing(await session.get(Conversation, registration.conversation_id), "conversation")
+            conversation.conversation_title = title_after_question(conversation.conversation_title, registration.question.masked_text)
             session.add(ChatAnswerRun(
                 answer_run_id=registration.answer_run_id, conversation_id=registration.conversation_id, user_message_id=question.message_id,
                 client_request_id=registration.client_request_id, conversation_scope=registration.conversation_scope, investigation_id=registration.investigation_id,

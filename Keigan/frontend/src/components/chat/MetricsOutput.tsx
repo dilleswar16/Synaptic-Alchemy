@@ -3,13 +3,14 @@ import { useTranslation } from "react-i18next";
 import { StatTile } from "@/components/ui/StatTile";
 import { StatusChip } from "@/components/ui/StatusChip";
 import type { StatusTone } from "@/components/ui/toneStyles";
-import { formatList, formatNumber, formatPercentage } from "@/utils/formatters";
+import { formatDuration, formatList, formatNumber, formatPercentage } from "@/utils/formatters";
 import { readMetricGroups, type MetricGroup, type MetricValue } from "./toolOutputModels";
 import { fieldLabel, formatEnumToken } from "./toolValues";
 
 /** Digits after the decimal point for a share and for a rate: an SLO of 99.62 % must not round to 100 %. */
 const percentageFractionDigits = 2;
 const numberFractionDigits = 2;
+const millisecondsPerSecond = 1000;
 
 /** Tone of an SLO status; a status this view does not know is neutral (its word is still shown). */
 const statusTones: Readonly<Record<string, StatusTone>> = { healthy: "success", at_risk: "warning", breached: "danger", no_data: "neutral" };
@@ -22,10 +23,13 @@ const metricIcons: Readonly<Record<string, LucideIcon>> = {
   burn_rate_six_hours: Flame,
 };
 
-/** The text of a metric value: a share as a percentage, a count or a rate as a number, the "no value" mark when the tool has none. */
+/** The text of a metric value: a share as a percentage, a length of time (sent in seconds) as a duration, a count or a rate as a number, the "no value" mark when the tool has none. */
 function formatMetricValue({ kind, value }: Pick<MetricValue, "kind" | "value">, noValueText: string): string {
   if (value === null) {
     return noValueText;
+  }
+  if (kind === "duration") {
+    return formatDuration(value * millisecondsPerSecond);
   }
   return kind === "percentage" ? formatPercentage(value, { maximumFractionDigits: percentageFractionDigits }) : formatNumber(value, { maximumFractionDigits: numberFractionDigits });
 }
@@ -46,7 +50,7 @@ function MetricGroupView({ group }: { group: MetricGroup }) {
       <ul className="grid grid-cols-2 gap-2">
         {group.values.map((metric) => (
           <li key={metric.fieldName} className="min-w-0">
-            <StatTile size="compact" icon={metricIcons[metric.fieldName] ?? Hash} iconTone="brand" label={fieldLabel(t, metric.fieldName)} value={formatMetricValue(metric, t("tool.noValue"))} className="h-full" />
+            <StatTile size="compact" icon={metricIcons[metric.fieldName] ?? Hash} iconTone="brand" label={fieldLabel(t, metric.fieldName)} value={formatMetricValue(metric, t("tool.noValue"))} secondaryText={metric.sampleCount === null ? undefined : t("tool.metrics.medianOf", { count: metric.sampleCount })} className="h-full" />
           </li>
         ))}
       </ul>

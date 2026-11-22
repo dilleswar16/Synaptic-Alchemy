@@ -365,13 +365,25 @@ export function answerRunPollIntervalMilliseconds(pollCount: number): number {
 /** A finished run does not change, so it is reused for this long before it is read again. */
 const storedRunStaleTimeMilliseconds = 30_000;
 
-/** A stored answer run (conversation history). Polls while the run is still `running`, so a reload during an answer catches up. */
+/** Why a stored run cannot be shown: the person no longer has access to it (403), or its detailed trace is no longer kept (404, 410). Null for any other failure. */
+export function runUnavailableReason(error: unknown): "redacted" | "expired" | null {
+  if (!isApiError(error)) {
+    return null;
+  }
+  if (error.status === 403) {
+    return "redacted";
+  }
+  return error.status === 404 || error.status === 410 ? "expired" : null;
+}
+
+/** A stored answer run (conversation history). Polls while the run is still `running`, so a reload during an answer catches up. A run the server will not show is not asked for again when the window gets focus: the answer would be the same, and the caption would flash. */
 export function useAnswerRun(answerRunId: string | null, enabled = true) {
   return useQuery({
     queryKey: askKeiganQueryKeys.answerRun(answerRunId ?? ""),
     queryFn: () => fetchAnswerRun(answerRunId ?? ""),
     enabled: enabled && Boolean(answerRunId),
     staleTime: storedRunStaleTimeMilliseconds,
+    refetchOnWindowFocus: (query) => runUnavailableReason(query.state.error) === null,
     refetchInterval: (query) => {
       if (query.state.data?.status !== "running") {
         return false;

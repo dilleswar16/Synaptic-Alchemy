@@ -8,7 +8,12 @@
 // `streamPlanScript`): it hands the browser the same frames, one at a time, and can hold one back or press Stop or Esc just before the browser reads it. The
 // server is not slowed: what is checked afterwards (the run's status) is the server's own.
 // A step is reported as passed, FAILED or SKIPPED (not checked, with the reason); a skipped step is not a pass and shows in the summary.
-// Usage: node scripts/check-ask-keigan.mjs --web http://localhost:5173 --api http://localhost:8000 [--user upn] [--theme light|dark] [--width 1440] [--out folder]
+// Part two (--scenario global, spec 12.3 and Appendix A on /chat) checks the global chat page: the empty state with its six suggested prompts and the list where the
+// width puts it (a column on a wide screen, a drawer behind a "Conversations" button on a phone), the first question creating the conversation while the answer
+// streams, the cards and citations, copy, "Show tool details", a question about an application the person cannot read, the number and the chart of a log query,
+// Stop (button and Esc, with the server's run read back), reload, rename and delete from the list, an answer hidden after access was lost (403 on its run: one calm
+// caption, no retry loop), messages the old router stored, and the question typed on Home asked once.
+// Usage: node scripts/check-ask-keigan.mjs --web http://localhost:5173 --api http://localhost:8000 [--user upn] [--theme light|dark] [--width 1440] [--out folder] [--scenario all|investigation|global]
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright-core";
@@ -24,6 +29,9 @@ const colorScheme = argumentValue("theme", "light");
 const viewportWidth = Number(argumentValue("width", "1440"));
 const outputDirectory = argumentValue("out", "screenshots");
 const applicationNameFragment = argumentValue("application", "Claims Processing");
+/** Which part to check: the investigation panel, the global chat page, or both (the default). */
+const scenario = argumentValue("scenario", "all");
+if (!["all", "investigation", "global"].includes(scenario)) throw new Error(`--scenario must be all, investigation or global, not "${scenario}"`);
 const cardTimeoutMilliseconds = 10_000;
 /** How long the stream holds back the frame a step wants to see the Running state of. */
 const holdMilliseconds = 2_500;
@@ -203,7 +211,8 @@ const readStoredPreference = () => page.evaluate((key) => window.localStorage.ge
 const boundingHeight = async (locator) => (await locator.boundingBox())?.height ?? 0;
 const boundingWidth = async (locator) => (await locator.boundingBox())?.width ?? 0;
 
-try {
+// ── The investigation panel (spec 12.3 steps 1 to 7) ────────────────────────────────────────────────────────────────────────────────────────────────
+async function checkInvestigationPanel() {
   // 1. The panel opens on the investigation page, takes focus, and is named for what it is.
   await openPanel();
   record("the panel opens with an empty conversation and a composer", await composer().isVisible());
@@ -493,6 +502,295 @@ try {
   // 13. Layout and console.
   const hasHorizontalScroll = await page.evaluate(() => (document.scrollingElement?.scrollWidth ?? 0) > (document.scrollingElement?.clientWidth ?? 0));
   record("the page has no horizontal scroll", !hasHorizontalScroll);
+}
+
+// ── The global chat page (spec 12.3 and Appendix A, on /chat) ───────────────────────────────────────────────────────────────────────────────────────
+/** From this width (Tailwind `lg`) the conversation list is a column beside the conversation; below it the list opens in a drawer. */
+const sideColumnMinimumWidth = 1200;
+const hasSideColumn = viewportWidth >= sideColumnMinimumWidth;
+const appendixQuestion = "Is claims-api burning its error budget, and did anything change before it started?";
+const conversationAddress = /\/chat\/([0-9a-f-]{36})$/;
+/** The sentence the server puts in place of an answer the person may no longer see (`ask_keigan_answers.access_lost`, English). */
+const withheldAnswerSentence = "You no longer have access to an application this answer used.";
+const redactedCaption = "You no longer have access to this application.";
+
+const chatPane = () => page.locator('section[aria-label="Conversation"]');
+const chatComposer = () => chatPane().getByLabel("Message Keigan");
+const chatCard = (label, stateWord = "") => chatPane().getByRole("button", { name: new RegExp(`^${label}, ${stateWord ? `.*${stateWord}` : ""}`) }).last();
+const chatSend = () => chatPane().getByRole("button", { name: "Send" });
+const chatStop = () => chatPane().getByRole("button", { name: "Stop" });
+const chatDetailsSwitch = () => chatPane().getByRole("switch", { name: "Show tool details" });
+const currentConversationId = () => conversationAddress.exec(page.url())?.[1] ?? null;
+const listConversations = () => callApi("/api/chat/conversations?scope=keigan_ai_chat", signIn.accessToken);
+const readConversation = (conversationId) => callApi(`/api/chat/conversations/${conversationId}`, signIn.accessToken);
+const createdConversationIds = new Set();
+
+async function openChat(path = "/chat") {
+  await page.goto(`${webBaseUrl}${path}`, { waitUntil: "networkidle", timeout: 30_000 });
+  await chatComposer().waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+}
+
+async function askInChat(questionText) {
+  await chatComposer().fill(questionText);
+  await chatComposer().press("Enter");
+}
+
+/** Waits until the answer has ended: Stop (when it is seen at all, a fast answer may be over already) and then Send again. */
+async function waitForAnswerEnd() {
+  await chatStop().waitFor({ state: "visible", timeout: 3_000 }).catch(() => undefined);
+  await chatSend().waitFor({ state: "visible", timeout: 20_000 });
+}
+
+async function askInChatAndWait(questionText) {
+  await askInChat(questionText);
+  await waitForAnswerEnd();
+}
+
+/** The conversation list: the side column on a wide screen, the drawer a phone opens from the header. */
+async function openConversationList() {
+  if (hasSideColumn) return page.getByRole("complementary", { name: "Conversations" });
+  await page.getByRole("button", { name: "Conversations" }).click();
+  const drawer = page.getByRole("dialog", { name: "Conversations" });
+  await drawer.waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+  return drawer;
+}
+
+async function closeConversationList(list) {
+  if (hasSideColumn) return;
+  await page.keyboard.press("Escape");
+  await list.waitFor({ state: "detached", timeout: cardTimeoutMilliseconds });
+}
+
+/** The run behind the newest answer of a conversation, as the server stores it. */
+async function newestRunOf(conversationId) {
+  const detail = await readConversation(conversationId);
+  const runId = [...detail.messages].reverse().find((message) => message.messagePayload?.answerRunId)?.messagePayload.answerRunId;
+  return runId ? callApi(`/api/chat/answer-runs/${runId}`, signIn.accessToken) : null;
+}
+
+async function checkGlobalChat() {
+  const conversationsBefore = (await listConversations()).length;
+
+  // G1. An empty chat: six suggested prompts, no conversation created by looking, and the list where the width puts it.
+  await openChat();
+  record("global: opening /chat creates no conversation", (await listConversations()).length === conversationsBefore);
+  const promptButtons = chatPane().locator("ul li button");
+  record("global: a new chat shows the six suggested prompts and a composer", (await promptButtons.count()) === 6 && (await chatComposer().isVisible()), (await promptButtons.allInnerTexts()).map((text) => text.replace(/\n/g, " ")).join(" | ").slice(0, 300));
+  record("global: the empty state starts at its top: the first suggested prompt is in view", await promptButtons.first().isVisible() && (await promptButtons.first().evaluate((element) => element.getBoundingClientRect().top >= (element.closest('[role="log"]')?.getBoundingClientRect().top ?? 0) - 1)));
+  record("global: the composer's placeholder names the breadth of the tools", /incidents, alerts, SLOs, signals, changes, logs or runbooks/.test((await chatComposer().getAttribute("placeholder")) ?? ""));
+  await page.screenshot({ path: screenshotPath("global-empty") });
+  if (hasSideColumn) {
+    record("global: on a wide screen the list is a column beside the conversation, with no 'Conversations' button", (await page.getByRole("complementary", { name: "Conversations" }).isVisible()) && (await page.getByRole("button", { name: "Conversations" }).count()) === 0);
+  } else {
+    const listButton = page.getByRole("button", { name: "Conversations" });
+    record("global: on a phone the list is behind a 'Conversations' button, not on the page", (await page.getByRole("complementary", { name: "Conversations" }).count()) === 0 && (await listButton.isVisible()));
+    record("global: on a phone the 'Conversations' and 'New chat' buttons are at least 44 px high", (await boundingHeight(listButton)) >= touchTargetMinimumPixels && (await boundingHeight(page.getByRole("button", { name: "New chat" }))) >= touchTargetMinimumPixels, `${await boundingHeight(listButton)} px`);
+    const sendBox = await chatPane().getByRole("button", { name: "Send" }).boundingBox();
+    record("global: on a phone the composer's Send button is a 44 px square, reachable on screen", Boolean(sendBox) && sendBox.width >= touchTargetMinimumPixels && sendBox.height >= touchTargetMinimumPixels && sendBox.y + sendBox.height <= 900, sendBox ? `${sendBox.width} x ${sendBox.height} at y ${Math.round(sendBox.y)}` : "no box");
+    const drawer = await openConversationList();
+    const hasSearch = await drawer.getByLabel("Search conversations").isVisible();
+    await closeConversationList(drawer);
+    record("global: on a phone the button opens the list in a drawer with a search box, and Esc closes it and returns focus to the button", hasSearch && (await page.evaluate(() => document.activeElement?.textContent?.trim() === "Conversations")));
+  }
+
+  // G2. Appendix A: the first question creates the conversation (the address moves to it) while the answer streams; the cards run and finish.
+  await planStream({ holdBefore: "tool.finished", holdMilliseconds });
+  await askInChat(appendixQuestion);
+  const hasAddressMoved = await page.waitForURL(conversationAddress, { timeout: cardTimeoutMilliseconds }).then(() => true, () => false);
+  const conversationId = currentConversationId();
+  if (conversationId) createdConversationIds.add(conversationId);
+  const runningCard = chatCard("Checked SLO status", "Running");
+  const wasRunningShown = await runningCard.waitFor({ state: "visible", timeout: cardTimeoutMilliseconds }).then(() => true, () => false);
+  record("global: the first question creates the conversation and moves the address to it while the answer is still running (Running shown)", hasAddressMoved && wasRunningShown, `${page.url().replace(webBaseUrl, "")}; ${wasRunningShown ? await runningCard.getAttribute("aria-label") : "no Running card"}`);
+  await chatCard("Checked SLO status", "Done").waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+  await chatCard("Checked recent changes", "Done").waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+  await waitForAnswerEnd();
+  const sloCardName = (await chatCard("Checked SLO status").getAttribute("aria-label")) ?? "";
+  const changesCardName = (await chatCard("Checked recent changes").getAttribute("aria-label")) ?? "";
+  record("global: 'Checked SLO status' is Done and carries T1, 'Checked recent changes' is Done and carries T2", /Done/.test(sloCardName) && /citation T1/.test(sloCardName) && /Done/.test(changesCardName) && /citation T2/.test(changesCardName), `${sloCardName} || ${changesCardName}`);
+  const stored = conversationId ? await readConversation(conversationId) : null;
+  record("global: the question is shown once on screen and stored once, and only one conversation was created", (await chatPane().getByText(appendixQuestion, { exact: true }).count()) === 1 && stored?.messages.filter((message) => message.authorRole === "user").length === 1 && (await listConversations()).length === conversationsBefore + 1);
+  record("global: the conversation component kept its answer across the address change: Send is back and no failure is shown", (await chatSend().isVisible()) && (await chatPane().getByRole("alert").count()) === 0);
+  await page.screenshot({ path: screenshotPath("global-answer") });
+
+  // G3. The answer's citation T2 opens and focuses its card; the card shows inputs and result; "View full output" opens the stored JSON.
+  const citationChip = chatPane().getByRole("button", { name: /^T2$/ }).first();
+  await citationChip.waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+  if (isPhone) record("global: on a phone a citation chip is at least 44 px high and wide", (await boundingHeight(citationChip)) >= touchTargetMinimumPixels && (await boundingWidth(citationChip)) >= touchTargetMinimumPixels, `${await boundingWidth(citationChip)} x ${await boundingHeight(citationChip)}`);
+  await citationChip.click();
+  const changesHeaderId = await chatCard("Checked recent changes").getAttribute("id");
+  record("global: clicking the citation T2 focuses and opens the 'Checked recent changes' card", await page.waitForFunction((headerId) => document.activeElement?.id === headerId, changesHeaderId, { timeout: 3_000 }).then(() => true, () => false) && (await chatCard("Checked recent changes").getAttribute("aria-expanded")) === "true");
+  record("global: the opened card shows its inputs and its result", (await chatPane().getByRole("heading", { name: "Inputs" }).count()) > 0 && (await chatPane().getByRole("heading", { name: "Result" }).count()) > 0);
+  await chatPane().getByRole("button", { name: "View full output" }).last().click();
+  const outputDrawer = page.getByRole("dialog", { name: /full output/ });
+  await outputDrawer.waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+  record("global: 'View full output' opens the stored output as JSON", await outputDrawer.getByText("window_start").first().waitFor({ timeout: cardTimeoutMilliseconds }).then(() => true, () => false));
+  await page.keyboard.press("Escape");
+  await outputDrawer.waitFor({ state: "detached", timeout: cardTimeoutMilliseconds });
+
+  // G4. Copy the answer with its sources.
+  await chatPane().getByRole("button", { name: "Copy answer with sources" }).last().click();
+  const clipboardText = (await page.evaluate(() => navigator.clipboard.readText()).catch(() => "")).replaceAll("\r\n", "\n");
+  record("global: 'Copy answer with sources' copies the answer, a Sources list naming the tools, and the date", /\[T1\]/.test(clipboardText) && /\nSources\n\[T1\] Checked SLO status/.test(clipboardText) && /\[T2\] Checked recent changes/.test(clipboardText) && /Asked in Keigan on/.test(clipboardText), clipboardText.replace(/\n/g, " ⏎ ").slice(0, 400));
+
+  // G5. "Show tool details" off folds the steps; the choice is kept across a reload (one setting for both pages).
+  await chatDetailsSwitch().click();
+  const stepsButton = chatPane().getByRole("button", { name: /Keigan's steps/ }).last();
+  record("global: turning 'Show tool details' off folds the steps to their header", (await stepsButton.getAttribute("aria-expanded")) === "false" && !(await chatCard("Checked SLO status").isVisible()));
+  await openChat(`/chat/${conversationId}`);
+  record("global: after a reload the switch is still off and the steps are still folded", (await chatDetailsSwitch().getAttribute("aria-checked")) === "false" && !(await chatCard("Checked SLO status").isVisible().catch(() => false)));
+  await chatDetailsSwitch().click();
+  record("global: turning it on again opens the steps", (await chatDetailsSwitch().getAttribute("aria-checked")) === "true" && (await chatCard("Checked SLO status").isVisible()));
+
+  // G6. A question about an application this person cannot read gets no card or step for it.
+  await askInChatAndWait("What is the SLO status of CHAD?");
+  const cardNames = await chatPane().getByRole("button", { name: /, (Done|Failed|Not allowed|Invalid input|Running)/ }).evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label") ?? ""));
+  const askedRun = await newestRunOf(conversationId);
+  record("global: a question about CHAD, which this person cannot read, gets no card and no stored step that names it", cardNames.length > 0 && !cardNames.some((name) => /CHAD|Channel/i.test(name)) && !/CHAD|Channel APIs/i.test(JSON.stringify(askedRun?.steps ?? [])), `${cardNames.length} cards`);
+
+  // G7. The numbers and charts of a log query (QUERY_RESULT): the total, the sample rows, and the pattern as a chart with its numbers in words and "View as table".
+  await askInChatAndWait("How many failed requests did claims-api have in the last 24 hours?");
+  const queryCard = chatCard("Queried the logs", "Done");
+  if ((await queryCard.getAttribute("aria-expanded")) !== "true") await queryCard.click();
+  const queryBody = chatPane().getByRole("region", { name: /^Queried the logs, / }).last();
+  record("global: a log query shows its number (Total) and its sample rows", (await queryBody.getByText("Total", { exact: true }).isVisible()) && (await queryBody.getByRole("table").count()) > 0, (await queryBody.getByText("Total", { exact: true }).locator("xpath=..").innerText().catch(() => "")).replace(/\n/g, " "));
+  await queryBody.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: screenshotPath("global-query-number") });
+  await askInChatAndWait("Show the pattern of failed requests on claims-api over the last 24 hours");
+  const patternCard = chatCard("Queried the logs", "Done");
+  if ((await patternCard.getAttribute("aria-expanded")) !== "true") await patternCard.click();
+  const patternBody = chatPane().getByRole("region", { name: /^Queried the logs, / }).last();
+  const chart = patternBody.getByRole("img", { name: /failed requests on claims-api/ });
+  const hasChart = await chart.waitFor({ state: "visible", timeout: cardTimeoutMilliseconds }).then(() => true, () => false);
+  const chartWords = patternBody.getByText(/\d+ points? from .+ to .+\. Lowest .+, highest .+, latest /);
+  record("global: a pattern query draws a chart named for what it shows, with the points in a drawn line", hasChart && (await chart.locator("svg path.recharts-curve").count()) > 0, hasChart ? await chart.getAttribute("aria-label") : "no chart");
+  record("global: the chart's numbers are also written as text (count, span, lowest, highest, latest), so colour and shape are not the only way to read it", await chartWords.first().isVisible().catch(() => false), (await chartWords.first().innerText().catch(() => "")).slice(0, 200));
+  await chart.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: screenshotPath("global-query-chart") });
+  await patternBody.getByRole("button", { name: "View as table" }).click();
+  record("global: 'View as table' swaps the chart for a table with the same numbers, and 'View as chart' brings the chart back", (await patternBody.getByRole("table").first().isVisible()) && (await patternBody.getByRole("button", { name: "View as chart" }).isVisible()));
+  await patternBody.getByRole("button", { name: "View as chart" }).click();
+
+  // G8. Stop: before the first frame (the button), and after the first tool call started (Esc in the composer).
+  await planStream({ stopBefore: "answer.started" });
+  await askInChat("Show me what changed in the last 24 hours");
+  const stoppedEarly = await chatPane().getByText("Stopped by you").last().waitFor({ timeout: stoppedTimeoutMilliseconds }).then(() => true, () => false);
+  await chatSend().waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+  const earlyRun = await newestRunOf(conversationId);
+  record("global: Stop pressed before the first frame ends the run: 'Stopped by you', Send again, and the server's run is cancelled", stoppedEarly && earlyRun?.status === "cancelled" && earlyRun.stopReason === "cancelled_by_user", `server run: ${earlyRun?.status}/${earlyRun?.stopReason}`);
+  await planStream({ escapeBefore: "tool.started" });
+  await askInChat("What is the SLO status?");
+  const stoppedLate = await chatPane().getByText("Stopped by you").last().waitFor({ timeout: stoppedTimeoutMilliseconds }).then(() => true, () => false);
+  await chatSend().waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+  const lateRun = await newestRunOf(conversationId);
+  record("global: Esc after the first tool call started stops the answer, the composer is usable and the server's run is cancelled", stoppedLate && (await chatComposer().isEnabled()) && lateRun?.status === "cancelled", `server run: ${lateRun?.status}/${lateRun?.stopReason}`);
+  await page.screenshot({ path: screenshotPath("global-stopped") });
+
+  // G9. The list: a reload brings the conversation back with its cards, the list marks it as current, and it can be renamed from the list.
+  await openChat(`/chat/${conversationId}`);
+  await chatCard("Checked SLO status").waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+  record("global: after a reload the earlier questions, their cards and 'Stopped by you' are shown, and nothing is announced as an alert", (await chatCard("Checked recent changes").isVisible()) && (await chatPane().getByText("Stopped by you").count()) >= 1 && (await chatPane().getByRole("alert").count()) === 0);
+  let list = await openConversationList();
+  const currentItem = list.locator('[aria-current="page"]');
+  record("global: the list marks the open conversation as current", (await currentItem.count()) === 1);
+  await currentItem.locator("xpath=..").getByRole("button", { name: "Conversation actions" }).click();
+  await page.getByRole("menuitem", { name: "Rename" }).click();
+  const renameDialog = page.getByRole("dialog", { name: "Rename conversation" });
+  await renameDialog.waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+  await renameDialog.getByLabel("Name").fill("Claims budget check");
+  await renameDialog.getByRole("button", { name: "Save" }).click();
+  await renameDialog.waitFor({ state: "detached", timeout: cardTimeoutMilliseconds });
+  record("global: renaming a conversation from the list changes its title in the header", await chatPane().getByRole("heading", { name: "Claims budget check", level: 2 }).waitFor({ timeout: cardTimeoutMilliseconds }).then(() => true, () => false));
+  list = await openConversationList();
+  record("global: and in the list", (await list.getByText("Claims budget check").count()) >= 1);
+  await page.screenshot({ path: screenshotPath("global-list") });
+  await closeConversationList(list);
+
+  // G10. A message hidden because access was lost: the server sends one sentence and the run link, then refuses the run (403). The screen shows the caption, once,
+  // and does not ask again when the window gets focus.
+  const conversationUrl = new RegExp(`/api/chat/conversations/${conversationId}$`);
+  const runUrl = /\/api\/chat\/answer-runs\/[0-9a-f-]{36}$/;
+  const withholdAnswers = async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.messages = body.messages.map((message) => (message.authorRole === "assistant" && message.messagePayload?.answerRunId ? { ...message, messageText: withheldAnswerSentence, messagePayload: { answerRunId: message.messagePayload.answerRunId } } : message));
+    await route.fulfill({ response, json: body });
+  };
+  const refuseRun = (route) => route.fulfill({ status: 403, contentType: "application/problem+json", body: JSON.stringify({ title: "Forbidden", status: 403, errorCode: "forbidden", detail: withheldAnswerSentence }) });
+  let runRequestCount = 0;
+  const countRunRequest = (request) => runUrl.test(request.url()) && request.method() === "GET" && (runRequestCount += 1);
+  page.on("request", countRunRequest);
+  expectedStatuses.add(403);
+  await context.route(conversationUrl, withholdAnswers);
+  await context.route(runUrl, refuseRun);
+  await openChat(`/chat/${conversationId}`);
+  const redacted = chatPane().getByText(redactedCaption).first();
+  const isRedactedShown = await redacted.waitFor({ state: "visible", timeout: cardTimeoutMilliseconds }).then(() => true, () => false);
+  await page.waitForTimeout(2_500);
+  const requestsBeforeFocus = runRequestCount;
+  await page.evaluate(() => { window.dispatchEvent(new Event("focus")); document.dispatchEvent(new Event("visibilitychange")); });
+  await page.waitForTimeout(1_500);
+  record("global: an answer hidden after access was lost shows the 'no longer have access' caption in place of its steps; the question stays; the withheld sentence and the cards are not drawn", isRedactedShown && (await chatPane().getByText(appendixQuestion).count()) >= 1 && (await chatPane().getByText(withheldAnswerSentence).count()) === 0 && (await chatCard("Checked SLO status").isVisible().catch(() => false)) === false);
+  record("global: a hidden answer is shown calmly: no alert, and the run is not asked for again in a loop or when the window gets focus", (await chatPane().getByRole("alert").count()) === 0 && runRequestCount === requestsBeforeFocus && runRequestCount <= (await readConversation(conversationId)).messages.filter((message) => message.messagePayload?.answerRunId && message.authorRole === "user").length, `${runRequestCount} requests for the run, ${requestsBeforeFocus} before the focus`);
+  await page.screenshot({ path: screenshotPath("global-redacted") });
+  page.off("request", countRunRequest);
+  await context.unroute(conversationUrl, withholdAnswers);
+  await context.unroute(runUrl, refuseRun);
+  expectedStatuses.delete(403);
+
+  // G11. Messages the old router stored (no run): they still display, with the text and the chart or number they had, and no clarification buttons.
+  const oldConversation = await callApi("/api/chat/conversations", signIn.accessToken, { method: "POST", body: JSON.stringify({ conversationScope: "keigan_ai_chat", applicationIds: [] }) });
+  createdConversationIds.add(oldConversation.conversationId);
+  const oldRouterQuestion = "How many failed requests did claims-api have in the last 24 hours?";
+  const wasOldAnswerStored = await callApi(`/api/chat/conversations/${oldConversation.conversationId}/messages`, signIn.accessToken, { method: "POST", body: JSON.stringify({ messageText: oldRouterQuestion }) }).then(() => true, () => false);
+  if (wasOldAnswerStored) {
+    await openChat(`/chat/${oldConversation.conversationId}`);
+    await chatPane().getByText(oldRouterQuestion, { exact: true }).waitFor({ timeout: cardTimeoutMilliseconds });
+    const oldText = await chatPane().innerText();
+    record("global: a conversation the old router wrote shows its question and its answer, with no tool cards and no clarification buttons, and nothing fails", oldText.replace(oldRouterQuestion, "").trim().length > 200 || /\d/.test(oldText), `${oldText.length} characters; cards: ${await chatPane().getByRole("button", { name: /citation T\d/ }).count()}`);
+    await page.screenshot({ path: screenshotPath("global-old-messages") });
+  } else {
+    skip("global: a conversation the old router wrote still displays", "POST /messages is gone from this backend, so no old message could be written");
+  }
+
+  // G12. The question typed on Home is asked once (also under React's development double mount), in a new conversation.
+  const homeQuestion = "What changed in the last 24 hours?";
+  const conversationsBeforeHome = (await listConversations()).map((item) => item.conversationId);
+  await page.goto(`${webBaseUrl}/`, { waitUntil: "networkidle", timeout: 30_000 });
+  await page.getByLabel("Question for Keigan").fill(homeQuestion);
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  const hasHomeAddressMoved = await page.waitForURL(conversationAddress, { timeout: cardTimeoutMilliseconds }).then(() => true, () => false);
+  const homeConversationId = currentConversationId();
+  if (homeConversationId) createdConversationIds.add(homeConversationId);
+  await chatCard("Checked recent changes", "Done").waitFor({ state: "visible", timeout: cardTimeoutMilliseconds }).catch(() => undefined);
+  await waitForAnswerEnd();
+  const homeConversation = homeConversationId ? await readConversation(homeConversationId) : null;
+  record("global: the question typed on Home is asked once, in a new conversation, and answered", hasHomeAddressMoved && homeConversation?.messages.filter((message) => message.authorRole === "user").length === 1 && (await chatPane().getByText(homeQuestion, { exact: true }).count()) === 1 && (await listConversations()).filter((item) => !conversationsBeforeHome.includes(item.conversationId)).length === 1, `${homeConversation?.messages.length} stored messages`);
+
+  // G13. New chat starts over; a conversation is deleted from the list and the page leaves it.
+  await page.getByRole("button", { name: "New chat" }).click();
+  await chatPane().locator("ul li button").first().waitFor({ state: "visible", timeout: cardTimeoutMilliseconds });
+  record("global: 'New chat' returns to the empty state at /chat and keeps the earlier conversations", /\/chat$/.test(page.url()) && (await chatPane().locator("ul li button").count()) === 6 && (await listConversations()).length >= 2);
+  await openChat(`/chat/${conversationId}`);
+  list = await openConversationList();
+  await list.locator('[aria-current="page"]').locator("xpath=..").getByRole("button", { name: "Conversation actions" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await page.getByRole("dialog", { name: "Delete this conversation?" }).getByRole("button", { name: "Delete" }).click();
+  await page.waitForURL(/\/chat$/, { timeout: cardTimeoutMilliseconds }).catch(() => undefined);
+  await promptButtons.first().waitFor({ state: "visible", timeout: cardTimeoutMilliseconds }).catch(() => undefined);
+  const remainingIds = (await listConversations()).map((item) => item.conversationId);
+  record("global: deleting the open conversation removes it and returns to a new chat", /\/chat$/.test(page.url()) && !remainingIds.includes(conversationId) && (await chatPane().locator("ul li button").count()) === 6, `${page.url().replace(webBaseUrl, "")}; still listed: ${remainingIds.includes(conversationId)}; prompts: ${await chatPane().locator("ul li button").count()}`);
+  createdConversationIds.delete(conversationId);
+
+  // G14. Layout.
+  const hasHorizontalScroll = await page.evaluate(() => (document.scrollingElement?.scrollWidth ?? 0) > (document.scrollingElement?.clientWidth ?? 0));
+  record("global: the chat page has no horizontal scroll", !hasHorizontalScroll);
+  for (const leftOverId of createdConversationIds) await fetch(`${apiBaseUrl}/api/chat/conversations/${leftOverId}`, { method: "DELETE", headers: { Authorization: `Bearer ${signIn.accessToken}` } }).catch(() => undefined);
+}
+
+try {
+  if (scenario !== "global") await checkInvestigationPanel();
+  if (scenario !== "investigation") await checkGlobalChat();
 } catch (error) {
   record("the check ran to the end", false, String(error).slice(0, 400));
   await page.screenshot({ path: screenshotPath("failure") }).catch(() => undefined);

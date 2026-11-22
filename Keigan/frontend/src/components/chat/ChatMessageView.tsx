@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { ChatMessagePayload, ClarificationOption } from "@/api/chatApi";
+import type { ChatMessagePayload } from "@/api/chatApi";
 import { ChartMessage } from "@/components/chat/ChartMessage";
 import { KeiganLogo } from "@/components/layout/KeiganLogo";
 import { CommandBlock } from "@/components/ui/CommandBlock";
@@ -13,19 +13,15 @@ import { formatDateTime } from "@/utils/formatters";
 export interface ChatMessageViewProps {
   role: "user" | "assistant";
   text: string;
-  /** Structured answer (chart, query details, citations, clarification chips). */
+  /** Structured answer (chart, query details, citations) of a message stored before Ask Keigan. */
   payload?: ChatMessagePayload | null;
-  /** Called when the user picks a clarification chip (for example a time range). */
-  onClarificationSelect?: (option: ClarificationOption) => void;
-  /** Disables clarification chips (for example while another answer is loading or the question was already answered). */
-  isClarificationDisabled?: boolean;
   /** Smaller type and no mark column, for the floating investigation panel. */
   isCompact?: boolean;
   className?: string;
 }
 
 /** One chat turn: user bubble on the right; Keigan prose on the left with the mark, optional chart, "How I got this" and citations. */
-export function ChatMessageView({ role, text, payload, onClarificationSelect, isClarificationDisabled = false, isCompact = false, className }: ChatMessageViewProps) {
+export function ChatMessageView({ role, text, payload, isCompact = false, className }: ChatMessageViewProps) {
   const { t } = useTranslation("chat");
   const { t: translateOnboarding } = useTranslation("onboarding");
   const [isQueryOpen, setIsQueryOpen] = useState(false);
@@ -39,18 +35,6 @@ export function ChatMessageView({ role, text, payload, onClarificationSelect, is
       <div className={cn("flex min-w-0 flex-1 flex-col gap-3", isCompact ? "" : "border-l-2 border-hairline pl-4")}>
         <MarkdownView content={text} />
         {payload?.chartSpecification ? <ChartMessage specification={payload.chartSpecification} /> : null}
-        {payload?.answerKind === "clarification" && payload.clarificationOptions?.length ? (
-          <div className="flex flex-wrap gap-2" role="group" aria-label={t("message.clarificationLabel")}>
-            {payload.clarificationOptions.map((option) => (
-              <button
-                key={option.value} type="button" disabled={isClarificationDisabled} onClick={() => onClarificationSelect?.(option)}
-                className="rounded-full border border-strong bg-surface px-3 py-1.5 text-body-sm font-medium text-default transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
         {payload?.citations?.length ? (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-caption text-muted">{t("message.sources")}</span>

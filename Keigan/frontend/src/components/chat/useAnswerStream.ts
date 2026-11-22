@@ -15,7 +15,11 @@ import { pollAnswerRun } from "./answerRunPolling";
 import { answerStreamReducer, initialAnswerStreamState, isRunInProgress, type StreamConnection } from "./answerStreamReducer";
 
 export interface UseAnswerStreamOptions {
-  conversationId: string;
+  /**
+   * The conversation a question is asked in. A page that starts a conversation with its first question resolves it here (creating it when it does
+   * not exist yet), so a failure to create it is reported like any other failure to ask.
+   */
+  resolveConversationId: () => Promise<string>;
   /** Called once an answer has ended (finished, failed, stopped or lost): refresh the stored conversation. May resolve when the refreshed conversation has arrived. */
   onSettled: () => void | Promise<void>;
 }
@@ -26,7 +30,7 @@ export interface UseAnswerStreamOptions {
  * "Check again" action after a bounded time, and handing a run the server no longer shows to the stored conversation). Runs stay in `state.runs`
  * after they end so the cards the person was reading do not change under them; a reload shows the stored run instead.
  */
-export function useAnswerStream({ conversationId, onSettled }: UseAnswerStreamOptions) {
+export function useAnswerStream({ resolveConversationId, onSettled }: UseAnswerStreamOptions) {
   const [state, dispatch] = useReducer(answerStreamReducer, initialAnswerStreamState);
   const [failure, setFailure] = useState<AnswerFailure | null>(null);
   const stateReference = useRef(state);
@@ -92,6 +96,7 @@ export function useAnswerStream({ conversationId, onSettled }: UseAnswerStreamOp
       setFailure(null);
       dispatch({ kind: "question_sent", messageText });
       try {
+        const conversationId = await resolveConversationId();
         const streamEnd = await streamAnswer(
           conversationId,
           { messageText, clientRequestId: createCorrelationId() },
@@ -136,7 +141,7 @@ export function useAnswerStream({ conversationId, onSettled }: UseAnswerStreamOp
       isStoppingReference.current = false;
       await onSettledReference.current();
     },
-    [conversationId, followUntilSettled, stopRun],
+    [resolveConversationId, followUntilSettled, stopRun],
   );
 
   const stop = useCallback(async () => {

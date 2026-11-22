@@ -39,6 +39,7 @@ from keigan.services.ask_keigan_answer_access import AnswerAccess, WithheldAnswe
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.chat_data_query_service import ChatDataQueryService, DataQueryOutcome, QueryNotAnswerableError
+from keigan.services.conversation_titles import DEFAULT_CONVERSATION_TITLE, title_after_question
 from keigan.services.investigation_chat_service import InvestigationChatService
 from keigan.services.knowledge_service import KnowledgeService
 from keigan.utils.pii_masker import PiiMasker
@@ -49,7 +50,6 @@ logger = logging.getLogger(__name__)
 
 KEIGAN_SCOPE = "keigan_ai_chat"
 INVESTIGATION_SCOPE = "investigation"
-DEFAULT_TITLE = "New conversation"
 MAXIMUM_LOOKBACK_MINUTES = 30 * 1440
 CLARIFICATION_OPTIONS = [{"label": "Last hour", "value": "60"}, {"label": "Last 24 hours", "value": "1440"}, {"label": "Last 7 days", "value": "10080"}, {"label": "Last 30 days", "value": "43200"}]
 _UNIT_MINUTES = {"m": 1, "min": 1, "mins": 1, "minute": 1, "minutes": 1, "h": 60, "hr": 60, "hrs": 60, "hour": 60, "hours": 60, "d": 1440, "day": 1440, "days": 1440, "w": 10080, "week": 10080, "weeks": 10080}
@@ -147,7 +147,7 @@ class ChatService:
         elif request.conversation_scope == KEIGAN_SCOPE:
             application_ids = await authorization.scoped_application_ids(current_user, request.application_ids) if request.application_ids else []
             conversation = Conversation(conversation_scope=KEIGAN_SCOPE, owner_user_principal_name=current_user.user_principal_name,
-                                        conversation_title=DEFAULT_TITLE, created_by_user_principal_name=current_user.user_principal_name)
+                                        conversation_title=DEFAULT_CONVERSATION_TITLE, created_by_user_principal_name=current_user.user_principal_name)
             conversation.replace_linked_ids("application_links", application_ids)
         else:
             raise BusinessValidationException("conversationScope must be keigan_ai_chat or investigation.")
@@ -161,7 +161,7 @@ class ChatService:
     async def update_conversation(self, current_user: CurrentUser, conversation_id: str, request: ConversationUpdateRequest) -> ConversationResponse:
         conversation = await self.owned_conversation(current_user, conversation_id)
         if request.conversation_title is not None:
-            conversation.conversation_title = PiiMasker().mask_text(request.conversation_title).strip() or DEFAULT_TITLE
+            conversation.conversation_title = PiiMasker().mask_text(request.conversation_title).strip() or DEFAULT_CONVERSATION_TITLE
         if request.application_ids is not None and conversation.conversation_scope == KEIGAN_SCOPE:
             conversation.replace_linked_ids("application_links", await AuthorizationService(self.session).scoped_application_ids(current_user, request.application_ids) if request.application_ids else [])
         conversation.updated_by_user_principal_name = current_user.user_principal_name
@@ -219,8 +219,7 @@ class ChatService:
             message_payload_json=answer.message_payload or {"answerKind": "text", "citations": answer.citations}, input_token_count=answer.input_token_count,
             output_token_count=answer.output_token_count, created_at=utc_now() + timedelta(milliseconds=1))
         self.session.add(assistant_message)
-        if conversation.conversation_title == DEFAULT_TITLE:
-            conversation.conversation_title = truncate_text(masked_message_text.strip(), 60)
+        conversation.conversation_title = title_after_question(conversation.conversation_title, masked_message_text)
         conversation.updated_by_user_principal_name = current_user.user_principal_name
         conversation.updated_at = utc_now()
         await self.session.flush()

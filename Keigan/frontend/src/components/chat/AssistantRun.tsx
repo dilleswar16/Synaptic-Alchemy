@@ -1,6 +1,6 @@
 import { memo, useCallback, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useAnswerRun } from "@/api/askKeiganApi";
+import { runUnavailableReason, useAnswerRun } from "@/api/askKeiganApi";
 import { KeiganLogo } from "@/components/layout/KeiganLogo";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -8,7 +8,6 @@ import { cn } from "@/utils/cn";
 import { AnswerMessage } from "./AnswerMessage";
 import { AnswerRunTrace, type TraceFocusRequest } from "./AnswerRunTrace";
 import type { AnswerRunProgress, StreamConnection, ToolProgress } from "./answerStreamReducer";
-import { runUnavailableReason } from "./runTraceState";
 
 export interface AssistantRunProps {
   progress: AnswerRunProgress;

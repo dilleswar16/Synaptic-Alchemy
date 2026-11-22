@@ -9,8 +9,21 @@ export function asRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
+/** The text of a field, or undefined when the field is not text. */
+export function asText(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 export function asRecordArray(value: unknown): Array<Record<string, unknown>> {
   return Array.isArray(value) ? value.flatMap((item): Array<Record<string, unknown>> => { const record = asRecord(item); return record ? [record] : []; }) : [];
+}
+
+/**
+ * Fields a card does not list (the full output has every field): internal identifiers and keys (`incident_id`, `slo_id`, `step_key`), and an application's
+ * code when its name is beside it.
+ */
+export function isHiddenField(fieldName: string, record: Record<string, unknown>): boolean {
+  return fieldName === "id" || fieldName.endsWith("_id") || fieldName.endsWith("_key") || (fieldName === "application_code" && "application_name" in record);
 }
 
 export function isScalar(value: unknown): value is string | number | boolean | null {
@@ -55,6 +68,11 @@ export function formatFieldValue(translate: TFunction, value: unknown): string {
   }
   if (Array.isArray(value) && value.every(isScalar)) {
     return formatList(value.map((item) => formatFieldValue(translate, item)));
+  }
+  const nested = asRecord(value);
+  if (nested && Object.values(nested).every(isScalar)) {
+    // A small object (a statistic, counts by reason) reads as "label: value" pairs.
+    return formatList(Object.entries(nested).map(([nestedName, nestedValue]) => translate("tool.fieldPair", { label: fieldLabel(translate, nestedName), value: formatFieldValue(translate, nestedValue) })));
   }
   return JSON.stringify(value);
 }

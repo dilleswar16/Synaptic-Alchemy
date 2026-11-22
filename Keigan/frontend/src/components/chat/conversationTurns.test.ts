@@ -40,6 +40,21 @@ describe("buildConversationTurns", () => {
     expect(turns).toHaveLength(1);
   });
 
+  it("shows an answer withheld after access was lost as its run, which the screen asks for and is refused: the withheld sentence is not drawn", () => {
+    const withheld = message("a1", "assistant", "You no longer have access to what this answer used.", "run-1");
+    const turns = buildConversationTurns([message("q1", "user", "Question", "run-1"), withheld], [], null);
+    expect(turns).toHaveLength(1);
+    expect(turns[0]).toMatchObject({ storedAnswerRunId: "run-1", earlierAnswer: null });
+  });
+
+  it("shows the withheld sentence of an answer from before runs existed, which has no run to ask for", () => {
+    const withheld = message("a1", "assistant", "You no longer have access to what this answer used.");
+    const turns = buildConversationTurns([message("q1", "user", "Question"), withheld], [], null);
+    expect(turns).toHaveLength(1);
+    expect(turns[0]?.earlierAnswer?.messageText).toBe("You no longer have access to what this answer used.");
+    expect(turns[0]?.storedAnswerRunId).toBeNull();
+  });
+
   it("joins an answer from before runs existed to the question above it", () => {
     const turns = buildConversationTurns([message("q1", "user", "Question"), message("a1", "assistant", "Old answer")], [], null);
     expect(turns).toHaveLength(1);

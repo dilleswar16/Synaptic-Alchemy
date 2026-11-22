@@ -1,4 +1,4 @@
-import { asRecordArray } from "./toolValues";
+import { asRecord, asRecordArray } from "./toolValues";
 
 /**
  * Reading the outputs of the tools that have a view of their own (application map, SLO status). The output is the tool's JSON, so every reader checks
@@ -97,14 +97,16 @@ export function readGraphModel(output: Record<string, unknown>): GraphModel | nu
 }
 
 /* ── Numbers (presentation `metrics`) ──────────────────────────────── */
-/** How a metric value is written: a share in percent, or a plain number (a burn rate, a count). */
-export type MetricValueKind = "percentage" | "number";
+/** How a metric value is written: a share in percent, a length of time in seconds, or a plain number (a burn rate, a count). */
+export type MetricValueKind = "percentage" | "duration" | "number";
 
 export interface MetricValue {
   fieldName: string;
   kind: MetricValueKind;
   /** Null when the tool has no data for it yet. */
   value: number | null;
+  /** How many cases a statistic (its median) was worked out from; null for a plain number. */
+  sampleCount: number | null;
 }
 
 export interface MetricGroup {
@@ -125,18 +127,35 @@ const describingFieldNames: ReadonlySet<string> = new Set(["rolling_window_days"
 const knownMetricFieldNames = ["compliance_percentage", "target_percentage", "error_budget_remaining_percentage", "burn_rate_one_hour", "burn_rate_six_hours"] as const;
 const groupTitleFieldNames = ["sli_name", "title", "name", "label"] as const;
 
+/** Shares the reliability tool sends as a percent without the suffix. */
+const percentageFieldNames: ReadonlySet<string> = new Set(["share_correct"]);
+
 function metricValueKind(fieldName: string): MetricValueKind {
-  return fieldName.endsWith("_percentage") ? "percentage" : "number";
+  if (fieldName.endsWith("_percentage") || percentageFieldNames.has(fieldName)) {
+    return "percentage";
+  }
+  return fieldName.startsWith("time_to_") ? "duration" : "number";
+}
+
+/** A statistic the tool sends as an object (`{ sample_count, median, p90, mean }`): its median is the number shown. */
+function readStatistic(value: unknown): { median: number | null; sampleCount: number | null } | null {
+  const statistic = asRecord(value);
+  if (!statistic || !("median" in statistic)) {
+    return null;
+  }
+  return { median: typeof statistic.median === "number" ? statistic.median : null, sampleCount: typeof statistic.sample_count === "number" ? statistic.sample_count : null };
 }
 
 function readMetricValues(record: Record<string, unknown>): MetricValue[] {
   const names = [
     ...knownMetricFieldNames.filter((fieldName) => fieldName in record),
     ...Object.keys(record).filter((fieldName) => typeof record[fieldName] === "number" && !describingFieldNames.has(fieldName) && !knownMetricFieldNames.some((known) => known === fieldName)),
+    ...Object.keys(record).filter((fieldName) => readStatistic(record[fieldName]) !== null),
   ];
   return names.map((fieldName) => {
     const value = record[fieldName];
-    return { fieldName, kind: metricValueKind(fieldName), value: typeof value === "number" ? value : null };
+    const statistic = readStatistic(value);
+    return { fieldName, kind: metricValueKind(fieldName), value: statistic ? statistic.median : typeof value === "number" ? value : null, sampleCount: statistic?.sampleCount ?? null };
   });
 }
 
@@ -144,11 +163,15 @@ function readMetricGroup(record: Record<string, unknown>, position: number): Met
   const titleFieldName = groupTitleFieldNames.find((fieldName) => textOrNull(record[fieldName]) !== null);
   const serviceName = textOrNull(record.service_name);
   const sliName = titleFieldName ? textOrNull(record[titleFieldName]) : null;
+  // The indicator's name often starts with its service ("claims-api: Pod readiness"): the service is added only when it does not.
+  const titleParts = serviceName !== null && sliName !== null && !sliName.includes(serviceName) ? [serviceName, sliName] : [sliName ?? serviceName].filter((part): part is string => part !== null);
+  const applicationName = textOrNull(record.application_name);
+  // A group with no title of its own (one application's reliability numbers) is titled by its application.
+  const isTitledByApplication = titleParts.length === 0 && applicationName !== null;
   return {
-    key: textOrNull(record.slo_id) ?? `metrics-${position}`,
-    // The indicator's name often starts with its service ("claims-api: Pod readiness"): the service is added only when it does not.
-    titleParts: serviceName !== null && sliName !== null && !sliName.includes(serviceName) ? [serviceName, sliName] : [sliName ?? serviceName].filter((part): part is string => part !== null),
-    applicationName: textOrNull(record.application_name),
+    key: textOrNull(record.slo_id) ?? textOrNull(record.application_code) ?? `metrics-${position}`,
+    titleParts: isTitledByApplication ? [applicationName] : titleParts,
+    applicationName: isTitledByApplication ? null : applicationName,
     windowDays: typeof record.rolling_window_days === "number" ? record.rolling_window_days : null,
     status: textOrNull(record.status),
     isApproximate: record.is_approximate === true,

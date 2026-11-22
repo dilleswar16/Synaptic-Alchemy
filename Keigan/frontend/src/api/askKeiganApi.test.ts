@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { answerRunPollFastIntervalMilliseconds, answerRunPollFastPollCount, answerRunPollIntervalMilliseconds, answerRunPollSlowIntervalMilliseconds, decodeAnswerEventFrame } from "./askKeiganApi";
+import { answerRunPollFastIntervalMilliseconds, answerRunPollFastPollCount, answerRunPollIntervalMilliseconds, answerRunPollSlowIntervalMilliseconds, decodeAnswerEventFrame, runUnavailableReason } from "./askKeiganApi";
+import { ApiError } from "./httpClient";
 
 describe("decodeAnswerEventFrame", () => {
   it("turns a known event into an event with its type set from the frame name", () => {
@@ -28,5 +29,19 @@ describe("answerRunPollIntervalMilliseconds", () => {
     expect(answerRunPollIntervalMilliseconds(0)).toBe(answerRunPollFastIntervalMilliseconds);
     expect(answerRunPollIntervalMilliseconds(answerRunPollFastPollCount - 1)).toBe(answerRunPollFastIntervalMilliseconds);
     expect(answerRunPollIntervalMilliseconds(answerRunPollFastPollCount)).toBe(answerRunPollSlowIntervalMilliseconds);
+  });
+});
+
+describe("runUnavailableReason", () => {
+  it("tells a run that is no longer shown to this person from one that is gone", () => {
+    expect(runUnavailableReason(new ApiError(403, {}))).toBe("redacted");
+    expect(runUnavailableReason(new ApiError(404, {}))).toBe("expired");
+    expect(runUnavailableReason(new ApiError(410, {}))).toBe("expired");
+  });
+
+  it("is null for a failure that asking again may fix", () => {
+    expect(runUnavailableReason(new ApiError(500, {}))).toBeNull();
+    expect(runUnavailableReason(new ApiError(0, {}))).toBeNull();
+    expect(runUnavailableReason(new Error("x"))).toBeNull();
   });
 });

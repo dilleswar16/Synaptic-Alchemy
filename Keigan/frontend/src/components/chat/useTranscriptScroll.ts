@@ -13,9 +13,10 @@ export function isScrolledToBottom({ scrollHeight, scrollTop, clientHeight }: Pi
 
 /**
  * Keeps a chat transcript following new content only while the person is at the bottom; if they scrolled up to read, it stays put and
- * `hasNewActivity` tells the screen to offer "New activity". `activityKey` must change whenever content is added or grows.
+ * `hasNewActivity` tells the screen to offer "New activity". `activityKey` must change whenever content is added or grows; it is null while the
+ * transcript has nothing to follow (an empty conversation shows its suggestions from the top, where a tall one on a phone would otherwise start at its end).
  */
-export function useTranscriptScroll(activityKey: string) {
+export function useTranscriptScroll(activityKey: string | null) {
   const scrollReference = useRef<HTMLDivElement>(null);
   const isAtBottomReference = useRef(true);
   const isSmoothScrollingReference = useRef(false);
@@ -56,7 +57,7 @@ export function useTranscriptScroll(activityKey: string) {
 
   useEffect(() => {
     const transcript = scrollReference.current;
-    if (!transcript) {
+    if (!transcript || activityKey === null) {
       return;
     }
     if (isAtBottomReference.current) {

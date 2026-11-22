@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ApiError } from "@/api/httpClient";
 import { noteStep, toolStep } from "./answerTestEvents";
-import { hasTraceSteps, isOnlyStep, isTraceRedacted, runUnavailableReason, traceStopReason } from "./runTraceState";
+import { hasTraceSteps, isOnlyStep, isTraceRedacted, traceStopReason } from "./runTraceState";
 
 describe("run trace state", () => {
   it("says why a run stopped only when it did not simply answer or fail", () => {
@@ -27,14 +26,5 @@ describe("run trace state", () => {
   it("counts a run of one step as having an only step", () => {
     expect(isOnlyStep([toolStep("a", 1)])).toBe(true);
     expect(isOnlyStep([noteStep("n", 1), toolStep("a", 2)])).toBe(false);
-  });
-
-  it("tells a run that is no longer shown to this person from one that is gone", () => {
-    expect(runUnavailableReason(new ApiError(403, {}))).toBe("redacted");
-    expect(runUnavailableReason(new ApiError(404, {}))).toBe("expired");
-    expect(runUnavailableReason(new ApiError(410, {}))).toBe("expired");
-    expect(runUnavailableReason(new ApiError(500, {}))).toBeNull();
-    expect(runUnavailableReason(new ApiError(0, {}))).toBeNull();
-    expect(runUnavailableReason(new Error("x"))).toBeNull();
   });
 });

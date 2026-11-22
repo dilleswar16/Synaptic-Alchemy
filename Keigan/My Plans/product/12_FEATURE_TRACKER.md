@@ -1,18 +1,18 @@
 # 12 — Feature tracker
 
 Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated by the lead after each build agent reports and after each integration test.
-**Last updated:** 2026-11-22 — Ask Keigan phases 1 and 2 on the investigation page (K5); 2026-11-21 — reliability metrics page, per-application operating notes, "why these alerts were grouped" sentence (all three built, verified by tests and screenshots; committed on keigan-ui-ux, not pushed). Summary recounted from the rows below.
+**Last updated:** 2026-11-22 — Ask Keigan phase 3 frontend: the Keigan AI chat page on the new engine (K6); Ask Keigan phases 1 and 2 on the investigation page (K5); 2026-11-21 — reliability metrics page, per-application operating notes, "why these alerts were grouped" sentence (all three built, verified by tests and screenshots; committed on keigan-ui-ux, not pushed). Summary recounted from the rows below.
 
 ## Summary
 
 | | Count | Share |
 |---|---|---|
 | ✅ Done and verified | 96 | 87 % |
-| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 10 | 9 % |
+| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 11 | 10 % |
 | 🧩 Placeholder by design (configuration saved, reader later) | 2 | 2 % |
 | 🔄 Being built right now | 1 | 1 % |
 | ⬜ Not started | 1 | 1 % |
-| **Total features** | **110** | **98 % built · 87 % verified** |
+| **Total features** | **111** | **98 % built · 87 % verified** |
 
 **Legend**
 - ✅ **Done and verified** in the local simulated environment: API tested end to end, and the screen loads in a real browser (headless Edge) with live data and no console or API errors. Mock AI unless stated.
@@ -172,7 +172,8 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | K2 | Question → query → number | ✅ | |
 | K3 | Pattern → chart, with clarification | ✅ | |
 | K4 | Conversation history | ✅ | |
-| K5 | Ask Keigan on the investigation page (roadmap B5, phases 1 and 2): one engine, eight read-only tools, live tool-call trace, citations `[T#] [E#] [R#]`, Stop, history, copy answer with sources, specific error messages | 🟡 | Built and tested (2,300 backend tests, 108 frontend unit tests, browser check at four sizes), **only against the mock model**; needs a real model key, SQL Server for the new index, a screen-reader pass. Design in `23_ASK_KEIGAN_CHAT_SPEC.md`. The global chat (K1 to K4) and the Teams bot still use the old engine until phases 3 and 4 |
+| K5 | Ask Keigan on the investigation page (roadmap B5, phases 1 and 2): one engine, eight read-only tools, live tool-call trace, citations `[T#] [E#] [R#]`, Stop, history, copy answer with sources, specific error messages | 🟡 | Built and tested (2,300 backend tests, 108 frontend unit tests, browser check at four sizes), **only against the mock model**; needs a real model key, SQL Server for the new index, a screen-reader pass. Design in `23_ASK_KEIGAN_CHAT_SPEC.md`. The Teams bot still uses the old engine until phase 4 |
+| K6 | Ask Keigan on the Keigan AI chat page (roadmap B5, phase 3 steps 1 and 3): the global chat on the new engine: the same live trace, citations, Stop, copy and details switch; a conversation created with its first question; six suggested prompts; the number and chart of a log query, charts for series tools; answers hidden after access was lost; phone layout. K1 to K4 now run through it (old stored messages still display) | 🟡 | Built and tested (135 frontend unit tests, browser check at four sizes: the global part passes at 1440 and 390 px, light and dark), **only against the mock model**. Open: new chats keep the title "New conversation" (backend does not set it); tools 9 to 20 are the backend builder's; the old `POST /messages` route is removed in step 4 |
 
 ## L. Administration
 

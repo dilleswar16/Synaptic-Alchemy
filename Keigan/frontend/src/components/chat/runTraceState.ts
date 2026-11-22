@@ -1,4 +1,3 @@
-import { isApiError } from "@/api/httpClient";
 import type { AnswerStopReason } from "@/api/askKeiganApi";
 import type { AnswerRunProgress, LiveRunStep } from "./answerStreamReducer";
 
@@ -23,15 +22,4 @@ export function isTraceRedacted(steps: readonly LiveRunStep[]): boolean {
 /** The run is nothing but one tool call: its card opens on its own once the run is over (spec 8.3). */
 export function isOnlyStep(steps: readonly LiveRunStep[]): boolean {
   return steps.length === 1;
-}
-
-/** Why a stored run cannot be shown: the person no longer has access to it (403), or its detailed trace is no longer kept (404, 410). Null for any other failure. */
-export function runUnavailableReason(error: unknown): "redacted" | "expired" | null {
-  if (!isApiError(error)) {
-    return null;
-  }
-  if (error.status === 403) {
-    return "redacted";
-  }
-  return error.status === 404 || error.status === 410 ? "expired" : null;
 }
