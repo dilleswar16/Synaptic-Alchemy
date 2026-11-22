@@ -448,7 +448,7 @@ def safe_settings_for_display(settings: Settings) -> dict[str, object]:
     displayed_settings: dict[str, object] = {}
     for field_name in Settings.model_fields:
         field_value = getattr(settings, field_name)
-        if any(marker in field_name for marker in secret_field_markers):
+        if any(marker in field_name for marker in secret_field_markers) and not isinstance(field_value, bool | int | float):  # a number or a flag cannot be a credential, so a token budget stays readable
             displayed_settings[field_name] = "•••• set" if field_value else "not set"
         elif isinstance(field_value, str):
             displayed_settings[field_name] = redact_credentials(field_value)

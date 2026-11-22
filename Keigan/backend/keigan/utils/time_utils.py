@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime, timedelta
+from typing import overload
 
 _ISO_DURATION_PATTERN = re.compile(r"^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$", re.IGNORECASE)
 
@@ -12,7 +13,12 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+@overload
+def ensure_utc(timestamp: datetime) -> datetime: ...
+@overload
+def ensure_utc(timestamp: None) -> None: ...
 def ensure_utc(timestamp: datetime | None) -> datetime | None:
+    """A timestamp as timezone-aware UTC: a naive one is taken to be UTC already (databases return it that way); ``None`` stays ``None``."""
     if timestamp is None:
         return None
     return timestamp.replace(tzinfo=UTC) if timestamp.tzinfo is None else timestamp.astimezone(UTC)

@@ -147,6 +147,15 @@ def test_headers_and_tokens_are_masked_by_name() -> None:
     assert displayed["llm_extra_headers_json"] == "•••• set"
 
 
+def test_a_number_is_shown_even_when_its_name_contains_a_secret_word() -> None:
+    from keigan.config.settings import safe_settings_for_display
+
+    displayed = safe_settings_for_display(build_settings(ask_keigan_answer_token_budget=70_000, llm_daily_token_budget_per_application=123_456))
+    assert displayed["ask_keigan_answer_token_budget"] == 70_000, "a token budget is a number, not a credential"
+    assert displayed["llm_daily_token_budget_per_application"] == 123_456
+    assert displayed["local_token_signing_secret"] != build_settings().local_token_signing_secret, "a real secret stays masked"
+
+
 def test_a_plain_value_is_shown_as_it_is() -> None:
     from keigan.config.settings import redact_credentials
 
