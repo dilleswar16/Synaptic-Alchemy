@@ -8,7 +8,7 @@ Roadmap item **A3** (doc 21, product research, section 3.5). Written 2026-11-22 
 
 **Purpose.** For every investigation, record and show in order what Keigan did and why: the inputs it started from (incident, windows, services, settings), the evidence it collected and the sources it could not read, every AI call (which prompt and version, the prompt hashes, provider, model, tokens per attempt, what went in by section, the raw answer and what Keigan's checks changed in it), the deterministic decisions (services chosen, priority, planner, evidence kept, fallbacks), the hypotheses that were rejected and why, and the outcome. A person reviewing an incident, an auditor, or the evaluation harness (doc 22) can then reconstruct the reasoning instead of trusting a summary (doc 21, 2.6: "reasoning that can be reconstructed afterwards").
 
-**Status.** Design, written 2026-11-22; not built. Every statement about existing code was read in the source on 2026-11-22 and carries a `path:symbol` reference.
+**Status.** Design, written 2026-11-22. **Built 2026-11-23** (see "Build notes" at the end). Section 3 describes the code as it was before the build. Every statement about existing code was read in the source on 2026-11-22 and carries a `path:symbol` reference.
 
 **How to use it.**
 - Owner: read sections 2, 4.1 (decisions, especially D-A3-1 and D-A3-4), 5 and 11.
@@ -392,3 +392,17 @@ The seeded offline investigations (eight scenarios plus doc 27's `cause_not_visi
 2. **Raw outputs for readers?** Decided admin-only (D-A3-4). Confirm, or open them to readers if your teams prefer full transparency over the copy risk.
 3. **Audit trace reads?** Reading an investigation is not audited today, so reading its trace is not either. If compliance wants a record of who looked at raw AI answers, add `investigation.trace.raw_output_view` (one line). *Recommendation:* add it only if compliance asks.
 4. **Make the planner threshold a setting?** The planner runs below 2 strong signals (`investigation_graph.py:evidence_node`, a literal). The trace now records it; turning it into `INVESTIGATION_PLANNER_STRONG_SIGNAL_THRESHOLD` is a one-line change. *Recommendation:* yes, in the same build (it is a hard-coded threshold, against the standing rules), unless you want it unchanged.
+
+---
+
+## Build notes (2026-11-23)
+
+Built after A2 (doc 27), in this order: data model (`investigation_trace_step`, `llm_usage_record.investigation_trace_step_id`, revision `c8a2e4f6b1d3`), the seams (template hash, call observer, usage link, usage flush), the recorder, the graph wiring and audit rows, the read model and endpoints, the screen. Differences from the design:
+
+- **Recorder:** `InvestigationTraceRecorder` takes the investigation id (not the row) and keeps the sequence counter in memory; a failure after a rollback numbers its step from the committed count. Adjustments live in `investigation_trace_adjustments.py` (pure functions, unit-tested).
+- **Hashes:** `system_prompt_sha256` is the hash of the rendered system prompt (the gateway's final message, which adds its untrusted-data policy, is not hashed; no gateway refactor was needed); a section's `sha256` is of the content as given to the gateway, and `isTruncated` is computed from the section's own limit.
+- **Where decisions are recorded:** `services_selected` and `priority_set` in the triage node, `planner_requested` in the planner node (with the strong-signal count; the literal 2 is now `PLANNER_STRONG_SIGNAL_THRESHOLD`), `evidence_only_mode` once through `_enter_evidence_only_mode`, `synthesis_fallback`.
+- **Read model:** the trace view carries steps, prompts, models, totals, the outcome and calls without a step; hypotheses, evidence and gaps are not repeated (the page already has them). No estimated cost. Raw output: `GET .../trace/steps/{id}/raw-output`, application admins and Keigan admins (403 otherwise, the message names the role).
+- **Not built:** estimated cost, "Download trace (JSON)", the "edited without a version change" warning, translated labels for step details (shown as JSON), the seed shift (seeded investigations have no steps), the browser check (AC-17, AC-21).
+- **Fixed on the way:** `_complete` summed usage rows before the gateway's delayed flush wrote the last attempts; it now flushes first (`LlmGateway.flush_pending_usage_records`).
+- **Tests:** `tests/unit/ai/test_investigation_ai_caller.py`, additions to `test_prompt_library.py`, `tests/unit/services/test_investigation_trace_adjustments.py`, `tests/integration/services/test_investigation_trace_recorder.py`, `tests/integration/ai/test_investigation_decision_trace.py`, `tests/integration/controllers/test_investigation_trace_controller.py`, `tests/integration/migrations/test_decision_trace_migration.py`, additions to the gateway, retention and settings tests.

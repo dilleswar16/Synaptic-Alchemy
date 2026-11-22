@@ -12,6 +12,7 @@
     "alerts": "告警",
     "communications": "沟通",
     "postmortem": "复盘",
+    "trace": "决策轨迹",
     "teams": "Teams 房间"
   },
   "status": {
@@ -421,5 +422,116 @@
       "no_baseline_for_source": "此类来源没有基线"
     },
     "introUnreadSources": "Keigan 无法读取的来源列在“根本原因”选项卡中。"
+  },
+  "trace": {
+    "title": "决策轨迹",
+    "description": "Keigan 按顺序做了什么以及原因：它的输入、每次 AI 调用的输入和输出、Keigan 自身检查所做的更改，以及结果。",
+    "notRecorded": "这次调查是在 Keigan 开始保存决策轨迹之前运行的。仅显示其 AI 使用情况。",
+    "incomplete": "此轨迹有一部分未能记录。调查本身不受影响。",
+    "running": "仍在运行：步骤完成后会陆续出现。",
+    "loadFailed": "无法加载决策轨迹。",
+    "summary": {
+      "outcome": "结果",
+      "models": "模型",
+      "duration": "耗时",
+      "tokens": "令牌 输入 / 输出",
+      "estimated": "估算",
+      "attempts": "尝试次数",
+      "failedAttempts": "{{count}} 次失败"
+    },
+    "prompts": {
+      "title": "使用的提示词",
+      "key": "提示词",
+      "version": "版本",
+      "hash": "模板哈希"
+    },
+    "steps": {
+      "title": "步骤",
+      "expandAll": "全部展开",
+      "collapseAll": "全部折叠",
+      "stepNumber": "步骤 {{number}}"
+    },
+    "kind": {
+      "inputs": "输入",
+      "ai_call": "AI 调用",
+      "evidence": "证据",
+      "decision": "决策",
+      "outcome": "结果"
+    },
+    "status": {
+      "succeeded": "成功",
+      "failed": "失败",
+      "skipped": "已跳过"
+    },
+    "feature": {
+      "incident_triage": "分诊（AI）",
+      "evidence_query_planner": "规划额外查询（AI）",
+      "hypothesis_application": "分析员：应用（AI）",
+      "hypothesis_dependencies": "分析员：依赖（AI）",
+      "hypothesis_infrastructure": "分析员：基础设施（AI）",
+      "rca_synthesis": "根本原因分析（AI）",
+      "blast_radius_narrative": "影响范围说明（AI）",
+      "incident_communications": "面向相关方的草稿（AI）"
+    },
+    "decision": {
+      "services_selected": "选定的服务",
+      "priority_set": "已设定的优先级",
+      "planner_requested": "规划器请求额外查询",
+      "evidence_only_mode": "仅证据模式",
+      "synthesis_fallback": "AI 摘要不可用，改用备用方案"
+    },
+    "aiCall": {
+      "prompt": "提示词",
+      "version": "版本",
+      "templateHash": "模板哈希（SHA-256）",
+      "systemHash": "系统提示词哈希（SHA-256）",
+      "provider": "提供方",
+      "model": "模型",
+      "attempts": "尝试",
+      "attemptRow": "{{status}}，{{milliseconds}} 毫秒，输入 {{input}} / 输出 {{output}}",
+      "inputs": "输入内容",
+      "trusted": "由 Keigan 编写",
+      "untrusted": "不受信任的数据",
+      "cut": "已截断",
+      "characters": "共 {{total}} 个字符，发送 {{sent}} 个",
+      "adjustments": "Keigan 所做的更改",
+      "nothingChanged": "Keigan 的检查没有更改这次回答。",
+      "rawAnswer": "查看原始回答",
+      "rawAdminsOnly": "原始 AI 回答仅对应用管理员可见。",
+      "failedWith": "调用失败：{{reason}}"
+    },
+    "adjustment": {
+      "invalid_citations_removed": "已删除不存在的引用：{{codes}}",
+      "evidence_codes_dropped": "已丢弃不存在的证据编号：{{codes}}",
+      "file_path_replaced": "已替换 {{count}} 个在知识库中找不到的文件路径",
+      "command_risk_raised": "已将修复风险从 {{from}} 提高到 {{to}}",
+      "hypothesis_state_guarded": "状态已从 {{proposed}} 改为 {{final}}（规则：{{guard}}）",
+      "confidence_capped": "整体置信度已从 {{from}} 限制为 {{to}}",
+      "outcome_guarded": "结果已从 {{proposed}} 改为 {{final}}（规则：{{guard}}）"
+    },
+    "failure": {
+      "token_budget_exceeded": "令牌预算已用完",
+      "ai_unavailable": "AI 模型不可用",
+      "ai_rate_limited": "AI 提供方要求 Keigan 放慢速度",
+      "ai_output_invalid": "无法使用 AI 的回复",
+      "failed": "调用失败"
+    },
+    "rawDialog": {
+      "title": "原始 AI 回答",
+      "warning": "这是 Keigan 检查之前的回答。请不要从这里运行命令；请使用“根本原因”选项卡中经过检查的修复方案。",
+      "loading": "正在加载原始回答…",
+      "error": "无法加载原始回答。",
+      "truncated": "已截断到保存的大小。",
+      "close": "关闭"
+    },
+    "callsWithoutStep": {
+      "title": "没有对应步骤的 AI 调用",
+      "description": "此调查中没有任何步骤对应的调用：之后撰写的草稿和复盘，或已失败并回滚的阶段。",
+      "feature": "调用",
+      "model": "模型",
+      "tokens": "令牌 输入 / 输出",
+      "status": "结果"
+    },
+    "details": "详情（仅含编号、代码和数字）"
   }
 }

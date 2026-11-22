@@ -21,9 +21,10 @@ import { PostmortemSection } from "../components/PostmortemSection";
 import { RcaSection } from "../components/RcaSection";
 import { ResolveDialog } from "../components/ResolveDialog";
 import { TeamsRoomPanel } from "../components/TeamsRoomPanel";
+import { DecisionTraceSection } from "../components/DecisionTraceSection";
 import { TimelineSection } from "../components/TimelineSection";
 
-const tabKeys = ["rca", "hypotheses", "evidence", "blast", "timeline", "alerts", "communications", "postmortem", "teams"] as const;
+const tabKeys = ["rca", "hypotheses", "evidence", "blast", "timeline", "alerts", "communications", "postmortem", "trace", "teams"] as const;
 type TabKey = (typeof tabKeys)[number];
 
 /** Investigation page (spec 7.4): header, live progress, sticky section tabs and the floating investigation chat. */
@@ -92,6 +93,7 @@ export default function InvestigationPage() {
             <TabsTrigger value="alerts" count={detail.alertGroup?.memberAlertCount}>{t("tabs.alerts")}</TabsTrigger>
             <TabsTrigger value="communications">{t("tabs.communications")}</TabsTrigger>
             <TabsTrigger value="postmortem">{t("tabs.postmortem")}</TabsTrigger>
+            <TabsTrigger value="trace">{t("tabs.trace")}</TabsTrigger>
             {showTeams ? <TabsTrigger value="teams">{t("tabs.teams")}</TabsTrigger> : null}
           </TabsList>
         </div>
@@ -103,6 +105,7 @@ export default function InvestigationPage() {
         <TabsContent value="alerts"><AlertsSection detail={detail} /></TabsContent>
         <TabsContent value="communications"><CommunicationsSection detail={detail} canEdit={canEditApplication} /></TabsContent>
         <TabsContent value="postmortem"><PostmortemSection detail={detail} canEdit={canEditApplication} /></TabsContent>
+        <TabsContent value="trace"><DecisionTraceSection detail={detail} isRunning={isRunning} canSeeRawOutput={canEditApplication} /></TabsContent>
         {showTeams && detail.incidentId ? <TabsContent value="teams"><TeamsRoomPanel incidentId={detail.incidentId} /></TabsContent> : null}
       </Tabs>
 

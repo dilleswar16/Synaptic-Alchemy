@@ -12,6 +12,7 @@
     "alerts": "アラート",
     "communications": "コミュニケーション",
     "postmortem": "ポストモーテム",
+    "trace": "判断の記録",
     "teams": "Teams ルーム"
   },
   "status": {
@@ -421,5 +422,116 @@
       "no_baseline_for_source": "この種類のソースにはベースラインがありません"
     },
     "introUnreadSources": "Keigan が読み取れなかったソースは、根本原因タブに一覧があります。"
+  },
+  "trace": {
+    "title": "判断の記録",
+    "description": "Keigan が何をどの順で行い、なぜそうしたか。入力、各 AI 呼び出しの入力と出力、Keigan 自身のチェックによる変更、結果を記録しています。",
+    "notRecorded": "この調査は Keigan が判断の記録を残す前に実行されました。AI の使用状況のみ表示しています。",
+    "incomplete": "この記録の一部を保存できませんでした。調査自体には影響ありません。",
+    "running": "実行中です。ステップは完了するたびに表示されます。",
+    "loadFailed": "判断の記録を読み込めませんでした。",
+    "summary": {
+      "outcome": "結果",
+      "models": "モデル",
+      "duration": "所要時間",
+      "tokens": "トークン 入力 / 出力",
+      "estimated": "推定",
+      "attempts": "試行回数",
+      "failedAttempts": "失敗 {{count}} 件"
+    },
+    "prompts": {
+      "title": "使用したプロンプト",
+      "key": "プロンプト",
+      "version": "バージョン",
+      "hash": "テンプレートのハッシュ"
+    },
+    "steps": {
+      "title": "ステップ",
+      "expandAll": "すべて展開",
+      "collapseAll": "すべて折りたたむ",
+      "stepNumber": "ステップ {{number}}"
+    },
+    "kind": {
+      "inputs": "入力",
+      "ai_call": "AI 呼び出し",
+      "evidence": "証拠",
+      "decision": "判断",
+      "outcome": "結果"
+    },
+    "status": {
+      "succeeded": "成功",
+      "failed": "失敗",
+      "skipped": "スキップ"
+    },
+    "feature": {
+      "incident_triage": "トリアージ（AI）",
+      "evidence_query_planner": "追加クエリの計画（AI）",
+      "hypothesis_application": "アナリスト: アプリケーション（AI）",
+      "hypothesis_dependencies": "アナリスト: 依存関係（AI）",
+      "hypothesis_infrastructure": "アナリスト: インフラ（AI）",
+      "rca_synthesis": "根本原因分析（AI）",
+      "blast_radius_narrative": "影響範囲の説明（AI）",
+      "incident_communications": "関係者向け文面（AI）"
+    },
+    "decision": {
+      "services_selected": "対象サービスの選定",
+      "priority_set": "優先度の決定",
+      "planner_requested": "プランナーが追加クエリを要求",
+      "evidence_only_mode": "証拠のみモード",
+      "synthesis_fallback": "AI の要約から代替に切り替え"
+    },
+    "aiCall": {
+      "prompt": "プロンプト",
+      "version": "バージョン",
+      "templateHash": "テンプレートのハッシュ（SHA-256）",
+      "systemHash": "システムプロンプトのハッシュ（SHA-256）",
+      "provider": "プロバイダー",
+      "model": "モデル",
+      "attempts": "試行",
+      "attemptRow": "{{status}}、{{milliseconds}} ms、入力 {{input}} / 出力 {{output}}",
+      "inputs": "入力した内容",
+      "trusted": "Keigan が作成",
+      "untrusted": "信頼できないデータ",
+      "cut": "切り詰め",
+      "characters": "{{total}} 文字中 {{sent}} 文字",
+      "adjustments": "Keigan が変更した内容",
+      "nothingChanged": "この回答に対して Keigan のチェックによる変更はありません。",
+      "rawAnswer": "生の回答を表示",
+      "rawAdminsOnly": "AI の生の回答はアプリケーション管理者のみ表示できます。",
+      "failedWith": "呼び出しが失敗しました: {{reason}}"
+    },
+    "adjustment": {
+      "invalid_citations_removed": "存在しない引用を削除しました: {{codes}}",
+      "evidence_codes_dropped": "存在しない証拠コードを除外しました: {{codes}}",
+      "file_path_replaced": "ナレッジにないファイルパス {{count}} 件を置き換えました",
+      "command_risk_raised": "修正のリスクを {{from}} から {{to}} に引き上げました",
+      "hypothesis_state_guarded": "状態を {{proposed}} から {{final}} に変更しました（ルール: {{guard}}）",
+      "confidence_capped": "全体の確度を {{from}} から {{to}} に制限しました",
+      "outcome_guarded": "結果を {{proposed}} から {{final}} に変更しました（ルール: {{guard}}）"
+    },
+    "failure": {
+      "token_budget_exceeded": "トークンの予算を使い切りました",
+      "ai_unavailable": "AI モデルが利用できませんでした",
+      "ai_rate_limited": "AI プロバイダーが速度を落とすよう求めました",
+      "ai_output_invalid": "AI の応答を利用できませんでした",
+      "failed": "呼び出しが失敗しました"
+    },
+    "rawDialog": {
+      "title": "AI の生の回答",
+      "warning": "Keigan のチェックを受ける前の回答です。ここからコマンドを実行しないでください。根本原因タブのチェック済みの修正を使ってください。",
+      "loading": "生の回答を読み込み中…",
+      "error": "生の回答を読み込めませんでした。",
+      "truncated": "保存サイズに切り詰めています。",
+      "close": "閉じる"
+    },
+    "callsWithoutStep": {
+      "title": "ステップのない AI 呼び出し",
+      "description": "この調査の呼び出しのうち、どのステップにも対応しないもの。後から作成した文面やポストモーテム、または失敗してロールバックされた段階です。",
+      "feature": "呼び出し",
+      "model": "モデル",
+      "tokens": "トークン 入力 / 出力",
+      "status": "結果"
+    },
+    "details": "詳細（ID・コード・数値のみ）"
   }
 }

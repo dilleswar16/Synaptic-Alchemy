@@ -136,6 +136,13 @@ def test_a_ruled_out_ceiling_at_or_above_the_supported_floor_is_refused(supporte
         build_settings(investigation_supported_minimum_confidence=supported_minimum, investigation_ruled_out_maximum_confidence=ruled_out_maximum)
 
 
+def test_the_trace_raw_answer_limit_has_a_documented_default_and_range() -> None:
+    assert build_settings().investigation_trace_raw_output_stored_characters == 20_000
+    for value in (999, 200_001):
+        with pytest.raises(ValidationError):
+            build_settings(investigation_trace_raw_output_stored_characters=value)
+
+
 @pytest.mark.parametrize("field_name, value", [("investigation_supported_minimum_confidence", 1.1), ("investigation_ruled_out_maximum_confidence", -0.1), ("investigation_max_checks_per_service", 0), ("investigation_max_checks_per_service", 31)])
 def test_the_honest_outcomes_settings_refuse_values_out_of_range(field_name: str, value: float) -> None:
     with pytest.raises(ValidationError):

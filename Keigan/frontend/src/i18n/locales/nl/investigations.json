@@ -12,6 +12,7 @@
     "alerts": "Meldingen",
     "communications": "Communicatie",
     "postmortem": "Postmortem",
+    "trace": "Beslissingsspoor",
     "teams": "Teams-kamer"
   },
   "status": {
@@ -421,5 +422,116 @@
       "no_baseline_for_source": "Geen referentie voor dit soort bron"
     },
     "introUnreadSources": "Bronnen die Keigan niet kon lezen staan op het tabblad Hoofdoorzaak."
+  },
+  "trace": {
+    "title": "Beslissingsspoor",
+    "description": "Wat Keigan deed, op volgorde, en waarom: de invoer, elke AI-aanroep met wat erin ging en eruit kwam, wat de eigen controles van Keigan wijzigden, en de uitkomst.",
+    "notRecorded": "Dit onderzoek is uitgevoerd voordat Keigan beslissingssporen bewaarde. Alleen het AI-gebruik wordt getoond.",
+    "incomplete": "Een deel van dit spoor kon niet worden vastgelegd. Het onderzoek zelf is niet beïnvloed.",
+    "running": "Nog bezig: stappen verschijnen zodra ze klaar zijn.",
+    "loadFailed": "Het beslissingsspoor kon niet worden geladen.",
+    "summary": {
+      "outcome": "Uitkomst",
+      "models": "Modellen",
+      "duration": "Duur",
+      "tokens": "Tokens in / uit",
+      "estimated": "geschat",
+      "attempts": "Pogingen",
+      "failedAttempts": "{{count}} mislukt"
+    },
+    "prompts": {
+      "title": "Gebruikte prompts",
+      "key": "Prompt",
+      "version": "Versie",
+      "hash": "Sjabloonhash"
+    },
+    "steps": {
+      "title": "Stappen",
+      "expandAll": "Alles uitklappen",
+      "collapseAll": "Alles inklappen",
+      "stepNumber": "Stap {{number}}"
+    },
+    "kind": {
+      "inputs": "Invoer",
+      "ai_call": "AI-aanroep",
+      "evidence": "Bewijs",
+      "decision": "Beslissing",
+      "outcome": "Uitkomst"
+    },
+    "status": {
+      "succeeded": "Geslaagd",
+      "failed": "Mislukt",
+      "skipped": "Overgeslagen"
+    },
+    "feature": {
+      "incident_triage": "Triage (AI)",
+      "evidence_query_planner": "Extra queries gepland (AI)",
+      "hypothesis_application": "Analist: applicatie (AI)",
+      "hypothesis_dependencies": "Analist: afhankelijkheden (AI)",
+      "hypothesis_infrastructure": "Analist: infrastructuur (AI)",
+      "rca_synthesis": "Hoofdoorzaakanalyse (AI)",
+      "blast_radius_narrative": "Verhaal van het impactgebied (AI)",
+      "incident_communications": "Concepten voor belanghebbenden (AI)"
+    },
+    "decision": {
+      "services_selected": "Services gekozen",
+      "priority_set": "Prioriteit bepaald",
+      "planner_requested": "Planner vroeg extra queries",
+      "evidence_only_mode": "Modus alleen bewijs",
+      "synthesis_fallback": "Teruggevallen van de AI-samenvatting"
+    },
+    "aiCall": {
+      "prompt": "Prompt",
+      "version": "Versie",
+      "templateHash": "Sjabloonhash (SHA-256)",
+      "systemHash": "Hash van de systeemprompt (SHA-256)",
+      "provider": "Provider",
+      "model": "Model",
+      "attempts": "Pogingen",
+      "attemptRow": "{{status}}, {{milliseconds}} ms, {{input}} in / {{output}} uit",
+      "inputs": "Wat erin ging",
+      "trusted": "Geschreven door Keigan",
+      "untrusted": "Onbetrouwbare gegevens",
+      "cut": "ingekort",
+      "characters": "{{sent}} van {{total}} tekens",
+      "adjustments": "Wat Keigan wijzigde",
+      "nothingChanged": "De controles van Keigan wijzigden niets in dit antwoord.",
+      "rawAnswer": "Ruw antwoord tonen",
+      "rawAdminsOnly": "Ruwe AI-antwoorden zijn zichtbaar voor beheerders van de applicatie.",
+      "failedWith": "De aanroep is mislukt: {{reason}}"
+    },
+    "adjustment": {
+      "invalid_citations_removed": "Niet-bestaande citaten verwijderd: {{codes}}",
+      "evidence_codes_dropped": "Niet-bestaande bewijscodes weggelaten: {{codes}}",
+      "file_path_replaced": "{{count}} bestandspad(en) die niet in de kennis staan vervangen",
+      "command_risk_raised": "Risico van de oplossing verhoogd van {{from}} naar {{to}}",
+      "hypothesis_state_guarded": "Status gewijzigd van {{proposed}} naar {{final}} (regel: {{guard}})",
+      "confidence_capped": "Algemeen vertrouwen begrensd van {{from}} naar {{to}}",
+      "outcome_guarded": "Uitkomst gewijzigd van {{proposed}} naar {{final}} (regel: {{guard}})"
+    },
+    "failure": {
+      "token_budget_exceeded": "Het tokenbudget is opgebruikt",
+      "ai_unavailable": "Het AI-model was niet beschikbaar",
+      "ai_rate_limited": "De AI-provider vroeg Keigan om te vertragen",
+      "ai_output_invalid": "Het antwoord van de AI kon niet worden gebruikt",
+      "failed": "De aanroep is mislukt"
+    },
+    "rawDialog": {
+      "title": "Ruw AI-antwoord",
+      "warning": "Dit is het antwoord vóór de controles van Keigan. Voer hier geen commando's uit; gebruik de gecontroleerde oplossing op het tabblad Hoofdoorzaak.",
+      "loading": "Ruw antwoord laden…",
+      "error": "Het ruwe antwoord kon niet worden geladen.",
+      "truncated": "Ingekort tot de bewaarde grootte.",
+      "close": "Sluiten"
+    },
+    "callsWithoutStep": {
+      "title": "AI-aanroepen zonder stap",
+      "description": "Aanroepen van dit onderzoek die geen stap beschrijft: later geschreven concepten en postmortems, of een fase die mislukte en is teruggedraaid.",
+      "feature": "Aanroep",
+      "model": "Model",
+      "tokens": "Tokens in / uit",
+      "status": "Resultaat"
+    },
+    "details": "Details (alleen id's, codes en getallen)"
   }
 }

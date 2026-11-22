@@ -12,6 +12,7 @@
     "alerts": "Alerts",
     "communications": "Communications",
     "postmortem": "Postmortem",
+    "trace": "Decision trace",
     "teams": "Teams room"
   },
   "status": {
@@ -421,5 +422,116 @@
       "no_baseline_for_source": "No baseline for this kind of source"
     },
     "introUnreadSources": "Sources Keigan could not read are listed on the Root cause tab."
+  },
+  "trace": {
+    "title": "Decision trace",
+    "description": "What Keigan did, in order, and why: its inputs, every AI call with what went in and what came out, what Keigan's own checks changed, and the outcome.",
+    "notRecorded": "This investigation ran before Keigan kept decision traces. Only its AI usage is shown.",
+    "incomplete": "Part of this trace could not be recorded. The investigation itself was not affected.",
+    "running": "Still running: steps appear as they finish.",
+    "loadFailed": "The decision trace could not be loaded.",
+    "summary": {
+      "outcome": "Outcome",
+      "models": "Models",
+      "duration": "Duration",
+      "tokens": "Tokens in / out",
+      "estimated": "estimated",
+      "attempts": "Attempts",
+      "failedAttempts": "{{count}} failed"
+    },
+    "prompts": {
+      "title": "Prompts used",
+      "key": "Prompt",
+      "version": "Version",
+      "hash": "Template hash"
+    },
+    "steps": {
+      "title": "Steps",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "stepNumber": "Step {{number}}"
+    },
+    "kind": {
+      "inputs": "Inputs",
+      "ai_call": "AI call",
+      "evidence": "Evidence",
+      "decision": "Decision",
+      "outcome": "Outcome"
+    },
+    "status": {
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    },
+    "feature": {
+      "incident_triage": "Triage (AI)",
+      "evidence_query_planner": "Extra queries planned (AI)",
+      "hypothesis_application": "Analyst: application (AI)",
+      "hypothesis_dependencies": "Analyst: dependencies (AI)",
+      "hypothesis_infrastructure": "Analyst: infrastructure (AI)",
+      "rca_synthesis": "Root cause analysis (AI)",
+      "blast_radius_narrative": "Blast radius narrative (AI)",
+      "incident_communications": "Stakeholder drafts (AI)"
+    },
+    "decision": {
+      "services_selected": "Services chosen",
+      "priority_set": "Priority set",
+      "planner_requested": "Planner asked for extra queries",
+      "evidence_only_mode": "Evidence-only mode",
+      "synthesis_fallback": "Fell back from the AI summary"
+    },
+    "aiCall": {
+      "prompt": "Prompt",
+      "version": "Version",
+      "templateHash": "Template hash (SHA-256)",
+      "systemHash": "System prompt hash (SHA-256)",
+      "provider": "Provider",
+      "model": "Model",
+      "attempts": "Attempts",
+      "attemptRow": "{{status}}, {{milliseconds}} ms, {{input}} in / {{output}} out",
+      "inputs": "What went in",
+      "trusted": "Written by Keigan",
+      "untrusted": "Untrusted data",
+      "cut": "cut to fit",
+      "characters": "{{sent}} of {{total}} characters",
+      "adjustments": "What Keigan changed",
+      "nothingChanged": "Keigan's checks changed nothing in this answer.",
+      "rawAnswer": "Show raw answer",
+      "rawAdminsOnly": "Raw AI answers are visible to application admins.",
+      "failedWith": "The call failed: {{reason}}"
+    },
+    "adjustment": {
+      "invalid_citations_removed": "Removed citations that do not exist: {{codes}}",
+      "evidence_codes_dropped": "Dropped evidence codes that do not exist: {{codes}}",
+      "file_path_replaced": "Replaced {{count}} file path(s) not found in the knowledge",
+      "command_risk_raised": "Raised the fix risk from {{from}} to {{to}}",
+      "hypothesis_state_guarded": "Changed the state from {{proposed}} to {{final}} (rule: {{guard}})",
+      "confidence_capped": "Capped the overall confidence from {{from}} to {{to}}",
+      "outcome_guarded": "Changed the outcome from {{proposed}} to {{final}} (rule: {{guard}})"
+    },
+    "failure": {
+      "token_budget_exceeded": "The token budget was used up",
+      "ai_unavailable": "The AI model was not available",
+      "ai_rate_limited": "The AI provider asked Keigan to slow down",
+      "ai_output_invalid": "The AI's reply could not be used",
+      "failed": "The call failed"
+    },
+    "rawDialog": {
+      "title": "Raw AI answer",
+      "warning": "This is the answer before Keigan's checks. Do not run commands from here; use the checked fix on the Root cause tab.",
+      "loading": "Loading the raw answer…",
+      "error": "The raw answer could not be loaded.",
+      "truncated": "Cut to the stored size.",
+      "close": "Close"
+    },
+    "callsWithoutStep": {
+      "title": "AI calls without a step",
+      "description": "Calls of this investigation that no step describes: drafts and postmortems written later, or a stage that failed and was rolled back.",
+      "feature": "Call",
+      "model": "Model",
+      "tokens": "Tokens in / out",
+      "status": "Result"
+    },
+    "details": "Details (ids, codes and numbers only)"
   }
 }

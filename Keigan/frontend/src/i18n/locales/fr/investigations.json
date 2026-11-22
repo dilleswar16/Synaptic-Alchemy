@@ -12,6 +12,7 @@
     "alerts": "Alertes",
     "communications": "Communications",
     "postmortem": "Post-mortem",
+    "trace": "Trace de décision",
     "teams": "Salle Teams"
   },
   "status": {
@@ -421,5 +422,116 @@
       "no_baseline_for_source": "Pas de référence pour ce type de source"
     },
     "introUnreadSources": "Les sources que Keigan n'a pas pu lire sont listées dans l'onglet Cause racine."
+  },
+  "trace": {
+    "title": "Trace de décision",
+    "description": "Ce que Keigan a fait, dans l'ordre, et pourquoi : ses entrées, chaque appel à l'IA avec ce qui est entré et ce qui est sorti, ce que les contrôles propres à Keigan ont modifié, et le résultat.",
+    "notRecorded": "Cette investigation a eu lieu avant que Keigan ne conserve des traces de décision. Seule son utilisation de l'IA est affichée.",
+    "incomplete": "Une partie de cette trace n'a pas pu être enregistrée. L'investigation elle-même n'a pas été affectée.",
+    "running": "Toujours en cours : les étapes apparaissent à mesure qu'elles se terminent.",
+    "loadFailed": "La trace de décision n'a pas pu être chargée.",
+    "summary": {
+      "outcome": "Résultat",
+      "models": "Modèles",
+      "duration": "Durée",
+      "tokens": "Jetons entrée / sortie",
+      "estimated": "estimé",
+      "attempts": "Tentatives",
+      "failedAttempts": "{{count}} en échec"
+    },
+    "prompts": {
+      "title": "Prompts utilisés",
+      "key": "Prompt",
+      "version": "Version",
+      "hash": "Empreinte du modèle"
+    },
+    "steps": {
+      "title": "Étapes",
+      "expandAll": "Tout développer",
+      "collapseAll": "Tout réduire",
+      "stepNumber": "Étape {{number}}"
+    },
+    "kind": {
+      "inputs": "Entrées",
+      "ai_call": "Appel à l'IA",
+      "evidence": "Preuves",
+      "decision": "Décision",
+      "outcome": "Résultat"
+    },
+    "status": {
+      "succeeded": "Réussie",
+      "failed": "Échec",
+      "skipped": "Ignorée"
+    },
+    "feature": {
+      "incident_triage": "Triage (IA)",
+      "evidence_query_planner": "Requêtes supplémentaires planifiées (IA)",
+      "hypothesis_application": "Analyste : application (IA)",
+      "hypothesis_dependencies": "Analyste : dépendances (IA)",
+      "hypothesis_infrastructure": "Analyste : infrastructure (IA)",
+      "rca_synthesis": "Analyse de cause racine (IA)",
+      "blast_radius_narrative": "Récit du périmètre d'impact (IA)",
+      "incident_communications": "Brouillons pour les parties prenantes (IA)"
+    },
+    "decision": {
+      "services_selected": "Services choisis",
+      "priority_set": "Priorité fixée",
+      "planner_requested": "Le planificateur a demandé des requêtes supplémentaires",
+      "evidence_only_mode": "Mode preuves seules",
+      "synthesis_fallback": "Repli par rapport à la synthèse de l'IA"
+    },
+    "aiCall": {
+      "prompt": "Prompt",
+      "version": "Version",
+      "templateHash": "Empreinte du modèle (SHA-256)",
+      "systemHash": "Empreinte du prompt système (SHA-256)",
+      "provider": "Fournisseur",
+      "model": "Modèle",
+      "attempts": "Tentatives",
+      "attemptRow": "{{status}}, {{milliseconds}} ms, {{input}} entrée / {{output}} sortie",
+      "inputs": "Ce qui est entré",
+      "trusted": "Écrit par Keigan",
+      "untrusted": "Données non fiables",
+      "cut": "tronqué",
+      "characters": "{{sent}} sur {{total}} caractères",
+      "adjustments": "Ce que Keigan a modifié",
+      "nothingChanged": "Les contrôles de Keigan n'ont rien modifié dans cette réponse.",
+      "rawAnswer": "Afficher la réponse brute",
+      "rawAdminsOnly": "Les réponses brutes de l'IA sont visibles par les administrateurs de l'application.",
+      "failedWith": "L'appel a échoué : {{reason}}"
+    },
+    "adjustment": {
+      "invalid_citations_removed": "Citations inexistantes supprimées : {{codes}}",
+      "evidence_codes_dropped": "Codes de preuve inexistants écartés : {{codes}}",
+      "file_path_replaced": "{{count}} chemin(s) de fichier absent(s) des connaissances remplacé(s)",
+      "command_risk_raised": "Risque de la correction relevé de {{from}} à {{to}}",
+      "hypothesis_state_guarded": "État changé de {{proposed}} à {{final}} (règle : {{guard}})",
+      "confidence_capped": "Confiance globale plafonnée de {{from}} à {{to}}",
+      "outcome_guarded": "Résultat changé de {{proposed}} à {{final}} (règle : {{guard}})"
+    },
+    "failure": {
+      "token_budget_exceeded": "Le budget de jetons est épuisé",
+      "ai_unavailable": "Le modèle d'IA n'était pas disponible",
+      "ai_rate_limited": "Le fournisseur d'IA a demandé à Keigan de ralentir",
+      "ai_output_invalid": "La réponse de l'IA n'a pas pu être utilisée",
+      "failed": "L'appel a échoué"
+    },
+    "rawDialog": {
+      "title": "Réponse brute de l'IA",
+      "warning": "Voici la réponse avant les contrôles de Keigan. N'exécutez pas de commandes d'ici ; utilisez la correction contrôlée de l'onglet Cause racine.",
+      "loading": "Chargement de la réponse brute…",
+      "error": "La réponse brute n'a pas pu être chargée.",
+      "truncated": "Tronquée à la taille conservée.",
+      "close": "Fermer"
+    },
+    "callsWithoutStep": {
+      "title": "Appels à l'IA sans étape",
+      "description": "Appels de cette investigation qu'aucune étape ne décrit : brouillons et postmortems rédigés plus tard, ou une étape en échec annulée.",
+      "feature": "Appel",
+      "model": "Modèle",
+      "tokens": "Jetons entrée / sortie",
+      "status": "Résultat"
+    },
+    "details": "Détails (identifiants, codes et nombres uniquement)"
   }
 }

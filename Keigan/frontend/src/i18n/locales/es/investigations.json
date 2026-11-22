@@ -12,6 +12,7 @@
     "alerts": "Alertas",
     "communications": "Comunicaciones",
     "postmortem": "Postmortem",
+    "trace": "Traza de decisiones",
     "teams": "Sala de Teams"
   },
   "status": {
@@ -421,5 +422,116 @@
       "no_baseline_for_source": "Sin referencia para este tipo de fuente"
     },
     "introUnreadSources": "Las fuentes que Keigan no pudo leer figuran en la pestaña Causa raíz."
+  },
+  "trace": {
+    "title": "Traza de decisiones",
+    "description": "Lo que hizo Keigan, en orden, y por qué: sus entradas, cada llamada a la IA con lo que entró y lo que salió, lo que cambiaron las comprobaciones propias de Keigan y el resultado.",
+    "notRecorded": "Esta investigación se ejecutó antes de que Keigan guardara trazas de decisiones. Solo se muestra su uso de IA.",
+    "incomplete": "No se pudo registrar una parte de esta traza. La investigación en sí no se vio afectada.",
+    "running": "Aún en curso: los pasos aparecen al terminar.",
+    "loadFailed": "No se pudo cargar la traza de decisiones.",
+    "summary": {
+      "outcome": "Resultado",
+      "models": "Modelos",
+      "duration": "Duración",
+      "tokens": "Tokens entrada / salida",
+      "estimated": "estimado",
+      "attempts": "Intentos",
+      "failedAttempts": "{{count}} fallidos"
+    },
+    "prompts": {
+      "title": "Prompts usados",
+      "key": "Prompt",
+      "version": "Versión",
+      "hash": "Hash de la plantilla"
+    },
+    "steps": {
+      "title": "Pasos",
+      "expandAll": "Expandir todo",
+      "collapseAll": "Contraer todo",
+      "stepNumber": "Paso {{number}}"
+    },
+    "kind": {
+      "inputs": "Entradas",
+      "ai_call": "Llamada a la IA",
+      "evidence": "Evidencia",
+      "decision": "Decisión",
+      "outcome": "Resultado"
+    },
+    "status": {
+      "succeeded": "Correcto",
+      "failed": "Fallido",
+      "skipped": "Omitido"
+    },
+    "feature": {
+      "incident_triage": "Triaje (IA)",
+      "evidence_query_planner": "Consultas adicionales planificadas (IA)",
+      "hypothesis_application": "Analista: aplicación (IA)",
+      "hypothesis_dependencies": "Analista: dependencias (IA)",
+      "hypothesis_infrastructure": "Analista: infraestructura (IA)",
+      "rca_synthesis": "Análisis de causa raíz (IA)",
+      "blast_radius_narrative": "Narrativa del radio de impacto (IA)",
+      "incident_communications": "Borradores para las partes interesadas (IA)"
+    },
+    "decision": {
+      "services_selected": "Servicios elegidos",
+      "priority_set": "Prioridad fijada",
+      "planner_requested": "El planificador pidió consultas adicionales",
+      "evidence_only_mode": "Modo solo evidencia",
+      "synthesis_fallback": "Se recurrió a una alternativa al resumen de la IA"
+    },
+    "aiCall": {
+      "prompt": "Prompt",
+      "version": "Versión",
+      "templateHash": "Hash de la plantilla (SHA-256)",
+      "systemHash": "Hash del prompt del sistema (SHA-256)",
+      "provider": "Proveedor",
+      "model": "Modelo",
+      "attempts": "Intentos",
+      "attemptRow": "{{status}}, {{milliseconds}} ms, {{input}} entrada / {{output}} salida",
+      "inputs": "Lo que entró",
+      "trusted": "Escrito por Keigan",
+      "untrusted": "Datos no confiables",
+      "cut": "recortado",
+      "characters": "{{sent}} de {{total}} caracteres",
+      "adjustments": "Lo que cambió Keigan",
+      "nothingChanged": "Las comprobaciones de Keigan no cambiaron nada en esta respuesta.",
+      "rawAnswer": "Ver respuesta sin procesar",
+      "rawAdminsOnly": "Los administradores de la aplicación pueden ver las respuestas sin procesar de la IA.",
+      "failedWith": "La llamada falló: {{reason}}"
+    },
+    "adjustment": {
+      "invalid_citations_removed": "Se quitaron citas que no existen: {{codes}}",
+      "evidence_codes_dropped": "Se descartaron códigos de evidencia que no existen: {{codes}}",
+      "file_path_replaced": "Se reemplazaron {{count}} ruta(s) de archivo que no figuran en el conocimiento",
+      "command_risk_raised": "Se subió el riesgo de la corrección de {{from}} a {{to}}",
+      "hypothesis_state_guarded": "Se cambió el estado de {{proposed}} a {{final}} (regla: {{guard}})",
+      "confidence_capped": "Se limitó la confianza general de {{from}} a {{to}}",
+      "outcome_guarded": "Se cambió el resultado de {{proposed}} a {{final}} (regla: {{guard}})"
+    },
+    "failure": {
+      "token_budget_exceeded": "Se agotó el presupuesto de tokens",
+      "ai_unavailable": "El modelo de IA no estaba disponible",
+      "ai_rate_limited": "El proveedor de IA pidió a Keigan que fuera más despacio",
+      "ai_output_invalid": "No se pudo usar la respuesta de la IA",
+      "failed": "La llamada falló"
+    },
+    "rawDialog": {
+      "title": "Respuesta sin procesar de la IA",
+      "warning": "Esta es la respuesta antes de las comprobaciones de Keigan. No ejecute comandos desde aquí; use la corrección comprobada de la pestaña Causa raíz.",
+      "loading": "Cargando la respuesta sin procesar…",
+      "error": "No se pudo cargar la respuesta sin procesar.",
+      "truncated": "Recortada al tamaño guardado.",
+      "close": "Cerrar"
+    },
+    "callsWithoutStep": {
+      "title": "Llamadas a la IA sin paso",
+      "description": "Llamadas de esta investigación que ningún paso describe: borradores y postmortems escritos después, o una etapa que falló y se revirtió.",
+      "feature": "Llamada",
+      "model": "Modelo",
+      "tokens": "Tokens entrada / salida",
+      "status": "Resultado"
+    },
+    "details": "Detalles (solo identificadores, códigos y números)"
   }
 }

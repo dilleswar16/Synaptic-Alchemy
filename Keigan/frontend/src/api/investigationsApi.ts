@@ -284,8 +284,73 @@ export interface StartInvestigationRequest {
 /* ── Hooks ─────────────────────────────────────────────────────────── */
 export const isInvestigationRunning = (status: string | undefined) => status === "queued" || status === "running";
 
+export interface TraceAttempt { outcomeStatus: string; latencyMilliseconds: number; inputTokenCount: number; outputTokenCount: number }
+export interface TraceInputSection {
+  title: string;
+  sourceLabel: string;
+  isUntrusted: boolean;
+  isFlagged: boolean;
+  characterCount: number;
+  sentCharacterCount: number;
+  isTruncated: boolean;
+  sha256: string;
+  citationCodes: string[];
+}
+export interface TraceAdjustment { code: string; parameters: Record<string, unknown> }
+export interface TraceAiCall {
+  featureName: string | null;
+  promptKey: string | null;
+  promptVersion: string | null;
+  promptTemplateSha256: string | null;
+  systemPromptSha256: string | null;
+  providerName: string | null;
+  modelName: string | null;
+  modelTier: string | null;
+  inputTokenCount: number;
+  outputTokenCount: number;
+  tokenCountsEstimated: boolean;
+  attempts: TraceAttempt[];
+  inputSections: TraceInputSection[];
+  adjustments: TraceAdjustment[];
+  hasRawOutput: boolean;
+  rawOutputCharacterCount: number | null;
+  rawOutputIsTruncated: boolean | null;
+  failureCode: string | null;
+  hypothesisId: string | null;
+}
+export interface TraceStep {
+  traceStepId: Identifier;
+  sequenceNumber: number;
+  stageName: string;
+  stepKind: "inputs" | "ai_call" | "evidence" | "decision" | "outcome";
+  stepStatus: "succeeded" | "failed" | "skipped";
+  decisionKind: string | null;
+  startedAt: IsoDateTimeString;
+  completedAt: IsoDateTimeString | null;
+  durationMilliseconds: number | null;
+  aiCall: TraceAiCall | null;
+  details: Record<string, unknown> | null;
+}
+export interface TraceCallWithoutStep { featureName: string; modelName: string; createdAt: IsoDateTimeString; inputTokenCount: number; outputTokenCount: number; outcomeStatus: string }
+export interface InvestigationTrace {
+  investigationId: Identifier;
+  isRecorded: boolean;
+  isComplete: boolean;
+  pipelineVersion: string | null;
+  status: string;
+  outcome: InvestigationOutcomeInfo | null;
+  totals: { inputTokenCount: number; outputTokenCount: number; tokenCountsEstimated: boolean; aiCallCount: number; attemptCount: number; failedAttemptCount: number; durationMilliseconds: number | null };
+  models: Array<{ providerName: string | null; modelName: string | null; modelTier: string | null; callCount: number }>;
+  prompts: Array<{ promptKey: string; promptVersion: string | null; promptTemplateSha256: string | null }>;
+  steps: TraceStep[];
+  callsWithoutStep: TraceCallWithoutStep[];
+}
+export interface RawOutput { rawOutput: Record<string, unknown>; characterCount: number; isTruncated: boolean; sha256: string }
+
 export const investigationQueryKeys = {
   all: ["investigations"] as const,
+  trace: (investigationId: string) => ["investigations", "trace", investigationId] as const,
+  rawOutput: (investigationId: string, traceStepId: string) => ["investigations", "trace", investigationId, "raw", traceStepId] as const,
   list: (incidentId: string) => ["investigations", "list", incidentId] as const,
   detail: (investigationId: string) => ["investigations", "detail", investigationId] as const,
   progress: (investigationId: string) => ["investigations", "progress", investigationId] as const,
@@ -303,6 +368,26 @@ export function useInvestigation(investigationId: string | undefined) {
 }
 
 /** Polled every 2 s while the investigation runs (doc 05 §6). */
+/** The decision trace; refreshed while the investigation runs so steps appear as they finish. */
+export function useInvestigationTrace(investigationId: string | undefined, isRunning: boolean) {
+  return useQuery({
+    queryKey: investigationQueryKeys.trace(investigationId ?? ""),
+    queryFn: ({ signal }) => apiGet<InvestigationTrace>(`/investigations/${investigationId}/trace`, { signal }),
+    enabled: Boolean(investigationId),
+    refetchInterval: isRunning ? 4_000 : false,
+  });
+}
+
+/** The raw AI answer of one step (application admins only); fetched only when the dialog opens. */
+export function useRawOutput(investigationId: string, traceStepId: string | null) {
+  return useQuery({
+    queryKey: investigationQueryKeys.rawOutput(investigationId, traceStepId ?? ""),
+    queryFn: ({ signal }) => apiGet<RawOutput>(`/investigations/${investigationId}/trace/steps/${traceStepId}/raw-output`, { signal }),
+    enabled: traceStepId !== null,
+    retry: false,
+  });
+}
+
 export function useInvestigationProgress(investigationId: string | undefined, isRunning: boolean) {
   return useQuery({
     queryKey: investigationQueryKeys.progress(investigationId ?? ""),
