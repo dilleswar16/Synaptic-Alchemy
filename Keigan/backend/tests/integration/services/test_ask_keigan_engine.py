@@ -608,6 +608,13 @@ async def test_the_prepared_run_describes_the_scope_prompt_and_tools_it_will_use
     assert "application_code" not in next(spec for spec in prepared.tool_specs if spec.name == "search_knowledge").parameters_schema["properties"]  # bound by the scope
 
 
+async def test_a_prompted_json_run_records_the_version_of_the_protocol_it_used_and_a_native_run_does_not(seeded: Seeded) -> None:
+    prompted = resolve_model_capabilities(LlmProviderName.MOCK, "mock", json.dumps({"providers": {"mock": [{"model": "*", "tool_calling": "prompted_json"}]}}))
+    profile = await profile_for(ADMIN, seeded.investigation_id)
+    assert AskKeiganEngine(ScriptedGateway([], capabilities=prompted)).prepare(profile).setup.limits["toolProtocolVersion"] == "1"
+    assert "toolProtocolVersion" not in AskKeiganEngine(ScriptedGateway([])).prepare(profile).setup.limits
+
+
 async def test_a_log_query_publishes_the_query_it_wrote_between_the_start_and_the_end_of_its_card(seeded: Seeded) -> None:
     finished = await run_with(seeded, "How many failed requests did claims-api have in the last 24 hours?")
     names = finished.names()

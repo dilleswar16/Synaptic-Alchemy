@@ -13,7 +13,7 @@ MODEL_LIBRARY_PREFIXES = ("langchain", "langgraph")
 # The legacy global and Teams investigation chat still drives a LangGraph agent itself; it is removed in phase 4 of the plan (spec 23, section 11, step 4.3), and this entry with it.
 LEGACY_MODEL_LIBRARY_USERS = {Path("services") / "investigation_chat_service.py"}
 LAYERS_ABOVE_THE_REGISTRY = ("keigan.services", "keigan.controllers", "keigan.repositories", "keigan.workers")
-NEW_ASK_KEIGAN_AI_MODULES = ("tool_registry.py", "ask_keigan_errors.py", "ask_keigan_tool_models.py", "ask_keigan_answer_format.py", "ask_keigan_answer_stream.py", "ask_keigan_follow_ups.py")
+NEW_ASK_KEIGAN_AI_MODULES = ("tool_registry.py", "ask_keigan_errors.py", "ask_keigan_tool_models.py", "ask_keigan_answer_format.py", "ask_keigan_answer_stream.py", "ask_keigan_follow_ups.py", "agent_tool_protocol.py", "agent_turn_types.py")
 
 
 def imported_modules(path: Path) -> list[str]:

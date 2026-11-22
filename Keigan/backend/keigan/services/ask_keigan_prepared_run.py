@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from keigan.ai.agent_tool_protocol import PROTOCOL_PROMPT_KEY
 from keigan.ai.ask_keigan_answer_format import FOLLOW_UP_MARKER, FixedAnswer, fixed_answer
 from keigan.ai.ask_keigan_errors import AskKeiganErrorCatalogue
 from keigan.ai.llm_gateway import AgentTextChunk, AgentToolSpec, AgentTranscriptEntry, AgentTurnResult, LlmUsageContext, ModelTier, estimate_token_count
@@ -69,6 +70,7 @@ def prepare_run(*, gateway: AgentGateway, prompt_library: PromptLibrary, registr
     )
     tool_specs = tuple(AgentToolSpec(tool.name, tool.description, registry.model_schema(tool, profile)) for tool in profile.offered_tools)
     _ensure_the_prompt_fits(system_prompt, tool_specs, profile, capabilities, settings, model_tier, language_code)
+    uses_prompted_json = not gateway.is_mock and capabilities.tool_calling is ToolCallingSupport.PROMPTED_JSON
     setup = RunSetup(
         engine_version=ENGINE_VERSION, prompt_key=profile.prompt_key, prompt_version=prompt_library.version_of(profile.prompt_key), system_prompt_sha256=_sha256(system_prompt),
         tool_catalog_sha256=registry.catalog_hash(profile.offered_tools),
@@ -83,6 +85,7 @@ def prepare_run(*, gateway: AgentGateway, prompt_library: PromptLibrary, registr
             "answerTokenBudget": settings.ask_keigan_answer_token_budget, "toolOutputModelCharacters": settings.ask_keigan_tool_output_model_characters,
             "toolOutputStoredCharacters": settings.ask_keigan_tool_output_stored_characters, "toolOutputPreviewCharacters": settings.ask_keigan_tool_output_preview_characters,
             "followUpQuestionLimit": settings.ask_keigan_follow_up_question_limit, "capabilities": capabilities.model_dump(mode="json"),
+            **({"toolProtocolVersion": prompt_library.version_of(PROTOCOL_PROMPT_KEY)} if uses_prompted_json else {}),  # the protocol text decides how a model behaves, so a replay needs its version
         },
     )
     return PreparedRun(profile, model_tier, system_prompt, tool_specs, setup)

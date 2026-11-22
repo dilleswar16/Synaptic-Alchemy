@@ -23,14 +23,18 @@ from contextlib import aclosing
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum, StrEnum
-from typing import TYPE_CHECKING, Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import func, select
 
+from keigan.ai.agent_tool_protocol import MalformedAgentReply, parse_agent_reply, prompted_transcript, protocol_system_prompt, repair_message
 from keigan.ai.ai_safety_settings import get_ai_safety_settings
+from keigan.ai.agent_turn_types import (  # noqa: F401 — the names are re-exported: callers import them from here
+    AgentFinish, AgentTextChunk, AgentToolRequest, AgentToolSpec, AgentTranscriptEntry, AgentTurnResult, PromptSection,
+)
 from keigan.ai.model_capabilities import ModelCapabilities, ToolCallingSupport, resolve_model_capabilities
 from keigan.ai.prompt_safety import UNTRUSTED_DATA_POLICY, generate_boundary, spotlight
 from keigan.config.database_config import open_session
@@ -142,18 +146,6 @@ class ModelTier(StrEnum):
 
 
 @dataclass
-class PromptSection:
-    """One block of the user message. ``is_untrusted`` content is spotlighted and never treated as instructions."""
-
-    title: str
-    content: str
-    is_untrusted: bool = False
-    source_label: str = ""
-    maximum_characters: int = 20_000
-    is_flagged: bool = False  # the source is already known to look like a prompt-injection attempt; mark its block with a warning
-
-
-@dataclass
 class LlmUsageContext:
     application_id: str | None = None
     investigation_id: str | None = None
@@ -183,58 +175,6 @@ _mock_response_factories: dict[str, MockFactory] = {}
 def register_mock_response(feature_name: str, factory: MockFactory) -> None:
     """Slices register realistic offline responses for LLM_PROVIDER=mock (used for UI work without an API key)."""
     _mock_response_factories[feature_name] = factory
-
-
-AgentFinish = Literal["tool_requests", "answer", "length", "protocol_error"]
-
-
-@dataclass(frozen=True)
-class AgentToolSpec:
-    """A tool as the model is offered it: a name, a description and a closed JSON Schema for its arguments."""
-
-    name: str
-    description: str
-    parameters_schema: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class AgentToolRequest:
-    """A tool the model asked for. ``arguments`` is None (with the reason in ``arguments_problem``) when they could not be read as JSON."""
-
-    request_id: str
-    tool_name: str
-    arguments: dict[str, Any] | None
-    arguments_problem: str | None = None
-
-
-@dataclass(frozen=True)
-class AgentTranscriptEntry:
-    """One item of the conversation the gateway turns into provider messages: prompt sections, an earlier model turn, or a tool result."""
-
-    kind: Literal["data", "assistant", "tool_result"]
-    section: PromptSection | None = None
-    text: str = ""
-    tool_requests: tuple[AgentToolRequest, ...] = ()
-    tool_request_id: str = ""
-    tool_name: str = ""
-    tool_result_text: str = ""  # already spotlighted by the tool registry
-
-
-@dataclass(frozen=True)
-class AgentTurnResult:
-    text: str
-    tool_requests: tuple[AgentToolRequest, ...]
-    finish: AgentFinish
-    input_token_count: int
-    output_token_count: int
-    token_counts_estimated: bool
-    model_name: str
-    tool_calling_mode: ToolCallingMode
-
-
-@dataclass(frozen=True)
-class AgentTextChunk:
-    text: str
 
 
 @dataclass(frozen=True)
@@ -535,13 +475,14 @@ class LlmGateway:
         """
         await self._ensure_budget_available(usage_context)
         capabilities = self.agent_capabilities(model_tier)
-        if capabilities.tool_calling != ToolCallingSupport.NATIVE:
+        if capabilities.tool_calling == ToolCallingSupport.NONE:
             raise AgentToolsUnsupportedException(AGENT_TOOLS_UNSUPPORTED_MESSAGE)
-        turn_stream = (
-            self._stream_mock_agent_turn(feature_name, system_prompt, transcript, tools, allow_tool_requests, capabilities)
-            if self.is_mock
-            else self._stream_native_agent_turn(feature_name, model_tier, system_prompt, transcript, tools, allow_tool_requests, usage_context, capabilities)
-        )
+        if self.is_mock:
+            turn_stream = self._stream_mock_agent_turn(feature_name, system_prompt, transcript, tools, allow_tool_requests, capabilities)
+        elif capabilities.tool_calling == ToolCallingSupport.PROMPTED_JSON:
+            turn_stream = self._stream_prompted_agent_turn(feature_name, model_tier, system_prompt, transcript, tools, allow_tool_requests, usage_context)
+        else:
+            turn_stream = self._stream_native_agent_turn(feature_name, model_tier, system_prompt, transcript, tools, allow_tool_requests, usage_context, capabilities)
         async for item in turn_stream:
             yield item
 
@@ -659,12 +600,9 @@ class LlmGateway:
             raise
         tool_requests = self._extract_tool_requests(response_message)
         answer_text = self._message_text(response_message)
-        input_token_count, output_token_count = self._extract_token_usage(response_message)
-        counts_are_estimated = not (input_token_count or output_token_count)
-        if counts_are_estimated:
-            prompt_text = "\n".join(self._message_text(message) for message in messages) + json.dumps([self._function_definition(tool) for tool in tools])
-            input_token_count = estimate_token_count(prompt_text)
-            output_token_count = estimate_token_count(answer_text + json.dumps([request.arguments for request in tool_requests]))
+        input_token_count, output_token_count, counts_are_estimated = self._turn_token_counts(
+            response_message, messages, json.dumps([self._function_definition(tool) for tool in tools]), answer_text + json.dumps([request.arguments for request in tool_requests]),
+        )
         await self._record_usage(feature_name, model_tier, model_name, input_token_count, output_token_count, started_at, "succeeded", usage_context)
         response_metadata = getattr(response_message, "response_metadata", None) or {}
         was_cut_off = (response_metadata.get("finish_reason") or response_metadata.get("stop_reason")) in TRUNCATION_FINISH_REASONS
@@ -672,6 +610,58 @@ class LlmGateway:
             text=answer_text, tool_requests=tool_requests, finish="length" if was_cut_off else "tool_requests" if tool_requests else "answer",
             input_token_count=input_token_count, output_token_count=output_token_count, token_counts_estimated=counts_are_estimated,
             model_name=model_name, tool_calling_mode=ToolCallingMode.NATIVE,
+        )
+
+    async def _stream_prompted_agent_turn(
+        self,
+        feature_name: str,
+        model_tier: ModelTier,
+        system_prompt: str,
+        transcript: Sequence[AgentTranscriptEntry],
+        tools: Sequence[AgentToolSpec],
+        allow_tool_requests: bool,
+        usage_context: LlmUsageContext,
+    ) -> AsyncIterator[AgentTextChunk | AgentTurnResult]:
+        """A turn for a model without native tool calling (spec 23, 4.6.4): the model replies with one JSON object, which is parsed by ``agent_tool_protocol``. A reply outside the
+        format is sent back with the problem up to ``ASK_KEIGAN_PROTOCOL_REPAIR_ATTEMPTS`` times; after that the turn ends as a ``protocol_error`` (never as an answer without tools).
+        The reply is JSON, so nothing is streamed: the result carries the whole answer."""
+        model_name = self.model_name_for(model_tier)
+        maximum_requests = self.settings.ask_keigan_max_parallel_tool_calls
+        first_request_number = 1 + sum(len(entry.tool_requests) for entry in transcript if entry.kind == "assistant")
+        messages = self._build_agent_messages(
+            protocol_system_prompt(system_prompt, tools, allow_tool_requests=allow_tool_requests, maximum_requests=maximum_requests), prompted_transcript(transcript),
+        )
+        chat_model = self.chat_model(model_tier)
+        total_input_token_count = total_output_token_count = 0
+        counts_are_estimated = False
+        for attempt_number in range(1, self.settings.ask_keigan_protocol_repair_attempts + 2):
+            started_at = time.monotonic()
+            try:
+                response_message = await self._invoke_with_resilience(chat_model, messages)
+            except Exception as invocation_error:
+                await self._record_usage(feature_name, model_tier, model_name, 0, 0, started_at, "failed", usage_context, str(invocation_error))
+                raise
+            reply_text = self._message_text(response_message)
+            input_token_count, output_token_count, attempt_is_estimated = self._turn_token_counts(response_message, messages, "", reply_text)
+            total_input_token_count, total_output_token_count = total_input_token_count + input_token_count, total_output_token_count + output_token_count
+            counts_are_estimated = counts_are_estimated or attempt_is_estimated
+            try:
+                parsed_reply = parse_agent_reply(reply_text, tools, maximum_requests=maximum_requests, first_request_number=first_request_number)
+            except MalformedAgentReply as problem:
+                await self._record_usage(feature_name, model_tier, model_name, input_token_count, output_token_count, started_at, "validation_retry", usage_context, str(problem))
+                logger.warning("The model reply for %s was outside the tool protocol (attempt %s): %s", feature_name, attempt_number, str(problem)[:300])
+                messages = [*messages, AIMessage(content=reply_text), HumanMessage(content=repair_message(str(problem)))]
+                continue
+            await self._record_usage(feature_name, model_tier, model_name, input_token_count, output_token_count, started_at, "succeeded", usage_context)
+            yield AgentTurnResult(
+                text=parsed_reply.text, tool_requests=parsed_reply.tool_requests, finish="tool_requests" if parsed_reply.tool_requests else "answer",
+                input_token_count=total_input_token_count, output_token_count=total_output_token_count, token_counts_estimated=counts_are_estimated,
+                model_name=model_name, tool_calling_mode=ToolCallingMode.PROMPTED_JSON,
+            )
+            return
+        yield AgentTurnResult(
+            text="", tool_requests=(), finish="protocol_error", input_token_count=total_input_token_count, output_token_count=total_output_token_count,
+            token_counts_estimated=counts_are_estimated, model_name=model_name, tool_calling_mode=ToolCallingMode.PROMPTED_JSON,
         )
 
     async def _stream_mock_agent_turn(
@@ -774,6 +764,14 @@ class LlmGateway:
             return True
         error_text = str(invocation_error).lower()
         return any(marker in error_text for marker in ("rate limit", "resource exhausted", "429", "timeout", "temporarily", "unavailable", "overloaded"))
+
+    def _turn_token_counts(self, response_message: Any, messages: list[BaseMessage], extra_prompt_text: str, output_text: str) -> tuple[int, int, bool]:
+        """The provider's token counts of a model call, or (flagged as estimates) counts estimated from the prompt and the output when it reported none."""
+        input_token_count, output_token_count = self._extract_token_usage(response_message)
+        if input_token_count or output_token_count:
+            return input_token_count, output_token_count, False
+        prompt_text = "\n".join(self._message_text(message) for message in messages) + extra_prompt_text
+        return estimate_token_count(prompt_text), estimate_token_count(output_text), True
 
     @staticmethod
     def _extract_token_usage(response_message: Any) -> tuple[int, int]:

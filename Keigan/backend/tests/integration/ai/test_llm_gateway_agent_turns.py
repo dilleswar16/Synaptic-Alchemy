@@ -336,9 +336,8 @@ async def test_a_user_over_the_budget_cannot_start_a_turn_and_the_model_is_never
 # ── Capabilities decide what is possible ────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("tool_calling", ["none", "prompted_json"])
-async def test_a_model_without_native_tool_calling_is_refused_instead_of_answering_without_tools(agent_settings: Any, monkeypatch: pytest.MonkeyPatch, tool_calling: str) -> None:
-    overrides = json.dumps({"providers": {"openai_compatible": [{"model": "*", "tool_calling": tool_calling}]}})
+async def test_a_model_that_cannot_use_tools_is_refused_instead_of_answering_without_them(agent_settings: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    overrides = json.dumps({"providers": {"openai_compatible": [{"model": "*", "tool_calling": "none"}]}})
     monkeypatch.setattr(get_settings(), "llm_model_capabilities_json", overrides)
     model = ScriptedAgentModel(replies=[[text_chunk("never")]])
     with pytest.raises(AgentToolsUnsupportedException) as failure:
@@ -478,3 +477,120 @@ async def test_structured_output_uses_the_method_the_model_declares_instead_of_t
         feature_name="x", model_tier=ModelTier.FAST, system_prompt="s", prompt_sections=[], output_schema=Answer, usage_context=LlmUsageContext(enforce_token_budget=False)
     )
     assert methods == ["json_schema"]
+
+
+# ── Prompted JSON: a model without native tool calling (spec 23, 4.6.4) ─────────────────────────────────────────
+
+
+@pytest.fixture
+def prompted_settings(agent_settings: Any, monkeypatch: pytest.MonkeyPatch) -> Any:
+    monkeypatch.setattr(get_settings(), "llm_model_capabilities_json", json.dumps({"providers": {"openai_compatible": [{"model": "*", "tool_calling": "prompted_json"}]}}))
+    monkeypatch.setattr(get_settings(), "ask_keigan_protocol_repair_attempts", 1)
+    return agent_settings
+
+
+def reply(payload: Any, **extra: Any) -> list[AIMessageChunk]:
+    return [text_chunk(payload if isinstance(payload, str) else json.dumps(payload), **extra)]
+
+
+REQUEST_REPLY = {"kind": "tool_requests", "requests": [{"id": "k1", "tool": "get_evidence", "arguments": {"evidence_code": "E2"}}]}
+
+
+async def test_prompted_mode_parses_a_request_reply_into_the_same_request_a_native_call_gives(prompted_settings: Any) -> None:
+    model = ScriptedAgentModel(replies=[reply(REQUEST_REPLY, usage_metadata=usage(120, 15))])
+    items = await run_turn(gateway_with(model))
+    assert len(items) == 1  # the reply is JSON: nothing is streamed as text
+    result = items[0]
+    assert isinstance(result, AgentTurnResult) and result.finish == "tool_requests" and result.text == ""
+    assert result.tool_requests == (AgentToolRequest("k1", "get_evidence", {"evidence_code": "E2"}, None),)
+    assert (result.input_token_count, result.output_token_count, result.token_counts_estimated) == (120, 15, False)
+    assert result.tool_calling_mode == ToolCallingMode.PROMPTED_JSON
+    assert model.bind_calls == [] and model.streamed_calls == 0
+
+
+async def test_prompted_mode_returns_the_answer_text_with_its_follow_ups(prompted_settings: Any) -> None:
+    model = ScriptedAgentModel(replies=[reply({"kind": "answer", "text": "E2 shows a spike [T1].", "follow_ups": ["What changed?"]})])
+    result = (await run_turn(gateway_with(model)))[-1]
+    assert isinstance(result, AgentTurnResult) and result.finish == "answer" and result.tool_requests == ()
+    assert result.text == "E2 shows a spike [T1].\n\n<<follow-ups>>\nWhat changed?"
+    assert result.token_counts_estimated is True and result.input_token_count > 0
+
+
+async def test_prompted_mode_puts_the_protocol_and_the_tools_in_the_system_prompt_and_spotlights_the_question(prompted_settings: Any) -> None:
+    model = ScriptedAgentModel(replies=[reply({"kind": "answer", "text": "ok"})])
+    await run_turn(gateway_with(model))
+    system_message, question_message = model.seen_messages[0]
+    assert system_message.content.startswith("You are Keigan.") and "exactly one JSON object" in system_message.content and "get_evidence" in system_message.content
+    assert "never claim to have executed commands" in system_message.content
+    assert '<untrusted_data source="chat:user-question"' in question_message.content
+
+
+async def test_prompted_mode_does_not_offer_tool_requests_on_the_final_turn(prompted_settings: Any) -> None:
+    model = ScriptedAgentModel(replies=[reply({"kind": "answer", "text": "ok"})])
+    await run_turn(gateway_with(model), allow_tool_requests=False)
+    assert "Tool requests are not accepted" in model.seen_messages[0][0].content
+
+
+async def test_prompted_mode_shows_earlier_turns_as_json_and_results_as_one_spotlighted_block_with_unique_request_numbers(prompted_settings: Any) -> None:
+    transcript = [
+        AgentTranscriptEntry(kind="data", section=PromptSection("Question", "Show me evidence E2", is_untrusted=True, source_label="chat:user-question")),
+        AgentTranscriptEntry(kind="assistant", tool_requests=(AgentToolRequest("k1", "get_evidence", {"evidence_code": "E2"}),)),
+        AgentTranscriptEntry(kind="tool_result", tool_request_id="k1", tool_name="get_evidence", tool_result_text='<untrusted_data source="tool:get_evidence:T1">spike</untrusted_data>'),
+    ]
+    model = ScriptedAgentModel(replies=[reply(REQUEST_REPLY)])
+    result = (await run_turn(gateway_with(model), transcript=transcript))[-1]
+    _, _, assistant_message, results_message = model.seen_messages[0]
+    assert isinstance(assistant_message, AIMessage) and json.loads(assistant_message.content)["requests"][0]["tool"] == "get_evidence" and assistant_message.tool_calls == []
+    assert isinstance(results_message, HumanMessage) and "## Tool results" in results_message.content and 'source="tool:get_evidence:T1"' in results_message.content
+    assert isinstance(result, AgentTurnResult) and [request.request_id for request in result.tool_requests] == ["k2"]
+
+
+async def test_a_malformed_reply_is_sent_back_with_the_problem_and_the_corrected_reply_is_used(prompted_settings: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(llm_gateway, "USAGE_FLUSH_DELAY_SECONDS", 0.2)  # long enough for both calls of the turn to be queued before the rows are written
+    conversation_id = f"conversation-{uuid.uuid4().hex[:8]}"
+    model = ScriptedAgentModel(replies=[reply("The evidence shows a spike.", usage_metadata=usage(50, 6)), reply(REQUEST_REPLY, usage_metadata=usage(80, 14))])
+    gateway = gateway_with(model)
+    result = (await run_turn(gateway, usage_context=LlmUsageContext(conversation_id=conversation_id, requested_by_user_principal_name=f"repair-{uuid.uuid4().hex[:8]}@keigan.local")))[-1]
+    assert isinstance(result, AgentTurnResult) and result.finish == "tool_requests" and result.tool_requests[0].tool_name == "get_evidence"
+    assert (result.input_token_count, result.output_token_count) == (130, 20)  # both calls count against the answer's budget
+    repair_messages = model.seen_messages[1][-2:]
+    assert repair_messages[0].content == "The evidence shows a spike." and "not valid JSON" in repair_messages[1].content
+    await gateway._usage_flush_task
+    async with open_session() as session:
+        rows = (await session.scalars(select(LlmUsageRecord).where(LlmUsageRecord.conversation_id == conversation_id))).all()
+    assert sorted(row.outcome_status for row in rows) == ["succeeded", "validation_retry"]
+
+
+async def test_a_second_malformed_reply_ends_the_turn_as_a_protocol_error_instead_of_guessing(prompted_settings: Any) -> None:
+    model = ScriptedAgentModel(replies=[reply("not json", usage_metadata=usage(10, 2)), reply('{"kind": "answer"}', usage_metadata=usage(20, 3))])
+    result = (await run_turn(gateway_with(model)))[-1]
+    assert isinstance(result, AgentTurnResult) and result.finish == "protocol_error" and result.tool_requests == () and result.text == ""
+    assert (result.input_token_count, result.output_token_count) == (30, 5) and result.tool_calling_mode == ToolCallingMode.PROMPTED_JSON
+    assert len(model.seen_messages) == 2
+
+
+async def test_with_no_repair_attempts_the_first_malformed_reply_is_a_protocol_error(prompted_settings: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "ask_keigan_protocol_repair_attempts", 0)
+    model = ScriptedAgentModel(replies=[reply("not json")])
+    result = (await run_turn(gateway_with(model)))[-1]
+    assert isinstance(result, AgentTurnResult) and result.finish == "protocol_error" and len(model.seen_messages) == 1
+
+
+async def test_prompted_mode_leaves_the_values_of_arguments_to_the_tool_registry_like_native_mode(prompted_settings: Any) -> None:
+    payload = {"kind": "tool_requests", "requests": [{"tool": "get_evidence", "arguments": {"evidence_code": 99999}}]}
+    result = (await run_turn(gateway_with(ScriptedAgentModel(replies=[reply(payload)]))))[-1]
+    assert isinstance(result, AgentTurnResult) and result.tool_requests[0].arguments == {"evidence_code": 99999}
+
+
+async def test_a_failing_prompted_call_is_retried_and_classified_like_a_native_one(prompted_settings: Any) -> None:
+    model = ScriptedAgentModel(replies=[[_UpstreamError("Bad gateway", 502)], reply({"kind": "answer", "text": "Recovered."})])
+    result = (await run_turn(gateway_with(model)))[-1]
+    assert isinstance(result, AgentTurnResult) and result.text == "Recovered."
+    with pytest.raises(LlmUnavailableException):
+        await run_turn(gateway_with(ScriptedAgentModel(replies=[[_UpstreamError("Bad gateway", 502)]] * 3)))
+
+
+async def test_prompted_mode_is_never_used_when_the_model_is_native(agent_settings: Any) -> None:
+    model = ScriptedAgentModel(replies=[[text_chunk("ok", usage_metadata=usage(1, 1))]])
+    result = (await run_turn(gateway_with(model)))[-1]
+    assert isinstance(result, AgentTurnResult) and result.tool_calling_mode == ToolCallingMode.NATIVE and "exactly one JSON object" not in model.seen_messages[0][0].content
