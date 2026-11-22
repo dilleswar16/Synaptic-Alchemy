@@ -122,6 +122,26 @@ def test_prompt_text_logging_is_only_allowed_on_a_developer_machine() -> None:
             build_settings(environment=environment_name, log_prompts_for_debugging=True, **overrides)
 
 
+# ── The honest-outcomes thresholds (spec 27, 4.6) ────────────────────────────────────────────────
+
+
+def test_the_state_thresholds_and_the_checks_per_service_have_documented_defaults() -> None:
+    settings = build_settings()
+    assert (settings.investigation_supported_minimum_confidence, settings.investigation_ruled_out_maximum_confidence, settings.investigation_max_checks_per_service) == (0.5, 0.2, 7)
+
+
+@pytest.mark.parametrize(("supported_minimum", "ruled_out_maximum"), [(0.3, 0.3), (0.2, 0.5)])
+def test_a_ruled_out_ceiling_at_or_above_the_supported_floor_is_refused(supported_minimum: float, ruled_out_maximum: float) -> None:
+    with pytest.raises(ValidationError, match="INVESTIGATION_RULED_OUT_MAXIMUM_CONFIDENCE.*INVESTIGATION_SUPPORTED_MINIMUM_CONFIDENCE"):
+        build_settings(investigation_supported_minimum_confidence=supported_minimum, investigation_ruled_out_maximum_confidence=ruled_out_maximum)
+
+
+@pytest.mark.parametrize("field_name, value", [("investigation_supported_minimum_confidence", 1.1), ("investigation_ruled_out_maximum_confidence", -0.1), ("investigation_max_checks_per_service", 0), ("investigation_max_checks_per_service", 31)])
+def test_the_honest_outcomes_settings_refuse_values_out_of_range(field_name: str, value: float) -> None:
+    with pytest.raises(ValidationError):
+        build_settings(**{field_name: value})
+
+
 # ── The settings shown to administrators never carry a credential ────────────────────────────────
 
 

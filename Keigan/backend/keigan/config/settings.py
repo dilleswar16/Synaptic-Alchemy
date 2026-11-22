@@ -209,6 +209,9 @@ class Settings(BaseSettings):
     investigation_max_window_minutes: int = 240
     investigation_max_concurrent: int = Field(default=3, ge=1)  # across all worker pods; more investigations wait in the queue
     investigation_max_services: int = 6
+    investigation_supported_minimum_confidence: float = Field(default=0.5, ge=0.0, le=1.0)  # lowest confidence a supported hypothesis may have (the prompt's "strongly suggests" band)
+    investigation_ruled_out_maximum_confidence: float = Field(default=0.2, ge=0.0, le=1.0)  # highest confidence a ruled-out hypothesis may have (the "unlikely" band)
+    investigation_max_checks_per_service: int = Field(default=7, ge=1, le=30)  # evidence checks one service gets in an investigation; a cut is reported as a gap
     investigation_evidence_token_budget: int = 8_000
     investigation_knowledge_token_budget: int = 6_000
     auto_send_preliminary_report: bool = True
@@ -326,6 +329,11 @@ class Settings(BaseSettings):
             if self.llm_provider == LlmProviderName.MOCK:
                 raise ValueError("LLM_PROVIDER=mock is not allowed when ENVIRONMENT=prod.")
         self._validate_authentication_and_secrets()
+        if self.investigation_ruled_out_maximum_confidence >= self.investigation_supported_minimum_confidence:
+            raise ValueError(
+                f"INVESTIGATION_RULED_OUT_MAXIMUM_CONFIDENCE ({self.investigation_ruled_out_maximum_confidence}) must be below INVESTIGATION_SUPPORTED_MINIMUM_CONFIDENCE "
+                f"({self.investigation_supported_minimum_confidence}): a hypothesis cannot be both supported and ruled out."
+            )
         if self.ask_keigan_tool_output_preview_characters > self.ask_keigan_tool_output_stored_characters:
             raise ValueError("ASK_KEIGAN_TOOL_OUTPUT_PREVIEW_CHARACTERS must not be larger than ASK_KEIGAN_TOOL_OUTPUT_STORED_CHARACTERS.")
         if self.ask_keigan_tool_output_model_characters > self.ask_keigan_tool_output_stored_characters:
