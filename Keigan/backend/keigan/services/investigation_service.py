@@ -289,7 +289,7 @@ class InvestigationService:
         stored_gaps = (await self.session.scalars(select(InvestigationCoverageGap).where(InvestigationCoverageGap.investigation_id == investigation_id).order_by(InvestigationCoverageGap.display_order))).all()
         gaps = [
             CoverageGapDto(
-                coverage_gap_id=gap.coverage_gap_id, gap_kind=gap.gap_kind, reason_code=gap.reason_code, service_id=gap.service_id, service_name=gap.service_name,
+                coverage_gap_id=gap.coverage_gap_id, gap_kind=gap.gap_kind, reason_code=gap.gap_reason_code, service_id=gap.service_id, service_name=gap.service_name,
                 source_kind=gap.source_kind, parameters=gap.parameters_json or {},
             )
             for gap in stored_gaps

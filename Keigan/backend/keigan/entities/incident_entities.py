@@ -237,14 +237,14 @@ class InvestigationCoverageGap(EntityBase):
     __tablename__ = "investigation_coverage_gap"
     __table_args__ = (
         values_check("gap_kind", CoverageGapKind),
-        values_check("reason_code", CoverageGapReason),
+        values_check("gap_reason_code", CoverageGapReason),
     )
 
     coverage_gap_id: Mapped[str] = identifier_column()
     investigation_id: Mapped[str] = mapped_column(ForeignKey("investigation.investigation_id", ondelete="CASCADE"), index=True)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     gap_kind: Mapped[str] = mapped_column(String(40))
-    reason_code: Mapped[str | None] = mapped_column(String(40))
+    gap_reason_code: Mapped[str | None] = mapped_column(String(40))
     # Recorded facts, not links: the gap outlives a service that is deleted later.
     service_id: Mapped[str | None] = mapped_column(String(36))
     service_name: Mapped[str | None] = mapped_column(String(200))

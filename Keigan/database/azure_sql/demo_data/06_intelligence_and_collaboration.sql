@@ -3809,7 +3809,7 @@ Keigan で開く: http://localhost:5173/incidents/00000000-0000-4000-8000-000000
 <p style="margin:6px 0;">Employee Benefits Portal (SaaS)で障害を確認しています。影響を受けているサービス: benefits-portal。</p>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>影響: 福利厚生ポータルが遅い、または一時的に利用できません。</li>
-<li>現状: 調査中。暫定の原因分析では、SaaSベンダーのAPAC地域でパフォーマンス低下が発生しており、当社の監視でも503エラーを確認しています。（確度 約90%）</li>
+<li>現状: 調査中。原因はまだ確認できていません。チームが確認を進めています。</li>
 <li>次回報告: 時刻は改めてお知らせします</li>
 </ul>
 <p style="margin:6px 0;">詳細が分かり次第、改めてご連絡します。</p></td></tr>
@@ -3832,7 +3832,7 @@ Employee Benefits Portal (SaaS) のインシデントに関する更新です。
 Employee Benefits Portal (SaaS)で障害を確認しています。影響を受けているサービス: benefits-portal。
 
 - 影響: 福利厚生ポータルが遅い、または一時的に利用できません。
-- 現状: 調査中。暫定の原因分析では、SaaSベンダーのAPAC地域でパフォーマンス低下が発生しており、当社の監視でも503エラーを確認しています。（確度 約90%）
+- 現状: 調査中。原因はまだ確認できていません。チームが確認を進めています。
 - 次回報告: 時刻は改めてお知らせします
 
 詳細が分かり次第、改めてご連絡します。
@@ -3870,7 +3870,7 @@ Keigan で開く: http://localhost:5173/incidents/00000000-0000-4000-8000-000000
 <tr><td style="padding:12px 24px;font-size:14px;line-height:1.6;color:#1d2733;"><p style="margin:6px 0;">Employee Benefits Portal (SaaS)で障害が発生しています。</p>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>影響: 福利厚生ポータルが遅い、または一時的に利用できません。</li>
-<li>想定される原因: SaaSベンダーのAPAC地域でパフォーマンス低下が発生しており、当社の監視でも503エラーを確認しています。</li>
+<li>想定される原因: 原因はまだ確認できていません。チームが確認を進めています。</li>
 <li>対応状況: 復旧作業を進めています。</li>
 <li>次回報告: 時刻は改めてお知らせします</li>
 </ul></td></tr>
@@ -3891,7 +3891,7 @@ Employee Benefits Portal (SaaS) のインシデントに関する更新です。
 Employee Benefits Portal (SaaS)で障害が発生しています。
 
 - 影響: 福利厚生ポータルが遅い、または一時的に利用できません。
-- 想定される原因: SaaSベンダーのAPAC地域でパフォーマンス低下が発生しており、当社の監視でも503エラーを確認しています。
+- 想定される原因: 原因はまだ確認できていません。チームが確認を進めています。
 - 対応状況: 復旧作業を進めています。
 - 次回報告: 時刻は改めてお知らせします
 Keigan で開く: http://localhost:5173/incidents/00000000-0000-4000-8000-000000000303
@@ -3929,7 +3929,7 @@ Keigan で開く: http://localhost:5173/incidents/00000000-0000-4000-8000-000000
 <p style="margin:6px 0;">Employee Benefits Portal (SaaS)で障害を確認しています。影響を受けているサービス: benefits-portal。</p>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>影響: 福利厚生ポータルが遅い、または一時的に利用できません。</li>
-<li>現状: 調査中。暫定の原因分析では、SaaSベンダーのAPAC地域でパフォーマンス低下が発生しており、当社の監視でも503エラーを確認しています。（確度 約90%）</li>
+<li>現状: 調査中。原因はまだ確認できていません。チームが確認を進めています。</li>
 <li>次回報告: 時刻は改めてお知らせします</li>
 </ul>
 <p style="margin:6px 0;">詳細が分かり次第、改めてご連絡します。</p></td></tr>
@@ -3952,7 +3952,7 @@ Employee Benefits Portal (SaaS) のインシデントに関する更新です。
 Employee Benefits Portal (SaaS)で障害を確認しています。影響を受けているサービス: benefits-portal。
 
 - 影響: 福利厚生ポータルが遅い、または一時的に利用できません。
-- 現状: 調査中。暫定の原因分析では、SaaSベンダーのAPAC地域でパフォーマンス低下が発生しており、当社の監視でも503エラーを確認しています。（確度 約90%）
+- 現状: 調査中。原因はまだ確認できていません。チームが確認を進めています。
 - 次回報告: 時刻は改めてお知らせします
 
 詳細が分かり次第、改めてご連絡します。
@@ -5625,7 +5625,9 @@ INSERT INTO #demo_rows ([message_id], [conversation_id], [author_role], [author_
     (N'00000000-0000-4000-8000-000000000435', N'00000000-0000-4000-8000-000000000431', N'assistant', N'Keigan', NULL, N'Claim submissions in Claims Processing (JP) are failing because a recent configuration change overloaded the claims database connections. Customers see long waits and errors when submitting claims. The change can be reverted and the service restarted; recovery is expected within minutes of doing so.', N'{"adaptiveCard": {"type": "AdaptiveCard", "$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "version": "1.4", "body": [{"type": "TextBlock", "text": "暫定レポート", "weight": "Bolder", "size": "Medium", "color": "Accent"}, {"type": "TextBlock", "text": "Claims Processing (JP): claim submissions failing with timeouts", "wrap": true, "weight": "Bolder"}, {"type": "FactSet", "facts": [{"title": "Incident", "value": "INC004090000"}, {"title": "Priority", "value": "P2"}]}, {"type": "TextBlock", "text": "Claim submissions in Claims Processing (JP) are failing because a recent configuration change overloaded the claims database connections. Customers see long waits and errors when submitting claims. The change can be reverted and the service restarted; recovery is expected within minutes of doing so.", "wrap": true, "spacing": "Medium"}], "actions": [{"type": "Action.OpenUrl", "title": "Keigan で開く", "url": "http://localhost:5173/incidents/00000000-0000-4000-8000-00000000031c"}]}}', NULL, 0, 0, '2026-11-14 03:30:20.000000'),
     (N'00000000-0000-4000-8000-000000000437', N'00000000-0000-4000-8000-000000000431', N'teams_participant', N'Aiko AppAdmin', N'aiko.appadmin@keigan.local', N'調査結果を確認しました。接続プールの枯渇が原因のようです。デプロイ直後から増えていますね。', NULL, NULL, 0, 0, '2026-11-14 03:32:00.000000'),
     (N'00000000-0000-4000-8000-000000000438', N'00000000-0000-4000-8000-000000000431', N'teams_participant', N'Rui Reader', N'rui.reader@keigan.local', N'Keigan, what changed in the last hour?', NULL, NULL, 0, 0, '2026-11-14 03:33:00.000000'),
-    (N'00000000-0000-4000-8000-000000000439', N'00000000-0000-4000-8000-000000000431', N'assistant', N'Keigan', NULL, N'Here is what the investigation currently says:
+    (N'00000000-0000-4000-8000-000000000439', N'00000000-0000-4000-8000-000000000431', N'assistant', N'Keigan', NULL, N'Keigan identified the most likely cause.
+
+Here is what the investigation currently says:
 
 Claim submissions in Claims Processing (JP) are failing because a recent configuration change overloaded the claims database connections. Customers see long waits and errors when submitting claims. The change can be reverted and the service restarted; recovery is expected within minutes of doing so.
 

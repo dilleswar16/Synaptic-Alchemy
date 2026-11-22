@@ -75,7 +75,7 @@
         "postmortem_report": 7,
         "alert_group_affected_service": 14
       },
-      "sha256": "13bfa6b9c6d9f2f272e26c2e84cec2de2e60316117bde1f80162654380727f19"
+      "sha256": "732ccb6069d6dcb974af6454ff36e68f0335718a677b2917de6e5dcc6eabfae9"
     },
     "06_intelligence_and_collaboration.sql": {
       "committed": true,
@@ -88,7 +88,7 @@
         "conversation_message": 9,
         "predictive_signal": 8
       },
-      "sha256": "2ad7153f0a89f2313672527a256ed02914a71107fd589a784a27de4e178b3d67"
+      "sha256": "02e83ba2be032cd2e26969bb8f299efab6301d8d4d67313886ab17ff7205d599"
     },
     "99_remove_demo_data.sql": {
       "committed": true,

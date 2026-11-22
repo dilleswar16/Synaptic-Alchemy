@@ -541,7 +541,7 @@ class InvestigationGraphRunner:
             best_hypothesis = max(hypotheses, key=lambda hypothesis: hypothesis["confidence_score"])
             synthesis = RcaSynthesisResult(
                 leading_perspective=best_hypothesis["analysis_perspective"], leading_perspective_reason="Synthesis was unavailable; the highest-confidence hypothesis is shown.",
-                investigation_outcome="inconclusive", outcome_reason_markdown="The synthesis was unavailable, so the outcome follows the highest-confidence hypothesis.", overall_confidence_score=best_hypothesis["confidence_score"],
+                investigation_outcome=InvestigationOutcome.INCONCLUSIVE, outcome_reason_markdown="The synthesis was unavailable, so the outcome follows the highest-confidence hypothesis.", overall_confidence_score=best_hypothesis["confidence_score"],
                 executive_summary=best_hypothesis["hypothesis_title"], what_went_wrong_markdown=best_hypothesis["hypothesis_statement_markdown"], why_it_happened_markdown=best_hypothesis["reasoning_markdown"],
                 how_to_fix_markdown=best_hypothesis["proposed_fix"]["summary"], open_questions=[],
             )

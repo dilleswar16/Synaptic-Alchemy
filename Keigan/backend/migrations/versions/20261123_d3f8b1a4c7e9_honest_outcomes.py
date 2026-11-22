@@ -154,7 +154,7 @@ def upgrade() -> None:
         sa.Column("investigation_id", sa.String(36), nullable=False),
         sa.Column("display_order", sa.Integer(), nullable=False),
         sa.Column("gap_kind", sa.String(40), nullable=False),
-        sa.Column("reason_code", sa.String(40), nullable=True),
+        sa.Column("gap_reason_code", sa.String(40), nullable=True),
         sa.Column("service_id", sa.String(36), nullable=True),
         sa.Column("service_name", sa.String(200), nullable=True),
         sa.Column("source_kind", sa.String(40), nullable=True),
@@ -163,7 +163,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("coverage_gap_id", name=op.f("pk_investigation_coverage_gap")),
         sa.ForeignKeyConstraint(["investigation_id"], [f"{SCHEMA_PREFIX}investigation.investigation_id"], name=op.f("fk_investigation_coverage_gap_investigation_id_investigation"), ondelete="CASCADE"),
         sa.CheckConstraint(_values_condition("gap_kind", CoverageGapKind), name=op.f(_check_name("investigation_coverage_gap", "gap_kind"))),
-        sa.CheckConstraint(_values_condition("reason_code", CoverageGapReason), name=op.f(_check_name("investigation_coverage_gap", "reason_code"))),
+        sa.CheckConstraint(_values_condition("gap_reason_code", CoverageGapReason), name=op.f(_check_name("investigation_coverage_gap", "gap_reason_code"))),
         schema=SCHEMA,
     )
     op.create_index(op.f("ix_investigation_coverage_gap_investigation_id"), "investigation_coverage_gap", ["investigation_id"], unique=False, schema=SCHEMA)

@@ -86,7 +86,7 @@ CREATE TABLE keigan.investigation_coverage_gap (
     investigation_id NVARCHAR(36) NOT NULL, 
     display_order INTEGER NOT NULL, 
     gap_kind NVARCHAR(40) NOT NULL, 
-    reason_code NVARCHAR(40) NULL, 
+    gap_reason_code NVARCHAR(40) NULL, 
     service_id NVARCHAR(36) NULL, 
     service_name NVARCHAR(200) NULL, 
     source_kind NVARCHAR(40) NULL, 
@@ -95,7 +95,7 @@ CREATE TABLE keigan.investigation_coverage_gap (
     CONSTRAINT pk_investigation_coverage_gap PRIMARY KEY (coverage_gap_id), 
     CONSTRAINT fk_investigation_coverage_gap_investigation_id_investigation FOREIGN KEY(investigation_id) REFERENCES keigan.investigation (investigation_id) ON DELETE CASCADE, 
     CONSTRAINT ck_investigation_coverage_gap_gap_kind_values CHECK (gap_kind IN ('source_not_readable', 'changes_not_readable', 'service_without_telemetry', 'services_beyond_limit', 'checks_beyond_limit', 'planned_query_rejected', 'planned_query_failed', 'results_left_out', 'perspective_not_analysed')), 
-    CONSTRAINT ck_investigation_coverage_gap_reason_code_values CHECK (reason_code IN ('access_refused', 'throttled', 'source_not_found', 'source_error', 'timed_out', 'not_approved', 'query_rejected', 'reader_not_available', 'ai_unavailable', 'ai_output_invalid', 'unknown'))
+    CONSTRAINT ck_investigation_coverage_gap_gap_reason_code_values CHECK (gap_reason_code IN ('access_refused', 'throttled', 'source_not_found', 'source_error', 'timed_out', 'not_approved', 'query_rejected', 'reader_not_available', 'ai_unavailable', 'ai_output_invalid', 'unknown'))
 );
 
 GO

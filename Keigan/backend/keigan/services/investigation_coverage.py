@@ -89,7 +89,7 @@ class CoverageGapCollector:
         first_new = self._persisted_count
         rows = [
             InvestigationCoverageGap(
-                investigation_id=investigation_id, display_order=order, gap_kind=entry.kind, reason_code=entry.reason, service_id=entry.service_id,
+                investigation_id=investigation_id, display_order=order, gap_kind=entry.kind, gap_reason_code=entry.reason, service_id=entry.service_id,
                 service_name=entry.service_name, source_kind=entry.source_kind, parameters_json=dict(entry.parameters) or None,
             )
             for order, entry in enumerate(self._entries) if order >= first_new

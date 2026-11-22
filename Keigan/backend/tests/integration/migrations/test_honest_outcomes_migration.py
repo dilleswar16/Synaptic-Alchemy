@@ -38,7 +38,7 @@ def test_the_columns_and_the_gap_table_are_added_and_earlier_rows_keep_working(d
     with sqlite3.connect(database_before_the_revision) as connection:
         for table, columns in NEW_COLUMNS.items():
             assert columns <= set(column_names(connection, table))
-        assert {"coverage_gap_id", "investigation_id", "gap_kind", "reason_code", "service_name", "source_kind", "parameters_json"} <= set(column_names(connection, "investigation_coverage_gap"))
+        assert {"coverage_gap_id", "investigation_id", "gap_kind", "gap_reason_code", "service_name", "source_kind", "parameters_json"} <= set(column_names(connection, "investigation_coverage_gap"))
 
 
 def test_evidence_written_before_the_revision_gets_a_check_outcome_and_a_baseline_comparison_from_its_text(database_before_the_revision: Path) -> None:

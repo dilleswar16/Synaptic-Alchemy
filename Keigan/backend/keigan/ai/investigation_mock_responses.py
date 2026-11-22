@@ -22,7 +22,7 @@ from keigan.ai.investigation_ai_schemas import (
 from keigan.ai.llm_gateway import PromptSection, register_mock_response
 from keigan.ai.prompt_safety import assess_prompt_injection
 from keigan.config.settings import get_settings
-from keigan.entities.status_values import Priority, RiskLevel
+from keigan.entities.status_values import InvestigationOutcome, Priority, RiskLevel
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 
 
@@ -577,7 +577,7 @@ def build_synthesis(output_schema: type[BaseModel], prompt_sections: list[Prompt
     why_first_sentence = _fill(script["why"], context).split(". ")[0].rstrip(".") + "."
     result = RcaSynthesisResult(
         leading_perspective=None if is_generic else script["lead"], leading_perspective_reason=f"Best supported by direct evidence and timing: {script['title'][script['lead']]}.",
-        investigation_outcome="cause_not_visible" if is_generic else "cause_identified",
+        investigation_outcome=InvestigationOutcome.CAUSE_NOT_VISIBLE if is_generic else InvestigationOutcome.CAUSE_IDENTIFIED,
         outcome_reason_markdown="Nothing Keigan could read changed against the hour before, so the cause is not visible in this data." if is_generic else why_first_sentence,
         overall_confidence_score=confidence,
         executive_summary=_fill(script["executive"], context), what_went_wrong_markdown=_fill(script["what_went_wrong"], context), why_it_happened_markdown=_fill(script["why"], context),
