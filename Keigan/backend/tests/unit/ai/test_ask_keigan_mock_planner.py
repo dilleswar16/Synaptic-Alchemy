@@ -351,3 +351,63 @@ async def test_through_the_mock_gateway_the_example_question_takes_two_tool_turn
     assert [result.finish for result in results] == ["tool_requests", "tool_requests", "answer"]
     assert [result.tool_requests[0].tool_name for result in results[:2]] == ["get_evidence", "get_investigation_timeline"]
     assert "[T1]" in results[2].text and "[T2]" in results[2].text
+
+
+# ── The global tools (tools 9 to 20): each one is planned from a plain question, in English and where the first eight are ──────────
+_LOOKBACK = {"type": "integer", "minimum": 1, "maximum": 720}
+
+
+_CODE_ENUM = {"type": "string", "enum": ["CLMJP", "PAYAU"]}
+GET_INVESTIGATION = tool("get_investigation", {"investigation_id": {"type": "string"}}, ("investigation_id",))
+LIST_INVESTIGATIONS = tool("list_investigations", {"application_codes": {"type": "array"}, "statuses": {"type": "array"}, "incident_id": {"type": "string"}, "lookback_hours": _LOOKBACK})
+LIST_INCIDENTS = tool("list_incidents", {"statuses": {"type": "array"}, "priorities": {"type": "array"}, "sources": {"type": "array"}, "lookback_hours": _LOOKBACK, "text": {"type": "string"}})
+GET_INCIDENT = tool("get_incident", {"incident_reference": {"type": "string"}}, ("incident_reference",))
+LIST_ALERT_GROUPS = tool("list_alert_groups", {"statuses": {"type": "array"}, "lookback_hours": _LOOKBACK, "minimum_priority_score": {"type": "number"}})
+GET_ALERT_GROUP = tool("get_alert_group", {"alert_group_id": {"type": "string"}}, ("alert_group_id",))
+GET_ALERT_NOISE_SUMMARY = tool("get_alert_noise_summary", {"application_codes": {"type": "array"}, "lookback_hours": _LOOKBACK})
+GET_SLO_HISTORY = tool("get_slo_history", {"slo_id": {"type": "string"}, "lookback_hours": _LOOKBACK}, ("slo_id",))
+LIST_PREDICTIVE_SIGNALS = tool("list_predictive_signals", {"application_codes": {"type": "array"}, "severities": {"type": "array"}, "statuses": {"type": "array"}})
+GET_HEALTH_SCORE = tool("get_health_score", {"application_code": _CODE_ENUM, "days": {"type": "integer", "minimum": 7, "maximum": 90}}, ("application_code",))
+LIST_TEAM_MEMBERS = tool("list_team_members", {"application_code": _CODE_ENUM, "roles": {"type": "array"}}, ("application_code",))
+GET_RELIABILITY_METRICS = tool("get_reliability_metrics", {"application_codes": {"type": "array"}, "lookback_hours": _LOOKBACK})
+GLOBAL_TOOLS = (*INVESTIGATION_TOOLS, GET_INVESTIGATION, LIST_INVESTIGATIONS, LIST_INCIDENTS, GET_INCIDENT, LIST_ALERT_GROUPS, GET_ALERT_GROUP, GET_ALERT_NOISE_SUMMARY, GET_SLO_HISTORY,
+                LIST_PREDICTIVE_SIGNALS, GET_HEALTH_SCORE, LIST_TEAM_MEMBERS, GET_RELIABILITY_METRICS)
+SAMPLE_ID = "6f1e2c3a-9b1d-4c2e-8f10-3a5b7c9d1e2f"
+
+
+@pytest.mark.parametrize(("question", "expected"), [
+    (f"Show investigation {SAMPLE_ID}", ("get_investigation", {"investigation_id": SAMPLE_ID})),
+    ("List the investigations of the last 3 days", ("list_investigations", {"lookback_hours": 72})),
+    ("Which incidents are open?", ("list_incidents", {})),
+    ("Open INC0012345 and tell me its priority", ("get_incident", {"incident_reference": "INC0012345"})),
+    ("Which alert groups fired in the last 2 hours?", ("list_alert_groups", {"lookback_hours": 2})),
+    (f"Open alert group {SAMPLE_ID}", ("get_alert_group", {"alert_group_id": SAMPLE_ID})),
+    ("How much alert noise did we get in the last 7 days?", ("get_alert_noise_summary", {"lookback_hours": 168})),
+    (f"Show the history of SLO {SAMPLE_ID}", ("get_slo_history", {"slo_id": SAMPLE_ID})),
+    ("What predictive signals are open?", ("list_predictive_signals", {})),
+    ("What is the health score of PAYAU?", ("get_health_score", {"application_code": "PAYAU"})),
+    ("Who is on the team for CLMJP?", ("list_team_members", {"application_code": "CLMJP"})),
+    ("What are the reliability metrics for the last 30 days?", ("get_reliability_metrics", {"lookback_hours": 720})),
+    ("インシデント一覧を見せて", ("list_incidents", {})),
+    ("CLMJP の健全性スコアは？", ("get_health_score", {"application_code": "CLMJP"})),
+    ("信頼性の指標を教えて", ("get_reliability_metrics", {})),
+])
+def test_each_global_tool_is_planned_from_a_plain_question(question: str, expected: tuple[str, dict[str, object]]) -> None:
+    assert requested(plan(question_entry(question), tools=GLOBAL_TOOLS))[0] == expected
+
+
+def test_a_history_question_plans_the_history_before_the_status() -> None:
+    result = plan(question_entry(f"Show the history of SLO {SAMPLE_ID}"), tools=GLOBAL_TOOLS)
+    assert [name for name, _ in requested(result)] == ["get_slo_history"]
+
+
+def test_the_worked_example_of_the_spec_plans_the_slo_status_and_the_recent_changes_in_that_order() -> None:
+    question = "Is claims-api burning its error budget, and did anything change before it started?"
+    result = plan(question_entry(question), tools=GLOBAL_TOOLS)
+    assert requested(result) == [("get_slo_status", {})]
+    second = plan(question_entry(question), *turn(AgentToolRequest("k1", "get_slo_status", {}), spotlighted(json.dumps({"summary": "6 SLOs"}))), tools=GLOBAL_TOOLS)
+    assert requested(second) == [("list_recent_changes", {})]
+
+
+def test_a_global_tool_that_needs_an_identifier_is_not_planned_without_one() -> None:
+    assert requested(plan(question_entry("Show me the investigation"), tools=GLOBAL_TOOLS)) == []

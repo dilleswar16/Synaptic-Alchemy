@@ -221,7 +221,10 @@
     "record_kinds": {
       "investigation": "調査",
       "evidence_item": "証拠",
-      "service": "サービス"
+      "service": "サービス",
+      "incident": "インシデント",
+      "alert_group": "アラートグループ",
+      "slo": "SLO"
     },
     "search_knowledge": {"label": "ナレッジベースを検索しました"},
     "query_logs": {"label": "ログを照会しました"},
@@ -230,6 +233,18 @@
     "list_recent_changes": {"label": "最近の変更を確認しました"},
     "find_runbooks": {"label": "ランブックを探しました"},
     "get_topology": {"label": "アプリケーションマップを読み取りました"},
-    "get_slo_status": {"label": "SLO の状況を確認しました"}
+    "get_slo_status": {"label": "SLO の状況を確認しました"},
+    "get_investigation": {"label": "調査を開きました"},
+    "list_investigations": {"label": "調査を一覧にしました"},
+    "list_incidents": {"label": "インシデントを一覧にしました"},
+    "get_incident": {"label": "インシデントを開きました"},
+    "list_alert_groups": {"label": "アラートグループを一覧にしました"},
+    "get_alert_group": {"label": "アラートグループを開きました"},
+    "get_alert_noise_summary": {"label": "アラートのノイズを確認しました"},
+    "get_slo_history": {"label": "SLO の履歴を読み取りました"},
+    "list_predictive_signals": {"label": "予兆シグナルを一覧にしました"},
+    "get_health_score": {"label": "健全性スコアを確認しました"},
+    "list_team_members": {"label": "チームを一覧にしました"},
+    "get_reliability_metrics": {"label": "信頼性の指標を読み取りました"}
   }
 }

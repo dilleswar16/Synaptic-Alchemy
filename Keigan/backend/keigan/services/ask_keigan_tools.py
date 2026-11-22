@@ -9,7 +9,6 @@ reads and shapes its result. Importing this module registers the tools.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -22,8 +21,8 @@ from keigan.ai.ask_keigan_tool_models import (
 )
 from keigan.ai.author_labels import mask_author_name, mask_known_names
 from keigan.ai.tool_registry import (
-    ApplicationReference, AskKeiganScope, RecordKindName, RecordReference, SourceName, ToolAccess, ToolAuthorization, ToolContext, ToolDefinition, ToolExecutor, ToolMasking,
-    ToolPresentation, ToolProgressStage, ToolRecordNotFoundError, ToolSourceUnavailableError, tool_registry,
+    RecordKindName, RecordReference, SourceName, ToolAuthorization, ToolContext, ToolPresentation, ToolProgressStage, ToolRecordNotFoundError, ToolSourceUnavailableError,
+    tool_registry,
 )
 from keigan.config.settings import get_settings
 from keigan.dtos.investigation_dtos import EvidenceDto
@@ -32,6 +31,10 @@ from keigan.entities.application_entities import MonitoredService
 from keigan.entities.status_values import SloHealthStatus
 from keigan.exceptions.keigan_exceptions import ForbiddenException, IntegrationException, NotFoundException, ReaderNotAvailableException
 from keigan.services.chat_data_query_service import ChatDataQueryService, QueryNotAnswerableError
+from keigan.services import ask_keigan_alert_tools, ask_keigan_investigation_tools, ask_keigan_signal_tools, ask_keigan_team_metric_tools  # noqa: F401 — importing a tool module registers its tools
+from keigan.services.ask_keigan_tool_support import (
+    MINUTES_PER_HOUR, application_id_of, checked_applications, describe_window, limited, plural, read_tool, readable_application, utc_minute,
+)
 from keigan.services.evidence_service import EvidenceService
 from keigan.services.investigation_service import InvestigationService
 from keigan.services.knowledge_service import KnowledgeService
@@ -40,43 +43,6 @@ from keigan.services.topology_service import TopologyService
 from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import ensure_utc, utc_now
 
-_BOTH_SCOPES = frozenset({AskKeiganScope.GLOBAL, AskKeiganScope.INVESTIGATION})
-_MINUTES_PER_HOUR = 60
-
-
-def _plural(count: int, noun: str) -> str:
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
-
-
-def _utc_minute(timestamp: datetime) -> str:
-    return f"{ensure_utc(timestamp):%Y-%m-%d %H:%M}"
-
-
-def _describe_window(minutes: int) -> str:
-    hours, remaining_minutes = divmod(minutes, _MINUTES_PER_HOUR)
-    if hours == 0:
-        return _plural(remaining_minutes, "minute")
-    if remaining_minutes == 0:
-        return _plural(hours, "hour")
-    return f"{_plural(hours, 'hour')} {_plural(remaining_minutes, 'minute')}"
-
-
-def _application_id_of(context: ToolContext) -> str:
-    """The application the registry resolved and authorized for this call (every tool that uses it declares an ``application_argument``)."""
-    if context.resolved_application_id is None:
-        raise RuntimeError("The tool registry did not resolve an application for a tool that needs one.")
-    return context.resolved_application_id
-
-
-def _limited[Item](items: Sequence[Item]) -> tuple[list[Item], bool]:
-    """The first items up to the configured list limit, and whether any were left out (the caller keeps the full count as ``total_count``)."""
-    item_limit = get_settings().ask_keigan_tool_list_item_limit
-    return list(items[:item_limit]), len(items) > item_limit
-
-
-def _readable_application(context: ToolContext, application_id: str) -> ApplicationReference:
-    """The application as the scope lists it (its code and name), for an id the tool already knows the person may read."""
-    return next(application for application in context.profile.readable_applications if application.id == application_id)
 
 
 # ── get_evidence ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -103,7 +69,7 @@ class GetEvidenceOutput(BaseModel):
 
 def _evidence_output(evidence: EvidenceDto, application_id: str) -> GetEvidenceOutput:
     return GetEvidenceOutput(
-        summary=f"{evidence.evidence_code}: {evidence.evidence_title} ({evidence.signal_strength} signal, {_plural(evidence.matched_record_count, 'matching record')})",
+        summary=f"{evidence.evidence_code}: {evidence.evidence_title} ({evidence.signal_strength} signal, {plural(evidence.matched_record_count, 'matching record')})",
         evidence_code=evidence.evidence_code, evidence_title=evidence.evidence_title, evidence_category=evidence.evidence_category, evidence_source_kind=evidence.evidence_source_kind,
         service_name=evidence.service_name, evidence_summary=evidence.evidence_summary, query_language=evidence.query_language, query_text=evidence.query_text,
         query_time_range_start=evidence.query_time_range_start, query_time_range_end=evidence.query_time_range_end, matched_record_count=evidence.matched_record_count,
@@ -149,8 +115,8 @@ def _timeline_summary(events: list[datetime]) -> str:
     if not events:
         return "No timeline events recorded"
     if len(events) == 1:
-        return f"1 timeline event at {_utc_minute(events[0])} UTC"
-    return f"{len(events)} timeline events from {_utc_minute(min(events))} to {_utc_minute(max(events))} UTC"
+        return f"1 timeline event at {utc_minute(events[0])} UTC"
+    return f"{len(events)} timeline events from {utc_minute(min(events))} to {utc_minute(max(events))} UTC"
 
 
 async def _get_investigation_timeline(context: ToolContext, arguments: GetInvestigationTimelineInput) -> GetInvestigationTimelineOutput:
@@ -195,7 +161,7 @@ class SearchKnowledgeOutput(BaseModel):
 
 
 async def _search_knowledge(context: ToolContext, arguments: SearchKnowledgeInput) -> SearchKnowledgeOutput:
-    application_id = _application_id_of(context)
+    application_id = application_id_of(context)
     grounding = await KnowledgeService(context.session).build_grounding_context(application_id, arguments.query, token_budget=get_settings().ask_keigan_knowledge_token_budget)
     topology_summary = next((reference.passage_text for reference in grounding.references if reference.source_kind == "topology"), None)
     passages = [
@@ -204,7 +170,7 @@ async def _search_knowledge(context: ToolContext, arguments: SearchKnowledgeInpu
     ]
     documents = {passage.knowledge_document_id: passage.document_title for passage in passages if passage.knowledge_document_id}
     return SearchKnowledgeOutput(
-        summary=f"{_plural(len(passages), 'passage')} from {_plural(len(documents), 'document')}" if passages else "No matching knowledge found",
+        summary=f"{plural(len(passages), 'passage')} from {plural(len(documents), 'document')}" if passages else "No matching knowledge found",
         topology_summary=topology_summary, passages=passages, contains_flagged_content=grounding.contains_flagged_content, item_count=len(passages), total_count=len(passages),
         is_truncated=False,
         records=[RecordReference(kind="knowledge_document", id=document_id, label=title, application_id=application_id) for document_id, title in documents.items()],
@@ -234,7 +200,7 @@ class QueryLogsOutput(BaseModel):
 
 
 async def _query_logs(context: ToolContext, arguments: QueryLogsInput) -> QueryLogsOutput:
-    application_id = _application_id_of(context)
+    application_id = application_id_of(context)
     service = await context.session.scalar(select(MonitoredService).where(MonitoredService.application_id == application_id, MonitoredService.service_name == arguments.service_name))
     if service is None:
         raise ToolRecordNotFoundError(RecordKindName.SERVICE)
@@ -259,7 +225,7 @@ async def _query_logs(context: ToolContext, arguments: QueryLogsInput) -> QueryL
         raise ToolSourceUnavailableError(SourceName.LOG_SOURCE, service.service_name) from unreachable_source
     requests = "failed requests" if arguments.failures_only else "requests"
     return QueryLogsOutput(
-        summary=f"{outcome.total} {requests} on {service.service_name} in the last {_describe_window(lookback_minutes)}", service_name=outcome.service_name,
+        summary=f"{outcome.total} {requests} on {service.service_name} in the last {describe_window(lookback_minutes)}", service_name=outcome.service_name,
         source_kind=outcome.source_kind, query_language=outcome.query_language, query_text=outcome.query_text, time_range_start=outcome.time_range_start,
         time_range_end=outcome.time_range_end, row_count=outcome.row_count, total=outcome.total,
         series=[SeriesPoint(timestamp=label, value=value) for label, value in outcome.series] if arguments.wants_pattern else [],
@@ -314,14 +280,14 @@ async def _change_window(context: ToolContext, lookback_hours: int) -> _ChangeWi
 
 
 def _changes_summary(change_times: list[datetime], window: _ChangeWindow) -> str:
-    period = f"between {_utc_minute(window.start)} and {_utc_minute(window.end)} UTC" if window.follows_investigation else f"in the last {_describe_window(window.lookback_hours * _MINUTES_PER_HOUR)}"
+    period = f"between {utc_minute(window.start)} and {utc_minute(window.end)} UTC" if window.follows_investigation else f"in the last {describe_window(window.lookback_hours * MINUTES_PER_HOUR)}"
     if not change_times:
         return f"No changes found {period}"
-    return f"{_plural(len(change_times), 'change')} {period}; newest {_utc_minute(max(change_times))} UTC"
+    return f"{plural(len(change_times), 'change')} {period}; newest {utc_minute(max(change_times))} UTC"
 
 
 async def _list_recent_changes(context: ToolContext, arguments: ListRecentChangesInput) -> ListRecentChangesOutput:
-    application_id = _application_id_of(context)
+    application_id = application_id_of(context)
     window = await _change_window(context, arguments.lookback_hours)
     services = list((await context.session.scalars(select(MonitoredService).where(MonitoredService.application_id == application_id))).all())
     evidence_service = EvidenceService(context.session)
@@ -335,7 +301,7 @@ async def _list_recent_changes(context: ToolContext, arguments: ListRecentChange
     except (IntegrationException, httpx.HTTPError) as unreachable_source:  # a read that failed is "could not be checked", never "no changes"
         raise ToolSourceUnavailableError(SourceName.ACTIVITY_LOG) from unreachable_source
     newest_first = sorted(change_events, key=lambda change_event: ensure_utc(change_event.occurred_at), reverse=True)
-    shown, is_truncated = _limited(newest_first)
+    shown, is_truncated = limited(newest_first)
     items = [
         ChangeEventItem(
             occurred_at=ensure_utc(change_event.occurred_at), operation_name=change_event.operation_name, change_kind=change_event.change_kind, caller=change_event.caller,
@@ -343,7 +309,7 @@ async def _list_recent_changes(context: ToolContext, arguments: ListRecentChange
         )
         for change_event in shown
     ]
-    application = _readable_application(context, application_id)
+    application = readable_application(context, application_id)
     return ListRecentChangesOutput(
         summary=_changes_summary([ensure_utc(change_event.occurred_at) for change_event in change_events], window), window_start=window.start, window_end=window.end, items=items,
         item_count=len(items), total_count=len(change_events), is_truncated=is_truncated, is_simulated=evidence_service.are_changes_simulated(service_contexts),
@@ -370,9 +336,9 @@ class FindRunbooksOutput(BaseModel):
 
 
 async def _find_runbooks(context: ToolContext, arguments: FindRunbooksInput) -> FindRunbooksOutput:
-    application_id = _application_id_of(context)
+    application_id = application_id_of(context)
     matches = await KnowledgeService(context.session).find_matching_runbooks(application_id, arguments.symptoms, maximum_results=arguments.maximum_results)
-    shown, is_truncated = _limited(matches)
+    shown, is_truncated = limited(matches)
     passage_characters = get_settings().ask_keigan_tool_passage_characters
     passages = [
         RunbookPassage(
@@ -383,7 +349,7 @@ async def _find_runbooks(context: ToolContext, arguments: FindRunbooksInput) -> 
         for match in shown
     ]
     return FindRunbooksOutput(
-        summary=f"{_plural(len(matches), 'runbook')} matched" if matches else "No matching runbooks found", passages=passages, item_count=len(passages), total_count=len(matches),
+        summary=f"{plural(len(matches), 'runbook')} matched" if matches else "No matching runbooks found", passages=passages, item_count=len(passages), total_count=len(matches),
         is_truncated=is_truncated, records=[RecordReference(kind="runbook", id=match.runbook_id, label=match.runbook_title, application_id=application_id) for match in shown],
     )
 
@@ -425,7 +391,7 @@ class GetTopologyOutput(BaseModel):
 
 
 async def _get_topology(context: ToolContext, arguments: GetTopologyInput) -> GetTopologyOutput:
-    application_id = _application_id_of(context)
+    application_id = application_id_of(context)
     current = (await TopologyService(context.session).get_topology(application_id)).current
     if current is None:
         return GetTopologyOutput(
@@ -433,8 +399,8 @@ async def _get_topology(context: ToolContext, arguments: GetTopologyInput) -> Ge
             edges=[], node_count=0, total_node_count=0, edge_count=0, total_edge_count=0, is_truncated=False, records=[],
         )
     labels_by_node_key = {node.node_key: node.label for node in current.nodes}
-    shown_nodes, nodes_truncated = _limited(current.nodes)
-    shown_edges, edges_truncated = _limited(current.edges)
+    shown_nodes, nodes_truncated = limited(current.nodes)
+    shown_edges, edges_truncated = limited(current.edges)
     nodes = [
         TopologyNodeItem(node_key=node.node_key, label=node.label, node_type=node.node_type, technology=node.technology, description=node.description, criticality=node.criticality)
         for node in shown_nodes
@@ -448,7 +414,7 @@ async def _get_topology(context: ToolContext, arguments: GetTopologyInput) -> Ge
     ]
     label = f"Application map version {current.topology_version_number}"
     return GetTopologyOutput(
-        summary=f"{label}: {_plural(len(current.nodes), 'component')}, {_plural(len(current.edges), 'dependency link')}", topology_version_number=current.topology_version_number,
+        summary=f"{label}: {plural(len(current.nodes), 'component')}, {plural(len(current.edges), 'dependency link')}", topology_version_number=current.topology_version_number,
         review_status=current.review_status,
         understanding_summary=truncate_text(current.understanding_summary_markdown, get_settings().ask_keigan_tool_passage_characters) if current.understanding_summary_markdown else None,
         uncertainties=current.uncertainties, nodes=nodes, edges=edges, node_count=len(nodes), total_node_count=len(current.nodes), edge_count=len(edges), total_edge_count=len(current.edges),
@@ -487,33 +453,19 @@ class GetSloStatusOutput(BaseModel):
     records: list[RecordReference]
 
 
-def _applications_to_check(context: ToolContext, application_codes: list[str]) -> list[ApplicationReference]:
-    """The named applications, or every application of the scope when none is named. A code the scope does not list refuses the whole call (never a silent drop)."""
-    readable_applications = list(context.profile.readable_applications)
-    if not application_codes:
-        return readable_applications
-    applications_by_code = {application.code: application for application in readable_applications}
-    if any(code not in applications_by_code for code in application_codes):
-        raise ForbiddenException("You can't read one of those applications, or it does not exist.")
-    return [applications_by_code[code] for code in dict.fromkeys(application_codes)]
-
-
 def _slo_summary(statuses: list[SloHealthStatus]) -> str:
     if not statuses:
         return "No SLOs found"
     counts = Counter(statuses)
-    return f"{_plural(len(statuses), 'SLO')}: " + ", ".join(f"{counts[status]} {word}" for status, word in _SLO_STATUS_WORDS.items() if counts[status])
+    return f"{plural(len(statuses), 'SLO')}: " + ", ".join(f"{counts[status]} {word}" for status, word in _SLO_STATUS_WORDS.items() if counts[status])
 
 
 async def _get_slo_status(context: ToolContext, arguments: GetSloStatusInput) -> GetSloStatusOutput:
-    applications = _applications_to_check(context, arguments.application_codes)
-    for application in applications:
-        await context.ensure_application_reader(application.id)  # the dashboard would quietly leave out an application the person lost, which must not read as "no SLOs"
-        context.read_application_ids.add(application.id)  # every application checked is read, whether or not it has an SLO to show
+    applications = await checked_applications(context, arguments.application_codes)  # the dashboard would quietly leave out an application the person lost, which must not read as "no SLOs"
     summaries: list[SloSummaryResponse] = await SloService(context.session).get_dashboard(context.current_user, [application.id for application in applications]) if applications else []
     wanted = [summary for summary in summaries if not arguments.statuses or summary.status in arguments.statuses]
     worst_first = sorted(wanted, key=lambda summary: _SLO_WORST_FIRST.index(summary.status))
-    shown, is_truncated = _limited(worst_first)
+    shown, is_truncated = limited(worst_first)
     codes_by_application_id = {application.id: application.code for application in applications}
     items = [
         SloStatusItem(
@@ -531,19 +483,7 @@ async def _get_slo_status(context: ToolContext, arguments: GetSloStatusInput) ->
 
 
 # ── Registration ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
-def _read_tool(
-    *, name: str, label: str, description: str, input_model: type[BaseModel], output_model: type[BaseModel], presentation: ToolPresentation, authorization: ToolAuthorization,
-    bindable_arguments: frozenset[str], application_argument: str | None, executor: ToolExecutor,
-) -> ToolDefinition:
-    """A tool of this module: read-only, from Keigan's own services, offered in both scopes, masked like every other output."""
-    return ToolDefinition(
-        name=name, version=1, source="keigan", label=label, label_key=f"chat:tools.{name}.label", description=description, access=ToolAccess.READ, scopes=_BOTH_SCOPES,
-        input_model=input_model, output_model=output_model, presentation=presentation, authorization=authorization, bindable_arguments=bindable_arguments,
-        application_argument=application_argument, output_model_characters=None, list_item_limit=None, masking=ToolMasking.MASK_ALL, executor=executor,
-    )
-
-
-tool_registry.register(_read_tool(
+tool_registry.register(read_tool(
     name="search_knowledge", label="Searched the knowledge base",
     description=(
         "Search one application's knowledge base (runbooks, architecture documents, the application map) for passages about a topic. "
@@ -553,7 +493,7 @@ tool_registry.register(_read_tool(
     input_model=SearchKnowledgeInput, output_model=SearchKnowledgeOutput, presentation=ToolPresentation.PASSAGES, authorization=ToolAuthorization.APPLICATION_READER,
     bindable_arguments=frozenset({"application_code"}), application_argument="application_code", executor=_search_knowledge,
 ))
-tool_registry.register(_read_tool(
+tool_registry.register(read_tool(
     name="query_logs", label="Queried the logs",
     description=(
         "Run one safe, read-only log query for one service of an application and return a count or a pattern over time with a few sample rows. "
@@ -563,7 +503,7 @@ tool_registry.register(_read_tool(
     input_model=QueryLogsInput, output_model=QueryLogsOutput, presentation=ToolPresentation.QUERY_RESULT, authorization=ToolAuthorization.APPLICATION_READER,
     bindable_arguments=frozenset({"application_code"}), application_argument="application_code", executor=_query_logs,
 ))
-tool_registry.register(_read_tool(
+tool_registry.register(read_tool(
     name="get_evidence", label="Opened evidence",
     description=(
         "Open one evidence item of an investigation by its code (for example E3): what was found, the query that found it, the matching record counts and the "
@@ -572,7 +512,7 @@ tool_registry.register(_read_tool(
     input_model=GetEvidenceInput, output_model=GetEvidenceOutput, presentation=ToolPresentation.RECORD, authorization=ToolAuthorization.RECORD_OWNER_APPLICATION,
     bindable_arguments=frozenset({"investigation_id"}), application_argument=None, executor=_get_evidence,
 ))
-tool_registry.register(_read_tool(
+tool_registry.register(read_tool(
     name="get_investigation_timeline", label="Read the timeline",
     description=(
         "Read the timeline of an investigation and its incident, oldest first: alerts, deployments, changes and actions with their times. "
@@ -581,7 +521,7 @@ tool_registry.register(_read_tool(
     input_model=GetInvestigationTimelineInput, output_model=GetInvestigationTimelineOutput, presentation=ToolPresentation.RECORD_LIST,
     authorization=ToolAuthorization.RECORD_OWNER_APPLICATION, bindable_arguments=frozenset({"investigation_id"}), application_argument=None, executor=_get_investigation_timeline,
 ))
-tool_registry.register(_read_tool(
+tool_registry.register(read_tool(
     name="list_recent_changes", label="Checked recent changes",
     description=(
         "List the deployments and configuration changes recorded in the Azure Activity Log for one application, newest first, with when, what and who (people appear as placeholders). "
@@ -591,7 +531,7 @@ tool_registry.register(_read_tool(
     input_model=ListRecentChangesInput, output_model=ListRecentChangesOutput, presentation=ToolPresentation.RECORD_LIST, authorization=ToolAuthorization.APPLICATION_READER,
     bindable_arguments=frozenset({"application_code"}), application_argument="application_code", executor=_list_recent_changes,
 ))
-tool_registry.register(_read_tool(
+tool_registry.register(read_tool(
     name="find_runbooks", label="Looked for runbooks",
     description=(
         "Find the runbooks of one application that match a symptom (for example 'database connection timeouts') and return each one's title, when to use it and its steps. "
@@ -600,7 +540,7 @@ tool_registry.register(_read_tool(
     input_model=FindRunbooksInput, output_model=FindRunbooksOutput, presentation=ToolPresentation.PASSAGES, authorization=ToolAuthorization.APPLICATION_READER,
     bindable_arguments=frozenset({"application_code"}), application_argument="application_code", executor=_find_runbooks,
 ))
-tool_registry.register(_read_tool(
+tool_registry.register(read_tool(
     name="get_topology", label="Read the application map",
     description=(
         "Read the current application map of one application: its components (services, databases, queues) and which depends on which, with a short written understanding and open uncertainties. "
@@ -609,7 +549,7 @@ tool_registry.register(_read_tool(
     input_model=GetTopologyInput, output_model=GetTopologyOutput, presentation=ToolPresentation.GRAPH, authorization=ToolAuthorization.APPLICATION_READER,
     bindable_arguments=frozenset({"application_code"}), application_argument="application_code", executor=_get_topology,
 ))
-tool_registry.register(_read_tool(
+tool_registry.register(read_tool(
     name="get_slo_status", label="Checked SLO status",
     description=(
         "Check the service level objectives of one or more applications: compliance, error budget left, burn rates and whether each is healthy, at risk, breached or has no data, worst first. "

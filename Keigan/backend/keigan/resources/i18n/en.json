@@ -221,7 +221,10 @@
     "record_kinds": {
       "investigation": "investigation",
       "evidence_item": "evidence item",
-      "service": "service"
+      "service": "service",
+      "incident": "incident",
+      "alert_group": "alert group",
+      "slo": "SLO"
     }
   }
 }

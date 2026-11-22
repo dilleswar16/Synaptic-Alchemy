@@ -250,6 +250,7 @@ class Settings(BaseSettings):
     ask_keigan_tool_output_stored_characters: int = Field(default=60_000, ge=1000, le=1_000_000)  # characters of one tool output stored as "full output"
     ask_keigan_tool_output_preview_characters: int = Field(default=1500, ge=200, le=10_000)  # characters of output sent live to the browser
     ask_keigan_tool_list_item_limit: int = Field(default=20, ge=1, le=200)  # items a list tool returns
+    ask_keigan_tool_series_point_limit: int = Field(default=100, ge=10, le=1000)  # points a series tool returns; the bucket width grows to keep them within it
     ask_keigan_tool_passage_characters: int = Field(default=2400, ge=200, le=20_000)  # characters of one passage (a runbook's steps) a tool returns
     ask_keigan_log_query_max_lookback_minutes: int = Field(default=43_200, ge=5, le=43_200)
     ask_keigan_knowledge_token_budget: int = Field(default=2500, ge=500, le=20_000)

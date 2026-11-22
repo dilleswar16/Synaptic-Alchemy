@@ -47,6 +47,8 @@ _NO_DATA_RESULT = re.compile(rf"^(?:\w+ )?({'|'.join(NO_DATA_STATUSES)})\b", re.
 _SECOND_GROUP_JOINER = re.compile(r"\band\b|および|そして", re.IGNORECASE)
 _SPOTLIGHT_BLOCK = re.compile(r"<untrusted_data[^>]*>\n?(.*?)\n?</untrusted_data[^>]*>", re.DOTALL)
 _SERVICE_NAME = re.compile(r"\b[a-z][a-z0-9]*(?:-[a-z0-9]+)+\b", re.IGNORECASE)
+_IDENTIFIER = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
+_INCIDENT_NUMBER = re.compile(r"\bINC\d{5,}\b", re.IGNORECASE)
 _WINDOW = re.compile(r"(?:last|past)\s+(?:(\d+)\s*)?(minute|hour|day)s?|(?:過去|直近)\s*(\d+)\s*(分|時間|日)", re.IGNORECASE)
 _MINUTES_PER_HOUR = 60
 _WINDOW_MINUTES_PER_UNIT = {"minute": 1, "hour": _MINUTES_PER_HOUR, "day": 24 * _MINUTES_PER_HOUR, "分": 1, "時間": _MINUTES_PER_HOUR, "日": 24 * _MINUTES_PER_HOUR}
@@ -146,13 +148,17 @@ def _slo_status_arguments(question: _Question, keyword_match: re.Match[str], pro
     return {}  # every application of the scope, every state: the tool's own default
 
 
+def _lookback_arguments(question: _Question, properties: dict[str, Any]) -> dict[str, Any]:
+    """``lookback_hours`` for the window the question names, cut to the schema's bounds; nothing when it names no window (the tool's default applies)."""
+    if (window_minutes := _window_minutes(question.text)) is None or "lookback_hours" not in properties:
+        return {}
+    window_schema = properties["lookback_hours"]
+    lookback_hours = max(math.ceil(window_minutes / _MINUTES_PER_HOUR), window_schema.get("minimum", 1))
+    return {"lookback_hours": min(lookback_hours, window_schema.get("maximum", lookback_hours))}
+
+
 def _recent_changes_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any]:
-    arguments: dict[str, Any] = {"application_code": _code_from_properties(question, properties, "application_code")}
-    if (window_minutes := _window_minutes(question.text)) is not None:
-        window_schema = properties.get("lookback_hours", {})
-        lookback_hours = max(math.ceil(window_minutes / _MINUTES_PER_HOUR), window_schema.get("minimum", 1))
-        arguments["lookback_hours"] = min(lookback_hours, window_schema.get("maximum", lookback_hours))
-    return arguments
+    return {"application_code": _code_from_properties(question, properties, "application_code"), **_lookback_arguments(question, properties)}
 
 
 def _runbook_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any]:
@@ -160,6 +166,38 @@ def _runbook_arguments(question: _Question, keyword_match: re.Match[str], proper
 
 
 def _topology_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any]:
+    return {"application_code": _code_from_properties(question, properties, "application_code")}
+
+
+def _investigation_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any] | None:
+    identifier = _IDENTIFIER.search(question.text)
+    return {"investigation_id": identifier.group(0)} if identifier else None
+
+
+def _incident_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any] | None:
+    number = _INCIDENT_NUMBER.search(question.text)
+    return {"incident_reference": number.group(0).upper()} if number else None
+
+
+def _alert_group_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any] | None:
+    identifier = _IDENTIFIER.search(question.text)
+    return {"alert_group_id": identifier.group(0)} if identifier else None
+
+
+def _slo_history_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any] | None:
+    identifier = _IDENTIFIER.search(question.text)
+    return {"slo_id": identifier.group(0), **_lookback_arguments(question, properties)} if identifier else None
+
+
+def _lookback_only_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any]:
+    return _lookback_arguments(question, properties)
+
+
+def _no_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any]:
+    return {}
+
+
+def _application_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any]:
     return {"application_code": _code_from_properties(question, properties, "application_code")}
 
 
@@ -172,6 +210,10 @@ _TOOL_RULES: tuple[_ToolRule, ...] = (
     _ToolRule(
         "get_investigation_timeline", re.compile(r"\btimelines?\b|\bstatus updates?\b|\bexecutives?\b|タイムライン|状況報告|経営層", re.IGNORECASE), _timeline_arguments,
         ("Which evidence matches these events?", "What changed before the first event?", "Which runbook fits this situation?"),
+    ),
+    _ToolRule(
+        "get_slo_history", re.compile(r"\b(?:history|trend|over time)\b.*\bslos?\b|\bslos?\b.*\b(?:history|trend|over time)\b|SLO.*(?:推移|履歴)", re.IGNORECASE), _slo_history_arguments,
+        ("Did anything change before the budget started burning?", "Which alerts fired in that period?", "How are the other SLOs doing?"),
     ),
     _ToolRule(
         "get_slo_status", re.compile(r"\bslos?\b|\berror budgets?\b|\bburn\w*|エラーバジェット", re.IGNORECASE), _slo_status_arguments,
@@ -194,11 +236,57 @@ _TOOL_RULES: tuple[_ToolRule, ...] = (
         ("Show the pattern over the last 24 hours.", "Which services does this one depend on?", "What do the knowledge documents say about these errors?"),
     ),
 )
+_GLOBAL_TOOL_RULES: tuple[_ToolRule, ...] = (
+    _ToolRule(
+        "get_investigation", re.compile(r"\binvestigation\b|\bhypothes[ie]s\b|\broot cause\b|調査の詳細|仮説", re.IGNORECASE), _investigation_arguments,
+        ("Which evidence supports the leading hypothesis?", "What did the timeline say before it?", "Which runbook fits this?"),
+    ),
+    _ToolRule(
+        "list_investigations", re.compile(r"\binvestigations\b|調査一覧|調査の一覧", re.IGNORECASE), _lookback_only_arguments,
+        ("Open the most recent one.", "Which incidents are open?", "How are the SLOs doing?"),
+    ),
+    _ToolRule(
+        "list_incidents", re.compile(r"\bincidents\b|インシデント一覧|インシデントの一覧", re.IGNORECASE), _lookback_only_arguments,
+        ("Which of these is the highest priority?", "What changed before the first incident?", "Show the predictive signals."),
+    ),
+    _ToolRule(
+        "get_incident", re.compile(r"\bINC\d{5,}\b|\bincident\b|インシデント(?!一覧|の一覧)", re.IGNORECASE), _incident_arguments,
+        ("What does the investigation conclude?", "Which alerts belong to this incident?", "What changed before it?"),
+    ),
+    _ToolRule(
+        "list_alert_groups", re.compile(r"\balert groups\b|\bgroups\b|アラートグループ(?:一覧|の一覧)", re.IGNORECASE), _lookback_only_arguments,
+        ("How much noise did the alerts make?", "Open the group with the highest score.", "Which incidents are open?"),
+    ),
+    _ToolRule(
+        "get_alert_group", re.compile(r"\balert group\b|アラートグループ", re.IGNORECASE), _alert_group_arguments,
+        ("Why was this group investigated?", "Which alerts were suppressed?", "Which incident does it belong to?"),
+    ),
+    _ToolRule(
+        "get_alert_noise_summary", re.compile(r"\bnoise\b|\bfunnel\b|ノイズ", re.IGNORECASE), _lookback_only_arguments,
+        ("Which alert groups were investigated?", "Show the alert groups of the last 24 hours.", "Which signals are open?"),
+    ),
+    _ToolRule(
+        "list_predictive_signals", re.compile(r"\bpredictive\b|\bsignals?\b|\bforecasts?\b|予兆|予測|シグナル", re.IGNORECASE), _no_arguments,
+        ("Which of these is critical?", "What is the health score?", "Is there a runbook for this?"),
+    ),
+    _ToolRule(
+        "get_health_score", re.compile(r"\bhealth\b|健全性|ヘルススコア", re.IGNORECASE), _application_arguments,
+        ("Which predictive signals are open?", "How are the SLOs doing?", "What are the reliability metrics?"),
+    ),
+    _ToolRule(
+        "list_team_members", re.compile(r"\bteam\b|\bmembers?\b|\bwho (?:is|are)\b|\bon.?call\b|チーム|メンバー", re.IGNORECASE), _application_arguments,
+        ("Which incidents did the team handle?", "Who is the lead?", "Show the reliability metrics."),
+    ),
+    _ToolRule(
+        "get_reliability_metrics", re.compile(r"\breliability\b|\bMTTR\b|\bMTTD\b|\bmetrics?\b|resolve time|信頼性|指標", re.IGNORECASE), _lookback_only_arguments,
+        ("How many incidents were opened?", "How are the SLOs doing?", "Who is on the team?"),
+    ),
+)
 _KNOWLEDGE_RULE = _ToolRule(
     "search_knowledge", _DOMAIN_WORDS, _knowledge_arguments,
     ("Is there a runbook for this?", "Which services does this depend on?", "Were there related incidents?"),
 )
-_FOLLOW_UPS_BY_TOOL = {rule.tool_name: rule.follow_up_questions for rule in (*_TOOL_RULES, _KNOWLEDGE_RULE)}
+_FOLLOW_UPS_BY_TOOL = {rule.tool_name: rule.follow_up_questions for rule in (*_TOOL_RULES, *_GLOBAL_TOOL_RULES, _KNOWLEDGE_RULE)}
 
 
 def _read_question(transcript: tuple[AgentTranscriptEntry, ...]) -> _Question:
@@ -220,7 +308,7 @@ def _fill_arguments(tool: AgentToolSpec, candidates: dict[str, Any] | None) -> d
 def _plan_calls(question: _Question, tools: tuple[AgentToolSpec, ...]) -> list[_PlannedCall]:
     tools_by_name = {tool.name: tool for tool in tools}
     planned_calls: list[_PlannedCall] = []
-    for rule in _TOOL_RULES:
+    for rule in (*_TOOL_RULES, *_GLOBAL_TOOL_RULES):
         tool = tools_by_name.get(rule.tool_name)
         keyword_match = rule.keywords.search(question.text) if tool else None
         if tool is None or keyword_match is None:

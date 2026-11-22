@@ -112,6 +112,8 @@ backendEnvironment:
   ASK_KEIGAN_TOOL_OUTPUT_PREVIEW_CHARACTERS: "1500"
   # Items a list tool returns (1 to 200).
   ASK_KEIGAN_TOOL_LIST_ITEM_LIMIT: "20"
+  # Points a series tool returns (10 to 1000); the bucket width of a series grows to keep them within it.
+  ASK_KEIGAN_TOOL_SERIES_POINT_LIMIT: "100"
   # Characters of one passage a tool returns, such as a runbook's steps (200 to 20000); longer text is cut.
   ASK_KEIGAN_TOOL_PASSAGE_CHARACTERS: "2400"
   # Longest window, in minutes, a log query tool call may look back (5 to 43200).

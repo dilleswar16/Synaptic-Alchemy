@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -28,13 +28,13 @@ from keigan.entities.incident_entities import Incident, Investigation, Investiga
 from keigan.entities.knowledge_entities import KnowledgeChunk, KnowledgeDocument, Runbook
 from keigan.entities.platform_entities import AuditEvent
 from keigan.exceptions.keigan_exceptions import IntegrationException, LlmTimeoutException, ReaderNotAvailableException
-from keigan.security.current_user import CurrentUser
 from keigan.services import ask_keigan_tools  # noqa: F401 — registers the tools
-from keigan.services.authorization_service import AuthorizationService
 from keigan.services.knowledge_service import GroundingContext, KnowledgeService
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.text_utils import term_frequencies
 from keigan.utils.time_utils import utc_now
+from support.ask_keigan_tool_calls import ADMIN, CLMJP_AND_PAYAU_READER, CLMJP_READER, NO_ACCESS, Profile, ProgressLog, run_tool, user
+from support import ask_keigan_global_tool_data as global_rows
 from support.ask_keigan_tool_data import (
     SLO_ROWS, THREE_CHANGES, TOPOLOGY_NODES, ActivityLogStub, add_runbook, add_topology, change_event, create_slo_application, use_activity_log,
 )
@@ -44,60 +44,6 @@ pytestmark = pytest.mark.usefixtures("seed_context")
 
 INVESTIGATION_TOOLS = {"get_evidence", "get_investigation_timeline", "search_knowledge", "query_logs", "list_recent_changes", "find_runbooks", "get_topology", "get_slo_status"}
 FIRST_EVENT_AT = datetime(2026, 1, 5, 9, 0)
-
-
-def user(user_principal_name: str, *group_names: str, is_admin: bool = False) -> CurrentUser:
-    return CurrentUser(user_principal_name, user_principal_name, user_principal_name, frozenset(group_names), frozenset(), is_admin)
-
-
-ADMIN = user("keigan.admin@keigan.local", "KEIGAN_admin", is_admin=True)
-CLMJP_READER = user("clmjp.reader@keigan.local", "CLMJP_reader")
-CLMJP_AND_PAYAU_READER = user("rui.reader@keigan.local", "CLMJP_reader", "PAYAU_reader")
-NO_ACCESS = user("noa.noaccess@keigan.local")
-
-
-@dataclass(frozen=True)
-class ApplicationRef:
-    id: str
-    code: str
-    name: str
-
-
-@dataclass(frozen=True)
-class Profile:
-    scope: AskKeiganScope
-    readable_applications: tuple[ApplicationRef, ...]
-    offered_tools: tuple[ToolDefinition, ...]
-    bound_arguments: dict[str, Any]
-
-
-class ProgressLog:
-    def __init__(self) -> None:
-        self.events: list[tuple[str, dict[str, Any]]] = []
-
-    async def __call__(self, name: str, details: dict[str, Any]) -> None:
-        self.events.append((name, details))
-
-
-async def run_tool(
-    tool_name: str, arguments: dict[str, Any], current_user: CurrentUser, *, bound: dict[str, Any] | None = None, scope: AskKeiganScope = AskKeiganScope.INVESTIGATION,
-    progress: ProgressLog | None = None, citation_code: str = "T1", profile_user: CurrentUser | None = None,
-) -> ToolOutcome:
-    """One tool call the way the engine makes it: a fresh session, the person's readable applications, the person's own reader check.
-
-    ``profile_user`` is the person the profile was built for when the call runs as someone else: the access the profile saw is gone by the time the tool runs.
-    """
-    current_user = replace(current_user, application_roles_by_application_id=None)  # roles are cached per request; every call here is a new request
-    async with open_session() as session:
-        authorization = AuthorizationService(session)
-        readable_ids = await authorization.readable_application_ids(replace(profile_user or current_user, application_roles_by_application_id=None))
-        applications = (await session.scalars(select(Application).where(Application.application_id.in_(readable_ids)).order_by(Application.application_code))).all()
-        profile = Profile(scope, tuple(ApplicationRef(row.application_id, row.application_code, row.application_name) for row in applications), tuple(tool_registry.tools_for(scope)), bound or {})
-        context = ToolContext(
-            current_user=current_user, profile=profile, session=session, masker=PiiMasker(), usage_context=LlmUsageContext(requested_by_user_principal_name=current_user.user_principal_name),
-            report_progress=progress or ProgressLog(), ensure_application_reader=lambda application_id: authorization.ensure_application_reader(current_user, application_id), citation_code=citation_code,
-        )
-        return await tool_registry.execute_by_name(tool_name, context, arguments)
 
 
 @dataclass(frozen=True)
@@ -882,6 +828,65 @@ async def reader_asks_for_chad_slos(seeded: Seeded) -> ToolOutcome:
     return await run_tool("get_slo_status", {"application_codes": ["CHAD"]}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
 
 
+async def reader_asks_for_chad_investigation(seeded: Seeded) -> ToolOutcome:
+    return await run_tool("get_investigation", {"investigation_id": seeded.chad_investigation_id}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_lists_chad_investigations(seeded: Seeded) -> ToolOutcome:
+    await global_rows.create_investigation(seeded.chad_application_id, executive_summary="chadcrossmarker investigation")
+    return await run_tool("list_investigations", {"application_codes": ["CHAD"]}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_lists_chad_incidents(seeded: Seeded) -> ToolOutcome:
+    await global_rows.create_incident(seeded.chad_application_id, title="chadcrossmarker incident")
+    return await run_tool("list_incidents", {"application_codes": ["CHAD"]}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_asks_for_a_chad_incident(seeded: Seeded) -> ToolOutcome:
+    incident_id = await global_rows.create_incident(seeded.chad_application_id, title="chadcrossmarker incident", number="INC0077001")
+    return await run_tool("get_incident", {"incident_reference": incident_id}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_lists_chad_alert_groups(seeded: Seeded) -> ToolOutcome:
+    await global_rows.create_alert_group(seeded.chad_application_id, title="chadcrossmarker group")
+    return await run_tool("list_alert_groups", {"application_codes": ["CHAD"]}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_asks_for_a_chad_alert_group(seeded: Seeded) -> ToolOutcome:
+    group_id = await global_rows.create_alert_group(seeded.chad_application_id, title="chadcrossmarker group")
+    return await run_tool("get_alert_group", {"alert_group_id": group_id}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_asks_for_the_chad_noise(seeded: Seeded) -> ToolOutcome:
+    await global_rows.create_alert_group(seeded.chad_application_id, title="chadcrossmarker group")
+    return await run_tool("get_alert_noise_summary", {"application_codes": ["CHAD"]}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_asks_for_a_chad_slo_history(seeded: Seeded) -> ToolOutcome:
+    chad_slo = await create_slo_application()  # an application the reader of CLMJP and PAYAU cannot read: its SLO is CHAD-like data for this case
+    slo_id = await global_rows.slo_id_of(chad_slo.application_id, "Checkout availability")
+    return await run_tool("get_slo_history", {"slo_id": slo_id}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_lists_chad_signals(seeded: Seeded) -> ToolOutcome:
+    await global_rows.create_predictive_signal(seeded.chad_application_id, title="chadcrossmarker signal")
+    return await run_tool("list_predictive_signals", {"application_codes": ["CHAD"]}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_asks_for_the_chad_health_score(seeded: Seeded) -> ToolOutcome:
+    return await run_tool("get_health_score", {"application_code": "CHAD"}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_asks_for_the_chad_team(seeded: Seeded) -> ToolOutcome:
+    await global_rows.add_team_member(seeded.chad_application_id, display_name="Chadcrossmarker Person", email="chadcrossmarker@keigan.local", role="sre")
+    return await run_tool("list_team_members", {"application_code": "CHAD"}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
+async def reader_asks_for_the_chad_reliability(seeded: Seeded) -> ToolOutcome:
+    await global_rows.create_incident(seeded.chad_application_id, title="chadcrossmarker incident")
+    return await run_tool("get_reliability_metrics", {"application_codes": ["CHAD"]}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
 # A reader of CLMJP and PAYAU targets CHAD data in every way a tool allows. Every registered tool needs a row (AC-7).
 CROSS_APPLICATION_CASES: dict[str, CrossApplicationCase] = {
     "get_evidence": reader_asks_for_chad_evidence,
@@ -892,6 +897,18 @@ CROSS_APPLICATION_CASES: dict[str, CrossApplicationCase] = {
     "find_runbooks": reader_asks_for_chad_runbooks,
     "get_topology": reader_asks_for_the_chad_topology,
     "get_slo_status": reader_asks_for_chad_slos,
+    "get_investigation": reader_asks_for_chad_investigation,
+    "list_investigations": reader_lists_chad_investigations,
+    "list_incidents": reader_lists_chad_incidents,
+    "get_incident": reader_asks_for_a_chad_incident,
+    "list_alert_groups": reader_lists_chad_alert_groups,
+    "get_alert_group": reader_asks_for_a_chad_alert_group,
+    "get_alert_noise_summary": reader_asks_for_the_chad_noise,
+    "get_slo_history": reader_asks_for_a_chad_slo_history,
+    "list_predictive_signals": reader_lists_chad_signals,
+    "get_health_score": reader_asks_for_the_chad_health_score,
+    "list_team_members": reader_asks_for_the_chad_team,
+    "get_reliability_metrics": reader_asks_for_the_chad_reliability,
 }
 
 
@@ -905,7 +922,7 @@ async def test_a_reader_of_other_applications_gets_no_chad_data_from_the_tool(to
     assert (outcome.status, outcome.outcome_code) in {(ChatRunStepStatus.REFUSED, "access_denied"), (ChatRunStepStatus.FAILED, "not_found")}
     assert outcome.output is None and outcome.model_view_text is None
     leaked = outcome.outcome_message + outcome.model_message
-    for chad_text in ("CHAD private", "chadonlymarker", "Chadonlyrunbook", "Claims", seeded.chad_investigation_id):
+    for chad_text in ("CHAD private", "chadonlymarker", "Chadonlyrunbook", "chadcrossmarker", "Chadcrossmarker", "Claims", seeded.chad_investigation_id):
         assert chad_text not in leaked
 
 
@@ -939,6 +956,28 @@ async def test_a_keigan_admin_reads_every_application_through_the_tools(seeded: 
 def test_every_registered_tool_is_read_only_and_investigation_scope_offers_the_eight_tools() -> None:
     assert all(definition.access is ToolAccess.READ for definition in tool_registry.all_tools())
     assert {definition.name for definition in tool_registry.tools_for(AskKeiganScope.INVESTIGATION)} == INVESTIGATION_TOOLS
+
+
+async def test_the_global_tools_change_no_business_row() -> None:
+    alert_group_application = await create_scoped_application()
+    group_id = await global_rows.create_alert_group(alert_group_application.application_id, title="Checkout errors")
+    incident_id = await global_rows.create_incident(alert_group_application.application_id, title="Checkout errors")
+    chad_slo = await create_slo_application()
+    slo_id = await global_rows.slo_id_of(chad_slo.application_id, "Checkout availability")
+    investigation_id = await global_rows.create_investigation(alert_group_application.application_id)
+    before = await row_counts()
+    calls = [
+        ("get_investigation", {"investigation_id": investigation_id}),
+        ("list_investigations", {}), ("list_incidents", {}), ("get_incident", {"incident_reference": incident_id}),
+        ("list_alert_groups", {}), ("get_alert_group", {"alert_group_id": group_id}), ("get_alert_noise_summary", {}),
+        ("get_slo_history", {"slo_id": slo_id}), ("list_predictive_signals", {}), ("get_health_score", {"application_code": alert_group_application.application_code}),
+        ("list_team_members", {"application_code": alert_group_application.application_code}), ("get_reliability_metrics", {}),
+    ]
+    for tool_name, arguments in calls:
+        outcome = await run_tool(tool_name, arguments, ADMIN, scope=AskKeiganScope.GLOBAL)
+        assert outcome.status is ChatRunStepStatus.SUCCEEDED, (tool_name, outcome.outcome_message)
+    after = await row_counts()
+    assert {table: after[table] - before[table] for table in after if after[table] != before[table]} == {}
 
 
 async def test_no_tool_changes_a_business_row(monkeypatch: pytest.MonkeyPatch, seeded: Seeded) -> None:

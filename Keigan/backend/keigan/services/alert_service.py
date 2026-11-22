@@ -202,6 +202,12 @@ class AlertService:
             await self.session.flush()
         return entity
 
+    async def _policy_for_reading(self, application_id: str) -> NoiseReductionPolicy:
+        """The application's policy as it stands, without creating its row: a read never writes (the observe-mode clock starts when the policy page first opens it)."""
+        return await self.session.get(NoiseReductionPolicy, application_id) or NoiseReductionPolicy(
+            application_id=application_id, policy_settings_json=dict(alert_rules.DEFAULT_NOISE_POLICY), policy_mode=NoisePolicyMode.OBSERVE, observe_mode_started_at=None,
+        )
+
     async def get_policy(self, application_id: str) -> NoisePolicyResponse:
         entity = await self._get_policy_entity(application_id)
         settings = alert_rules.merge_policy(entity.policy_settings_json)
@@ -396,7 +402,7 @@ class AlertService:
                 if alert.alert_group_id:
                     surviving_group_ids.add(alert.alert_group_id)
         group_count = len(surviving_group_ids | started_groups)  # a group is counted once, however its alerts arrived, so groups ≥ investigations
-        policy = alert_rules.merge_policy(policy_settings or (await self._get_policy_entity(application_ids[0])).policy_settings_json)
+        policy = alert_rules.merge_policy(policy_settings or (await self._policy_for_reading(application_ids[0])).policy_settings_json)
         steps = [
             FunnelStep(step_key="received", step_label="Alerts received", count=received),
             FunnelStep(step_key="deduplicated", step_label="After de-duplication", count=len(alerts), detail=f"{reasons['repeats']} repeats counted on existing alerts"),
@@ -497,7 +503,7 @@ class AlertService:
         service_names = {service.service_id: service.service_name for service in (await self.session.scalars(select(MonitoredService).where(MonitoredService.application_id == group.application_id))).all()}
         rule_names = {alert.alert_id: alert.rule_name for alert in alerts}
         decisions = (await self.session.scalars(select(AlertDecision).where(AlertDecision.alert_id.in_(list(rule_names))).order_by(AlertDecision.decided_at, AlertDecision.pipeline_stage))).all() if rule_names else []
-        policy = await self._get_policy_entity(group.application_id)
+        policy = await self._policy_for_reading(group.application_id)
         application = await self.session.get(Application, group.application_id)
         return AlertGroupDetailResponse(
             **summary.model_dump(), user_feedback_reason=group.user_feedback_reason, policy_mode=policy.policy_mode, incident_creation_policy=application.incident_creation_policy_json if application else None,

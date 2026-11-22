@@ -124,6 +124,9 @@ class RecordKindName(StrEnum):
     INVESTIGATION = "investigation"
     EVIDENCE_ITEM = "evidence_item"
     SERVICE = "service"
+    INCIDENT = "incident"
+    ALERT_GROUP = "alert_group"
+    SLO = "slo"
 
 
 class ToolSourceUnavailableError(IntegrationException):

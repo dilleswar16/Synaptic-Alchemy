@@ -10,7 +10,9 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from keigan.entities.status_values import SloHealthStatus
+from keigan.entities.status_values import (
+    AlertGroupStatus, IncidentSource, IncidentStatus, InvestigationStatus, Priority, SignalSeverity, SignalStatus, SloHealthStatus, StakeholderRole,
+)
 
 ApplicationCode = Annotated[str, Field(max_length=40, description="Code of one application from the list you were given.")]
 LookbackHours = Annotated[int, Field(ge=1, le=720, description="How far back to look, in hours (at most 30 days).")]
@@ -73,3 +75,93 @@ class GetSloStatusInput(BaseModel):
 
     application_codes: list[ApplicationCode] = Field(default_factory=list, max_length=20, description="Codes of the applications to check. Empty means every application you were given.")
     statuses: list[SloHealthStatus] = Field(default_factory=list, max_length=4, description="Only SLOs in these states. Empty means every state.")
+
+
+class GetInvestigationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    investigation_id: str = Field(max_length=36, description="The investigation to open.")
+
+
+class ListInvestigationsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    application_codes: list[ApplicationCode] = Field(default_factory=list, max_length=20, description="Codes of the applications to list. Empty means every application you were given.")
+    statuses: list[InvestigationStatus] = Field(default_factory=list, max_length=6, description="Only investigations in these states. Empty means every state.")
+    incident_id: str | None = Field(default=None, max_length=36, description="Only the investigations of this incident.")
+    lookback_hours: LookbackHours = 168
+
+
+class ListIncidentsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    application_codes: list[ApplicationCode] = Field(default_factory=list, max_length=20, description="Codes of the applications to list. Empty means every application you were given.")
+    statuses: list[IncidentStatus] = Field(default_factory=list, max_length=6, description="Only incidents in these states. Empty means every state.")
+    priorities: list[Priority] = Field(default_factory=list, max_length=4, description="Only incidents with these priorities. Empty means every priority.")
+    sources: list[IncidentSource] = Field(default_factory=list, max_length=3, description="Only incidents from these sources. Empty means every source.")
+    lookback_hours: LookbackHours = 168
+    text: str | None = Field(default=None, max_length=120, description="Words in the title or the ServiceNow number.")
+
+
+class GetIncidentInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    incident_reference: str = Field(max_length=60, description="Keigan incident id or ServiceNow number, for example INC0012345.")
+
+
+class ListAlertGroupsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    application_codes: list[ApplicationCode] = Field(default_factory=list, max_length=20, description="Codes of the applications to list. Empty means every application you were given.")
+    statuses: list[AlertGroupStatus] = Field(default_factory=list, max_length=4, description="Only alert groups in these states. Empty means every state.")
+    lookback_hours: LookbackHours = 24
+    minimum_priority_score: float | None = Field(default=None, ge=0, le=100, description="Only alert groups at or above this priority score (0 to 100).")
+
+
+class GetAlertGroupInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    alert_group_id: str = Field(max_length=36, description="The alert group to open.")
+
+
+class GetAlertNoiseSummaryInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    application_codes: list[ApplicationCode] = Field(default_factory=list, max_length=20, description="Codes of the applications to count. Empty means every application you were given.")
+    lookback_hours: LookbackHours = 168
+
+
+class GetSloHistoryInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    slo_id: str = Field(max_length=36, description="The SLO whose history to read.")
+    lookback_hours: LookbackHours = 168
+
+
+class ListPredictiveSignalsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    application_codes: list[ApplicationCode] = Field(default_factory=list, max_length=20, description="Codes of the applications to list. Empty means every application you were given.")
+    severities: list[SignalSeverity] = Field(default_factory=list, max_length=3, description="Only signals of these severities. Empty means every severity.")
+    statuses: list[SignalStatus] = Field(default_factory=list, max_length=5, description="Only signals in these states. Empty means open and acknowledged.")
+
+
+class GetHealthScoreInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    application_code: ApplicationCode
+    days: int = Field(default=30, ge=7, le=90, description="How many days of trend to return.")
+
+
+class ListTeamMembersInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    application_code: ApplicationCode
+    roles: list[StakeholderRole] = Field(default_factory=list, max_length=10, description="Only team members in these roles. Empty means every role.")
+
+
+class GetReliabilityMetricsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    application_codes: list[ApplicationCode] = Field(default_factory=list, max_length=20, description="Codes of the applications to measure. Empty means every application you were given.")
+    lookback_hours: LookbackHours = 720
