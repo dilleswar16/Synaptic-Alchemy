@@ -90,3 +90,48 @@ def test_the_ai_suggested_days_become_a_local_date_clamped_to_the_range() -> Non
     assert proposed_due_on(resolved, 14, "Asia/Tokyo", maximum_days=180) == date(2026, 12, 15)
     assert proposed_due_on(resolved, 0, "UTC", maximum_days=180) == date(2026, 12, 1)  # at least one day
     assert proposed_due_on(resolved, 9999, "UTC", maximum_days=180) == date(2027, 5, 29)
+
+
+# ── Reminders (AC-14, AC-15) ─────────────────────────────────────────────────────────────────────
+
+from keigan.entities.status_values import ActionItemPriority as Priority
+from keigan.services.action_item_rules import ReminderKind, reminder_kind
+
+TODAY = date(2026, 12, 10)
+LIMITS = dict(days_before_due=2, overdue_interval_days=7, escalate_after_days=14)
+
+
+def kind_of(due_on: date | None, *, status: Status = Status.OPEN, priority: Priority = Priority.NORMAL, last_reminded_on: date | None = None, today: date = TODAY, **limits: int) -> ReminderKind | None:
+    return reminder_kind(status, priority, due_on, today, last_reminded_on, **{**LIMITS, **limits})
+
+
+def test_an_item_due_in_the_configured_number_of_days_gets_a_due_soon_reminder_once() -> None:
+    assert kind_of(date(2026, 12, 12)) is ReminderKind.DUE_SOON
+    assert kind_of(date(2026, 12, 12), last_reminded_on=TODAY) is None
+    assert kind_of(date(2026, 12, 13)) is None and kind_of(date(2026, 12, 11)) is None
+    assert kind_of(date(2026, 12, 12), days_before_due=0) is None
+
+
+def test_the_first_overdue_day_reminds_and_then_only_every_interval() -> None:
+    assert kind_of(date(2026, 12, 9)) is ReminderKind.OVERDUE
+    assert kind_of(date(2026, 12, 9), last_reminded_on=date(2026, 12, 7)) is ReminderKind.OVERDUE  # the earlier reminder was the due-soon one
+    assert kind_of(date(2026, 12, 3), last_reminded_on=date(2026, 12, 4)) is None
+    assert kind_of(date(2026, 12, 1), last_reminded_on=date(2026, 12, 3)) is ReminderKind.OVERDUE  # seven days since the last
+    assert kind_of(date(2026, 12, 1), last_reminded_on=date(2026, 12, 4)) is None
+
+
+def test_a_long_overdue_top_or_high_item_escalates_instead() -> None:
+    long_ago = date(2026, 11, 20)
+    assert kind_of(long_ago, priority=Priority.TOP) is ReminderKind.ESCALATE and kind_of(long_ago, priority=Priority.HIGH) is ReminderKind.ESCALATE
+    assert kind_of(long_ago, priority=Priority.NORMAL) is ReminderKind.OVERDUE and kind_of(long_ago, priority=Priority.LOW) is ReminderKind.OVERDUE
+    assert kind_of(date(2026, 12, 1), priority=Priority.TOP) is ReminderKind.OVERDUE  # nine days: not yet
+    assert kind_of(long_ago, priority=Priority.TOP, last_reminded_on=date(2026, 12, 8)) is None
+
+
+@pytest.mark.parametrize("status", [Status.PROPOSED, Status.DONE, Status.WONT_DO])
+def test_only_tracked_items_are_reminded(status: Status) -> None:
+    assert kind_of(date(2026, 12, 1), status=status) is None and kind_of(date(2026, 12, 12), status=status) is None
+
+
+def test_an_item_with_no_due_date_is_never_reminded() -> None:
+    assert kind_of(None) is None

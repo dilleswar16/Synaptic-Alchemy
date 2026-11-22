@@ -22,7 +22,11 @@
     "slo": "SLO",
     "burn_rate": "バーンレート",
     "role": "あなたの役割",
-    "invited_by": "招待者"
+    "invited_by": "招待者",
+    "due": "期限",
+    "days_overdue": "超過日数",
+    "owner_role": "担当ロール",
+    "owner": "担当者"
   },
   "outcome": {
     "cause_identified": { "label": "原因を特定", "sentence": "Keigan は最も可能性の高い原因を特定しました。" },
@@ -59,6 +63,8 @@
     "intelligence_report": {"subject": "Keigan インテリジェンスレポート: {title}", "headline": "Keigan インテリジェンスレポート", "intro": "Keigan が {application_name} の信頼性を分析しました。"},
     "slo_burn_alert": {"subject": "[{severity}] SLO バーンアラート: {title}", "headline": "SLO エラーバジェットの消費が加速しています", "intro": "{application_name} の SLO のエラーバジェットが想定より速く消費されています。"},
     "test": {"subject": "{application_name} の Keigan テスト通知", "headline": "テスト通知", "intro": "Keigan の通知が届くことを確認するためのテストメッセージです。"},
+    "action_item_reminder": {"subject": "{application_name} の対応が必要なアクションアイテム", "headline": "対応が必要なアクションアイテム", "intro": "{application_name} であなたが担当するフォローアップ作業の期限が近いか、期限を過ぎています。"},
+    "action_item_escalation": {"subject": "{application_name} の期限超過アクションアイテム", "headline": "期限超過のアクションアイテム", "intro": "{application_name} の次のフォローアップ作業は大幅に期限を過ぎているか、担当者がいません。判断が必要です。"},
     "team_invitation": {"subject": "{application_name} のチームに追加されました（Keigan）", "headline": "チームに追加されました", "intro": "Keigan の {application_name} のチームに追加されました。Keigan はこのアプリケーションの証拠収集とインシデントの説明を行います。", "access_note": "アプリケーションを開くには、グループ {reader_group} によるアクセスが必要です。開けない場合は、SailPoint でこのグループ（設定を変更する場合は {admin_group}）を申請してください。Keigan 自体はアクセスを付与しません。"}
   },
   "cards": {

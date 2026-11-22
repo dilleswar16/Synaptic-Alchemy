@@ -15,6 +15,8 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from keigan.entities.status_values import StakeholderRole
+
 BACKEND_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 RESOURCES_DIRECTORY = Path(__file__).resolve().parents[1] / "resources"
 # Published in the repository, so it is a known value: it may only be used on a developer machine or in the test suite.
@@ -216,6 +218,13 @@ class Settings(BaseSettings):
     action_items_maximum_due_days: int = Field(default=180, ge=7, le=730)  # latest due date, in days from today (and the clamp on the AI's suggested days)
     action_items_details_maximum_characters: int = Field(default=4000, ge=200, le=20_000)
     action_items_reason_minimum_characters: int = Field(default=10, ge=1, le=200)  # shortest reason for blocked and won't do
+    action_items_reminders_enabled: bool = True  # master switch for reminder and escalation emails
+    action_items_reminder_hour_local: int = Field(default=9, ge=0, le=23)  # hour, in the application's time zone, at which the daily reminder job runs
+    action_items_reminder_days_before_due: int = Field(default=2, ge=0, le=14)  # days before the due date of the due-soon reminder (0 = none)
+    action_items_overdue_reminder_interval_days: int = Field(default=7, ge=1, le=30)  # days between reminders for one overdue item
+    action_items_escalate_after_overdue_days: int = Field(default=14, ge=1, le=90)  # days overdue after which top and high items go to the escalation roles
+    action_items_escalation_roles: str = "lead,manager"  # team roles (comma separated) that receive escalations and items nobody owns
+    action_items_closed_retention_days: int = Field(default=730, ge=90, le=3650)  # closed action items older than this are deleted
     action_items_external_reference_pattern: str = r"^[A-Z]{2,10}[0-9]{4,12}$"  # accepted shape of a typed ServiceNow task number
     investigation_max_checks_per_service: int = Field(default=7, ge=1, le=30)  # evidence checks one service gets in an investigation; a cut is reported as a gap
     investigation_evidence_token_budget: int = 8_000
@@ -306,6 +315,14 @@ class Settings(BaseSettings):
     def model_prices_must_be_valid(cls, prices_json: str) -> str:
         parse_model_prices(prices_json)
         return prices_json
+
+    @field_validator("action_items_escalation_roles", mode="after")
+    @classmethod
+    def escalation_roles_must_be_team_roles(cls, roles: str) -> str:
+        unknown = [role for role in (part.strip() for part in roles.split(",")) if role and role not in {member.value for member in StakeholderRole}]
+        if unknown:
+            raise ValueError(f"ACTION_ITEMS_ESCALATION_ROLES has unknown team roles: {', '.join(unknown)}")
+        return roles
 
     @field_validator("action_items_external_reference_pattern", mode="after")
     @classmethod
@@ -412,6 +429,10 @@ class Settings(BaseSettings):
     @property
     def is_local_environment(self) -> bool:
         return self.environment in (EnvironmentName.LOCAL, EnvironmentName.DEV)
+
+    @property
+    def action_items_escalation_role_list(self) -> list[str]:
+        return [role.strip() for role in self.action_items_escalation_roles.split(",") if role.strip()]
 
     @property
     def cors_allowed_origin_list(self) -> list[str]:

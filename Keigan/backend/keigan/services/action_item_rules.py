@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from keigan.entities.status_values import ActionItemStatus as Status
+from keigan.entities.status_values import ActionItemPriority, ActionItemStatus as Status
 
 logger = logging.getLogger(__name__)
 _UNKNOWN_ZONES_LOGGED: set[str] = set()
@@ -61,8 +61,8 @@ def validate_reason(status: Status, reason_text: str | None, *, minimum_characte
     return cleaned or None
 
 
-def local_today(time_zone_name: str | None, moment: datetime) -> date:
-    """Today's date in the application's time zone (an unknown zone name falls back to UTC, and is logged once)."""
+def local_now(time_zone_name: str | None, moment: datetime) -> datetime:
+    """``moment`` in the application's time zone (an unknown zone name falls back to UTC, and is logged once)."""
     try:
         zone = ZoneInfo(time_zone_name or "UTC")
     except (ZoneInfoNotFoundError, ValueError):
@@ -70,7 +70,11 @@ def local_today(time_zone_name: str | None, moment: datetime) -> date:
             _UNKNOWN_ZONES_LOGGED.add(time_zone_name or "")
             logger.warning("Unknown time zone %r on an application: action item dates use UTC for it.", time_zone_name)
         zone = ZoneInfo("UTC")
-    return moment.astimezone(zone).date()
+    return moment.astimezone(zone)
+
+
+def local_today(time_zone_name: str | None, moment: datetime) -> date:
+    return local_now(time_zone_name, moment).date()
 
 
 def is_overdue(status: Status | str, due_on: date | None, today: date) -> bool:
@@ -93,3 +97,28 @@ def proposed_due_on(base_moment: datetime, due_in_days: int, time_zone_name: str
     """The AI's suggested number of days as a local date, kept between one day and the maximum."""
     days = max(1, min(due_in_days, maximum_days))
     return local_today(time_zone_name, base_moment) + timedelta(days=days)
+
+
+class ReminderKind(StrEnum):
+    DUE_SOON = "due_soon"
+    OVERDUE = "overdue"
+    ESCALATE = "escalate"  # goes to the escalation roles as well as the owner
+
+
+def reminder_kind(
+    status: Status | str, priority: ActionItemPriority | str, due_on: date | None, today: date, last_reminded_on: date | None,
+    *, days_before_due: int, overdue_interval_days: int, escalate_after_days: int,
+) -> ReminderKind | None:
+    """What reminder, if any, an item needs today. One reminder per item per day; an overdue item is reminded on its first overdue day and then every ``overdue_interval_days``.
+
+    A top or high item overdue for ``escalate_after_days`` escalates instead of a plain overdue reminder (on the next reminder day, since reminders are spaced by the interval).
+    """
+    if Status(status) not in TRACKED_STATUSES or due_on is None or last_reminded_on == today:
+        return None
+    if due_on >= today:
+        return ReminderKind.DUE_SOON if days_before_due > 0 and (due_on - today).days == days_before_due else None
+    already_reminded_since_overdue = last_reminded_on is not None and last_reminded_on > due_on
+    if already_reminded_since_overdue and (today - last_reminded_on).days < overdue_interval_days:
+        return None
+    escalates = (today - due_on).days >= escalate_after_days and ActionItemPriority(priority) in (ActionItemPriority.TOP, ActionItemPriority.HIGH)
+    return ReminderKind.ESCALATE if escalates else ReminderKind.OVERDUE

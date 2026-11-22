@@ -18,6 +18,7 @@ from keigan.entities.incident_entities import ServiceNowAssignmentGroup
 from keigan.entities.notification_entities import TeamsIncidentChat
 from keigan.entities.slo_entities import ServiceLevelIndicator
 from keigan.entities.status_values import ApplicationLifecycleStatus, IntelligenceReportType, TeamsChatStatus
+from keigan.services.action_item_rules import local_now
 from keigan.workers.job_queue import JobQueue
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,20 @@ async def enqueue_weekly_reports(session: AsyncSession) -> None:
         await JobQueue(session).enqueue("weekly_noise_report", {"application_id": application_id}, deduplication_key=f"noise_report:{application_id}:{iso_year}-{iso_week}")
 
 
+async def enqueue_action_item_reminders(session: AsyncSession) -> None:
+    """Hourly: an application whose local hour is the reminder hour gets one reminder job for its local day (the deduplication key makes a second check or a second worker do nothing)."""
+    settings = get_settings()
+    if not settings.action_items_reminders_enabled:
+        return
+    now = datetime.now(UTC)
+    for application_id, time_zone_name in (await session.execute(select(Application.application_id, Application.time_zone_name).where(Application.lifecycle_status == ApplicationLifecycleStatus.LIVE))).all():
+        local_moment = local_now(time_zone_name, now)
+        if local_moment.hour == settings.action_items_reminder_hour_local:
+            await JobQueue(session).enqueue(
+                "send_action_item_reminders", {"application_id": application_id}, deduplication_key=f"action_item_reminders:{application_id}:{local_moment.date().isoformat()}", priority_number=90
+            )
+
+
 async def enqueue_retention_cleanup(session: AsyncSession) -> None:
     await JobQueue(session).enqueue("retention_cleanup", {}, deduplication_key=f"retention:{datetime.now(UTC).date().isoformat()}", priority_number=200)
 
@@ -94,6 +109,7 @@ def build_schedules() -> list[IntervalSchedule]:
         IntervalSchedule("predictive_analysis", settings.predictive_analysis_interval_minutes * 60, enqueue_predictive_analysis),
         IntervalSchedule("teams_chat_poll", settings.teams_chat_poll_interval_minutes * 60, enqueue_teams_chat_polls),
         IntervalSchedule("weekly_reports", 3600, enqueue_weekly_reports),
+        IntervalSchedule("action_item_reminders", 3600, enqueue_action_item_reminders),
         IntervalSchedule("retention_cleanup", 86400, enqueue_retention_cleanup),
     ]
 

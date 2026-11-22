@@ -22,7 +22,11 @@
     "slo": "SLO",
     "burn_rate": "Burn rate",
     "role": "Your role",
-    "invited_by": "Invited by"
+    "invited_by": "Invited by",
+    "due": "Due",
+    "days_overdue": "Days overdue",
+    "owner_role": "Owner role",
+    "owner": "Owner"
   },
   "outcome": {
     "cause_identified": { "label": "Cause identified", "sentence": "Keigan identified the most likely cause." },
@@ -59,6 +63,8 @@
     "intelligence_report": {"subject": "Keigan Intelligence Report: {title}", "headline": "Keigan Intelligence Report", "intro": "Keigan analysed the reliability of {application_name}."},
     "slo_burn_alert": {"subject": "[{severity}] SLO burn alert: {title}", "headline": "SLO error budget is burning fast", "intro": "The error budget of an SLO in {application_name} is being consumed faster than planned."},
     "test": {"subject": "Keigan test notification for {application_name}", "headline": "Test notification", "intro": "This is a test message so you can confirm that Keigan notifications reach you."},
+    "action_item_reminder": {"subject": "Action items that need your attention in {application_name}", "headline": "Action items need your attention", "intro": "These follow-up tasks you own in {application_name} are due soon or overdue."},
+    "action_item_escalation": {"subject": "Overdue action items in {application_name}", "headline": "Overdue action items", "intro": "These follow-up tasks in {application_name} are long overdue or have no owner, and need a decision."},
     "team_invitation": {"subject": "You were added to {application_name} in Keigan", "headline": "You are on the team", "intro": "You were added to the team of {application_name} in Keigan, which gathers evidence and explains incidents for the application.", "access_note": "To open the application you need access through the group {reader_group}. If you cannot open it, request that group (or {admin_group} to change settings) in SailPoint. Keigan does not grant access itself."}
   },
   "cards": {

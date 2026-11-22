@@ -19,11 +19,12 @@ from keigan.dtos.administration_dtos import (
 )
 from keigan.dtos.common_dtos import PagedResult
 from keigan.entities.all_entities import (
-    Alert, AlertDecision, AlertEvent, AlertGroup, Application, AuditEvent, BackgroundJob, Investigation, LlmUsageRecord, SliMeasurement,
+    ActionItem, Alert, AlertDecision, AlertEvent, AlertGroup, Application, AuditEvent, BackgroundJob, Investigation, LlmUsageRecord, SliMeasurement,
 )
 from keigan.entities.status_values import AlertGroupStatus, JobStatus
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.security.current_user import CurrentUser
+from keigan.services.action_item_rules import CLOSED_STATUSES
 from keigan.services.administration_model_capabilities import last_conformance_report, model_capability_views
 from keigan.services.answer_run_retention import purge_expired_answer_runs
 from keigan.services.audit_service import AuditService
@@ -240,6 +241,7 @@ class AdministrationService:
         if self.settings.ask_keigan_trace_retention_days is not None:
             trace_cutoff = now - timedelta(days=self.settings.ask_keigan_trace_retention_days)
             removed.update(await purge_expired_answer_runs(self.session, trace_cutoff, get_worker_settings().retention_delete_batch_size))
+        await purge("actionItems", delete(ActionItem).where(ActionItem.item_status.in_(CLOSED_STATUSES), ActionItem.completed_at < now - timedelta(days=self.settings.action_items_closed_retention_days)))
         await purge("finishedJobs", delete(BackgroundJob).where(BackgroundJob.job_status.in_((JobStatus.SUCCEEDED, "completed", JobStatus.CANCELLED)), BackgroundJob.finished_at < now - timedelta(days=RETENTION_FINISHED_JOB_DAYS)))
         await purge("auditEvents", delete(AuditEvent).where(AuditEvent.occurred_at < now - timedelta(days=RETENTION_AUDIT_AND_USAGE_DAYS)))
         await purge("llmUsageRecords", delete(LlmUsageRecord).where(LlmUsageRecord.created_at < now - timedelta(days=RETENTION_AUDIT_AND_USAGE_DAYS)))
