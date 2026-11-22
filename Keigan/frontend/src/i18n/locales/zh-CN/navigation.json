@@ -10,6 +10,7 @@
     "home": "首页",
     "incidents": "事件室",
     "alerts": "告警",
+    "actionItems": "行动项",
     "slo": "SLO 监控",
     "intelligence": "智能洞察",
     "metrics": "可靠性指标",

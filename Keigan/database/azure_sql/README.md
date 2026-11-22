@@ -1,7 +1,7 @@
 # Keigan — Azure SQL database scripts
 
 Run these once on an empty Azure SQL database **before** the first Helm install of Keigan.
-They create the `keigan` schema, 60 tables, 93 foreign keys, 81 indexes, 68 CHECK constraints on status columns, the migration baseline and a
+They create the `keigan` schema, 61 tables, 97 foreign keys, 85 indexes, 72 CHECK constraints on status columns, the migration baseline and a
 database user for Keigan's managed identity. Keigan stores no demo data in Azure: applications, users' access
 and everything else are created through the Keigan UI.
 Optional demo data for non-production databases is kept apart in `demo_data/` (see its README); `run_all.sql` never runs it.

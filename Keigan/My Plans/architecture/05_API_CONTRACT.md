@@ -114,6 +114,16 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | POST | `/alert-groups/{alertGroupId}/create-servicenow-incident` | route owned by S3's alert controller; S2 provides `IncidentService.create_servicenow_incident_from_alert_group` |
 | GET | `/incidents/{incidentId}/teams-chat` | chat info + mirrored messages (simulated mode shows full chat) |
 | POST | `/incidents/{incidentId}/teams-chat/messages` | simulated mode only: post as the current user |
+| | | **Action items (spec 29)** |
+| GET | `/action-items` | paged items in the applications the caller can read; query `applicationIds`, `statuses` (default open, in_progress, blocked), `priorities`, `sources`, `owner` (`me`, `unassigned` or a team member id), `overdueOnly`, `incidentId`, `page`, `pageSize` |
+| GET | `/action-items/{actionItemId}` | one item, with `canEdit`, `canChangeStatus` and `allowedStatuses` worked out for the caller |
+| GET | `/postmortems/{postmortemId}/action-items` | the postmortem's items in order, suggested ones included |
+| POST | `/applications/{applicationId}/action-items` | 201; application admin; a manual item starts open |
+| PATCH | `/action-items/{actionItemId}` | admin changes any field (a moved due date is counted); the owner may change `itemDetailsMarkdown` only |
+| POST | `/action-items/{actionItemId}/accept` | admin; optional field edits applied first; a suggestion becomes open and its due date must be today or later |
+| POST | `/action-items/{actionItemId}/status` | `{status, reasonText?, completionNoteText?}`; admin or owner per the transition table; blocked and won't do need a reason; 422 says what is refused |
+| DELETE | `/action-items/{actionItemId}` | 204; admin; a suggestion only (a tracked item closes as won't do) |
+| | | `POST /postmortems/{id}/finalize` answers 422 with field `actionItems` while suggestions remain |
 
 ## 7. Chat
 

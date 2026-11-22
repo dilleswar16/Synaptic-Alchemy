@@ -17,6 +17,7 @@ export function createAppRouter(options: { isDeveloperEnvironment: boolean }) {
   const authenticatedChildren: RouteObject[] = [
     { index: true, ...lazyPage(() => import("@/features/home/pages/HomePage")) },
     { path: "incidents", ...lazyPage(() => import("@/features/incidents/pages/IncidentRoomPage")) },
+    { path: "action-items", ...lazyPage(() => import("@/features/action-items/pages/ActionItemsPage")) },
     { path: "investigations/:investigationId", ...lazyPage(() => import("@/features/investigations/pages/InvestigationPage")) },
     { path: "alerts", ...lazyPage(() => import("@/features/alerts/pages/AlertsPage")) },
     { path: "slo", ...lazyPage(() => import("@/features/slo/pages/SloMonitoringPage")) },

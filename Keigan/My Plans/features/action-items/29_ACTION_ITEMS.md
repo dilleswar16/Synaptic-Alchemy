@@ -485,3 +485,18 @@ Build order for wave C: **this whole spec first**, then doc 30 (needs steps 1–
 2. **ServiceNow table for D1**: `problem_task`, a Post-Incident Review task, or another? Needed before D1, not before C1.
 3. **Retention of closed items**: two years by default. Does compliance need longer for P1 follow-ups?
 4. **Backend email languages**: reminders inherit the en/ja-only string tables. Extend them to all six languages as a separate small task?
+
+---
+
+## 12. Build notes (2026-11-23)
+
+Built in three steps on `keigan-ui-ux`: (1) data model, rules and settings; (2) service, API, postmortem hook and retention links; (3) reminders and closed-item retention; then the screens.
+
+Differences from this design, and what remains:
+- Revision `e7b3a9d1c5f2`; the source column is `item_source_kind` (the name `source_kind` collides with another table's column in the literal-scan test). `postmortem_report` is **version 3** (version 2 was taken by Honest outcomes).
+- `reminder_kind` escalates on the next reminder day (reminders are spaced by the interval), and the owner of an escalated item also receives it in their own email.
+- The reminder and escalation types are **not** added to `NOTIFICATION_TYPE_VALUES` (that list is the subscription list and a contract test requires the screen to offer exactly it); the email strings exist in English and Japanese.
+- Settings built: 13 (maximum per postmortem, maximum due days, details length, reason length, reference pattern, and the seven reminder and retention settings). Not built yet: `ACTION_ITEMS_POSTMORTEM_*`, `..._REPEAT_WINDOW_DAYS`, `..._OVERVIEW_MAXIMUM_DAYS`, `..._EXTERNAL_REFERENCE_URL_TEMPLATE`.
+- Not built: the overview endpoint and page (completion figures, needs attention, repeats), `incident_recurrence.py`, the external task link, "accept all", the removed-by-retention count `actionItemsUnlinked`.
+- `tzdata` is now a dependency: due dates use the application's own time zone and Windows has no system zone database.
+- Not seen in a browser.

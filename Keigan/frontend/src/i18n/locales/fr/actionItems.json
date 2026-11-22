@@ -1,0 +1,86 @@
+{
+  "pageTitle": "Actions de suivi",
+  "pageDescription": "Les suites données aux incidents : qui s'en charge, pour quand et où cela en est.",
+  "page": {
+    "new": "Nouvelle action",
+    "statusFilter": "Afficher",
+    "tracked": "En cours",
+    "finished": "Terminées",
+    "suggested": "Suggérées",
+    "ownerFilter": "Responsable",
+    "ownerAll": "Tout le monde",
+    "ownerMe": "Les miennes",
+    "ownerUnassigned": "Non attribuées",
+    "overdueOnly": "En retard uniquement",
+    "pageOf": "Page {{page}} sur {{total}}",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "empty": {
+      "tracked": { "title": "Rien à suivre", "description": "Les actions acceptées qui sont ouvertes, en cours ou bloquées apparaissent ici." },
+      "finished": { "title": "Rien de terminé pour l'instant", "description": "Les éléments marqués comme faits ou comme abandonnés apparaissent ici." },
+      "suggested": { "title": "Aucune suggestion en attente", "description": "Keigan suggère des actions lorsqu'il rédige un postmortem. Chacune attend ici qu'une personne l'accepte ou l'écarte." }
+    }
+  },
+  "status": { "proposed": "Suggérée", "open": "Ouverte", "in_progress": "En cours", "blocked": "Bloquée", "done": "Terminée", "wont_do": "Abandonnée" },
+  "priority": { "top": "Priorité maximale", "high": "Élevée", "normal": "Normale", "low": "Faible" },
+  "type": { "prevent": "Prévenir", "detect": "Détecter", "mitigate": "Atténuer" },
+  "typeHelp": {
+    "prevent": "Empêche que cela se reproduise.",
+    "detect": "Permet de le repérer plus tôt la prochaine fois.",
+    "mitigate": "Réduit l'impact ou le temps de rétablissement."
+  },
+  "statusAction": { "open": "Rouvrir", "in_progress": "Commencer le travail", "blocked": "Marquer comme bloquée", "done": "Marquer comme terminée", "wont_do": "Abandonner" },
+  "statusDialog": {
+    "title": { "open": "Rouvrir cet élément", "in_progress": "Commencer le travail sur cet élément", "blocked": "Marquer cet élément comme bloqué", "done": "Marquer cet élément comme terminé", "wont_do": "Clore cet élément comme abandonné" },
+    "confirm": { "open": "Rouvrir l'élément", "in_progress": "Commencer le travail", "blocked": "Marquer comme bloquée", "done": "Marquer comme terminée", "wont_do": "Clore comme abandonnée" },
+    "plain": { "open": "L'élément redevient ouvert et son achèvement est effacé.", "in_progress": "L'élément passe en cours." },
+    "reasonLabel": "Motif",
+    "reasonHelp": "Dites pourquoi, pour que la personne suivante comprenne. Cela reste sur l'élément.",
+    "noteLabel": "Ce qui a été fait",
+    "noteHelp": "Une courte note sur la façon dont cela a été terminé, par exemple un lien vers le changement."
+  },
+  "row": {
+    "accept": "Accepter",
+    "editAndAccept": "Modifier et accepter",
+    "discard": "Écarter la suggestion",
+    "edit": "Modifier les détails",
+    "actionsFor": "Actions pour {{title}}",
+    "overdueDays_one": "{{count}} jour de retard",
+    "overdueDays_other": "{{count}} jours de retard",
+    "suggestedRole": "Suggéré : {{role}}",
+    "unassigned": "Sans responsable",
+    "due": "Échéance le {{date}}",
+    "noDueDate": "Sans échéance",
+    "moved_one": "Échéance repoussée {{count}} fois (initialement {{date}})",
+    "moved_other": "Échéance repoussée {{count}} fois (initialement {{date}})",
+    "incident": "Incident {{reference}}",
+    "reason": "Motif : {{text}}",
+    "completionNote": "Fait : {{text}}"
+  },
+  "dialog": {
+    "createTitle": "Nouvelle action",
+    "editTitle": "Modifier l'action",
+    "acceptTitle": "Modifier et accepter",
+    "acceptDescription": "L'accepter en fait un engagement suivi. Choisissez le responsable et vérifiez l'échéance.",
+    "fieldTitle": "Ce qu'il faut faire",
+    "fieldType": "Type",
+    "fieldPriority": "Priorité",
+    "fieldOwner": "Responsable",
+    "fieldDue": "Échéance",
+    "fieldDetails": "Détails",
+    "suggestedRole": "Keigan a suggéré : {{role}}",
+    "cancel": "Annuler",
+    "create": "Créer l'action",
+    "accept": "Accepter l'action",
+    "save": "Enregistrer les modifications"
+  },
+  "panel": {
+    "title": "Actions de suivi",
+    "description": "Les suites de ce postmortem. Acceptez celles auxquelles l'équipe s'engage ; le tableau du rapport les suit.",
+    "finalDescription": "Les suites de ce postmortem. Elles sont suivies jusqu'à leur achèvement.",
+    "suggestedTitle_one": "{{count}} action suggérée attend une décision",
+    "suggestedTitle_other": "{{count}} actions suggérées attendent une décision",
+    "suggestedBody": "Acceptez ou écartez chaque suggestion avant de finaliser le postmortem."
+  },
+  "errors": { "actionFailed": "Cette modification n'a pas pu être enregistrée." }
+}

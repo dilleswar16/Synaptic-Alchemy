@@ -7,12 +7,12 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 
 | | Count | Share |
 |---|---|---|
-| ✅ Done and verified | 96 | 85 % |
-| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 13 | 12 % |
+| ✅ Done and verified | 96 | 84 % |
+| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 14 | 12 % |
 | 🧩 Placeholder by design (configuration saved, reader later) | 2 | 2 % |
 | 🔄 Being built right now | 1 | 1 % |
 | ⬜ Not started | 1 | 1 % |
-| **Total features** | **113** | **98 % built · 85 % verified** |
+| **Total features** | **114** | **98 % built · 84 % verified** |
 
 **Legend**
 - ✅ **Done and verified** in the local simulated environment: API tested end to end, and the screen loads in a real browser (headless Edge) with live data and no console or API errors. Mock AI unless stated.
@@ -95,6 +95,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 |---|---|---|---|
 | E1 | ServiceNow polling | ✅ | Simulated ServiceNow |
 | E-DT | Decision trace (roadmap A3): the Decision trace tab (steps in order, AI calls with prompt version and hashes, what went in by hash, what Keigan's checks changed, raw answers for admins), audit rows, correct token totals | 🟡 | Built and tested with the offline model; not seen in a browser; details shown as JSON, no cost or download yet. Design in `28_DECISION_TRACE.md` |
+| E-AI | Action items (roadmap C1): postmortem follow-ups as tracked rows (owner, due date, priority, type, status), accept-or-discard of AI suggestions before finalising, daily reminders and escalations, the Action items page | 🟡 | Built and tested with the offline model and SQLite; not seen in a browser; overview and repeats views not built. Design in `29_ACTION_ITEMS.md` |
 | E-HO | Honest outcomes (roadmap A2): state per hypothesis, outcome per investigation, what Keigan could not check, check outcome and baseline on every evidence item, outcome-first emails, Teams answers and drafts | 🟡 | Built and tested with the offline model (backend tests, typecheck, locale check, build); not seen in a browser; needs a real model to show how it distributes states. Design in `27_HONEST_OUTCOMES.md` |
 | E2 | Priority triage P1–P4 | ✅ | |
 | E3 | Evidence collection | ✅ | 27 evidence items, 12 strong, on the demo incident |

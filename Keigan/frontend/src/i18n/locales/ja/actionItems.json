@@ -1,0 +1,83 @@
+{
+  "pageTitle": "アクションアイテム",
+  "pageDescription": "インシデント後のフォローアップ。担当者、期限、進捗を確認できます。",
+  "page": {
+    "new": "アクションアイテムを追加",
+    "statusFilter": "表示",
+    "tracked": "対応中",
+    "finished": "完了済み",
+    "suggested": "提案",
+    "ownerFilter": "担当者",
+    "ownerAll": "全員",
+    "ownerMe": "自分",
+    "ownerUnassigned": "担当者なし",
+    "overdueOnly": "期限超過のみ",
+    "pageOf": "{{page}} / {{total}} ページ",
+    "previous": "前へ",
+    "next": "次へ",
+    "empty": {
+      "tracked": { "title": "フォローアップはありません", "description": "承認済みで、未着手・対応中・保留中のアクションアイテムがここに表示されます。" },
+      "finished": { "title": "完了したものはまだありません", "description": "完了または対応しないとしたアイテムがここに表示されます。" },
+      "suggested": { "title": "待機中の提案はありません", "description": "Keigan はポストモーテムの下書きを作るときにアクションアイテムを提案します。担当者が承認または破棄するまでここで待機します。" }
+    }
+  },
+  "status": { "proposed": "提案", "open": "未着手", "in_progress": "対応中", "blocked": "保留", "done": "完了", "wont_do": "対応しない" },
+  "priority": { "top": "最優先", "high": "高", "normal": "通常", "low": "低" },
+  "type": { "prevent": "予防", "detect": "検知", "mitigate": "影響軽減" },
+  "typeHelp": {
+    "prevent": "再発を防ぎます。",
+    "detect": "次回はより早く見つけられます。",
+    "mitigate": "影響や復旧までの時間を減らします。"
+  },
+  "statusAction": { "open": "再開する", "in_progress": "作業を開始", "blocked": "保留にする", "done": "完了にする", "wont_do": "対応しない" },
+  "statusDialog": {
+    "title": { "open": "このアイテムを再開", "in_progress": "このアイテムの作業を開始", "blocked": "このアイテムを保留にする", "done": "このアイテムを完了にする", "wont_do": "このアイテムを「対応しない」で閉じる" },
+    "confirm": { "open": "再開する", "in_progress": "作業を開始", "blocked": "保留にする", "done": "完了にする", "wont_do": "対応しないで閉じる" },
+    "plain": { "open": "アイテムは未着手に戻り、完了の記録は消えます。", "in_progress": "アイテムを対応中にします。" },
+    "reasonLabel": "理由",
+    "reasonHelp": "次の担当者が分かるように理由を書いてください。アイテムに残ります。",
+    "noteLabel": "実施した内容",
+    "noteHelp": "どのように完了したかの短いメモ（変更へのリンクなど）。"
+  },
+  "row": {
+    "accept": "承認",
+    "editAndAccept": "編集して承認",
+    "discard": "提案を破棄",
+    "edit": "詳細を編集",
+    "actionsFor": "{{title}} の操作",
+    "overdueDays_other": "{{count}} 日超過",
+    "suggestedRole": "提案: {{role}}",
+    "unassigned": "担当者なし",
+    "due": "期限 {{date}}",
+    "noDueDate": "期限なし",
+    "moved_other": "期限を {{count}} 回変更（当初 {{date}}）",
+    "incident": "インシデント {{reference}}",
+    "reason": "理由: {{text}}",
+    "completionNote": "実施内容: {{text}}"
+  },
+  "dialog": {
+    "createTitle": "アクションアイテムを追加",
+    "editTitle": "アクションアイテムを編集",
+    "acceptTitle": "編集して承認",
+    "acceptDescription": "承認すると、追跡される約束になります。担当者を選び、期限を確認してください。",
+    "fieldTitle": "やるべきこと",
+    "fieldType": "種類",
+    "fieldPriority": "優先度",
+    "fieldOwner": "担当者",
+    "fieldDue": "期限",
+    "fieldDetails": "詳細",
+    "suggestedRole": "Keigan の提案: {{role}}",
+    "cancel": "キャンセル",
+    "create": "アクションアイテムを作成",
+    "accept": "アクションアイテムを承認",
+    "save": "変更を保存"
+  },
+  "panel": {
+    "title": "アクションアイテム",
+    "description": "このポストモーテムのフォローアップです。チームが実行すると決めたものを承認してください。レポートの表はそれに従います。",
+    "finalDescription": "このポストモーテムのフォローアップです。完了するまで追跡されます。",
+    "suggestedTitle_other": "提案されたアクションアイテムが {{count}} 件待機中です",
+    "suggestedBody": "ポストモーテムを確定する前に、各提案を承認または破棄してください。"
+  },
+  "errors": { "actionFailed": "変更を保存できませんでした。" }
+}

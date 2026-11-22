@@ -10,6 +10,7 @@
     "home": "Inicio",
     "incidents": "Sala de incidentes",
     "alerts": "Alertas",
+    "actionItems": "Acciones de seguimiento",
     "slo": "Monitorización de SLO",
     "intelligence": "Inteligencia",
     "metrics": "Métricas de fiabilidad",

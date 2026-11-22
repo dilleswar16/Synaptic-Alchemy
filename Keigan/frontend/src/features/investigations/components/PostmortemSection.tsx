@@ -18,6 +18,7 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/Toast";
 import { formatDateTime } from "@/utils/formatters";
+import { PostmortemActionItems } from "./PostmortemActionItems";
 
 function downloadMarkdown(fileName: string, markdown: string) {
   const objectUrl = URL.createObjectURL(new Blob([markdown], { type: "text/markdown;charset=utf-8" }));
@@ -117,6 +118,7 @@ export function PostmortemSection({ detail, canEdit }: { detail: InvestigationDe
           {isEditing ? <Textarea label={t("postmortem.editorLabel")} value={draft} onChange={(event) => setDraft(event.target.value)} autoResize maximumRows={40} isMonospace /> : <MarkdownView content={markdown} size="large" />}
         </CardBody>
       </Card>
+      {postmortem.reportStatus === "draft" || isFinal ? <PostmortemActionItems postmortemId={postmortem.postmortemId} isFinal={isFinal} /> : null}
       <ConfirmDialog
         open={isFinalizeOpen}
         onOpenChange={setIsFinalizeOpen}

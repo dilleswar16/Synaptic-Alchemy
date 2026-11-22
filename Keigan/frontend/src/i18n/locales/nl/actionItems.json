@@ -1,0 +1,86 @@
+{
+  "pageTitle": "Actiepunten",
+  "pageDescription": "De vervolgacties na incidenten: wie ze oppakt, wanneer ze klaar moeten zijn en hoe ver ze zijn.",
+  "page": {
+    "new": "Nieuw actiepunt",
+    "statusFilter": "Tonen",
+    "tracked": "Lopend",
+    "finished": "Afgerond",
+    "suggested": "Voorgesteld",
+    "ownerFilter": "Eigenaar",
+    "ownerAll": "Iedereen",
+    "ownerMe": "Van mij",
+    "ownerUnassigned": "Niet toegewezen",
+    "overdueOnly": "Alleen te laat",
+    "pageOf": "Pagina {{page}} van {{total}}",
+    "previous": "Vorige",
+    "next": "Volgende",
+    "empty": {
+      "tracked": { "title": "Niets om op te volgen", "description": "Geaccepteerde actiepunten die open, bezig of geblokkeerd zijn, verschijnen hier." },
+      "finished": { "title": "Nog niets afgerond", "description": "Items die als klaar of als niet doen zijn gemarkeerd, verschijnen hier." },
+      "suggested": { "title": "Geen voorstellen in de wacht", "description": "Keigan stelt actiepunten voor wanneer het een postmortem opstelt. Elk voorstel wacht hier tot iemand het accepteert of verwerpt." }
+    }
+  },
+  "status": { "proposed": "Voorgesteld", "open": "Open", "in_progress": "Bezig", "blocked": "Geblokkeerd", "done": "Klaar", "wont_do": "Niet doen" },
+  "priority": { "top": "Hoogste prioriteit", "high": "Hoog", "normal": "Normaal", "low": "Laag" },
+  "type": { "prevent": "Voorkomen", "detect": "Detecteren", "mitigate": "Beperken" },
+  "typeHelp": {
+    "prevent": "Voorkomt dat dit opnieuw gebeurt.",
+    "detect": "Zorgt dat je het de volgende keer eerder ziet.",
+    "mitigate": "Verkleint de impact of de hersteltijd."
+  },
+  "statusAction": { "open": "Heropenen", "in_progress": "Aan de slag", "blocked": "Markeren als geblokkeerd", "done": "Markeren als klaar", "wont_do": "Niet doen" },
+  "statusDialog": {
+    "title": { "open": "Dit item heropenen", "in_progress": "Aan dit item beginnen", "blocked": "Dit item als geblokkeerd markeren", "done": "Dit item als klaar markeren", "wont_do": "Dit item sluiten als niet doen" },
+    "confirm": { "open": "Item heropenen", "in_progress": "Aan de slag", "blocked": "Markeren als geblokkeerd", "done": "Markeren als klaar", "wont_do": "Sluiten als niet doen" },
+    "plain": { "open": "Het item wordt weer open en de afronding wordt gewist.", "in_progress": "Het item gaat naar bezig." },
+    "reasonLabel": "Reden",
+    "reasonHelp": "Leg uit waarom, zodat de volgende het begrijpt. Het blijft bij het item staan.",
+    "noteLabel": "Wat is er gedaan",
+    "noteHelp": "Een korte notitie over hoe het is afgerond, bijvoorbeeld een link naar de wijziging."
+  },
+  "row": {
+    "accept": "Accepteren",
+    "editAndAccept": "Bewerken en accepteren",
+    "discard": "Voorstel verwerpen",
+    "edit": "Details bewerken",
+    "actionsFor": "Acties voor {{title}}",
+    "overdueDays_one": "{{count}} dag te laat",
+    "overdueDays_other": "{{count}} dagen te laat",
+    "suggestedRole": "Voorgesteld: {{role}}",
+    "unassigned": "Geen eigenaar",
+    "due": "Uiterlijk {{date}}",
+    "noDueDate": "Geen einddatum",
+    "moved_one": "Einddatum {{count}} keer verschoven (eerst {{date}})",
+    "moved_other": "Einddatum {{count}} keer verschoven (eerst {{date}})",
+    "incident": "Incident {{reference}}",
+    "reason": "Reden: {{text}}",
+    "completionNote": "Gedaan: {{text}}"
+  },
+  "dialog": {
+    "createTitle": "Nieuw actiepunt",
+    "editTitle": "Actiepunt bewerken",
+    "acceptTitle": "Bewerken en accepteren",
+    "acceptDescription": "Door te accepteren wordt dit een gevolgde afspraak. Kies de eigenaar en controleer de einddatum.",
+    "fieldTitle": "Wat moet er gebeuren",
+    "fieldType": "Type",
+    "fieldPriority": "Prioriteit",
+    "fieldOwner": "Eigenaar",
+    "fieldDue": "Einddatum",
+    "fieldDetails": "Details",
+    "suggestedRole": "Keigan stelde voor: {{role}}",
+    "cancel": "Annuleren",
+    "create": "Actiepunt aanmaken",
+    "accept": "Actiepunt accepteren",
+    "save": "Wijzigingen opslaan"
+  },
+  "panel": {
+    "title": "Actiepunten",
+    "description": "Vervolgacties uit deze postmortem. Accepteer wat het team toezegt; de tabel in het rapport volgt die keuze.",
+    "finalDescription": "Vervolgacties uit deze postmortem. Ze worden gevolgd tot ze klaar zijn.",
+    "suggestedTitle_one": "{{count}} voorgesteld actiepunt wacht op een besluit",
+    "suggestedTitle_other": "{{count}} voorgestelde actiepunten wachten op een besluit",
+    "suggestedBody": "Accepteer of verwerp elk voorstel voordat je de postmortem definitief maakt."
+  },
+  "errors": { "actionFailed": "Die wijziging kon niet worden opgeslagen." }
+}

@@ -1,0 +1,86 @@
+{
+  "pageTitle": "Action items",
+  "pageDescription": "The follow-ups after incidents: who owns each one, when it is due and where it stands.",
+  "page": {
+    "new": "New action item",
+    "statusFilter": "Show",
+    "tracked": "In progress",
+    "finished": "Finished",
+    "suggested": "Suggested",
+    "ownerFilter": "Owner",
+    "ownerAll": "Everyone",
+    "ownerMe": "Mine",
+    "ownerUnassigned": "Unassigned",
+    "overdueOnly": "Overdue only",
+    "pageOf": "Page {{page}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next",
+    "empty": {
+      "tracked": { "title": "Nothing to follow up", "description": "Accepted action items that are open, in progress or blocked appear here." },
+      "finished": { "title": "Nothing finished yet", "description": "Items marked done or won't do appear here." },
+      "suggested": { "title": "No suggestions waiting", "description": "Keigan suggests action items when it drafts a postmortem. Each waits here until a person accepts or discards it." }
+    }
+  },
+  "status": { "proposed": "Suggested", "open": "Open", "in_progress": "In progress", "blocked": "Blocked", "done": "Done", "wont_do": "Won't do" },
+  "priority": { "top": "Top priority", "high": "High", "normal": "Normal", "low": "Low" },
+  "type": { "prevent": "Prevent", "detect": "Detect", "mitigate": "Mitigate" },
+  "typeHelp": {
+    "prevent": "Stops this from happening again.",
+    "detect": "Finds it sooner next time.",
+    "mitigate": "Reduces the impact or the time to recover."
+  },
+  "statusAction": { "open": "Reopen", "in_progress": "Start work", "blocked": "Mark as blocked", "done": "Mark as done", "wont_do": "Won't do" },
+  "statusDialog": {
+    "title": { "open": "Reopen this item", "in_progress": "Start work on this item", "blocked": "Mark this item as blocked", "done": "Mark this item as done", "wont_do": "Close this item as won't do" },
+    "confirm": { "open": "Reopen item", "in_progress": "Start work", "blocked": "Mark as blocked", "done": "Mark as done", "wont_do": "Close as won't do" },
+    "plain": { "open": "The item goes back to open and its completion is cleared.", "in_progress": "The item moves to in progress." },
+    "reasonLabel": "Reason",
+    "reasonHelp": "Say why, so the next person understands. It stays on the item.",
+    "noteLabel": "What was done",
+    "noteHelp": "A short note on how it was finished, for example a link to the change."
+  },
+  "row": {
+    "accept": "Accept",
+    "editAndAccept": "Edit and accept",
+    "discard": "Discard suggestion",
+    "edit": "Edit details",
+    "actionsFor": "Actions for {{title}}",
+    "overdueDays_one": "{{count}} day overdue",
+    "overdueDays_other": "{{count}} days overdue",
+    "suggestedRole": "Suggested: {{role}}",
+    "unassigned": "No owner",
+    "due": "Due {{date}}",
+    "noDueDate": "No due date",
+    "moved_one": "Due date moved {{count}} time (first {{date}})",
+    "moved_other": "Due date moved {{count}} times (first {{date}})",
+    "incident": "Incident {{reference}}",
+    "reason": "Reason: {{text}}",
+    "completionNote": "Done: {{text}}"
+  },
+  "dialog": {
+    "createTitle": "New action item",
+    "editTitle": "Edit action item",
+    "acceptTitle": "Edit and accept",
+    "acceptDescription": "Accepting makes this a tracked commitment. Choose the owner and check the due date.",
+    "fieldTitle": "What needs to be done",
+    "fieldType": "Type",
+    "fieldPriority": "Priority",
+    "fieldOwner": "Owner",
+    "fieldDue": "Due date",
+    "fieldDetails": "Details",
+    "suggestedRole": "Keigan suggested: {{role}}",
+    "cancel": "Cancel",
+    "create": "Create action item",
+    "accept": "Accept action item",
+    "save": "Save changes"
+  },
+  "panel": {
+    "title": "Action items",
+    "description": "Follow-ups from this postmortem. Accept the ones the team commits to; the table in the report follows them.",
+    "finalDescription": "Follow-ups from this postmortem. They are tracked until done.",
+    "suggestedTitle_one": "{{count}} suggested action item is waiting",
+    "suggestedTitle_other": "{{count}} suggested action items are waiting",
+    "suggestedBody": "Accept or discard each suggestion before you finalise the postmortem."
+  },
+  "errors": { "actionFailed": "That change could not be saved." }
+}

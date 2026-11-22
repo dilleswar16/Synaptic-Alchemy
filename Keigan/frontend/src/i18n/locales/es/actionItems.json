@@ -1,0 +1,86 @@
+{
+  "pageTitle": "Acciones de seguimiento",
+  "pageDescription": "Los seguimientos posteriores a los incidentes: quién se encarga de cada uno, cuándo vence y en qué estado está.",
+  "page": {
+    "new": "Nueva acción",
+    "statusFilter": "Mostrar",
+    "tracked": "En curso",
+    "finished": "Finalizadas",
+    "suggested": "Sugeridas",
+    "ownerFilter": "Responsable",
+    "ownerAll": "Todos",
+    "ownerMe": "Mías",
+    "ownerUnassigned": "Sin asignar",
+    "overdueOnly": "Solo vencidas",
+    "pageOf": "Página {{page}} de {{total}}",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "empty": {
+      "tracked": { "title": "Nada que seguir", "description": "Aquí aparecen las acciones aceptadas que están abiertas, en curso o bloqueadas." },
+      "finished": { "title": "Aún no hay nada finalizado", "description": "Aquí aparecen los elementos marcados como hechos o como no se hará." },
+      "suggested": { "title": "No hay sugerencias pendientes", "description": "Keigan sugiere acciones cuando redacta un postmortem. Cada una espera aquí hasta que una persona la acepta o la descarta." }
+    }
+  },
+  "status": { "proposed": "Sugerida", "open": "Abierta", "in_progress": "En curso", "blocked": "Bloqueada", "done": "Hecha", "wont_do": "No se hará" },
+  "priority": { "top": "Máxima prioridad", "high": "Alta", "normal": "Normal", "low": "Baja" },
+  "type": { "prevent": "Prevenir", "detect": "Detectar", "mitigate": "Mitigar" },
+  "typeHelp": {
+    "prevent": "Evita que vuelva a ocurrir.",
+    "detect": "Permite detectarlo antes la próxima vez.",
+    "mitigate": "Reduce el impacto o el tiempo de recuperación."
+  },
+  "statusAction": { "open": "Reabrir", "in_progress": "Empezar a trabajar", "blocked": "Marcar como bloqueada", "done": "Marcar como hecha", "wont_do": "No se hará" },
+  "statusDialog": {
+    "title": { "open": "Reabrir este elemento", "in_progress": "Empezar a trabajar en este elemento", "blocked": "Marcar este elemento como bloqueado", "done": "Marcar este elemento como hecho", "wont_do": "Cerrar este elemento como no se hará" },
+    "confirm": { "open": "Reabrir elemento", "in_progress": "Empezar a trabajar", "blocked": "Marcar como bloqueada", "done": "Marcar como hecha", "wont_do": "Cerrar como no se hará" },
+    "plain": { "open": "El elemento vuelve a estar abierto y se borra su finalización.", "in_progress": "El elemento pasa a estar en curso." },
+    "reasonLabel": "Motivo",
+    "reasonHelp": "Explica por qué, para que la siguiente persona lo entienda. Queda en el elemento.",
+    "noteLabel": "Qué se hizo",
+    "noteHelp": "Una nota breve sobre cómo se terminó, por ejemplo un enlace al cambio."
+  },
+  "row": {
+    "accept": "Aceptar",
+    "editAndAccept": "Editar y aceptar",
+    "discard": "Descartar sugerencia",
+    "edit": "Editar detalles",
+    "actionsFor": "Acciones para {{title}}",
+    "overdueDays_one": "{{count}} día de retraso",
+    "overdueDays_other": "{{count}} días de retraso",
+    "suggestedRole": "Sugerido: {{role}}",
+    "unassigned": "Sin responsable",
+    "due": "Vence el {{date}}",
+    "noDueDate": "Sin fecha de vencimiento",
+    "moved_one": "Fecha de vencimiento cambiada {{count}} vez (la primera era {{date}})",
+    "moved_other": "Fecha de vencimiento cambiada {{count}} veces (la primera era {{date}})",
+    "incident": "Incidente {{reference}}",
+    "reason": "Motivo: {{text}}",
+    "completionNote": "Hecho: {{text}}"
+  },
+  "dialog": {
+    "createTitle": "Nueva acción",
+    "editTitle": "Editar acción",
+    "acceptTitle": "Editar y aceptar",
+    "acceptDescription": "Al aceptarla se convierte en un compromiso con seguimiento. Elige al responsable y revisa la fecha de vencimiento.",
+    "fieldTitle": "Qué hay que hacer",
+    "fieldType": "Tipo",
+    "fieldPriority": "Prioridad",
+    "fieldOwner": "Responsable",
+    "fieldDue": "Fecha de vencimiento",
+    "fieldDetails": "Detalles",
+    "suggestedRole": "Keigan sugirió: {{role}}",
+    "cancel": "Cancelar",
+    "create": "Crear acción",
+    "accept": "Aceptar acción",
+    "save": "Guardar cambios"
+  },
+  "panel": {
+    "title": "Acciones de seguimiento",
+    "description": "Seguimientos de este postmortem. Acepta los que el equipo se compromete a hacer; la tabla del informe los sigue.",
+    "finalDescription": "Seguimientos de este postmortem. Se les hace seguimiento hasta que estén hechos.",
+    "suggestedTitle_one": "Hay {{count}} acción sugerida esperando",
+    "suggestedTitle_other": "Hay {{count}} acciones sugeridas esperando",
+    "suggestedBody": "Acepta o descarta cada sugerencia antes de finalizar el postmortem."
+  },
+  "errors": { "actionFailed": "No se pudo guardar ese cambio." }
+}

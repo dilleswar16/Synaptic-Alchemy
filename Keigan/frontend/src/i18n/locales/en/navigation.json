@@ -10,6 +10,7 @@
     "home": "Home",
     "incidents": "Incident room",
     "alerts": "Alerts",
+    "actionItems": "Action items",
     "slo": "SLO monitoring",
     "intelligence": "Intelligence",
     "metrics": "Reliability metrics",

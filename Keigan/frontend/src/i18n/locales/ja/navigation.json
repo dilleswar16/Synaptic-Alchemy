@@ -10,6 +10,7 @@
     "home": "ホーム",
     "incidents": "インシデントルーム",
     "alerts": "アラート",
+    "actionItems": "アクションアイテム",
     "slo": "SLO モニタリング",
     "intelligence": "インテリジェンス",
     "metrics": "信頼性メトリクス",

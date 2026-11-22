@@ -1,0 +1,83 @@
+{
+  "pageTitle": "行动项",
+  "pageDescription": "事件之后的跟进事项：每项由谁负责、何时到期、进展如何。",
+  "page": {
+    "new": "新建行动项",
+    "statusFilter": "显示",
+    "tracked": "进行中",
+    "finished": "已结束",
+    "suggested": "建议",
+    "ownerFilter": "负责人",
+    "ownerAll": "所有人",
+    "ownerMe": "我的",
+    "ownerUnassigned": "未分配",
+    "overdueOnly": "仅看已逾期",
+    "pageOf": "第 {{page}} 页，共 {{total}} 页",
+    "previous": "上一页",
+    "next": "下一页",
+    "empty": {
+      "tracked": { "title": "没有需要跟进的事项", "description": "已接受且处于待办、进行中或受阻状态的行动项会显示在这里。" },
+      "finished": { "title": "还没有已结束的事项", "description": "标记为已完成或不再处理的事项会显示在这里。" },
+      "suggested": { "title": "没有等待处理的建议", "description": "Keigan 在起草事后复盘时会建议行动项。每条建议会在这里等待，直到有人接受或丢弃。" }
+    }
+  },
+  "status": { "proposed": "建议", "open": "待办", "in_progress": "进行中", "blocked": "受阻", "done": "已完成", "wont_do": "不再处理" },
+  "priority": { "top": "最高优先级", "high": "高", "normal": "普通", "low": "低" },
+  "type": { "prevent": "预防", "detect": "检测", "mitigate": "缓解" },
+  "typeHelp": {
+    "prevent": "防止问题再次发生。",
+    "detect": "下次更早发现。",
+    "mitigate": "减小影响或缩短恢复时间。"
+  },
+  "statusAction": { "open": "重新打开", "in_progress": "开始处理", "blocked": "标记为受阻", "done": "标记为已完成", "wont_do": "不再处理" },
+  "statusDialog": {
+    "title": { "open": "重新打开此事项", "in_progress": "开始处理此事项", "blocked": "将此事项标记为受阻", "done": "将此事项标记为已完成", "wont_do": "以“不再处理”关闭此事项" },
+    "confirm": { "open": "重新打开", "in_progress": "开始处理", "blocked": "标记为受阻", "done": "标记为已完成", "wont_do": "以不再处理关闭" },
+    "plain": { "open": "事项将回到待办，完成记录会被清除。", "in_progress": "事项将变为进行中。" },
+    "reasonLabel": "原因",
+    "reasonHelp": "说明原因，方便下一个人理解。它会保留在事项上。",
+    "noteLabel": "完成了什么",
+    "noteHelp": "简要说明是如何完成的，例如相关变更的链接。"
+  },
+  "row": {
+    "accept": "接受",
+    "editAndAccept": "编辑并接受",
+    "discard": "丢弃建议",
+    "edit": "编辑详情",
+    "actionsFor": "{{title}} 的操作",
+    "overdueDays_other": "已逾期 {{count}} 天",
+    "suggestedRole": "建议：{{role}}",
+    "unassigned": "无负责人",
+    "due": "到期 {{date}}",
+    "noDueDate": "无到期日",
+    "moved_other": "到期日已调整 {{count}} 次（最初为 {{date}}）",
+    "incident": "事件 {{reference}}",
+    "reason": "原因：{{text}}",
+    "completionNote": "完成情况：{{text}}"
+  },
+  "dialog": {
+    "createTitle": "新建行动项",
+    "editTitle": "编辑行动项",
+    "acceptTitle": "编辑并接受",
+    "acceptDescription": "接受后，这将成为被跟踪的承诺。请选择负责人并确认到期日。",
+    "fieldTitle": "需要做什么",
+    "fieldType": "类型",
+    "fieldPriority": "优先级",
+    "fieldOwner": "负责人",
+    "fieldDue": "到期日",
+    "fieldDetails": "详情",
+    "suggestedRole": "Keigan 的建议：{{role}}",
+    "cancel": "取消",
+    "create": "创建行动项",
+    "accept": "接受行动项",
+    "save": "保存更改"
+  },
+  "panel": {
+    "title": "行动项",
+    "description": "此次事后复盘的跟进事项。请接受团队承诺要做的事项，报告中的表格会随之更新。",
+    "finalDescription": "此次事后复盘的跟进事项，将持续跟踪直至完成。",
+    "suggestedTitle_other": "有 {{count}} 条建议的行动项在等待处理",
+    "suggestedBody": "确定事后复盘之前，请接受或丢弃每一条建议。"
+  },
+  "errors": { "actionFailed": "无法保存该更改。" }
+}
