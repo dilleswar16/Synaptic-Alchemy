@@ -11,11 +11,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from keigan.config import application_context
 from keigan.config.database_config import create_database_schema
 from keigan.config.logging_config import configure_logging
 from keigan.config.settings import get_settings
 from keigan.exceptions.keigan_exceptions import register_exception_handlers
 from keigan.security.security_middleware import SecurityMiddleware
+from keigan.services.ask_keigan_interruption import RunInterruption
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,7 @@ CONTROLLER_MODULES = (
     "keigan.controllers.public_controller",
     "keigan.controllers.authentication_controller",
     "keigan.controllers.application_controller",
+    "keigan.controllers.operating_notes_controller",
     "keigan.controllers.onboarding_controller",
     "keigan.controllers.knowledge_controller",
     "keigan.controllers.incident_controller",
@@ -35,6 +38,7 @@ CONTROLLER_MODULES = (
     "keigan.controllers.notification_controller",
     "keigan.controllers.teams_bot_controller",
     "keigan.controllers.dashboard_controller",
+    "keigan.controllers.metrics_controller",
     "keigan.controllers.administration_controller",
 )
 
@@ -61,6 +65,8 @@ async def application_lifespan(_application: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        # Answers run as detached tasks (they outlive their request): cut them and end their runs as interrupted, so nothing is left "running" by this pod.
+        await RunInterruption(application_context.answer_run_registry()).interrupt_live_runs()
         for stoppable_component in stoppable_components:
             stoppable_component.stop()  # type: ignore[attr-defined]
         if background_tasks:

@@ -8,7 +8,7 @@ constraint of that column; the schema drift test and the constraint tests fail u
 
 Columns left open on purpose (their values come from catalogs, Azure resource types or free input, so a fixed list would be wrong):
 service_type, document_category, sli_kind, data_source_kind, notification_type, decision_outcome, event_type, event_source,
-evidence_category, evidence_source_kind, environment_name, record_system, tool_type and the AI usage model fields.
+evidence_category, evidence_source_kind, environment_name, record_system, tool_type, tool_name, tool_source, turn_finish and the AI usage model fields.
 """
 
 from __future__ import annotations
@@ -73,6 +73,17 @@ class AlertGroupFeedbackVerdict(StrEnum):
     NOISE = "noise"
 
 
+class AlertGroupingReason(StrEnum):
+    """Why an alert group's alerts belong together. Derived when a group is read, never stored (no column, no CHECK); the screens translate each code."""
+
+    SAME_SERVICE = "same_service"
+    DEPENDENCY = "dependency"
+    SAME_RULE = "same_rule"
+    ATTACHED_TO_INCIDENT = "attached_to_incident"
+    SINGLE_ALERT = "single_alert"
+    NOT_RECORDED = "not_recorded"
+
+
 class NoisePolicyMode(StrEnum):
     OBSERVE = "observe"
     ACTIVE = "active"
@@ -121,6 +132,13 @@ class InvestigationStatus(StrEnum):
     COMPLETED_EVIDENCE_ONLY = "completed_evidence_only"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+class LlmCallOutcome(StrEnum):
+    """What the AI gateway writes to llm_usage_record.outcome_status. The column is open (no CHECK), so this only names the two words it writes."""
+
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
 
 
 class InvestigationStage(StrEnum):
@@ -174,6 +192,43 @@ class MessageAuthorRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
     TEAMS_PARTICIPANT = "teams_participant"
+
+
+class ChatAnswerRunStatus(StrEnum):
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ChatAnswerStopReason(StrEnum):
+    ANSWERED = "answered"
+    TOOL_LIMIT_REACHED = "tool_limit_reached"
+    TOKEN_BUDGET_REACHED = "token_budget_reached"
+    CANCELLED_BY_USER = "cancelled_by_user"
+    FAILED = "failed"
+
+
+class ChatRunStepKind(StrEnum):
+    MODEL_TURN = "model_turn"
+    TOOL_CALL = "tool_call"
+
+
+class ChatRunStepStatus(StrEnum):
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    REFUSED = "refused"
+    SKIPPED = "skipped"
+    CANCELLED = "cancelled"
+
+
+class ToolCallingMode(StrEnum):
+    """How one answer run offered its tools to the model: the model's own tool calling, a JSON protocol in the prompt, or the offline planner."""
+
+    NATIVE = "native"
+    PROMPTED_JSON = "prompted_json"
+    SCRIPTED_MOCK = "scripted_mock"
 
 
 class ApplicationLifecycleStatus(StrEnum):
@@ -327,6 +382,15 @@ class BurnAlertSeverity(StrEnum):
 class IntelligenceReportType(StrEnum):
     WEEKLY_DIGEST = "weekly_digest"
     PROACTIVE_ALERT = "proactive_alert"
+
+
+class SloHealthStatus(StrEnum):
+    """Where an SLO stands. Worked out from its measurements every time the dashboard is built and never stored, so no column and no CHECK constraint carry it."""
+
+    HEALTHY = "healthy"
+    AT_RISK = "at_risk"
+    BREACHED = "breached"
+    NO_DATA = "no_data"
 
 
 def sql_in_list(values: type[StrEnum]) -> str:

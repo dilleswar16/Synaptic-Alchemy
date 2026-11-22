@@ -16,6 +16,8 @@ BACKEND_DIRECTORY = Path(__file__).resolve().parents[2]
 SQL_SERVER_URL = "mssql+aioodbc://@server.database.windows.net:1433/keigan?driver=ODBC+Driver+18+for+SQL+Server"
 FILLER_BY_COLUMN_TYPE = {"INTEGER": 0, "BIGINT": 0, "BOOLEAN": 0, "FLOAT": 0.0}
 TIMESTAMP_FILLER = "2026-01-01 00:00:00.000000"
+# Tables that revisions after the status CHECK revision (d2a6b0c5e8f9) created: they carry their own CHECKs, which that revision did not add.
+TABLES_ADDED_AFTER_THE_CHECK_REVISION = frozenset({"chat_answer_run", "chat_run_step"})
 
 
 def run_alembic(*arguments: str, database_file: Path | None = None, sql_server: bool = False) -> str:

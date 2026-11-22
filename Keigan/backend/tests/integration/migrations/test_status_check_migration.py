@@ -10,14 +10,15 @@ from sqlalchemy import CheckConstraint
 
 from keigan.entities import all_entities  # noqa: F401  (registers every table)
 from keigan.entities.base_entity import EntityBase
-from support.schema_revisions import database_at, insert_row, run_alembic, sql_server_script
+from support.schema_revisions import TABLES_ADDED_AFTER_THE_CHECK_REVISION, database_at, insert_row, run_alembic, sql_server_script
 
 PREVIOUS_REVISION = "c9e4f1b8d3a7"
 CHECK_REVISION = "d2a6b0c5e8f9"
 
 
 def checks_in_the_entities() -> list[tuple[str, CheckConstraint]]:
-    return [(table.name, constraint) for table in EntityBase.metadata.sorted_tables for constraint in table.constraints if isinstance(constraint, CheckConstraint) and constraint.name and constraint.name.endswith("_values")]
+    return [(table.name, constraint) for table in EntityBase.metadata.sorted_tables for constraint in table.constraints
+            if isinstance(constraint, CheckConstraint) and constraint.name and constraint.name.endswith("_values") and table.name not in TABLES_ADDED_AFTER_THE_CHECK_REVISION]
 
 
 @pytest.fixture(scope="module")

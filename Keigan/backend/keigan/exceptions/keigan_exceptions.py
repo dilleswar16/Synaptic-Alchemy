@@ -39,6 +39,13 @@ class ForbiddenException(KeiganException):
     title = "You do not have access to this resource"
 
 
+class AccessLostMidRunException(ForbiddenException):
+    """The person's access to an application was removed while Keigan was answering, so the answer was stopped (spec 23, 4.10)."""
+
+    error_code = "access_lost_mid_run"
+    title = "Your access changed while Keigan was answering"
+
+
 class AuthenticationException(KeiganException):
     status_code = 401
     error_code = "authentication_required"
@@ -58,6 +65,43 @@ class ConflictException(KeiganException):
     status_code = 409
     error_code = "conflict"
     title = "The resource changed or already exists"
+
+
+class NotAcceptableException(KeiganException):
+    """The client did not say it accepts the response type the endpoint produces."""
+
+    status_code = 406
+    error_code = "not_acceptable"
+    title = "The response type is not acceptable"
+
+
+class AnswerRunConflictException(ConflictException):
+    """A conflict about one Ask Keigan answer run: the problem carries the run's id (``answerRunId``) so the screen can switch to it."""
+
+    def __init__(self, detail: str, *, answer_run_id: str | None = None):
+        super().__init__(detail, extra={"answerRunId": answer_run_id} if answer_run_id else None)
+        self.answer_run_id = answer_run_id
+
+
+class AnswerInProgressException(AnswerRunConflictException):
+    """Another answer of the same conversation is still running."""
+
+    error_code = "answer_in_progress"
+    title = "Keigan is still answering"
+
+
+class DuplicateRequestException(AnswerRunConflictException):
+    """The same ``clientRequestId`` was sent before; the existing answer is the one to show."""
+
+    error_code = "duplicate_request"
+    title = "Question already sent"
+
+
+class AnswerNotRunningException(AnswerRunConflictException):
+    """Stop was asked for an answer that already finished."""
+
+    error_code = "answer_not_running"
+    title = "The answer already finished"
 
 
 class RateLimitedException(KeiganException):
@@ -93,6 +137,11 @@ class TokenBudgetExceededException(KeiganException):
     error_code = "token_budget_exceeded"
     title = "The daily AI token budget for this application is used up"
 
+    def __init__(self, detail: str | None = None, *, application_id: str | None = None):
+        """``application_id``: the application whose daily budget ran out; None when it was the person's own budget for questions across several applications."""
+        super().__init__(detail)
+        self.application_id = application_id
+
 
 class LlmUnavailableException(KeiganException):
     status_code = 503
@@ -111,6 +160,11 @@ class LlmRateLimitedException(LlmUnavailableException):
     error_code = "ai_rate_limited"
     title = "The AI service is busy"
 
+    def __init__(self, detail: str | None = None, *, retry_after_seconds: int | None = None):
+        """``retry_after_seconds``: how long the provider asked callers to wait (its ``Retry-After``), when it said."""
+        super().__init__(detail)
+        self.retry_after_seconds = retry_after_seconds
+
 
 class LlmAuthenticationException(LlmUnavailableException):
     status_code = 502
@@ -122,6 +176,18 @@ class LlmRequestRejectedException(LlmUnavailableException):
     status_code = 502
     error_code = "ai_request_rejected"
     title = "The AI service rejected the request"
+
+
+class AgentToolsUnsupportedException(LlmUnavailableException):
+    status_code = 503
+    error_code = "ai_tools_unsupported"
+    title = "The configured AI model cannot use tools"
+
+
+class AgentToolProtocolException(LlmUnavailableException):
+    status_code = 502
+    error_code = "ai_tool_protocol_failed"
+    title = "The AI model did not follow the tool format"
 
 
 class LlmOutputValidationException(KeiganException):

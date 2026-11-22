@@ -5,16 +5,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import func, select
 
 from keigan.config.database_config import open_session
 from keigan.entities.alert_entities import AlertGroup
 from keigan.entities.incident_entities import (
-    Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, PostmortemReport,
+    ChatAnswerRun, ChatRunStep, Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, PostmortemReport,
 )
+from keigan.config.settings import get_settings
 from keigan.entities.notification_entities import NotificationDelivery, TeamsIncidentChat
+from keigan.entities.status_values import ConversationScope
 from keigan.services.administration_service import AdministrationService
 from keigan.services.incident_retention import purge_expired_incidents
+from support.chat_answer_runs import StoredAnswerRun, store_answer_run
 
 LONG_AGO = datetime.now(UTC) - timedelta(days=500)
 RECENT = datetime.now(UTC) - timedelta(days=5)
@@ -140,3 +144,84 @@ async def test_retention_cleanup_job_removes_expired_incidents(seed_context) -> 
         removed = await AdministrationService(session).run_retention_cleanup()
     assert removed is not None and removed["incidents"] >= 1
     assert (await _count_rows_of_tree(tree))["incident"] == 0
+
+
+async def _count_answer_runs_and_steps(stored: StoredAnswerRun) -> tuple[int, int]:
+    async with open_session() as session:
+        runs = await session.scalar(select(func.count()).select_from(ChatAnswerRun).where(ChatAnswerRun.answer_run_id == stored.answer_run_id))
+        steps = await session.scalar(select(func.count()).select_from(ChatRunStep).where(ChatRunStep.answer_run_id == stored.answer_run_id))
+    return runs or 0, steps or 0
+
+
+async def test_expired_incident_is_removed_together_with_the_answer_runs_of_its_investigation_chat(seed_context) -> None:
+    tree = await _create_incident_tree(seed_context.application_ids_by_code["CLMJP"], opened_at=LONG_AGO, incident_status="resolved")
+    async with open_session() as session:
+        conversation_id = await session.scalar(select(Conversation.conversation_id).where(Conversation.incident_id == tree.incident_id))
+        stored = await store_answer_run(session, conversation_id=conversation_id, conversation_scope=ConversationScope.INVESTIGATION, investigation_id=tree.investigation_id)
+    async with open_session() as session:
+        removed = await purge_expired_incidents(session, CUTOFF, batch_size=500)
+    assert await _count_answer_runs_and_steps(stored) == (0, 0)
+    assert removed["chatAnswerRuns"] >= 1 and removed["chatRunSteps"] >= 2
+
+
+async def test_a_recent_incident_keeps_the_answer_runs_of_its_chat(seed_context) -> None:
+    tree = await _create_incident_tree(seed_context.application_ids_by_code["CLMJP"], opened_at=RECENT, incident_status="resolved")
+    async with open_session() as session:
+        conversation_id = await session.scalar(select(Conversation.conversation_id).where(Conversation.incident_id == tree.incident_id))
+        stored = await store_answer_run(session, conversation_id=conversation_id, conversation_scope=ConversationScope.INVESTIGATION, investigation_id=tree.investigation_id)
+    async with open_session() as session:
+        await purge_expired_incidents(session, CUTOFF, batch_size=500)
+    assert await _count_answer_runs_and_steps(stored) == (1, 2)
+
+
+# ── Stored traces of global conversations: nothing expires unless ASK_KEIGAN_TRACE_RETENTION_DAYS is set (D4) ──
+
+
+async def _global_run_started(days_ago: int) -> StoredAnswerRun:
+    async with open_session() as session:
+        return await store_answer_run(session, started_at=datetime.now(UTC) - timedelta(days=days_ago))
+
+
+async def test_by_default_the_retention_cleanup_keeps_every_stored_trace(seed_context, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "ask_keigan_trace_retention_days", None)
+    stored = await _global_run_started(days_ago=3000)
+    async with open_session() as session:
+        removed = await AdministrationService(session).run_retention_cleanup()
+    assert removed is not None
+    assert await _count_answer_runs_and_steps(stored) == (1, 2)
+
+
+async def test_with_a_retention_set_only_older_traces_of_global_conversations_are_removed_and_the_conversation_stays(seed_context, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "ask_keigan_trace_retention_days", 90)
+    old, recent = await _global_run_started(days_ago=120), await _global_run_started(days_ago=10)
+    async with open_session() as session:
+        removed = await AdministrationService(session).run_retention_cleanup()
+    assert removed is not None and removed["chatAnswerRuns"] >= 1 and removed["chatRunSteps"] >= 2
+    assert await _count_answer_runs_and_steps(old) == (0, 0)
+    assert await _count_answer_runs_and_steps(recent) == (1, 2)
+    async with open_session() as session:
+        assert await session.get(Conversation, old.conversation_id) is not None
+        assert await session.get(ConversationMessage, old.user_message_id) is not None
+
+
+async def test_the_trace_retention_leaves_the_runs_of_investigation_conversations_alone(seed_context, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "ask_keigan_trace_retention_days", 90)
+    tree = await _create_incident_tree(seed_context.application_ids_by_code["CLMJP"], opened_at=RECENT, incident_status="investigating")
+    async with open_session() as session:
+        conversation_id = await session.scalar(select(Conversation.conversation_id).where(Conversation.incident_id == tree.incident_id))
+        stored = await store_answer_run(
+            session, conversation_id=conversation_id, conversation_scope=ConversationScope.INVESTIGATION, investigation_id=tree.investigation_id, started_at=datetime.now(UTC) - timedelta(days=400)
+        )
+    async with open_session() as session:
+        await AdministrationService(session).run_retention_cleanup()
+    assert await _count_answer_runs_and_steps(stored) == (1, 2)
+
+
+async def test_the_trace_retention_works_through_batches(seed_context) -> None:
+    from keigan.services.answer_run_retention import purge_expired_answer_runs
+
+    stored_runs = [await _global_run_started(days_ago=200) for _ in range(5)]
+    async with open_session() as session:
+        removed = await purge_expired_answer_runs(session, datetime.now(UTC) - timedelta(days=90), batch_size=2)
+    assert removed["chatAnswerRuns"] >= 5
+    assert [await _count_answer_runs_and_steps(stored) for stored in stored_runs] == [(0, 0)] * 5

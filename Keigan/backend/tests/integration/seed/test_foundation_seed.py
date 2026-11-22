@@ -29,3 +29,20 @@ async def test_every_seeded_log_source_and_metric_is_allowed_by_the_access_polic
             if component.azure_subscription_id:
                 await policy.ensure_can_read_activity(service.application_id, component.azure_subscription_id, component.azure_resource_group_name, session)
     assert checked_source_count > 30
+
+
+async def test_the_flagship_and_one_other_demo_application_have_plain_operating_notes_within_the_limit() -> None:
+    from keigan.ai.prompt_safety import assess_prompt_injection
+    from keigan.config.settings import get_settings
+    from keigan.entities.application_entities import Application
+    from keigan.utils.pii_masker import PiiMasker
+
+    async with open_session() as session:
+        notes_by_code = {application.application_code: application.operating_notes_text for application in (await session.scalars(select(Application))).all()}
+    for application_code in ("CLMJP", "CHAD"):
+        notes = notes_by_code[application_code]
+        assert notes and notes == notes.strip(), application_code
+        assert len(notes) <= get_settings().application_operating_notes_maximum_characters
+        assert not assess_prompt_injection(notes).is_suspicious
+        assert PiiMasker().mask_text(notes) == notes, "demo notes must hold no personal data"
+        assert notes.isascii(), "demo notes are plain English"

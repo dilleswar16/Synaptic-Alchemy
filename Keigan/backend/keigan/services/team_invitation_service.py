@@ -1,7 +1,7 @@
 """Team invitations: who may be invited, the invitation email, and the first sign-in that turns "invited" into "active".
 
 Keigan does not grant access. Access to an application comes from two AD groups that SailPoint fills, so an invitation only tells the
-person they were added, which group to request, and where to open the application. See My Plans/20_TEAM_MEMBERS_DESIGN.md.
+person they were added, which group to request, and where to open the application. See My Plans/features/team-members/20_TEAM_MEMBERS_DESIGN.md.
 A member's status is worked out from facts on the stakeholder row, never stored, so it cannot disagree with them.
 """
 

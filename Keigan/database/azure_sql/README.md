@@ -1,7 +1,7 @@
 # Keigan — Azure SQL database scripts
 
 Run these once on an empty Azure SQL database **before** the first Helm install of Keigan.
-They create the `keigan` schema, 56 tables, 85 foreign keys, 73 indexes, 47 CHECK constraints on status columns, the migration baseline and a
+They create the `keigan` schema, 58 tables, 91 foreign keys, 79 indexes, 53 CHECK constraints on status columns, the migration baseline and a
 database user for Keigan's managed identity. Keigan stores no demo data in Azure: applications, users' access
 and everything else are created through the Keigan UI.
 Optional demo data for non-production databases is kept apart in `demo_data/` (see its README); `run_all.sql` never runs it.
@@ -11,8 +11,8 @@ Optional demo data for non-production databases is kept apart in `demo_data/` (s
 | 1 | `01_create_schema.sql` | Creates schema `keigan` |
 | 2 | `02_create_tables.sql` | Creates every table with its primary key, unique and CHECK constraints (status and kind columns accept only the values in `keigan/entities/status_values.py`) |
 | 3 | `03_create_foreign_keys.sql` | Adds foreign keys (after all tables exist, so order never matters) |
-| 4 | `04_create_indexes.sql` | Adds indexes, including the filtered unique indexes (ServiceNow incident numbers, one open alert per fingerprint, one active job per deduplication key) |
-| 5 | `05_reference_data.sql` | Creates `keigan.alembic_version` = `e4c8a1d7b2f6` (so later releases apply only newer migrations) and a schema marker row |
+| 4 | `04_create_indexes.sql` | Adds indexes, including the filtered unique indexes (ServiceNow incident numbers, one open alert per fingerprint, one active job per deduplication key, one running Ask Keigan answer per conversation) |
+| 5 | `05_reference_data.sql` | Creates `keigan.alembic_version` = `c5e7a9b3d1f4` (so later releases apply only newer migrations) and a schema marker row |
 | 6 | `06_grant_keigan_identity.sql` | Creates the database user for Keigan's managed identity and grants read/write on schema `keigan` |
 | — | `run_all.sql` | Runs 1–6 in order with `sqlcmd` |
 
@@ -44,8 +44,8 @@ sqlcmd -S <server>.database.windows.net -d <database> \
 ## Check the result
 
 ```sql
-SELECT COUNT(*) AS table_count FROM sys.tables WHERE schema_id = SCHEMA_ID(N'keigan');   -- 57 (56 + alembic_version)
-SELECT version_num FROM keigan.alembic_version;                                          -- e4c8a1d7b2f6
+SELECT COUNT(*) AS table_count FROM sys.tables WHERE schema_id = SCHEMA_ID(N'keigan');   -- 59 (58 + alembic_version)
+SELECT version_num FROM keigan.alembic_version;                                          -- c5e7a9b3d1f4
 SELECT name, type_desc FROM sys.database_principals WHERE name = N'id-keigan-prod';     -- EXTERNAL_USER
 ```
 

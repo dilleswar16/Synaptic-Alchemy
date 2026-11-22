@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from keigan.ai.prompt_safety import assess_prompt_injection, sanitize_untrusted_text, spotlight
+from keigan.ai.prompt_safety import assess_prompt_injection, find_citation_codes, remove_invalid_citations, sanitize_untrusted_text, spotlight
 
 
 class TestSanitizeUntrustedText:
@@ -95,3 +95,15 @@ class TestSpotlight:
     def test_the_source_label_cannot_break_out_of_the_attribute(self) -> None:
         block = spotlight("x", 'a" onload="evil', boundary="kg-abc")
         assert block.startswith('<untrusted_data source="a onloadevil" boundary="kg-abc"')
+
+
+class TestCitationCodes:
+    def test_tool_call_citations_are_recognised_next_to_the_existing_kinds(self) -> None:
+        assert find_citation_codes("Spike [T1] and [T12]; see [E3], [R1] and [K2].") == {"T1", "T12", "E3", "R1", "K2"}
+
+    def test_a_tool_call_citation_that_was_not_made_is_removed_and_a_real_one_stays(self) -> None:
+        assert remove_invalid_citations("Errors rose [T1][T2].", {"T1"}) == "Errors rose [T1]."
+
+    @pytest.mark.parametrize("not_a_citation", ["[T]", "[T123]", "[t1]", "[T1a]", "T1"])
+    def test_text_that_only_looks_like_a_tool_call_citation_is_left_alone(self, not_a_citation: str) -> None:
+        assert find_citation_codes(not_a_citation) == set()

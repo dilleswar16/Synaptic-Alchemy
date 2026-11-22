@@ -146,7 +146,7 @@ def spotlight(
 
 # ── Citation checks ────────────────────────────────────────────────────────────
 
-_CITATION_PATTERN = re.compile(r"\[(E\d{1,3}|R\d{1,2}|K\d{1,2})\]")
+_CITATION_PATTERN = re.compile(r"\[(E\d{1,3}|R\d{1,2}|K\d{1,2}|T\d{1,2})\]")  # T: a tool call of Ask Keigan
 
 
 def build_valid_citation_codes(evidence_codes: Iterable[str], runbook_codes: Iterable[str], knowledge_codes: Iterable[str]) -> set[str]:

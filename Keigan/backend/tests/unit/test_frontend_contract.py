@@ -10,7 +10,7 @@ from typing import get_args
 import pytest
 
 from keigan.dtos.notification_dtos import NOTIFICATION_CHANNEL_VALUES, NOTIFICATION_TYPE_VALUES, StakeholderRole as StakeholderRoleLiteral
-from keigan.entities.status_values import StakeholderRole
+from keigan.entities.status_values import AlertGroupingReason, StakeholderRole
 
 FRONTEND_SOURCE = Path(__file__).resolve().parents[3] / "frontend" / "src"
 BACKEND_RESOURCES = Path(__file__).resolve().parents[2] / "keigan" / "resources"
@@ -57,3 +57,19 @@ def test_every_role_has_a_label_in_every_screen_language(locale: str) -> None:
 def test_every_role_has_a_label_in_the_invitation_email(language: str) -> None:
     labels = json.loads((BACKEND_RESOURCES / "i18n" / f"{language}.json").read_text(encoding="utf-8"))["roles"]
     assert sorted(labels) == ROLE_VALUES
+
+
+ALERTS_API = (FRONTEND_SOURCE / "api" / "alertsApi.ts").read_text(encoding="utf-8")
+GROUPING_REASON_CODES = sorted(reason.value for reason in AlertGroupingReason)
+
+
+def test_the_screen_knows_exactly_the_grouping_reasons_the_server_derives() -> None:
+    match = re.search(r"export type AlertGroupingReasonCode =\s*(.*?);", ALERTS_API, re.DOTALL)
+    assert match, "AlertGroupingReasonCode not found in frontend/src/api/alertsApi.ts"
+    assert sorted(re.findall(r'"([^"]+)"', match.group(1))) == GROUPING_REASON_CODES
+
+
+@pytest.mark.parametrize("locale", sorted(path.name for path in (FRONTEND_SOURCE / "i18n" / "locales").iterdir() if path.is_dir() and path.name != "es-MX"))
+def test_every_grouping_reason_has_a_sentence_in_every_screen_language(locale: str) -> None:
+    sentences = json.loads((FRONTEND_SOURCE / "i18n" / "locales" / locale / "alerts.json").read_text(encoding="utf-8"))["groupingReason"]
+    assert sorted(sentences) == GROUPING_REASON_CODES

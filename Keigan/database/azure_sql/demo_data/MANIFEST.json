@@ -18,7 +18,7 @@
         "service_dependency": 14,
         "service_log_source": 34
       },
-      "sha256": "2b780328c89d72d3cbe9a8d9dc61854dcc604d70b9d44064fc17cc1b3ddfd45a"
+      "sha256": "22977b331fd1905e1ad65d903de5bb42e0be48b5debce650694d59b2401de21c"
     },
     "02_knowledge.sql": {
       "committed": true,
@@ -74,7 +74,7 @@
         "postmortem_report": 7,
         "alert_group_affected_service": 14
       },
-      "sha256": "d69bf9885103c085a7ccf0d5a0311f2af50222b75e1e11eb19769b570a7653a6"
+      "sha256": "757f019e67f0da1b2c18aef8676586f5288eec39353e8b6bea73694e354a347e"
     },
     "06_intelligence_and_collaboration.sql": {
       "committed": true,
@@ -150,6 +150,8 @@
     }
   },
   "tables_without_seeded_rows": [
+    "chat_answer_run",
+    "chat_run_step",
     "conversation_application",
     "slo_burn_alert",
     "stakeholder_subscribed_service"

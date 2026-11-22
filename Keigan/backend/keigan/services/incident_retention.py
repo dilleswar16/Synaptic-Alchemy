@@ -11,15 +11,16 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import ColumnElement, delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.entities.alert_entities import AlertGroup
 from keigan.entities.incident_entities import (
-    Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, PostmortemReport,
+    ChatAnswerRun, Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, PostmortemReport,
 )
 from keigan.entities.notification_entities import NotificationDelivery, TeamsIncidentChat
 from keigan.entities.status_values import IncidentStatus, InvestigationStatus
+from keigan.services.answer_run_retention import delete_answer_runs
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +53,17 @@ async def _count_deleted(session: AsyncSession, statement: Any) -> int:
     return (await session.execute(statement)).rowcount or 0
 
 
+async def _delete_answer_runs(session: AsyncSession, run_condition: ColumnElement[bool], removed: dict[str, int]) -> None:
+    """Answer runs point at conversation messages with NO ACTION keys, so they go before the messages."""
+    answer_runs_removed = await delete_answer_runs(session, run_condition)
+    removed["chatAnswerRuns"] += answer_runs_removed.runs
+    removed["chatRunSteps"] += answer_runs_removed.steps
+
+
 async def _delete_investigations(session: AsyncSession, investigation_ids: list[str], removed: dict[str, int]) -> None:
     """Delete investigations and everything keyed by them. The caller deletes the owning incident afterwards."""
     conversation_ids = select(Conversation.conversation_id).where(Conversation.investigation_id.in_(investigation_ids))
+    await _delete_answer_runs(session, or_(ChatAnswerRun.conversation_id.in_(conversation_ids), ChatAnswerRun.investigation_id.in_(investigation_ids)), removed)
     removed["conversationMessages"] += await _count_deleted(session, delete(ConversationMessage).where(ConversationMessage.conversation_id.in_(conversation_ids)))
     removed["conversations"] += await _count_deleted(session, delete(Conversation).where(Conversation.investigation_id.in_(investigation_ids)))
     removed["investigationTimelineEvents"] += await _count_deleted(session, delete(InvestigationTimelineEvent).where(InvestigationTimelineEvent.investigation_id.in_(investigation_ids)))
@@ -72,6 +81,7 @@ async def _delete_incident_batch(session: AsyncSession, incident_ids: list[str],
     if investigation_ids:
         await _delete_investigations(session, investigation_ids, removed)
     conversation_ids = select(Conversation.conversation_id).where(Conversation.incident_id.in_(incident_ids))
+    await _delete_answer_runs(session, ChatAnswerRun.conversation_id.in_(conversation_ids), removed)
     removed["conversationMessages"] += await _count_deleted(session, delete(ConversationMessage).where(ConversationMessage.conversation_id.in_(conversation_ids)))
     removed["conversations"] += await _count_deleted(session, delete(Conversation).where(Conversation.incident_id.in_(incident_ids)))
     removed["investigationTimelineEvents"] += await _count_deleted(session, delete(InvestigationTimelineEvent).where(InvestigationTimelineEvent.incident_id.in_(incident_ids)))
@@ -87,7 +97,7 @@ async def purge_expired_incidents(session: AsyncSession, cutoff: datetime, batch
     """Remove expired incidents and standalone investigations in batches of ``batch_size``, committing after each batch. Returns row counts per kind."""
     removed = dict.fromkeys(
         ("incidents", "investigations", "hypotheses", "evidence", "investigationTimelineEvents", "incidentCommunications", "postmortems", "conversations", "conversationMessages",
-         "notificationDeliveries", "teamsIncidentChats"), 0,
+         "notificationDeliveries", "teamsIncidentChats", "chatAnswerRuns", "chatRunSteps"), 0,
     )
     while incident_ids := list((await session.scalars(_expired_incident_ids(cutoff, batch_size))).all()):
         await _delete_incident_batch(session, incident_ids, removed)

@@ -9,17 +9,15 @@ import html
 import json
 import re
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
 from keigan.config.settings import RESOURCES_DIRECTORY, get_settings
+from keigan.utils.string_table import FALLBACK_LANGUAGE_CODE, SUPPORTED_LANGUAGE_CODES, resolve_language_code, string_table, translate
 
 TEMPLATES_DIRECTORY = RESOURCES_DIRECTORY / "templates"
-SUPPORTED_LANGUAGE_CODES = ("en", "ja")
-FALLBACK_LANGUAGE_CODE = "en"
 
 
 @dataclass
@@ -27,31 +25,6 @@ class RenderedEmail:
     subject_line: str
     body_html: str
     body_text: str
-
-
-@lru_cache(maxsize=4)
-def _string_table(language_code: str) -> dict[str, Any]:
-    table_path = RESOURCES_DIRECTORY / "i18n" / f"{language_code}.json"
-    return json.loads(table_path.read_text(encoding="utf-8"))
-
-
-def resolve_language_code(language_code: str | None) -> str:
-    short_code = (language_code or FALLBACK_LANGUAGE_CODE).split("-")[0].lower()
-    return short_code if short_code in SUPPORTED_LANGUAGE_CODES else FALLBACK_LANGUAGE_CODE
-
-
-def translate(language_code: str | None, dotted_path: str, **format_values: Any) -> str:
-    """Looks a string up in the requested language, falling back to English; ``{placeholders}`` are formatted."""
-    for candidate_language in (resolve_language_code(language_code), FALLBACK_LANGUAGE_CODE):
-        node: Any = _string_table(candidate_language)
-        for path_part in dotted_path.split("."):
-            node = node.get(path_part) if isinstance(node, dict) else None
-        if isinstance(node, str):
-            try:
-                return node.format(**format_values)
-            except (KeyError, IndexError):
-                return node
-    return dotted_path
 
 
 _BACKSLASH_ESCAPE_PATTERN = re.compile(r"\\([!-/:-@\[-`{-~])")
@@ -121,7 +94,7 @@ class NotificationRenderer:
         context = {
             "language_code": language,
             "subject_line": subject_line,
-            "layout": _string_table(language)["layout"] if language in SUPPORTED_LANGUAGE_CODES else _string_table(FALLBACK_LANGUAGE_CODE)["layout"],
+            "layout": string_table(language)["layout"] if language in SUPPORTED_LANGUAGE_CODES else string_table(FALLBACK_LANGUAGE_CODE)["layout"],
             "headline": translate(language, f"types.{notification_type}.headline"),
             "intro": translate(language, f"types.{notification_type}.intro", **format_values),
             "facts": [{"label": label, "value": value} for label, value in (facts or []) if value],

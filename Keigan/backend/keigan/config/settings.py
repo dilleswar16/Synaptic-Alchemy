@@ -12,13 +12,16 @@ from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 RESOURCES_DIRECTORY = Path(__file__).resolve().parents[1] / "resources"
 # Published in the repository, so it is a known value: it may only be used on a developer machine or in the test suite.
 DEFAULT_LOCAL_TOKEN_SIGNING_SECRET = "local-development-only-change-me-0123456789abcdef"
+# A running Ask Keigan answer refreshes its ``last_progress_at`` every ASK_KEIGAN_PROGRESS_HEARTBEAT_SECONDS while a model turn or tool call is in flight, so a live run is
+# never silent for longer than one beat (plus one database write, at most the driver's lock wait). It is called interrupted only after this many beats were missed.
+STALE_RUN_MINIMUM_HEARTBEATS = 3
 
 
 class EnvironmentName(StrEnum):
@@ -63,6 +66,28 @@ class AzureIdentityMode(StrEnum):
     CLIENT_SECRET = "client_secret"
     AZURE_CLI = "azure_cli"
     NONE = "none"
+
+
+class ModelPrice(BaseModel):
+    """What one AI model costs per million tokens (in whatever currency the operator chose; Keigan only multiplies)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    input_per_million: float = Field(ge=0)
+    output_per_million: float = Field(ge=0)
+
+
+def parse_model_prices(prices_json: str) -> dict[str, ModelPrice]:
+    """The ``LLM_MODEL_PRICES_JSON`` mapping (model name to prices); empty text means no prices are configured."""
+    if not prices_json.strip():
+        return {}
+    try:
+        prices = TypeAdapter(dict[str, ModelPrice]).validate_json(prices_json)
+    except ValidationError as validation_error:
+        raise ValueError(f"LLM_MODEL_PRICES_JSON is not valid: {validation_error}") from validation_error
+    if any(not model_name.strip() for model_name in prices):
+        raise ValueError("LLM_MODEL_PRICES_JSON needs a model name as every key.")
+    return prices
 
 
 class Settings(BaseSettings):
@@ -165,6 +190,7 @@ class Settings(BaseSettings):
     llm_api_version: str = "2024-10-21"
     llm_extra_headers_json: str = "{}"
     llm_use_managed_identity: bool = False
+    llm_managed_identity_scope: str = Field(default="https://cognitiveservices.azure.com/.default", min_length=1)  # token scope for azure_openai and openai_compatible
     llm_fast_model: str = "gemini-2.5-flash"
     llm_deep_model: str = "gemini-2.5-pro"
     llm_vision_model: str = "gemini-2.5-flash"
@@ -191,6 +217,9 @@ class Settings(BaseSettings):
     team_members_maximum_per_application: int = Field(default=100, ge=1)
     team_invitation_resend_cooldown_minutes: int = Field(default=15, ge=1)  # one invitation email per person per this many minutes
     team_invitation_stale_after_days: int = Field(default=14, ge=1)  # an invitation this old with no sign-in is shown as stale
+    # The longest operating notes (the team's guidance for the AI) an application may have, counted after trimming. The database column is NVARCHAR(max),
+    # so every value up to the upper bound fits; the AI prompt also takes the whole text.
+    application_operating_notes_maximum_characters: int = Field(default=4000, ge=100, le=20_000)
 
     # ── SLO and intelligence ───────────────────────────────────────────────────
     sli_collection_interval_minutes: int = 5
@@ -199,6 +228,44 @@ class Settings(BaseSettings):
     predictive_analysis_interval_minutes: int = 60
     intelligence_weekly_report_weekday: int = 0  # Monday
     intelligence_weekly_report_hour: int = 8
+
+    # ── Reliability metrics page ───────────────────────────────────────────────
+    # Fewest rated investigations before a "share marked correct" percentage is shown (below it the page says there are not enough ratings yet).
+    metrics_minimum_rating_sample: int = Field(default=5, ge=1)
+    # Longest period (days) one request may ask for.
+    metrics_maximum_window_days: int = Field(default=365, ge=1)
+    # Per-model prices for an estimated cost, as JSON: {"model-name": {"input_per_million": 1.25, "output_per_million": 10}}. Empty: the page shows tokens only.
+    llm_model_prices_json: str = ""
+
+    # ── Ask Keigan ─────────────────────────────────────────────────────────────
+    # How much Keigan does for one question is limited by the number of tool calls (there is no time limit on an answer) and by the token budget.
+    ask_keigan_max_tool_calls_global: int = Field(default=8, ge=1, le=50)
+    ask_keigan_max_tool_calls_investigation: int = Field(default=6, ge=1, le=50)
+    ask_keigan_max_parallel_tool_calls: int = Field(default=3, ge=1, le=5)  # requests executed from one model turn; the rest are skipped
+    ask_keigan_tool_timeout_seconds: int = Field(default=60, ge=5, le=600)  # per tool call; stops one hung call, never a long answer
+    ask_keigan_stale_run_seconds: int = Field(default=300, ge=60, le=3600)  # silence after which a running answer counts as interrupted
+    ask_keigan_progress_heartbeat_seconds: int = Field(default=15, ge=5, le=300)  # how often a live answer refreshes its last_progress_at; the stale limit must be at least 3 beats
+    ask_keigan_answer_token_budget: int = Field(default=80_000, ge=5000, le=1_000_000)  # input plus output tokens across all turns of one answer
+    ask_keigan_tool_output_model_characters: int = Field(default=6000, ge=500, le=50_000)  # characters of one tool result sent to the model
+    ask_keigan_tool_output_stored_characters: int = Field(default=60_000, ge=1000, le=1_000_000)  # characters of one tool output stored as "full output"
+    ask_keigan_tool_output_preview_characters: int = Field(default=1500, ge=200, le=10_000)  # characters of output sent live to the browser
+    ask_keigan_tool_list_item_limit: int = Field(default=20, ge=1, le=200)  # items a list tool returns
+    ask_keigan_tool_passage_characters: int = Field(default=2400, ge=200, le=20_000)  # characters of one passage (a runbook's steps) a tool returns
+    ask_keigan_log_query_max_lookback_minutes: int = Field(default=43_200, ge=5, le=43_200)
+    ask_keigan_knowledge_token_budget: int = Field(default=2500, ge=500, le=20_000)
+    ask_keigan_heartbeat_seconds: int = Field(default=15, ge=5, le=60)  # keep-alive interval of the answer stream
+    ask_keigan_protocol_repair_attempts: int = Field(default=1, ge=0, le=2)  # repair retries per turn for models without native tool calling
+    ask_keigan_follow_up_question_limit: int = Field(default=3, ge=0, le=5)
+    ask_keigan_event_queue_size: int = Field(default=1000, ge=100, le=100_000)  # events one answer may hold for a slow reader before the stream is dropped (the stored trace stays)
+    ask_keigan_shutdown_grace_seconds: int = Field(default=10, ge=1, le=120)  # how long a stopping process waits for its cancelled answers to end before it marks their runs interrupted
+    # How much of an investigation the digest in front of the model holds: newest timeline events, topology node names, and characters of each evidence summary.
+    ask_keigan_digest_timeline_events: int = Field(default=15, ge=0, le=100)
+    ask_keigan_digest_topology_nodes: int = Field(default=40, ge=0, le=500)
+    ask_keigan_digest_evidence_summary_characters: int = Field(default=300, ge=50, le=2000)
+    # Stored steps and runs of global conversations older than this many days are purged (the conversation stays). Empty: keep everything.
+    ask_keigan_trace_retention_days: int | None = Field(default=None, ge=30, le=3650)
+    # Overrides of resources/catalogs/llm_model_capabilities.yaml (same shape), as JSON. Empty object: the catalog as shipped.
+    llm_model_capabilities_json: str = "{}"
 
     # ── Storage and secrets ────────────────────────────────────────────────────
     file_storage_mode: str = "local"  # local | azure_blob
@@ -223,6 +290,25 @@ class Settings(BaseSettings):
     sli_raw_retention_days: int = 90
 
     # ── Derived helpers ────────────────────────────────────────────────────────
+    @field_validator("llm_model_prices_json", mode="after")
+    @classmethod
+    def model_prices_must_be_valid(cls, prices_json: str) -> str:
+        parse_model_prices(prices_json)
+        return prices_json
+
+    @field_validator("ask_keigan_trace_retention_days", mode="before")
+    @classmethod
+    def empty_trace_retention_means_keep_everything(cls, retention_days: object) -> object:
+        return None if isinstance(retention_days, str) and not retention_days.strip() else retention_days
+
+    @field_validator("llm_model_capabilities_json", mode="after")
+    @classmethod
+    def model_capability_overrides_must_be_valid(cls, overrides_json: str) -> str:
+        from keigan.ai.model_capabilities import parse_capability_overrides  # imported here: that module reads this one at import time
+
+        parse_capability_overrides(overrides_json)
+        return overrides_json
+
     @field_validator("data_directory", mode="after")
     @classmethod
     def ensure_data_directory_exists(cls, data_directory: Path) -> Path:
@@ -238,6 +324,15 @@ class Settings(BaseSettings):
             if self.llm_provider == LlmProviderName.MOCK:
                 raise ValueError("LLM_PROVIDER=mock is not allowed when ENVIRONMENT=prod.")
         self._validate_authentication_and_secrets()
+        if self.ask_keigan_tool_output_preview_characters > self.ask_keigan_tool_output_stored_characters:
+            raise ValueError("ASK_KEIGAN_TOOL_OUTPUT_PREVIEW_CHARACTERS must not be larger than ASK_KEIGAN_TOOL_OUTPUT_STORED_CHARACTERS.")
+        if self.ask_keigan_tool_output_model_characters > self.ask_keigan_tool_output_stored_characters:
+            raise ValueError("ASK_KEIGAN_TOOL_OUTPUT_MODEL_CHARACTERS must not be larger than ASK_KEIGAN_TOOL_OUTPUT_STORED_CHARACTERS.")
+        if self.ask_keigan_stale_run_seconds < STALE_RUN_MINIMUM_HEARTBEATS * self.ask_keigan_progress_heartbeat_seconds:
+            raise ValueError(
+                f"ASK_KEIGAN_STALE_RUN_SECONDS ({self.ask_keigan_stale_run_seconds}) must be at least {STALE_RUN_MINIMUM_HEARTBEATS} times ASK_KEIGAN_PROGRESS_HEARTBEAT_SECONDS "
+                f"({self.ask_keigan_progress_heartbeat_seconds}): a live answer refreshes its progress once per heartbeat, and a run is only called interrupted after several missed beats."
+            )
         if self.log_prompts_for_debugging and self.environment != EnvironmentName.LOCAL:
             raise ValueError(f"LOG_PROMPTS_FOR_DEBUGGING writes customer telemetry into the log, so it is only allowed when ENVIRONMENT=local, not {self.environment}.")
         if self.llm_provider in (LlmProviderName.GEMINI, LlmProviderName.OPENAI_COMPATIBLE) and not self.llm_api_key:
@@ -306,6 +401,10 @@ class Settings(BaseSettings):
         return {str(header_name): str(header_value) for header_name, header_value in parsed_headers.items()}
 
     @property
+    def llm_model_prices(self) -> dict[str, ModelPrice]:
+        return parse_model_prices(self.llm_model_prices_json)
+
+    @property
     def teams_milestone_phrase_list(self) -> list[str]:
         return [phrase.strip().lower() for phrase in self.teams_milestone_phrases.split("|") if phrase.strip()]
 
@@ -361,12 +460,14 @@ def safe_settings_for_display(settings: Settings) -> dict[str, object]:
 __all__ = [
     "DEFAULT_LOCAL_TOKEN_SIGNING_SECRET",
     "LOCAL_AUTHENTICATION_ENVIRONMENTS",
+    "STALE_RUN_MINIMUM_HEARTBEATS",
     "AuthenticationMode",
     "AzureIdentityMode",
     "EmailMode",
     "EnvironmentName",
     "IntegrationMode",
     "LlmProviderName",
+    "ModelPrice",
     "RESOURCES_DIRECTORY",
     "Settings",
     "get_settings",

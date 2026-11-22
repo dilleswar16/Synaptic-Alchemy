@@ -121,6 +121,13 @@ async def test_an_application_admin_may_trigger_log_queries_from_teams(seed_cont
     assert recorded_question["allow_log_queries"] is True
 
 
+async def test_a_question_in_the_chat_is_answered_through_the_investigation_chat_without_any_stub(seed_context, expected_tenant: None) -> None:
+    conversation_id, _ = await make_chat(seed_context.application_ids_by_code["CLMJP"])
+    await handle(activity(conversation_id, READER_NAME, "@keigan what happened?"))
+    assistant_texts = [message.message_text for message in await messages_of(conversation_id) if message.author_role == "assistant"]
+    assert len(assistant_texts) == 1 and "cleanup script" in assistant_texts[0]  # the offline model answers from the investigation summary, as the real path would from its context
+
+
 CLMJP_ADMIN_GROUP_OBJECT_ID = "11111111-1111-4111-8111-111111111111"
 CLMJP_READER_GROUP_OBJECT_ID = "22222222-2222-4222-8222-222222222222"
 OTHER_APPLICATION_READER_GROUP_OBJECT_ID = "33333333-3333-4333-8333-333333333333"

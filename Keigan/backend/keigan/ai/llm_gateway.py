@@ -10,29 +10,36 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import json
 import logging
+import math
 import random
+import re
 import time
 import types
 import typing
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from contextlib import aclosing
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum, StrEnum
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import func, select
 
 from keigan.ai.ai_safety_settings import get_ai_safety_settings
+from keigan.ai.model_capabilities import ModelCapabilities, ToolCallingSupport, resolve_model_capabilities
 from keigan.ai.prompt_safety import UNTRUSTED_DATA_POLICY, generate_boundary, spotlight
 from keigan.config.database_config import open_session
 from keigan.config.logging_config import current_correlation_id
 from keigan.config.settings import LlmProviderName, Settings
 from keigan.entities.platform_entities import LlmUsageRecord
+from keigan.entities.status_values import ToolCallingMode
 from keigan.exceptions.keigan_exceptions import (
+    AgentToolsUnsupportedException,
     LlmAuthenticationException,
     LlmOutputValidationException,
     LlmRateLimitedException,
@@ -42,12 +49,42 @@ from keigan.exceptions.keigan_exceptions import (
     TokenBudgetExceededException,
 )
 
+if TYPE_CHECKING:
+    from azure.core.credentials_async import AsyncTokenCredential
+
 logger = logging.getLogger(__name__)
 
 OutputSchemaType = TypeVar("OutputSchemaType", bound=BaseModel)
 BUDGET_CACHE_SECONDS = 60
 USAGE_FLUSH_DELAY_SECONDS = 2.0
 USAGE_FLUSH_MAXIMUM_ATTEMPTS = 30
+# The provider SDK enforces LLM_REQUEST_TIMEOUT_SECONDS itself; Keigan's own timer (a whole call, or the gap between streamed chunks) waits this much longer so the SDK's error wins.
+PROVIDER_TIMEOUT_GRACE_SECONDS = 5
+MOCK_ANSWER_CHUNK_COUNT = 3  # the mock provider streams an answer in this many pieces so the streaming path is exercised offline
+# Providers whose chat models accept the OpenAI tool options (parallel_tool_calls).
+OPENAI_STYLE_PROVIDERS = frozenset({LlmProviderName.AZURE_OPENAI, LlmProviderName.OPENAI_COMPATIBLE})
+# What providers put in the response metadata when the model stopped because it ran out of output tokens.
+TRUNCATION_FINISH_REASONS = frozenset({"length", "max_tokens", "MAX_TOKENS"})
+AGENT_TOOLS_UNSUPPORTED_MESSAGE = "Ask Keigan needs an AI model that can use tools. Ask a Keigan admin to check the AI model settings."
+ARGUMENTS_NOT_JSON_PROBLEM = "The arguments were not valid JSON."
+
+
+MAXIMUM_RETRY_AFTER_SECONDS = 3600  # a provider that asks for more is shown as an hour: the person tries again later either way
+
+
+def retry_after_seconds_of(invocation_error: BaseException) -> int | None:
+    """The delay a provider asked for in its ``Retry-After`` header, in whole seconds (at least 1, at most an hour); None when it sent none, or a date instead of seconds."""
+    headers = getattr(getattr(invocation_error, "response", None), "headers", None)
+    if headers is None:
+        return None
+    raw_delay = next((value for header_name, value in headers.items() if str(header_name).lower() == "retry-after"), None)
+    try:
+        delay_seconds = float(raw_delay)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(delay_seconds) or delay_seconds <= 0:
+        return None
+    return min(math.ceil(delay_seconds), MAXIMUM_RETRY_AFTER_SECONDS)
 
 
 class LlmFailureKind(StrEnum):
@@ -148,12 +185,93 @@ def register_mock_response(feature_name: str, factory: MockFactory) -> None:
     _mock_response_factories[feature_name] = factory
 
 
+AgentFinish = Literal["tool_requests", "answer", "length", "protocol_error"]
+
+
+@dataclass(frozen=True)
+class AgentToolSpec:
+    """A tool as the model is offered it: a name, a description and a closed JSON Schema for its arguments."""
+
+    name: str
+    description: str
+    parameters_schema: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class AgentToolRequest:
+    """A tool the model asked for. ``arguments`` is None (with the reason in ``arguments_problem``) when they could not be read as JSON."""
+
+    request_id: str
+    tool_name: str
+    arguments: dict[str, Any] | None
+    arguments_problem: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentTranscriptEntry:
+    """One item of the conversation the gateway turns into provider messages: prompt sections, an earlier model turn, or a tool result."""
+
+    kind: Literal["data", "assistant", "tool_result"]
+    section: PromptSection | None = None
+    text: str = ""
+    tool_requests: tuple[AgentToolRequest, ...] = ()
+    tool_request_id: str = ""
+    tool_name: str = ""
+    tool_result_text: str = ""  # already spotlighted by the tool registry
+
+
+@dataclass(frozen=True)
+class AgentTurnResult:
+    text: str
+    tool_requests: tuple[AgentToolRequest, ...]
+    finish: AgentFinish
+    input_token_count: int
+    output_token_count: int
+    token_counts_estimated: bool
+    model_name: str
+    tool_calling_mode: ToolCallingMode
+
+
+@dataclass(frozen=True)
+class AgentTextChunk:
+    text: str
+
+
+@dataclass(frozen=True)
+class AgentPlannerInput:
+    """Everything a mock planner may base its turn on: the same transcript and tools a real model would be given."""
+
+    feature_name: str
+    system_prompt: str
+    transcript: tuple[AgentTranscriptEntry, ...]
+    tools: tuple[AgentToolSpec, ...]
+    allow_tool_requests: bool
+
+
+MockAgentPlanner = Callable[[AgentPlannerInput], AgentTurnResult]
+_mock_agent_planners: dict[str, MockAgentPlanner] = {}
+
+
+def register_mock_agent_planner(feature_name: str, planner: MockAgentPlanner) -> None:
+    """Registers the deterministic stand-in for the model's tool use when ``LLM_PROVIDER=mock`` (the tool-calling counterpart of ``register_mock_response``)."""
+    _mock_agent_planners[feature_name] = planner
+
+
 def estimate_token_count(text: str | None) -> int:
     """Cheap estimate: ~4 characters per token for Latin text, ~1 per character for CJK."""
     if not text:
         return 0
     non_ascii_character_count = sum(1 for character in text if ord(character) > 0x2E7F)
     return (len(text) - non_ascii_character_count) // 4 + non_ascii_character_count + 1
+
+
+def split_into_chunks(text: str, chunk_count: int) -> list[str]:
+    """``text`` cut after whole words into at most ``chunk_count`` pieces that add up to the original."""
+    words = re.findall(r"\S+\s*", text)
+    if not words:
+        return []
+    words_per_chunk = -(-len(words) // chunk_count)
+    return ["".join(words[start:start + words_per_chunk]) for start in range(0, len(words), words_per_chunk)]
 
 
 class LlmGateway:
@@ -164,6 +282,7 @@ class LlmGateway:
         self._budget_cache_by_application: dict[str, _BudgetCacheEntry] = {}
         self._pending_usage_records: list[dict[str, Any]] = []
         self._usage_flush_task: asyncio.Task[None] | None = None
+        self._managed_identity_credential: AsyncTokenCredential | None = None  # one for the gateway: its token cache is shared by every model and both OpenAI paths
 
     # ── Introspection ──────────────────────────────────────────────────────────
     @property
@@ -181,6 +300,13 @@ class LlmGateway:
             ModelTier.VISION: self.settings.llm_vision_model,
         }[model_tier]
 
+    def _capabilities_of(self, model_name: str) -> ModelCapabilities:
+        return resolve_model_capabilities(self.settings.llm_provider, model_name, self.settings.llm_model_capabilities_json)
+
+    def agent_capabilities(self, model_tier: ModelTier) -> ModelCapabilities:
+        """What the model behind ``model_tier`` can do (tool calling, streaming, context size), from the capability catalog and its overrides."""
+        return self._capabilities_of(self.model_name_for(model_tier))
+
     # ── Chat model construction (the only vendor-specific code) ────────────────
     def chat_model(self, model_tier: ModelTier) -> BaseChatModel:
         """LangChain chat model for tool-calling agents (LangGraph). Not available in mock mode."""
@@ -190,10 +316,27 @@ class LlmGateway:
             self._chat_models_by_tier[model_tier] = self._create_chat_model(self.model_name_for(model_tier))
         return self._chat_models_by_tier[model_tier]
 
+    def _managed_identity_token_provider(self) -> Callable[[], Awaitable[str]]:
+        """The one token provider of both OpenAI paths: asynchronous (``azure.identity.aio``), so a token refresh never blocks the event loop that serves every request and answer."""
+        from azure.core.pipeline.transport import AsyncioRequestsTransport
+        from azure.identity.aio import ManagedIdentityCredential, get_bearer_token_provider
+
+        if self._managed_identity_credential is None:
+            # The ``requests``-in-a-thread transport of azure-core: the default asynchronous transport needs ``aiohttp``, which Keigan does not ship.
+            self._managed_identity_credential = ManagedIdentityCredential(client_id=self.settings.azure_client_id or None, transport=AsyncioRequestsTransport())
+        return get_bearer_token_provider(self._managed_identity_credential, self.settings.llm_managed_identity_scope)
+
+    async def aclose(self) -> None:
+        """Release what the gateway holds open (the managed identity credential's HTTP session). Safe to call when nothing was opened."""
+        if self._managed_identity_credential is not None:
+            await self._managed_identity_credential.close()
+            self._managed_identity_credential = None
+
     def _create_chat_model(self, model_name: str) -> BaseChatModel:
         settings = self.settings
+        capabilities = self._capabilities_of(model_name)
         common_options: dict[str, Any] = {"timeout": settings.llm_request_timeout_seconds, "max_retries": 0}
-        if settings.llm_temperature >= 0:
+        if settings.llm_temperature >= 0 and capabilities.supports_temperature:
             common_options["temperature"] = settings.llm_temperature
 
         if settings.llm_provider == LlmProviderName.GEMINI:
@@ -209,14 +352,10 @@ class LlmGateway:
                 "api_version": settings.llm_api_version,
                 "azure_deployment": model_name,
                 "default_headers": settings.llm_extra_headers or None,
+                "stream_usage": capabilities.reports_stream_usage,
             }
             if settings.llm_use_managed_identity:
-                from azure.identity import ManagedIdentityCredential, get_bearer_token_provider
-
-                azure_options["azure_ad_token_provider"] = get_bearer_token_provider(
-                    ManagedIdentityCredential(client_id=settings.azure_client_id or None),
-                    "https://cognitiveservices.azure.com/.default",
-                )
+                azure_options["azure_ad_async_token_provider"] = self._managed_identity_token_provider()
             else:
                 azure_options["api_key"] = settings.llm_api_key
             return AzureChatOpenAI(**azure_options, **common_options)
@@ -224,11 +363,14 @@ class LlmGateway:
         if settings.llm_provider == LlmProviderName.OPENAI_COMPATIBLE:
             from langchain_openai import ChatOpenAI
 
+            # A managed identity has no key: the client asks Entra for a fresh token on each request, as the Azure OpenAI path does (the same asynchronous provider).
+            api_key = self._managed_identity_token_provider() if settings.llm_use_managed_identity else settings.llm_api_key or "not-required"
             return ChatOpenAI(
                 model=model_name,
                 base_url=settings.llm_base_url or None,
-                api_key=settings.llm_api_key or "not-required",
+                api_key=api_key,
                 default_headers=settings.llm_extra_headers or None,
+                stream_usage=capabilities.reports_stream_usage,
                 **common_options,
             )
 
@@ -257,8 +399,9 @@ class LlmGateway:
 
         messages = self._build_messages(system_prompt, prompt_sections)
         model_name = self.model_name_for(model_tier)
+        structured_output_method = self.agent_capabilities(model_tier).structured_output_method or self.settings.llm_structured_output_method
         structured_model = self.chat_model(model_tier).with_structured_output(
-            output_schema, include_raw=True, method=self.settings.llm_structured_output_method  # type: ignore[arg-type]
+            output_schema, include_raw=True, method=structured_output_method  # type: ignore[arg-type]
         )
         validation_problem: str | None = None
         for attempt_number in (1, 2):
@@ -351,6 +494,57 @@ class LlmGateway:
         await self._record_usage(feature_name, ModelTier.VISION, model_name, input_tokens, output_tokens, started_at, "succeeded", usage_context)
         return LlmCallResult(text=self._message_text(response_message), input_token_count=input_tokens, output_token_count=output_tokens, model_name=model_name)
 
+    async def run_agent_turn(
+        self,
+        *,
+        feature_name: str,
+        model_tier: ModelTier,
+        system_prompt: str,
+        transcript: Sequence[AgentTranscriptEntry],
+        tools: Sequence[AgentToolSpec],
+        allow_tool_requests: bool,
+        usage_context: LlmUsageContext,
+    ) -> AgentTurnResult:
+        """One model turn without streaming the text to the caller (the same turn as :meth:`stream_agent_turn`)."""
+        turn_result: AgentTurnResult | None = None
+        async for item in self.stream_agent_turn(
+            feature_name=feature_name, model_tier=model_tier, system_prompt=system_prompt, transcript=transcript, tools=tools,
+            allow_tool_requests=allow_tool_requests, usage_context=usage_context,
+        ):
+            if isinstance(item, AgentTurnResult):
+                turn_result = item
+        if turn_result is None:
+            raise LlmOutputValidationException("The model call ended without a result.")
+        return turn_result
+
+    async def stream_agent_turn(
+        self,
+        *,
+        feature_name: str,
+        model_tier: ModelTier,
+        system_prompt: str,
+        transcript: Sequence[AgentTranscriptEntry],
+        tools: Sequence[AgentToolSpec],
+        allow_tool_requests: bool,
+        usage_context: LlmUsageContext,
+    ) -> AsyncIterator[AgentTextChunk | AgentTurnResult]:
+        """One model turn of a tool-using agent: zero or more text chunks, then exactly one :class:`AgentTurnResult`.
+
+        Checks the token budget first, refuses a model that cannot use tools (never answers without them), records one usage row, and retries
+        a failing call only until the first chunk has been delivered.
+        """
+        await self._ensure_budget_available(usage_context)
+        capabilities = self.agent_capabilities(model_tier)
+        if capabilities.tool_calling != ToolCallingSupport.NATIVE:
+            raise AgentToolsUnsupportedException(AGENT_TOOLS_UNSUPPORTED_MESSAGE)
+        turn_stream = (
+            self._stream_mock_agent_turn(feature_name, system_prompt, transcript, tools, allow_tool_requests, capabilities)
+            if self.is_mock
+            else self._stream_native_agent_turn(feature_name, model_tier, system_prompt, transcript, tools, allow_tool_requests, usage_context, capabilities)
+        )
+        async for item in turn_stream:
+            yield item
+
     async def record_external_usage(
         self, *, feature_name: str, model_tier: ModelTier, input_token_count: int, output_token_count: int, usage_context: LlmUsageContext, latency_milliseconds: int = 0
     ) -> None:
@@ -364,7 +558,8 @@ class LlmGateway:
         await self._ensure_budget_available(usage_context)
 
     # ── Internals ──────────────────────────────────────────────────────────────
-    def _build_messages(self, system_prompt: str, prompt_sections: list[PromptSection]) -> list[BaseMessage]:
+    @staticmethod
+    def _render_prompt_sections(prompt_sections: Sequence[PromptSection]) -> str:
         boundary = generate_boundary()
         rendered_sections: list[str] = []
         for prompt_section in prompt_sections:
@@ -374,10 +569,158 @@ class LlmGateway:
                 else prompt_section.content
             )
             rendered_sections.append(f"## {prompt_section.title}\n{section_body}")
+        return "\n\n".join(rendered_sections)
+
+    def _build_messages(self, system_prompt: str, prompt_sections: list[PromptSection]) -> list[BaseMessage]:
         return [
             SystemMessage(content=f"{system_prompt.strip()}\n\n{UNTRUSTED_DATA_POLICY}"),
-            HumanMessage(content="\n\n".join(rendered_sections)),
+            HumanMessage(content=self._render_prompt_sections(prompt_sections)),
         ]
+
+    def _build_agent_messages(self, system_prompt: str, transcript: Sequence[AgentTranscriptEntry]) -> list[BaseMessage]:
+        """Provider messages for native tool calling: consecutive data entries become one human message, earlier model turns keep their tool calls."""
+        messages: list[BaseMessage] = [SystemMessage(content=f"{system_prompt.strip()}\n\n{UNTRUSTED_DATA_POLICY}")]
+        pending_sections: list[PromptSection] = []
+
+        def flush_sections() -> None:
+            if pending_sections:
+                messages.append(HumanMessage(content=self._render_prompt_sections(pending_sections)))
+                pending_sections.clear()
+
+        for entry in transcript:
+            if entry.kind == "data" and entry.section is not None:
+                pending_sections.append(entry.section)
+                continue
+            flush_sections()
+            if entry.kind == "assistant":
+                messages.append(AIMessage(
+                    content=entry.text,
+                    tool_calls=[{"name": request.tool_name, "args": request.arguments or {}, "id": request.request_id, "type": "tool_call"} for request in entry.tool_requests],
+                ))
+            elif entry.kind == "tool_result":
+                messages.append(ToolMessage(content=entry.tool_result_text, tool_call_id=entry.tool_request_id, name=entry.tool_name))
+        flush_sections()
+        return messages
+
+    def _bind_agent_tools(self, chat_model: BaseChatModel, tools: Sequence[AgentToolSpec], allow_tool_requests: bool, capabilities: ModelCapabilities) -> Any:
+        """The chat model with the tools bound. On the final turn the tools stay bound (some providers reject a transcript with tool calls and no tools)."""
+        if not tools:
+            return chat_model
+        bind_options: dict[str, Any] = {}
+        if not allow_tool_requests and capabilities.supports_tool_choice_none:
+            bind_options["tool_choice"] = "none"
+        if not capabilities.parallel_tool_calls and self.settings.llm_provider in OPENAI_STYLE_PROVIDERS:
+            bind_options["parallel_tool_calls"] = False
+        return chat_model.bind_tools([self._function_definition(tool) for tool in tools], **bind_options)
+
+    @staticmethod
+    def _function_definition(tool: AgentToolSpec) -> dict[str, Any]:
+        return {"type": "function", "function": {"name": tool.name, "description": tool.description, "parameters": tool.parameters_schema}}
+
+    @staticmethod
+    def _extract_tool_requests(response_message: Any) -> tuple[AgentToolRequest, ...]:
+        requests = [
+            AgentToolRequest(request_id=call.get("id") or f"k{index}", tool_name=call["name"], arguments=call["args"])
+            for index, call in enumerate(getattr(response_message, "tool_calls", None) or [], start=1)
+        ]
+        requests += [
+            AgentToolRequest(request_id=call.get("id") or f"k{len(requests) + index}", tool_name=call.get("name") or "", arguments=None, arguments_problem=ARGUMENTS_NOT_JSON_PROBLEM)
+            for index, call in enumerate(getattr(response_message, "invalid_tool_calls", None) or [], start=1)
+        ]
+        return tuple(requests)
+
+    async def _stream_native_agent_turn(
+        self,
+        feature_name: str,
+        model_tier: ModelTier,
+        system_prompt: str,
+        transcript: Sequence[AgentTranscriptEntry],
+        tools: Sequence[AgentToolSpec],
+        allow_tool_requests: bool,
+        usage_context: LlmUsageContext,
+        capabilities: ModelCapabilities,
+    ) -> AsyncIterator[AgentTextChunk | AgentTurnResult]:
+        model_name = self.model_name_for(model_tier)
+        messages = self._build_agent_messages(system_prompt, transcript)
+        runnable = self._bind_agent_tools(self.chat_model(model_tier), tools, allow_tool_requests, capabilities)
+        started_at = time.monotonic()
+        try:
+            if capabilities.streams_text:
+                aggregated_message: BaseMessage | None = None
+                async for message_chunk in self._stream_with_resilience(runnable, messages):
+                    aggregated_message = message_chunk if aggregated_message is None else aggregated_message + message_chunk
+                    if chunk_text := self._message_text(message_chunk):
+                        yield AgentTextChunk(chunk_text)
+                response_message: Any = aggregated_message if aggregated_message is not None else AIMessage(content="")
+            else:
+                response_message = await self._invoke_with_resilience(runnable, messages)
+        except Exception as invocation_error:
+            await self._record_usage(feature_name, model_tier, model_name, 0, 0, started_at, "failed", usage_context, str(invocation_error))
+            raise
+        tool_requests = self._extract_tool_requests(response_message)
+        answer_text = self._message_text(response_message)
+        input_token_count, output_token_count = self._extract_token_usage(response_message)
+        counts_are_estimated = not (input_token_count or output_token_count)
+        if counts_are_estimated:
+            prompt_text = "\n".join(self._message_text(message) for message in messages) + json.dumps([self._function_definition(tool) for tool in tools])
+            input_token_count = estimate_token_count(prompt_text)
+            output_token_count = estimate_token_count(answer_text + json.dumps([request.arguments for request in tool_requests]))
+        await self._record_usage(feature_name, model_tier, model_name, input_token_count, output_token_count, started_at, "succeeded", usage_context)
+        response_metadata = getattr(response_message, "response_metadata", None) or {}
+        was_cut_off = (response_metadata.get("finish_reason") or response_metadata.get("stop_reason")) in TRUNCATION_FINISH_REASONS
+        yield AgentTurnResult(
+            text=answer_text, tool_requests=tool_requests, finish="length" if was_cut_off else "tool_requests" if tool_requests else "answer",
+            input_token_count=input_token_count, output_token_count=output_token_count, token_counts_estimated=counts_are_estimated,
+            model_name=model_name, tool_calling_mode=ToolCallingMode.NATIVE,
+        )
+
+    async def _stream_mock_agent_turn(
+        self,
+        feature_name: str,
+        system_prompt: str,
+        transcript: Sequence[AgentTranscriptEntry],
+        tools: Sequence[AgentToolSpec],
+        allow_tool_requests: bool,
+        capabilities: ModelCapabilities,
+    ) -> AsyncIterator[AgentTextChunk | AgentTurnResult]:
+        planner = _mock_agent_planners.get(feature_name)
+        if planner is None:
+            simulated_text = self._mock_text_response(feature_name, [])
+            turn_result = AgentTurnResult(
+                text=simulated_text, tool_requests=(), finish="answer", input_token_count=estimate_token_count(system_prompt),
+                output_token_count=estimate_token_count(simulated_text), token_counts_estimated=True, model_name="mock", tool_calling_mode=ToolCallingMode.SCRIPTED_MOCK,
+            )
+        else:
+            turn_result = planner(AgentPlannerInput(feature_name, system_prompt, tuple(transcript), tuple(tools), allow_tool_requests))
+        if capabilities.streams_text:
+            for piece in split_into_chunks(turn_result.text, MOCK_ANSWER_CHUNK_COUNT):
+                yield AgentTextChunk(piece)
+        yield turn_result
+
+    async def _stream_with_resilience(self, runnable: Any, messages: list[BaseMessage]) -> AsyncIterator[Any]:
+        """Chunks of ``runnable.astream``. A failure before the first chunk is retried like a blocking call; after it the turn ends with the classified error,
+        because the caller already holds part of the answer."""
+        last_error: Exception | None = None
+        self._log_prompt(messages)
+        for attempt_index in range(self.settings.llm_maximum_retries + 1):
+            first_chunk_was_delivered = False
+            try:
+                async with self._concurrency_limiter, aclosing(runnable.astream(messages)) as chunk_stream:
+                    chunk_iterator = chunk_stream.__aiter__()
+                    while True:
+                        try:
+                            message_chunk = await asyncio.wait_for(chunk_iterator.__anext__(), timeout=self.settings.llm_request_timeout_seconds + PROVIDER_TIMEOUT_GRACE_SECONDS)
+                        except StopAsyncIteration:
+                            return
+                        first_chunk_was_delivered = True
+                        yield message_chunk
+            except Exception as invocation_error:  # noqa: BLE001 — every provider SDK raises its own types; they are classified below
+                last_error = invocation_error
+                if first_chunk_was_delivered or not self._is_retryable(invocation_error) or attempt_index == self.settings.llm_maximum_retries:
+                    break
+                await self._wait_before_retry(attempt_index, invocation_error)
+        assert last_error is not None  # the loop only leaves without a result after an error
+        raise self._classified_failure(last_error) from last_error
 
     async def _invoke_with_resilience(self, runnable: Any, messages: list[BaseMessage]) -> Any:
         last_error: Exception | None = None
@@ -385,19 +728,33 @@ class LlmGateway:
         for attempt_index in range(self.settings.llm_maximum_retries + 1):
             try:
                 async with self._concurrency_limiter:
-                    return await asyncio.wait_for(runnable.ainvoke(messages), timeout=self.settings.llm_request_timeout_seconds + 5)
+                    return await asyncio.wait_for(runnable.ainvoke(messages), timeout=self.settings.llm_request_timeout_seconds + PROVIDER_TIMEOUT_GRACE_SECONDS)
             except Exception as invocation_error:  # noqa: BLE001
                 last_error = invocation_error
                 if not self._is_retryable(invocation_error) or attempt_index == self.settings.llm_maximum_retries:
                     break
-                back_off_seconds = min(30.0, (2**attempt_index) + random.uniform(0, 1))
-                logger.warning("LLM call failed (%s); retrying in %.1fs", type(invocation_error).__name__, back_off_seconds)
-                await asyncio.sleep(back_off_seconds)
+                await self._wait_before_retry(attempt_index, invocation_error)
         assert last_error is not None  # the loop only leaves without a result after an error
+        raise self._classified_failure(last_error) from last_error
+
+    @staticmethod
+    def _retry_delay_seconds(attempt_index: int) -> float:
+        return min(30.0, (2**attempt_index) + random.uniform(0, 1))
+
+    async def _wait_before_retry(self, attempt_index: int, invocation_error: Exception) -> None:
+        back_off_seconds = self._retry_delay_seconds(attempt_index)
+        logger.warning("LLM call failed (%s); retrying in %.1fs", type(invocation_error).__name__, back_off_seconds)
+        await asyncio.sleep(back_off_seconds)
+
+    def _classified_failure(self, last_error: Exception) -> LlmUnavailableException:
+        """The user-safe exception for a provider failure; the provider's own text goes to the log only."""
         failure_kind = classify_llm_failure(last_error)
         logger.warning("LLM call failed (%s) after %s attempt(s): %s: %s", failure_kind, self.settings.llm_maximum_retries + 1, type(last_error).__name__, str(last_error)[:500])
         exception_class, advice = LLM_FAILURE_RESPONSES[failure_kind]
-        raise exception_class(f"{advice} If it keeps failing, quote reference {current_correlation_id() or 'none'} to a Keigan admin.") from last_error
+        message = f"{advice} If it keeps failing, quote reference {current_correlation_id() or 'none'} to a Keigan admin."
+        if failure_kind is LlmFailureKind.RATE_LIMITED:
+            return LlmRateLimitedException(message, retry_after_seconds=retry_after_seconds_of(last_error))
+        return exception_class(message)
 
     def _log_prompt(self, messages: list[BaseMessage]) -> None:
         """Prompts hold customer telemetry, so they are logged as a hash (enough to tell two calls apart); the text only on a developer machine that switched it on."""
@@ -460,7 +817,9 @@ class LlmGateway:
             self._budget_cache_by_application[budget_key] = cache_entry
         if usage_context.application_id:
             if cache_entry.used_token_count >= self.settings.llm_daily_token_budget_per_application:
-                raise TokenBudgetExceededException(f"Today's AI token budget ({self.settings.llm_daily_token_budget_per_application:,}) for this application is used up.")
+                raise TokenBudgetExceededException(
+                    f"Today's AI token budget ({self.settings.llm_daily_token_budget_per_application:,}) for this application is used up.", application_id=usage_context.application_id,
+                )
         elif cache_entry.used_token_count >= get_ai_safety_settings().llm_daily_token_budget_per_user:
             raise TokenBudgetExceededException(
                 f"Your AI token budget for today ({get_ai_safety_settings().llm_daily_token_budget_per_user:,}) for questions across several applications is used up. Ask about one application, or try again tomorrow."

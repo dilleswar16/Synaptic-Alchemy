@@ -1,7 +1,9 @@
 """Grounded Q&A about one investigation.
 
-Real provider: a LangGraph ReAct agent with three read-only tools (evidence lookup, knowledge search, safe log query,
-at most six tool calls). Mock provider: a deterministic answer assembled from the investigation record.
+Used by the Teams bot until it moves to the Ask Keigan engine (spec 23, phase 4); the investigation page no longer comes through here.
+Real provider: a LangGraph ReAct agent with three read-only tools (evidence lookup, knowledge search, safe log query), limited like Ask Keigan
+by the settings (``ASK_KEIGAN_MAX_TOOL_CALLS_INVESTIGATION``, ``ASK_KEIGAN_KNOWLEDGE_TOKEN_BUDGET``, ``ASK_KEIGAN_LOG_QUERY_MAX_LOOKBACK_MINUTES``).
+Mock provider: a deterministic answer assembled from the investigation record.
 """
 
 from __future__ import annotations
@@ -16,10 +18,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.ai_safety_settings import get_ai_safety_settings
 from keigan.ai.llm_gateway import LlmUsageContext, ModelTier, PromptSection, estimate_token_count
+from keigan.ai.operating_notes_prompt import build_operating_notes_section
 from keigan.ai.output_sanitizer import sanitize_ai_markdown
 from keigan.ai.prompt_safety import UNTRUSTED_DATA_POLICY, build_valid_citation_codes, find_citation_codes, remove_invalid_citations, spotlight
 from keigan.ai.user_facing_errors import describe_failure_for_user
 from keigan.config import application_context
+from keigan.config.settings import get_settings
 from keigan.entities.all_entities import (
     Application, Incident, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, MonitoredService, Runbook,
 )
@@ -31,7 +35,7 @@ from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
-MAXIMUM_TOOL_CALLS = 6
+MINIMUM_LOG_QUERY_LOOKBACK_MINUTES = 5  # the shortest window a log query is worth running over (as in the Ask Keigan tool's input)
 
 
 @dataclass
@@ -43,6 +47,7 @@ class InvestigationContext:
     hypotheses: list[InvestigationHypothesis] = field(default_factory=list)
     timeline: list[InvestigationTimelineEvent] = field(default_factory=list)
     runbook_titles: dict[str, str] = field(default_factory=dict)
+    operating_notes: PromptSection | None = None  # the team's guidance: untrusted, masked, no citation code; set once the masker of the answer exists
 
 
 class InvestigationChatService:
@@ -55,7 +60,8 @@ class InvestigationChatService:
     ) -> tuple[str, list[dict[str, Any]], int, int]:
         """``allow_log_queries=False`` withholds the log-query tool (the Teams room only lets application admins trigger queries, V13)."""
         context = await self._load_context(investigation_id)
-        masker = PiiMasker()  # one masker, so a person keeps one placeholder across the question and the history
+        masker = PiiMasker()  # one masker, so a person keeps one placeholder across the question, the history and the notes
+        context.operating_notes = build_operating_notes_section(context.application.operating_notes_text, masker)
         masked_question = masker.mask_text(question_text)
         masked_history = [{"role": turn["role"], "content": masker.mask_text(turn["content"])} for turn in (conversation_history or [])]
         input_tokens = estimate_token_count(context.context_markdown) + estimate_token_count(masked_question)
@@ -127,7 +133,9 @@ class InvestigationChatService:
 
     # ── Real provider paths ───────────────────────────────────────────────────────────────────────────────────────────
     def _system_prompt(self, application_name: str) -> str:
-        return application_context.prompt_library().render("investigation_chat", application_name=application_name)
+        return application_context.prompt_library().render(
+            "investigation_chat", application_name=application_name, maximum_tool_calls=get_settings().ask_keigan_max_tool_calls_investigation,
+        )
 
     @staticmethod
     def _history_text(history: list[dict[str, str]]) -> str:
@@ -141,6 +149,7 @@ class InvestigationChatService:
             feature_name="investigation_chat", model_tier=ModelTier.DEEP, system_prompt=self._system_prompt(context.application.application_name),
             prompt_sections=[
                 PromptSection("Investigation context", context.context_markdown, is_untrusted=True, source_label=f"investigation:{context.investigation.investigation_id}"),
+                *([context.operating_notes] if context.operating_notes else []),
                 PromptSection("Conversation so far", self._history_text(history), is_untrusted=True, source_label="chat:history"),
                 PromptSection("Question", question, is_untrusted=True, source_label="chat:user-question"),
             ],
@@ -156,13 +165,15 @@ class InvestigationChatService:
         from langchain_core.tools import StructuredTool
         from langgraph.prebuilt import create_react_agent
 
+        settings = get_settings()
+        maximum_tool_calls = settings.ask_keigan_max_tool_calls_investigation
         application_id = context.application.application_id
         tool_call_count = 0
 
         def within_budget() -> bool:
             nonlocal tool_call_count
             tool_call_count += 1
-            return tool_call_count <= MAXIMUM_TOOL_CALLS
+            return tool_call_count <= maximum_tool_calls
 
         async def get_evidence(code: str) -> str:
             if not within_budget():
@@ -175,7 +186,7 @@ class InvestigationChatService:
         async def search_knowledge(query: str) -> str:
             if not within_budget():
                 return "Tool budget used up; answer with what you have."
-            grounding = await KnowledgeService(self.session).build_grounding_context(application_id, query, token_budget=2500)
+            grounding = await KnowledgeService(self.session).build_grounding_context(application_id, query, token_budget=settings.ask_keigan_knowledge_token_budget)
             knowledge_titles.update({reference.reference_code: reference.title for reference in grounding.references})
             return spotlight(grounding.knowledge_markdown or "No matching knowledge found.", "knowledge:search", force_warning=grounding.contains_flagged_content)
 
@@ -188,7 +199,7 @@ class InvestigationChatService:
             end = utc_now()
             try:
                 outcome = await ChatDataQueryService(self.session).run(
-                    service=service, question_text=question, wants_failures=True, wants_pattern=False, time_range_start=end - timedelta(minutes=min(max(lookback_minutes, 5), 1440)),
+                    service=service, question_text=question, wants_failures=True, wants_pattern=False, time_range_start=end - timedelta(minutes=min(max(lookback_minutes, MINIMUM_LOG_QUERY_LOOKBACK_MINUTES), settings.ask_keigan_log_query_max_lookback_minutes)),
                     time_range_end=end, requested_by=requested_by, usage_context=usage_context,
                 )
             except KeiganException as query_error:
@@ -205,10 +216,11 @@ class InvestigationChatService:
         agent = create_react_agent(self.gateway.chat_model(ModelTier.DEEP), tools, prompt=f"{self._system_prompt(context.application.application_name)}\n\n{UNTRUSTED_DATA_POLICY}")
         messages: list[Any] = [
             HumanMessage(content=spotlight(context.context_markdown, f"investigation:{context.investigation.investigation_id}")),
+            *([HumanMessage(content=spotlight(context.operating_notes.content, context.operating_notes.source_label, force_warning=context.operating_notes.is_flagged))] if context.operating_notes else []),
             HumanMessage(content=spotlight(self._history_text(history), "chat:history")),  # earlier answers are data, not instructions
             HumanMessage(content=spotlight(question, "chat:user-question")),
         ]
-        result = await agent.ainvoke({"messages": messages}, {"recursion_limit": 2 * MAXIMUM_TOOL_CALLS + 3})
+        result = await agent.ainvoke({"messages": messages}, {"recursion_limit": 2 * maximum_tool_calls + 3})
         final_messages = result["messages"]
         input_tokens = sum((getattr(message, "usage_metadata", None) or {}).get("input_tokens", 0) for message in final_messages)
         output_tokens = sum((getattr(message, "usage_metadata", None) or {}).get("output_tokens", 0) for message in final_messages)

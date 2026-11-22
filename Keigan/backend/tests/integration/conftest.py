@@ -5,9 +5,20 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from keigan.config import application_context
+from keigan.services.ask_keigan_interruption import RunInterruption
 from support import users
 from support.alerts import AlertSourceFixture
 from support.http import AuthHeaders
+
+
+@pytest.fixture(autouse=True)
+async def no_answer_outlives_its_test() -> None:
+    """Answers run as detached tasks that outlive their request, and ``ASGITransport`` never runs the app lifespan that ends them at shutdown, so an answer a test left running
+    (a stopped stream, a blocked model turn) would still hold the database and the shared event loop in a later test. After every test the live answers of this process are ended
+    the way a shutdown ends them: the tasks are cancelled and awaited, and their runs are marked interrupted."""
+    yield
+    await RunInterruption(application_context.answer_run_registry()).interrupt_live_runs()
 
 
 @pytest.fixture(scope="session")

@@ -1,0 +1,25 @@
+# What each configured model can do. Read by keigan/ai/model_capabilities.py; an admin overrides any of it with LLM_MODEL_CAPABILITIES_JSON
+# (same shape: "defaults" and "providers"). For a provider the FIRST entry whose "model" glob matches the configured model name wins;
+# flags an entry does not state come from "defaults". Values marked "unverified" have not been through the provider conformance suite
+# in this repository (spec 23, section 4.6.6), so check them against your endpoint before relying on them.
+defaults:                         # used when no entry matches
+  tool_calling: native            # native | prompted_json | none
+  parallel_tool_calls: false
+  streams_text: true
+  streams_tool_requests: false    # informative only: the engine never shows partial arguments
+  supports_tool_choice_none: false
+  supports_temperature: true
+  max_context_tokens: 128000
+  reports_stream_usage: false
+  structured_output_method: null  # null = LLM_STRUCTURED_OUTPUT_METHOD
+providers:
+  mock:
+    - { model: "*", tool_calling: native, parallel_tool_calls: true, streams_text: true, reports_stream_usage: true, max_context_tokens: 1000000 }
+  gemini:
+    - { model: "gemini-2.5-*", tool_calling: native, parallel_tool_calls: true, max_context_tokens: 1000000 }   # unverified
+  azure_openai:
+    - { model: "*", tool_calling: native, parallel_tool_calls: true, supports_tool_choice_none: true, reports_stream_usage: true }   # unverified; deployment names are free text
+  openai_compatible:
+    - { model: "*", tool_calling: native, supports_tool_choice_none: true }   # unverified: depends on the wrapper in front of the model
+  anthropic:
+    - { model: "*", tool_calling: native, parallel_tool_calls: true, supports_tool_choice_none: true, max_context_tokens: 200000 }   # unverified; the langchain-anthropic package is optional

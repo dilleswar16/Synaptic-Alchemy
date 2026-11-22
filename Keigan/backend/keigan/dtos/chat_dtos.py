@@ -10,6 +10,9 @@ from pydantic import Field
 from keigan.dtos.common_dtos import ApiModel
 
 
+MESSAGE_TEXT_MAXIMUM_CHARACTERS = 4000  # the longest question a person can send, in every chat endpoint
+
+
 class ConversationCreateRequest(ApiModel):
     conversation_scope: str = "keigan_ai_chat"  # keigan_ai_chat | investigation
     application_ids: list[str] | None = None
@@ -47,7 +50,7 @@ class ConversationDetailResponse(ConversationResponse):
 
 
 class SendMessageRequest(ApiModel):
-    message_text: str = Field(min_length=1, max_length=4000)
+    message_text: str = Field(min_length=1, max_length=MESSAGE_TEXT_MAXIMUM_CHARACTERS)
     clarification_response: str | None = Field(default=None, max_length=60)
 
 

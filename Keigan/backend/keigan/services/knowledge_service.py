@@ -73,6 +73,7 @@ class KnowledgeReference:
     source_kind: str  # topology | document_digest | document_chunk | cmdb_record
     knowledge_document_id: str | None = None
     section_heading: str | None = None
+    passage_text: str = ""  # the text of this reference as it appears in the grounding (topology summary, digest or chunk), for callers that need passages one by one
 
 
 @dataclass
@@ -354,6 +355,7 @@ class KnowledgeService:
             topology_text = truncate_text(topology_text, max(400, remaining_budget // 4) * 4)
             code = next_reference("Application topology", "topology")
             context.topology_summary_markdown = f"[{code}] Application topology\n{topology_text}"
+            context.references[-1].passage_text = topology_text
             remaining_budget -= estimate_token_count(context.topology_summary_markdown)
 
         all_documents = await self.document_repository.find_all(KnowledgeDocument.application_id == application_id, KnowledgeDocument.ai_digest_status == DocumentDigestStatus.READY)
@@ -374,6 +376,7 @@ class KnowledgeService:
                 break
             code = next_reference(document.document_title, "document_digest", document.knowledge_document_id)
             knowledge_sections.append(f"[{code}] Digest of {document.document_title}\n{digest_text}")
+            context.references[-1].passage_text = digest_text
             used_document_ids.add(document.knowledge_document_id)
             digest_budget -= digest_tokens
             remaining_budget -= digest_tokens
@@ -396,6 +399,7 @@ class KnowledgeService:
                 document_title = titles_by_document_id.get(chunk.knowledge_document_id, "Knowledge document")
                 code = next_reference(document_title, "document_chunk", chunk.knowledge_document_id, chunk.section_heading)
                 knowledge_sections.append(f"[{code}] {document_title} — {chunk.section_heading or 'excerpt'}\n{chunk_text}")
+                context.references[-1].passage_text = chunk_text
                 used_document_ids.add(chunk.knowledge_document_id)
                 remaining_budget -= chunk_tokens
         context.knowledge_markdown = "\n\n".join(knowledge_sections)

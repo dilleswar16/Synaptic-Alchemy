@@ -1,4 +1,4 @@
-"""Generates My Plans/15_ENTITY_RELATIONSHIP_DIAGRAM.md (Mermaid) from Keigan's entities — re-run after any entity change.
+"""Generates My Plans/architecture/15_ENTITY_RELATIONSHIP_DIAGRAM.md (Mermaid) from Keigan's entities — re-run after any entity change.
 
 Usage (from backend/):  .\\.venv\\Scripts\\python.exe scripts\\generate_entity_relationship_diagram.py
 Solid lines are real foreign keys. Dotted lines are ID references kept without a foreign key on purpose (history that must
@@ -20,7 +20,7 @@ from sqlalchemy import JSON, BigInteger, Boolean, Column, Float, Integer, String
 from keigan.entities import all_entities  # noqa: E402, F401
 from keigan.entities.base_entity import EntityBase, UtcDateTime  # noqa: E402
 
-OUTPUT_PATH = Path(__file__).resolve().parents[2] / "My Plans" / "15_ENTITY_RELATIONSHIP_DIAGRAM.md"
+OUTPUT_PATH = Path(__file__).resolve().parents[2] / "My Plans" / "architecture" / "15_ENTITY_RELATIONSHIP_DIAGRAM.md"
 DOMAIN_TITLES = {
     "application_entities": "Applications and onboarding",
     "topology_entities": "Topology review",

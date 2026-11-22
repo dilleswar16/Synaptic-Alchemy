@@ -16,8 +16,8 @@ from keigan.services.application_service import ApplicationService
 from support.application_graph import create_application_graph
 
 REFERENCE_COLUMN_NAMES = ("application_id", "incident_id", "investigation_id", "sli_id", "service_id", "primary_service_id")
-# History is kept on purpose after an application is deleted: the audit trail and the AI usage records name the application without a key.
-HISTORY_COLUMNS = {("audit_event", "application_id"), ("llm_usage_record", "application_id"), ("llm_usage_record", "investigation_id")}
+# History is kept on purpose after an application is deleted: the audit trail, the AI usage records and the steps of Ask Keigan answers name the application without a key.
+HISTORY_COLUMNS = {("audit_event", "application_id"), ("llm_usage_record", "application_id"), ("llm_usage_record", "investigation_id"), ("chat_run_step", "application_id")}
 ADMIN = CurrentUser(user_principal_name="admin@example.com", display_name="Admin", email_address=None, group_names=frozenset(), group_object_ids=frozenset(), is_keigan_admin=True)
 
 

@@ -7,6 +7,7 @@ is audited as ``ai.query.execute``. Nothing here writes to a monitored system.
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -94,6 +95,7 @@ class ChatDataQueryService:
         time_range_end: datetime,
         requested_by: str,
         usage_context: LlmUsageContext,
+        on_query_generated: Callable[[str, str], Awaitable[None]] | None = None,
     ) -> DataQueryOutcome:
         # Same rule the gateway enforces, checked first so a refused question costs no LLM call and the user gets the reason.
         await application_context.telemetry_access_policy().ensure_application_approved(service.application_id, self.session)
@@ -118,6 +120,8 @@ class ChatDataQueryService:
         )
         self._ensure_query_was_written(generated, service.service_name)
         hardened_query = validate_generated_query(query_language, generated.query_text, time_range_start, time_range_end, query_scope=target.query_scope)
+        if on_query_generated is not None:  # lets the caller show the query while it still runs (Ask Keigan's tool.progress event)
+            await on_query_generated(hardened_query.query_language, hardened_query.query_text)
         query_result = await application_context.telemetry_gateway().query_logs(
             target,
             TelemetryQuery(

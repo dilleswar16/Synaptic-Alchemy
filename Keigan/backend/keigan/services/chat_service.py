@@ -27,12 +27,14 @@ from keigan.dtos.chat_dtos import (
     ChatMessageResponse, ConversationCreateRequest, ConversationDetailResponse, ConversationResponse, ConversationUpdateRequest, SendMessageRequest, SuggestedPromptResponse,
 )
 from keigan.entities.all_entities import Application, Conversation, ConversationMessage, Investigation, MonitoredService
+from keigan.entities.incident_entities import ChatAnswerRun
 from keigan.entities.status_values import MessageAuthorRole
 from keigan.exceptions.keigan_exceptions import (
     BusinessValidationException, ForbiddenException, IntegrationException, KeiganException, LlmOutputValidationException, NotFoundException,
 )
 from keigan.security.current_user import CurrentUser
 from keigan.security.security_middleware import rate_limiter
+from keigan.services.answer_run_retention import delete_answer_runs
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.chat_data_query_service import ChatDataQueryService, DataQueryOutcome, QueryNotAnswerableError
@@ -153,10 +155,10 @@ class ChatService:
         return await self._to_detail(conversation)
 
     async def get_conversation(self, current_user: CurrentUser, conversation_id: str) -> ConversationDetailResponse:
-        return await self._to_detail(await self._owned_conversation(current_user, conversation_id))
+        return await self._to_detail(await self.open_conversation(current_user, conversation_id))
 
     async def update_conversation(self, current_user: CurrentUser, conversation_id: str, request: ConversationUpdateRequest) -> ConversationResponse:
-        conversation = await self._owned_conversation(current_user, conversation_id)
+        conversation = await self.owned_conversation(current_user, conversation_id)
         if request.conversation_title is not None:
             conversation.conversation_title = PiiMasker().mask_text(request.conversation_title).strip() or DEFAULT_TITLE
         if request.application_ids is not None and conversation.conversation_scope == KEIGAN_SCOPE:
@@ -165,7 +167,8 @@ class ChatService:
         return self._to_response(conversation, 0)
 
     async def delete_conversation(self, current_user: CurrentUser, conversation_id: str) -> None:
-        conversation = await self._owned_conversation(current_user, conversation_id)
+        conversation = await self.owned_conversation(current_user, conversation_id)
+        await delete_answer_runs(self.session, ChatAnswerRun.conversation_id == conversation_id)
         await self.session.execute(delete(ConversationMessage).where(ConversationMessage.conversation_id == conversation_id))
         await self.session.delete(conversation)
 
@@ -187,9 +190,9 @@ class ChatService:
 
     # ── Messages ─────────────────────────────────────────────────────────────────────────────────────────────────────
     async def send_message(self, current_user: CurrentUser, conversation_id: str, request: SendMessageRequest) -> ChatMessageResponse:
-        conversation = await self._owned_conversation(current_user, conversation_id)
+        conversation = await self.open_conversation(current_user, conversation_id)
         rate_limiter.check(f"chat:{current_user.user_principal_name}", self.settings.chat_rate_limit_per_minute)
-        history = await self._messages(conversation_id)
+        history = await self.conversation_messages(conversation_id)
         masker = PiiMasker()
         masked_message_text = masker.mask_text(request.message_text)  # personal data is masked before it is stored, not only before the model call (V12)
         self.session.add(ConversationMessage(
@@ -371,7 +374,7 @@ class ChatService:
         return AssistantAnswer(answer_text, [], payload, estimate_token_count(question) + 200, estimate_token_count(answer_text))
 
     # ── Helpers ──────────────────────────────────────────────────────────────────────────────────────────────────────
-    async def _owned_conversation(self, current_user: CurrentUser, conversation_id: str) -> Conversation:
+    async def owned_conversation(self, current_user: CurrentUser, conversation_id: str) -> Conversation:
         conversation = await self.session.get(Conversation, conversation_id)
         if conversation is None:
             raise NotFoundException("That conversation does not exist.")
@@ -379,11 +382,30 @@ class ChatService:
             raise ForbiddenException("This conversation belongs to someone else.")
         return conversation
 
-    async def _messages(self, conversation_id: str) -> list[ConversationMessage]:
+    async def open_conversation(self, current_user: CurrentUser, conversation_id: str) -> Conversation:
+        """The conversation of ``current_user``, when they still may use it: they own it and (for an investigation chat) can still read its application."""
+        conversation = await self.owned_conversation(current_user, conversation_id)
+        await self._ensure_still_allowed(current_user, conversation)
+        return conversation
+
+    async def _ensure_still_allowed(self, current_user: CurrentUser, conversation: Conversation) -> None:
+        """Owning a conversation is not access: an investigation chat shows the application's data, so the owner must still be able to read that application.
+
+        Access is checked when the chat is opened and again on every read and send, so removing someone's access takes effect at once.
+        Renaming or deleting one's own chat stays allowed (it is the person's own record and shows no application data).
+        """
+        if conversation.conversation_scope != INVESTIGATION_SCOPE:
+            return  # a Keigan AI chat re-checks readable applications on every question
+        investigation = await self.session.get(Investigation, conversation.investigation_id) if conversation.investigation_id else None
+        if investigation is None:
+            raise NotFoundException("That investigation no longer exists.")
+        await AuthorizationService(self.session).ensure_application_reader(current_user, investigation.application_id)
+
+    async def conversation_messages(self, conversation_id: str) -> list[ConversationMessage]:
         return list((await self.session.scalars(select(ConversationMessage).where(ConversationMessage.conversation_id == conversation_id).order_by(ConversationMessage.created_at))).all())
 
     async def _to_detail(self, conversation: Conversation) -> ConversationDetailResponse:
-        messages = await self._messages(conversation.conversation_id)
+        messages = await self.conversation_messages(conversation.conversation_id)
         base = self._to_response(conversation, len(messages))
         return ConversationDetailResponse(**base.model_dump(), messages=[self._to_message_response(item) for item in messages])
 

@@ -17,6 +17,7 @@ from keigan.services.chat_service import ChatService
 from keigan.utils.text_utils import term_frequencies
 from support import users
 from support.http import AuthHeaders
+from support.chat_answer_runs import store_answer_run
 
 EMAIL = "taro.yamada@example.co.jp"
 
@@ -134,3 +135,88 @@ async def test_stored_messages_of_an_investigation_conversation_are_masked_in_th
         owner = CurrentUser("owner@keigan.local", "Owner", None, frozenset(), frozenset(), True)
         await ChatService(session).send_message(owner, conversation_id, SendMessageRequest(message_text="And now?"))
     assert EMAIL not in str(seen["conversation_history"])
+
+
+async def investigation_conversation_owned_by(seed_context, owner_principal_name: str) -> str:
+    """An investigation chat on CLMJP that already exists, as if the owner had access when it was opened."""
+    from keigan.entities.all_entities import Conversation, Investigation
+
+    async with open_session() as session:
+        investigation = Investigation(application_id=seed_context.application_ids_by_code["CLMJP"])
+        session.add(investigation)
+        await session.flush()
+        conversation = Conversation(conversation_scope="investigation", investigation_id=investigation.investigation_id, owner_user_principal_name=owner_principal_name, conversation_title="Investigation chat")
+        session.add(conversation)
+        await session.flush()
+        session.add(ConversationMessage(conversation_id=conversation.conversation_id, author_role="assistant", message_text="Earlier answer about claims-api"))
+        return conversation.conversation_id
+
+
+async def test_a_person_whose_access_to_the_application_was_removed_cannot_send_to_their_investigation_chat(seed_context, client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    conversation_id = await investigation_conversation_owned_by(seed_context, users.NO_ACCESS)
+    headers = await auth_headers(users.NO_ACCESS)
+    response = await client.post(f"/api/chat/conversations/{conversation_id}/messages", headers=headers, json={"messageText": "What did you find?"})
+    assert response.status_code == 403, response.text
+    async with open_session() as session:
+        from sqlalchemy import func, select
+
+        stored = await session.scalar(select(func.count()).select_from(ConversationMessage).where(ConversationMessage.conversation_id == conversation_id))
+    assert stored == 1, "a refused message must not be stored"
+
+
+async def test_a_person_whose_access_to_the_application_was_removed_cannot_read_their_earlier_investigation_chat(seed_context, client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    conversation_id = await investigation_conversation_owned_by(seed_context, users.NO_ACCESS)
+    response = await client.get(f"/api/chat/conversations/{conversation_id}", headers=await auth_headers(users.NO_ACCESS))
+    assert response.status_code == 403, response.text
+    assert "Earlier answer" not in response.text
+
+
+async def test_a_person_who_still_has_access_can_read_and_send_in_their_investigation_chat(seed_context, client: httpx.AsyncClient, auth_headers: AuthHeaders, monkeypatch: pytest.MonkeyPatch) -> None:
+    from keigan.services.chat_service import AssistantAnswer
+
+    async def fake_answer(self: ChatService, investigation_id: str, question_text: str, **kwargs: Any) -> AssistantAnswer:
+        return AssistantAnswer("ok")
+
+    monkeypatch.setattr(ChatService, "answer_investigation_question", fake_answer)
+    conversation_id = await investigation_conversation_owned_by(seed_context, users.CLMJP_ADMIN_CHAD_READER)
+    headers = await auth_headers(users.CLMJP_ADMIN_CHAD_READER)
+    assert (await client.get(f"/api/chat/conversations/{conversation_id}", headers=headers)).status_code == 200
+    assert (await client.post(f"/api/chat/conversations/{conversation_id}/messages", headers=headers, json={"messageText": "Anything new?"})).status_code == 200
+
+
+async def test_a_person_without_access_can_still_delete_their_own_investigation_chat(seed_context, client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    conversation_id = await investigation_conversation_owned_by(seed_context, users.NO_ACCESS)
+    response = await client.delete(f"/api/chat/conversations/{conversation_id}", headers=await auth_headers(users.NO_ACCESS))
+    assert response.status_code in (200, 204), response.text
+
+
+async def test_deleting_a_conversation_also_removes_the_answer_runs_and_steps_stored_for_its_questions(client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    from sqlalchemy import func, select
+
+    from keigan.entities.incident_entities import ChatAnswerRun, ChatRunStep
+    from keigan.entities.status_values import ChatAnswerRunStatus
+
+    headers = await auth_headers(users.CLMJP_ADMIN_CHAD_READER)
+    conversation_id = await new_conversation(client, headers)
+    async with open_session() as session:
+        stored = await store_answer_run(session, conversation_id=conversation_id, run_status=ChatAnswerRunStatus.COMPLETED)
+    response = await client.delete(f"/api/chat/conversations/{conversation_id}", headers=headers)
+    assert response.status_code in (200, 204), response.text
+    async with open_session() as session:
+        assert await session.scalar(select(func.count()).select_from(ChatAnswerRun).where(ChatAnswerRun.answer_run_id == stored.answer_run_id)) == 0
+        assert await session.scalar(select(func.count()).select_from(ChatRunStep).where(ChatRunStep.answer_run_id == stored.answer_run_id)) == 0
+        assert await session.scalar(select(func.count()).select_from(ConversationMessage).where(ConversationMessage.conversation_id == conversation_id)) == 0
+
+
+async def test_the_contract_the_teams_bot_uses_answers_from_the_investigation_with_its_citations(seed_context) -> None:
+    from support.ask_keigan_conversations import seed_investigation
+
+    investigation = await seed_investigation(seed_context.application_ids_by_code["CLMJP"])
+    async with open_session() as session:
+        answer = await ChatService(session).answer_investigation_question(investigation.investigation_id, "Which evidence did you collect?", asked_by_user_principal_name="teams.user@keigan.local")
+    assert answer.answer_markdown == "Evidence collected:\n\n- [E1] Error spike on claims-api\n- [E2] Release 41 deployed"
+    assert answer.citations == [
+        {"kind": "evidence", "title": "Error spike on claims-api", "reference": "E1"}, {"kind": "evidence", "title": "Release 41 deployed", "reference": "E2"},
+    ]
+    assert answer.message_payload == {"answerKind": "text", "citations": answer.citations}
+    assert answer.input_token_count > 0 and answer.output_token_count > 0

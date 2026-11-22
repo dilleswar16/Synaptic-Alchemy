@@ -20,6 +20,7 @@ from sqlalchemy import CheckConstraint, create_engine, text
 
 from keigan.entities import all_entities  # noqa: F401  (registers every table)
 from keigan.entities.base_entity import EntityBase
+from support.schema_revisions import TABLES_ADDED_AFTER_THE_CHECK_REVISION
 
 BACKEND_DIRECTORY = Path(__file__).resolve().parents[3]
 AZURE_SQL_DIRECTORY = BACKEND_DIRECTORY.parent / "database" / "azure_sql"
@@ -79,7 +80,7 @@ def test_the_check_constraints_the_revision_adds_are_the_ones_the_entities_decla
         (table.name, constraint.name.removeprefix(f"ck_{table.name}_").removesuffix("_values"))
         for table in EntityBase.metadata.sorted_tables
         for constraint in table.constraints
-        if isinstance(constraint, CheckConstraint) and constraint.name and constraint.name.endswith("_values")
+        if isinstance(constraint, CheckConstraint) and constraint.name and constraint.name.endswith("_values") and table.name not in TABLES_ADDED_AFTER_THE_CHECK_REVISION
     }
     assert set(revision_module(CHECK_REVISION).CONSTRAINED_COLUMNS) == declared
 
@@ -90,7 +91,7 @@ def test_partial_unique_indexes_keep_their_filter_in_the_migrated_database(migra
     with engine.connect() as connection:
         index_sql = dict(connection.execute(text("SELECT name, sql FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL")).all())
     engine.dispose()
-    for index_name in ("uq_incident_external_number", "uq_alert_open_fingerprint", "uq_background_job_active_deduplication_key", "uq_stakeholder_application_email"):
+    for index_name in ("uq_incident_external_number", "uq_alert_open_fingerprint", "uq_background_job_active_deduplication_key", "uq_stakeholder_application_email", "uq_chat_answer_run_one_running_per_conversation"):
         assert index_name in index_sql, f"{index_name} is missing from the migrated database"
         assert "UNIQUE" in index_sql[index_name].upper() and " WHERE " in index_sql[index_name].upper(), index_sql[index_name]
 

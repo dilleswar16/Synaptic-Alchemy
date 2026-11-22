@@ -37,7 +37,9 @@ from keigan.entities.incident_entities import (
 from keigan.entities.knowledge_entities import ApplicationTopology, KnowledgeChunk, KnowledgeDocument, Runbook, TopologyReviewComment
 from keigan.entities.notification_entities import NotificationDelivery, Stakeholder, TeamsIncidentChat
 from keigan.entities.slo_entities import IntelligenceReport, PredictiveSignal, ServiceLevelIndicator, ServiceLevelObjective, SliMeasurement, SloBurnAlert
+from keigan.entities.status_values import ConversationScope
 from keigan.utils.time_utils import utc_now
+from support.chat_answer_runs import store_answer_run
 
 _code_counter = itertools.count(1)
 
@@ -155,6 +157,7 @@ async def create_application_graph() -> ApplicationGraph:
             ),
             TeamsIncidentChat(incident_id=incident.incident_id, application_id=application_id, teams_chat_identifier="19:x", chat_topic="topic", conversation_id=conversation.conversation_id),
         ])
+        await store_answer_run(session, conversation_id=conversation.conversation_id, conversation_scope=ConversationScope.INVESTIGATION, investigation_id=investigation.investigation_id)
         return ApplicationGraph(
             application_id=application_id, first_service_id=first_service.service_id, second_service_id=second_service.service_id, incident_id=incident.incident_id,
             investigation_id=investigation.investigation_id, alert_group_id=alert_group.alert_group_id, runbook_id=runbook.runbook_id, knowledge_document_id=document.knowledge_document_id, sli_id=sli.sli_id,

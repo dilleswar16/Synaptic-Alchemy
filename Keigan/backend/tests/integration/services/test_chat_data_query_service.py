@@ -91,6 +91,25 @@ async def test_chat_search_on_a_splunk_service_is_limited_to_the_index_of_its_lo
     assert "index=*" not in outcome.query_text
 
 
+async def test_the_caller_is_told_the_query_as_soon_as_it_is_written() -> None:
+    approved = await create_scoped_application()
+    service = await create_splunk_service(approved.application_id, "payments_prod")
+    now = datetime.now(UTC)
+    announced: list[tuple[str, str]] = []
+
+    async def announce(query_language: str, query_text: str) -> None:
+        announced.append((query_language, query_text))
+
+    async with open_session() as session:
+        chat_query_service = ChatDataQueryService(session)
+        chat_query_service.gateway = LlmGatewayWritingAPlainSplunkSearch()  # type: ignore[assignment]
+        outcome = await chat_query_service.run(
+            service=service, question_text="show errors", wants_failures=True, wants_pattern=False, time_range_start=now - timedelta(hours=1), time_range_end=now,
+            requested_by="reader@example.com", usage_context=LlmUsageContext(), on_query_generated=announce,
+        )
+    assert announced == [("spl", outcome.query_text)]
+
+
 class LlmGatewayThatCannotWriteAQuery:
     """Answers the query-writing call the way the prompt allows: an empty query and a sentence on what is missing."""
 

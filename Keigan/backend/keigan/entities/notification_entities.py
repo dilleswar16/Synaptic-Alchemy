@@ -49,7 +49,7 @@ class Stakeholder(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
     preferred_language_code: Mapped[str] = mapped_column(String(10), default="en")
     quiet_hours_json: Mapped[dict[str, Any] | None] = mapped_column()
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    # Team invitation facts (see My Plans/20_TEAM_MEMBERS_DESIGN.md); the member's status is derived from them.
+    # Team invitation facts (see My Plans/features/team-members/20_TEAM_MEMBERS_DESIGN.md); the member's status is derived from them.
     invited_at: Mapped[datetime | None] = mapped_column()
     invited_by_user_principal_name: Mapped[str | None] = mapped_column(String(320))
     last_invitation_sent_at: Mapped[datetime | None] = mapped_column()

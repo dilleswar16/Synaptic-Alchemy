@@ -58,5 +58,169 @@
     "welcome": "I am Keigan. I will post investigation findings here and learn from your discussion. Ask me with \"Keigan, ...\". Say \"Keigan, this is finished\" when the incident is done and I will prepare the postmortem.",
     "milestone_ack": "Understood. I am generating the postmortem draft now; it will appear in Keigan shortly.",
     "no_answer": "I could not answer that right now. Open the investigation in Keigan for the full findings."
+  },
+  "ask_keigan_errors": {
+    "reference_suffix": "Reference {reference}.",
+    "fallbacks": {
+      "modelTier": "the configured model",
+      "seconds": "the allowed number of",
+      "retryAfterSeconds": "a few",
+      "budgetOwner": "your account",
+      "resetTime": "the start of the next UTC day",
+      "applicationName": "that application",
+      "toolLabel": "that check",
+      "sourceName": "the data source",
+      "recordKind": "record",
+      "fieldMessage": "The request was not valid.",
+      "reason": "Keigan cannot answer this from the logs. Try asking about the requests, errors or latency of a service.",
+      "maximum": "the allowed number of",
+      "stepDescription": "answering"
+    },
+    "ai_timeout": {
+      "title": "The AI model took too long",
+      "detail": "The AI model ({modelTier}) did not answer in {seconds} seconds. Nothing was changed. If this repeats, ask an admin to check the AI endpoint."
+    },
+    "ai_rate_limited": {
+      "title": "The AI model is busy",
+      "detail": "The AI model is busy right now. Try again in {retryAfterSeconds} seconds."
+    },
+    "ai_authentication_failed": {
+      "title": "Keigan could not sign in to the AI model",
+      "detail": "Keigan could not sign in to the AI model. This needs an admin: check the AI model credentials."
+    },
+    "ai_unavailable": {
+      "title": "The AI model could not be reached",
+      "detail": "The AI model could not be reached. Try again shortly."
+    },
+    "ai_tools_unsupported": {
+      "title": "The AI model cannot use tools",
+      "detail": "The configured AI model ({modelTier}) cannot use tools, which Ask Keigan needs. Ask a Keigan admin to change the AI model settings."
+    },
+    "ai_tool_protocol_failed": {
+      "title": "The AI model did not follow the tool format",
+      "detail": "The AI model ({modelTier}) did not follow the tool format twice, so Keigan stopped instead of guessing. Try again; if it repeats, an admin should check the model."
+    },
+    "ai_output_invalid": {
+      "title": "The AI model returned an unusable answer",
+      "detail": "The AI model ({modelTier}) returned an answer Keigan could not use, so Keigan stopped instead of guessing. Try again; if it repeats, an admin should check the model."
+    },
+    "ai_request_rejected": {
+      "title": "The AI model rejected the request",
+      "detail": "The AI model ({modelTier}) rejected the request, so Keigan stopped. Try again; if it repeats, an admin should check the AI model settings."
+    },
+    "token_budget_exceeded": {
+      "title": "The daily AI budget is used up",
+      "detail": "The daily AI budget for {budgetOwner} is used up. It resets at {resetTime}."
+    },
+    "rate_limited": {
+      "title": "You are asking too quickly",
+      "detail": "You are sending questions too quickly. Try again in {retryAfterSeconds} seconds."
+    },
+    "answer_in_progress": {
+      "title": "Keigan is still answering",
+      "detail": "Keigan is still answering your previous question in this conversation. Wait for it to finish or stop it."
+    },
+    "duplicate_request": {
+      "title": "Question already sent",
+      "detail": "This question was already sent, so the existing answer is shown."
+    },
+    "forbidden": {
+      "title": "You do not have access",
+      "detail": "You can't read {applicationName}. Ask its admin for access."
+    },
+    "access_lost_mid_run": {
+      "title": "Your access changed while Keigan was answering",
+      "detail": "Your access to {applicationName} changed while Keigan was answering, so this answer was stopped. Ask an admin to check your access."
+    },
+    "tool_failed_source_unavailable": {
+      "title": "Couldn't complete \"{toolLabel}\"",
+      "detail": "Couldn't complete \"{toolLabel}\": {sourceName} could not be reached. This result is missing from the answer."
+    },
+    "tool_failed_timeout": {
+      "title": "Couldn't complete \"{toolLabel}\"",
+      "detail": "Couldn't complete \"{toolLabel}\": it took longer than {seconds} seconds. Try a narrower question."
+    },
+    "tool_failed_not_found": {
+      "title": "\"{toolLabel}\": not found",
+      "detail": "\"{toolLabel}\": that {recordKind} was not found. Check the name and try again."
+    },
+    "tool_failed_invalid_arguments": {
+      "title": "\"{toolLabel}\": the request was not valid",
+      "detail": "\"{toolLabel}\": {fieldMessage}"
+    },
+    "tool_query_not_answerable": {
+      "title": "Keigan cannot answer this from the logs",
+      "detail": "{reason}"
+    },
+    "tool_output_invalid": {
+      "title": "Couldn't use the result of \"{toolLabel}\"",
+      "detail": "Couldn't use the result of \"{toolLabel}\". It is recorded for an admin."
+    },
+    "tool_limit_reached": {
+      "title": "Stopped at the tool-call limit",
+      "detail": "Stopped at the limit of {maximum} tool calls. Keigan answered from what it had found; ask a follow-up to go further."
+    },
+    "answer_interrupted": {
+      "title": "The answer was interrupted",
+      "detail": "The answer was interrupted because Keigan restarted. Ask the question again; the steps it finished are shown above."
+    },
+    "stream_interrupted": {
+      "title": "The connection was lost",
+      "detail": "The connection was lost. Keigan is still answering; reconnecting..."
+    },
+    "validation_failed": {
+      "title": "The question is not valid",
+      "detail": "{fieldMessage}"
+    },
+    "internal_error": {
+      "title": "Unexpected error",
+      "detail": "Keigan hit an unexpected error while {stepDescription}. Reference {reference}. It has been logged."
+    },
+    "tool_not_available": {
+      "title": "That tool is not available here",
+      "detail": "\"{toolLabel}\" is not available in this conversation."
+    },
+    "not_found": {
+      "title": "Not found",
+      "detail": "That {recordKind} was not found. It may have been removed."
+    },
+    "authentication_required": {
+      "title": "Sign in again",
+      "detail": "Your sign-in expired. Sign in again to keep using Keigan."
+    },
+    "cancelled": {
+      "title": "Answer stopped",
+      "detail": "You stopped this answer. The steps Keigan finished are shown above."
+    },
+    "answer_not_running": {
+      "title": "The answer already finished",
+      "detail": "That answer is no longer running, so there is nothing to stop."
+    }
+  },
+  "ask_keigan_answers": {
+    "no_access": "You don't have access to any applications yet, so there is nothing for me to look at.",
+    "outside_scope": "That is outside what I can answer from Keigan's data.",
+    "limit_reached": {
+      "tool_limit": "I stopped at the limit of {maximum} tool calls before I could write a full answer. This is what the checks found:",
+      "token_budget": "I stopped at the token budget for one answer before I could write a full answer. This is what the checks found:",
+      "nothing_found": "None of the checks returned anything I can report."
+    },
+    "check_not_done": "{toolLabel} could not be checked.",
+    "steps": {
+      "model_turn": "asking the AI model",
+      "saving_answer": "saving the answer",
+      "running_tool": "running \"{toolLabel}\""
+    }
+  },
+  "ask_keigan_tools": {
+    "sources": {
+      "activity_log": "the Azure Activity Log",
+      "log_source": "the log source of {subject}"
+    },
+    "record_kinds": {
+      "investigation": "investigation",
+      "evidence_item": "evidence item",
+      "service": "service"
+    }
   }
 }

@@ -26,7 +26,7 @@ The folders mirror `keigan/`, so the tests for `keigan/services/alert_pipeline_s
 - A test name states the behaviour (`test_reader_cannot_create_an_alert_source`), not the method under test.
 - Expected values are literals checked by hand, never computed with the code under test.
 - **Known bugs** are written as `@pytest.mark.xfail(strict=True, reason="H<n>: ...")` with the ID from
-  `My Plans/16_HARDENING_PLAN.md`. When the fix lands the test passes, `strict` turns that into a failure, and the fix
+  `My Plans/quality-and-security/16_HARDENING_PLAN.md`. When the fix lands the test passes, `strict` turns that into a failure, and the fix
   removes the marker. A suite with no `XPASS` means every listed bug is still there or fixed and unmarked.
 - The session database is shared. Tests that change data create their own records (unique names or ids) rather than
   editing seeded ones.

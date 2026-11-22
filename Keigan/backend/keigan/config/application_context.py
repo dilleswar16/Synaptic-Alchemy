@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from keigan.integrations.secret_store import SecretStore
     from keigan.integrations.simulation.telemetry_simulator import TelemetrySimulator
     from keigan.integrations.telemetry_gateway import TelemetryGateway
+    from keigan.services.ask_keigan_run_registry import AnswerRunRegistry
     from keigan.services.telemetry_access_policy import TelemetryAccessPolicy, WorkspaceCustomerIdResolver
     from keigan.utils.outbound_url_policy import OutboundUrlPolicy
 
@@ -111,6 +112,14 @@ def prompt_library() -> "PromptLibrary":
     from keigan.ai.prompt_library import PromptLibrary
 
     return PromptLibrary()
+
+
+@lru_cache
+def answer_run_registry() -> "AnswerRunRegistry":
+    """The Ask Keigan answers running in this process (one registry, because a detached answer outlives the request that started it)."""
+    from keigan.services.ask_keigan_run_registry import AnswerRunRegistry
+
+    return AnswerRunRegistry()
 
 
 @lru_cache

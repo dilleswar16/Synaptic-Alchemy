@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, identifier_column, utc_now
 from keigan.entities.linked_ids import LinkedIdsMixin, OrderedLinkColumns, linked_ids_property, ordered_links_relationship
-from keigan.entities.status_values import AnalysisPerspective, AssignmentGroupVerificationStatus, CommunicationStatus, ConversationScope, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStage, InvestigationStatus, InvestigationTrigger, MessageAuthorRole, PostmortemStatus, Priority, RiskLevel, values_check
+from keigan.entities.status_values import AnalysisPerspective, AssignmentGroupVerificationStatus, ChatAnswerRunStatus, ChatAnswerStopReason, ChatRunStepKind, ChatRunStepStatus, CommunicationStatus, ConversationScope, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStage, InvestigationStatus, InvestigationTrigger, MessageAuthorRole, PostmortemStatus, Priority, RiskLevel, ToolCallingMode, values_check
 
 
 class ServiceNowAssignmentGroup(EntityBase):
@@ -317,7 +317,123 @@ class ConversationMessage(EntityBase):
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
 
+# A run in this state owns its conversation: the database allows only one such run per conversation, however many processes answer questions.
+_RUNNING_RUN_FILTER = text(f"run_status = '{ChatAnswerRunStatus.RUNNING.value}'")
+
+
+class ChatAnswerRun(EntityBase):
+    """Everything Keigan did to answer one question in Ask Keigan: the scope it ran with, the model and tools it used, the totals and the cited sources."""
+
+    __tablename__ = "chat_answer_run"
+    __table_args__ = (
+        UniqueConstraint("conversation_id", "client_request_id", name="uq_chat_answer_run_conversation_id_client_request_id"),
+        # Filtered unique index (portable like uq_background_job_active_deduplication_key): finished runs stay for history, one running run per conversation.
+        Index(
+            "uq_chat_answer_run_one_running_per_conversation", "conversation_id", unique=True,
+            mssql_where=_RUNNING_RUN_FILTER, postgresql_where=_RUNNING_RUN_FILTER, sqlite_where=_RUNNING_RUN_FILTER,
+        ),
+        Index("ix_chat_answer_run_requested_by_user_principal_name_started_at", "requested_by_user_principal_name", "started_at"),
+        values_check("conversation_scope", ConversationScope),
+        values_check("run_status", ChatAnswerRunStatus),
+        values_check("stop_reason", ChatAnswerStopReason),
+        values_check("tool_calling_mode", ToolCallingMode),
+    )
+
+    answer_run_id: Mapped[str] = identifier_column()
+    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversation.conversation_id", ondelete="CASCADE"), index=True)
+    # NO ACTION on the two message keys and the investigation: SQL Server allows one cascade path per table, so the code deletes runs before messages.
+    user_message_id: Mapped[str] = mapped_column(ForeignKey("conversation_message.message_id"))
+    assistant_message_id: Mapped[str | None] = mapped_column(ForeignKey("conversation_message.message_id"))
+    client_request_id: Mapped[str] = mapped_column(String(64))
+    conversation_scope: Mapped[str] = mapped_column(String(30))
+    investigation_id: Mapped[str | None] = mapped_column(ForeignKey("investigation.investigation_id"), index=True)
+    requested_by_user_principal_name: Mapped[str] = mapped_column(String(320))
+    # A point-in-time audit snapshot of the applications, bound arguments and withheld tools: not a relationship, so not an association table.
+    scope_snapshot_json: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    run_status: Mapped[str] = mapped_column(String(20))
+    stop_reason: Mapped[str | None] = mapped_column(String(30))
+    engine_version: Mapped[str] = mapped_column(String(20))
+    prompt_key: Mapped[str] = mapped_column(String(80))
+    prompt_version: Mapped[str] = mapped_column(String(20))
+    system_prompt_sha256: Mapped[str] = mapped_column(String(64))
+    tool_catalog_sha256: Mapped[str] = mapped_column(String(64))
+    offered_tools_json: Mapped[list[Any]] = mapped_column(default=list)
+    provider_name: Mapped[str] = mapped_column(String(40))
+    model_name: Mapped[str] = mapped_column(String(120))
+    model_tier: Mapped[str] = mapped_column(String(20))
+    tool_calling_mode: Mapped[str] = mapped_column(String(20))
+    limits_json: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    total_input_token_count: Mapped[int] = mapped_column(Integer, default=0)
+    total_output_token_count: Mapped[int] = mapped_column(Integer, default=0)
+    token_counts_estimated: Mapped[bool] = mapped_column(Boolean, default=False)
+    model_turn_count: Mapped[int] = mapped_column(Integer, default=0)
+    tool_call_count: Mapped[int] = mapped_column(Integer, default=0)
+    citations_json: Mapped[list[Any]] = mapped_column(default=list)
+    follow_up_questions_json: Mapped[list[Any]] = mapped_column(default=list)
+    is_unverified: Mapped[bool] = mapped_column(Boolean, default=False)
+    cancel_requested_at: Mapped[datetime | None] = mapped_column()
+    error_code: Mapped[str | None] = mapped_column(String(60))
+    # The low-sensitivity values the error message was written from (the failed step, a limit, a retry delay): a reload words the same message as the live stream did.
+    error_parameters_json: Mapped[dict[str, Any] | None] = mapped_column()
+    correlation_id: Mapped[str | None] = mapped_column(String(64))
+    started_at: Mapped[datetime] = mapped_column(default=utc_now)
+    completed_at: Mapped[datetime | None] = mapped_column()
+    duration_milliseconds: Mapped[int | None] = mapped_column(Integer)
+    last_progress_at: Mapped[datetime] = mapped_column(default=utc_now)
+
+
+class ChatRunStep(EntityBase):
+    """One ordered item of an answer run: a model turn (the model was asked once) or a tool call (one tool ran once)."""
+
+    __tablename__ = "chat_run_step"
+    __table_args__ = (
+        UniqueConstraint("answer_run_id", "sequence_number", name="uq_chat_run_step_answer_run_id_sequence_number"),
+        values_check("step_kind", ChatRunStepKind),
+        values_check("step_status", ChatRunStepStatus),
+    )
+
+    run_step_id: Mapped[str] = identifier_column()
+    answer_run_id: Mapped[str] = mapped_column(ForeignKey("chat_answer_run.answer_run_id", ondelete="CASCADE"))
+    sequence_number: Mapped[int] = mapped_column(Integer)
+    step_kind: Mapped[str] = mapped_column(String(20))
+    # NO ACTION: a tool call names the model turn that requested it; both belong to one run, which cascades.
+    parent_run_step_id: Mapped[str | None] = mapped_column(ForeignKey("chat_run_step.run_step_id"))
+    step_status: Mapped[str] = mapped_column(String(20))
+    started_at: Mapped[datetime] = mapped_column(default=utc_now)
+    completed_at: Mapped[datetime | None] = mapped_column()
+    duration_milliseconds: Mapped[int | None] = mapped_column(Integer)
+    # Model turns. turn_finish is left open on purpose: tool_requests, answer, length, protocol_error.
+    turn_number: Mapped[int | None] = mapped_column(Integer)
+    turn_finish: Mapped[str | None] = mapped_column(String(30))
+    model_text: Mapped[str | None] = mapped_column(Text)
+    input_token_count: Mapped[int | None] = mapped_column(Integer)
+    output_token_count: Mapped[int | None] = mapped_column(Integer)
+    # Tool calls. The tool name and source come from the tool registry, so adding a tool needs no migration.
+    tool_name: Mapped[str | None] = mapped_column(String(64), index=True)
+    tool_version: Mapped[int | None] = mapped_column(Integer)
+    tool_source: Mapped[str | None] = mapped_column(String(80))
+    citation_code: Mapped[str | None] = mapped_column(String(8))
+    provider_request_id: Mapped[str | None] = mapped_column(String(200))
+    requested_arguments_json: Mapped[dict[str, Any] | None] = mapped_column()
+    effective_arguments_json: Mapped[dict[str, Any] | None] = mapped_column()
+    # A recorded fact kept without a foreign key, like audit_event.application_id: the trace outlives the application it was about.
+    application_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    records_json: Mapped[list[Any] | None] = mapped_column()
+    output_json: Mapped[dict[str, Any] | None] = mapped_column()
+    output_character_count: Mapped[int | None] = mapped_column(Integer)
+    output_is_truncated: Mapped[bool | None] = mapped_column(Boolean)
+    output_item_count: Mapped[int | None] = mapped_column(Integer)
+    model_view_text: Mapped[str | None] = mapped_column(Text)
+    model_view_sha256: Mapped[str | None] = mapped_column(String(64))
+    masked_value_count: Mapped[int | None] = mapped_column(Integer)
+    injection_flagged: Mapped[bool | None] = mapped_column(Boolean)
+    outcome_code: Mapped[str | None] = mapped_column(String(60))
+    outcome_message: Mapped[str | None] = mapped_column(String(400))
+
+
 __all__ = [
+    "ChatAnswerRun",
+    "ChatRunStep",
     "Conversation",
     "ConversationApplication",
     "ConversationMessage",

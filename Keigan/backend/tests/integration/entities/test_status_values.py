@@ -30,6 +30,8 @@ CONSTRAINED_COLUMNS: list[tuple[str, str, type[StrEnum]]] = [
     ("investigation_hypothesis", "analysis_perspective", values.AnalysisPerspective), ("investigation_hypothesis", "fix_risk_level", values.RiskLevel), ("investigation_evidence", "signal_strength", values.RiskLevel),
     ("incident_communication", "communication_status", values.CommunicationStatus), ("postmortem_report", "report_status", values.PostmortemStatus),
     ("conversation", "conversation_scope", values.ConversationScope), ("conversation_message", "author_role", values.MessageAuthorRole),
+    ("chat_answer_run", "conversation_scope", values.ConversationScope), ("chat_answer_run", "run_status", values.ChatAnswerRunStatus), ("chat_answer_run", "stop_reason", values.ChatAnswerStopReason),
+    ("chat_answer_run", "tool_calling_mode", values.ToolCallingMode), ("chat_run_step", "step_kind", values.ChatRunStepKind), ("chat_run_step", "step_status", values.ChatRunStepStatus),
     ("application", "lifecycle_status", values.ApplicationLifecycleStatus), ("application", "criticality_tier", values.CriticalityTier), ("monitored_service", "criticality_tier", values.CriticalityTier),
     ("application_component", "component_type", values.ComponentType), ("application_component", "access_verification_status", values.AccessVerificationStatus),
     ("log_tool_connection", "connection_status", values.LogToolConnectionStatus), ("service_log_source", "last_read_test_status", values.ReadTestStatus),

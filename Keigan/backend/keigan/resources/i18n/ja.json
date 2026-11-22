@@ -58,5 +58,177 @@
     "welcome": "Keigan です。調査結果をここに投稿し、皆さんの議論から学びます。「Keigan, ...」と話しかけてください。インシデントが完了したら「Keigan, this is finished」と伝えるとポストモーテムを準備します。",
     "milestone_ack": "承知しました。ポストモーテムの下書きを作成中です。まもなく Keigan に表示されます。",
     "no_answer": "現在お答えできません。詳細は Keigan の調査画面をご確認ください。"
+  },
+  "ask_keigan_errors": {
+    "reference_suffix": "参照番号 {reference}。",
+    "fallbacks": {
+      "modelTier": "設定済みのモデル",
+      "seconds": "許可された",
+      "retryAfterSeconds": "数",
+      "budgetOwner": "あなたのアカウント",
+      "resetTime": "翌日(UTC)の開始時刻",
+      "applicationName": "そのアプリケーション",
+      "toolLabel": "その確認",
+      "sourceName": "データソース",
+      "recordKind": "レコード",
+      "fieldMessage": "リクエストが正しくありません。",
+      "reason": "ログからはこの質問にお答えできません。サービスのリクエスト、エラー、レイテンシについて質問してみてください。",
+      "maximum": "許可された",
+      "stepDescription": "回答の作成"
+    },
+    "ai_timeout": {
+      "title": "AI モデルの応答に時間がかかりすぎました",
+      "detail": "AI モデル({modelTier})が {seconds} 秒以内に応答しませんでした。何も変更されていません。繰り返す場合は、管理者に AI エンドポイントの確認を依頼してください。"
+    },
+    "ai_rate_limited": {
+      "title": "AI モデルが混み合っています",
+      "detail": "AI モデルは現在混み合っています。{retryAfterSeconds} 秒後にもう一度お試しください。"
+    },
+    "ai_authentication_failed": {
+      "title": "Keigan が AI モデルにサインインできませんでした",
+      "detail": "Keigan が AI モデルにサインインできませんでした。管理者の対応が必要です。AI モデルの認証情報を確認してください。"
+    },
+    "ai_unavailable": {
+      "title": "AI モデルに接続できませんでした",
+      "detail": "AI モデルに接続できませんでした。しばらくしてからもう一度お試しください。"
+    },
+    "ai_tools_unsupported": {
+      "title": "AI モデルはツールを使用できません",
+      "detail": "設定されている AI モデル({modelTier})はツールを使用できませんが、Ask Keigan にはツールが必要です。Keigan 管理者に AI モデルの設定変更を依頼してください。"
+    },
+    "ai_tool_protocol_failed": {
+      "title": "AI モデルがツールの形式に従いませんでした",
+      "detail": "AI モデル({modelTier})が 2 回続けてツールの形式に従わなかったため、Keigan は推測せずに停止しました。もう一度お試しください。繰り返す場合は、管理者がモデルを確認してください。"
+    },
+    "ai_output_invalid": {
+      "title": "AI モデルの回答を利用できませんでした",
+      "detail": "AI モデル({modelTier})の回答を Keigan が利用できなかったため、推測せずに停止しました。もう一度お試しください。繰り返す場合は、管理者がモデルを確認してください。"
+    },
+    "ai_request_rejected": {
+      "title": "AI モデルがリクエストを拒否しました",
+      "detail": "AI モデル({modelTier})がリクエストを拒否したため、Keigan は停止しました。もう一度お試しください。繰り返す場合は、管理者が AI モデルの設定を確認してください。"
+    },
+    "token_budget_exceeded": {
+      "title": "本日の AI 予算を使い切りました",
+      "detail": "{budgetOwner}の本日の AI 予算を使い切りました。{resetTime}にリセットされます。"
+    },
+    "rate_limited": {
+      "title": "質問の送信が速すぎます",
+      "detail": "質問を送信する間隔が短すぎます。{retryAfterSeconds} 秒後にもう一度お試しください。"
+    },
+    "answer_in_progress": {
+      "title": "Keigan はまだ回答中です",
+      "detail": "この会話の前の質問に Keigan がまだ回答中です。完了するまでお待ちいただくか、停止してください。"
+    },
+    "duplicate_request": {
+      "title": "この質問は送信済みです",
+      "detail": "この質問はすでに送信されているため、既存の回答を表示しています。"
+    },
+    "forbidden": {
+      "title": "アクセス権がありません",
+      "detail": "{applicationName}を閲覧する権限がありません。アプリケーション管理者にアクセスを依頼してください。"
+    },
+    "access_lost_mid_run": {
+      "title": "回答中にアクセス権が変更されました",
+      "detail": "Keigan の回答中に{applicationName}へのアクセス権が変更されたため、この回答を停止しました。管理者にアクセス権の確認を依頼してください。"
+    },
+    "tool_failed_source_unavailable": {
+      "title": "「{toolLabel}」を完了できませんでした",
+      "detail": "「{toolLabel}」を完了できませんでした。{sourceName}に接続できませんでした。この結果は回答に含まれていません。"
+    },
+    "tool_failed_timeout": {
+      "title": "「{toolLabel}」を完了できませんでした",
+      "detail": "「{toolLabel}」を完了できませんでした。{seconds} 秒を超えました。質問の範囲を絞ってお試しください。"
+    },
+    "tool_failed_not_found": {
+      "title": "「{toolLabel}」: 見つかりません",
+      "detail": "「{toolLabel}」: 指定された{recordKind}が見つかりませんでした。名前を確認してもう一度お試しください。"
+    },
+    "tool_failed_invalid_arguments": {
+      "title": "「{toolLabel}」: リクエストが正しくありません",
+      "detail": "「{toolLabel}」: {fieldMessage}"
+    },
+    "tool_query_not_answerable": {
+      "title": "ログからは回答できません",
+      "detail": "{reason}"
+    },
+    "tool_output_invalid": {
+      "title": "「{toolLabel}」の結果を利用できませんでした",
+      "detail": "「{toolLabel}」の結果を利用できませんでした。管理者向けに記録されています。"
+    },
+    "tool_limit_reached": {
+      "title": "ツール呼び出しの上限に達しました",
+      "detail": "ツール呼び出しの上限({maximum} 回)に達したため、見つかった内容から回答しました。続きは追加の質問でお尋ねください。"
+    },
+    "answer_interrupted": {
+      "title": "回答が中断されました",
+      "detail": "Keigan が再起動したため、回答が中断されました。もう一度質問してください。完了した手順は上に表示されています。"
+    },
+    "stream_interrupted": {
+      "title": "接続が切断されました",
+      "detail": "接続が切断されました。Keigan はまだ回答中です。再接続しています..."
+    },
+    "validation_failed": {
+      "title": "質問が正しくありません",
+      "detail": "{fieldMessage}"
+    },
+    "internal_error": {
+      "title": "予期しないエラー",
+      "detail": "Keigan は{stepDescription}の最中に予期しないエラーに遭遇しました。参照番号 {reference}。ログに記録されています。"
+    },
+    "tool_not_available": {
+      "title": "このツールはここでは利用できません",
+      "detail": "「{toolLabel}」はこの会話では利用できません。"
+    },
+    "not_found": {
+      "title": "見つかりません",
+      "detail": "その{recordKind}が見つかりませんでした。削除された可能性があります。"
+    },
+    "authentication_required": {
+      "title": "もう一度サインインしてください",
+      "detail": "サインインの有効期限が切れました。Keigan を使い続けるには、もう一度サインインしてください。"
+    },
+    "cancelled": {
+      "title": "回答を停止しました",
+      "detail": "この回答を停止しました。Keigan が完了した手順は上に表示されています。"
+    },
+    "answer_not_running": {
+      "title": "回答はすでに完了しています",
+      "detail": "その回答はすでに実行されていないため、停止するものはありません。"
+    }
+  },
+  "ask_keigan_answers": {
+    "no_access": "まだアクセスできるアプリケーションがないため、確認できる情報がありません。",
+    "outside_scope": "それは Keigan のデータから回答できる範囲外です。",
+    "limit_reached": {
+      "tool_limit": "ツール呼び出しの上限（{maximum} 回）に達したため、完全な回答を作成できませんでした。確認できた内容は次のとおりです。",
+      "token_budget": "1 回の回答に使えるトークン予算に達したため、完全な回答を作成できませんでした。確認できた内容は次のとおりです。",
+      "nothing_found": "報告できる結果を返した確認はありませんでした。"
+    },
+    "check_not_done": "「{toolLabel}」は確認できませんでした。",
+    "steps": {
+      "model_turn": "AI モデルへの問い合わせ",
+      "saving_answer": "回答の保存",
+      "running_tool": "「{toolLabel}」の実行"
+    }
+  },
+  "ask_keigan_tools": {
+    "sources": {
+      "activity_log": "Azure アクティビティ ログ",
+      "log_source": "{subject} のログソース"
+    },
+    "record_kinds": {
+      "investigation": "調査",
+      "evidence_item": "証拠",
+      "service": "サービス"
+    },
+    "search_knowledge": {"label": "ナレッジベースを検索しました"},
+    "query_logs": {"label": "ログを照会しました"},
+    "get_evidence": {"label": "証拠を開きました"},
+    "get_investigation_timeline": {"label": "タイムラインを読み取りました"},
+    "list_recent_changes": {"label": "最近の変更を確認しました"},
+    "find_runbooks": {"label": "ランブックを探しました"},
+    "get_topology": {"label": "アプリケーションマップを読み取りました"},
+    "get_slo_status": {"label": "SLO の状況を確認しました"}
   }
 }
