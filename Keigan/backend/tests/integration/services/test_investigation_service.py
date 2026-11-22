@@ -132,3 +132,43 @@ async def test_the_alert_group_on_an_investigation_carries_the_structured_groupi
     assert response.status_code == 200, response.text
     reason = response.json()["alertGroup"]["groupingReason"]
     assert reason == {"code": "single_alert", "parameters": {}}
+
+
+# ── Honest outcomes in the API (spec 27, AC-14) ──────────────────────────────────────────────────
+
+
+async def read_detail(client: httpx.AsyncClient, auth_headers: AuthHeaders, investigation_id: str) -> dict:
+    response = await client.get(f"/api/investigations/{investigation_id}", headers=await auth_headers(users.CLMJP_AND_PAYAU_READER))
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+async def test_the_detail_carries_the_outcome_the_state_of_every_hypothesis_and_how_each_evidence_item_was_checked(client: httpx.AsyncClient, auth_headers: AuthHeaders, completed_investigation_id: str) -> None:
+    detail = await read_detail(client, auth_headers, completed_investigation_id)
+    assert detail["outcome"]["code"] in {"cause_identified", "inconclusive", "cause_not_visible"}
+    assert detail["outcome"]["reasonMarkdown"] and detail["outcome"]["proposedCode"] is not None
+    assert detail["investigationOutcome"] == detail["outcome"]["code"]  # the list and the board show the same code
+    assert all(hypothesis["state"] in {"supported", "ruled_out", "inconclusive"} and hypothesis["stateReasonMarkdown"] for hypothesis in detail["hypotheses"])
+    assert all(item["checkOutcome"] in {"signal", "no_signal"} and item["baselineComparison"] in {"compared", "no_baseline_for_source"} for item in detail["evidence"])
+    assert isinstance(detail["coverageGaps"], list)
+
+
+async def test_an_investigation_stored_before_outcomes_says_so_and_its_unread_sources_are_listed_as_gaps(client: httpx.AsyncClient, auth_headers: AuthHeaders, completed_investigation_id: str) -> None:
+    async with open_session() as session:
+        investigation = await session.get(Investigation, completed_investigation_id)
+        investigation.investigation_outcome = investigation.proposed_investigation_outcome = investigation.outcome_guard_code = investigation.outcome_reason_markdown = None
+        for hypothesis in (await session.scalars(select(InvestigationHypothesis).where(InvestigationHypothesis.investigation_id == completed_investigation_id))).all():
+            hypothesis.hypothesis_state = hypothesis.proposed_hypothesis_state = hypothesis.state_guard_code = hypothesis.state_reason_markdown = None
+        legacy_row = (await session.scalars(select(InvestigationEvidence).where(InvestigationEvidence.investigation_id == completed_investigation_id).order_by(InvestigationEvidence.evidence_code))).first()
+        legacy_code, original_outcome = legacy_row.evidence_code, legacy_row.check_outcome
+        legacy_row.check_outcome = "not_checked"
+    try:
+        detail = await read_detail(client, auth_headers, completed_investigation_id)
+        assert detail["outcome"] == {"code": "not_recorded", "proposedCode": None, "guardCode": None, "reasonMarkdown": None}
+        assert all(hypothesis["state"] is None for hypothesis in detail["hypotheses"])
+        legacy_gaps = [gap for gap in detail["coverageGaps"] if gap["legacyEvidenceCode"] == legacy_code]
+        assert len(legacy_gaps) == 1 and legacy_gaps[0]["gapKind"] == "source_not_readable" and legacy_gaps[0]["reasonCode"] == "unknown"
+    finally:
+        async with open_session() as session:
+            row = (await session.scalars(select(InvestigationEvidence).where(InvestigationEvidence.investigation_id == completed_investigation_id, InvestigationEvidence.evidence_code == legacy_code))).one()
+            row.check_outcome = original_outcome

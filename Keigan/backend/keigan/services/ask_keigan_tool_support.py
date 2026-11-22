@@ -100,11 +100,11 @@ async def checked_applications(context: ToolContext, application_codes: list[str
 def read_tool(
     *, name: str, label: str, description: str, input_model: type[BaseModel], output_model: type[BaseModel], presentation: ToolPresentation, authorization: ToolAuthorization,
     bindable_arguments: frozenset[str], application_argument: str | None, executor: ToolExecutor, scopes: frozenset[AskKeiganScope] = BOTH_SCOPES,
-    masking: ToolMasking = ToolMasking.MASK_ALL,
+    masking: ToolMasking = ToolMasking.MASK_ALL, version: int = 1,
 ) -> ToolDefinition:
-    """A tool of this package: read-only, from Keigan's own services, offered in the given scopes (both by default), masked like every other output."""
+    """A tool of this package: read-only, from Keigan's own services, offered in the given scopes (both by default), masked like every other output. ``version`` goes up when the output's meaning changes."""
     return ToolDefinition(
-        name=name, version=1, source="keigan", label=label, label_key=f"chat:tools.{name}.label", description=description, access=ToolAccess.READ, scopes=scopes,
+        name=name, version=version, source="keigan", label=label, label_key=f"chat:tools.{name}.label", description=description, access=ToolAccess.READ, scopes=scopes,
         input_model=input_model, output_model=output_model, presentation=presentation, authorization=authorization, bindable_arguments=bindable_arguments,
         application_argument=application_argument, output_model_characters=None, list_item_limit=None, masking=masking, executor=executor,
     )

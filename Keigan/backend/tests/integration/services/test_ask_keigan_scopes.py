@@ -145,7 +145,7 @@ async def test_the_investigation_digest_is_untrusted_context_with_summary_hypoth
     assert digest.is_untrusted is True and digest.source_label == f"investigation:{seeded.investigation_id}"
     assert "INC0099001: Claims API errors" in digest.content
     assert "Pool exhaustion on claims-api." in digest.content
-    assert "LEADING [application] Pool exhaustion (confidence 0.80" in digest.content
+    assert "LEADING [application] Pool exhaustion (state not recorded; confidence 0.80" in digest.content
     assert "[E1] error_pattern / Error spike" in digest.content and "[E2] change_event / Release 41" in digest.content
     assert " Error rate alert fired" in digest.content and "[R1] Restart the connection pool" in digest.content
 

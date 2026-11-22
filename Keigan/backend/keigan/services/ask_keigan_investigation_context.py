@@ -57,7 +57,7 @@ async def load_investigation_context(session: AsyncSession, investigation: Inves
 
     lines = [f"# Investigation for {application.application_name}" + (f" — incident {incident.external_incident_number}: {incident.incident_title}" if incident else "")]
     lines += [
-        f"Status: {investigation.investigation_status}; confidence {investigation.overall_confidence_score}",
+        f"Status: {investigation.investigation_status}; outcome {investigation.investigation_outcome or 'not recorded'}; confidence {investigation.overall_confidence_score}",
         f"Window: {investigation.investigation_window_start} to {investigation.investigation_window_end}",
         "## Executive summary", investigation.executive_summary or "(none yet)",
         "## What went wrong", investigation.what_went_wrong_markdown or "(none)",
@@ -66,7 +66,7 @@ async def load_investigation_context(session: AsyncSession, investigation: Inves
     ]
     lines += [
         f"- {'LEADING ' if hypothesis.is_leading_hypothesis else ''}[{hypothesis.analysis_perspective}] {hypothesis.hypothesis_title} "
-        f"(confidence {hypothesis.confidence_score:.2f}; supports {hypothesis.supporting_evidence_codes_json}; contradicts {hypothesis.contradicting_evidence_codes_json})"
+        f"(state {hypothesis.hypothesis_state or 'not recorded'}; confidence {hypothesis.confidence_score:.2f}; supports {hypothesis.supporting_evidence_codes_json}; contradicts {hypothesis.contradicting_evidence_codes_json})"
         for hypothesis in hypotheses
     ]
     lines.append("## Evidence index")

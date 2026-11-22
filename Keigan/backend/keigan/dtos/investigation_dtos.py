@@ -49,6 +49,9 @@ class InvestigationFeedbackRequest(ApiModel):
     comment: str | None = Field(default=None, max_length=4000)
 
 
+NOT_RECORDED_OUTCOME = "not_recorded"  # an investigation that finished before Keigan recorded outcomes
+
+
 class InvestigationSummaryDto(ApiModel):
     investigation_id: str
     application: ApplicationReference
@@ -61,6 +64,7 @@ class InvestigationSummaryDto(ApiModel):
     progress_percent: int
     keigan_priority: str | None = None
     overall_confidence_score: float | None = None
+    investigation_outcome: str | None = None  # cause_identified, inconclusive, cause_not_visible, or not_recorded; null while running, failed or evidence only
     executive_summary: str | None = None
     investigated_service_names: list[str] = Field(default_factory=list)
     created_at: datetime
@@ -96,6 +100,8 @@ class EvidenceDto(ApiModel):
     condensed_patterns: list[dict[str, Any]] = Field(default_factory=list)
     metric_series: list[dict[str, Any]] = Field(default_factory=list)
     signal_strength: str
+    check_outcome: str | None = None  # signal, no_signal or (rows stored before spec 27 only) not_checked
+    baseline_comparison: str | None = None  # compared or no_baseline_for_source
     masked_value_count: int
     possible_prompt_injection: bool
     deep_link_url: str | None = None
@@ -114,6 +120,10 @@ class HypothesisDto(ApiModel):
     hypothesis_statement_markdown: str | None = None
     reasoning_markdown: str | None = None
     confidence_score: float
+    state: str | None = None  # supported, ruled_out or inconclusive; null on rows stored before spec 27
+    proposed_state: str | None = None  # what the model said before Keigan's rules
+    state_guard_code: str | None = None
+    state_reason_markdown: str | None = None
     supporting_evidence_codes: list[str] = Field(default_factory=list)
     contradicting_evidence_codes: list[str] = Field(default_factory=list)
     proposed_fix: ProposedFixDto | None = None
@@ -121,6 +131,26 @@ class HypothesisDto(ApiModel):
     matched_runbook: RunbookReference | None = None
     is_leading_hypothesis: bool
     display_order: int
+
+
+class InvestigationOutcomeDto(ApiModel):
+    code: str
+    proposed_code: str | None = None
+    guard_code: str | None = None
+    reason_markdown: str | None = None
+
+
+class CoverageGapDto(ApiModel):
+    """One thing the investigation meant to check and could not (spec 27). Codes and catalogue names only."""
+
+    coverage_gap_id: str
+    gap_kind: str
+    reason_code: str | None = None
+    service_id: str | None = None
+    service_name: str | None = None
+    source_kind: str | None = None
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    legacy_evidence_code: str | None = None  # set for an unread source an older investigation stored as an evidence item
 
 
 class TimelineEventDto(ApiModel):
@@ -153,6 +183,9 @@ class InvestigationDetailDto(InvestigationSummaryDto):
     how_to_fix_markdown: str | None = None
     open_questions: list[str] = Field(default_factory=list)
     leading_hypothesis_id: str | None = None
+    outcome: InvestigationOutcomeDto | None = None
+    leading_perspective_reason_markdown: str | None = None
+    coverage_gaps: list[CoverageGapDto] = Field(default_factory=list)
     hypotheses: list[HypothesisDto] = Field(default_factory=list)
     evidence: list[EvidenceDto] = Field(default_factory=list)
     blast_radius: dict[str, Any] | None = None

@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.entities.alert_entities import AlertGroup
 from keigan.entities.incident_entities import (
-    ChatAnswerRun, Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, PostmortemReport,
+    ChatAnswerRun, Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationCoverageGap, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, PostmortemReport,
 )
 from keigan.entities.notification_entities import NotificationDelivery, TeamsIncidentChat
 from keigan.entities.status_values import IncidentStatus, InvestigationStatus
@@ -72,6 +72,7 @@ async def _delete_investigations(session: AsyncSession, investigation_ids: list[
     removed["notificationDeliveries"] += await _count_deleted(session, delete(NotificationDelivery).where(NotificationDelivery.investigation_id.in_(investigation_ids)))
     removed["hypotheses"] += await _count_deleted(session, delete(InvestigationHypothesis).where(InvestigationHypothesis.investigation_id.in_(investigation_ids)))
     removed["evidence"] += await _count_deleted(session, delete(InvestigationEvidence).where(InvestigationEvidence.investigation_id.in_(investigation_ids)))
+    removed["coverageGaps"] += await _count_deleted(session, delete(InvestigationCoverageGap).where(InvestigationCoverageGap.investigation_id.in_(investigation_ids)))
     await session.execute(update(AlertGroup).where(AlertGroup.investigation_id.in_(investigation_ids)).values(investigation_id=None))
     removed["investigations"] += await _count_deleted(session, delete(Investigation).where(Investigation.investigation_id.in_(investigation_ids)))
 
@@ -96,7 +97,7 @@ async def _delete_incident_batch(session: AsyncSession, incident_ids: list[str],
 async def purge_expired_incidents(session: AsyncSession, cutoff: datetime, batch_size: int) -> dict[str, int]:
     """Remove expired incidents and standalone investigations in batches of ``batch_size``, committing after each batch. Returns row counts per kind."""
     removed = dict.fromkeys(
-        ("incidents", "investigations", "hypotheses", "evidence", "investigationTimelineEvents", "incidentCommunications", "postmortems", "conversations", "conversationMessages",
+        ("incidents", "investigations", "hypotheses", "evidence", "coverageGaps", "investigationTimelineEvents", "incidentCommunications", "postmortems", "conversations", "conversationMessages",
          "notificationDeliveries", "teamsIncidentChats", "chatAnswerRuns", "chatRunSteps"), 0,
     )
     while incident_ids := list((await session.scalars(_expired_incident_ids(cutoff, batch_size))).all()):

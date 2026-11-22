@@ -22,6 +22,7 @@ class InvestigationBrief(ApiModel):
     current_stage_name: str
     progress_percent: int
     overall_confidence_score: float | None = None
+    investigation_outcome: str | None = None
     executive_summary: str | None = None
     investigation_trigger: str
     started_at: datetime | None = None

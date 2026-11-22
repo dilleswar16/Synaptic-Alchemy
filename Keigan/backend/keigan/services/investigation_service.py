@@ -18,14 +18,14 @@ from keigan.config.settings import get_settings
 from keigan.dtos.common_dtos import JobAcceptedResponse, PagedResult
 from keigan.dtos.incident_dtos import ApplicationReference
 from keigan.dtos.investigation_dtos import (
-    EvidenceDto, HypothesisDto, InvestigationDetailDto, InvestigationFeedbackRequest, InvestigationProgressDto, InvestigationSummaryDto, RunbookReference,
-    ServiceReference, StartInvestigationRequest, TimelineEventDto,
+    NOT_RECORDED_OUTCOME, CoverageGapDto, EvidenceDto, HypothesisDto, InvestigationDetailDto, InvestigationFeedbackRequest, InvestigationOutcomeDto, InvestigationProgressDto,
+    InvestigationSummaryDto, RunbookReference, ServiceReference, StartInvestigationRequest, TimelineEventDto,
 )
 from keigan.entities.alert_entities import Alert, AlertDecision, AlertGroup
 from keigan.entities.application_entities import Application, MonitoredService
-from keigan.entities.incident_entities import Incident, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent
+from keigan.entities.incident_entities import Incident, Investigation, InvestigationCoverageGap, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent
 from keigan.entities.knowledge_entities import Runbook
-from keigan.entities.status_values import InvestigationStage, InvestigationStatus
+from keigan.entities.status_values import CoverageGapKind, CoverageGapReason, EvidenceCheckOutcome, InvestigationStage, InvestigationStatus
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.alert_group_link_service import AlertGroupLinkService
@@ -42,6 +42,22 @@ logger = logging.getLogger(__name__)
 
 def _evidence_number(evidence_code: str) -> int:
     return int("".join(character for character in evidence_code if character.isdigit()) or 0)
+
+
+def outcome_code_of(investigation: Investigation) -> str | None:
+    """The outcome as the list and the detail show it: the stored one, ``not_recorded`` for an investigation that finished before outcomes existed, nothing while it runs, failed or ended evidence only."""
+    if investigation.investigation_outcome:
+        return investigation.investigation_outcome
+    return NOT_RECORDED_OUTCOME if investigation.investigation_status == InvestigationStatus.COMPLETED else None
+
+
+def outcome_of(investigation: Investigation) -> InvestigationOutcomeDto | None:
+    code = outcome_code_of(investigation)
+    if code is None:
+        return None
+    return InvestigationOutcomeDto(
+        code=code, proposed_code=investigation.proposed_investigation_outcome, guard_code=investigation.outcome_guard_code, reason_markdown=investigation.outcome_reason_markdown,
+    )
 
 
 class InvestigationService:
@@ -220,7 +236,7 @@ class InvestigationService:
                     incident_id=investigation.incident_id, incident_number=incident.external_incident_number if incident else None, incident_title=incident.incident_title if incident else None,
                     investigation_trigger=investigation.investigation_trigger, investigation_status=investigation.investigation_status, current_stage_name=investigation.current_stage_name,
                     progress_percent=investigation.progress_percent, keigan_priority=incident.keigan_priority if incident else (investigation.triage_result_json or {}).get("final_priority"),
-                    overall_confidence_score=investigation.overall_confidence_score, executive_summary=investigation.executive_summary,
+                    overall_confidence_score=investigation.overall_confidence_score, investigation_outcome=outcome_code_of(investigation), executive_summary=investigation.executive_summary,
                     investigated_service_names=[service_names[service_id] for service_id in investigation.investigated_service_ids if service_id in service_names],
                     created_at=investigation.created_at, started_at=investigation.started_at, completed_at=investigation.completed_at, requested_by_user_principal_name=investigation.requested_by_user_principal_name,
                 )
@@ -245,12 +261,15 @@ class InvestigationService:
             **summary.model_dump(), incident=incident_summary, investigation_window_start=investigation.investigation_window_start, investigation_window_end=investigation.investigation_window_end,
             baseline_window_start=investigation.baseline_window_start, baseline_window_end=investigation.baseline_window_end,
             services=[ServiceReference(service_id=service.service_id, service_name=service.service_name, service_type=service.service_type) for service in services],
+            outcome=outcome_of(investigation), leading_perspective_reason_markdown=investigation.leading_perspective_reason_markdown,
+            coverage_gaps=await self._coverage_gaps(investigation.investigation_id, evidence_rows),
             triage=investigation.triage_result_json, what_went_wrong_markdown=investigation.what_went_wrong_markdown, why_it_happened_markdown=investigation.why_it_happened_markdown,
             how_to_fix_markdown=investigation.how_to_fix_markdown, open_questions=investigation.open_questions_json or [], leading_hypothesis_id=investigation.leading_hypothesis_id,
             hypotheses=[
                 HypothesisDto(
                     hypothesis_id=row.hypothesis_id, analysis_perspective=row.analysis_perspective, hypothesis_title=row.hypothesis_title, hypothesis_statement_markdown=row.hypothesis_statement_markdown,
-                    reasoning_markdown=row.reasoning_markdown, confidence_score=row.confidence_score, supporting_evidence_codes=row.supporting_evidence_codes_json or [],
+                    reasoning_markdown=row.reasoning_markdown, confidence_score=row.confidence_score, state=row.hypothesis_state, proposed_state=row.proposed_hypothesis_state,
+                    state_guard_code=row.state_guard_code, state_reason_markdown=row.state_reason_markdown, supporting_evidence_codes=row.supporting_evidence_codes_json or [],
                     contradicting_evidence_codes=row.contradicting_evidence_codes_json or [], proposed_fix=row.proposed_fix_json, fix_risk_level=row.fix_risk_level,
                     matched_runbook=RunbookReference(runbook_id=row.matched_runbook_id, runbook_title=runbooks[row.matched_runbook_id].runbook_title) if row.matched_runbook_id in runbooks else None,
                     is_leading_hypothesis=row.is_leading_hypothesis, display_order=row.display_order,
@@ -265,6 +284,25 @@ class InvestigationService:
             model_names=investigation.model_names_json or [], detected_at=incident.detected_by_keigan_at if incident else investigation.created_at, first_update_sent_at=incident.first_update_sent_at if incident else None,
         )
 
+    async def _coverage_gaps(self, investigation_id: str, evidence_rows: list[InvestigationEvidence]) -> list[CoverageGapDto]:
+        """The gaps Keigan stored, then the unread sources an older investigation stored as evidence items (they say \"not available\" in their text, and are listed here instead of being shown as findings)."""
+        stored_gaps = (await self.session.scalars(select(InvestigationCoverageGap).where(InvestigationCoverageGap.investigation_id == investigation_id).order_by(InvestigationCoverageGap.display_order))).all()
+        gaps = [
+            CoverageGapDto(
+                coverage_gap_id=gap.coverage_gap_id, gap_kind=gap.gap_kind, reason_code=gap.reason_code, service_id=gap.service_id, service_name=gap.service_name,
+                source_kind=gap.source_kind, parameters=gap.parameters_json or {},
+            )
+            for gap in stored_gaps
+        ]
+        gaps.extend(
+            CoverageGapDto(
+                coverage_gap_id=row.evidence_id, gap_kind=CoverageGapKind.SOURCE_NOT_READABLE, reason_code=CoverageGapReason.UNKNOWN, service_id=row.service_id, source_kind=row.evidence_source_kind,
+                legacy_evidence_code=row.evidence_code,
+            )
+            for row in evidence_rows if row.check_outcome == EvidenceCheckOutcome.NOT_CHECKED
+        )
+        return gaps
+
     @staticmethod
     def _evidence_dto(row: InvestigationEvidence, names_by_id: dict[str, str]) -> EvidenceDto:
         return EvidenceDto(
@@ -272,7 +310,7 @@ class InvestigationService:
             evidence_source_kind=row.evidence_source_kind, evidence_category=row.evidence_category, evidence_title=row.evidence_title, evidence_summary=row.evidence_summary,
             query_language=row.query_language, query_text=row.query_text, query_time_range_start=row.query_time_range_start, query_time_range_end=row.query_time_range_end,
             matched_record_count=row.matched_record_count, baseline_record_count=row.baseline_record_count, condensed_patterns=row.condensed_patterns_json or [], metric_series=row.metric_series_json or [],
-            signal_strength=row.signal_strength, masked_value_count=row.masked_value_count, possible_prompt_injection=row.possible_prompt_injection, deep_link_url=row.deep_link_url, collected_at=row.collected_at,
+            signal_strength=row.signal_strength, check_outcome=row.check_outcome, baseline_comparison=row.baseline_comparison, masked_value_count=row.masked_value_count, possible_prompt_injection=row.possible_prompt_injection, deep_link_url=row.deep_link_url, collected_at=row.collected_at,
         )
 
     async def get_evidence_detail(self, current_user: CurrentUser, investigation_id: str, evidence_code: str) -> EvidenceDto:
