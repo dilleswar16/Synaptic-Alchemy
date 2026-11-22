@@ -604,9 +604,20 @@ JAPANESE_TYPE_LABELS = {"initial_update": "初報", "executive_summary": "経営
 ENGLISH_TYPE_LABELS = {"initial_update": "Initial update", "executive_summary": "Executive summary", "preliminary_report": "Preliminary report", "progress_update": "Progress update", "resolution_update": "Resolution update"}
 
 
+CAUSE_NOT_CONFIRMED_EN = "The cause is not confirmed yet; the team is checking."
+CAUSE_NOT_CONFIRMED_JA = "原因はまだ確認できていません。チームが確認を進めています。"
+
+
+def _cause_is_not_confirmed(prompt_sections: list[PromptSection]) -> bool:
+    """The findings the writer receives name the outcome; an unconfirmed cause must not be written up as a cause (spec 27)."""
+    outcome_match = re.search(r"Outcome: (\w+)", _section_text(prompt_sections, "Investigation findings"))
+    return bool(outcome_match) and outcome_match.group(1) in ("inconclusive", "cause_not_visible")
+
+
 def build_communications(output_schema: type[BaseModel], prompt_sections: list[PromptSection]) -> BaseModel:
     context = mock_investigation_context.get()
     assert context is not None
+    unconfirmed = _cause_is_not_confirmed(prompt_sections)
     script = _script_for(context)
     requested_text = _section_text(prompt_sections, "Requested drafts")
     types = [name for name in ENGLISH_TYPE_LABELS if name in requested_text] or ["initial_update", "executive_summary", "preliminary_report"]
@@ -622,11 +633,11 @@ def build_communications(output_schema: type[BaseModel], prompt_sections: list[P
                 if communication_type == "resolution_update":
                     body = f"{context.application_name}の障害は復旧しました。\n\n- 原因: {script['ja_cause']}\n- 影響: {script['ja_impact']}\n- 今後: 事後分析（ポストモーテム）を作成し、再発防止策を共有します。"
                 elif communication_type == "executive_summary":
-                    body = f"{context.application_name}で障害が発生しています。\n\n- 影響: {script['ja_impact']}\n- 想定される原因: {script['ja_cause']}\n- 対応状況: 復旧作業を進めています。\n- 次回報告: 時刻は改めてお知らせします"
+                    body = f"{context.application_name}で障害が発生しています。\n\n- 影響: {script['ja_impact']}\n- 想定される原因: {CAUSE_NOT_CONFIRMED_JA if unconfirmed else script['ja_cause']}\n- 対応状況: 復旧作業を進めています。\n- 次回報告: 時刻は改めてお知らせします"
                 else:
                     body = (
                         f"関係者各位\n\n{context.application_name}で障害を確認しています。影響を受けているサービス: {services_text}。\n\n- 影響: {script['ja_impact']}\n"
-                        f"- 現状: 調査中。暫定の原因分析では、{script['ja_cause']}（確度 約{confidence_percent}%）\n- 次回報告: 時刻は改めてお知らせします\n\n詳細が分かり次第、改めてご連絡します。"
+                        f"- 現状: 調査中。{CAUSE_NOT_CONFIRMED_JA if unconfirmed else f"暫定の原因分析では、{script['ja_cause']}（確度 約{confidence_percent}%）"}\n- 次回報告: 時刻は改めてお知らせします\n\n詳細が分かり次第、改めてご連絡します。"
                     )
             else:
                 subject = f"[{context.priority}] {context.application_name}: {ENGLISH_TYPE_LABELS[communication_type]}"
@@ -636,7 +647,7 @@ def build_communications(output_schema: type[BaseModel], prompt_sections: list[P
                 elif communication_type == "executive_summary":
                     body = f"{executive}\n\n- **Status:** recovery in progress\n- **Next update:** the time of the next update will be confirmed"
                 elif communication_type == "preliminary_report":
-                    body = f"**Impact:** {services_text} are affected.\n\n**Likely cause (confidence {confidence_percent}%):** {synthesis.get('why_it_happened_markdown') or executive}\n\n**Mitigation:** see the proposed fix in the investigation.\n\n**Next update:** the time of the next update will be confirmed"
+                    body = f"**Impact:** {services_text} are affected.\n\n{'**Cause:** ' + CAUSE_NOT_CONFIRMED_EN if unconfirmed else f"**Likely cause (confidence {confidence_percent}%):** {synthesis.get('why_it_happened_markdown') or executive}"}\n\n**Mitigation:** see the proposed fix in the investigation.\n\n**Next update:** the time of the next update will be confirmed"
                 else:
                     body = f"We are aware of an issue affecting {context.application_name} ({services_text}). {executive}\n\n- **Status:** investigating\n- **Next update:** the time of the next update will be confirmed"
             drafts.append(CommunicationDraft(communication_type=communication_type, language_code=language_code, subject_line=subject, body_markdown=body))  # type: ignore[arg-type]

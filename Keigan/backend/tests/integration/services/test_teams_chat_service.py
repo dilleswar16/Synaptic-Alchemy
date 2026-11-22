@@ -439,3 +439,33 @@ async def test_a_chat_that_cannot_be_created_names_the_stakeholders_entra_does_n
     assert failure.value.error_code == "teams_chat_members_missing"
     assert "ghost1@example.com" in failure.value.detail and "ghost2@example.com" in failure.value.detail and "rui@example.com" not in failure.value.detail
     assert any("ghost1@example.com" in record.getMessage() for record in caplog.records)
+
+
+# ── The fallback answer states a cause only when one was identified (spec 27, AC-17) ─────────────
+
+
+def investigation_with_outcome(outcome: str | None):
+    from keigan.entities.incident_entities import Investigation
+
+    return Investigation(
+        application_id="app", investigation_trigger="incident", investigation_status="completed", current_stage_name="completed", investigation_outcome=outcome,
+        executive_summary="Claims are slow.", how_to_fix_markdown="Restart the pool.",
+    )
+
+
+def test_the_fallback_answer_starts_with_the_outcome_and_offers_the_fix_only_for_an_identified_cause() -> None:
+    from keigan.services.teams_chat_service import TeamsChatService
+
+    identified = TeamsChatService._fallback_answer(investigation_with_outcome("cause_identified"))
+    assert identified.startswith("Keigan identified the most likely cause.") and "Restart the pool." in identified
+    for outcome in ("inconclusive", "cause_not_visible"):
+        answer = TeamsChatService._fallback_answer(investigation_with_outcome(outcome))
+        assert "Restart the pool." not in answer and "Suggested fix" not in answer and "Claims are slow." in answer
+        assert answer.startswith(("The cause is not confirmed", "Keigan could not see the cause"))
+
+
+def test_an_investigation_with_no_recorded_outcome_keeps_the_earlier_fallback() -> None:
+    from keigan.services.teams_chat_service import TeamsChatService
+
+    answer = TeamsChatService._fallback_answer(investigation_with_outcome(None))
+    assert answer.startswith("Here is what the investigation currently says") and "Restart the pool." in answer

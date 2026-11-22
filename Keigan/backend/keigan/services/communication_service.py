@@ -80,7 +80,8 @@ class CommunicationService:
         # not given to the writer at all. Engineers read the fix on the investigation page and in the incident's Teams room.
         findings_text = (
             f"Priority: {(incident.keigan_priority if incident else None) or Priority.P3}\nExecutive summary: {investigation.executive_summary}\nWhat went wrong: {investigation.what_went_wrong_markdown}\n"
-            f"Why it happened: {investigation.why_it_happened_markdown}\nConfidence: {investigation.overall_confidence_score}\n"
+            f"Why it happened: {investigation.why_it_happened_markdown}\nOutcome: {investigation.investigation_outcome or 'not recorded'}\n"
+            f"Outcome reason: {investigation.outcome_reason_markdown or 'none'}\nConfidence: {investigation.overall_confidence_score}\n"
             f"Incident opened: {incident.opened_at.isoformat() if incident else 'n/a'}; resolved: {incident.resolved_at.isoformat() if incident and incident.resolved_at else 'not yet'}"
         )
         sections = [
@@ -284,7 +285,7 @@ class CommunicationService:
         sections = [
             PromptSection("Application", f"{application.application_name} ({application.application_code}), tier {application.criticality_tier}"),
             PromptSection("Incident", f"{incident.external_incident_number}: {incident.incident_title}\nPriority {incident.keigan_priority}; opened {incident.opened_at.isoformat()}; resolved {incident.resolved_at.isoformat() if incident.resolved_at else 'not recorded'}\nResolution note: {resolution_note or 'none'}\n{incident.incident_description or ''}", is_untrusted=True, source_label="incident"),
-            PromptSection("Investigation", f"{investigation.executive_summary}\n\nWhat went wrong: {investigation.what_went_wrong_markdown}\n\nWhy: {investigation.why_it_happened_markdown}\n\nFix: {investigation.how_to_fix_markdown}" if investigation else "No investigation was completed.", is_untrusted=True, source_label="investigation"),
+            PromptSection("Investigation", f"Outcome: {investigation.investigation_outcome or 'not recorded'}\nOutcome reason: {investigation.outcome_reason_markdown or 'none'}\n\n{investigation.executive_summary}\n\nWhat went wrong: {investigation.what_went_wrong_markdown}\n\nWhy: {investigation.why_it_happened_markdown}\n\nFix: {investigation.how_to_fix_markdown}" if investigation else "No investigation was completed.", is_untrusted=True, source_label="investigation"),
             PromptSection("Timeline", "\n".join(f"{time_text} {title}" for time_text, title in timeline_lines), is_untrusted=True, source_label="timeline"),
             PromptSection("Facts from the responders' chat", "\n".join(chat_facts) or "None recorded.", is_untrusted=True, source_label="teams chat facts"),
             PromptSection("Teams conversation", masker.mask_text("\n".join(f"{mask_author_name(masker, message.author_display_name or message.author_role)}: {mask_known_names(masker, message.message_text, person_names)}" for message in chat_messages)) or "None.", is_untrusted=True, source_label="teams chat"),

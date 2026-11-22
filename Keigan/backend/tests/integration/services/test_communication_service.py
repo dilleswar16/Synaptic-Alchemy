@@ -75,3 +75,56 @@ async def test_a_draft_edited_by_an_admin_is_sanitised_too(client: httpx.AsyncCl
     assert "](https://evil.example" not in response.json()["bodyMarkdown"]
     async with open_session() as session:
         assert await session.scalar(select(IncidentCommunication.subject_line).where(IncidentCommunication.communication_id == created[0].communication_id)) == response.json()["subjectLine"]
+
+
+# ── The writer is told how far the investigation got (spec 27, AC-18) ────────────────────────────
+
+
+async def set_outcome(investigation_id: str, outcome: str | None, reason: str | None = None) -> None:
+    async with open_session() as session:
+        investigation = await session.get(Investigation, investigation_id)
+        investigation.investigation_outcome, investigation.outcome_reason_markdown = outcome, reason
+
+
+@pytest.mark.parametrize("outcome", ["cause_identified", "inconclusive", "cause_not_visible"])
+async def test_the_findings_given_to_the_writer_name_the_outcome_and_its_reason(investigation_id: str, outcome: str) -> None:
+    await set_outcome(investigation_id, outcome, "Nothing changed in what Keigan could read.")
+    benign = CommunicationDraft(communication_type="preliminary_report", language_code="en", subject_line="[P2] Claims", body_markdown="We are investigating.")
+    _, sections = await draft_with(investigation_id, benign)
+    findings = next(section.content for section in sections if section.title == "Investigation findings")
+    assert f"Outcome: {outcome}" in findings and "Outcome reason: Nothing changed in what Keigan could read." in findings
+    await set_outcome(investigation_id, None)
+
+
+async def test_an_investigation_with_no_recorded_outcome_says_so_to_the_writer(investigation_id: str) -> None:
+    await set_outcome(investigation_id, None)
+    benign = CommunicationDraft(communication_type="preliminary_report", language_code="en", subject_line="[P2] Claims", body_markdown="We are investigating.")
+    _, sections = await draft_with(investigation_id, benign)
+    assert "Outcome: not recorded" in next(section.content for section in sections if section.title == "Investigation findings")
+
+
+@pytest.mark.parametrize("outcome", ["inconclusive", "cause_not_visible"])
+async def test_the_offline_writer_states_no_cause_when_the_cause_is_not_confirmed(investigation_id: str, outcome: str) -> None:
+    from keigan.ai.investigation_mock_responses import build_communications, mock_investigation_context
+
+    await set_outcome(investigation_id, outcome, "Not established.")
+    captured: list[PromptSection] = []
+
+    async def ask(feature_name: str, sections: list[PromptSection], output_schema: type, **_: object):
+        captured.extend(sections)
+        return CommunicationDraftSet(drafts=[])
+
+    async with open_session() as session:
+        investigation = await session.get(Investigation, investigation_id)
+        await CommunicationService(session).draft_investigation_communications(investigation, ["preliminary_report"], ["en", "ja"], auto_send=False, ask=ask)
+    await set_outcome(investigation_id, None)
+    token = mock_investigation_context.set(type("Context", (), dict(
+        scenario_key="saas_vendor_outage", priority="P2", application_name="Claims", primary_service_name="claims-api", dependency_service_name=None, duration_minutes=None,
+        synthesis={"executive_summary": "Claims are slow.", "why_it_happened_markdown": "A pool ran out of connections.", "overall_confidence_score": 0.8}, evidence=[],
+        incident_title="t",
+    ))())
+    try:
+        drafts = build_communications(CommunicationDraftSet, captured).drafts
+    finally:
+        mock_investigation_context.reset(token)
+    assert drafts and all("A pool ran out of connections" not in draft.body_markdown and "Likely cause" not in draft.body_markdown for draft in drafts)

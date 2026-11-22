@@ -15,6 +15,7 @@
     "status": "ステータス",
     "opened": "発生時刻",
     "confidence": "確信度",
+    "outcome": "結果",
     "health_score": "ヘルススコア",
     "period": "期間",
     "severity": "重大度",
@@ -22,6 +23,19 @@
     "burn_rate": "バーンレート",
     "role": "あなたの役割",
     "invited_by": "招待者"
+  },
+  "outcome": {
+    "cause_identified": { "label": "原因を特定", "sentence": "Keigan は最も可能性の高い原因を特定しました。" },
+    "inconclusive": { "label": "結論に至らず", "sentence": "原因は確認できていません。証拠だけでは複数の説明のどれかに絞り込めていません。" },
+    "cause_not_visible": { "label": "原因は確認できず", "sentence": "Keigan が参照できる監視データからは原因を確認できませんでした。チームが調査を続けています。" }
+  },
+  "email": {
+    "what_went_wrong": "何が起きたか",
+    "likely_cause": "考えられる原因",
+    "known_so_far": "現時点で分かっていること",
+    "suggested_fix": "推奨される対応",
+    "next_checks": "推奨される次の確認",
+    "could_not_check": "Keigan は {count} 件のデータソースを確認できませんでした。詳細は調査画面をご覧ください。"
   },
   "roles": {
     "sre": "SRE",

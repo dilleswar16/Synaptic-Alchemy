@@ -15,6 +15,7 @@
     "status": "Status",
     "opened": "Opened",
     "confidence": "Confidence",
+    "outcome": "Outcome",
     "health_score": "Health score",
     "period": "Period",
     "severity": "Severity",
@@ -22,6 +23,19 @@
     "burn_rate": "Burn rate",
     "role": "Your role",
     "invited_by": "Invited by"
+  },
+  "outcome": {
+    "cause_identified": { "label": "Cause identified", "sentence": "Keigan identified the most likely cause." },
+    "inconclusive": { "label": "Inconclusive", "sentence": "The cause is not confirmed: the evidence does not settle between the explanations." },
+    "cause_not_visible": { "label": "Cause not visible", "sentence": "Keigan could not see the cause in the monitoring data it can read. The team is investigating." }
+  },
+  "email": {
+    "what_went_wrong": "What went wrong",
+    "likely_cause": "Likely cause",
+    "known_so_far": "What is known so far",
+    "suggested_fix": "Suggested fix",
+    "next_checks": "Suggested next checks",
+    "could_not_check": "Keigan could not check {count} source(s); see the investigation."
   },
   "roles": {
     "sre": "SRE",

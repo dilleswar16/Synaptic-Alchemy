@@ -17,10 +17,10 @@ from keigan.config.settings import EmailMode, IntegrationMode, get_settings
 from keigan.dtos.common_dtos import PagedResult
 from keigan.dtos.notification_dtos import NotificationDeliveryDetail, NotificationDeliverySummary
 from keigan.entities.application_entities import Application, MonitoredService
-from keigan.entities.incident_entities import Incident, IncidentCommunication, Investigation, PostmortemReport
+from keigan.entities.incident_entities import Incident, IncidentCommunication, Investigation, InvestigationCoverageGap, PostmortemReport
 from keigan.entities.notification_entities import NotificationDelivery, Stakeholder, TeamsIncidentChat
 from keigan.entities.slo_entities import ServiceLevelIndicator, ServiceLevelObjective, SloBurnAlert
-from keigan.entities.status_values import BurnAlertSeverity, CommunicationStatus, DeliveryChannel, DeliveryStatus, Priority, StakeholderRole, TeamsChatStatus
+from keigan.entities.status_values import BurnAlertSeverity, CommunicationStatus, DeliveryChannel, DeliveryStatus, InvestigationOutcome, Priority, StakeholderRole, TeamsChatStatus
 from keigan.exceptions.keigan_exceptions import IntegrationException, NotFoundException
 from keigan.integrations.email_sender import SmtpEmailSender
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
@@ -219,15 +219,32 @@ class NotificationService:
         return {"emailsQueued": queued_count, "chatRequested": chat_enqueued}
 
     @staticmethod
-    def investigation_email_body(investigation: Investigation, *, include_fix: bool) -> str:
-        """Audience rule: the fix steps (commands, resource names) go only to engineering roles; business stakeholders get impact and likely cause."""
+    def investigation_email_body(investigation: Investigation, *, include_fix: bool, language_code: str | None = None, coverage_gap_count: int = 0) -> str:
+        """Audience rule: the fix steps (commands, resource names) go only to engineering roles; business stakeholders get impact and what is known.
+
+        The outcome comes first. A cause and a fix are stated only when the investigation identified a cause (or ran before outcomes were recorded): otherwise the email says the cause
+        is not confirmed, lists what is known, and gives engineers safe next checks instead of a fix (spec 27, 5.3).
+        """
+        outcome = investigation.investigation_outcome
+        has_cause = outcome in (None, InvestigationOutcome.CAUSE_IDENTIFIED)
+        heading = lambda key: translate(language_code, f"email.{key}")  # noqa: E731
         parts = [
+            translate(language_code, f"outcome.{outcome}.sentence") if outcome else "",
             investigation.executive_summary,
-            f"**What went wrong**\n{investigation.what_went_wrong_markdown}" if investigation.what_went_wrong_markdown else "",
-            f"**Likely cause**\n{investigation.why_it_happened_markdown}" if investigation.why_it_happened_markdown else "",
-            f"**Suggested fix**\n{investigation.how_to_fix_markdown}" if include_fix and investigation.how_to_fix_markdown else "",
+            f"**{heading('what_went_wrong')}**\n{investigation.what_went_wrong_markdown}" if investigation.what_went_wrong_markdown else "",
+            (f"**{heading('likely_cause' if has_cause else 'known_so_far')}**\n{investigation.why_it_happened_markdown}" if investigation.why_it_happened_markdown else ""),
+            (f"**{heading('suggested_fix' if has_cause else 'next_checks')}**\n{investigation.how_to_fix_markdown}" if include_fix and investigation.how_to_fix_markdown else ""),
+            translate(language_code, "email.could_not_check", count=coverage_gap_count) if include_fix and coverage_gap_count else "",
         ]
         return "\n\n".join(part for part in parts if part)
+
+    @staticmethod
+    def confidence_or_outcome_fact(investigation: Investigation, language_code: str | None) -> tuple[str, str]:
+        """The fact a message shows beside the priority: the confidence in an identified cause, otherwise the outcome (a confidence number would suggest a cause that was not confirmed)."""
+        outcome = investigation.investigation_outcome
+        if outcome in (None, InvestigationOutcome.CAUSE_IDENTIFIED):
+            return translate(language_code, "labels.confidence"), f"{round((investigation.overall_confidence_score or 0) * 100)}%"
+        return translate(language_code, "labels.outcome"), translate(language_code, f"outcome.{outcome}.label")
 
     async def on_investigation_completed(self, investigation_id: str) -> dict[str, Any] | None:
         investigation = await self.session.get(Investigation, investigation_id)
@@ -240,14 +257,14 @@ class NotificationService:
         priority = incident.keigan_priority or Priority.P3
         queued_count = 0
         if self.settings.auto_send_preliminary_report and investigation.investigation_status.startswith("completed"):
-            confidence_text = f"{round((investigation.overall_confidence_score or 0) * 100)}%"
+            coverage_gap_count = int(await self.session.scalar(select(func.count()).select_from(InvestigationCoverageGap).where(InvestigationCoverageGap.investigation_id == investigation_id)) or 0)
             for stakeholder in await self.matching_stakeholders(incident.application_id, "preliminary_report", "email", priority=priority, service_ids=incident.affected_service_ids):
                 recipient_address = self.recipient_address_for(stakeholder, "email")
                 if not recipient_address:
                     continue
-                body_markdown = self.investigation_email_body(investigation, include_fix=stakeholder.stakeholder_role in TECHNICAL_ROLES)
                 language = stakeholder.preferred_language_code
-                facts = [(translate(language, "labels.incident"), incident.external_incident_number or ""), (translate(language, "labels.priority"), priority), (translate(language, "labels.confidence"), confidence_text)]
+                body_markdown = self.investigation_email_body(investigation, include_fix=stakeholder.stakeholder_role in TECHNICAL_ROLES, language_code=language, coverage_gap_count=coverage_gap_count)
+                facts = [(translate(language, "labels.incident"), incident.external_incident_number or ""), (translate(language, "labels.priority"), priority), self.confidence_or_outcome_fact(investigation, language)]
                 rendered = self.renderer.render_email("preliminary_report", language, application_name, incident.incident_title, facts=facts, body_markdown=body_markdown, action_path=f"/incidents/{incident.incident_id}", priority=priority)
                 if await self.queue_email(incident.application_id, "preliminary_report", recipient_address, rendered, incident_id=incident.incident_id, investigation_id=investigation_id, deduplicate=True, ignore_subject=True):
                     queued_count += 1
@@ -258,7 +275,7 @@ class NotificationService:
         chat_service = TeamsChatService(self.session)
         card = self.renderer.render_card(
             "preliminary_report", "en", "preliminary_report", incident.incident_title, investigation.executive_summary or "",
-            [("Incident", incident.external_incident_number or ""), ("Priority", priority), ("Confidence", f"{round((investigation.overall_confidence_score or 0) * 100)}%")], f"/incidents/{incident.incident_id}",
+            [(translate("en", "labels.incident"), incident.external_incident_number or ""), (translate("en", "labels.priority"), priority), self.confidence_or_outcome_fact(investigation, "en")], f"/incidents/{incident.incident_id}",
         )
         card_posted = await chat_service.post_card_if_chat_exists(incident.incident_id, f"Preliminary report: {incident.incident_title}", investigation.executive_summary or "", card)
         return {"emailsQueued": queued_count, "cardPosted": card_posted}

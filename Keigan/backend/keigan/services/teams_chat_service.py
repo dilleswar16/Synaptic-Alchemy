@@ -25,7 +25,7 @@ from keigan.dtos.notification_dtos import TeamsChatFactResponse, TeamsChatMessag
 from keigan.entities.application_entities import Application
 from keigan.entities.incident_entities import Conversation, ConversationMessage, Incident, Investigation, InvestigationTimelineEvent
 from keigan.entities.notification_entities import Stakeholder, TeamsIncidentChat
-from keigan.entities.status_values import DeliveryStatus, IncidentStatus, MessageAuthorRole, Priority, TeamsChatStatus
+from keigan.entities.status_values import DeliveryStatus, IncidentStatus, InvestigationOutcome, MessageAuthorRole, Priority, TeamsChatStatus
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, IntegrationException, NotFoundException
 from keigan.integrations.bot_framework_client import BotFrameworkClient
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
@@ -361,8 +361,10 @@ class TeamsChatService:
     def _fallback_answer(investigation: Investigation | None) -> str:
         if investigation is None or not investigation.executive_summary:
             return translate(None, "chat.no_answer")
-        parts = [f"Here is what the investigation currently says:\n\n{investigation.executive_summary}"]
-        if investigation.how_to_fix_markdown:
+        outcome = investigation.investigation_outcome
+        parts = [translate(None, f"outcome.{outcome}.sentence")] if outcome else []
+        parts.append(f"Here is what the investigation currently says:\n\n{investigation.executive_summary}")
+        if investigation.how_to_fix_markdown and outcome in (None, InvestigationOutcome.CAUSE_IDENTIFIED):  # a fix for a cause that was not confirmed would present a guess as the answer
             parts.append(f"**Suggested fix**\n{investigation.how_to_fix_markdown}")
         return "\n\n".join(parts)
 

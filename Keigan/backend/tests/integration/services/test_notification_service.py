@@ -60,3 +60,57 @@ async def test_no_outgoing_email_contains_a_link_or_image_to_a_host_that_is_not_
         email = await delivered_text(address)
         assert "https://evil.example/login)" not in email and "href=\"https://evil.example" not in email
         assert "p.png" not in email
+
+
+# ── What the preliminary report says when the cause is not confirmed (spec 27, AC-16) ────────────
+
+import pytest
+
+from keigan.entities.status_values import InvestigationOutcome
+
+WHAT_WENT_WRONG, WHY, FIX = "Claims are slow since 10:00.", "A pool ran out of connections.", "Restart the pool."
+
+
+def investigation_with(outcome: str | None, *, gap_count: int = 0) -> Investigation:
+    return Investigation(
+        application_id="app", investigation_trigger="incident", investigation_status="completed", current_stage_name="completed", investigation_outcome=outcome,
+        executive_summary="Claims are slow.", what_went_wrong_markdown=WHAT_WENT_WRONG, why_it_happened_markdown=WHY, how_to_fix_markdown=FIX, overall_confidence_score=0.7,
+    )
+
+
+@pytest.mark.parametrize("language", [None, "ja"])
+def test_a_cause_is_only_stated_when_it_was_identified(language: str | None) -> None:
+    body = NotificationService.investigation_email_body(investigation_with(InvestigationOutcome.CAUSE_IDENTIFIED), include_fix=True, language_code=language)
+    assert WHY in body and FIX in body
+    assert (("Likely cause" in body) if language is None else ("考えられる原因" in body))
+
+
+@pytest.mark.parametrize("outcome", [InvestigationOutcome.INCONCLUSIVE, InvestigationOutcome.CAUSE_NOT_VISIBLE])
+def test_without_a_confirmed_cause_the_email_states_no_cause_and_no_fix_but_says_what_is_known(outcome: str) -> None:
+    body = NotificationService.investigation_email_body(investigation_with(outcome), include_fix=True)
+    assert "Likely cause" not in body and "Suggested fix" not in body
+    assert WHAT_WENT_WRONG in body and "What is known so far" in body and "Suggested next checks" in body
+    assert "not confirmed" in body or "could not see the cause" in body
+
+
+def test_business_roles_never_get_next_checks_or_fix_steps_and_the_outcome_still_comes_first() -> None:
+    body = NotificationService.investigation_email_body(investigation_with(InvestigationOutcome.CAUSE_NOT_VISIBLE), include_fix=False)
+    assert FIX not in body and "Suggested next checks" not in body
+    assert body.startswith("Keigan could not see the cause in the monitoring data it can read.")
+
+
+def test_the_japanese_outcome_sentence_is_used_for_a_japanese_reader() -> None:
+    body = NotificationService.investigation_email_body(investigation_with(InvestigationOutcome.CAUSE_NOT_VISIBLE), include_fix=False, language_code="ja")
+    assert "監視データ" in body and "Likely cause" not in body and "Suggested" not in body
+
+
+def test_an_investigation_with_no_recorded_outcome_keeps_the_earlier_wording() -> None:
+    body = NotificationService.investigation_email_body(investigation_with(None), include_fix=True)
+    assert "Likely cause" in body and FIX in body
+
+
+def test_the_outcome_replaces_the_confidence_fact_unless_a_cause_was_identified() -> None:
+    assert NotificationService.confidence_or_outcome_fact(investigation_with(InvestigationOutcome.CAUSE_IDENTIFIED), None) == ("Confidence", "70%")
+    label, value = NotificationService.confidence_or_outcome_fact(investigation_with(InvestigationOutcome.INCONCLUSIVE), None)
+    assert (label, value) == ("Outcome", "Inconclusive")
+    assert NotificationService.confidence_or_outcome_fact(investigation_with(InvestigationOutcome.CAUSE_NOT_VISIBLE), "ja")[0] == "結果"
