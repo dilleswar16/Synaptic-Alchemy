@@ -1,91 +1,90 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Maximize2, Minimize2, SendHorizontal, Sparkles, X } from "lucide-react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Maximize2, Minimize2, Sparkles, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { apiPost, isApiError } from "@/api/httpClient";
-import { ChatMessageView } from "@/components/chat";
-import type { ChatMessagePayload } from "@/api/chatApi";
+import { useInvestigationConversation } from "@/api/chatApi";
+import { AskKeiganConversation, askKeiganTranslationNamespaces } from "@/components/chat";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { Button } from "@/components/ui/Button";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { IconButton } from "@/components/ui/IconButton";
 import { Spinner } from "@/components/ui/Spinner";
-import { Textarea } from "@/components/ui/Textarea";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/utils/cn";
 
-interface ConversationResponse {
-  conversationId?: string;
-  id?: string;
-}
-
-interface AssistantMessageResponse {
-  messageText: string;
-  messagePayload?: unknown;
-}
-
-interface ChatEntry {
-  key: number;
-  role: "user" | "assistant" | "error";
-  text: string;
-  payload?: ChatMessagePayload | null;
-}
-
+/** The panel's buttons are 32 px; on a phone or any touch screen they grow to 44 px (spec 8.8). */
+const touchTargetClassName = "max-sm:size-11 pointer-coarse:size-11";
 const suggestedPromptKeys = ["whyNotDatabase", "whatChanged", "executiveUpdate", "explainNewEngineer"] as const;
+/** Below Tailwind's `sm` breakpoint (40rem) the panel is a full-screen sheet: a dialog that traps focus and hides the page behind it. */
+const phoneMediaQuery = "(max-width: 39.99rem)";
 
-/** Floating investigation chat: 420 px, expandable to half the screen. Grounded in this investigation by the chat backend. */
-export function InvestigationChatPanel({ investigationId }: { investigationId: string }) {
-  const { t } = useTranslation("investigations");
+export interface InvestigationChatPanelProps {
+  investigationId: string;
+  /** An `[E#]` citation in an answer was chosen: show that evidence on the page. */
+  onSelectEvidence: (evidenceCode: string) => void;
+  /** An `[R#]` citation in an answer was chosen: show that runbook on the page. */
+  onSelectRunbook: (runbookId: string) => void;
+}
+
+/**
+ * Floating investigation chat: 420 px, expandable to half the screen, full screen on a phone. Ask Keigan answers from this investigation's own tools.
+ * Keyboard: opening moves focus into the panel and closing returns it to the launcher; Esc stops the answer while one runs (handled in the conversation)
+ * and otherwise closes the panel. On a phone the panel is a modal dialog with Tab kept inside it, and choosing a citation closes it so the page it points to is seen.
+ */
+export function InvestigationChatPanel({ investigationId, onSelectEvidence, onSelectRunbook }: InvestigationChatPanelProps) {
+  const { t } = useTranslation(["investigations", ...askKeiganTranslationNamespaces]); // the chat's namespaces load with the page, not in the middle of the first answer
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [entries, setEntries] = useState<ChatEntry[]>([]);
-  const [draft, setDraft] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const conversationIdReference = useRef<string | null>(null);
-  const entryCounter = useRef(0);
-  const scrollReference = useRef<HTMLDivElement>(null);
+  const conversation = useInvestigationConversation(investigationId, isOpen);
+  const isPhone = useMediaQuery(phoneMediaQuery);
+  const panelReference = useRef<HTMLDivElement>(null);
+  const launcherReference = useRef<HTMLButtonElement>(null);
+  const wasOpenReference = useRef(false);
+  useFocusTrap(panelReference, isOpen && isPhone);
 
   useEffect(() => {
-    scrollReference.current?.scrollTo({ top: scrollReference.current.scrollHeight, behavior: "smooth" });
-  }, [entries, isSending]);
+    if (isOpen) {
+      panelReference.current?.focus();
+    } else if (wasOpenReference.current) {
+      launcherReference.current?.focus();
+    }
+    wasOpenReference.current = isOpen;
+  }, [isOpen]);
 
-  const append = (role: ChatEntry["role"], text: string, payload?: ChatMessagePayload | null) => {
-    entryCounter.current += 1;
-    setEntries((previous) => [...previous, { key: entryCounter.current, role, text, payload }]);
-  };
-
-  const sendMessage = async (messageText: string) => {
-    const trimmed = messageText.trim();
-    if (!trimmed || isSending) return;
-    append("user", trimmed);
-    setDraft("");
-    setIsSending(true);
-    try {
-      if (!conversationIdReference.current) {
-        const conversation = await apiPost<ConversationResponse, { conversationScope: string; investigationId: string }>("/chat/conversations", { conversationScope: "investigation", investigationId });
-        conversationIdReference.current = conversation.conversationId ?? conversation.id ?? null;
-      }
-      const reply = await apiPost<AssistantMessageResponse, { messageText: string }>(`/chat/conversations/${conversationIdReference.current}/messages`, { messageText: trimmed });
-      append("assistant", reply.messageText, reply.messagePayload as ChatMessagePayload | null | undefined);
-    } catch (error) {
-      append("error", isApiError(error) && error.status !== 404 ? (error.detail ?? error.title) : t("chat.unavailable"));
-    } finally {
-      setIsSending(false);
+  const closeOnEscape = (event: KeyboardEvent<HTMLElement>) => {
+    // A key that bubbles up from a drawer opened inside the panel, or that the conversation already used to stop an answer, is not ours.
+    const isFromThisPanel = event.target instanceof Node && event.currentTarget.contains(event.target);
+    if (event.key === "Escape" && !event.defaultPrevented && isFromThisPanel) {
+      event.preventDefault();
+      setIsOpen(false);
     }
   };
-
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    void sendMessage(draft);
+  const showOnPage = (show: () => void) => {
+    show();
+    if (isPhone) {
+      setIsOpen(false);
+    }
   };
 
   if (!isOpen) {
     return (
       <div className="fixed right-6 bottom-6 z-40 print:hidden">
-        <Button variant="gradient-outline" size="lg" leadingIcon={Sparkles} onClick={() => setIsOpen(true)} className="rounded-full shadow-lg">{t("chat.open")}</Button>
+        <Button ref={launcherReference} variant="gradient-outline" size="lg" leadingIcon={Sparkles} onClick={() => setIsOpen(true)} className="rounded-full shadow-lg">{t("chat.open")}</Button>
       </div>
     );
   }
   return (
-    <aside
+    <div
+      ref={panelReference}
+      role={isPhone ? "dialog" : "complementary"}
+      aria-modal={isPhone ? true : undefined}
       aria-label={t("chat.title")}
-      className={cn("fixed right-4 bottom-4 z-40 flex h-[min(42rem,calc(100vh-2rem))] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-hairline bg-surface-raised shadow-xl print:hidden", isExpanded ? "w-[50vw] min-w-[420px]" : "w-[420px]")}
+      tabIndex={-1}
+      onKeyDown={closeOnEscape}
+      className={cn(
+        "fixed inset-0 z-40 flex flex-col overflow-hidden border-hairline bg-surface-raised outline-none print:hidden",
+        "sm:inset-auto sm:right-4 sm:bottom-4 sm:h-[min(42rem,calc(100vh-2rem))] sm:max-w-[calc(100vw-2rem)] sm:rounded-xl sm:border sm:shadow-xl",
+        isExpanded ? "sm:w-[50vw] sm:min-w-[420px]" : "sm:w-[420px]",
+      )}
     >
       <header className="flex items-center justify-between gap-2 border-b border-hairline px-4 py-3">
         <div className="flex min-w-0 flex-col">
@@ -93,53 +92,23 @@ export function InvestigationChatPanel({ investigationId }: { investigationId: s
           <p className="text-caption text-muted">{t("chat.subtitle")}</p>
         </div>
         <div className="flex items-center gap-1">
-          <IconButton icon={isExpanded ? Minimize2 : Maximize2} label={isExpanded ? t("chat.shrink") : t("chat.expand")} variant="ghost" size="sm" onClick={() => setIsExpanded((value) => !value)} />
-          <IconButton icon={X} label={t("chat.close")} variant="ghost" size="sm" onClick={() => setIsOpen(false)} />
+          <IconButton icon={isExpanded ? Minimize2 : Maximize2} label={isExpanded ? t("chat.shrink") : t("chat.expand")} variant="ghost" size="sm" onClick={() => setIsExpanded((value) => !value)} className={cn("max-sm:hidden", touchTargetClassName)} />
+          <IconButton icon={X} label={t("chat.close")} variant="ghost" size="sm" onClick={() => setIsOpen(false)} className={touchTargetClassName} />
         </div>
       </header>
-      <div ref={scrollReference} className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4" role="log" aria-live="polite">
-        {entries.length === 0 ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-body-sm text-muted">{t("chat.intro")}</p>
-            <div className="flex flex-col items-start gap-2">
-              {suggestedPromptKeys.map((promptKey) => (
-                <button key={promptKey} type="button" onClick={() => void sendMessage(t(`chat.prompts.${promptKey}`))} className="rounded-full border border-strong bg-surface px-3 py-1.5 text-left text-body-sm text-default hover:bg-surface-hover">
-                  {t(`chat.prompts.${promptKey}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {entries.map((entry) =>
-          entry.role === "user" ? (
-            <div key={entry.key} className="ml-8 self-end rounded-lg rounded-br-xs bg-action-subtle px-3 py-2 text-body-sm text-action-subtle-text">{entry.text}</div>
-          ) : entry.role === "error" ? (
-            <div key={entry.key} className="rounded-lg border border-hairline bg-danger-soft px-3 py-2 text-body-sm text-danger" role="alert">{entry.text}</div>
-          ) : (
-            <ChatMessageView key={entry.key} role="assistant" text={entry.text} payload={entry.payload} isCompact className="mr-4" />
-          ),
-        )}
-        {isSending ? <div className="flex items-center gap-2 text-body-sm text-muted"><Spinner size="sm" />{t("chat.thinking")}</div> : null}
-      </div>
-      <form onSubmit={onSubmit} className="flex items-end gap-2 border-t border-hairline p-3">
-        <Textarea
-          aria-label={t("chat.inputLabel")}
-          placeholder={t("chat.placeholder")}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { // Enter that confirms an IME conversion (Japanese, Chinese) must not send
-              event.preventDefault();
-              void sendMessage(draft);
-            }
-          }}
-          rows={1}
-          autoResize
-          maximumRows={5}
-          containerClassName="flex-1"
+      {conversation.isLoading ? <Spinner className="m-auto" /> : null}
+      {conversation.isError ? <div className="p-4"><ErrorState size="sm" error={conversation.error} onRetry={() => void conversation.refetch()} isRetrying={conversation.isFetching} /></div> : null}
+      {conversation.data ? (
+        <AskKeiganConversation
+          conversationId={conversation.data.conversationId}
+          isCompact
+          introText={t("chat.intro")}
+          suggestedPrompts={suggestedPromptKeys.map((promptKey) => t(`chat.prompts.${promptKey}`))}
+          composerPlaceholder={t("chat.placeholder")}
+          onSelectEvidence={(evidenceCode) => showOnPage(() => onSelectEvidence(evidenceCode))}
+          onSelectRunbook={(runbookId) => showOnPage(() => onSelectRunbook(runbookId))}
         />
-        <IconButton icon={SendHorizontal} label={t("chat.send")} variant="primary" type="submit" disabled={!draft.trim() || isSending} />
-      </form>
-    </aside>
+      ) : null}
+    </div>
   );
 }

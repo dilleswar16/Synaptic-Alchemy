@@ -26,7 +26,10 @@
   "empty": {
     "title": "您想了解什么？",
     "description": "可询问错误数量、随时间变化的规律、架构或运行手册。Keigan 只读取数据，绝不会更改您的系统。",
-    "category": { "data": "来自您的日志", "knowledge": "来自您的知识库" },
+    "category": {
+      "data": "来自您的日志",
+      "knowledge": "来自您的知识库"
+    },
     "generic": {
       "errors": "过去 24 小时内，我的哪个应用程序错误最多？",
       "trend": "显示我的应用程序过去 7 天的错误趋势",
@@ -40,6 +43,7 @@
     "label": "给 Keigan 发消息",
     "placeholder": "询问有关您应用的问题…",
     "send": "发送",
+    "stop": "停止",
     "hint": "按 Enter 发送，Shift+Enter 换行。个人数据在发送给 AI 之前会被脱敏。"
   },
   "message": {
@@ -52,6 +56,314 @@
   },
   "errors": {
     "rateLimited": "您发送消息过于频繁，请稍等片刻后重试。",
-    "generic": "Keigan 暂时无法回答，请重试。"
+    "generic": "Keigan 暂时无法回答，请重试。",
+    "budgetExceeded": "今天的 AI 令牌预算已用完。",
+    "toolsUnsupported": "Ask Keigan 需要能够使用工具的 AI 模型。请联系 Keigan 管理员检查 AI 模型设置。",
+    "inProgress": "Keigan 仍在回答您在此对话中的上一个问题。",
+    "streamInterrupted": "答案送达前连接已断开。请重新加载页面以查看完成的答案。",
+    "connectionFailed": "无法连接到 Keigan，因此您的问题未发送。请检查网络连接后重试。",
+    "connectionLost": "Keigan 回答期间连接已断开。请再次检查以查看进展，或重新加载页面以查看完成的答案。",
+    "checkAgain": "再次检查",
+    "stopFailed": "无法连接到 Keigan 来停止回答，因此它仍可能完成。请检查网络连接后再次点击“停止”。",
+    "unexpected": "与 Keigan 通信时浏览器出现意外错误。请重新加载页面；如果没有显示您的问题，请重新提问。"
+  },
+  "trace": {
+    "show": "显示",
+    "hide": "隐藏",
+    "showDetails": "显示工具详情",
+    "title": "Keigan 的步骤",
+    "summary_other": "{{count}} 个工具 · {{duration}}",
+    "working": "Keigan 正在处理 · 最多 {{maximum}} 个工具，已用 {{used}} 个",
+    "hasProblems": "部分步骤失败或未被允许",
+    "stopped": {
+      "tool_limit_reached": "已在 {{maximum}} 次工具调用的上限处停止。Keigan 根据已找到的信息作答；如需深入，请继续提问。",
+      "token_budget_reached": "已在单次回答的令牌预算处停止。Keigan 根据已找到的信息作答。",
+      "cancelled_by_user": "已由您停止"
+    },
+    "newActivity": "新动态",
+    "starting": "Keigan 正在启动…",
+    "connectionLost": "连接已断开 — 正在显示服务器上的进度…",
+    "expired": "此答案的详细跟踪记录已不再保留。",
+    "redacted": "您已无权访问此应用程序。"
+  },
+  "tool": {
+    "openInKeigan": "在 Keigan 中打开",
+    "openInKeiganNamed": "在 Keigan 中打开：{{label}}",
+    "metrics": {
+      "windowDays": "{{count}} 天窗口",
+      "approximate": "这些数值为近似值。"
+    },
+    "graph": {
+      "nodes": "组件",
+      "edges": "连接",
+      "heading": "{{heading}} ({{total}})",
+      "headingPartial": "{{heading}}（{{total}} 个中的 {{shown}} 个）",
+      "criticality": "重要程度：{{level}}",
+      "edge": "{{source}} → {{target}}",
+      "version": "版本 {{version}}",
+      "review": "评审：{{status}}",
+      "uncertainties": "不确定之处"
+    },
+    "passages": {
+      "match": "匹配度 {{percentage}}"
+    },
+    "status": {
+      "running": "运行中",
+      "succeeded": "完成",
+      "failed": "失败",
+      "refused": "不允许",
+      "invalidInput": "输入无效",
+      "skipped": "未运行（已达上限）",
+      "cancelled": "已停止",
+      "redacted": "您已无权访问"
+    },
+    "inputs": "输入",
+    "result": "结果",
+    "viewJson": "以 JSON 查看",
+    "viewList": "以列表查看",
+    "copyInputs": "复制输入",
+    "copyOutput": "复制输出",
+    "viewFullOutput": "查看完整输出",
+    "downloadOutput": "下载输出",
+    "modelView": "Keigan 的 AI 看到的内容",
+    "boundArgument": "由本次调查设定",
+    "masked_other": "已脱敏 {{count}} 个值",
+    "truncated": "显示 {{shown}} / {{total}}",
+    "injectionFlag": "包含类似指令的文本",
+    "simulated": "模拟数据",
+    "citationLabel": "引用 {{code}}",
+    "progress": {
+      "query_generated": "已编写查询，正在运行"
+    },
+    "yes": "是",
+    "no": "否",
+    "sampleRows": "示例行",
+    "announceStarted": "Keigan 正在处理：{{label}}",
+    "announceFinished": "{{label}}：{{summary}}",
+    "noValue": "—",
+    "fieldPair": "{{label}}：{{value}}",
+    "timeRange": "{{start}} – {{end}}",
+    "accessibleName": "{{label}}，{{details}}",
+    "announceStartedFor": "Keigan 正在处理：{{label}}（{{target}}）"
+  },
+  "drawer": {
+    "detailsDescription": "此工具调用的输入和结果。",
+    "title": "{{label}}：完整输出",
+    "outputHeading": "JSON",
+    "storedTruncated": "此输出超出了 Keigan 的存储上限，因此仅显示已存储的部分。",
+    "modelViewHint": "本次工具调用发送给 AI 模型的原始文本。个人数据已脱敏。",
+    "sha256": "SHA-256：{{hash}}"
+  },
+  "tools": {
+    "search_knowledge": {
+      "label": "已搜索知识库"
+    },
+    "find_runbooks": {
+      "label": "已查找运行手册"
+    },
+    "get_topology": {
+      "label": "已读取应用地图"
+    },
+    "query_logs": {
+      "label": "已查询日志"
+    },
+    "list_recent_changes": {
+      "label": "已检查近期变更"
+    },
+    "get_evidence": {
+      "label": "已打开证据"
+    },
+    "get_investigation_timeline": {
+      "label": "已读取时间线"
+    },
+    "get_slo_status": {
+      "label": "已检查 SLO 状态"
+    },
+    "get_investigation": {
+      "label": "已打开调查"
+    },
+    "list_investigations": {
+      "label": "已列出调查"
+    },
+    "list_incidents": {
+      "label": "已列出事件"
+    },
+    "get_incident": {
+      "label": "已打开事件"
+    },
+    "list_alert_groups": {
+      "label": "已列出告警组"
+    },
+    "get_alert_group": {
+      "label": "已打开告警组"
+    },
+    "get_alert_noise_summary": {
+      "label": "已检查告警噪声"
+    },
+    "get_slo_history": {
+      "label": "已读取 SLO 历史"
+    },
+    "list_predictive_signals": {
+      "label": "已列出预测信号"
+    },
+    "get_health_score": {
+      "label": "已检查健康评分"
+    },
+    "list_team_members": {
+      "label": "已列出团队成员"
+    }
+  },
+  "arguments": {
+    "application_code": "应用",
+    "application_codes": "应用",
+    "query": "搜索内容",
+    "symptoms": "症状",
+    "service_name": "服务",
+    "question": "问题",
+    "lookback_minutes": "回溯时间（分钟）",
+    "lookback_hours": "回溯时间（小时）",
+    "wants_pattern": "随时间变化的模式",
+    "failures_only": "仅失败",
+    "evidence_code": "证据",
+    "investigation_id": "调查",
+    "statuses": "状态",
+    "priorities": "优先级",
+    "severities": "严重程度",
+    "text": "文本",
+    "incident_reference": "事件",
+    "alert_group_id": "告警组",
+    "slo_id": "SLO",
+    "days": "天数",
+    "roles": "角色",
+    "maximum_results": "结果数",
+    "minimum_priority_score": "最低评分"
+  },
+  "fields": {
+    "compliance_percentage": "达标率",
+    "target_percentage": "目标",
+    "error_budget_remaining_percentage": "剩余错误预算",
+    "burn_rate_one_hour": "燃烧速率（1 小时）",
+    "burn_rate_six_hours": "燃烧速率（6 小时）",
+    "code": "代码",
+    "title": "标题",
+    "name": "名称",
+    "description": "描述",
+    "detail": "详情",
+    "status": "状态",
+    "kind": "类型",
+    "occurred_at": "时间",
+    "actor": "执行者",
+    "document_title": "文档",
+    "section_heading": "章节",
+    "topology_summary": "应用地图",
+    "service_name": "服务",
+    "source_kind": "来源",
+    "query_language": "查询语言",
+    "query_text": "查询",
+    "row_count": "行数",
+    "total": "总计",
+    "time_range_start": "起始",
+    "time_range_end": "结束",
+    "window_start": "起始",
+    "window_end": "结束",
+    "operation_name": "操作",
+    "change_kind": "变更类型",
+    "caller": "变更者",
+    "evidence_code": "证据编号",
+    "evidence_title": "标题",
+    "evidence_category": "类别",
+    "evidence_source_kind": "来源",
+    "evidence_summary": "摘要",
+    "query_time_range_start": "查询起始",
+    "query_time_range_end": "查询截止",
+    "matched_record_count": "匹配的记录数",
+    "baseline_record_count": "基线记录数",
+    "condensed_patterns": "发现的模式",
+    "signal_strength": "信号强度",
+    "possible_prompt_injection": "类似指令的文本",
+    "collected_at": "收集时间",
+    "event_type": "类型",
+    "details": "详情",
+    "source": "来源",
+    "sli_name": "指标",
+    "sli_kind": "指标类型",
+    "application_code": "应用程序代码",
+    "application_name": "应用程序",
+    "rolling_window_days": "窗口（天）",
+    "is_approximate": "近似值",
+    "slo_id": "SLO",
+    "runbook_id": "运行手册",
+    "knowledge_document_id": "文档",
+    "match_score": "匹配度",
+    "contains_flagged_content": "包含被标记的内容",
+    "topology_version_number": "拓扑图版本",
+    "review_status": "审核状态",
+    "understanding_summary": "摘要",
+    "text": "文本"
+  },
+  "values": {
+    "deployment": "部署",
+    "configuration_change": "配置变更",
+    "scaling": "扩缩容",
+    "restart": "重启",
+    "other": "其他",
+    "healthy": "健康",
+    "at_risk": "有风险",
+    "breached": "已违约",
+    "no_data": "无数据",
+    "low": "低",
+    "medium": "中",
+    "high": "高",
+    "error_logs": "错误日志",
+    "exceptions": "异常",
+    "failed_requests": "失败的请求",
+    "slow_requests": "缓慢的请求",
+    "failed_dependencies": "失败的依赖项",
+    "kubernetes_events": "Kubernetes 事件",
+    "pod_restarts": "Pod 重启",
+    "metrics": "指标",
+    "change_event": "变更",
+    "batch_failures": "批处理失败",
+    "hardware_status": "设备状态",
+    "synthetic_probe": "合成探测",
+    "ai_planned_query": "AI 规划的查询",
+    "log_analytics": "Log Analytics 工作区",
+    "application_insights": "Application Insights",
+    "azure_monitor_metrics": "Azure Monitor 指标",
+    "log_tool": "日志工具连接",
+    "vendor_status_page": "供应商状态页",
+    "action_taken": "已采取的操作",
+    "alert": "告警",
+    "chat_fact": "聊天中的事实",
+    "communication_sent": "已发送通知",
+    "communications_drafted": "已起草通知",
+    "incident_opened": "事件已创建",
+    "incident_resolved": "事件已解决",
+    "investigation_started": "调查已开始",
+    "postmortem_drafted": "已起草事后复盘",
+    "servicenow_update_failed": "ServiceNow 更新失败",
+    "awaiting_review": "待审核",
+    "reviewed": "已审核",
+    "needs_correction": "需要更正",
+    "tier_1": "第 1 层",
+    "tier_2": "第 2 层",
+    "tier_3": "第 3 层"
+  },
+  "answer": {
+    "copy": "复制回答及来源",
+    "askedOn": "提问于 Keigan，日期：{{date}}",
+    "label": "答案",
+    "unverified": "此答案未指向任何工具结果，请视为未经验证。",
+    "askNext": "接着问",
+    "sourcesHeading": "来源",
+    "announceReady_other": "答案已就绪，共 {{count}} 个来源",
+    "tryAgain": "重试",
+    "reference": "参考编号 {{correlationId}}",
+    "sourceLine": "[{{code}}] {{details}}",
+    "sourcePartSeparator": " — ",
+    "inputsLine": "输入：{{inputs}}"
+  },
+  "stream": {
+    "newerVersion": "请重新加载 Keigan 以查看此答案。"
   }
 }

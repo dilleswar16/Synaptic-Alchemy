@@ -7,9 +7,11 @@ import i18n from "i18next";
 
 export type DateInput = string | number | Date;
 
-const formatterCache = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat | Intl.RelativeTimeFormat>();
+type CachedFormatter = Intl.NumberFormat | Intl.DateTimeFormat | Intl.RelativeTimeFormat | Intl.ListFormat;
 
-function cachedFormatter<FormatterType extends Intl.NumberFormat | Intl.DateTimeFormat | Intl.RelativeTimeFormat>(
+const formatterCache = new Map<string, CachedFormatter>();
+
+function cachedFormatter<FormatterType extends CachedFormatter>(
   cacheKey: string,
   createFormatter: () => FormatterType,
 ): FormatterType {
@@ -155,6 +157,17 @@ export function formatDuration(
   return parts.join(" ");
 }
 
+/** "0.4 s" / "2.1 s" for under a minute (a tool call is often sub-second, which `formatDuration` would show as "0s"); longer spans use `formatDuration`. */
+export function formatShortDuration(milliseconds: number | null | undefined): string {
+  if (milliseconds === null || milliseconds === undefined || !Number.isFinite(milliseconds)) {
+    return "";
+  }
+  if (milliseconds >= 60_000) {
+    return formatDuration(milliseconds);
+  }
+  return formatNumber(Math.max(0, milliseconds) / 1000, { style: "unit", unit: "second", unitDisplay: "short", maximumFractionDigits: 1, minimumFractionDigits: 1 });
+}
+
 /** "12,345" / "12.345" / "12 345" depending on locale. */
 export function formatNumber(value: number | null | undefined, options: Intl.NumberFormatOptions = {}): string {
   if (value === null || value === undefined || !Number.isFinite(value)) {
@@ -181,6 +194,12 @@ export function formatPercentage(
   }
   const { minimumFractionDigits = 0, maximumFractionDigits = 1, signDisplay = "auto" } = options;
   return formatNumber(percentValue / 100, { style: "percent", minimumFractionDigits, maximumFractionDigits, signDisplay });
+}
+
+/** Items one after another in the locale's own way ("a, b, c" in English, "a b c" in Japanese); no separator is written in code. */
+export function formatList(items: readonly string[]): string {
+  const locale = currentLocale();
+  return cachedFormatter(`list:${locale}`, () => new Intl.ListFormat(locale, { type: "unit", style: "short" })).format(items);
 }
 
 /** "12.4K tokens" (pluralised through i18n). */

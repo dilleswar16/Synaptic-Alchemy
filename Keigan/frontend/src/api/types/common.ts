@@ -33,6 +33,8 @@ export interface ProblemDetails {
   errorCode?: string;
   correlationId?: string;
   fieldErrors?: FieldError[];
+  /** Extension member of `answer_in_progress` and `duplicate_request` (Ask Keigan): the run that already exists. */
+  answerRunId?: string;
 }
 
 /** `202 Accepted` body for endpoints that start background jobs. */

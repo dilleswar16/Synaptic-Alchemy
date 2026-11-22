@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from "react";
+import { useRef, type ReactElement, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { Dialog as RadixDialog } from "radix-ui";
 import { useTranslation } from "react-i18next";
@@ -24,7 +24,10 @@ export interface DrawerProps {
 
 const drawerWidths = { sm: "max-w-[480px]", md: "max-w-[640px]", lg: "max-w-[880px]" } as const;
 
-/** Right-side sheet for details and multi-field edits; sticky header and footer, scrolling body. */
+/**
+ * Right-side sheet for details and multi-field edits; sticky header and footer, scrolling body. Opened with `trigger`, focus returns to it on close; opened
+ * through `open` alone (no trigger), focus returns to the element that had it when the sheet opened, which Radix would otherwise lose to the page body.
+ */
 export function Drawer({
   open,
   onOpenChange,
@@ -39,6 +42,7 @@ export function Drawer({
   className,
 }: DrawerProps) {
   const { t } = useTranslation("common");
+  const returnFocusReference = useRef<HTMLElement | null>(null);
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger ? <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger> : null}
@@ -46,6 +50,15 @@ export function Drawer({
         <RadixDialog.Overlay className="fixed inset-0 z-50 bg-overlay data-[state=closed]:animate-fade-out data-[state=open]:animate-fade-in" />
         <RadixDialog.Content
           {...(description ? {} : { "aria-describedby": undefined })}
+          onOpenAutoFocus={() => {
+            returnFocusReference.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            if (!trigger) {
+              event.preventDefault();
+              returnFocusReference.current?.focus();
+            }
+          }}
           className={cn(
             "fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-hairline bg-surface shadow-lg sm:rounded-l-lg",
             "data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in focus-visible:outline-none",

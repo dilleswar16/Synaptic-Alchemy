@@ -7,6 +7,8 @@ import { defaultToneIcons, toneBorderClasses, toneSoftClasses, toneTextClasses, 
 
 export interface BannerProps {
   tone?: StatusTone;
+  /** What a screen reader does with the banner. Defaults to an assertive alert for `danger` and a polite status otherwise; a message that is not new (history) should not interrupt. */
+  role?: "alert" | "status";
   title?: ReactNode;
   children?: ReactNode;
   /** Custom icon, or `false` for none. Defaults to the tone icon. */
@@ -18,7 +20,7 @@ export interface BannerProps {
 }
 
 /** Inline message spanning its container: info notices, warnings, the local-mode banner. */
-export function Banner({ tone = "info", title, children, icon, action, onDismiss, className }: BannerProps) {
+export function Banner({ tone = "info", role, title, children, icon, action, onDismiss, className }: BannerProps) {
   const { t } = useTranslation("common");
   // A neutral notice shows the info icon: the plain circle of a neutral chip reads as an unchecked radio button next to text.
   const Icon = icon === false ? null : (icon ?? (tone === "neutral" ? Info : defaultToneIcons[tone]));
@@ -26,7 +28,7 @@ export function Banner({ tone = "info", title, children, icon, action, onDismiss
   const isUrgent = tone === "danger";
   return (
     <div
-      role={isUrgent ? "alert" : "status"}
+      role={role ?? (isUrgent ? "alert" : "status")}
       className={cn(
         "flex items-start gap-3 rounded-md border px-4 py-3",
         toneSoftClasses[tone],

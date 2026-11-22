@@ -26,7 +26,10 @@
   "empty": {
     "title": "¿Qué le gustaría saber?",
     "description": "Pregunte por recuentos de errores, patrones en el tiempo, arquitectura o runbooks. Keigan solo lee; nunca modifica sus sistemas.",
-    "category": { "data": "De sus registros", "knowledge": "De su base de conocimiento" },
+    "category": {
+      "data": "De sus registros",
+      "knowledge": "De su base de conocimiento"
+    },
     "generic": {
       "errors": "¿Cuál de mis aplicaciones tuvo más errores en las últimas 24 horas?",
       "trend": "Muéstrame la tendencia de errores de mis aplicaciones en los últimos 7 días",
@@ -40,11 +43,13 @@
     "label": "Mensaje para Keigan",
     "placeholder": "Haga una pregunta sobre sus aplicaciones…",
     "send": "Enviar",
+    "stop": "Detener",
     "hint": "Enter para enviar, Shift+Enter para nueva línea. Los datos personales se enmascaran antes de llegar a la IA."
   },
   "message": {
     "howIGotThis": "Cómo llegué a esto",
-    "queryMeta_one": "{{service}} · {{source}} · {{language}} · {{count}} fila", "queryMeta_other": "{{service}} · {{source}} · {{language}} · {{count}} filas",
+    "queryMeta_one": "{{service}} · {{source}} · {{language}} · {{count}} fila",
+    "queryMeta_other": "{{service}} · {{source}} · {{language}} · {{count}} filas",
     "simulated": "datos simulados",
     "sources": "Fuentes",
     "noData": "Sin datos en este periodo.",
@@ -52,6 +57,317 @@
   },
   "errors": {
     "rateLimited": "Está enviando mensajes demasiado rápido. Espere un momento e inténtelo de nuevo.",
-    "generic": "Keigan no pudo responder en este momento. Inténtelo de nuevo."
+    "generic": "Keigan no pudo responder en este momento. Inténtelo de nuevo.",
+    "budgetExceeded": "El presupuesto de tokens de IA de hoy se ha agotado.",
+    "toolsUnsupported": "Ask Keigan necesita un modelo de IA que pueda usar herramientas. Pida a un administrador de Keigan que revise la configuración del modelo de IA.",
+    "inProgress": "Keigan sigue respondiendo a su pregunta anterior en esta conversación.",
+    "streamInterrupted": "Se perdió la conexión antes de que llegara la respuesta. Recargue la página para ver la respuesta terminada.",
+    "connectionFailed": "No se pudo conectar con Keigan, así que su pregunta no se envió. Compruebe su conexión e inténtelo de nuevo.",
+    "connectionLost": "Se perdió la conexión mientras Keigan respondía. Compruebe de nuevo hasta dónde llegó, o recargue la página para ver la respuesta terminada.",
+    "checkAgain": "Comprobar de nuevo",
+    "stopFailed": "No se pudo contactar con Keigan para detener la respuesta, así que puede terminar igualmente. Revise su conexión y pulse Detener de nuevo.",
+    "unexpected": "Ocurrió un error inesperado en su navegador al comunicarse con Keigan. Recargue la página; si su pregunta no aparece, vuelva a formularla."
+  },
+  "trace": {
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "showDetails": "Mostrar detalles de las herramientas",
+    "title": "Pasos de Keigan",
+    "summary_one": "{{count}} herramienta · {{duration}}",
+    "summary_other": "{{count}} herramientas · {{duration}}",
+    "working": "Keigan está trabajando · {{used}} de hasta {{maximum}} herramientas",
+    "hasProblems": "Algunos pasos fallaron o no se permitieron",
+    "stopped": {
+      "tool_limit_reached": "Se detuvo en el límite de {{maximum}} llamadas a herramientas. Keigan respondió con lo que había encontrado; haga una pregunta de seguimiento para continuar.",
+      "token_budget_reached": "Se detuvo en el presupuesto de tokens de una respuesta. Keigan respondió con lo que había encontrado.",
+      "cancelled_by_user": "Detenido por usted"
+    },
+    "newActivity": "Nueva actividad",
+    "starting": "Keigan está empezando…",
+    "connectionLost": "Conexión perdida — mostrando el progreso desde el servidor…",
+    "expired": "Ya no se conserva el seguimiento detallado de esta respuesta.",
+    "redacted": "Ya no tiene acceso a esta aplicación."
+  },
+  "tool": {
+    "openInKeigan": "Abrir en Keigan",
+    "openInKeiganNamed": "Abrir en Keigan: {{label}}",
+    "metrics": {
+      "windowDays": "Ventana de {{count}} días",
+      "approximate": "Estas cifras son aproximadas."
+    },
+    "graph": {
+      "nodes": "Componentes",
+      "edges": "Conexiones",
+      "heading": "{{heading}} ({{total}})",
+      "headingPartial": "{{heading}} ({{shown}} de {{total}})",
+      "criticality": "Criticidad: {{level}}",
+      "edge": "{{source}} → {{target}}",
+      "version": "Versión {{version}}",
+      "review": "Revisión: {{status}}",
+      "uncertainties": "Sin certeza sobre"
+    },
+    "passages": {
+      "match": "Coincidencia {{percentage}}"
+    },
+    "status": {
+      "running": "En curso",
+      "succeeded": "Listo",
+      "failed": "Falló",
+      "refused": "No permitido",
+      "invalidInput": "Entrada no válida",
+      "skipped": "No ejecutado (límite alcanzado)",
+      "cancelled": "Detenido",
+      "redacted": "Ya no tiene acceso"
+    },
+    "inputs": "Entradas",
+    "result": "Resultado",
+    "viewJson": "Ver como JSON",
+    "viewList": "Ver como lista",
+    "copyInputs": "Copiar entradas",
+    "copyOutput": "Copiar resultado",
+    "viewFullOutput": "Ver el resultado completo",
+    "downloadOutput": "Descargar resultado",
+    "modelView": "Lo que vio la IA de Keigan",
+    "boundArgument": "Fijado por esta investigación",
+    "masked_one": "{{count}} valor enmascarado",
+    "masked_other": "{{count}} valores enmascarados",
+    "truncated": "Mostrando {{shown}} de {{total}}",
+    "injectionFlag": "Contiene texto similar a instrucciones",
+    "simulated": "Datos simulados",
+    "citationLabel": "cita {{code}}",
+    "progress": {
+      "query_generated": "Consulta redactada, ejecutándola ahora"
+    },
+    "yes": "Sí",
+    "no": "No",
+    "sampleRows": "Filas de muestra",
+    "announceStarted": "Keigan está trabajando en: {{label}}",
+    "announceFinished": "{{label}}: {{summary}}",
+    "noValue": "—",
+    "fieldPair": "{{label}}: {{value}}",
+    "timeRange": "{{start}} – {{end}}",
+    "accessibleName": "{{label}}, {{details}}",
+    "announceStartedFor": "Keigan está trabajando en: {{label}} para {{target}}"
+  },
+  "drawer": {
+    "detailsDescription": "Las entradas y el resultado de esta llamada a la herramienta.",
+    "title": "{{label}}: resultado completo",
+    "outputHeading": "JSON",
+    "storedTruncated": "Este resultado era más largo de lo que Keigan almacena, por eso solo se muestra la parte almacenada.",
+    "modelViewHint": "El texto exacto enviado al modelo de IA para esta llamada. Los datos personales ya estaban enmascarados.",
+    "sha256": "SHA-256: {{hash}}"
+  },
+  "tools": {
+    "search_knowledge": {
+      "label": "Buscó en la base de conocimiento"
+    },
+    "find_runbooks": {
+      "label": "Buscó runbooks"
+    },
+    "get_topology": {
+      "label": "Leyó el mapa de la aplicación"
+    },
+    "query_logs": {
+      "label": "Consultó los registros"
+    },
+    "list_recent_changes": {
+      "label": "Revisó los cambios recientes"
+    },
+    "get_evidence": {
+      "label": "Abrió una evidencia"
+    },
+    "get_investigation_timeline": {
+      "label": "Leyó la cronología"
+    },
+    "get_slo_status": {
+      "label": "Revisó el estado de los SLO"
+    },
+    "get_investigation": {
+      "label": "Abrió una investigación"
+    },
+    "list_investigations": {
+      "label": "Listó investigaciones"
+    },
+    "list_incidents": {
+      "label": "Listó incidentes"
+    },
+    "get_incident": {
+      "label": "Abrió un incidente"
+    },
+    "list_alert_groups": {
+      "label": "Listó grupos de alertas"
+    },
+    "get_alert_group": {
+      "label": "Abrió un grupo de alertas"
+    },
+    "get_alert_noise_summary": {
+      "label": "Revisó el ruido de alertas"
+    },
+    "get_slo_history": {
+      "label": "Leyó el historial de SLO"
+    },
+    "list_predictive_signals": {
+      "label": "Listó señales predictivas"
+    },
+    "get_health_score": {
+      "label": "Revisó la puntuación de salud"
+    },
+    "list_team_members": {
+      "label": "Listó el equipo"
+    }
+  },
+  "arguments": {
+    "application_code": "Aplicación",
+    "application_codes": "Aplicaciones",
+    "query": "Buscar",
+    "symptoms": "Síntomas",
+    "service_name": "Servicio",
+    "question": "Pregunta",
+    "lookback_minutes": "Periodo previo (minutos)",
+    "lookback_hours": "Periodo previo (horas)",
+    "wants_pattern": "Patrón en el tiempo",
+    "failures_only": "Solo fallos",
+    "evidence_code": "Evidencia",
+    "investigation_id": "Investigación",
+    "statuses": "Estados",
+    "priorities": "Prioridades",
+    "severities": "Gravedades",
+    "text": "Texto",
+    "incident_reference": "Incidente",
+    "alert_group_id": "Grupo de alertas",
+    "slo_id": "SLO",
+    "days": "Días",
+    "roles": "Roles",
+    "maximum_results": "Resultados",
+    "minimum_priority_score": "Puntuación mínima"
+  },
+  "fields": {
+    "compliance_percentage": "Cumplimiento",
+    "target_percentage": "Objetivo",
+    "error_budget_remaining_percentage": "Presupuesto de error restante",
+    "burn_rate_one_hour": "Tasa de consumo (1 h)",
+    "burn_rate_six_hours": "Tasa de consumo (6 h)",
+    "code": "Código",
+    "title": "Título",
+    "name": "Nombre",
+    "description": "Descripción",
+    "detail": "Detalle",
+    "status": "Estado",
+    "kind": "Tipo",
+    "occurred_at": "Cuándo",
+    "actor": "Por",
+    "document_title": "Documento",
+    "section_heading": "Sección",
+    "topology_summary": "Mapa de la aplicación",
+    "service_name": "Servicio",
+    "source_kind": "Origen",
+    "query_language": "Lenguaje de consulta",
+    "query_text": "Consulta",
+    "row_count": "Filas",
+    "total": "Total",
+    "time_range_start": "Desde",
+    "time_range_end": "Hasta",
+    "window_start": "Desde",
+    "window_end": "Hasta",
+    "operation_name": "Operación",
+    "change_kind": "Tipo de cambio",
+    "caller": "Cambiado por",
+    "evidence_code": "Código de evidencia",
+    "evidence_title": "Título",
+    "evidence_category": "Categoría",
+    "evidence_source_kind": "Fuente",
+    "evidence_summary": "Resumen",
+    "query_time_range_start": "Consultado desde",
+    "query_time_range_end": "Consultado hasta",
+    "matched_record_count": "Registros coincidentes",
+    "baseline_record_count": "Registros de referencia",
+    "condensed_patterns": "Patrones encontrados",
+    "signal_strength": "Intensidad de la señal",
+    "possible_prompt_injection": "Texto con aspecto de instrucción",
+    "collected_at": "Recopilado",
+    "event_type": "Tipo",
+    "details": "Detalles",
+    "source": "Fuente",
+    "sli_name": "Indicador",
+    "sli_kind": "Tipo de indicador",
+    "application_code": "Código de aplicación",
+    "application_name": "Aplicación",
+    "rolling_window_days": "Ventana (días)",
+    "is_approximate": "Aproximado",
+    "slo_id": "SLO",
+    "runbook_id": "Runbook",
+    "knowledge_document_id": "Documento",
+    "match_score": "Coincidencia",
+    "contains_flagged_content": "Contiene contenido marcado",
+    "topology_version_number": "Versión del mapa",
+    "review_status": "Estado de revisión",
+    "understanding_summary": "Resumen",
+    "text": "Texto"
+  },
+  "values": {
+    "deployment": "Despliegue",
+    "configuration_change": "Cambio de configuración",
+    "scaling": "Escalado",
+    "restart": "Reinicio",
+    "other": "Otro",
+    "healthy": "Saludable",
+    "at_risk": "En riesgo",
+    "breached": "Incumplido",
+    "no_data": "Sin datos",
+    "low": "Baja",
+    "medium": "Media",
+    "high": "Alta",
+    "error_logs": "Registros de errores",
+    "exceptions": "Excepciones",
+    "failed_requests": "Solicitudes fallidas",
+    "slow_requests": "Solicitudes lentas",
+    "failed_dependencies": "Dependencias fallidas",
+    "kubernetes_events": "Eventos de Kubernetes",
+    "pod_restarts": "Reinicios de pods",
+    "metrics": "Métricas",
+    "change_event": "Cambios",
+    "batch_failures": "Fallos de procesos por lotes",
+    "hardware_status": "Estado de dispositivos",
+    "synthetic_probe": "Sonda sintética",
+    "ai_planned_query": "Consulta planificada por IA",
+    "log_analytics": "Área de trabajo de Log Analytics",
+    "application_insights": "Application Insights",
+    "azure_monitor_metrics": "Métricas de Azure Monitor",
+    "log_tool": "Conexión de herramienta de registros",
+    "vendor_status_page": "Página de estado del proveedor",
+    "action_taken": "Acción realizada",
+    "alert": "Alerta",
+    "chat_fact": "Dato del chat",
+    "communication_sent": "Comunicación enviada",
+    "communications_drafted": "Comunicaciones redactadas",
+    "incident_opened": "Incidente abierto",
+    "incident_resolved": "Incidente resuelto",
+    "investigation_started": "Investigación iniciada",
+    "postmortem_drafted": "Postmortem redactado",
+    "servicenow_update_failed": "Falló la actualización de ServiceNow",
+    "awaiting_review": "Pendiente de revisión",
+    "reviewed": "Revisado",
+    "needs_correction": "Requiere corrección",
+    "tier_1": "Nivel 1",
+    "tier_2": "Nivel 2",
+    "tier_3": "Nivel 3"
+  },
+  "answer": {
+    "copy": "Copiar respuesta con fuentes",
+    "askedOn": "Preguntado en Keigan el {{date}}",
+    "label": "Respuesta",
+    "unverified": "Esta respuesta no remite a ningún resultado de herramienta. Trátela como no verificada.",
+    "askNext": "Preguntar a continuación",
+    "sourcesHeading": "Fuentes",
+    "announceReady_one": "Respuesta lista, {{count}} fuente",
+    "announceReady_other": "Respuesta lista, {{count}} fuentes",
+    "tryAgain": "Reintentar",
+    "reference": "Referencia {{correlationId}}",
+    "sourceLine": "[{{code}}] {{details}}",
+    "sourcePartSeparator": " — ",
+    "inputsLine": "Entradas: {{inputs}}"
+  },
+  "stream": {
+    "newerVersion": "Recargue Keigan para ver esta respuesta."
   }
 }

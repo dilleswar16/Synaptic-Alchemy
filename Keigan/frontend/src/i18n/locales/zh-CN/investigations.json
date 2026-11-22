@@ -310,7 +310,7 @@
   "chat": {
     "open": "询问 Keigan",
     "title": "调查对话",
-    "subtitle": "基于此次调查",
+    "subtitle": "基于此次调查 · 只读",
     "expand": "加宽面板",
     "shrink": "收窄面板",
     "close": "关闭对话",
@@ -321,11 +321,7 @@
       "executiveUpdate": "起草一份面向高管的状态更新",
       "explainNewEngineer": "向新入职的工程师解释一下"
     },
-    "thinking": "Keigan 正在思考",
-    "inputLabel": "给 Keigan 的消息",
-    "placeholder": "继续提问",
-    "send": "发送",
-    "unavailable": "对话服务暂不可用，请稍后重试。"
+    "placeholder": "继续提问"
   },
   "teams": {
     "title": "Teams 房间",

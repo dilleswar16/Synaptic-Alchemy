@@ -23,7 +23,8 @@ const relationClasses = {
 export function EvidenceChip({ code, title, relation = "plain", onSelect, className }: EvidenceChipProps) {
   const chipClassName = cn("inline-flex h-6 items-center rounded-xs border px-2 font-mono text-caption font-medium", relationClasses[relation], className);
   const chip = onSelect ? (
-    <button type="button" onClick={() => onSelect(code)} className={cn(chipClassName, "cursor-pointer hover:brightness-95")}>
+    // A button grows to a 44 px target on a phone or a touch screen (spec 8.8); the chip's look is the same, the box around it is larger.
+    <button type="button" onClick={() => onSelect(code)} className={cn(chipClassName, "cursor-pointer justify-center hover:brightness-95 max-sm:min-h-11 max-sm:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11")}>
       {code}
     </button>
   ) : (

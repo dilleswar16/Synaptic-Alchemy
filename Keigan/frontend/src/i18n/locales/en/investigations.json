@@ -310,7 +310,7 @@
   "chat": {
     "open": "Ask Keigan",
     "title": "Investigation chat",
-    "subtitle": "Grounded in this investigation",
+    "subtitle": "Grounded in this investigation · reads only",
     "expand": "Make the panel wider",
     "shrink": "Make the panel narrower",
     "close": "Close chat",
@@ -321,11 +321,7 @@
       "executiveUpdate": "Draft a status update for executives",
       "explainNewEngineer": "Explain this to a new engineer"
     },
-    "thinking": "Keigan is thinking",
-    "inputLabel": "Message to Keigan",
-    "placeholder": "Ask a follow-up question",
-    "send": "Send",
-    "unavailable": "The chat service is not available yet. Try again later."
+    "placeholder": "Ask a follow-up question"
   },
   "teams": {
     "title": "Teams room",

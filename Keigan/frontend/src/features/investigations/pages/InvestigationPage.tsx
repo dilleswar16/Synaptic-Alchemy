@@ -37,6 +37,7 @@ export default function InvestigationPage() {
   const isRunning = isInvestigationRunning(detail?.investigationStatus);
   const progressQuery = useInvestigationProgress(investigationId, isRunning);
   const [selectedEvidenceCode, setSelectedEvidenceCode] = useState<string | null>(null);
+  const [selectedRunbookId, setSelectedRunbookId] = useState<string | null>(null);
   const [isResolveOpen, setIsResolveOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
@@ -64,6 +65,11 @@ export default function InvestigationPage() {
     setTab("evidence");
   };
 
+  const selectRunbook = (runbookId: string) => {
+    setSelectedRunbookId(runbookId);
+    setTab("rca");
+  };
+
   return (
     <>
       <PageHeader
@@ -89,7 +95,7 @@ export default function InvestigationPage() {
             {showTeams ? <TabsTrigger value="teams">{t("tabs.teams")}</TabsTrigger> : null}
           </TabsList>
         </div>
-        <TabsContent value="rca"><RcaSection detail={detail} onSelectEvidence={selectEvidence} /></TabsContent>
+        <TabsContent value="rca"><RcaSection detail={detail} onSelectEvidence={selectEvidence} selectedRunbookId={selectedRunbookId} /></TabsContent>
         <TabsContent value="hypotheses"><HypothesesSection detail={detail} onSelectEvidence={selectEvidence} /></TabsContent>
         <TabsContent value="evidence"><EvidenceSection detail={detail} selectedEvidenceCode={selectedEvidenceCode} /></TabsContent>
         <TabsContent value="blast"><BlastRadiusSection detail={detail} /></TabsContent>
@@ -102,7 +108,7 @@ export default function InvestigationPage() {
 
       {detail.incidentId ? <ResolveDialog open={isResolveOpen} onOpenChange={setIsResolveOpen} incidentId={detail.incidentId} onResolved={() => setTab("postmortem")} /> : null}
       <FeedbackDialog open={isFeedbackOpen} onOpenChange={setIsFeedbackOpen} investigationId={detail.investigationId} currentVerdict={detail.userFeedbackVerdict} />
-      <InvestigationChatPanel investigationId={detail.investigationId} />
+      <InvestigationChatPanel investigationId={detail.investigationId} onSelectEvidence={selectEvidence} onSelectRunbook={selectRunbook} />
     </>
   );
 }

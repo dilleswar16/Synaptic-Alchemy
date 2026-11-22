@@ -310,7 +310,7 @@
   "chat": {
     "open": "Vraag het Keigan",
     "title": "Onderzoekschat",
-    "subtitle": "Gebaseerd op dit onderzoek",
+    "subtitle": "Gebaseerd op dit onderzoek · alleen lezen",
     "expand": "Paneel breder maken",
     "shrink": "Paneel smaller maken",
     "close": "Chat sluiten",
@@ -321,11 +321,7 @@
       "executiveUpdate": "Stel een statusupdate voor de directie op",
       "explainNewEngineer": "Leg dit uit aan een nieuwe engineer"
     },
-    "thinking": "Keigan denkt na",
-    "inputLabel": "Bericht aan Keigan",
-    "placeholder": "Stel een vervolgvraag",
-    "send": "Verzenden",
-    "unavailable": "De chatservice is nog niet beschikbaar. Probeer het later opnieuw."
+    "placeholder": "Stel een vervolgvraag"
   },
   "teams": {
     "title": "Teams-kamer",

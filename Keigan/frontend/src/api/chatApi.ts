@@ -52,6 +52,8 @@ export interface ChatMessagePayload {
   citations?: ChatCitation[];
   clarificationOptions?: ClarificationOption[];
   failed?: boolean;
+  /** Set on the answers of Ask Keigan and on their questions (spec 7.1): the stored run with the steps behind the answer. */
+  answerRunId?: Identifier;
 }
 
 export interface ChatMessage {
@@ -93,6 +95,7 @@ export const chatQueryKeys = {
   conversations: ["chat", "conversations"] as const,
   conversation: (conversationId: string) => ["chat", "conversation", conversationId] as const,
   suggestedPrompts: (applicationId: string | null) => ["chat", "suggested-prompts", applicationId] as const,
+  investigationConversation: (investigationId: string) => ["chat", "investigation-conversation", investigationId] as const,
 };
 
 /* ── Hooks ─────────────────────────────────────────────────────────── */
@@ -133,6 +136,16 @@ export function useDeleteConversation() {
   return useMutation({
     mutationFn: (conversationId: string) => apiDelete<void>(`/chat/conversations/${conversationId}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversations }),
+  });
+}
+
+/** The conversation of one investigation; the server returns the existing one, so asking again after a reload finds the earlier exchange. */
+export function useInvestigationConversation(investigationId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: chatQueryKeys.investigationConversation(investigationId),
+    queryFn: () => apiPost<ConversationDetail, { conversationScope: "investigation"; investigationId: string }>("/chat/conversations", { conversationScope: "investigation", investigationId }),
+    enabled,
+    staleTime: Infinity,
   });
 }
 

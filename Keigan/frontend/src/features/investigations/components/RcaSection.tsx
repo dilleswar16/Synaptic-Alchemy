@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BookOpen, CircleHelp, Lightbulb, SearchX, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { InvestigationDetail } from "@/api/investigationsApi";
@@ -8,11 +9,18 @@ import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { EvidenceChip } from "@/components/ui/EvidenceChip";
 import { MarkdownView } from "@/components/ui/MarkdownView";
-import { extractCitationCodes } from "./investigationPresentation";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { cn } from "@/utils/cn";
+import { extractCitationCodes, runbookElementId } from "./investigationPresentation";
+
+/** The RCA tab has to be on screen before the chosen runbook can be scrolled to: the tab switches in the same update that selects the runbook. */
+const runbookScrollDelayMilliseconds = 120;
 
 interface RcaSectionProps {
   detail: InvestigationDetail;
   onSelectEvidence: (evidenceCode: string) => void;
+  /** The runbook an `[R#]` citation in the investigation chat pointed at: scrolled into view and outlined in the matched runbooks. */
+  selectedRunbookId?: string | null;
 }
 
 function CitationRow({ markdown, detail, onSelectEvidence }: { markdown: string | null; detail: InvestigationDetail; onSelectEvidence: (code: string) => void }) {
@@ -28,10 +36,20 @@ function CitationRow({ markdown, detail, onSelectEvidence }: { markdown: string 
 }
 
 /** Three RCA cards (what went wrong, why it happened, how to fix) with overall confidence and citations. */
-export function RcaSection({ detail, onSelectEvidence }: RcaSectionProps) {
+export function RcaSection({ detail, onSelectEvidence, selectedRunbookId = null }: RcaSectionProps) {
   const { t } = useTranslation("investigations");
   const hasAnalysis = Boolean(detail.whatWentWrongMarkdown);
   const leadingHypothesis = detail.hypotheses.find((hypothesis) => hypothesis.isLeadingHypothesis);
+  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+
+  useEffect(() => {
+    if (!selectedRunbookId) return;
+    const timerId = window.setTimeout(
+      () => document.getElementById(runbookElementId(selectedRunbookId))?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "center" }),
+      runbookScrollDelayMilliseconds,
+    );
+    return () => window.clearTimeout(timerId);
+  }, [selectedRunbookId, prefersReducedMotion]);
 
   if (!hasAnalysis) {
     return (
@@ -100,7 +118,11 @@ export function RcaSection({ detail, onSelectEvidence }: RcaSectionProps) {
           <Card>
             <CardHeader icon={BookOpen} iconTone="brand" title={t("rca.matchedRunbooks")} description={t("rca.matchedRunbooksHelp")} />
             <CardBody>
-              <ul className="space-y-1.5 text-body">{detail.matchedRunbooks.map((runbook) => <li key={runbook.runbookId}>{runbook.runbookTitle}</li>)}</ul>
+              <ul className="space-y-1.5 text-body">
+                {detail.matchedRunbooks.map((runbook) => (
+                  <li key={runbook.runbookId} id={runbookElementId(runbook.runbookId)} className={cn("scroll-mt-32 rounded-sm px-1.5 py-0.5 transition-shadow", runbook.runbookId === selectedRunbookId && "ring-2 ring-[var(--color-focus-ring-color)]")}>{runbook.runbookTitle}</li>
+                ))}
+              </ul>
             </CardBody>
           </Card>
         ) : null}

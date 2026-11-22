@@ -26,7 +26,10 @@
   "empty": {
     "title": "Wat wilt u weten?",
     "description": "Vraag naar aantallen fouten, patronen in de tijd, architectuur of runbooks. Keigan leest alleen en wijzigt nooit uw systemen.",
-    "category": { "data": "Uit uw logs", "knowledge": "Uit uw kennisbank" },
+    "category": {
+      "data": "Uit uw logs",
+      "knowledge": "Uit uw kennisbank"
+    },
     "generic": {
       "errors": "Welke van mijn applicaties had de afgelopen 24 uur de meeste fouten?",
       "trend": "Toon me de foutentrend van mijn applicaties over de afgelopen 7 dagen",
@@ -40,11 +43,13 @@
     "label": "Bericht aan Keigan",
     "placeholder": "Stel een vraag over uw applicaties…",
     "send": "Verzenden",
+    "stop": "Stoppen",
     "hint": "Enter om te verzenden, Shift+Enter voor een nieuwe regel. Persoonsgegevens worden gemaskeerd voordat ze de AI bereiken."
   },
   "message": {
     "howIGotThis": "Hoe ik hieraan kwam",
-    "queryMeta_one": "{{service}} · {{source}} · {{language}} · {{count}} rij", "queryMeta_other": "{{service}} · {{source}} · {{language}} · {{count}} rijen",
+    "queryMeta_one": "{{service}} · {{source}} · {{language}} · {{count}} rij",
+    "queryMeta_other": "{{service}} · {{source}} · {{language}} · {{count}} rijen",
     "simulated": "gesimuleerde gegevens",
     "sources": "Bronnen",
     "noData": "Geen gegevens in deze periode.",
@@ -52,6 +57,317 @@
   },
   "errors": {
     "rateLimited": "U verstuurt berichten te snel. Wacht even en probeer het opnieuw.",
-    "generic": "Keigan kon nu niet antwoorden. Probeer het opnieuw."
+    "generic": "Keigan kon nu niet antwoorden. Probeer het opnieuw.",
+    "budgetExceeded": "Het AI-tokenbudget van vandaag is op.",
+    "toolsUnsupported": "Ask Keigan heeft een AI-model nodig dat tools kan gebruiken. Vraag een Keigan-beheerder om de instellingen van het AI-model te controleren.",
+    "inProgress": "Keigan is nog bezig met het beantwoorden van uw vorige vraag in dit gesprek.",
+    "streamInterrupted": "De verbinding is verbroken voordat het antwoord binnen was. Laad de pagina opnieuw om het voltooide antwoord te zien.",
+    "connectionFailed": "Keigan was niet bereikbaar, dus uw vraag is niet verzonden. Controleer uw verbinding en probeer het opnieuw.",
+    "connectionLost": "De verbinding is verbroken terwijl Keigan aan het antwoorden was. Controleer opnieuw hoe ver het is gekomen, of laad de pagina opnieuw om het voltooide antwoord te zien.",
+    "checkAgain": "Opnieuw controleren",
+    "stopFailed": "Keigan kon niet worden bereikt om het antwoord te stoppen, dus het kan nog steeds afronden. Controleer uw verbinding en druk opnieuw op Stoppen.",
+    "unexpected": "Er ging iets onverwachts mis in uw browser tijdens de communicatie met Keigan. Laad de pagina opnieuw; wordt uw vraag niet getoond, stel hem dan opnieuw."
+  },
+  "trace": {
+    "show": "Tonen",
+    "hide": "Verbergen",
+    "showDetails": "Toolgegevens tonen",
+    "title": "Stappen van Keigan",
+    "summary_one": "{{count}} tool · {{duration}}",
+    "summary_other": "{{count}} tools · {{duration}}",
+    "working": "Keigan is bezig · {{used}} van maximaal {{maximum}} tools",
+    "hasProblems": "Sommige stappen zijn mislukt of niet toegestaan",
+    "stopped": {
+      "tool_limit_reached": "Gestopt bij de limiet van {{maximum}} toolaanroepen. Keigan antwoordde met wat het had gevonden; stel een vervolgvraag om verder te gaan.",
+      "token_budget_reached": "Gestopt bij het tokenbudget voor één antwoord. Keigan antwoordde met wat het had gevonden.",
+      "cancelled_by_user": "Door u gestopt"
+    },
+    "newActivity": "Nieuwe activiteit",
+    "starting": "Keigan start…",
+    "connectionLost": "Verbinding verbroken — voortgang van de server wordt getoond…",
+    "expired": "Het gedetailleerde spoor van dit antwoord wordt niet meer bewaard.",
+    "redacted": "U hebt geen toegang meer tot deze toepassing."
+  },
+  "tool": {
+    "openInKeigan": "Openen in Keigan",
+    "openInKeiganNamed": "Openen in Keigan: {{label}}",
+    "metrics": {
+      "windowDays": "Venster van {{count}} dagen",
+      "approximate": "Deze cijfers zijn bij benadering."
+    },
+    "graph": {
+      "nodes": "Componenten",
+      "edges": "Verbindingen",
+      "heading": "{{heading}} ({{total}})",
+      "headingPartial": "{{heading}} ({{shown}} van {{total}})",
+      "criticality": "Kritiekheid: {{level}}",
+      "edge": "{{source}} → {{target}}",
+      "version": "Versie {{version}}",
+      "review": "Beoordeling: {{status}}",
+      "uncertainties": "Onzeker over"
+    },
+    "passages": {
+      "match": "Overeenkomst {{percentage}}"
+    },
+    "status": {
+      "running": "Bezig",
+      "succeeded": "Klaar",
+      "failed": "Mislukt",
+      "refused": "Niet toegestaan",
+      "invalidInput": "Ongeldige invoer",
+      "skipped": "Niet uitgevoerd (limiet bereikt)",
+      "cancelled": "Gestopt",
+      "redacted": "U hebt geen toegang meer"
+    },
+    "inputs": "Invoer",
+    "result": "Resultaat",
+    "viewJson": "Weergeven als JSON",
+    "viewList": "Weergeven als lijst",
+    "copyInputs": "Invoer kopiëren",
+    "copyOutput": "Resultaat kopiëren",
+    "viewFullOutput": "Volledig resultaat bekijken",
+    "downloadOutput": "Resultaat downloaden",
+    "modelView": "Wat de AI van Keigan zag",
+    "boundArgument": "Vastgelegd door dit onderzoek",
+    "masked_one": "{{count}} waarde gemaskeerd",
+    "masked_other": "{{count}} waarden gemaskeerd",
+    "truncated": "{{shown}} van {{total}} getoond",
+    "injectionFlag": "Bevat tekst die op instructies lijkt",
+    "simulated": "Gesimuleerde gegevens",
+    "citationLabel": "bron {{code}}",
+    "progress": {
+      "query_generated": "Query geschreven, wordt nu uitgevoerd"
+    },
+    "yes": "Ja",
+    "no": "Nee",
+    "sampleRows": "Voorbeeldrijen",
+    "announceStarted": "Keigan is bezig met: {{label}}",
+    "announceFinished": "{{label}}: {{summary}}",
+    "noValue": "—",
+    "fieldPair": "{{label}}: {{value}}",
+    "timeRange": "{{start}} – {{end}}",
+    "accessibleName": "{{label}}, {{details}}",
+    "announceStartedFor": "Keigan is bezig met: {{label}} voor {{target}}"
+  },
+  "drawer": {
+    "detailsDescription": "De invoer en het resultaat van deze toolaanroep.",
+    "title": "{{label}}: volledig resultaat",
+    "outputHeading": "JSON",
+    "storedTruncated": "Dit resultaat was langer dan Keigan opslaat, dus alleen het opgeslagen deel wordt getoond.",
+    "modelViewHint": "De exacte tekst die voor deze toolaanroep naar het AI-model is gestuurd. Persoonsgegevens waren al gemaskeerd.",
+    "sha256": "SHA-256: {{hash}}"
+  },
+  "tools": {
+    "search_knowledge": {
+      "label": "Kennisbank doorzocht"
+    },
+    "find_runbooks": {
+      "label": "Naar runbooks gezocht"
+    },
+    "get_topology": {
+      "label": "Applicatiekaart gelezen"
+    },
+    "query_logs": {
+      "label": "Logs bevraagd"
+    },
+    "list_recent_changes": {
+      "label": "Recente wijzigingen gecontroleerd"
+    },
+    "get_evidence": {
+      "label": "Bewijs geopend"
+    },
+    "get_investigation_timeline": {
+      "label": "Tijdlijn gelezen"
+    },
+    "get_slo_status": {
+      "label": "SLO-status gecontroleerd"
+    },
+    "get_investigation": {
+      "label": "Onderzoek geopend"
+    },
+    "list_investigations": {
+      "label": "Onderzoeken opgesomd"
+    },
+    "list_incidents": {
+      "label": "Incidenten opgesomd"
+    },
+    "get_incident": {
+      "label": "Incident geopend"
+    },
+    "list_alert_groups": {
+      "label": "Meldingsgroepen opgesomd"
+    },
+    "get_alert_group": {
+      "label": "Meldingsgroep geopend"
+    },
+    "get_alert_noise_summary": {
+      "label": "Meldingsruis gecontroleerd"
+    },
+    "get_slo_history": {
+      "label": "SLO-geschiedenis gelezen"
+    },
+    "list_predictive_signals": {
+      "label": "Voorspellende signalen opgesomd"
+    },
+    "get_health_score": {
+      "label": "Gezondheidsscore gecontroleerd"
+    },
+    "list_team_members": {
+      "label": "Team opgesomd"
+    }
+  },
+  "arguments": {
+    "application_code": "Applicatie",
+    "application_codes": "Applicaties",
+    "query": "Zoeken naar",
+    "symptoms": "Symptomen",
+    "service_name": "Service",
+    "question": "Vraag",
+    "lookback_minutes": "Terugkijken (minuten)",
+    "lookback_hours": "Terugkijken (uren)",
+    "wants_pattern": "Patroon in de tijd",
+    "failures_only": "Alleen fouten",
+    "evidence_code": "Bewijs",
+    "investigation_id": "Onderzoek",
+    "statuses": "Statussen",
+    "priorities": "Prioriteiten",
+    "severities": "Ernstniveaus",
+    "text": "Tekst",
+    "incident_reference": "Incident",
+    "alert_group_id": "Meldingsgroep",
+    "slo_id": "SLO",
+    "days": "Dagen",
+    "roles": "Rollen",
+    "maximum_results": "Resultaten",
+    "minimum_priority_score": "Minimale score"
+  },
+  "fields": {
+    "compliance_percentage": "Naleving",
+    "target_percentage": "Doel",
+    "error_budget_remaining_percentage": "Resterend foutbudget",
+    "burn_rate_one_hour": "Burn rate (1 u)",
+    "burn_rate_six_hours": "Burn rate (6 u)",
+    "code": "Code",
+    "title": "Titel",
+    "name": "Naam",
+    "description": "Beschrijving",
+    "detail": "Detail",
+    "status": "Status",
+    "kind": "Soort",
+    "occurred_at": "Wanneer",
+    "actor": "Door",
+    "document_title": "Document",
+    "section_heading": "Sectie",
+    "topology_summary": "Applicatiekaart",
+    "service_name": "Service",
+    "source_kind": "Bron",
+    "query_language": "Querytaal",
+    "query_text": "Query",
+    "row_count": "Rijen",
+    "total": "Totaal",
+    "time_range_start": "Van",
+    "time_range_end": "Tot",
+    "window_start": "Van",
+    "window_end": "Tot",
+    "operation_name": "Bewerking",
+    "change_kind": "Soort wijziging",
+    "caller": "Gewijzigd door",
+    "evidence_code": "Bewijscode",
+    "evidence_title": "Titel",
+    "evidence_category": "Categorie",
+    "evidence_source_kind": "Bron",
+    "evidence_summary": "Samenvatting",
+    "query_time_range_start": "Opgevraagd vanaf",
+    "query_time_range_end": "Opgevraagd tot",
+    "matched_record_count": "Overeenkomende records",
+    "baseline_record_count": "Referentierecords",
+    "condensed_patterns": "Gevonden patronen",
+    "signal_strength": "Signaalsterkte",
+    "possible_prompt_injection": "Tekst die op een instructie lijkt",
+    "collected_at": "Verzameld",
+    "event_type": "Type",
+    "details": "Details",
+    "source": "Bron",
+    "sli_name": "Indicator",
+    "sli_kind": "Soort indicator",
+    "application_code": "Toepassingscode",
+    "application_name": "Toepassing",
+    "rolling_window_days": "Venster (dagen)",
+    "is_approximate": "Bij benadering",
+    "slo_id": "SLO",
+    "runbook_id": "Runbook",
+    "knowledge_document_id": "Document",
+    "match_score": "Overeenkomst",
+    "contains_flagged_content": "Bevat gemarkeerde inhoud",
+    "topology_version_number": "Versie van de kaart",
+    "review_status": "Reviewstatus",
+    "understanding_summary": "Samenvatting",
+    "text": "Tekst"
+  },
+  "values": {
+    "deployment": "Uitrol",
+    "configuration_change": "Configuratiewijziging",
+    "scaling": "Schaling",
+    "restart": "Herstart",
+    "other": "Overig",
+    "healthy": "Gezond",
+    "at_risk": "In gevaar",
+    "breached": "Geschonden",
+    "no_data": "Geen gegevens",
+    "low": "Laag",
+    "medium": "Gemiddeld",
+    "high": "Hoog",
+    "error_logs": "Foutlogs",
+    "exceptions": "Uitzonderingen",
+    "failed_requests": "Mislukte aanvragen",
+    "slow_requests": "Trage aanvragen",
+    "failed_dependencies": "Mislukte afhankelijkheden",
+    "kubernetes_events": "Kubernetes-gebeurtenissen",
+    "pod_restarts": "Pod-herstarts",
+    "metrics": "Metrieken",
+    "change_event": "Wijzigingen",
+    "batch_failures": "Batchfouten",
+    "hardware_status": "Apparaatstatus",
+    "synthetic_probe": "Synthetische probe",
+    "ai_planned_query": "Door AI geplande query",
+    "log_analytics": "Log Analytics-werkruimte",
+    "application_insights": "Application Insights",
+    "azure_monitor_metrics": "Azure Monitor-metrieken",
+    "log_tool": "Verbinding met logtool",
+    "vendor_status_page": "Statuspagina van de leverancier",
+    "action_taken": "Uitgevoerde actie",
+    "alert": "Waarschuwing",
+    "chat_fact": "Feit uit de chat",
+    "communication_sent": "Communicatie verzonden",
+    "communications_drafted": "Communicatie opgesteld",
+    "incident_opened": "Incident geopend",
+    "incident_resolved": "Incident opgelost",
+    "investigation_started": "Onderzoek gestart",
+    "postmortem_drafted": "Postmortem opgesteld",
+    "servicenow_update_failed": "ServiceNow-update mislukt",
+    "awaiting_review": "Wacht op review",
+    "reviewed": "Gereviewd",
+    "needs_correction": "Moet worden gecorrigeerd",
+    "tier_1": "Niveau 1",
+    "tier_2": "Niveau 2",
+    "tier_3": "Niveau 3"
+  },
+  "answer": {
+    "copy": "Antwoord met bronnen kopiëren",
+    "askedOn": "Gesteld in Keigan op {{date}}",
+    "label": "Antwoord",
+    "unverified": "Dit antwoord verwijst naar geen enkel toolresultaat. Beschouw het als niet geverifieerd.",
+    "askNext": "Vraag hierna",
+    "sourcesHeading": "Bronnen",
+    "announceReady_one": "Antwoord klaar, {{count}} bron",
+    "announceReady_other": "Antwoord klaar, {{count}} bronnen",
+    "tryAgain": "Opnieuw proberen",
+    "reference": "Referentie {{correlationId}}",
+    "sourceLine": "[{{code}}] {{details}}",
+    "sourcePartSeparator": " — ",
+    "inputsLine": "Invoer: {{inputs}}"
+  },
+  "stream": {
+    "newerVersion": "Laad Keigan opnieuw om dit antwoord te zien."
   }
 }

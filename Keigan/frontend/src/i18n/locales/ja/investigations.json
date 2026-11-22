@@ -310,7 +310,7 @@
   "chat": {
     "open": "Keigan に質問",
     "title": "調査チャット",
-    "subtitle": "この調査に基づいて回答します",
+    "subtitle": "この調査に基づいて回答します · 読み取り専用",
     "expand": "パネルを広げる",
     "shrink": "パネルを狭める",
     "close": "チャットを閉じる",
@@ -321,11 +321,7 @@
       "executiveUpdate": "経営層向けの状況報告を下書きして",
       "explainNewEngineer": "新任エンジニア向けに説明して"
     },
-    "thinking": "Keigan が考えています",
-    "inputLabel": "Keigan へのメッセージ",
-    "placeholder": "追加の質問を入力",
-    "send": "送信",
-    "unavailable": "チャットサービスはまだ利用できません。後でもう一度お試しください。"
+    "placeholder": "追加の質問を入力"
   },
   "teams": {
     "title": "Teams ルーム",

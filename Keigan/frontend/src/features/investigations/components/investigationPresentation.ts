@@ -49,6 +49,10 @@ export function evidenceElementId(evidenceCode: string): string {
   return `evidence-${evidenceCode}`;
 }
 
+export function runbookElementId(runbookId: string): string {
+  return `runbook-${runbookId}`;
+}
+
 export function communicationLanguageLabel(languageCode: string): string {
   const labels: Record<string, string> = { en: "English", ja: "日本語", "zh-CN": "简体中文", es: "Español", "es-MX": "Español (MX)", nl: "Nederlands", fr: "Français" };
   return labels[languageCode] ?? languageCode;

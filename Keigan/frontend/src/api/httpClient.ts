@@ -36,6 +36,7 @@ export class ApiError extends Error {
   readonly fieldErrors: FieldError[];
   readonly correlationId: string | undefined;
   readonly problemType: string | undefined;
+  readonly answerRunId: string | undefined;
 
   constructor(status: number, problem: ProblemDetails, requestCorrelationId?: string) {
     const title = problem.title ?? (status === 0 ? "Network error" : `Request failed with status ${status}`);
@@ -48,6 +49,7 @@ export class ApiError extends Error {
     this.fieldErrors = problem.fieldErrors ?? [];
     this.correlationId = problem.correlationId ?? requestCorrelationId;
     this.problemType = problem.type;
+    this.answerRunId = problem.answerRunId;
   }
 
   get isNetworkError(): boolean {
@@ -148,22 +150,13 @@ function handleErrorStatus(status: number, body: unknown, correlationId: string,
   throw new ApiError(status, toProblemDetails(body), correlationId);
 }
 
-async function sendRequest<ResponseType>(
-  method: string,
-  path: string,
-  body: unknown,
-  options: RequestOptions = {},
-): Promise<ResponseType> {
-  const correlationId = createCorrelationId();
-  const hasJsonBody = body !== undefined;
-  const headers = await buildHeaders(options, correlationId, hasJsonBody);
-
-  let response: Response;
+/** `fetch` that rethrows an abort as is and turns any other failure to reach the server into an `ApiError` with status 0. */
+async function fetchOrThrowApiError(method: string, path: string, body: unknown, options: RequestOptions, headers: Headers, correlationId: string): Promise<Response> {
   try {
-    response = await fetch(buildApiUrl(path, options.query), {
+    return await fetch(buildApiUrl(path, options.query), {
       method,
       headers,
-      body: hasJsonBody ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: options.signal,
       credentials: "same-origin",
     });
@@ -173,6 +166,18 @@ async function sendRequest<ResponseType>(
     }
     throw new ApiError(0, { detail: error instanceof Error ? error.message : undefined }, correlationId);
   }
+}
+
+async function sendRequest<ResponseType>(
+  method: string,
+  path: string,
+  body: unknown,
+  options: RequestOptions = {},
+): Promise<ResponseType> {
+  const correlationId = createCorrelationId();
+  const hasJsonBody = body !== undefined;
+  const headers = await buildHeaders(options, correlationId, hasJsonBody);
+  const response = await fetchOrThrowApiError(method, path, body, options, headers, correlationId);
 
   const responseBody = parseResponseText(await response.text(), response.headers.get("Content-Type"));
   if (!response.ok) {
@@ -207,6 +212,20 @@ export function apiPatch<ResponseType, RequestBody = unknown>(
 
 export function apiDelete<ResponseType = void>(path: string, options?: RequestOptions): Promise<ResponseType> {
   return sendRequest<ResponseType>("DELETE", path, undefined, options);
+}
+
+/**
+ * POST that returns the open response so the caller can read its body as a stream (server-sent events: `EventSource` cannot send a
+ * POST body or an `Authorization` header). The body is not consumed here; an error status is read and thrown as `ApiError` first.
+ */
+export async function apiStream<RequestBody = unknown>(path: string, body: RequestBody, options: RequestOptions = {}): Promise<Response> {
+  const correlationId = createCorrelationId();
+  const headers = await buildHeaders({ ...options, headers: { Accept: "text/event-stream", ...options.headers } }, correlationId, true);
+  const response = await fetchOrThrowApiError("POST", path, body, options, headers, correlationId);
+  if (!response.ok) {
+    handleErrorStatus(response.status, parseResponseText(await response.text(), response.headers.get("Content-Type")), response.headers.get("X-Correlation-Id") ?? correlationId, options);
+  }
+  return response;
 }
 
 /**

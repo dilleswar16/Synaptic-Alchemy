@@ -1,5 +1,5 @@
 // Parses and renders every ```mermaid block in the given Markdown files with the real Mermaid library (headless Edge).
-// Usage (from frontend/):  node scripts/check-mermaid-diagrams.mjs "../My Plans/13_SEQUENCE_DIAGRAMS.md" ... [--screenshots <folder>]
+// Usage (from frontend/):  node scripts/check-mermaid-diagrams.mjs "../My Plans/architecture/13_SEQUENCE_DIAGRAMS.md" ... [--screenshots <folder>]
 import { readFileSync, mkdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { chromium } from "playwright-core";

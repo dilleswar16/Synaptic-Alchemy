@@ -310,7 +310,7 @@
   "chat": {
     "open": "Preguntar a Keigan",
     "title": "Chat de la investigación",
-    "subtitle": "Basado en esta investigación",
+    "subtitle": "Basado en esta investigación · solo lectura",
     "expand": "Ensanchar el panel",
     "shrink": "Estrechar el panel",
     "close": "Cerrar chat",
@@ -321,11 +321,7 @@
       "executiveUpdate": "Redacta una actualización de estado para directivos",
       "explainNewEngineer": "Explícaselo a un ingeniero nuevo"
     },
-    "thinking": "Keigan está pensando",
-    "inputLabel": "Mensaje para Keigan",
-    "placeholder": "Haga una pregunta de seguimiento",
-    "send": "Enviar",
-    "unavailable": "El servicio de chat aún no está disponible. Inténtelo más tarde."
+    "placeholder": "Haga una pregunta de seguimiento"
   },
   "teams": {
     "title": "Sala de Teams",

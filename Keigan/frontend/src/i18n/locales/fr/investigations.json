@@ -310,7 +310,7 @@
   "chat": {
     "open": "Demander à Keigan",
     "title": "Conversation d'investigation",
-    "subtitle": "Basée sur cette investigation",
+    "subtitle": "Basée sur cette investigation · lecture seule",
     "expand": "Élargir le panneau",
     "shrink": "Rétrécir le panneau",
     "close": "Fermer la conversation",
@@ -321,11 +321,7 @@
       "executiveUpdate": "Rédige un point de situation pour la direction",
       "explainNewEngineer": "Explique cela à un nouvel ingénieur"
     },
-    "thinking": "Keigan réfléchit",
-    "inputLabel": "Message pour Keigan",
-    "placeholder": "Posez une question de suivi",
-    "send": "Envoyer",
-    "unavailable": "Le service de conversation n'est pas encore disponible. Réessayez plus tard."
+    "placeholder": "Posez une question de suivi"
   },
   "teams": {
     "title": "Salle Teams",
