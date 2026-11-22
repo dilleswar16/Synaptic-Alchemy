@@ -92,6 +92,8 @@ backendEnvironment:
   INVESTIGATION_SUPPORTED_MINIMUM_CONFIDENCE: "0.5"
   INVESTIGATION_RULED_OUT_MAXIMUM_CONFIDENCE: "0.2"
   INVESTIGATION_MAX_CHECKS_PER_SERVICE: "7"
+  # Characters (1000 to 200000) of one AI call's raw answer kept in an investigation's decision trace; a longer one is cut and marked.
+  INVESTIGATION_TRACE_RAW_OUTPUT_STORED_CHARACTERS: "20000"
   # Azure SQL: tables live in the "keigan" schema; Keigan signs in to SQL with its managed identity (no password).
   # DATABASE_URL (Key Vault) then holds no secret, e.g.
   # mssql+aioodbc://@<server>.database.windows.net:1433/<database>?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no

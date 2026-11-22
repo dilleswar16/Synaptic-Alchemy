@@ -155,6 +155,7 @@
     "chat_answer_run",
     "chat_run_step",
     "conversation_application",
+    "investigation_trace_step",
     "slo_burn_alert",
     "stakeholder_subscribed_service"
   ],

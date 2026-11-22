@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, identifier_column, utc_now
 from keigan.entities.linked_ids import LinkedIdsMixin, OrderedLinkColumns, linked_ids_property, ordered_links_relationship
-from keigan.entities.status_values import AnalysisPerspective, AssignmentGroupVerificationStatus, BaselineComparison, ChatAnswerRunStatus, ChatAnswerStopReason, ChatRunStepKind, ChatRunStepStatus, CommunicationStatus, ConversationScope, CoverageGapKind, CoverageGapReason, EvidenceCheckOutcome, HypothesisState, HypothesisStateGuard, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationOutcome, InvestigationOutcomeGuard, InvestigationStage, InvestigationStatus, InvestigationTrigger, MessageAuthorRole, PostmortemStatus, Priority, RiskLevel, ToolCallingMode, values_check
+from keigan.entities.status_values import AnalysisPerspective, AssignmentGroupVerificationStatus, BaselineComparison, ChatAnswerRunStatus, ChatAnswerStopReason, ChatRunStepKind, ChatRunStepStatus, CommunicationStatus, ConversationScope, CoverageGapKind, CoverageGapReason, EvidenceCheckOutcome, HypothesisState, HypothesisStateGuard, IncidentSource, IncidentStatus, InvestigationAiCallFailure, InvestigationDecisionKind, InvestigationFeedbackVerdict, InvestigationOutcome, InvestigationOutcomeGuard, InvestigationStage, InvestigationStatus, InvestigationTraceStepKind, InvestigationTraceStepStatus, InvestigationTrigger, MessageAuthorRole, PostmortemStatus, Priority, RiskLevel, ToolCallingMode, values_check
 
 
 class ServiceNowAssignmentGroup(EntityBase):
@@ -251,6 +251,53 @@ class InvestigationCoverageGap(EntityBase):
     source_kind: Mapped[str | None] = mapped_column(String(40))
     parameters_json: Mapped[dict[str, Any] | None] = mapped_column()
     recorded_at: Mapped[datetime] = mapped_column(default=utc_now)
+
+
+class InvestigationTraceStep(EntityBase):
+    """One ordered step of an investigation's decision trace (spec 28): its inputs, an AI call, the evidence summary, a deterministic decision or the outcome.
+
+    Written by code from ids, codes, numbers and catalogue names; the raw output of an AI call is masked and cut. The investigation row is the run, so a step needs nothing else.
+    """
+
+    __tablename__ = "investigation_trace_step"
+    __table_args__ = (
+        UniqueConstraint("investigation_id", "sequence_number", name="uq_investigation_trace_step_investigation_id_sequence_number"),
+        values_check("stage_name", InvestigationStage),
+        values_check("step_kind", InvestigationTraceStepKind),
+        values_check("step_status", InvestigationTraceStepStatus),
+        values_check("decision_kind", InvestigationDecisionKind),
+        values_check("failure_code", InvestigationAiCallFailure),
+    )
+
+    trace_step_id: Mapped[str] = identifier_column()
+    investigation_id: Mapped[str] = mapped_column(ForeignKey("investigation.investigation_id", ondelete="CASCADE"))
+    sequence_number: Mapped[int] = mapped_column(Integer)
+    stage_name: Mapped[str] = mapped_column(String(30))
+    step_kind: Mapped[str] = mapped_column(String(20))
+    step_status: Mapped[str] = mapped_column(String(20))
+    decision_kind: Mapped[str | None] = mapped_column(String(40))
+    started_at: Mapped[datetime] = mapped_column(default=utc_now)
+    completed_at: Mapped[datetime | None] = mapped_column()
+    duration_milliseconds: Mapped[int | None] = mapped_column(Integer)
+    feature_name: Mapped[str | None] = mapped_column(String(80))
+    prompt_key: Mapped[str | None] = mapped_column(String(80))
+    prompt_version: Mapped[str | None] = mapped_column(String(20))
+    prompt_template_sha256: Mapped[str | None] = mapped_column(String(64))  # the prompt file plus the fragments it includes
+    system_prompt_sha256: Mapped[str | None] = mapped_column(String(64))  # of the rendered system prompt text
+    provider_name: Mapped[str | None] = mapped_column(String(40))
+    model_name: Mapped[str | None] = mapped_column(String(120))
+    model_tier: Mapped[str | None] = mapped_column(String(20))
+    input_manifest_json: Mapped[list[Any] | None] = mapped_column()  # per prompt section: size, cut flag, SHA-256, citation codes (never the text)
+    estimated_input_token_count: Mapped[int | None] = mapped_column(Integer)  # only when the call wrote no usage rows (mock, offline)
+    estimated_output_token_count: Mapped[int | None] = mapped_column(Integer)
+    raw_output_json: Mapped[dict[str, Any] | None] = mapped_column()  # the validated answer before Keigan's checks, masked and cut
+    raw_output_character_count: Mapped[int | None] = mapped_column(Integer)
+    raw_output_is_truncated: Mapped[bool | None] = mapped_column(Boolean)
+    raw_output_sha256: Mapped[str | None] = mapped_column(String(64))
+    adjustments_json: Mapped[list[Any] | None] = mapped_column()  # what Keigan's code changed in the raw output: [{"code": ..., "parameters": {...}}]
+    failure_code: Mapped[str | None] = mapped_column(String(40))
+    hypothesis_id: Mapped[str | None] = mapped_column(String(36))  # the hypothesis a hypothesis call produced: a recorded fact, not a link
+    details_json: Mapped[dict[str, Any] | None] = mapped_column()
 
 
 class InvestigationTimelineEvent(EntityBase):

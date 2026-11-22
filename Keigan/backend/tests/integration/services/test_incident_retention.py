@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from keigan.config.database_config import open_session
 from keigan.entities.alert_entities import AlertGroup
 from keigan.entities.incident_entities import (
-    ChatAnswerRun, ChatRunStep, Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationCoverageGap, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, PostmortemReport,
+    ChatAnswerRun, ChatRunStep, Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationCoverageGap, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, InvestigationTraceStep, PostmortemReport,
 )
 from keigan.config.settings import get_settings
 from keigan.entities.notification_entities import NotificationDelivery, TeamsIncidentChat
@@ -49,6 +49,7 @@ async def _create_incident_tree(application_id: str, *, opened_at: datetime, inc
             InvestigationHypothesis(investigation_id=investigation.investigation_id, analysis_perspective="application", hypothesis_title="h"),
             InvestigationEvidence(investigation_id=investigation.investigation_id, evidence_code="E1", evidence_source_kind="log", evidence_category="errors", evidence_title="e"),
             InvestigationCoverageGap(investigation_id=investigation.investigation_id, gap_kind="service_without_telemetry", service_name="mainframe"),
+            InvestigationTraceStep(investigation_id=investigation.investigation_id, sequence_number=1, stage_name="triage", step_kind="inputs", step_status="succeeded"),
             InvestigationTimelineEvent(incident_id=incident.incident_id, investigation_id=investigation.investigation_id, event_type="note", event_title="t"),
             IncidentCommunication(incident_id=incident.incident_id, investigation_id=investigation.investigation_id, communication_type="update", subject_line="s", body_markdown="b"),
             PostmortemReport(incident_id=incident.incident_id, investigation_id=investigation.investigation_id, report_title="p"),
@@ -66,6 +67,7 @@ async def _count_rows_of_tree(tree: IncidentTree) -> dict[str, int]:
         "hypothesis": (InvestigationHypothesis, InvestigationHypothesis.investigation_id == tree.investigation_id),
         "evidence": (InvestigationEvidence, InvestigationEvidence.investigation_id == tree.investigation_id),
         "coverage_gap": (InvestigationCoverageGap, InvestigationCoverageGap.investigation_id == tree.investigation_id),
+        "trace_step": (InvestigationTraceStep, InvestigationTraceStep.investigation_id == tree.investigation_id),
         "timeline": (InvestigationTimelineEvent, InvestigationTimelineEvent.incident_id == tree.incident_id),
         "communication": (IncidentCommunication, IncidentCommunication.incident_id == tree.incident_id),
         "postmortem": (PostmortemReport, PostmortemReport.incident_id == tree.incident_id),

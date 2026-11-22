@@ -211,6 +211,7 @@ class Settings(BaseSettings):
     investigation_max_services: int = 6
     investigation_supported_minimum_confidence: float = Field(default=0.5, ge=0.0, le=1.0)  # lowest confidence a supported hypothesis may have (the prompt's "strongly suggests" band)
     investigation_ruled_out_maximum_confidence: float = Field(default=0.2, ge=0.0, le=1.0)  # highest confidence a ruled-out hypothesis may have (the "unlikely" band)
+    investigation_trace_raw_output_stored_characters: int = Field(default=20_000, ge=1000, le=200_000)  # characters of one AI call's raw answer kept in the decision trace
     investigation_max_checks_per_service: int = Field(default=7, ge=1, le=30)  # evidence checks one service gets in an investigation; a cut is reported as a gap
     investigation_evidence_token_budget: int = 8_000
     investigation_knowledge_token_budget: int = 6_000

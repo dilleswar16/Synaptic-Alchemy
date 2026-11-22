@@ -241,6 +241,40 @@ class CoverageGapReason(StrEnum):
     UNKNOWN = "unknown"
 
 
+class InvestigationTraceStepKind(StrEnum):
+    """One row of an investigation's decision trace (spec 28)."""
+
+    INPUTS = "inputs"
+    AI_CALL = "ai_call"
+    EVIDENCE = "evidence"
+    DECISION = "decision"
+    OUTCOME = "outcome"
+
+
+class InvestigationTraceStepStatus(StrEnum):
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class InvestigationDecisionKind(StrEnum):
+    """What a deterministic decision step decided."""
+
+    SERVICES_SELECTED = "services_selected"
+    PRIORITY_SET = "priority_set"
+    PLANNER_REQUESTED = "planner_requested"
+    EVIDENCE_ONLY_MODE = "evidence_only_mode"
+    SYNTHESIS_FALLBACK = "synthesis_fallback"
+
+
+class InvestigationAiCallFailure(StrEnum):
+    TOKEN_BUDGET_EXCEEDED = "token_budget_exceeded"
+    AI_UNAVAILABLE = "ai_unavailable"
+    AI_RATE_LIMITED = "ai_rate_limited"
+    AI_OUTPUT_INVALID = "ai_output_invalid"
+    FAILED = "failed"
+
+
 class RiskLevel(StrEnum):
     LOW = "low"
     MEDIUM = "medium"

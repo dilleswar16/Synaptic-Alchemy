@@ -63,11 +63,12 @@ class AuditEvent(EntityBase):
 
 class LlmUsageRecord(EntityBase):
     __tablename__ = "llm_usage_record"
-    __table_args__ = (Index("ix_llm_usage_record_created_application", "created_at", "application_id"),)
+    __table_args__ = (Index("ix_llm_usage_record_created_application", "created_at", "application_id"), Index("ix_llm_usage_record_investigation_id", "investigation_id"))
 
     llm_usage_record_id: Mapped[str] = identifier_column()
     application_id: Mapped[str | None] = mapped_column(String(36))
     investigation_id: Mapped[str | None] = mapped_column(String(36))
+    investigation_trace_step_id: Mapped[str | None] = mapped_column(String(36))  # the trace step of the AI call this attempt belonged to (no foreign key: usage outlives the step)
     conversation_id: Mapped[str | None] = mapped_column(String(36))
     feature_name: Mapped[str] = mapped_column(String(80))
     provider_name: Mapped[str] = mapped_column(String(40))
