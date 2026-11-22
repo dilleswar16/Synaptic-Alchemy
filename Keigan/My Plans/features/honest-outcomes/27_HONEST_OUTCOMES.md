@@ -8,7 +8,7 @@ Roadmap item **A2** (doc 21, product research, section 3.5). Written 2026-11-22 
 
 **Purpose.** Make every investigation say plainly how far it got. Each hypothesis ends in one of three states (supported, ruled out, inconclusive) with the reason and the evidence that decides it. Each investigation ends in one of three outcomes: *cause identified*, *inconclusive*, or *cause not visible in the data Keigan can see* (doc 21, section 3.6, the ORCA-bench lesson). Each investigation lists what Keigan could not check and why. Each evidence item says whether it was compared with a healthy baseline window, or why it could not be. The Root cause screen, the email and Teams summaries, the communication drafts and the postmortem quote the outcome, so no surface states a cause the investigation did not establish.
 
-**Status.** Design, written 2026-11-22; not built. Every statement about existing code below was read in the source on 2026-11-22 and carries a `path:symbol` reference.
+**Status.** Design, written 2026-11-22. **Built 2026-11-23** (steps 1 to 7 of section 9; see "Build notes" at the end). Section 3 describes the code as it was before the build. Every statement about existing code below was read in the source on 2026-11-22 and carries a `path:symbol` reference.
 
 **How to use it.**
 - Owner: read sections 2, 4.1 (decisions), 5.1 and 11.
@@ -448,3 +448,16 @@ Baseline scripts `02` to `05` regenerated; delta `database/azure_sql/migrations/
 1. **Stakeholder wording for `cause_not_visible`.** Proposed English for emails: "Keigan could not see the cause in the monitoring data it can read. The team is investigating." Is that acceptable to send to business stakeholders automatically (`AUTO_SEND_PRELIMINARY_REPORT=true`), or should a `cause_not_visible` preliminary report wait for approval? *Recommendation:* send it; silence is worse, and the wording makes no claim.
 2. **Count outcomes on the metrics page (doc 24)?** "Share inconclusive" and "share not visible" per week are cheap after this. *Recommendation:* yes, as a small follow-up once a real model has run.
 3. **Naming.** "Cause not visible in the data Keigan can see" is long for a badge; the badge says "Cause not visible" and the sentence says the rest. Confirm.
+
+---
+
+## Build notes (2026-11-23)
+
+Built in the order of section 9, one commit per step. Differences from the design:
+
+- **Gap reporting lives in the evidence service**, not in the graph: `EvidenceService` takes the `CoverageGapCollector` and reports services without telemetry, checks beyond the limit, refused or failed planner queries and results cut by the token budget (`set_aside_unread` and `select_for_investigation`). The graph reports only what it owns: services beyond the limit and perspectives that produced nothing. Gaps are stored with `persist_new` (a watermark), so the evidence stage stores its own before the hypotheses start and later stages add theirs.
+- **AC-13 has one exception by design (D-A2-3):** an `inconclusive` proposal is lowered to `cause_not_visible` when no evidence item is a decisive signal. Every other proposal of `inconclusive` or `cause_not_visible` is kept.
+- **`failure_reason` and two properties replace a stored flag on the draft:** `check_outcome` and `baseline_comparison` are computed from the draft, so they cannot disagree with `is_rule_out`.
+- **AC-12 holds for seven of the eight scenarios.** In the vendor-outage scenario the offline probe reads the present rather than the historical window, so the evidence has no signal and the rules correctly turn the model's cause into "cause not visible" (status page, known issues).
+- **Not done:** the incident list and board chip (5.3), a seeded investigation with gaps (10.3), the Teams card in the application's language (no application language exists), the browser check (AC-24; the machine was short of memory), the `docs/01`, `13` and `22` updates in 10.1.
+- **Tests:** `tests/unit/ai/test_investigation_outcome_rules.py`, `tests/unit/services/test_investigation_coverage.py`, `tests/integration/services/test_evidence_honest_outcomes.py`, `tests/integration/ai/test_investigation_honest_outcomes.py`, `tests/integration/migrations/test_honest_outcomes_migration.py`, and additions to the investigation, notification, communication, Teams, retention and prompt-library tests.

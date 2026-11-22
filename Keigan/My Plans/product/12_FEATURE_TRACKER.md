@@ -7,12 +7,12 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 
 | | Count | Share |
 |---|---|---|
-| ✅ Done and verified | 96 | 87 % |
-| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 11 | 10 % |
+| ✅ Done and verified | 96 | 86 % |
+| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 12 | 11 % |
 | 🧩 Placeholder by design (configuration saved, reader later) | 2 | 2 % |
 | 🔄 Being built right now | 1 | 1 % |
 | ⬜ Not started | 1 | 1 % |
-| **Total features** | **111** | **98 % built · 87 % verified** |
+| **Total features** | **112** | **98 % built · 86 % verified** |
 
 **Legend**
 - ✅ **Done and verified** in the local simulated environment: API tested end to end, and the screen loads in a real browser (headless Edge) with live data and no console or API errors. Mock AI unless stated.
@@ -94,6 +94,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | # | Feature | Status | Notes |
 |---|---|---|---|
 | E1 | ServiceNow polling | ✅ | Simulated ServiceNow |
+| E-HO | Honest outcomes (roadmap A2): state per hypothesis, outcome per investigation, what Keigan could not check, check outcome and baseline on every evidence item, outcome-first emails, Teams answers and drafts | 🟡 | Built and tested with the offline model (backend tests, typecheck, locale check, build); not seen in a browser; needs a real model to show how it distributes states. Design in `27_HONEST_OUTCOMES.md` |
 | E2 | Priority triage P1–P4 | ✅ | |
 | E3 | Evidence collection | ✅ | 27 evidence items, 12 strong, on the demo incident |
 | E4 | Three hypotheses with fixes | ✅ | |

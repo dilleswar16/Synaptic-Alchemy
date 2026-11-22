@@ -94,7 +94,7 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | GET | `/servicenow/groups/search?query=` | typeahead when connected |
 | POST | `/investigations` | manual: `{ applicationId, serviceIds, description, windowStart?, windowEnd? }` → 202 `{ jobId }` (`jobId` is the investigation id) |
 | GET | `/investigations` | list (filters) |
-| GET | `/investigations/{investigationId}` | full: incident, triage, RCA, hypotheses, evidence, blast radius, matched runbooks, alert group |
+| GET | `/investigations/{investigationId}` | full: incident, triage, RCA, hypotheses, evidence, blast radius, matched runbooks, alert group, and (spec 27) `outcome {code, proposedCode, guardCode, reasonMarkdown}` (`not_recorded` for older investigations), `leadingPerspectiveReasonMarkdown`, `coverageGaps[{coverageGapId, gapKind, reasonCode, serviceId, serviceName, sourceKind, parameters, legacyEvidenceCode}]`; each hypothesis has `state`, `proposedState`, `stateGuardCode`, `stateReasonMarkdown`; each evidence item `checkOutcome`, `baselineComparison`; summaries and the incident brief carry `investigationOutcome` |
 | GET | `/investigations/{investigationId}/progress` | `{ status, currentStageName, progressPercent, stageMessages[] }` (polled every 2 s while running) |
 | POST | `/investigations/{investigationId}/rerun` | 202 `{ jobId }` where `jobId` is the NEW investigation id (the previous run and its feedback are kept) |
 | GET | `/investigations/{investigationId}/evidence/{evidenceCode}` | one evidence item (e.g. `E3`) |
