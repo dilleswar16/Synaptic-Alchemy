@@ -289,30 +289,30 @@ sequenceDiagram
     actor User
     participant Web as Keigan web (chat)
     participant API as Keigan API
-    participant Chat as ChatService
+    participant Ask as AskKeiganService
     participant LLM as LlmGateway
     participant DQ as ChatDataQueryService
     participant Tel as TelemetryGateway
     participant DB as Azure SQL
 
     User->>Web: "Show 5xx errors for the claims API over the last 24 hours"
-    Web->>API: POST /chat/conversations/{id}/messages
-    API->>Chat: send_message
-    Chat->>Chat: PiiMasker.mask_text(question), prompt-injection check
-    Chat->>LLM: _classify - ChatIntentResult (application, service, time window, intent)
-    Chat->>Chat: Only applications this user can read are offered to the model
+    Web->>API: POST /chat/conversations/{id}/answers (text/event-stream)
+    API->>Ask: start (rate limit, one answer at a time, scope of the conversation)
+    Ask->>Ask: PiiMasker.mask_text(question), stored with the run
+    Ask->>LLM: tool-using turns: the model chooses among the tools of the global scope
+    Ask->>Ask: Only applications this user can read are in scope
     alt data question
-        Chat->>DQ: run(intent)
+        Ask->>DQ: query_logs tool (ChatDataQueryService.run)
         DQ->>LLM: generate_structured(ChatQueryResult) - KQL, Elastic query DSL or SPL
         DQ->>DQ: validate_generated_query - read-only, one statement, bounded time range
         DQ->>Tel: query_logs / query_metrics
         Tel-->>DQ: Rows
-        DQ-->>Chat: DataQueryOutcome (series, totals, the query text)
-        Chat->>LLM: ChatAnswerResult grounded in the returned rows
+        DQ-->>Ask: DataQueryOutcome (series, totals, the query text)
+        Ask->>LLM: answer grounded in the tool results, with citations
     else knowledge or incident question
-        Chat->>LLM: Answer from the application's knowledge and investigations
+        Ask->>LLM: knowledge tools (runbooks, knowledge), answer grounded in them
     end
-    Chat->>DB: conversation_message (answer, chart spec, query), llm_usage_record
+    Ask->>DB: answer run, tool steps, conversation_message, llm_usage_record
     API-->>Web: Answer + chart + "show query"
 ```
 

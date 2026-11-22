@@ -738,21 +738,6 @@ async function checkGlobalChat() {
   await context.unroute(runUrl, refuseRun);
   expectedStatuses.delete(403);
 
-  // G11. Messages the old router stored (no run): they still display, with the text and the chart or number they had, and no clarification buttons.
-  const oldConversation = await callApi("/api/chat/conversations", signIn.accessToken, { method: "POST", body: JSON.stringify({ conversationScope: "keigan_ai_chat", applicationIds: [] }) });
-  createdConversationIds.add(oldConversation.conversationId);
-  const oldRouterQuestion = "How many failed requests did claims-api have in the last 24 hours?";
-  const wasOldAnswerStored = await callApi(`/api/chat/conversations/${oldConversation.conversationId}/messages`, signIn.accessToken, { method: "POST", body: JSON.stringify({ messageText: oldRouterQuestion }) }).then(() => true, () => false);
-  if (wasOldAnswerStored) {
-    await openChat(`/chat/${oldConversation.conversationId}`);
-    await chatPane().getByText(oldRouterQuestion, { exact: true }).waitFor({ timeout: cardTimeoutMilliseconds });
-    const oldText = await chatPane().innerText();
-    record("global: a conversation the old router wrote shows its question and its answer, with no tool cards and no clarification buttons, and nothing fails", oldText.replace(oldRouterQuestion, "").trim().length > 200 || /\d/.test(oldText), `${oldText.length} characters; cards: ${await chatPane().getByRole("button", { name: /citation T\d/ }).count()}`);
-    await page.screenshot({ path: screenshotPath("global-old-messages") });
-  } else {
-    skip("global: a conversation the old router wrote still displays", "POST /messages is gone from this backend, so no old message could be written");
-  }
-
   // G12. The question typed on Home is asked once (also under React's development double mount), in a new conversation.
   const homeQuestion = "What changed in the last 24 hours?";
   const conversationsBeforeHome = (await listConversations()).map((item) => item.conversationId);

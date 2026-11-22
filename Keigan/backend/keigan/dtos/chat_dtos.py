@@ -51,7 +51,6 @@ class ConversationDetailResponse(ConversationResponse):
 
 class SendMessageRequest(ApiModel):
     message_text: str = Field(min_length=1, max_length=MESSAGE_TEXT_MAXIMUM_CHARACTERS)
-    clarification_response: str | None = Field(default=None, max_length=60)
 
 
 class SuggestedPromptResponse(ApiModel):

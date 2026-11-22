@@ -106,7 +106,7 @@ backend/
     │   ├── alert_service.py               # intake, canonical mapping, noise-reduction pipeline, groups, feedback, noise report, preview
     │   ├── slo_service.py                 # SLI catalogue, proposals, collection, budgets, burn-rate evaluation, dashboards
     │   ├── intelligence_service.py        # detectors, predictive signals, intelligence reports
-    │   ├── chat_service.py                # investigation chat + Keigan AI chat (NL → query → answer/chart)
+    │   ├── chat_service.py                # conversation records (Keigan AI chat, investigation chat) and the investigation answer for the Teams bot
     │   ├── notification_service.py        # stakeholder routing, email, Teams chats, bot replies, chat polling, milestone detection, outbox
     │   ├── dashboard_service.py           # home aggregates
     │   ├── administration_service.py      # usage, audit queries, effective settings

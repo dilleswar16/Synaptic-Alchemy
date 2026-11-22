@@ -307,11 +307,11 @@ async def test_cancel_is_for_the_owner_only_and_needs_a_sign_in(client: httpx.As
     assert (await client.post(f"/api/chat/answer-runs/{uuid.uuid4()}/cancel", headers=chat.headers)).status_code == 404
 
 
-async def test_the_old_message_endpoint_still_answers_the_global_chat(client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+async def test_the_message_endpoint_refuses_a_keigan_ai_chat_and_names_the_answers_endpoint(client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
     headers = await auth_headers(READER)
     created = await client.post("/api/chat/conversations", headers=headers, json={"conversationScope": "keigan_ai_chat"})
     response = await client.post(f"/api/chat/conversations/{created.json()['conversationId']}/messages", headers=headers, json={"messageText": "What is the architecture of my application?"})
-    assert response.status_code == 200 and response.json()["authorRole"] == "assistant"
+    assert response.status_code == 422 and "/answers" in response.text
 
 
 async def global_chat(client: httpx.AsyncClient, headers: dict[str, str]) -> Chat:
