@@ -326,5 +326,100 @@
   "teams": {
     "title": "Sala de Teams",
     "description": "El chat de este incidente aparecerá aquí cuando la integración con Teams esté disponible."
+  },
+  "outcome": {
+    "label": "Resultado",
+    "cause_identified": {
+      "title": "Causa identificada",
+      "description": "La evidencia respalda una explicación."
+    },
+    "inconclusive": {
+      "title": "No concluyente",
+      "description": "La evidencia no permite decidir entre las explicaciones. Se muestra la pista más sólida, sin confirmar."
+    },
+    "cause_not_visible": {
+      "title": "Causa no visible en los datos que Keigan puede ver",
+      "description": "Nada de lo que Keigan pudo leer cambió respecto a la hora anterior. La causa probablemente está en un sistema o un cambio que Keigan no puede ver."
+    },
+    "notRecorded": "Esta investigación se ejecutó antes de que Keigan registrara resultados.",
+    "guardNote": "Las reglas de Keigan cambiaron la conclusión de la IA de {{proposed}} a {{final}}: {{reason}}.",
+    "guard": {
+      "nothing_changed_in_checked_sources": "nada de lo que Keigan pudo leer cambió respecto a la referencia",
+      "leading_hypothesis_not_supported": "la explicación principal no estaba respaldada por la evidencia",
+      "synthesis_unavailable": "el resumen de la IA no estaba disponible"
+    },
+    "value": {
+      "cause_identified": "causa identificada",
+      "inconclusive": "no concluyente",
+      "cause_not_visible": "causa no visible"
+    },
+    "strongestLead": "Pista más sólida, sin confirmar: {{perspective}} — {{title}}",
+    "whyThisLead": "Por qué esta pista",
+    "confidenceStrongestLead": "Confianza en la pista más sólida"
+  },
+  "hypothesisState": {
+    "supported": "Respaldada",
+    "ruled_out": "Descartada",
+    "inconclusive": "No concluyente",
+    "why": "Por qué",
+    "guard": {
+      "support_not_in_evidence": "ninguna de las evidencias citadas cambió respecto a la referencia",
+      "confidence_below_supported_minimum": "la confianza estaba por debajo del mínimo para una explicación respaldada",
+      "rule_out_not_in_evidence": "ninguna evidencia leída muestra que esta perspectiva esté sana",
+      "confidence_above_ruled_out_maximum": "la confianza era demasiado alta para descartarla"
+    },
+    "guardNote": "La IA indicó {{proposed}}; las reglas de Keigan lo cambiaron a {{final}}: {{reason}}.",
+    "value": {
+      "supported": "respaldada",
+      "ruled_out": "descartada",
+      "inconclusive": "no concluyente"
+    }
+  },
+  "ruledOut": {
+    "title": "Descartadas",
+    "description": "Explicaciones que la evidencia descartó, y por qué."
+  },
+  "coverage": {
+    "title": "Lo que Keigan no pudo comprobar",
+    "description": "Fuentes que Keigan no pudo leer y comprobaciones que no realizó. Una comprobación no realizada no es un resultado sano.",
+    "empty": "Keigan leyó todas las fuentes que había planificado.",
+    "footnote": "Keigan no lee repositorios de código ni pipelines de despliegue.",
+    "legacyEvidence": "Se muestra como evidencia {{code}} en esta investigación anterior",
+    "kind": {
+      "source_not_readable": "No se pudo leer {{service}} ({{source}})",
+      "changes_not_readable": "No se pudieron leer los despliegues y cambios de configuración recientes",
+      "service_without_telemetry": "{{service}} no tiene ninguna fuente de registros o métricas conectada, así que no se comprobó nada",
+      "services_beyond_limit": "{{count}} servicio(s) no se examinaron por el límite de {{limit}}: {{services}}",
+      "checks_beyond_limit": "{{count}} comprobación(es) de {{service}} no se ejecutaron por el límite de {{limit}} por servicio",
+      "planned_query_rejected": "Las reglas de seguridad de consultas rechazaron una consulta que la IA planificó para {{service}}",
+      "planned_query_failed": "Falló una consulta que la IA planificó para {{service}}",
+      "results_left_out": "{{count}} resultado(s) de señal baja se omitieron para respetar el presupuesto de evidencia",
+      "perspective_not_analysed": "El análisis de {{perspective}} no produjo un resultado utilizable"
+    },
+    "reason": {
+      "access_refused": "se denegó el acceso a la identidad de Keigan (falta un rol de lectura)",
+      "throttled": "la fuente estaba ocupada y pidió a Keigan que fuera más despacio",
+      "source_not_found": "no se encontró la fuente",
+      "source_error": "la fuente devolvió un error",
+      "timed_out": "la fuente tardó demasiado en responder",
+      "not_approved": "esta fuente no está aprobada para esta aplicación",
+      "query_rejected": "las reglas de seguridad rechazaron la consulta",
+      "reader_not_available": "Keigan aún no puede leer este tipo de herramienta",
+      "ai_unavailable": "el modelo de IA no estaba disponible",
+      "ai_output_invalid": "no se pudo usar la respuesta de la IA",
+      "unknown": "por un motivo que Keigan no pudo identificar"
+    }
+  },
+  "evidenceCheck": {
+    "outcome": {
+      "signal": "Señal",
+      "no_signal": "Sano o sin hallazgos",
+      "not_checked": "No se pudo leer"
+    },
+    "baseline": {
+      "compared": "Comparado con la referencia",
+      "no_baseline_for_source": "Sin referencia para este tipo de fuente"
+    },
+    "introUnreadSources": "Las fuentes que Keigan no pudo leer figuran en la pestaña Causa raíz."
   }
 }

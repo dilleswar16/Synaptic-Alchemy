@@ -326,5 +326,100 @@
   "teams": {
     "title": "Teams ルーム",
     "description": "Teams 連携が利用可能になると、このインシデントのインシデントチャットがここに表示されます。"
+  },
+  "outcome": {
+    "label": "結果",
+    "cause_identified": {
+      "title": "原因を特定",
+      "description": "証拠が一つの説明を裏付けています。"
+    },
+    "inconclusive": {
+      "title": "結論に至らず",
+      "description": "証拠だけでは複数の説明を絞り込めません。最も有力な手がかりを、未確認のものとして表示しています。"
+    },
+    "cause_not_visible": {
+      "title": "Keigan が参照できるデータでは原因が確認できません",
+      "description": "Keigan が読み取れた範囲では、直前の1時間と比べて変化がありませんでした。原因は Keigan から見えないシステムや変更にある可能性があります。"
+    },
+    "notRecorded": "この調査は Keigan が結果を記録する前に実行されたものです。",
+    "guardNote": "Keigan のルールにより、AI の結論を {{proposed}} から {{final}} に変更しました: {{reason}}。",
+    "guard": {
+      "nothing_changed_in_checked_sources": "Keigan が読み取れた範囲でベースラインとの差がありませんでした",
+      "leading_hypothesis_not_supported": "最有力の説明が証拠で裏付けられませんでした",
+      "synthesis_unavailable": "AI の要約が利用できませんでした"
+    },
+    "value": {
+      "cause_identified": "原因を特定",
+      "inconclusive": "結論に至らず",
+      "cause_not_visible": "原因は確認できず"
+    },
+    "strongestLead": "最も有力な手がかり（未確認）: {{perspective}} — {{title}}",
+    "whyThisLead": "この手がかりの理由",
+    "confidenceStrongestLead": "最も有力な手がかりの確度"
+  },
+  "hypothesisState": {
+    "supported": "裏付けあり",
+    "ruled_out": "除外",
+    "inconclusive": "結論に至らず",
+    "why": "理由",
+    "guard": {
+      "support_not_in_evidence": "引用された証拠のいずれもベースラインとの差がありませんでした",
+      "confidence_below_supported_minimum": "確度が「裏付けあり」の下限を下回りました",
+      "rule_out_not_in_evidence": "読み取れた証拠のうち、この観点が正常であることを示すものがありません",
+      "confidence_above_ruled_out_maximum": "確度が高く、除外できませんでした"
+    },
+    "guardNote": "AI は {{proposed}} としましたが、Keigan のルールにより {{final}} に変更しました: {{reason}}。",
+    "value": {
+      "supported": "裏付けあり",
+      "ruled_out": "除外",
+      "inconclusive": "結論に至らず"
+    }
+  },
+  "ruledOut": {
+    "title": "除外された説明",
+    "description": "証拠によって除外された説明と、その理由です。"
+  },
+  "coverage": {
+    "title": "Keigan が確認できなかったこと",
+    "description": "Keigan が読み取れなかったデータソースと、実施しなかった確認です。確認していないことは「正常」を意味しません。",
+    "empty": "Keigan は予定していたすべてのデータソースを確認しました。",
+    "footnote": "Keigan はコードリポジトリやデプロイパイプラインを読み取りません。",
+    "legacyEvidence": "この以前の調査では証拠 {{code}} として表示されています",
+    "kind": {
+      "source_not_readable": "{{service}}（{{source}}）を読み取れませんでした",
+      "changes_not_readable": "最近のデプロイと設定変更を読み取れませんでした",
+      "service_without_telemetry": "{{service}} にはログやメトリクスのソースが接続されていないため、確認していません",
+      "services_beyond_limit": "上限（{{limit}} 件）のため {{count}} 件のサービスを調べていません: {{services}}",
+      "checks_beyond_limit": "サービスごとの上限（{{limit}} 件）のため、{{service}} の {{count}} 件の確認を実行していません",
+      "planned_query_rejected": "AI が {{service}} 向けに計画したクエリは、クエリの安全規則により拒否されました",
+      "planned_query_failed": "AI が {{service}} 向けに計画したクエリが失敗しました",
+      "results_left_out": "証拠の予算内に収めるため、シグナルの弱い結果 {{count}} 件を省きました",
+      "perspective_not_analysed": "{{perspective}} の分析は利用できる結果を出せませんでした"
+    },
+    "reason": {
+      "access_refused": "Keigan の ID がアクセスを拒否されました（読み取りロールがありません）",
+      "throttled": "データソースが混み合っており、Keigan に速度を落とすよう求めました",
+      "source_not_found": "データソースが見つかりません",
+      "source_error": "データソースがエラーを返しました",
+      "timed_out": "データソースの応答に時間がかかりすぎました",
+      "not_approved": "このデータソースはこのアプリケーションに承認されていません",
+      "query_rejected": "クエリの安全規則により拒否されました",
+      "reader_not_available": "Keigan はこの種類のツールをまだ読み取れません",
+      "ai_unavailable": "AI モデルが利用できませんでした",
+      "ai_output_invalid": "AI の応答を利用できませんでした",
+      "unknown": "Keigan が特定できない理由"
+    }
+  },
+  "evidenceCheck": {
+    "outcome": {
+      "signal": "シグナルあり",
+      "no_signal": "正常、または該当なし",
+      "not_checked": "読み取れませんでした"
+    },
+    "baseline": {
+      "compared": "ベースラインと比較済み",
+      "no_baseline_for_source": "この種類のソースにはベースラインがありません"
+    },
+    "introUnreadSources": "Keigan が読み取れなかったソースは、根本原因タブに一覧があります。"
   }
 }

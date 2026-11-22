@@ -14,7 +14,7 @@ import { Select } from "@/components/ui/Select";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { formatDateTime, formatNumber, formatTime } from "@/utils/formatters";
 import { cn } from "@/utils/cn";
-import { evidenceElementId, signalStrengthTone } from "./investigationPresentation";
+import { checkOutcomeTone, evidenceElementId, signalStrengthTone } from "./investigationPresentation";
 
 function PatternRow({ pattern }: { pattern: LogPattern }) {
   const { t } = useTranslation("investigations");
@@ -78,6 +78,8 @@ function EvidenceCard({ evidence, isSelected }: { evidence: Evidence; isSelected
               <span className="rounded-sm bg-action-subtle px-1.5 py-0.5 font-mono text-caption font-semibold text-action-subtle-text">{evidence.evidenceCode}</span>
               <StatusChip tone={signalStrengthTone[evidence.signalStrength as SignalStrength]} size="sm">{t(`evidence.strength.${evidence.signalStrength}`)}</StatusChip>
               <Badge tone="neutral">{t(`evidence.category.${evidence.evidenceCategory}`, { defaultValue: evidence.evidenceCategory })}</Badge>
+              {evidence.checkOutcome ? <StatusChip tone={checkOutcomeTone[evidence.checkOutcome]} size="sm" variant="outline">{t(`evidenceCheck.outcome.${evidence.checkOutcome}`)}</StatusChip> : null}
+              {evidence.baselineComparison ? <span className="text-caption text-muted">{t(`evidenceCheck.baseline.${evidence.baselineComparison}`)}</span> : null}
               {evidence.maskedValueCount > 0 ? <Badge tone="info">{t("evidence.masked", { count: evidence.maskedValueCount })}</Badge> : null}
             </div>
             <h4 className="text-body font-semibold text-default">{evidence.evidenceTitle}</h4>

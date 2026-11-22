@@ -8,6 +8,7 @@ import { CommandBlock } from "@/components/ui/CommandBlock";
 import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
 import { EvidenceChip } from "@/components/ui/EvidenceChip";
 import { MarkdownView } from "@/components/ui/MarkdownView";
+import { HypothesisStateBadge, HypothesisStateReason } from "./HypothesisStateBlock";
 import { perspectiveOrder } from "./investigationPresentation";
 
 const perspectiveIcons: Record<AnalysisPerspective, LucideIcon> = { application: Code2, dependencies: Network, infrastructure: Server };
@@ -39,13 +40,19 @@ function HypothesisCard({ hypothesis, detail, onSelectEvidence }: { hypothesis: 
         iconTone={hypothesis.isLeadingHypothesis ? "ai" : "neutral"}
         title={t(`perspective.${hypothesis.analysisPerspective}`)}
         description={hypothesis.isLeadingHypothesis ? undefined : t("hypotheses.alternative")}
-        actions={hypothesis.isLeadingHypothesis ? <Badge tone="ai" variant="solid">{t("hypotheses.leading")}</Badge> : undefined}
+        actions={(
+          <div className="flex items-center gap-1.5">
+            <HypothesisStateBadge hypothesis={hypothesis} />
+            {hypothesis.isLeadingHypothesis ? <Badge tone="ai" variant="solid">{t("hypotheses.leading")}</Badge> : null}
+          </div>
+        )}
       />
       <CardBody className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <h4 className="text-h4 text-default">{hypothesis.hypothesisTitle}</h4>
           <ConfidenceMeter percentage={Math.round(hypothesis.confidenceScore * 100)} size="sm" />
         </div>
+        <HypothesisStateReason hypothesis={hypothesis} />
         <MarkdownView content={hypothesis.hypothesisStatementMarkdown ?? ""} />
         {hypothesis.reasoningMarkdown ? (
           <details className="group rounded-md border border-hairline px-3 py-2">

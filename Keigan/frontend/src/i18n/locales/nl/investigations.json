@@ -326,5 +326,100 @@
   "teams": {
     "title": "Teams-kamer",
     "description": "De incidentchat voor dit incident verschijnt hier zodra de Teams-integratie beschikbaar is."
+  },
+  "outcome": {
+    "label": "Uitkomst",
+    "cause_identified": {
+      "title": "Oorzaak vastgesteld",
+      "description": "Het bewijs ondersteunt één verklaring."
+    },
+    "inconclusive": {
+      "title": "Niet doorslaggevend",
+      "description": "Het bewijs kiest niet tussen de verklaringen. De sterkste aanwijzing wordt getoond, niet bevestigd."
+    },
+    "cause_not_visible": {
+      "title": "Oorzaak niet zichtbaar in de gegevens die Keigan kan zien",
+      "description": "Niets wat Keigan kon lezen is veranderd ten opzichte van het uur ervoor. De oorzaak ligt waarschijnlijk in een systeem of wijziging die Keigan niet kan zien."
+    },
+    "notRecorded": "Dit onderzoek is uitgevoerd voordat Keigan uitkomsten vastlegde.",
+    "guardNote": "De regels van Keigan hebben de conclusie van de AI gewijzigd van {{proposed}} naar {{final}}: {{reason}}.",
+    "guard": {
+      "nothing_changed_in_checked_sources": "niets wat Keigan kon lezen is veranderd ten opzichte van de referentie",
+      "leading_hypothesis_not_supported": "de belangrijkste verklaring werd niet door het bewijs ondersteund",
+      "synthesis_unavailable": "de AI-samenvatting was niet beschikbaar"
+    },
+    "value": {
+      "cause_identified": "oorzaak vastgesteld",
+      "inconclusive": "niet doorslaggevend",
+      "cause_not_visible": "oorzaak niet zichtbaar"
+    },
+    "strongestLead": "Sterkste aanwijzing, niet bevestigd: {{perspective}} — {{title}}",
+    "whyThisLead": "Waarom deze aanwijzing",
+    "confidenceStrongestLead": "Vertrouwen in de sterkste aanwijzing"
+  },
+  "hypothesisState": {
+    "supported": "Ondersteund",
+    "ruled_out": "Uitgesloten",
+    "inconclusive": "Niet doorslaggevend",
+    "why": "Waarom",
+    "guard": {
+      "support_not_in_evidence": "geen van het aangehaalde bewijs is veranderd ten opzichte van de referentie",
+      "confidence_below_supported_minimum": "het vertrouwen lag onder het minimum voor een ondersteunde verklaring",
+      "rule_out_not_in_evidence": "geen gelezen bewijs toont dat deze invalshoek gezond is",
+      "confidence_above_ruled_out_maximum": "het vertrouwen was te hoog om uit te sluiten"
+    },
+    "guardNote": "De AI zei {{proposed}}; de regels van Keigan hebben dat gewijzigd in {{final}}: {{reason}}.",
+    "value": {
+      "supported": "ondersteund",
+      "ruled_out": "uitgesloten",
+      "inconclusive": "niet doorslaggevend"
+    }
+  },
+  "ruledOut": {
+    "title": "Uitgesloten",
+    "description": "Verklaringen die het bewijs heeft uitgesloten, en waarom."
+  },
+  "coverage": {
+    "title": "Wat Keigan niet kon controleren",
+    "description": "Bronnen die Keigan niet kon lezen en controles die niet zijn uitgevoerd. Een controle die niet is uitgevoerd is geen gezond resultaat.",
+    "empty": "Keigan heeft alle geplande bronnen gelezen.",
+    "footnote": "Keigan leest geen coderepositories of deploymentpipelines.",
+    "legacyEvidence": "In dit oudere onderzoek getoond als bewijs {{code}}",
+    "kind": {
+      "source_not_readable": "{{service}} ({{source}}) kon niet worden gelezen",
+      "changes_not_readable": "Recente deployments en configuratiewijzigingen konden niet worden gelezen",
+      "service_without_telemetry": "{{service}} heeft geen log- of metriekbron gekoppeld, dus er is niets gecontroleerd",
+      "services_beyond_limit": "{{count}} service(s) zijn niet onderzocht vanwege de limiet van {{limit}}: {{services}}",
+      "checks_beyond_limit": "{{count}} controle(s) op {{service}} zijn niet uitgevoerd vanwege de limiet van {{limit}} per service",
+      "planned_query_rejected": "Een door de AI geplande query voor {{service}} is geweigerd door de queryveiligheidsregels",
+      "planned_query_failed": "Een door de AI geplande query voor {{service}} is mislukt",
+      "results_left_out": "{{count}} resultaat/resultaten met een zwak signaal zijn weggelaten om binnen het bewijsbudget te blijven",
+      "perspective_not_analysed": "De {{perspective}}-analyse leverde geen bruikbaar resultaat op"
+    },
+    "reason": {
+      "access_refused": "de identiteit van Keigan kreeg geen toegang (een leesrol ontbreekt)",
+      "throttled": "de bron was druk en vroeg Keigan om te vertragen",
+      "source_not_found": "de bron is niet gevonden",
+      "source_error": "de bron gaf een fout terug",
+      "timed_out": "de bron deed er te lang over om te antwoorden",
+      "not_approved": "deze bron is niet goedgekeurd voor deze applicatie",
+      "query_rejected": "de queryveiligheidsregels weigerden de query",
+      "reader_not_available": "Keigan kan dit soort tool nog niet lezen",
+      "ai_unavailable": "het AI-model was niet beschikbaar",
+      "ai_output_invalid": "het antwoord van de AI kon niet worden gebruikt",
+      "unknown": "om een reden die Keigan niet kon vaststellen"
+    }
+  },
+  "evidenceCheck": {
+    "outcome": {
+      "signal": "Signaal",
+      "no_signal": "Gezond of niets gevonden",
+      "not_checked": "Kon niet worden gelezen"
+    },
+    "baseline": {
+      "compared": "Vergeleken met de referentie",
+      "no_baseline_for_source": "Geen referentie voor dit soort bron"
+    },
+    "introUnreadSources": "Bronnen die Keigan niet kon lezen staan op het tabblad Hoofdoorzaak."
   }
 }

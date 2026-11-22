@@ -326,5 +326,100 @@
   "teams": {
     "title": "Teams 房间",
     "description": "Teams 集成可用后，此事件的事件群聊将显示在此处。"
+  },
+  "outcome": {
+    "label": "结果",
+    "cause_identified": {
+      "title": "已确定原因",
+      "description": "证据支持一种解释。"
+    },
+    "inconclusive": {
+      "title": "尚无定论",
+      "description": "证据无法在多种解释之间做出取舍。显示的是最有力的线索，尚未确认。"
+    },
+    "cause_not_visible": {
+      "title": "在 Keigan 能看到的数据中看不到原因",
+      "description": "Keigan 能读取的内容与之前一小时相比没有变化。原因很可能在 Keigan 看不到的系统或变更中。"
+    },
+    "notRecorded": "这次调查是在 Keigan 开始记录结果之前运行的。",
+    "guardNote": "Keigan 的规则将 AI 的结论从“{{proposed}}”改为“{{final}}”：{{reason}}。",
+    "guard": {
+      "nothing_changed_in_checked_sources": "Keigan 能读取的内容与基线相比没有变化",
+      "leading_hypothesis_not_supported": "主要解释没有得到证据支持",
+      "synthesis_unavailable": "AI 摘要不可用"
+    },
+    "value": {
+      "cause_identified": "已确定原因",
+      "inconclusive": "尚无定论",
+      "cause_not_visible": "看不到原因"
+    },
+    "strongestLead": "最有力的线索（未确认）：{{perspective}} — {{title}}",
+    "whyThisLead": "为什么是这条线索",
+    "confidenceStrongestLead": "对最有力线索的置信度"
+  },
+  "hypothesisState": {
+    "supported": "有证据支持",
+    "ruled_out": "已排除",
+    "inconclusive": "尚无定论",
+    "why": "原因",
+    "guard": {
+      "support_not_in_evidence": "所引用的证据与基线相比都没有变化",
+      "confidence_below_supported_minimum": "置信度低于“有证据支持”的下限",
+      "rule_out_not_in_evidence": "已读取的证据中没有一项表明该方向是正常的",
+      "confidence_above_ruled_out_maximum": "置信度过高，无法排除"
+    },
+    "guardNote": "AI 给出的是“{{proposed}}”；Keigan 的规则将其改为“{{final}}”：{{reason}}。",
+    "value": {
+      "supported": "有证据支持",
+      "ruled_out": "已排除",
+      "inconclusive": "尚无定论"
+    }
+  },
+  "ruledOut": {
+    "title": "已排除",
+    "description": "证据已排除的解释及其原因。"
+  },
+  "coverage": {
+    "title": "Keigan 无法检查的内容",
+    "description": "Keigan 无法读取的来源，以及未能进行的检查。未进行的检查不代表一切正常。",
+    "empty": "Keigan 读取了计划中的所有来源。",
+    "footnote": "Keigan 不读取代码仓库或部署流水线。",
+    "legacyEvidence": "在这次较早的调查中显示为证据 {{code}}",
+    "kind": {
+      "source_not_readable": "无法读取 {{service}}（{{source}}）",
+      "changes_not_readable": "无法读取最近的部署和配置变更",
+      "service_without_telemetry": "{{service}} 没有连接日志或指标来源，因此没有对它做任何检查",
+      "services_beyond_limit": "因 {{limit}} 个服务的上限，有 {{count}} 个服务未被检查：{{services}}",
+      "checks_beyond_limit": "因每个服务 {{limit}} 项检查的上限，{{service}} 有 {{count}} 项检查未运行",
+      "planned_query_rejected": "AI 为 {{service}} 规划的查询被查询安全规则拒绝",
+      "planned_query_failed": "AI 为 {{service}} 规划的查询失败",
+      "results_left_out": "为控制在证据预算内，省略了 {{count}} 条低信号结果",
+      "perspective_not_analysed": "{{perspective}} 分析没有产生可用的结果"
+    },
+    "reason": {
+      "access_refused": "Keigan 的身份被拒绝访问（缺少读取角色）",
+      "throttled": "来源繁忙，要求 Keigan 放慢速度",
+      "source_not_found": "未找到该来源",
+      "source_error": "来源返回了错误",
+      "timed_out": "来源响应时间过长",
+      "not_approved": "该来源未获批准用于此应用",
+      "query_rejected": "查询安全规则拒绝了该查询",
+      "reader_not_available": "Keigan 暂时还不能读取这类工具",
+      "ai_unavailable": "AI 模型不可用",
+      "ai_output_invalid": "无法使用 AI 的回复",
+      "unknown": "原因 Keigan 无法确定"
+    }
+  },
+  "evidenceCheck": {
+    "outcome": {
+      "signal": "有信号",
+      "no_signal": "正常或无发现",
+      "not_checked": "无法读取"
+    },
+    "baseline": {
+      "compared": "已与基线比较",
+      "no_baseline_for_source": "此类来源没有基线"
+    },
+    "introUnreadSources": "Keigan 无法读取的来源列在“根本原因”选项卡中。"
   }
 }

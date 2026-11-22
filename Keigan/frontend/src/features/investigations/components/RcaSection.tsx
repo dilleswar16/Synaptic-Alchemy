@@ -7,11 +7,14 @@ import { Banner } from "@/components/ui/Banner";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { EvidenceChip } from "@/components/ui/EvidenceChip";
 import { MarkdownView } from "@/components/ui/MarkdownView";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/utils/cn";
-import { extractCitationCodes, runbookElementId } from "./investigationPresentation";
+import { CitationRow } from "./CitationRow";
+import { CoverageGapsCard } from "./CoverageGapsCard";
+import { OutcomeSummary } from "./OutcomeSummary";
+import { RuledOutCard } from "./RuledOutCard";
+import { runbookElementId } from "./investigationPresentation";
 
 /** The RCA tab has to be on screen before the chosen runbook can be scrolled to: the tab switches in the same update that selects the runbook. */
 const runbookScrollDelayMilliseconds = 120;
@@ -23,23 +26,13 @@ interface RcaSectionProps {
   selectedRunbookId?: string | null;
 }
 
-function CitationRow({ markdown, detail, onSelectEvidence }: { markdown: string | null; detail: InvestigationDetail; onSelectEvidence: (code: string) => void }) {
-  const codes = extractCitationCodes(markdown);
-  if (codes.length === 0) return null;
-  return (
-    <div className="mt-4 flex flex-wrap gap-1.5 border-t border-hairline pt-3">
-      {codes.map((code) => (
-        <EvidenceChip key={code} code={code} title={detail.evidence.find((item) => item.evidenceCode === code)?.evidenceTitle} onSelect={onSelectEvidence} />
-      ))}
-    </div>
-  );
-}
-
 /** Three RCA cards (what went wrong, why it happened, how to fix) with overall confidence and citations. */
 export function RcaSection({ detail, onSelectEvidence, selectedRunbookId = null }: RcaSectionProps) {
   const { t } = useTranslation("investigations");
   const hasAnalysis = Boolean(detail.whatWentWrongMarkdown);
   const leadingHypothesis = detail.hypotheses.find((hypothesis) => hypothesis.isLeadingHypothesis);
+  // The wording of "leading" and "confidence" is only as strong as the outcome: an unconfirmed cause is a lead, not a conclusion.
+  const isCauseConfirmed = !detail.outcome || detail.outcome.code === "cause_identified" || detail.outcome.code === "not_recorded";
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   useEffect(() => {
@@ -57,6 +50,7 @@ export function RcaSection({ detail, onSelectEvidence, selectedRunbookId = null 
         {detail.isEvidenceOnly ? <Banner tone="warning" title={t("rca.evidenceOnlyTitle")}>{t("rca.evidenceOnlyDescription")}</Banner> : null}
         {detail.investigationStatus === "failed" ? <Banner tone="danger" title={t("rca.failedTitle")}>{detail.failureReason ?? t("rca.failedDescription")}</Banner> : null}
         <EmptyState icon={SearchX} title={t("rca.emptyTitle")} description={detail.isEvidenceOnly ? t("rca.emptyEvidenceOnly") : t("rca.emptyDescription")} isBordered />
+        {detail.isEvidenceOnly ? <CoverageGapsCard gaps={detail.coverageGaps} /> : null}
       </div>
     );
   }
@@ -70,12 +64,19 @@ export function RcaSection({ detail, onSelectEvidence, selectedRunbookId = null 
               <h2 className="text-h3 text-default">{t("rca.summaryTitle")}</h2>
               <AiGeneratedChip modelName={detail.modelNames.join(", ") || null} generatedAt={detail.completedAt} size="sm" />
             </div>
+            <OutcomeSummary detail={detail} onSelectEvidence={onSelectEvidence} />
             <p className="text-body-lg text-default">{detail.executiveSummary}</p>
-            {leadingHypothesis ? <p className="text-body-sm text-muted">{t("rca.leading", { perspective: t(`perspective.${leadingHypothesis.analysisPerspective}`), title: leadingHypothesis.hypothesisTitle })}</p> : null}
+            {leadingHypothesis ? <p className="text-body-sm text-muted">{isCauseConfirmed ? t("rca.leading", { perspective: t(`perspective.${leadingHypothesis.analysisPerspective}`), title: leadingHypothesis.hypothesisTitle }) : t("outcome.strongestLead", { perspective: t(`perspective.${leadingHypothesis.analysisPerspective}`), title: leadingHypothesis.hypothesisTitle })}</p> : null}
+            {isCauseConfirmed && detail.leadingPerspectiveReasonMarkdown ? (
+              <details className="rounded-md border border-hairline px-3 py-2">
+                <summary className="cursor-pointer text-body-sm font-semibold text-action">{t("outcome.whyThisLead")}</summary>
+                <div className="mt-2"><MarkdownView content={detail.leadingPerspectiveReasonMarkdown} /></div>
+              </details>
+            ) : null}
           </div>
-          {detail.overallConfidenceScore !== null ? (
+          {detail.overallConfidenceScore !== null && detail.outcome?.code !== "cause_not_visible" ? (
             <div className="flex shrink-0 flex-col gap-1.5 md:w-60">
-              <span className="text-micro uppercase tracking-wide text-muted">{t("rca.overallConfidence")}</span>
+              <span className="text-micro uppercase tracking-wide text-muted">{isCauseConfirmed ? t("rca.overallConfidence") : t("outcome.confidenceStrongestLead")}</span>
               <ConfidenceMeter percentage={Math.round(detail.overallConfidenceScore * 100)} />
             </div>
           ) : null}
@@ -114,6 +115,8 @@ export function RcaSection({ detail, onSelectEvidence, selectedRunbookId = null 
             </CardBody>
           </Card>
         ) : null}
+        <RuledOutCard detail={detail} />
+        <CoverageGapsCard gaps={detail.coverageGaps} />
         {detail.matchedRunbooks.length > 0 ? (
           <Card>
             <CardHeader icon={BookOpen} iconTone="brand" title={t("rca.matchedRunbooks")} description={t("rca.matchedRunbooksHelp")} />

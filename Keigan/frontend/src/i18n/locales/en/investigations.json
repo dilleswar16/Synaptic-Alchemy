@@ -326,5 +326,100 @@
   "teams": {
     "title": "Teams room",
     "description": "The incident chat for this incident appears here once the Teams integration is available."
+  },
+  "outcome": {
+    "label": "Outcome",
+    "cause_identified": {
+      "title": "Cause identified",
+      "description": "The evidence supports one explanation."
+    },
+    "inconclusive": {
+      "title": "Inconclusive",
+      "description": "The evidence does not settle between the explanations. The strongest lead is shown, not confirmed."
+    },
+    "cause_not_visible": {
+      "title": "Cause not visible in the data Keigan can see",
+      "description": "Nothing Keigan could read changed against the hour before. The cause is likely in a system or change Keigan cannot see."
+    },
+    "notRecorded": "This investigation ran before Keigan recorded outcomes.",
+    "guardNote": "Keigan's rules changed the AI's conclusion from {{proposed}} to {{final}}: {{reason}}.",
+    "guard": {
+      "nothing_changed_in_checked_sources": "nothing Keigan could read changed against the baseline",
+      "leading_hypothesis_not_supported": "the leading explanation was not supported by the evidence",
+      "synthesis_unavailable": "the AI summary was not available"
+    },
+    "value": {
+      "cause_identified": "cause identified",
+      "inconclusive": "inconclusive",
+      "cause_not_visible": "cause not visible"
+    },
+    "strongestLead": "Strongest lead, not confirmed: {{perspective}} — {{title}}",
+    "whyThisLead": "Why this lead",
+    "confidenceStrongestLead": "Confidence in the strongest lead"
+  },
+  "hypothesisState": {
+    "supported": "Supported",
+    "ruled_out": "Ruled out",
+    "inconclusive": "Inconclusive",
+    "why": "Why",
+    "guard": {
+      "support_not_in_evidence": "none of the evidence it cites changed against the baseline",
+      "confidence_below_supported_minimum": "the confidence was below the minimum for a supported explanation",
+      "rule_out_not_in_evidence": "no evidence that was read shows this lens is healthy",
+      "confidence_above_ruled_out_maximum": "the confidence was too high to rule it out"
+    },
+    "guardNote": "The AI said {{proposed}}; Keigan's rules changed it to {{final}}: {{reason}}.",
+    "value": {
+      "supported": "supported",
+      "ruled_out": "ruled out",
+      "inconclusive": "inconclusive"
+    }
+  },
+  "ruledOut": {
+    "title": "Ruled out",
+    "description": "Explanations that the evidence ruled out, and why."
+  },
+  "coverage": {
+    "title": "What Keigan could not check",
+    "description": "Sources Keigan could not read and checks it did not make. A check that was not made is not a healthy result.",
+    "empty": "Keigan read every source it planned to.",
+    "footnote": "Keigan does not read code repositories or deployment pipelines.",
+    "legacyEvidence": "Shown as evidence {{code}} in this older investigation",
+    "kind": {
+      "source_not_readable": "{{service}} ({{source}}) could not be read",
+      "changes_not_readable": "Recent deployments and configuration changes could not be read",
+      "service_without_telemetry": "{{service}} has no log or metric source connected, so nothing was checked for it",
+      "services_beyond_limit": "{{count}} service(s) were not examined because of the limit of {{limit}}: {{services}}",
+      "checks_beyond_limit": "{{count}} check(s) on {{service}} were not run because of the limit of {{limit}} per service",
+      "planned_query_rejected": "A query the AI planned for {{service}} was refused by the query safety rules",
+      "planned_query_failed": "A query the AI planned for {{service}} failed",
+      "results_left_out": "{{count}} low-signal result(s) were left out to stay within the evidence budget",
+      "perspective_not_analysed": "The {{perspective}} analysis produced no usable result"
+    },
+    "reason": {
+      "access_refused": "Keigan's identity was refused access (a read role is missing)",
+      "throttled": "the source was busy and asked Keigan to slow down",
+      "source_not_found": "the source was not found",
+      "source_error": "the source returned an error",
+      "timed_out": "the source took too long to answer",
+      "not_approved": "this source is not approved for this application",
+      "query_rejected": "the query safety rules refused the query",
+      "reader_not_available": "Keigan cannot read this kind of tool yet",
+      "ai_unavailable": "the AI model was not available",
+      "ai_output_invalid": "the AI's reply could not be used",
+      "unknown": "for a reason Keigan could not identify"
+    }
+  },
+  "evidenceCheck": {
+    "outcome": {
+      "signal": "Signal",
+      "no_signal": "Healthy or nothing found",
+      "not_checked": "Could not be read"
+    },
+    "baseline": {
+      "compared": "Compared with the baseline",
+      "no_baseline_for_source": "No baseline for this kind of source"
+    },
+    "introUnreadSources": "Sources Keigan could not read are listed on the Root cause tab."
   }
 }

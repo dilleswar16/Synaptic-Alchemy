@@ -1,4 +1,4 @@
-import type { AnalysisPerspective, InvestigationStatus, SignalStrength } from "@/api/investigationsApi";
+import type { AnalysisPerspective, EvidenceCheckOutcome, HypothesisStateName, InvestigationOutcomeCode, InvestigationStatus, SignalStrength } from "@/api/investigationsApi";
 import type { StatusTone } from "@/components/ui/toneStyles";
 
 export const investigationStatusTone: Record<InvestigationStatus, StatusTone> = {
@@ -36,6 +36,11 @@ export function topologyNodeType(serviceType: string): string {
 }
 
 /** Evidence, runbook and knowledge citations such as [E3] that appear in AI-written markdown. */
+/** Tone of the outcome chip: a result, never an alarm ("cause not visible" is information, not danger). */
+export const outcomeTone: Record<Exclude<InvestigationOutcomeCode, "not_recorded">, StatusTone> = { cause_identified: "success", inconclusive: "warning", cause_not_visible: "info" };
+export const hypothesisStateTone: Record<HypothesisStateName, StatusTone> = { supported: "success", ruled_out: "neutral", inconclusive: "warning" };
+export const checkOutcomeTone: Record<EvidenceCheckOutcome, StatusTone> = { signal: "info", no_signal: "neutral", not_checked: "warning" };
+
 export function extractCitationCodes(markdown: string | null | undefined): string[] {
   const codes = new Set<string>();
   for (const match of (markdown ?? "").matchAll(/\[(E\d{1,3})\]/g)) {

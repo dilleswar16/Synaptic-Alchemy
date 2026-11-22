@@ -12,6 +12,31 @@ export type FeedbackVerdict = "correct" | "partially_correct" | "incorrect";
 export type CommunicationType = "initial_update" | "executive_summary" | "preliminary_report" | "progress_update" | "resolution_update";
 export type CommunicationStatus = "draft" | "approved" | "sent";
 
+/** How far an investigation got. `not_recorded` is an investigation that ran before Keigan recorded outcomes. */
+export type InvestigationOutcomeCode = "cause_identified" | "inconclusive" | "cause_not_visible" | "not_recorded";
+export type HypothesisStateName = "supported" | "ruled_out" | "inconclusive";
+export type EvidenceCheckOutcome = "signal" | "no_signal" | "not_checked";
+export type BaselineComparison = "compared" | "no_baseline_for_source";
+
+export interface InvestigationOutcomeInfo {
+  code: InvestigationOutcomeCode;
+  proposedCode: string | null;
+  guardCode: string | null;
+  reasonMarkdown: string | null;
+}
+
+/** One thing the investigation meant to check and could not (codes and catalogue names only). */
+export interface CoverageGap {
+  coverageGapId: Identifier;
+  gapKind: string;
+  reasonCode: string | null;
+  serviceId: Identifier | null;
+  serviceName: string | null;
+  sourceKind: string | null;
+  parameters: Record<string, unknown>;
+  legacyEvidenceCode: string | null;
+}
+
 export interface InvestigationSummary {
   investigationId: Identifier;
   application: ApplicationReference;
@@ -20,6 +45,8 @@ export interface InvestigationSummary {
   incidentTitle: string | null;
   investigationTrigger: string;
   investigationStatus: InvestigationStatus;
+  /** Null while the investigation runs, failed or ended evidence only. */
+  investigationOutcome: InvestigationOutcomeCode | null;
   currentStageName: string;
   progressPercent: number;
   keiganPriority: Priority | null;
@@ -91,6 +118,8 @@ export interface Evidence {
   condensedPatterns: LogPattern[];
   metricSeries: MetricSeriesSummary[];
   signalStrength: SignalStrength;
+  checkOutcome: EvidenceCheckOutcome | null;
+  baselineComparison: BaselineComparison | null;
   maskedValueCount: number;
   possiblePromptInjection: boolean;
   deepLinkUrl: string | null;
@@ -132,6 +161,11 @@ export interface Hypothesis {
   hypothesisStatementMarkdown: string | null;
   reasoningMarkdown: string | null;
   confidenceScore: number;
+  /** Null on a hypothesis stored before states were recorded. */
+  state: HypothesisStateName | null;
+  proposedState: HypothesisStateName | null;
+  stateGuardCode: string | null;
+  stateReasonMarkdown: string | null;
   supportingEvidenceCodes: string[];
   contradictingEvidenceCodes: string[];
   proposedFix: ProposedFix | null;
@@ -172,6 +206,9 @@ export interface AlertGroupPayload {
 }
 
 export interface InvestigationDetail extends InvestigationSummary {
+  outcome: InvestigationOutcomeInfo | null;
+  leadingPerspectiveReasonMarkdown: string | null;
+  coverageGaps: CoverageGap[];
   incident: IncidentSummary | null;
   investigationWindowStart: IsoDateTimeString | null;
   investigationWindowEnd: IsoDateTimeString | null;

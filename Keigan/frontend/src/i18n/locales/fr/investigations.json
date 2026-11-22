@@ -326,5 +326,100 @@
   "teams": {
     "title": "Salle Teams",
     "description": "La conversation de cet incident apparaîtra ici une fois l'intégration Teams disponible."
+  },
+  "outcome": {
+    "label": "Résultat",
+    "cause_identified": {
+      "title": "Cause identifiée",
+      "description": "Les preuves étayent une explication."
+    },
+    "inconclusive": {
+      "title": "Non concluant",
+      "description": "Les preuves ne permettent pas de trancher entre les explications. La piste la plus solide est montrée, sans être confirmée."
+    },
+    "cause_not_visible": {
+      "title": "Cause non visible dans les données que Keigan peut voir",
+      "description": "Rien de ce que Keigan a pu lire n'a changé par rapport à l'heure précédente. La cause se trouve probablement dans un système ou un changement que Keigan ne voit pas."
+    },
+    "notRecorded": "Cette investigation a eu lieu avant que Keigan n'enregistre les résultats.",
+    "guardNote": "Les règles de Keigan ont changé la conclusion de l'IA de {{proposed}} à {{final}} : {{reason}}.",
+    "guard": {
+      "nothing_changed_in_checked_sources": "rien de ce que Keigan a pu lire n'a changé par rapport à la référence",
+      "leading_hypothesis_not_supported": "l'explication principale n'était pas étayée par les preuves",
+      "synthesis_unavailable": "la synthèse de l'IA n'était pas disponible"
+    },
+    "value": {
+      "cause_identified": "cause identifiée",
+      "inconclusive": "non concluant",
+      "cause_not_visible": "cause non visible"
+    },
+    "strongestLead": "Piste la plus solide, non confirmée : {{perspective}} — {{title}}",
+    "whyThisLead": "Pourquoi cette piste",
+    "confidenceStrongestLead": "Confiance dans la piste la plus solide"
+  },
+  "hypothesisState": {
+    "supported": "Étayée",
+    "ruled_out": "Écartée",
+    "inconclusive": "Non concluante",
+    "why": "Pourquoi",
+    "guard": {
+      "support_not_in_evidence": "aucune des preuves citées n'a changé par rapport à la référence",
+      "confidence_below_supported_minimum": "la confiance était inférieure au minimum d'une explication étayée",
+      "rule_out_not_in_evidence": "aucune preuve lue ne montre que cet angle est sain",
+      "confidence_above_ruled_out_maximum": "la confiance était trop élevée pour l'écarter"
+    },
+    "guardNote": "L'IA a indiqué {{proposed}} ; les règles de Keigan l'ont changé en {{final}} : {{reason}}.",
+    "value": {
+      "supported": "étayée",
+      "ruled_out": "écartée",
+      "inconclusive": "non concluante"
+    }
+  },
+  "ruledOut": {
+    "title": "Écartées",
+    "description": "Explications que les preuves ont écartées, et pourquoi."
+  },
+  "coverage": {
+    "title": "Ce que Keigan n'a pas pu vérifier",
+    "description": "Sources que Keigan n'a pas pu lire et vérifications qu'il n'a pas faites. Une vérification non faite n'est pas un résultat sain.",
+    "empty": "Keigan a lu toutes les sources prévues.",
+    "footnote": "Keigan ne lit ni les dépôts de code ni les pipelines de déploiement.",
+    "legacyEvidence": "Affichée comme preuve {{code}} dans cette ancienne investigation",
+    "kind": {
+      "source_not_readable": "{{service}} ({{source}}) n'a pas pu être lu",
+      "changes_not_readable": "Les déploiements et changements de configuration récents n'ont pas pu être lus",
+      "service_without_telemetry": "{{service}} n'a aucune source de journaux ou de métriques connectée : rien n'a été vérifié",
+      "services_beyond_limit": "{{count}} service(s) n'ont pas été examinés à cause de la limite de {{limit}} : {{services}}",
+      "checks_beyond_limit": "{{count}} vérification(s) sur {{service}} n'ont pas été exécutées à cause de la limite de {{limit}} par service",
+      "planned_query_rejected": "Une requête planifiée par l'IA pour {{service}} a été refusée par les règles de sécurité des requêtes",
+      "planned_query_failed": "Une requête planifiée par l'IA pour {{service}} a échoué",
+      "results_left_out": "{{count}} résultat(s) à faible signal ont été écartés pour respecter le budget de preuves",
+      "perspective_not_analysed": "L'analyse {{perspective}} n'a produit aucun résultat exploitable"
+    },
+    "reason": {
+      "access_refused": "l'identité de Keigan s'est vu refuser l'accès (un rôle de lecture manque)",
+      "throttled": "la source était occupée et a demandé à Keigan de ralentir",
+      "source_not_found": "la source est introuvable",
+      "source_error": "la source a renvoyé une erreur",
+      "timed_out": "la source a mis trop de temps à répondre",
+      "not_approved": "cette source n'est pas approuvée pour cette application",
+      "query_rejected": "les règles de sécurité ont refusé la requête",
+      "reader_not_available": "Keigan ne sait pas encore lire ce type d'outil",
+      "ai_unavailable": "le modèle d'IA n'était pas disponible",
+      "ai_output_invalid": "la réponse de l'IA n'a pas pu être utilisée",
+      "unknown": "pour une raison que Keigan n'a pas pu identifier"
+    }
+  },
+  "evidenceCheck": {
+    "outcome": {
+      "signal": "Signal",
+      "no_signal": "Sain ou rien trouvé",
+      "not_checked": "N'a pas pu être lu"
+    },
+    "baseline": {
+      "compared": "Comparé à la référence",
+      "no_baseline_for_source": "Pas de référence pour ce type de source"
+    },
+    "introUnreadSources": "Les sources que Keigan n'a pas pu lire sont listées dans l'onglet Cause racine."
   }
 }
