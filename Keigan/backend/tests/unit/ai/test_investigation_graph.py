@@ -14,7 +14,7 @@ from keigan.ai.prompt_safety import build_valid_citation_codes, restrict_to_know
 
 @pytest.fixture
 def runner() -> InvestigationGraphRunner:
-    graph_runner = InvestigationGraphRunner(None, SimpleNamespace(), offline_ai=True)  # type: ignore[arg-type]
+    graph_runner = InvestigationGraphRunner(None, SimpleNamespace(investigation_id="investigation-1"), offline_ai=True)  # type: ignore[arg-type]
     graph_runner.evidence_rows = [  # type: ignore[list-item]
         SimpleNamespace(evidence_code="E1", check_outcome="signal", signal_strength="high", baseline_comparison="compared"),
         SimpleNamespace(evidence_code="E2", check_outcome="no_signal", signal_strength="low", baseline_comparison="compared"),
@@ -163,7 +163,7 @@ class TestEvidenceStageWiring:
         async def update_progress(*_arguments: object) -> None:
             return None
 
-        graph_runner = InvestigationGraphRunner(None, SimpleNamespace(), offline_ai=True)  # type: ignore[arg-type]
+        graph_runner = InvestigationGraphRunner(None, SimpleNamespace(investigation_id="investigation-1"), offline_ai=True)  # type: ignore[arg-type]
         graph_runner.investigation = SimpleNamespace(  # type: ignore[assignment]
             investigation_window_start=window_end - timedelta(hours=1), investigation_window_end=window_end,
             baseline_window_start=window_end - timedelta(days=1), baseline_window_end=window_end - timedelta(hours=23),
@@ -205,7 +205,7 @@ class TestFailedSloGuardrailIsLogged:
             raise RuntimeError("slo store unavailable")
 
         monkeypatch.setattr(SloService, "summarize_slos", unavailable)
-        graph_runner = InvestigationGraphRunner(None, SimpleNamespace(), offline_ai=True)  # type: ignore[arg-type]
+        graph_runner = InvestigationGraphRunner(None, SimpleNamespace(investigation_id="investigation-1"), offline_ai=True)  # type: ignore[arg-type]
         graph_runner.application = SimpleNamespace(application_id="application-42", criticality_tier=CriticalityTier.TIER_1)  # type: ignore[assignment]
         assert await graph_runner._guardrail_priority() is None
         assert any(record.levelno == logging.WARNING and "application-42" in record.getMessage() for record in caplog.records)
@@ -232,7 +232,7 @@ class TestFailedImpactedSloLookupIsLoggedAndTheBlastRadiusStillBuilds:
                 return None
 
         monkeypatch.setattr(SloService, "summarize_slos", unavailable)
-        graph_runner = InvestigationGraphRunner(None, SimpleNamespace(), offline_ai=True)  # type: ignore[arg-type]
+        graph_runner = InvestigationGraphRunner(None, SimpleNamespace(investigation_id="investigation-1"), offline_ai=True)  # type: ignore[arg-type]
         graph_runner.session = NoStakeholdersSession()  # type: ignore[assignment]
         from keigan.entities.application_entities import Application
 

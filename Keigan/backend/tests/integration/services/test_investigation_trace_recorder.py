@@ -41,7 +41,7 @@ async def with_recorder(seed_context, work) -> list[InvestigationTraceStep]:  # 
     investigation_id = await new_investigation(seed_context)
     async with open_session() as session:
         investigation = await session.get(Investigation, investigation_id)
-        recorder = InvestigationTraceRecorder(session, investigation, PiiMasker(), get_settings())
+        recorder = InvestigationTraceRecorder(session, investigation.investigation_id, PiiMasker(), get_settings())
         await work(recorder)
     async with open_session() as session:
         return list((await session.scalars(select(InvestigationTraceStep).where(InvestigationTraceStep.investigation_id == investigation_id).order_by(InvestigationTraceStep.sequence_number))).all())
@@ -144,12 +144,12 @@ async def test_a_failure_is_one_failed_outcome_numbered_after_the_committed_step
     investigation_id = await new_investigation(seed_context)
     async with open_session() as session:
         investigation = await session.get(Investigation, investigation_id)
-        first = InvestigationTraceRecorder(session, investigation, PiiMasker(), get_settings())
+        first = InvestigationTraceRecorder(session, investigation.investigation_id, PiiMasker(), get_settings())
         first.record_inputs({"ok": True})
         first.record_decision(InvestigationDecisionKind.PRIORITY_SET, {"final": "P2"})
     async with open_session() as session:  # a later run of the same investigation: the in-memory counter starts again
         investigation = await session.get(Investigation, investigation_id)
-        second = InvestigationTraceRecorder(session, investigation, PiiMasker(), get_settings())
+        second = InvestigationTraceRecorder(session, investigation.investigation_id, PiiMasker(), get_settings())
         await second.record_failure(InvestigationStage.EVIDENCE, "corr-1")
     async with open_session() as session:
         steps = list((await session.scalars(select(InvestigationTraceStep).where(InvestigationTraceStep.investigation_id == investigation_id).order_by(InvestigationTraceStep.sequence_number))).all())

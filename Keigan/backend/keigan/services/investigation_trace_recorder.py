@@ -21,7 +21,7 @@ from keigan.ai.investigation_ai_caller import InvestigationAiCall
 from keigan.ai.llm_gateway import PromptSection
 from keigan.ai.prompt_safety import find_citation_codes
 from keigan.config.settings import Settings
-from keigan.entities.incident_entities import Investigation, InvestigationTraceStep
+from keigan.entities.incident_entities import InvestigationTraceStep
 from keigan.entities.status_values import (
     InvestigationAiCallFailure, InvestigationDecisionKind, InvestigationStage, InvestigationTraceStepKind, InvestigationTraceStepStatus,
 )
@@ -81,15 +81,20 @@ def _never_fail(method: Callable[Parameters, Result]) -> Callable[Parameters, Re
 
 
 class InvestigationTraceRecorder:
-    def __init__(self, session: AsyncSession, investigation: Investigation, masker: PiiMasker, settings: Settings):
+    def __init__(self, session: AsyncSession, investigation_id: str, masker: PiiMasker, settings: Settings):
         self.session = session
-        self.investigation_id = investigation.investigation_id
+        self.investigation_id = investigation_id
         self.masker = masker
         self.maximum_raw_output_characters = settings.investigation_trace_raw_output_stored_characters
         self.is_recording = True
         self.stage: str = InvestigationStage.TRIAGE
         self._next_sequence_number = 1
         self._steps_by_feature: dict[str, InvestigationTraceStep] = {}
+        self.prompt_versions: dict[str, str] = {}  # prompt key -> version of every prompt a call used (for the audit row)
+
+    @property
+    def step_count(self) -> int:
+        return self._next_sequence_number - 1
 
     # ── Steps ──────────────────────────────────────────────────────────────────
     def _add(self, kind: InvestigationTraceStepKind, status: InvestigationTraceStepStatus = InvestigationTraceStepStatus.SUCCEEDED, **fields: Any) -> InvestigationTraceStep:
@@ -134,6 +139,7 @@ class InvestigationTraceRecorder:
             failure_code=failure_code_of(call.failure) if call.failure else None,
         )
         self._steps_by_feature[call.feature_name] = step
+        self.prompt_versions[call.prompt_key] = call.prompt_version
 
     @_never_fail
     def add_adjustments(self, feature_name: str, adjustments: Sequence[dict[str, Any]]) -> None:

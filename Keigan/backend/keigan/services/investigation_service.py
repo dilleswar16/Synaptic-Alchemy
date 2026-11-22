@@ -137,6 +137,11 @@ class InvestigationService:
             # The technical detail is in the log above; users only see a generic reason and the correlation id (V19).
             investigation.investigation_status, investigation.failure_reason = InvestigationStatus.FAILED, f"The investigation could not finish because of an internal problem. Reference {current_correlation_id() or 'none'}."
             investigation.stage_messages_json = [*(investigation.stage_messages_json or []), {"at": utc_now().isoformat(), "stage": "failed", "message": "The investigation failed. Re-run it, or contact a Keigan admin."}]
+            await runner.recorder.record_failure(runner.recorder.stage, current_correlation_id() or None)  # the failed stage was rolled back; the steps of the stages before it were committed
+            await AuditService(self.session).record(
+                investigation.requested_by_user_principal_name or "system:worker", "investigation.failed", target_entity_type="investigation", target_entity_id=investigation_id,
+                application_id=investigation.application_id, action_details={"failedAfterStage": runner.recorder.stage, "promptVersions": dict(runner.recorder.prompt_versions), "traceStepCount": runner.recorder.step_count},
+            )
             return {"investigationId": investigation_id, "status": "failed"}
         if not offline_ai:
             await JobQueue(self.session).enqueue("notify_investigation_completed", {"investigation_id": investigation_id}, deduplication_key=f"notify_investigation_completed:{investigation_id}", priority_number=15)

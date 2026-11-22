@@ -9,9 +9,11 @@ carries small flags and the hypothesis results. Progress is committed after ever
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import operator
 import re
+from collections import Counter
 from datetime import timedelta
 from typing import Annotated, Any, TypedDict
 
@@ -38,19 +40,24 @@ from keigan.entities.notification_entities import Stakeholder
 from keigan.entities.platform_entities import LlmUsageRecord
 from keigan.entities.status_values import (
     AnalysisPerspective, CoverageGapKind, CoverageGapReason, CriticalityTier, EvidenceCheckOutcome, HypothesisState, IncidentStatus, InvestigationFeedbackVerdict,
-    InvestigationOutcome, InvestigationStage, InvestigationStatus, Priority, RiskLevel, SloHealthStatus,
+    InvestigationDecisionKind, InvestigationOutcome, InvestigationStage, InvestigationStatus, InvestigationTraceStepStatus, Priority, RiskLevel, SloHealthStatus,
 )
 from keigan.exceptions.keigan_exceptions import KeiganException, LlmUnavailableException, TokenBudgetExceededException
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.services.evidence_service import EvidenceDraft, EvidenceService, ServiceTelemetryContext
 from keigan.services.incident_priority_rules import map_servicenow_priority, most_severe_priority
+from keigan.services.audit_service import AuditService
 from keigan.services.investigation_coverage import CoverageGapCollector
+from keigan.services.investigation_trace_adjustments import hypothesis_adjustments, synthesis_adjustments
+from keigan.services.investigation_trace_recorder import InvestigationTraceRecorder
 from keigan.utils.pii_masker import MaskingContext, PiiMasker
 from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
 
+INVESTIGATION_PIPELINE_VERSION = "1"  # bumped when the order of the stages or the rules that decide between them change; the decision trace records it
+PLANNER_STRONG_SIGNAL_THRESHOLD = 2  # the planner asks for extra queries when fewer strong signals than this were found
 PERSPECTIVES = (AnalysisPerspective.APPLICATION, AnalysisPerspective.DEPENDENCIES, AnalysisPerspective.INFRASTRUCTURE)
 STAGE_PERCENT = {InvestigationStage.TRIAGE: 8, InvestigationStage.CONTEXT: 22, InvestigationStage.EVIDENCE: 35, InvestigationStage.HYPOTHESES: 62, InvestigationStage.SYNTHESIS: 82, InvestigationStage.COMMUNICATIONS: 94}
 _FENCED_BLOCK_PATTERN = re.compile(r"```[a-z]*\n(.*?)```", re.DOTALL)
@@ -74,6 +81,8 @@ class InvestigationGraphRunner:
         self.evidence_service = EvidenceService(session, self.coverage)
         self.masking_context = MaskingContext()
         self.masker = PiiMasker(self.masking_context)
+        self.recorder = InvestigationTraceRecorder(session, investigation.investigation_id, self.masker, self.settings)  # the decision trace (spec 28); never affects the run
+        self.planner_strong_signal_count = 0
         self.application: Application
         self.incident: Incident | None = None
         self.services: list[MonitoredService] = []
@@ -158,11 +167,44 @@ class InvestigationGraphRunner:
         await self._build_initial_mock_context()
         self.ai_caller = InvestigationAiCaller(
             self.application.application_id, self.application.application_name, self.application.criticality_tier, investigation.investigation_id,
-            investigation.requested_by_user_principal_name, self.mock_context, self.offline_ai,
+            investigation.requested_by_user_principal_name, self.mock_context, self.offline_ai, call_observer=self.recorder.record_ai_call,
         )
+        self.recorder.record_inputs(self._input_snapshot())
+
+    def _input_snapshot(self) -> dict[str, Any]:
+        """What the run started from, as the decision trace records it: ids, windows, the settings that shape the run, and whether operating notes were present (a hash, not the notes)."""
+        investigation, settings = self.investigation, self.settings
+        notes_text = self.application.operating_notes_text
+        return {
+            "pipelineVersion": INVESTIGATION_PIPELINE_VERSION, "trigger": investigation.investigation_trigger, "incidentId": investigation.incident_id,
+            "incidentNumber": self.incident.external_incident_number if self.incident else None,
+            "window": {"start": investigation.investigation_window_start.isoformat(), "end": investigation.investigation_window_end.isoformat()},
+            "baselineWindow": {"start": investigation.baseline_window_start.isoformat(), "end": investigation.baseline_window_end.isoformat()},
+            "requestedServiceIds": list(investigation.investigated_service_ids),
+            "provider": {"name": self.ai_caller.gateway.provider_name, "isMock": bool(self.ai_caller.gateway.is_mock), "offlineAi": self.offline_ai},
+            "models": {"fast": settings.llm_fast_model, "deep": settings.llm_deep_model},
+            "settings": {
+                "lookbackMinutes": settings.investigation_lookback_minutes, "maximumWindowMinutes": settings.investigation_max_window_minutes, "maximumServices": settings.investigation_max_services,
+                "maximumChecksPerService": settings.investigation_max_checks_per_service, "evidenceTokenBudget": settings.investigation_evidence_token_budget,
+                "knowledgeTokenBudget": settings.investigation_knowledge_token_budget, "supportedMinimumConfidence": settings.investigation_supported_minimum_confidence,
+                "ruledOutMaximumConfidence": settings.investigation_ruled_out_maximum_confidence, "plannerStrongSignalThreshold": PLANNER_STRONG_SIGNAL_THRESHOLD,
+            },
+            "operatingNotes": {"present": bool(notes_text), "sha256": hashlib.sha256(notes_text.encode("utf-8")).hexdigest() if notes_text else None},
+        }
+
+    def _enter_evidence_only_mode(self, reason: str, stage: str) -> None:
+        """The AI is not used from here on. Recorded once, with why (a code) and where."""
+        if not self.evidence_only:
+            self.recorder.record_decision(InvestigationDecisionKind.EVIDENCE_ONLY_MODE, {"reason": reason, "stage": stage})
+        self.evidence_only = True
+
+    @staticmethod
+    def _unavailable_reason(failure: Exception) -> str:
+        return "token_budget_exceeded" if isinstance(failure, TokenBudgetExceededException) else "ai_unavailable"
 
     async def _update_progress(self, stage_name: str, message: str, percent: int | None = None) -> None:
         investigation = self.investigation
+        self.recorder.stage = stage_name
         investigation.current_stage_name = stage_name
         investigation.progress_percent = percent if percent is not None else STAGE_PERCENT.get(stage_name, investigation.progress_percent)
         investigation.stage_messages_json = [*(investigation.stage_messages_json or []), {"at": utc_now().isoformat(), "stage": stage_name, "message": message}]
@@ -204,7 +246,7 @@ class InvestigationGraphRunner:
             self.triage = await self._ask("incident_triage", sections, TriageResult)
         except (TokenBudgetExceededException, LlmUnavailableException) as unavailable:
             logger.info("Triage fell back to deterministic mode: %s", unavailable)
-            self.evidence_only = True
+            self._enter_evidence_only_mode(self._unavailable_reason(unavailable), InvestigationStage.TRIAGE)
             self.triage = TriageResult(suggested_priority=Priority.P3, priority_rationale="AI unavailable; priority taken from ServiceNow fields.", incident_category="errors", incident_summary=truncate_text(self.incident_text, 400))
         triage = self.triage
         triage.incident_summary, triage.priority_rationale = sanitize_ai_markdown(triage.incident_summary), sanitize_ai_markdown(triage.priority_rationale)
@@ -216,6 +258,14 @@ class InvestigationGraphRunner:
         guardrail_priority = await self._guardrail_priority()
         mapped_priority = map_servicenow_priority(incident.servicenow_impact, incident.servicenow_urgency, incident.servicenow_priority) if incident else None
         final_priority = most_severe_priority(triage.suggested_priority, mapped_priority, guardrail_priority) or triage.suggested_priority
+        cut_service_names = [name for entry in self.coverage.entries if entry.kind == CoverageGapKind.SERVICES_BEYOND_LIMIT for name in entry.parameters.get("serviceNames", [])]
+        self.recorder.record_decision(InvestigationDecisionKind.SERVICES_SELECTED, {
+            "selectedServiceIds": [service.service_id for service in self.services], "requestedServiceIds": list(investigation.investigated_service_ids),
+            "fromTriage": list(triage.candidate_service_names), "cutServiceNames": cut_service_names, "limit": self.settings.investigation_max_services,
+        })
+        self.recorder.record_decision(InvestigationDecisionKind.PRIORITY_SET, {
+            "suggested": triage.suggested_priority, "mappedFromServiceNow": mapped_priority, "guardrail": guardrail_priority, "final": final_priority,
+        })
         if incident:
             incident.keigan_priority, incident.priority_rationale = final_priority, triage.priority_rationale
             incident.incident_category = triage.incident_category
@@ -339,7 +389,8 @@ class InvestigationGraphRunner:
             )
         strong_count = sum(1 for draft in self.evidence_drafts if draft.signal_strength in (RiskLevel.HIGH, RiskLevel.MEDIUM) and not draft.is_rule_out)
         await self._update_progress("evidence", f"Collected {len(self.evidence_drafts)} evidence items; {strong_count} with a medium or high signal", 52)
-        return {"needs_planner": strong_count < 2 and not self.has_planned_once and not self.evidence_only}
+        self.planner_strong_signal_count = strong_count
+        return {"needs_planner": strong_count < PLANNER_STRONG_SIGNAL_THRESHOLD and not self.has_planned_once and not self.evidence_only}
 
     async def planner_node(self, state: InvestigationState) -> dict[str, Any]:
         self.has_planned_once = True
@@ -354,18 +405,30 @@ class InvestigationGraphRunner:
         try:
             plan: AdditionalQueryPlan = await self._ask("evidence_query_planner", sections, AdditionalQueryPlan)
         except (TokenBudgetExceededException, LlmUnavailableException, KeiganException):
+            self.recorder.record_decision(
+                InvestigationDecisionKind.PLANNER_REQUESTED, {"strongSignalCount": self.planner_strong_signal_count, "threshold": PLANNER_STRONG_SIGNAL_THRESHOLD, "queriesPlanned": 0, "queriesRun": 0},
+                InvestigationTraceStepStatus.FAILED,
+            )
             return {}
         assert investigation.investigation_window_start and investigation.investigation_window_end and investigation.baseline_window_start and investigation.baseline_window_end
         extra_drafts = await self.evidence_service.run_planned_queries(
             plan.queries, self.service_contexts, investigation.investigation_window_start, investigation.investigation_window_end, investigation.baseline_window_start, investigation.baseline_window_end, self.masking_context
         )
         self.evidence_drafts.extend(extra_drafts)
+        self.recorder.record_decision(InvestigationDecisionKind.PLANNER_REQUESTED, {
+            "strongSignalCount": self.planner_strong_signal_count, "threshold": PLANNER_STRONG_SIGNAL_THRESHOLD, "queriesPlanned": len(plan.queries), "queriesRun": len(extra_drafts),
+        })
         return {}
 
     async def finalize_evidence_node(self, state: InvestigationState) -> dict[str, Any]:
         ranked_drafts = self.evidence_service.select_for_investigation(self.evidence_drafts, self.settings.investigation_evidence_token_budget)
         self.evidence_rows = await self.evidence_service.persist_evidence(self.investigation.investigation_id, ranked_drafts)
         await self.coverage.persist_new(self.session, self.investigation.investigation_id)
+        self.recorder.record_evidence({
+            "evidenceIds": {row.evidence_code: row.evidence_id for row in self.evidence_rows}, "countsByCheckOutcome": dict(Counter(row.check_outcome for row in self.evidence_rows)),
+            "countsByBaselineComparison": dict(Counter(row.baseline_comparison for row in self.evidence_rows)), "coverageGapCount": len(self.coverage.entries),
+            "kept": len(self.evidence_rows), "collected": len(self.evidence_drafts), "tokenBudget": self.settings.investigation_evidence_token_budget,
+        })
         self.investigation.replace_linked_ids("matched_runbook_links", [])
         await self._refine_runbook_matches()
         if self.mock_context:
@@ -427,13 +490,15 @@ class InvestigationGraphRunner:
             except (TokenBudgetExceededException, LlmUnavailableException) as unavailable:
                 logger.info("Hypothesis %s skipped: %s", perspective, unavailable)
                 self.coverage.add(CoverageGapKind.PERSPECTIVE_NOT_ANALYSED, CoverageGapReason.AI_UNAVAILABLE, parameters={"perspective": perspective})
-                self.evidence_only = True
+                self._enter_evidence_only_mode(self._unavailable_reason(unavailable), InvestigationStage.HYPOTHESES)
                 return {}
             except KeiganException as invalid_output:
                 logger.warning("Hypothesis %s failed: %s", perspective, invalid_output)
                 self.coverage.add(CoverageGapKind.PERSPECTIVE_NOT_ANALYSED, CoverageGapReason.AI_OUTPUT_INVALID, parameters={"perspective": perspective})
                 return {}
-            return {"hypotheses": [self._validated_hypothesis(perspective, result)]}
+            validated = self._validated_hypothesis(perspective, result)
+            self.recorder.add_adjustments(f"hypothesis_{perspective}", validated.pop("adjustments"))
+            return {"hypotheses": [validated]}
 
         return run_hypothesis
 
@@ -483,6 +548,7 @@ class InvestigationGraphRunner:
             "rollback_steps": [self._clean_ai_text(text, valid_codes) for text in fix.rollback_steps],
         }
         runbook_code = result.matched_runbook_code if result.matched_runbook_code in {match.reference_code for match in self.runbook_matches} else None
+        replaced_file_paths = sum(1 for change, kept in zip(fix.code_changes, proposed_fix["code_changes"]) if kept["file_path"] != change.file_path)
         supporting_codes = [code for code in result.supporting_evidence_codes if code in valid_codes]
         contradicting_codes = [code for code in result.contradicting_evidence_codes if code in valid_codes]
         confidence = max(0.0, min(1.0, result.confidence_score))
@@ -490,8 +556,16 @@ class InvestigationGraphRunner:
             HypothesisState(result.assessment), confidence, self._evidence_facts(supporting_codes), self._evidence_facts(contradicting_codes),
             StateThresholds(self.settings.investigation_supported_minimum_confidence, self.settings.investigation_ruled_out_maximum_confidence),
         )
+        raw_texts = [
+            result.hypothesis_statement_markdown, result.reasoning_markdown, result.assessment_reason_markdown, fix.summary, *(step.description for step in fix.steps),
+            *(change.change_description for change in fix.code_changes), *fix.verification_steps, *fix.rollback_steps,
+        ]
+        adjustments = hypothesis_adjustments(
+            raw_texts=raw_texts, valid_codes=valid_codes, dropped_evidence_codes=[code for code in (*result.supporting_evidence_codes, *result.contradicting_evidence_codes) if code not in valid_codes],
+            replaced_file_path_count=replaced_file_paths, risk_from=result.fix_risk_level, risk_to=highest_risk, state_decision=state_decision,
+        )
         return {
-            "analysis_perspective": perspective, "hypothesis_title": sanitize_ai_line(result.hypothesis_title, maximum_characters=300),
+            "analysis_perspective": perspective, "hypothesis_title": sanitize_ai_line(result.hypothesis_title, maximum_characters=300), "adjustments": adjustments,
             "hypothesis_statement_markdown": self._clean_ai_text(result.hypothesis_statement_markdown, valid_codes),
             "reasoning_markdown": self._clean_ai_text(result.reasoning_markdown, valid_codes),
             "confidence_score": confidence, "supporting_evidence_codes": supporting_codes, "contradicting_evidence_codes": contradicting_codes,
@@ -511,7 +585,7 @@ class InvestigationGraphRunner:
     async def synthesis_node(self, state: InvestigationState) -> dict[str, Any]:
         hypotheses = sorted(state.get("hypotheses", []), key=lambda hypothesis: PERSPECTIVES.index(hypothesis["analysis_perspective"]))
         if not hypotheses or self.evidence_only:
-            self.evidence_only = True
+            self._enter_evidence_only_mode("no_hypothesis_produced", InvestigationStage.SYNTHESIS)
             return {"evidence_only": True}
         investigation = self.investigation
         await self._update_progress("synthesis", "Comparing the three hypotheses and writing the root cause analysis", 74)
@@ -539,6 +613,9 @@ class InvestigationGraphRunner:
             logger.warning("Synthesis failed (%s); using the strongest hypothesis", failure)
             synthesis_was_available = False
             best_hypothesis = max(hypotheses, key=lambda hypothesis: hypothesis["confidence_score"])
+            self.recorder.record_decision(
+                InvestigationDecisionKind.SYNTHESIS_FALLBACK, {"failureCode": self._unavailable_reason(failure) if isinstance(failure, TokenBudgetExceededException) else type(failure).__name__, "strongestPerspective": best_hypothesis["analysis_perspective"]},
+            )
             synthesis = RcaSynthesisResult(
                 leading_perspective=best_hypothesis["analysis_perspective"], leading_perspective_reason="Synthesis was unavailable; the highest-confidence hypothesis is shown.",
                 investigation_outcome=InvestigationOutcome.INCONCLUSIVE, outcome_reason_markdown="The synthesis was unavailable, so the outcome follows the highest-confidence hypothesis.", overall_confidence_score=best_hypothesis["confidence_score"],
@@ -554,6 +631,11 @@ class InvestigationGraphRunner:
         leading = None if outcome_decision.final == InvestigationOutcome.CAUSE_NOT_VISIBLE else strongest_lead  # nothing visible changed: no explanation is shown as the lead
         maximum_confidence = max(hypothesis["confidence_score"] for hypothesis in hypotheses)
         investigation.overall_confidence_score = round(min(synthesis.overall_confidence_score, maximum_confidence + 0.05), 2)
+        if synthesis_was_available:
+            self.recorder.add_adjustments("rca_synthesis", synthesis_adjustments(
+                raw_texts=[synthesis.outcome_reason_markdown, synthesis.leading_perspective_reason, synthesis.executive_summary, synthesis.what_went_wrong_markdown, synthesis.why_it_happened_markdown, synthesis.how_to_fix_markdown],
+                valid_codes=self._valid_citation_codes() | set(runbook_codes), confidence_from=synthesis.overall_confidence_score, confidence_to=investigation.overall_confidence_score, outcome_decision=outcome_decision,
+            ))
         investigation.investigation_outcome, investigation.proposed_investigation_outcome = outcome_decision.final, outcome_decision.proposed
         investigation.outcome_guard_code = outcome_decision.guard
         investigation.outcome_reason_markdown = clean(synthesis.outcome_reason_markdown)
@@ -590,6 +672,8 @@ class InvestigationGraphRunner:
             self.hypothesis_rows.append(row)
         await self.session.flush()
         investigation.leading_hypothesis_id = next((row.hypothesis_id for row in self.hypothesis_rows if row.is_leading_hypothesis), None)
+        for row in self.hypothesis_rows:
+            self.recorder.link_hypothesis(f"hypothesis_{row.analysis_perspective}", row.hypothesis_id)
         await self.coverage.persist_new(self.session, investigation.investigation_id)  # the perspectives that produced nothing
         self._add_timeline_event(
             "rca_completed", f"Root cause analysis ready: {outcome_decision.final.value.replace('_', ' ')} (confidence {int((investigation.overall_confidence_score or 0) * 100)}%)", investigation.executive_summary,
@@ -686,6 +770,36 @@ class InvestigationGraphRunner:
         return {}
 
     # ── Completion ─────────────────────────────────────────────────────────────
+    def _outcome_details(self, duration_milliseconds: int) -> dict[str, Any]:
+        investigation = self.investigation
+        return {
+            "status": investigation.investigation_status, "outcome": investigation.investigation_outcome, "proposedOutcome": investigation.proposed_investigation_outcome,
+            "outcomeGuard": investigation.outcome_guard_code, "leadingHypothesisId": investigation.leading_hypothesis_id, "overallConfidence": investigation.overall_confidence_score,
+            "hypotheses": [
+                {"hypothesisId": row.hypothesis_id, "perspective": row.analysis_perspective, "state": row.hypothesis_state, "proposedState": row.proposed_hypothesis_state,
+                 "stateGuard": row.state_guard_code, "confidence": row.confidence_score}
+                for row in self.hypothesis_rows
+            ],
+            "coverageGapCount": len(self.coverage.entries), "durationMilliseconds": duration_milliseconds,
+        }
+
+    async def _record_conclusion(self, evidence_only: bool) -> None:
+        """The outcome step of the trace and the durable audit row (kept 400 days, longer than the trace itself)."""
+        investigation = self.investigation
+        duration_milliseconds = int(((investigation.completed_at or utc_now()) - (investigation.started_at or investigation.created_at)).total_seconds() * 1000)
+        details = self._outcome_details(duration_milliseconds)
+        self.recorder.record_outcome(details)
+        await AuditService(self.session).record(
+            investigation.requested_by_user_principal_name or "system:worker", "investigation.concluded", target_entity_type="investigation", target_entity_id=investigation.investigation_id,
+            application_id=investigation.application_id,
+            action_details={
+                "status": details["status"], "outcome": details["outcome"], "proposedOutcome": details["proposedOutcome"], "outcomeGuard": details["outcomeGuard"],
+                "hypothesisStates": {item["perspective"]: item["state"] for item in details["hypotheses"]}, "modelNames": sorted(investigation.model_names_json or []),
+                "promptVersions": dict(self.recorder.prompt_versions), "traceStepCount": self.recorder.step_count, "inputTokenCount": investigation.total_input_token_count,
+                "outputTokenCount": investigation.total_output_token_count, "coverageGapCount": details["coverageGapCount"],
+            },
+        )
+
     async def _complete(self, evidence_only: bool) -> None:
         investigation = self.investigation
         await self.coverage.persist_new(self.session, investigation.investigation_id)  # gaps found after the last stage that stored them (an evidence-only run)
@@ -695,11 +809,13 @@ class InvestigationGraphRunner:
         if self.ai_caller.uses_estimated_tokens:
             investigation.total_input_token_count, investigation.total_output_token_count = self.ai_caller.estimated_input_tokens, self.ai_caller.estimated_output_tokens
         else:
+            await self.ai_caller.gateway.flush_pending_usage_records()  # the last attempts are written after a delay; the totals must include them
             token_rows = (await self.session.execute(select(LlmUsageRecord.input_token_count, LlmUsageRecord.output_token_count, LlmUsageRecord.model_name).where(LlmUsageRecord.investigation_id == investigation.investigation_id))).all()
             investigation.total_input_token_count = sum(row.input_token_count for row in token_rows)
             investigation.total_output_token_count = sum(row.output_token_count for row in token_rows)
             model_names |= {row.model_name for row in token_rows}
         investigation.model_names_json = sorted(model_names)
+        await self._record_conclusion(evidence_only)
         if self.incident and self.incident.incident_status in (IncidentStatus.NEW, IncidentStatus.INVESTIGATING) and investigation.investigation_status == InvestigationStatus.COMPLETED:
             self.incident.incident_status = IncidentStatus.IDENTIFIED
         message = "Investigation complete" + (" (evidence only: AI was unavailable)" if investigation.investigation_status == InvestigationStatus.COMPLETED_EVIDENCE_ONLY else "")
