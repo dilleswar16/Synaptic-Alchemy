@@ -452,20 +452,43 @@ class EvidenceService:
         draft.is_rule_out = failure_count == 0
 
     # ── Changes ────────────────────────────────────────────────────────────────
+    async def read_change_events(self, application_id: str, service_contexts: list[ServiceTelemetryContext], start: datetime, end: datetime) -> list[ChangeEvent]:
+        """The Activity Log changes of the application between ``start`` and ``end``, exactly as the source returned them (callers and descriptions are not masked here).
+
+        Raises whatever the read raises (the access policy's refusal, an unreachable or refusing source): a read that failed says nothing about whether
+        anything changed, so it is never returned as an empty list. A caller that can still answer without this source catches it and says the changes
+        could not be checked (``collect_change_evidence`` does).
+        """
+        component = next((context.component for context in service_contexts if context.component), None)
+        return await self.telemetry_gateway.query_activity_changes(
+            application_id,
+            component.azure_tenant_id if component else None,
+            component.azure_subscription_id if component else None,
+            component.azure_resource_group_name if component else None,
+            start, end, use_simulation=self._component_is_marked_simulated(component),
+        )
+
+    def are_changes_simulated(self, service_contexts: list[ServiceTelemetryContext]) -> bool:
+        """Whether ``read_change_events`` for these services is answered by the simulator (the gateway's rule, for the same component), so a caller can say so."""
+        component = next((context.component for context in service_contexts if context.component), None)
+        return self.telemetry_gateway.activity_is_simulated(use_simulation=self._component_is_marked_simulated(component))
+
+    @staticmethod
+    def _component_is_marked_simulated(component: ApplicationComponent | None) -> bool:
+        return bool((component.component_configuration_json or {}).get("simulated")) if component else False
+
     async def collect_change_evidence(self, application_id: str, service_contexts: list[ServiceTelemetryContext], start: datetime, end: datetime, masking_context: MaskingContext | None = None) -> tuple[list[ChangeEvent], EvidenceDraft | None]:
         """Returned events are already masked: Activity Log callers are people (UPNs, emails) and descriptions can quote them."""
-        component = next((context.component for context in service_contexts if context.component), None)
         change_events: list[ChangeEvent] = []
         try:
-            change_events = await self.telemetry_gateway.query_activity_changes(
-                application_id,
-                component.azure_tenant_id if component else None,
-                component.azure_subscription_id if component else None,
-                component.azure_resource_group_name if component else None,
-                start, end, use_simulation=bool((component.component_configuration_json or {}).get("simulated")) if component else False,
-            )
+            change_events = await self.read_change_events(application_id, service_contexts, start, end)
         except Exception as change_error:  # noqa: BLE001
             logger.warning("Could not read activity log changes: %s", change_error)
+            # A read that failed says nothing about whether anything changed, so it must never read as "no changes found" (that would rule changes out).
+            return [], EvidenceDraft(
+                None, "Azure Activity Log", "activity_log", "change_event", "Recent changes: could not be checked",
+                f"Not available: {describe_query_failure(change_error)}. Keigan cannot rule this source in or out.", is_rule_out=True,
+            )
         masker = PiiMasker(masking_context)
         change_events = [
             replace(change_event, description=masker.mask_text(change_event.description), caller=masker.mask_text(change_event.caller) if change_event.caller else None)

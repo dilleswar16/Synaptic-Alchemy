@@ -29,6 +29,7 @@ from keigan.entities.status_values import InvestigationStage, InvestigationStatu
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.alert_group_link_service import AlertGroupLinkService
+from keigan.services.alert_service import AlertService
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.service_scope import unknown_service_ids
@@ -289,9 +290,11 @@ class InvestigationService:
             return None
         alerts = list((await self.session.scalars(select(Alert).where(Alert.alert_group_id == alert_group.alert_group_id).order_by(Alert.first_seen_at).limit(50))).all())
         decisions = list((await self.session.scalars(select(AlertDecision).where(AlertDecision.alert_id.in_([alert.alert_id for alert in alerts] or ["none"])).order_by(AlertDecision.decided_at).limit(200))).all())
+        service_names = {service.service_id: service.service_name for service in (await self.session.scalars(select(MonitoredService).where(MonitoredService.application_id == alert_group.application_id))).all()}
+        grouping_reason = (await AlertService(self.session).grouping_reasons([alert_group], service_names))[alert_group.alert_group_id]  # the same derivation the Alerts page uses
         return {
             "alertGroupId": alert_group.alert_group_id, "groupTitle": alert_group.group_title, "groupSummary": alert_group.group_summary, "groupStatus": alert_group.group_status,
-            "priorityScore": alert_group.priority_score, "groupingReason": alert_group.grouping_reason, "memberAlertCount": alert_group.member_alert_count, "startedAt": alert_group.started_at.isoformat(),
+            "priorityScore": alert_group.priority_score, "groupingReason": grouping_reason.model_dump(by_alias=True), "memberAlertCount": alert_group.member_alert_count, "startedAt": alert_group.started_at.isoformat(),
             "alerts": [{"alertId": alert.alert_id, "ruleName": alert.rule_name, "severityLevel": alert.severity_level, "alertStatus": alert.alert_status, "firstSeenAt": alert.first_seen_at.isoformat(), "alertSummary": alert.alert_summary, "finalDisposition": alert.final_disposition} for alert in alerts],
             "decisions": [{"alertId": decision.alert_id, "pipelineStage": decision.pipeline_stage, "decisionOutcome": decision.decision_outcome, "decisionReason": decision.decision_reason, "decidedAt": decision.decided_at.isoformat()} for decision in decisions],
         }

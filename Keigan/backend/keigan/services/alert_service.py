@@ -14,19 +14,21 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.dtos.alert_dtos import (
-    AlertDecisionResponse, AlertGroupDetailResponse, AlertGroupFeedbackRequest, AlertGroupSummaryResponse, AlertMemberResponse, FunnelResponse, FunnelStep,
+    AlertDecisionResponse, AlertGroupDetailResponse, AlertGroupFeedbackRequest, AlertGroupSummaryResponse, AlertMemberResponse, FunnelResponse, FunnelStep, GroupingReasonResponse,
     MaintenanceWindowRequest, MaintenanceWindowResponse, MaintenanceWindowUpdateRequest, MuteRuleRequest, MuteRuleResponse, MuteRuleUpdateRequest, NoisePolicyResponse,
     NoisePolicySettings, NoisePolicyUpdateRequest, NoiseReportResponse, NoiseReportRow, ServiceReference,
 )
 from keigan.dtos.common_dtos import PagedResult
 from keigan.entities.alert_entities import Alert, AlertDecision, AlertEvent, AlertGroup, AlertMuteRule, MaintenanceWindow, NoiseReductionPolicy
 from keigan.entities.application_entities import Application, MonitoredService, ServiceDependency
+from keigan.entities.incident_entities import Incident
 from keigan.entities.platform_entities import PlatformSetting
 from keigan.entities.status_values import AlertGroupFeedbackVerdict, AlertPipelineStage, NoisePolicyMode
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.security.current_user import CurrentUser
 from keigan.services import alert_rules
+from keigan.services.alert_grouping_reason import GroupedAlert, derive_grouping_reason
 from keigan.services.alert_pipeline_service import ACTIVE_INVESTIGATION_OUTCOMES, AlertPipelineService, group_code
 from keigan.services.alert_source_service import AlertSourceService
 from keigan.services.audit_service import AuditService
@@ -435,18 +437,47 @@ class AlertService:
         latest_decisions: dict[str, AlertDecision] = {}
         for decision in (await self.session.scalars(select(AlertDecision).where(AlertDecision.alert_group_id.in_(group_ids), AlertDecision.pipeline_stage == AlertPipelineStage.DECIDE, AlertDecision.decision_outcome.not_like("servicenow_%")).order_by(AlertDecision.decided_at))).all():
             latest_decisions[decision.alert_group_id or ""] = decision
+        grouping_reasons = await self.grouping_reasons(groups, service_names)
         summaries = []
         for group in groups:
             decision = latest_decisions.get(group.alert_group_id)
             summaries.append(AlertGroupSummaryResponse(
                 alert_group_id=group.alert_group_id, application_id=group.application_id, application_name=application_names.get(group.application_id), group_title=group.group_title, group_summary=group.group_summary,
-                group_status=group.group_status, priority_score=group.priority_score, grouping_reason=group.grouping_reason, member_alert_count=group.member_alert_count, total_occurrence_count=int(occurrence_totals.get(group.alert_group_id) or 0),
+                group_status=group.group_status, priority_score=group.priority_score, grouping_reason=grouping_reasons[group.alert_group_id], member_alert_count=group.member_alert_count, total_occurrence_count=int(occurrence_totals.get(group.alert_group_id) or 0),
                 services=[ServiceReference(service_id=service_id, service_name=service_names[service_id]) for service_id in group.affected_service_ids if service_id in service_names],
                 highest_severity_level=group.highest_severity_level, started_at=group.started_at, last_activity_at=group.last_activity_at, resolved_at=group.resolved_at, investigation_id=group.investigation_id,
                 incident_id=group.incident_id, servicenow_incident_suggested=group.servicenow_incident_suggested, user_feedback_verdict=group.user_feedback_verdict,
                 decision_reason=decision.decision_reason if decision else group.grouping_reason, decision_outcome=(decision.would_have_outcome_in_active_mode or decision.decision_outcome) if decision else None,
             ))
         return summaries
+
+    async def grouping_reasons(self, groups: list[AlertGroup], service_names: dict[str, str]) -> dict[str, GroupingReasonResponse]:
+        """Why each group's alerts belong together, worked out from its alerts, the application's dependencies and its group window (the policy, or its default)."""
+        group_ids = [group.alert_group_id for group in groups]
+        application_ids = {group.application_id for group in groups}
+        members_by_group: dict[str, list[GroupedAlert]] = {}
+        for group_id, service_id, rule_identifier, rule_name, first_seen_at in (await self.session.execute(
+            select(Alert.alert_group_id, Alert.service_id, Alert.rule_identifier, Alert.rule_name, Alert.first_seen_at).where(Alert.alert_group_id.in_(group_ids))
+        )).all():
+            members_by_group.setdefault(group_id, []).append(GroupedAlert(service_id, rule_identifier, rule_name, first_seen_at))
+        window_by_application = {application_id: alert_rules.merge_policy(None)["group_window_minutes"] for application_id in application_ids}
+        for policy in (await self.session.scalars(select(NoiseReductionPolicy).where(NoiseReductionPolicy.application_id.in_(application_ids)))).all():
+            window_by_application[policy.application_id] = alert_rules.merge_policy(policy.policy_settings_json)["group_window_minutes"]
+        dependencies = (await self.session.scalars(select(ServiceDependency).where(ServiceDependency.application_id.in_(application_ids)))).all()
+        neighbours = alert_rules.service_neighbours((dependency.upstream_service_id, dependency.downstream_service_id) for dependency in dependencies)
+        incident_ids = {group.incident_id for group in groups if group.incident_id}
+        incident_names = {
+            incident.incident_id: incident.external_incident_number or incident.incident_title
+            for incident in (await self.session.scalars(select(Incident).where(Incident.incident_id.in_(incident_ids)))).all()
+        } if incident_ids else {}
+        reasons: dict[str, GroupingReasonResponse] = {}
+        for group in groups:
+            derived = derive_grouping_reason(
+                members_by_group.get(group.alert_group_id, []), neighbours_by_service_id=neighbours, service_names=service_names,
+                window_minutes=window_by_application[group.application_id], incident_name=incident_names.get(group.incident_id or ""),
+            )
+            reasons[group.alert_group_id] = GroupingReasonResponse(code=derived.code, parameters=derived.parameters)
+        return reasons
 
     async def _readable_group(self, current_user: CurrentUser, alert_group_id: str, *, require_admin: bool = False) -> AlertGroup:
         group = await self.session.get(AlertGroup, alert_group_id)

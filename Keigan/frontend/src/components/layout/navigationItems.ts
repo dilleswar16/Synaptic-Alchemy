@@ -1,4 +1,4 @@
-import { Bell, Gauge, House, LayoutGrid, Mail, Palette, Radar, Settings, Siren, Sparkles, TrendingUp, type LucideIcon } from "lucide-react";
+import { Bell, ChartColumn, Gauge, House, LayoutGrid, Mail, Palette, Radar, Settings, Siren, Sparkles, TrendingUp, type LucideIcon } from "lucide-react";
 
 /** Sidebar and command-palette destinations (doc 01 §4). Labels live in the `navigation` namespace. */
 
@@ -40,6 +40,7 @@ export const navigationSections: NavigationSection[] = [
     items: [
       { key: "slo", labelKey: "items.slo", to: "/slo", icon: Gauge },
       { key: "intelligence", labelKey: "items.intelligence", to: "/intelligence", icon: TrendingUp },
+      { key: "metrics", labelKey: "items.metrics", to: "/metrics", icon: ChartColumn },
     ],
   },
   {

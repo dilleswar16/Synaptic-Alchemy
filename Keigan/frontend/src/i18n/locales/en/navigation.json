@@ -12,6 +12,7 @@
     "alerts": "Alerts",
     "slo": "SLO monitoring",
     "intelligence": "Intelligence",
+    "metrics": "Reliability metrics",
     "chat": "Keigan AI chat",
     "applications": "Applications",
     "platformSettings": "Platform settings",

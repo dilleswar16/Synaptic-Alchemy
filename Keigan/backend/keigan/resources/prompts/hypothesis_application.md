@@ -1,6 +1,6 @@
 ---
 prompt_key: hypothesis_application
-version: 2
+version: 3
 model_tier: deep
 output_schema: HypothesisResult
 ---

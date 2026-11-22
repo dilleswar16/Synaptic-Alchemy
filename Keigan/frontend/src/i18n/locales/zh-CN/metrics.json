@@ -1,0 +1,58 @@
+{
+  "pageTitle": "可靠性指标",
+  "pageDescription": "事件多久发生一次、处理得有多快、Keigan 的调查有多可靠，以及 AI 的用量。",
+  "percentilesNote": "每个数字先给出中位数（一半的案例比它更快），再给出 p90（十分之九的案例比它更快）和 n（该数字所依据的案例数）。案例很少时，数字可能大幅波动。",
+  "filters": { "application": "应用", "allApplications": "我的所有应用", "period": "时间段", "days_other": "{{count}} 天", "range": "显示 {{from}} 至 {{to}}。" },
+  "empty": { "title": "此时间段内没有事件或调查", "description": "请选择更长的时间段或其他应用。有数据后，数字会立即显示。" },
+  "figure": { "none": "—", "detail": "p90 {{p90}} · n = {{count}}", "noSamples": "此时间段内没有数据", "noSamplesShort": "n = 0", "excluded": "已排除 {{count}} 个：{{reason}}" },
+  "reasons": { "timeToDetect": "事件创建之前没有告警", "outOfOrder": "缺少开始或结束时间，或顺序颠倒" },
+  "priority": { "unassigned": "无优先级", "none": "无" },
+  "info": { "open": "{{metric}} 是什么意思？" },
+  "sections": {
+    "incidents": { "title": "事件", "description": "此时间段内创建和解决的事件，以及检测、响应和关闭的速度。" },
+    "investigations": { "title": "Keigan 调查", "description": "Keigan 调查了什么，以及工程师如何评价结果。" },
+    "ai": { "title": "AI 用量", "description": "按调查统计。不属于任何调查的模型调用（例如聊天）不计入此处。" },
+    "trend": { "title": "每周趋势", "description": "同样的数字，按周显示。" },
+    "applications": { "title": "按应用", "description": "仅显示您可以查看的应用。选择列标题即可排序。" },
+    "definitions": { "title": "这些数字的定义", "description": "本页的每个数字按如下方式计算。" }
+  },
+  "notAvailable": {
+    "label": "不可用",
+    "reasons": { "no_acknowledgement_timestamp": "Keigan 不记录有人确认事件的时间，因此无法计算，也不会估算。", "unknown": "未记录计算此数字所需的数据。" }
+  },
+  "statuses": { "queued": "排队中", "running": "运行中", "completed": "已完成", "completed_evidence_only": "仅证据", "failed": "失败", "cancelled": "已取消" },
+  "investigations": { "total_other": "此时间段内开始了 {{count}} 项调查", "statusCount": "{{status}}：{{count}}" },
+  "ratings": { "notEnough": "评价数量还不够（需要 {{minimum}} 个，目前 {{count}} 个）", "detail": "{{total}} 项中有 {{rated}} 项已评价：{{correct}} 项正确，{{partial}} 项部分正确，{{incorrect}} 项不正确" },
+  "ai": {
+    "inputTokens": "每项调查的输入令牌", "outputTokens": "每项调查的输出令牌", "costPerInvestigation": "每项调查的估算成本",
+    "callsDetail": "{{failed}} 次失败 · {{count}} 项调查", "costTotal": "合计 {{total}}（币种与所配置的价格一致）",
+    "noPricedInvestigations": "没有调查只使用了有价格的模型", "noPricesTitle": "没有估算成本", "noPricesText": "只有管理员为每个模型配置了价格，才会估算成本。在此之前，本页仅显示令牌数。",
+    "unpricedTitle": "部分模型没有价格", "unpricedText": "已从估算中排除：{{models}}。有 {{count}} 项调查使用了它们，因此不显示其成本。"
+  },
+  "trend": {
+    "incidents": "每周事件数", "opened": "已创建", "resolved": "已解决", "resolve": "每周解决时间中位数（小时）", "resolveSeries": "小时", "conclusion": "每周得出结论时间中位数（分钟）", "conclusionSeries": "分钟",
+    "tokens": "每周每项调查令牌数中位数", "tokensSeries": "令牌", "samples": "每根柱子背后的案例数（按周）：{{counts}}",
+    "note": "每周从周一（UTC）开始。没有案例的周没有柱子。第一周和最后一周可能只有一部分在所选时间段内。"
+  },
+  "table": {
+    "caption": "按应用的可靠性指标", "application": "应用", "incidents": "已创建 / 已解决", "openedResolved": "{{opened}} / {{resolved}}", "detect": "检测时间", "firstUpdate": "首次更新", "resolve": "解决时间",
+    "conclusion": "得出结论时间", "correct": "评为正确", "tokens": "输入令牌", "notEnoughRatings": "评价不足（{{minimum}} 个中的 {{count}} 个）", "ratedCount_other": "已评价 {{count}} 项"
+  },
+  "definitions": {
+    "percentiles": { "title": "中位数、p90 和 n", "text": "中位数是位于中间的案例：一半更快，一半更慢。p90 是十分之九的案例都没有超过的值，反映较慢的一端。n 是该数字所依据的案例数。两者都按名次之间插值计算。" },
+    "incidentsOpened": { "title": "已创建的事件", "text": "创建时间落在所选时间段内的事件，并按 Keigan 给出的优先级划分。" },
+    "incidentsResolved": { "title": "已解决的事件", "text": "解决时间落在所选时间段内的事件，即使它们更早就已创建。" },
+    "timeToDetect": { "title": "检测时间", "text": "从与事件关联的告警组中的第一条告警，到事件创建的时间。它反映信号在事件出现之前存在了多久，而不是问题真正开始的时间。没有更早告警的事件会被排除并计数。" },
+    "timeToFirstUpdate": { "title": "首次更新时间", "text": "从 Keigan 登记事件，到向团队发送第一次更新的时间。尚未发送更新的事件不计入。" },
+    "timeToResolve": { "title": "解决时间（MTTR）", "text": "从事件创建到标记为已解决的时间。仍未关闭的事件不计入。" },
+    "timeToConclusion": { "title": "得出结论时间", "text": "从调查开始到完成的时间，仅统计已完成的调查。" },
+    "timeToAcknowledge": { "title": "确认时间（MTTA）", "text": "指从事件创建到有人确认的时间。Keigan 不记录确认，因此不进行计算。" },
+    "investigationStatuses": { "title": "按状态统计的调查", "text": "此时间段内创建的调查，按其结果或当前状态划分。" },
+    "ratings": { "title": "评为正确", "text": "在工程师评价过的调查中，被评为正确的比例。无人评价的调查不计入。在达到最低评价数量之前不显示百分比，因为基于少数评价的比例会产生误导。" },
+    "aiTokens": { "title": "每项调查的令牌", "text": "一项调查所有模型调用的输入和输出令牌，按调查相加。该数字是各调查的中位数和 p90。" },
+    "aiLatency": { "title": "每次模型调用的延迟", "text": "为此时间段内的调查所做的所有调用中，单次模型调用所花的时间。" },
+    "aiCalls": { "title": "模型调用与失败", "text": "为此时间段内的调查进行了多少次模型调用，其中有多少次失败。" },
+    "aiCost": { "title": "估算成本", "text": "令牌数乘以为每个模型配置的每百万令牌价格。Keigan 不保存金额，所以这只是估算，并且只有配置了价格才会显示。使用了无价格模型的调查会被排除。" },
+    "weeklyTrend": { "title": "每周趋势", "text": "每根柱子是当周结束的案例的中位数。每周从周一（UTC）开始。" }
+  }
+}

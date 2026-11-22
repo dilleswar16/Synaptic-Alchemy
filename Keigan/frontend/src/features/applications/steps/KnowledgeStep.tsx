@@ -31,6 +31,7 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { AiGeneratedChip } from "@/components/ui/AiGeneratedChip";
 import { formatFileSize } from "@/utils/formatters";
 import { IntegrationCard } from "../components/IntegrationCard";
+import { OperatingNotesSection } from "../components/OperatingNotesSection";
 import { StepFrame } from "../components/StepFrame";
 import type { StepProps } from "../stepRegistry";
 
@@ -238,6 +239,7 @@ export function KnowledgeStep({ applicationId, canEdit, onStatusChange }: StepPr
   return (
     <StepFrame stepKey="knowledge">
       <div className="flex flex-col gap-10">
+        <OperatingNotesSection applicationId={applicationId} canEdit={canEdit} />
         <CaptureAndUpload applicationId={applicationId} canEdit={canEdit} />
         <DocumentsList applicationId={applicationId} canEdit={canEdit} onChanged={onStatusChange} />
         <EnterpriseRecords applicationId={applicationId} canEdit={canEdit} />

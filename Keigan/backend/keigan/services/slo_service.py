@@ -21,6 +21,7 @@ from keigan.dtos.slo_dtos import (
 from keigan.entities.alert_entities import Alert, AlertEvent
 from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.slo_entities import ServiceLevelIndicator, ServiceLevelObjective, SliMeasurement, SloBurnAlert
+from keigan.entities.status_values import SloHealthStatus
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services import alert_rules
@@ -242,13 +243,13 @@ class SloService:
                 remaining_minutes = round(remaining_percentage / 100 * budget_minutes, 1)
             rate_1h, rate_6h = burn_rate(good_1h, total_1h, slo.target_percentage), burn_rate(good_6h, total_6h, slo.target_percentage)
             if compliance is None:
-                status = "no_data"
+                status = SloHealthStatus.NO_DATA
             elif compliance < slo.target_percentage:
-                status = "breached"
+                status = SloHealthStatus.BREACHED
             elif (remaining_percentage is not None and remaining_percentage < 30) or (rate_6h is not None and rate_6h > 2):
-                status = "at_risk"
+                status = SloHealthStatus.AT_RISK
             else:
-                status = "healthy"
+                status = SloHealthStatus.HEALTHY
             summaries.append(SloSummaryResponse(
                 slo_id=slo.slo_id, sli_id=sli.sli_id, application_id=slo.application_id, application_name=application_names.get(slo.application_id), service_id=sli.service_id, service_name=service_names.get(sli.service_id or ""),
                 sli_name=sli.sli_name, sli_kind=sli.sli_kind, is_headline=sli.is_headline, is_approximate=sli.is_approximate, target_percentage=slo.target_percentage, rolling_window_days=slo.rolling_window_days,

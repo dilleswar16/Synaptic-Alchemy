@@ -36,6 +36,7 @@ export const translationNamespaces = [
   "alerts",
   "slo",
   "intelligence",
+  "metrics",
   "chat",
   "applications",
   "onboarding",

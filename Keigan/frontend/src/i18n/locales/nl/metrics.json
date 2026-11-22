@@ -1,0 +1,58 @@
+{
+  "pageTitle": "Betrouwbaarheidsmetingen",
+  "pageDescription": "Hoe vaak incidenten voorkomen, hoe snel ze worden afgehandeld, hoe goed de onderzoeken van Keigan standhouden en wat de AI verbruikt.",
+  "percentilesNote": "Elk cijfer is de mediaan (de helft van de gevallen was sneller), gevolgd door p90 (negen van de tien waren sneller) en n, het aantal gevallen erachter. Cijfers uit slechts enkele gevallen kunnen sterk schommelen.",
+  "filters": { "application": "Applicatie", "allApplications": "Al mijn applicaties", "period": "Periode", "days_one": "{{count}} dag", "days_other": "{{count}} dagen", "range": "Weergave van {{from}} tot {{to}}." },
+  "empty": { "title": "Geen incidenten of onderzoeken in deze periode", "description": "Kies een langere periode of een andere applicatie. Cijfers verschijnen zodra er gegevens zijn." },
+  "figure": { "none": "—", "detail": "p90 {{p90}} · n = {{count}}", "noSamples": "Geen gegevens in deze periode", "noSamplesShort": "n = 0", "excluded": "{{count}} weggelaten: {{reason}}" },
+  "reasons": { "timeToDetect": "geen melding vóór het openen van het incident", "outOfOrder": "start- of eindtijd ontbreekt of staat in de verkeerde volgorde" },
+  "priority": { "unassigned": "Geen prioriteit", "none": "Geen" },
+  "info": { "open": "Wat betekent {{metric}}?" },
+  "sections": {
+    "incidents": { "title": "Incidenten", "description": "Geopend en opgelost in deze periode, en hoe snel ze werden gedetecteerd, beantwoord en gesloten." },
+    "investigations": { "title": "Onderzoeken van Keigan", "description": "Wat Keigan heeft onderzocht en hoe engineers het resultaat beoordeelden." },
+    "ai": { "title": "AI-gebruik", "description": "Per onderzoek. Modelaanroepen die bij geen enkel onderzoek horen, zoals chat, tellen hier niet mee." },
+    "trend": { "title": "Wekelijkse trend", "description": "Dezelfde cijfers, week voor week." },
+    "applications": { "title": "Per applicatie", "description": "Alleen applicaties die u mag lezen. Selecteer een kolomkop om te sorteren." },
+    "definitions": { "title": "Hoe deze cijfers zijn gedefinieerd", "description": "Elk cijfer op deze pagina wordt als volgt berekend." }
+  },
+  "notAvailable": {
+    "label": "Niet beschikbaar",
+    "reasons": { "no_acknowledgement_timestamp": "Keigan legt niet vast wanneer iemand een incident bevestigt, dus dit kan niet worden berekend. Het wordt niet geschat.", "unknown": "De gegevens die voor dit cijfer nodig zijn, worden niet vastgelegd." }
+  },
+  "statuses": { "queued": "In de wachtrij", "running": "Bezig", "completed": "Voltooid", "completed_evidence_only": "Alleen bewijs", "failed": "Mislukt", "cancelled": "Geannuleerd" },
+  "investigations": { "total_one": "{{count}} onderzoek gestart in deze periode", "total_other": "{{count}} onderzoeken gestart in deze periode", "statusCount": "{{status}}: {{count}}" },
+  "ratings": { "notEnough": "Nog niet genoeg beoordelingen ({{count}} van de {{minimum}} nodig)", "detail": "{{rated}} van {{total}} beoordeeld: {{correct}} juist, {{partial}} deels juist, {{incorrect}} onjuist" },
+  "ai": {
+    "inputTokens": "Invoertokens per onderzoek", "outputTokens": "Uitvoertokens per onderzoek", "costPerInvestigation": "Geschatte kosten per onderzoek",
+    "callsDetail": "{{failed}} mislukt · {{count}} onderzoeken", "costTotal": "Totaal {{total}} (in de valuta van de ingestelde prijzen)",
+    "noPricedInvestigations": "Geen onderzoek gebruikte alleen modellen met een prijs", "noPricesTitle": "Geen geschatte kosten", "noPricesText": "Kosten worden alleen geschat als een beheerder een prijs per model heeft ingesteld. Tot die tijd toont deze pagina alleen tokens.",
+    "unpricedTitle": "Sommige modellen hebben geen prijs", "unpricedText": "Weggelaten uit de schatting: {{models}}. {{count}} onderzoeken gebruikten ze, dus hun kosten worden niet getoond."
+  },
+  "trend": {
+    "incidents": "Incidenten per week", "opened": "Geopend", "resolved": "Opgelost", "resolve": "Mediane oplostijd per week (uren)", "resolveSeries": "Uren", "conclusion": "Mediane tijd tot conclusie per week (minuten)", "conclusionSeries": "Minuten",
+    "tokens": "Mediaan aantal tokens per onderzoek per week", "tokensSeries": "Tokens", "samples": "Gevallen achter elke balk, week voor week: {{counts}}",
+    "note": "Weken beginnen op maandag (UTC). Een week zonder gevallen heeft geen balk. De eerste en laatste week liggen mogelijk maar deels binnen de periode."
+  },
+  "table": {
+    "caption": "Betrouwbaarheidsmetingen per applicatie", "application": "Applicatie", "incidents": "Geopend / opgelost", "openedResolved": "{{opened}} / {{resolved}}", "detect": "Detectietijd", "firstUpdate": "Eerste update", "resolve": "Oplostijd",
+    "conclusion": "Tijd tot conclusie", "correct": "Als juist beoordeeld", "tokens": "Invoertokens", "notEnoughRatings": "te weinig beoordelingen ({{count}} van {{minimum}})", "ratedCount_one": "{{count}} beoordeeld", "ratedCount_other": "{{count}} beoordeeld"
+  },
+  "definitions": {
+    "percentiles": { "title": "Mediaan, p90 en n", "text": "De mediaan is het middelste geval: de helft was sneller, de helft trager. p90 is de waarde waar negen van de tien gevallen onder bleven en laat dus de trage staart zien. n is het aantal gevallen achter het cijfer. Beide zijn geïnterpoleerd tussen rangen." },
+    "incidentsOpened": { "title": "Geopende incidenten", "text": "Incidenten waarvan het openingstijdstip in de periode valt, verdeeld naar de prioriteit die Keigan eraan gaf." },
+    "incidentsResolved": { "title": "Opgeloste incidenten", "text": "Incidenten waarvan het oplostijdstip in de periode valt, ook als ze eerder werden geopend." },
+    "timeToDetect": { "title": "Detectietijd", "text": "Van de eerste melding in een meldingsgroep die aan het incident is gekoppeld tot het openen van het incident. Het toont hoe lang een signaal bestond vóór een incident, niet wanneer het probleem werkelijk begon. Incidenten zonder eerdere melding worden weggelaten en geteld." },
+    "timeToFirstUpdate": { "title": "Tijd tot eerste update", "text": "Vanaf het moment dat Keigan het incident registreerde tot de eerste update aan het team. Incidenten waarvoor nog geen update is verstuurd, tellen niet mee." },
+    "timeToResolve": { "title": "Oplostijd (MTTR)", "text": "Van het openen van het incident tot het als opgelost markeren. Incidenten die nog openstaan, tellen niet mee." },
+    "timeToConclusion": { "title": "Tijd tot conclusie", "text": "Van het starten van een onderzoek tot het voltooien ervan, alleen voor voltooide onderzoeken." },
+    "timeToAcknowledge": { "title": "Bevestigingstijd (MTTA)", "text": "Zou de tijd zijn van het openen van een incident tot een persoon het bevestigt. Keigan legt geen bevestiging vast, dus dit wordt niet berekend." },
+    "investigationStatuses": { "title": "Onderzoeken per status", "text": "In de periode gemaakte onderzoeken, naar hoe ze zijn afgelopen of waar ze nu staan." },
+    "ratings": { "title": "Als juist beoordeeld", "text": "Van de onderzoeken die engineers beoordeelden, het aandeel dat als juist is beoordeeld. Onderzoeken die niemand beoordeelde, tellen niet mee. Er wordt geen percentage getoond tot het minimale aantal beoordelingen is bereikt, omdat een aandeel uit een handvol beoordelingen misleidt." },
+    "aiTokens": { "title": "Tokens per onderzoek", "text": "Invoer- en uitvoertokens van alle modelaanroepen voor een onderzoek, opgeteld per onderzoek. Het cijfer is de mediaan en p90 over de onderzoeken." },
+    "aiLatency": { "title": "Latentie per modelaanroep", "text": "Hoe lang één modelaanroep duurde, over alle aanroepen voor de onderzoeken in de periode." },
+    "aiCalls": { "title": "Modelaanroepen en fouten", "text": "Hoeveel modelaanroepen er zijn gedaan voor de onderzoeken in de periode en hoeveel daarvan mislukten." },
+    "aiCost": { "title": "Geschatte kosten", "text": "Tokens maal de ingestelde prijs per miljoen tokens van elk model. Keigan slaat geen bedragen op, dus dit is een schatting en bestaat alleen als er prijzen zijn ingesteld. Een onderzoek dat een model zonder prijs gebruikte, wordt weggelaten." },
+    "weeklyTrend": { "title": "Wekelijkse trend", "text": "Elke balk is de mediaan van de gevallen die in die week eindigden. Weken beginnen op maandag (UTC)." }
+  }
+}

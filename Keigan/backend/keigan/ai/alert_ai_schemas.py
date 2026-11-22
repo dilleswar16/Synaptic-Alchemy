@@ -12,14 +12,15 @@ class AlertGroupTitleResult(BaseModel):
     group_summary: str = Field(description="One sentence about what the grouped alerts have in common. No root-cause guesses.")
 
 
-def deterministic_group_title(service_names: list[str], rule_names: list[str], alert_count: int) -> tuple[str, str]:
-    """Fallback used when the model is unavailable, over budget or switched off (seed replay)."""
+def deterministic_group_title(service_names: list[str], rule_names: list[str]) -> tuple[str, str]:
+    """Fallback used when the model is unavailable, over budget or switched off (seed replay).
+
+    It is written once, when the group is created, so it states no alert count: the count grows as alerts join and is stored and shown separately.
+    """
     primary_service = service_names[0] if service_names else "Application"
     primary_rule = rule_names[0] if rule_names else "alert"
     title = f"{primary_service}: {primary_rule}"[:90]
-    other_services = len(service_names) - 1
-    summary = f"{alert_count} alert{'s' if alert_count != 1 else ''} on {primary_service}" + (f" and {other_services} related service{'s' if other_services != 1 else ''}" if other_services > 0 else "") + "."
-    return title, summary
+    return title, f"Started with an alert on {primary_service}."
 
 
 def _mock_group_title(output_schema: type[AlertGroupTitleResult], prompt_sections: list[PromptSection]) -> AlertGroupTitleResult:
@@ -28,7 +29,7 @@ def _mock_group_title(output_schema: type[AlertGroupTitleResult], prompt_section
     rules = next((line.split(":", 1)[1].strip() for line in facts.splitlines() if line.startswith("Rules:")), "")
     service_names = [name.strip() for name in services.split(",") if name.strip()]
     rule_names = [name.strip() for name in rules.split(";") if name.strip()]
-    title, summary = deterministic_group_title(service_names, rule_names, max(1, len(rule_names)))
+    title, summary = deterministic_group_title(service_names, rule_names)
     return output_schema(group_title=title, group_summary=summary)
 
 

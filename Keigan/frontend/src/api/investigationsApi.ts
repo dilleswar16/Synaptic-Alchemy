@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPatch, apiPost } from "@/api/httpClient";
 import type { AcceptedJob, Identifier, IsoDateTimeString, PagedResult, Priority } from "@/api/types/common";
+import type { AlertGroupingReason } from "@/api/alertsApi";
 import { incidentQueryKeys, type ApplicationReference, type IncidentSummary } from "./incidentsApi";
 
 /* ── Types (doc 05 §6) ─────────────────────────────────────────────── */
@@ -163,7 +164,7 @@ export interface AlertGroupPayload {
   groupSummary: string | null;
   groupStatus: string;
   priorityScore: number;
-  groupingReason: string | null;
+  groupingReason: AlertGroupingReason;
   memberAlertCount: number;
   startedAt: IsoDateTimeString;
   alerts: Array<{ alertId: Identifier; ruleName: string; severityLevel: number; alertStatus: string; firstSeenAt: IsoDateTimeString; alertSummary: string; finalDisposition: string | null }>;

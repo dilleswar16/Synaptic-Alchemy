@@ -35,6 +35,13 @@
     "emptyTitle": "Aucun groupe d'alertes",
     "emptyDescription": "Lorsque des alertes arrivent, elles sont regroupées ici, avec la raison de chaque décision."
   },
+  "groupingReason": {
+    "same_service": "Regroupées car {{alertCount}} alertes se sont déclenchées sur {{serviceName}} à moins de {{windowMinutes}} minutes d'intervalle.",
+    "dependency": "Regroupées car des alertes se sont déclenchées sur {{serviceName}} et {{relatedServiceName}}, qui dépendent l'un de l'autre, en moins de {{windowMinutes}} minutes.",
+    "same_rule": "Regroupées car {{alertCount}} alertes proviennent de la même règle, {{ruleName}}, à moins de {{windowMinutes}} minutes d'intervalle.",
+    "attached_to_incident": "Regroupées car l'incident ouvert {{incidentName}} a été créé à moins de {{windowMinutes}} minutes de ces alertes.",
+    "single_alert": "Une seule alerte : il n'y a rien à regrouper avec elle.", "not_recorded": "La raison du regroupement de ces alertes n'a pas été enregistrée."
+  },
   "outcome": {
     "investigation_started": "Investigation lancée", "investigation_replayed": "Serait investiguée", "queued": "En file d'attente", "below_threshold": "Sous le seuil", "joined_group": "Ajoutée au groupe",
     "joined_investigation": "Ajoutée à l'investigation", "servicenow_incident_suggested": "Incident suggéré", "servicenow_incident_created": "Incident créé", "suppressed_maintenance": "Fenêtre de maintenance",
@@ -46,7 +53,7 @@
   "drawer": {
     "loading": "Groupe d'alertes", "rule": "Règle", "service": "Service", "severity": "Gravité", "state": "État", "occurrences": "Nombre d'occurrences", "lastSeen": "Dernière occurrence", "flapping": "Instable",
     "applicationLevel": "Niveau application (sans service)", "members": "Alertes membres ({{count}})", "decisionLog": "Journal des décisions", "decisionLogHelp": "Chaque étape du pipeline avec la raison de sa décision.",
-    "noDecisions": "Aucune décision enregistrée.", "wouldHave": "Le mode Actif aurait : {{outcome}}", "groupingReason": "Regroupement : {{reason}}",
+    "noDecisions": "Aucune décision enregistrée.", "wouldHave": "Le mode Actif aurait : {{outcome}}",
     "observeTitle": "Mode Observation", "observeBody": "Ces décisions ont été enregistrées mais non appliquées. Les lignes « Le mode Actif aurait » montrent ce qui changerait.",
     "openInvestigation": "Ouvrir l'investigation", "openIncident": "Incidents ouverts", "createIncident": "Créer un incident ServiceNow", "createIncidentSuggested": "Créer l'incident ServiceNow suggéré",
     "incidentCreated": "Incident ServiceNow créé", "incidentFailed": "Impossible de créer l'incident",

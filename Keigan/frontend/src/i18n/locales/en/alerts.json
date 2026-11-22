@@ -35,6 +35,13 @@
     "emptyTitle": "No alert groups",
     "emptyDescription": "When alerts arrive they are grouped here, with the reason for every decision."
   },
+  "groupingReason": {
+    "same_service": "Grouped because {{alertCount}} alerts fired on {{serviceName}} within {{windowMinutes}} minutes of each other.",
+    "dependency": "Grouped because alerts fired on {{serviceName}} and {{relatedServiceName}}, which depend on each other, within {{windowMinutes}} minutes.",
+    "same_rule": "Grouped because {{alertCount}} alerts came from the same rule, {{ruleName}}, within {{windowMinutes}} minutes of each other.",
+    "attached_to_incident": "Grouped because the open incident {{incidentName}} was created within {{windowMinutes}} minutes of these alerts.",
+    "single_alert": "A single alert, so there is nothing to group it with.", "not_recorded": "The reason these alerts were grouped was not recorded."
+  },
   "outcome": {
     "investigation_started": "Investigation started", "investigation_replayed": "Would investigate", "queued": "Queued", "below_threshold": "Below threshold", "joined_group": "Joined group",
     "joined_investigation": "Added to investigation", "servicenow_incident_suggested": "Incident suggested", "servicenow_incident_created": "Incident created", "suppressed_maintenance": "Maintenance window",
@@ -46,7 +53,7 @@
   "drawer": {
     "loading": "Alert group", "rule": "Rule", "service": "Service", "severity": "Severity", "state": "State", "occurrences": "Times seen", "lastSeen": "Last seen", "flapping": "Flapping",
     "applicationLevel": "Application-level (no service)", "members": "Member alerts ({{count}})", "decisionLog": "Decision log", "decisionLogHelp": "Every pipeline stage with the reason it decided what it did.",
-    "noDecisions": "No decisions recorded.", "wouldHave": "Active mode would have: {{outcome}}", "groupingReason": "Grouping: {{reason}}",
+    "noDecisions": "No decisions recorded.", "wouldHave": "Active mode would have: {{outcome}}",
     "observeTitle": "Observe mode", "observeBody": "These decisions were recorded but not applied. Lines marked 'Active mode would have' show what would change.",
     "openInvestigation": "Open investigation", "openIncident": "Open incidents", "createIncident": "Create ServiceNow incident", "createIncidentSuggested": "Create suggested ServiceNow incident",
     "incidentCreated": "ServiceNow incident created", "incidentFailed": "Could not create the incident",

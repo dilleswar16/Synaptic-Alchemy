@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useOutcomeLabel } from "@/features/alerts/components/AlertBadges";
+import { GroupingReasonText } from "@/features/alerts/components/GroupingReasonText";
 import { formatDateTime } from "@/utils/formatters";
 
 /** The alert group behind the investigation: member alerts and the noise-reduction decision trail. */
@@ -24,7 +25,7 @@ export function AlertsSection({ detail }: { detail: InvestigationDetail }) {
           <span>{t("alerts.memberCount", { count: group.memberAlertCount })}</span>
           <span>{t("alerts.startedAt", { time: formatDateTime(group.startedAt) })}</span>
           <span>{t("alerts.priorityScore", { score: Math.round(group.priorityScore) })}</span>
-          {group.groupingReason ? <span>{group.groupingReason}</span> : null}
+          {group.groupingReason.code !== "single_alert" ? <GroupingReasonText reason={group.groupingReason} className="basis-full max-w-prose text-body-sm" /> : null}
         </CardBody>
       </Card>
       <Card>

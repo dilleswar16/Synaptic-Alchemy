@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -69,6 +70,15 @@ def merge_policy(stored_settings: dict[str, Any] | None) -> dict[str, Any]:
     merged["no_delay_severities"] = sorted({int(value) for value in merged["no_delay_severities"]})
     merged["investigate_environments"] = [str(value).lower() for value in merged["investigate_environments"]]
     return merged
+
+
+def service_neighbours(dependency_pairs: Iterable[tuple[str, str]]) -> dict[str, set[str]]:
+    """For every service, the services it depends on or that depend on it, from (upstream, downstream) pairs. Grouping treats both directions as related."""
+    neighbours: dict[str, set[str]] = {}
+    for upstream_service_id, downstream_service_id in dependency_pairs:
+        neighbours.setdefault(upstream_service_id, set()).add(downstream_service_id)
+        neighbours.setdefault(downstream_service_id, set()).add(upstream_service_id)
+    return neighbours
 
 
 def policy_sentences(policy: dict[str, Any]) -> list[str]:

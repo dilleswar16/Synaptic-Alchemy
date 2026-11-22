@@ -170,6 +170,13 @@ export interface MuteRule {
 }
 export interface MuteRuleBody { ruleName: string; matcher: MuteRuleMatcher; muteReason: string; expiresAt: string }
 
+/** Why a group's alerts belong together: a stable code and the names and numbers its sentence needs. The words live in the `alerts` locale files (`groupingReason.<code>`). */
+export type AlertGroupingReasonCode = "same_service" | "dependency" | "same_rule" | "attached_to_incident" | "single_alert" | "not_recorded";
+export interface AlertGroupingReason {
+  code: AlertGroupingReasonCode;
+  parameters: Record<string, string | number>;
+}
+
 export interface AlertGroupSummary {
   alertGroupId: Identifier;
   applicationId: Identifier;
@@ -178,7 +185,7 @@ export interface AlertGroupSummary {
   groupSummary: string | null;
   groupStatus: "open" | "queued" | "resolved";
   priorityScore: number;
-  groupingReason: string | null;
+  groupingReason: AlertGroupingReason;
   memberAlertCount: number;
   totalOccurrenceCount: number;
   services: Array<{ serviceId: string; serviceName: string }>;

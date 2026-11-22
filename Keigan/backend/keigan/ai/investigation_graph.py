@@ -25,6 +25,7 @@ from keigan.ai.investigation_ai_caller import InvestigationAiCaller, build_mock_
 from keigan.ai.investigation_ai_schemas import AdditionalQueryPlan, BlastRadiusNarrative, HypothesisResult, RcaSynthesisResult, TriageResult
 from keigan.ai.investigation_mock_responses import MockInvestigationContext, MockServiceInfo
 from keigan.ai.llm_gateway import PromptSection
+from keigan.ai.operating_notes_prompt import build_operating_notes_section
 from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
 from keigan.ai.prompt_safety import build_valid_citation_codes, remove_invalid_citations, restrict_to_known_file_path, strip_invisible_characters
 from keigan.config import application_context
@@ -34,7 +35,7 @@ from keigan.entities.application_entities import Application, MonitoredService, 
 from keigan.entities.incident_entities import Incident, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent
 from keigan.entities.notification_entities import Stakeholder
 from keigan.entities.platform_entities import LlmUsageRecord
-from keigan.entities.status_values import AnalysisPerspective, CriticalityTier, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStage, InvestigationStatus, Priority, RiskLevel
+from keigan.entities.status_values import AnalysisPerspective, CriticalityTier, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStage, InvestigationStatus, Priority, RiskLevel, SloHealthStatus
 from keigan.exceptions.keigan_exceptions import KeiganException, LlmUnavailableException, TokenBudgetExceededException
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.services.evidence_service import EvidenceDraft, EvidenceService, ServiceTelemetryContext
@@ -79,6 +80,7 @@ class InvestigationGraphRunner:
         self.resource_group_by_service_id: dict[str, str] = {}  # so prompts can name real resource groups instead of inviting guesses
         self.knowledge_reference_codes: set[str] = set()  # the K# codes of the knowledge that was really given to the model
         self.knowledge_contains_flagged_content = False
+        self.operating_notes_section: PromptSection | None = None  # the team's guidance for the AI: untrusted, masked, never evidence; None when the team wrote none
         self.runbook_matches: list[Any] = []
         self.recurring_issues_markdown = ""
         self.evidence_drafts: list[EvidenceDraft] = []
@@ -281,6 +283,7 @@ class InvestigationGraphRunner:
             logger.info("Knowledge context not available: %s", knowledge_error)
             self.knowledge_markdown, self.runbook_matches = "", []
             self.knowledge_reference_codes, self.knowledge_contains_flagged_content = set(), False
+        self.operating_notes_section = build_operating_notes_section(self.application.operating_notes_text, self.masker)
         previous = (
             await self.session.scalars(
                 select(Investigation).where(
@@ -394,6 +397,7 @@ class InvestigationGraphRunner:
                 PromptSection("Analysis perspective", perspective),
                 PromptSection("Application and services", self._describe_services(self.services)),
                 self._knowledge_section(),
+                *self._operating_notes_sections(),
                 PromptSection("Known issues (runbooks)", runbook_text, is_untrusted=True, source_label="runbooks"),
                 PromptSection("Recurring issues confirmed in the past", self.recurring_issues_markdown or "None recorded.", is_untrusted=True, source_label="earlier investigations"),
                 PromptSection("Incident", f"{self.incident_text}\n\nTriage summary: {self.triage.incident_summary if self.triage else ''}", is_untrusted=True, source_label="incident"),
@@ -419,6 +423,10 @@ class InvestigationGraphRunner:
             "Application knowledge", self.knowledge_markdown or "No knowledge documents are available for this application.", is_untrusted=True, source_label="knowledge documents",
             maximum_characters=60_000, is_flagged=self.knowledge_contains_flagged_content,
         )
+
+    def _operating_notes_sections(self) -> list[PromptSection]:
+        """The team's operating notes when there are any. They are guidance with no citation code, so they never enter ``_valid_citation_codes``."""
+        return [self.operating_notes_section] if self.operating_notes_section else []
 
     def _valid_citation_codes(self) -> set[str]:
         """Codes that exist for this investigation: its evidence, its matched runbooks and the knowledge that was given to the model."""
@@ -485,6 +493,7 @@ class InvestigationGraphRunner:
             PromptSection("Evidence index", EvidenceService.render_evidence_markdown(self.evidence_rows, service_names_by_id), is_untrusted=True, source_label="telemetry evidence", maximum_characters=60_000),
             PromptSection("Known issues (runbooks)", "\n\n".join(f"[{code}] {match.runbook_title}\n{match.runbook_steps_markdown}" for code, match in runbook_codes.items()) or "No matching runbooks.", is_untrusted=True, source_label="runbooks"),
             self._knowledge_section(),
+            *self._operating_notes_sections(),
             PromptSection("Task", "Decide the leading perspective and write the root cause analysis."),
         ]
         try:
@@ -560,7 +569,7 @@ class InvestigationGraphRunner:
             from keigan.services.slo_service import SloService
 
             all_slos = await SloService(self.session).summarize_slos([self.application.application_id])
-            slo_summaries = [summary for summary in all_slos if summary.get("serviceId") in impacted_ids or summary.get("status") in ("at_risk", "breached")][:10]
+            slo_summaries = [summary for summary in all_slos if summary.get("serviceId") in impacted_ids or summary.get("status") in (SloHealthStatus.AT_RISK, SloHealthStatus.BREACHED)][:10]
         except Exception as slo_error:  # noqa: BLE001 — the blast radius is still built, without SLOs
             logger.warning("Impacted SLOs for application %s could not be read: %s", self.application.application_id, slo_error)
         stakeholders = list(

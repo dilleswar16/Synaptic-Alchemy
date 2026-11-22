@@ -8,8 +8,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from keigan.dtos.common_dtos import ApiModel
-
-SloStatus = Literal["healthy", "at_risk", "breached", "no_data"]
+from keigan.entities.status_values import SloHealthStatus
 
 
 class SupportingSignalResponse(ApiModel):
@@ -164,7 +163,7 @@ class SloSummaryResponse(ApiModel):
     error_budget_total_minutes: float | None = None
     burn_rate_one_hour: float | None = None
     burn_rate_six_hours: float | None = None
-    status: SloStatus
+    status: SloHealthStatus
     sparkline: list[float] = Field(default_factory=list)
 
 
@@ -199,7 +198,7 @@ class HeatmapRow(ApiModel):
     service_name: str | None = None
     target_percentage: float
     overall_compliance_percentage: float | None = None
-    status: SloStatus
+    status: SloHealthStatus
     cells: list[HeatmapCell]
 
 

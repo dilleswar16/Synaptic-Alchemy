@@ -17,6 +17,7 @@ import { Timeline, type TimelineEvent } from "@/components/ui/Timeline";
 import { useToast } from "@/components/ui/Toast";
 import type { AlertMember } from "@/api/alertsApi";
 import { GroupStatusChip, ScoreBar, SeverityChip, useOutcomeLabel } from "./AlertBadges";
+import { GroupingReasonText } from "./GroupingReasonText";
 
 /** Group detail: member alerts, the decision log as a timeline (every stage with its reason) and feedback. */
 export function AlertGroupDrawer({ alertGroupId, canEdit, onClose }: { alertGroupId: string | null; canEdit: boolean; onClose: () => void }) {
@@ -88,7 +89,7 @@ export function AlertGroupDrawer({ alertGroupId, canEdit, onClose }: { alertGrou
               </Button>
             ) : null}
           </div>
-          {group.groupingReason ? <p className="text-body-sm text-muted">{t("drawer.groupingReason", { reason: group.groupingReason })}</p> : null}
+          <GroupingReasonText reason={group.groupingReason} className="text-body-sm" />
           <section className="flex flex-col gap-3">
             <SectionHeader level={3} title={t("drawer.members", { count: group.members.length })} />
             <DataTable columns={memberColumns} rows={group.members} getRowId={(member) => member.alertId} caption={t("drawer.members", { count: group.members.length })} density="dense" />

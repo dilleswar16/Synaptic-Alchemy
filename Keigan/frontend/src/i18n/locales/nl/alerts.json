@@ -35,6 +35,13 @@
     "emptyTitle": "Geen meldingsgroepen",
     "emptyDescription": "Wanneer meldingen binnenkomen, worden ze hier gegroepeerd, met de reden voor elke beslissing."
   },
+  "groupingReason": {
+    "same_service": "Gegroepeerd omdat {{alertCount}} meldingen binnen {{windowMinutes}} minuten van elkaar afgingen op {{serviceName}}.",
+    "dependency": "Gegroepeerd omdat er meldingen afgingen op {{serviceName}} en {{relatedServiceName}}, die van elkaar afhankelijk zijn, binnen {{windowMinutes}} minuten.",
+    "same_rule": "Gegroepeerd omdat {{alertCount}} meldingen van dezelfde regel, {{ruleName}}, kwamen binnen {{windowMinutes}} minuten van elkaar.",
+    "attached_to_incident": "Gegroepeerd omdat het open incident {{incidentName}} binnen {{windowMinutes}} minuten van deze meldingen is aangemaakt.",
+    "single_alert": "Eén enkele melding, dus er valt niets mee te groeperen.", "not_recorded": "De reden waarom deze meldingen zijn gegroepeerd is niet vastgelegd."
+  },
   "outcome": {
     "investigation_started": "Onderzoek gestart", "investigation_replayed": "Zou worden onderzocht", "queued": "In wachtrij", "below_threshold": "Onder drempel", "joined_group": "Aan groep toegevoegd",
     "joined_investigation": "Aan onderzoek toegevoegd", "servicenow_incident_suggested": "Incident voorgesteld", "servicenow_incident_created": "Incident aangemaakt", "suppressed_maintenance": "Onderhoudsvenster",
@@ -46,7 +53,7 @@
   "drawer": {
     "loading": "Meldingsgroep", "rule": "Regel", "service": "Service", "severity": "Ernst", "state": "Status", "occurrences": "Aantal keer gezien", "lastSeen": "Laatst gezien", "flapping": "Flapperend",
     "applicationLevel": "Applicatieniveau (geen service)", "members": "Bijbehorende meldingen ({{count}})", "decisionLog": "Beslissingslog", "decisionLogHelp": "Elke pijplijnfase met de reden voor haar beslissing.",
-    "noDecisions": "Geen beslissingen vastgelegd.", "wouldHave": "Actieve modus zou hebben: {{outcome}}", "groupingReason": "Groepering: {{reason}}",
+    "noDecisions": "Geen beslissingen vastgelegd.", "wouldHave": "Actieve modus zou hebben: {{outcome}}",
     "observeTitle": "Observatiemodus", "observeBody": "Deze beslissingen zijn vastgelegd maar niet toegepast. Regels met 'Actieve modus zou hebben' tonen wat er zou veranderen.",
     "openInvestigation": "Onderzoek openen", "openIncident": "Open incidenten", "createIncident": "ServiceNow-incident aanmaken", "createIncidentSuggested": "Voorgesteld ServiceNow-incident aanmaken",
     "incidentCreated": "ServiceNow-incident aangemaakt", "incidentFailed": "Het incident kon niet worden aangemaakt",

@@ -18,7 +18,7 @@ from keigan.config import application_context
 from keigan.entities.application_entities import ApplicationComponent, MonitoredService
 from keigan.entities.incident_entities import Incident
 from keigan.entities.slo_entities import ServiceLevelIndicator, SliMeasurement
-from keigan.entities.status_values import SignalSeverity
+from keigan.entities.status_values import SignalSeverity, SloHealthStatus
 from keigan.exceptions.keigan_exceptions import KeiganException
 from keigan.services.sli_measurement_reader import LATENCY_METRIC_NAMES, SliMeasurementReader
 from keigan.utils.statistics_utils import linear_trend, robust_baseline
@@ -148,7 +148,7 @@ class PredictiveDetectors:
             burn_rate_value = max(summary.get("burnRateSixHours") or 0, summary.get("burnRateOneHour") or 0, burn_rate_three_days or 0)
             window_minutes = summary["rollingWindowDays"] * 24 * 60
             consumption_per_minute = burn_rate_value * total_minutes / window_minutes
-            if remaining_minutes <= 0 or summary["status"] == "breached":
+            if remaining_minutes <= 0 or summary["status"] == SloHealthStatus.BREACHED:
                 minutes_until_exhaustion = 0.0
             elif burn_rate_value >= 0.5 and consumption_per_minute > 0:
                 minutes_until_exhaustion = remaining_minutes / consumption_per_minute

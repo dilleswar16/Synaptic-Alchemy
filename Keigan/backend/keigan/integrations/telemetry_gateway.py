@@ -178,6 +178,11 @@ class TelemetryGateway:
     def is_simulated(self, telemetry_target: TelemetryTarget | None = None) -> bool:
         return self.settings.telemetry_mode == IntegrationMode.SIMULATED or bool(telemetry_target and telemetry_target.use_simulation)
 
+    def activity_is_simulated(self, use_simulation: bool = False) -> bool:
+        """The Activity Log read is simulated in simulated mode and for a component marked simulated, as every other telemetry read is. In live mode nothing else is: an
+        application with no Azure subscription has no Activity Log to read (``query_activity_changes`` says so), it is never answered from the simulator."""
+        return self.settings.telemetry_mode == IntegrationMode.SIMULATED or use_simulation
+
     async def _ensure_log_tool_endpoints_allowed(self, log_tool_connection: "LogToolConnection") -> None:
         """The stored endpoint may predate the outbound policy or have been changed in the database: check it again before calling."""
         for _field_name, endpoint_url in log_tool_endpoint_urls(log_tool_connection.tool_type, log_tool_connection.endpoint_url, log_tool_connection.connection_configuration_json):
@@ -258,9 +263,12 @@ class TelemetryGateway:
         time_range_end: datetime,
         use_simulation: bool = False,
     ) -> list[ChangeEvent]:
+        """Raises ``ReaderNotAvailableException`` when the read is real (not simulated) and the application has no Azure subscription connected."""
         await self.access_policy.ensure_can_read_activity(application_id, azure_subscription_id, azure_resource_group_name)
-        if self.settings.telemetry_mode == IntegrationMode.SIMULATED or use_simulation or not azure_subscription_id:
+        if self.activity_is_simulated(use_simulation):
             return await self.telemetry_simulator.query_activity_changes(application_id, time_range_start, time_range_end)
+        if not azure_subscription_id:
+            raise ReaderNotAvailableException("Keigan cannot read the Azure Activity Log for this application: no Azure subscription is connected to it.")
         return await self.azure_client.list_activity_changes(
             azure_tenant_id, azure_subscription_id, azure_resource_group_name, time_range_start, time_range_end
         )

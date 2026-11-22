@@ -28,7 +28,7 @@ from keigan.dtos.application_dtos import (
 )
 from keigan.entities.application_entities import Application, ApplicationComponent, MonitoredService
 from keigan.entities.incident_entities import Incident
-from keigan.entities.status_values import ApplicationLifecycleStatus
+from keigan.entities.status_values import ApplicationLifecycleStatus, SloHealthStatus
 from keigan.exceptions.keigan_exceptions import AmbiguousGroupNameException, BusinessValidationException, ConflictException, ForbiddenException, IntegrationException, NotFoundException
 from keigan.repositories.base_repository import BaseRepository
 from keigan.security.current_user import CurrentUser
@@ -101,10 +101,10 @@ class ApplicationService:
             return {}
         statuses_by_application: dict[str, list[str]] = defaultdict(list)
         for slo_row in slo_rows:
-            if slo_row.get("status") != "no_data":
+            if slo_row.get("status") != SloHealthStatus.NO_DATA:
                 statuses_by_application[str(slo_row.get("applicationId"))].append(str(slo_row.get("status")))
         return {
-            application_id: round(100.0 * sum(1 for status in statuses if status in ("healthy", "at_risk")) / len(statuses), 1)
+            application_id: round(100.0 * sum(1 for status in statuses if status in (SloHealthStatus.HEALTHY, SloHealthStatus.AT_RISK)) / len(statuses), 1)
             for application_id, statuses in statuses_by_application.items()
             if statuses
         }

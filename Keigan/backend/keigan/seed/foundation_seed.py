@@ -53,6 +53,14 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
         "application_code": "CLMJP",
         "application_name": "Claims Processing (JP)",
         "application_description": "Customer claims intake, assessment and payment orchestration for MetLife Japan.",
+        "operating_notes": (
+            "Claim submission (claims-apim, claims-api, claims-sql) carries revenue and regulated traffic. An accepted claim must reach claims-sql or be rejected visibly, "
+            "never lost, so treat any failure on that path as customer impacting even at low volume.\n"
+            "claims-document-renderer restarts by itself after large document batches. A short memory spike there is usually not an incident unless claim submissions are also failing.\n"
+            "claims-nightly-etl runs from 02:00 to 03:30 JST and loads claims-sql heavily; high database CPU in that window is normal.\n"
+            "A quiet night is about 40 claim submissions an hour with under 2 percent errors.\n"
+            "For payment questions during an incident, mention the Japan claims duty manager."
+        ),
         "business_unit_name": "Japan Operations",
         "region_code": "JP",
         "primary_locale": "ja",
@@ -98,6 +106,12 @@ DEMO_APPLICATIONS: list[dict[str, Any]] = [
         "application_code": "CHAD",
         "application_name": "Channel APIs for Digital (AU)",
         "application_description": "Public channel APIs used by the MetLife Australia mobile app and adviser portal.",
+        "operating_notes": (
+            "chad-apim and channel-gateway-app serve both the mobile app and the adviser portal, so a problem there reaches customers and advisers at once.\n"
+            "The adviser portal peaks on weekday mornings from 08:30 to 10:00 AEST; slower responses in that window usually follow the login surge and are not an incident by themselves.\n"
+            "chad-notifications-func is tier 3: delayed push notifications are rarely urgent unless they are more than an hour late.\n"
+            "After 22:00 AEST traffic is under 10 percent of the weekday peak, so a handful of errors can look like a high error rate."
+        ),
         "business_unit_name": "Engineering Axis",
         "region_code": "AU",
         "primary_locale": "en",
@@ -246,6 +260,9 @@ async def seed_demo_applications(session: AsyncSession, seed_context: SeedContex
             application_name=application_definition["application_name"],
             application_code=application_code,
             application_description=application_definition["application_description"],
+            operating_notes_text=application_definition.get("operating_notes"),
+            operating_notes_updated_at=now - timedelta(days=20) if application_definition.get("operating_notes") else None,
+            operating_notes_updated_by_user_principal_name="aiko.appadmin@keigan.local" if application_definition.get("operating_notes") else None,
             business_unit_name=application_definition["business_unit_name"],
             region_code=application_definition["region_code"],
             primary_locale=application_definition["primary_locale"],

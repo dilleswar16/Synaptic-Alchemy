@@ -35,6 +35,13 @@
     "emptyTitle": "アラートグループはありません",
     "emptyDescription": "アラートが到着すると、すべての判断の理由とともにここでグループ化されます。"
   },
+  "groupingReason": {
+    "same_service": "{{serviceName}} で {{windowMinutes}} 分以内に {{alertCount}} 件のアラートが発生したため、グループ化されました。",
+    "dependency": "互いに依存する {{serviceName}} と {{relatedServiceName}} で {{windowMinutes}} 分以内にアラートが発生したため、グループ化されました。",
+    "same_rule": "同じルール「{{ruleName}}」から {{windowMinutes}} 分以内に {{alertCount}} 件のアラートが発生したため、グループ化されました。",
+    "attached_to_incident": "未解決のインシデント {{incidentName}} が、これらのアラートの {{windowMinutes}} 分以内に作成されたため、グループ化されました。",
+    "single_alert": "アラートが 1 件のみのため、まとめる対象はありません。", "not_recorded": "これらのアラートがグループ化された理由は記録されていません。"
+  },
   "outcome": {
     "investigation_started": "調査を開始", "investigation_replayed": "調査対象になる", "queued": "キュー待ち", "below_threshold": "しきい値未満", "joined_group": "グループに追加",
     "joined_investigation": "調査に追加", "servicenow_incident_suggested": "インシデントを提案", "servicenow_incident_created": "インシデントを作成", "suppressed_maintenance": "メンテナンスウィンドウ",
@@ -46,7 +53,7 @@
   "drawer": {
     "loading": "アラートグループ", "rule": "ルール", "service": "サービス", "severity": "重大度", "state": "状態", "occurrences": "検知回数", "lastSeen": "最終検知", "flapping": "フラッピング",
     "applicationLevel": "アプリケーションレベル（サービスなし）", "members": "所属アラート（{{count}}）", "decisionLog": "判断ログ", "decisionLogHelp": "パイプラインの各ステージと、その判断の理由です。",
-    "noDecisions": "記録された判断はありません。", "wouldHave": "アクティブモードでは: {{outcome}}", "groupingReason": "グループ化: {{reason}}",
+    "noDecisions": "記録された判断はありません。", "wouldHave": "アクティブモードでは: {{outcome}}",
     "observeTitle": "観察モード", "observeBody": "これらの判断は記録のみで、適用されていません。「アクティブモードでは」の行は、変更される内容を示します。",
     "openInvestigation": "調査を開く", "openIncident": "未解決のインシデント", "createIncident": "ServiceNow インシデントを作成", "createIncidentSuggested": "提案された ServiceNow インシデントを作成",
     "incidentCreated": "ServiceNow インシデントを作成しました", "incidentFailed": "インシデントを作成できませんでした",

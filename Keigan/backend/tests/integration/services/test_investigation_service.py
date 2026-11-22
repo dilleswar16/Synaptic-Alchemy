@@ -110,3 +110,25 @@ async def test_a_failed_investigation_shows_users_no_internal_error_text(seed_co
     assert investigation.investigation_status == "failed"
     assert "internal.corp" not in investigation.failure_reason and "hunter2" not in investigation.failure_reason and "RuntimeError" not in investigation.failure_reason
     assert "corr-fail-42" in investigation.failure_reason
+
+
+async def test_the_alert_group_on_an_investigation_carries_the_structured_grouping_reason(client: httpx.AsyncClient, auth_headers: AuthHeaders, seed_context) -> None:
+    """The investigation page shows the same translated sentence as the Alerts page, so it needs the code and parameters, not the stored English string."""
+    from keigan.entities.alert_entities import Alert, AlertGroup, AlertSource
+
+    application_id = seed_context.application_ids_by_code["CLMJP"]
+    async with open_session() as session:
+        investigation = Investigation(application_id=application_id)
+        session.add(investigation)
+        source = AlertSource(application_id=application_id, source_tool="generic", source_name="grouping test source", webhook_secret_hash="hash")
+        session.add(source)
+        await session.flush()
+        group = AlertGroup(application_id=application_id, group_title="Grouping test", investigation_id=investigation.investigation_id, grouping_reason="Stored English text that must not be shown")
+        session.add(group)
+        await session.flush()
+        session.add(Alert(application_id=application_id, alert_source_id=source.alert_source_id, alert_fingerprint="grouping-test", rule_name="rule", alert_group_id=group.alert_group_id))
+        investigation_id = investigation.investigation_id
+    response = await client.get(f"/api/investigations/{investigation_id}", headers=await auth_headers(users.CLMJP_ADMIN_CHAD_READER))
+    assert response.status_code == 200, response.text
+    reason = response.json()["alertGroup"]["groupingReason"]
+    assert reason == {"code": "single_alert", "parameters": {}}

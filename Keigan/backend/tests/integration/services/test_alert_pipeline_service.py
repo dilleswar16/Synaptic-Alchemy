@@ -109,7 +109,7 @@ async def test_group_title_prompt_tells_the_model_the_severity_of_the_alerts(ale
     async with open_session() as session:
         pipeline = AlertPipelineService(session)
         context = await pipeline.load_context(alert_source.application_id)
-        await pipeline._generate_title(context, ["claims-api"], ["Error rate high"], 1, highest_severity_level=1)  # noqa: SLF001
+        await pipeline._generate_title(context, ["claims-api"], ["Error rate high"], highest_severity_level=1)  # noqa: SLF001
     assert any("Severity: Sev 1" in content for content in captured_sections), captured_sections
 
 

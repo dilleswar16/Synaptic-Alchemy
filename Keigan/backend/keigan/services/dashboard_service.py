@@ -17,7 +17,7 @@ from keigan.entities.all_entities import (
     Alert, AlertGroup, Application, ApplicationComponent, Incident, IntelligenceReport, Investigation, MaintenanceWindow, PostmortemReport, PredictiveSignal,
     ServiceLevelIndicator, SliMeasurement,
 )
-from keigan.entities.status_values import AlertGroupStatus, IncidentStatus, Priority, SignalStatus
+from keigan.entities.status_values import AlertGroupStatus, IncidentStatus, Priority, SignalStatus, SloHealthStatus
 from keigan.security.current_user import CurrentUser
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.slo_service import SloService
@@ -74,7 +74,7 @@ class DashboardService:
         return HomeKpiResponse(
             open_incidents_total=len(incidents), open_incidents_by_priority=dict(by_priority), active_alert_group_count=active_groups, alerts_last_24_hours=alerts_24h,
             noise_reduction_percentage=round(100 * (1 - groups_24h / alerts_24h), 1) if alerts_24h else None, slo_total_count=len(slo_summaries),
-            slos_at_risk_count=sum(1 for item in slo_summaries if item.get("status") in ("at_risk", "breached")), investigations_last_24_hours=investigations_24h, mean_minutes_to_first_update=mean_minutes)
+            slos_at_risk_count=sum(1 for item in slo_summaries if item.get("status") in (SloHealthStatus.AT_RISK, SloHealthStatus.BREACHED)), investigations_last_24_hours=investigations_24h, mean_minutes_to_first_update=mean_minutes)
 
     @staticmethod
     def _status_sentence(incidents: list[Incident], kpis: HomeKpiResponse, application_count: int) -> str:

@@ -35,6 +35,13 @@
     "emptyTitle": "No hay grupos de alertas",
     "emptyDescription": "Cuando llegan alertas se agrupan aquí, con el motivo de cada decisión."
   },
+  "groupingReason": {
+    "same_service": "Agrupadas porque {{alertCount}} alertas se activaron en {{serviceName}} con menos de {{windowMinutes}} minutos de diferencia.",
+    "dependency": "Agrupadas porque se activaron alertas en {{serviceName}} y {{relatedServiceName}}, que dependen entre sí, en menos de {{windowMinutes}} minutos.",
+    "same_rule": "Agrupadas porque {{alertCount}} alertas provienen de la misma regla, {{ruleName}}, con menos de {{windowMinutes}} minutos de diferencia.",
+    "attached_to_incident": "Agrupadas porque el incidente abierto {{incidentName}} se creó a menos de {{windowMinutes}} minutos de estas alertas.",
+    "single_alert": "Una sola alerta, así que no hay nada con lo que agruparla.", "not_recorded": "No se registró el motivo por el que se agruparon estas alertas."
+  },
   "outcome": {
     "investigation_started": "Investigación iniciada", "investigation_replayed": "Se investigaría", "queued": "En cola", "below_threshold": "Por debajo del umbral", "joined_group": "Añadida al grupo",
     "joined_investigation": "Añadida a la investigación", "servicenow_incident_suggested": "Incidente sugerido", "servicenow_incident_created": "Incidente creado", "suppressed_maintenance": "Ventana de mantenimiento",
@@ -46,7 +53,7 @@
   "drawer": {
     "loading": "Grupo de alertas", "rule": "Regla", "service": "Servicio", "severity": "Gravedad", "state": "Estado", "occurrences": "Veces vista", "lastSeen": "Última vez vista", "flapping": "Oscilante",
     "applicationLevel": "A nivel de aplicación (sin servicio)", "members": "Alertas miembro ({{count}})", "decisionLog": "Registro de decisiones", "decisionLogHelp": "Cada etapa del flujo con el motivo de su decisión.",
-    "noDecisions": "No hay decisiones registradas.", "wouldHave": "El modo Activo habría: {{outcome}}", "groupingReason": "Agrupación: {{reason}}",
+    "noDecisions": "No hay decisiones registradas.", "wouldHave": "El modo Activo habría: {{outcome}}",
     "observeTitle": "Modo Observar", "observeBody": "Estas decisiones se registraron pero no se aplicaron. Las líneas marcadas con 'El modo Activo habría' muestran lo que cambiaría.",
     "openInvestigation": "Abrir investigación", "openIncident": "Incidentes abiertos", "createIncident": "Crear incidente de ServiceNow", "createIncidentSuggested": "Crear el incidente de ServiceNow sugerido",
     "incidentCreated": "Incidente de ServiceNow creado", "incidentFailed": "No se pudo crear el incidente",

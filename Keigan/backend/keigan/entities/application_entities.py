@@ -37,6 +37,10 @@ class Application(AuditColumnsMixin, EntityBase):
     onboarding_progress_json: Mapped[dict[str, Any] | None] = mapped_column()
     went_live_at: Mapped[datetime | None] = mapped_column()
     went_live_by_user_principal_name: Mapped[str | None] = mapped_column(String(320))
+    # The team's guidance for the AI (not evidence). NULL means none; the audit columns of the mixin say who last changed the application in general, these who changed the notes.
+    operating_notes_text: Mapped[str | None] = mapped_column(Text)
+    operating_notes_updated_at: Mapped[datetime | None] = mapped_column()
+    operating_notes_updated_by_user_principal_name: Mapped[str | None] = mapped_column(String(320))
 
 
 class ApplicationComponent(AuditColumnsMixin, EntityBase):

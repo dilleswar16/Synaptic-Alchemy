@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { AlertGroupDrawer } from "../components/AlertGroupDrawer";
+import { GroupingReasonText } from "../components/GroupingReasonText";
 import { GroupStatusChip, ScoreBar, SeverityChip, useFunnelStepLabel, useOutcomeLabel } from "../components/AlertBadges";
 
 type Period = "24h" | "7d" | "30d";
@@ -54,6 +55,7 @@ export default function AlertsPage() {
         <div className="flex min-w-56 flex-col gap-0.5">
           <span className="font-semibold">{group.groupTitle}</span>
           <span className="text-caption text-muted">{group.applicationName} · {t("groups.occurrences", { count: group.totalOccurrenceCount })}</span>
+          {group.groupingReason.code !== "single_alert" ? <GroupingReasonText reason={group.groupingReason} className="max-w-prose text-caption" /> : null}
         </div>
       ),
       sortValue: (group) => group.groupTitle,

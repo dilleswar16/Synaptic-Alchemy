@@ -1,0 +1,58 @@
+{
+  "pageTitle": "Reliability metrics",
+  "pageDescription": "How often incidents happen, how fast they are handled, how well Keigan's investigations hold up and what the AI uses.",
+  "percentilesNote": "Each figure is the median (half of the cases were faster), then p90 (nine in ten were faster) and n, the number of cases behind it. Figures from only a few cases can swing a lot.",
+  "filters": { "application": "Application", "allApplications": "All my applications", "period": "Period", "days_one": "{{count}} day", "days_other": "{{count}} days", "range": "Showing {{from}} to {{to}}." },
+  "empty": { "title": "No incidents or investigations in this period", "description": "Choose a longer period or another application. Figures appear as soon as there is data." },
+  "figure": { "none": "—", "detail": "p90 {{p90}} · n = {{count}}", "noSamples": "No data in this period", "noSamplesShort": "n = 0", "excluded": "{{count}} left out: {{reason}}" },
+  "reasons": { "timeToDetect": "no alert before the incident was opened", "outOfOrder": "start or end time missing or out of order" },
+  "priority": { "unassigned": "No priority", "none": "None" },
+  "info": { "open": "What does {{metric}} mean?" },
+  "sections": {
+    "incidents": { "title": "Incidents", "description": "Opened and resolved in this period, and how quickly they were detected, answered and closed." },
+    "investigations": { "title": "Keigan investigations", "description": "What Keigan investigated and how engineers rated the result." },
+    "ai": { "title": "AI usage", "description": "Per investigation. Model calls that belong to no investigation, such as chat, are not counted here." },
+    "trend": { "title": "Weekly trend", "description": "The same figures week by week." },
+    "applications": { "title": "By application", "description": "Only applications you can read. Select a column heading to sort." },
+    "definitions": { "title": "How these figures are defined", "description": "Every figure on this page is calculated as follows." }
+  },
+  "notAvailable": {
+    "label": "Not available",
+    "reasons": { "no_acknowledgement_timestamp": "Keigan does not record when a person acknowledges an incident, so this cannot be calculated. It is not estimated.", "unknown": "The data needed for this figure is not recorded." }
+  },
+  "statuses": { "queued": "Queued", "running": "Running", "completed": "Completed", "completed_evidence_only": "Evidence only", "failed": "Failed", "cancelled": "Cancelled" },
+  "investigations": { "total_one": "{{count}} investigation started in this period", "total_other": "{{count}} investigations started in this period", "statusCount": "{{status}}: {{count}}" },
+  "ratings": { "notEnough": "Not enough ratings yet ({{count}} of {{minimum}} needed)", "detail": "{{rated}} of {{total}} rated: {{correct}} correct, {{partial}} partly correct, {{incorrect}} incorrect" },
+  "ai": {
+    "inputTokens": "Input tokens per investigation", "outputTokens": "Output tokens per investigation", "costPerInvestigation": "Estimated cost per investigation",
+    "callsDetail": "{{failed}} failed · {{count}} investigations", "costTotal": "Total {{total}} (in the currency of the configured prices)",
+    "noPricedInvestigations": "No investigation used only priced models", "noPricesTitle": "No estimated cost", "noPricesText": "Cost is estimated only when an administrator has configured a price per model. Until then this page shows tokens only.",
+    "unpricedTitle": "Some models have no price", "unpricedText": "Left out of the estimate: {{models}}. {{count}} investigations used them, so their cost is not shown."
+  },
+  "trend": {
+    "incidents": "Incidents per week", "opened": "Opened", "resolved": "Resolved", "resolve": "Median time to resolve per week (hours)", "resolveSeries": "Hours", "conclusion": "Median time to conclusion per week (minutes)", "conclusionSeries": "Minutes",
+    "tokens": "Median tokens per investigation per week", "tokensSeries": "Tokens", "samples": "Cases behind each bar, week by week: {{counts}}",
+    "note": "Weeks start on Monday (UTC). A week with no cases has no bar. The first and last week may be only partly inside the period."
+  },
+  "table": {
+    "caption": "Reliability metrics by application", "application": "Application", "incidents": "Opened / resolved", "openedResolved": "{{opened}} / {{resolved}}", "detect": "Time to detect", "firstUpdate": "First update", "resolve": "Time to resolve",
+    "conclusion": "Time to conclusion", "correct": "Marked correct", "tokens": "Input tokens", "notEnoughRatings": "not enough ratings ({{count}} of {{minimum}})", "ratedCount_one": "{{count}} rated", "ratedCount_other": "{{count}} rated"
+  },
+  "definitions": {
+    "percentiles": { "title": "Median, p90 and n", "text": "The median is the middle case: half were faster, half slower. p90 is the value nine in ten cases stayed under, so it shows the slow tail. n is the number of cases behind the figure. Both are interpolated between ranks." },
+    "incidentsOpened": { "title": "Incidents opened", "text": "Incidents whose opened time falls inside the period, split by the priority Keigan gave them." },
+    "incidentsResolved": { "title": "Incidents resolved", "text": "Incidents whose resolved time falls inside the period, even if they were opened earlier." },
+    "timeToDetect": { "title": "Time to detect", "text": "From the first alert in an alert group linked to the incident to the time the incident was opened. It shows how long a signal existed before an incident did, not when the problem really began. Incidents with no earlier alert are left out and counted." },
+    "timeToFirstUpdate": { "title": "Time to first update", "text": "From the moment Keigan registered the incident to the first update sent to the team. Incidents with no update sent yet are not included." },
+    "timeToResolve": { "title": "Time to resolve (MTTR)", "text": "From the incident being opened to it being marked resolved. Incidents that are still open are not included." },
+    "timeToConclusion": { "title": "Time to conclusion", "text": "From an investigation starting to it completing, for completed investigations only." },
+    "timeToAcknowledge": { "title": "Time to acknowledge (MTTA)", "text": "Would be the time from an incident being opened to a person acknowledging it. Keigan does not record an acknowledgement, so it is not calculated." },
+    "investigationStatuses": { "title": "Investigations by status", "text": "Investigations created in the period, by where they ended up or stand now." },
+    "ratings": { "title": "Marked correct", "text": "Of the investigations engineers rated, the share rated correct. Investigations nobody rated are not counted. No percentage is shown until the minimum number of ratings is reached, because a share from a handful of ratings misleads." },
+    "aiTokens": { "title": "Tokens per investigation", "text": "Input and output tokens of all model calls made for an investigation, added up per investigation. The figure is the median and p90 across investigations." },
+    "aiLatency": { "title": "Latency per model call", "text": "How long a single model call took, across every call made for the investigations in the period." },
+    "aiCalls": { "title": "Model calls and failures", "text": "How many model calls were made for the investigations in the period and how many of them failed." },
+    "aiCost": { "title": "Estimated cost", "text": "Tokens multiplied by the configured price per million tokens of each model. Keigan stores no amounts, so this is an estimate and only exists when prices are configured. An investigation that used a model without a price is left out." },
+    "weeklyTrend": { "title": "Weekly trend", "text": "Each bar is the median of the cases that ended in that week. Weeks start on Monday (UTC)." }
+  }
+}

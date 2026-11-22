@@ -35,6 +35,13 @@
     "emptyTitle": "暂无告警组",
     "emptyDescription": "告警到达后会在此处分组，并说明每个决策的原因。"
   },
+  "groupingReason": {
+    "same_service": "因 {{alertCount}} 条告警在 {{windowMinutes}} 分钟内先后在 {{serviceName}} 上触发而被归为一组。",
+    "dependency": "因 {{serviceName}} 与 {{relatedServiceName}} 互相依赖，且在 {{windowMinutes}} 分钟内都触发了告警而被归为一组。",
+    "same_rule": "因 {{alertCount}} 条告警来自同一规则“{{ruleName}}”，且在 {{windowMinutes}} 分钟内触发而被归为一组。",
+    "attached_to_incident": "因未关闭的事件 {{incidentName}} 在这些告警的 {{windowMinutes}} 分钟内创建而被归为一组。",
+    "single_alert": "只有一条告警，没有可归并的对象。", "not_recorded": "这些告警被归为一组的原因没有记录。"
+  },
   "outcome": {
     "investigation_started": "已开始调查", "investigation_replayed": "将会调查", "queued": "排队中", "below_threshold": "低于阈值", "joined_group": "已加入告警组",
     "joined_investigation": "已加入调查", "servicenow_incident_suggested": "已建议创建事件", "servicenow_incident_created": "已创建事件", "suppressed_maintenance": "维护窗口",
@@ -46,7 +53,7 @@
   "drawer": {
     "loading": "告警组", "rule": "规则", "service": "服务", "severity": "严重程度", "state": "状态", "occurrences": "出现次数", "lastSeen": "最近出现", "flapping": "抖动",
     "applicationLevel": "应用级（无服务）", "members": "成员告警（{{count}}）", "decisionLog": "决策日志", "decisionLogHelp": "流水线的每个阶段，以及其做出相应决策的原因。",
-    "noDecisions": "没有决策记录。", "wouldHave": "生效模式下将会：{{outcome}}", "groupingReason": "分组：{{reason}}",
+    "noDecisions": "没有决策记录。", "wouldHave": "生效模式下将会：{{outcome}}",
     "observeTitle": "观察模式", "observeBody": "这些决策仅被记录，并未应用。标有“生效模式下将会”的行显示了将发生的变化。",
     "openInvestigation": "打开调查", "openIncident": "未关闭事件", "createIncident": "创建 ServiceNow 事件", "createIncidentSuggested": "创建建议的 ServiceNow 事件",
     "incidentCreated": "已创建 ServiceNow 事件", "incidentFailed": "无法创建事件",

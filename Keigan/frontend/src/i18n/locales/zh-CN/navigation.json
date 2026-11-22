@@ -12,6 +12,7 @@
     "alerts": "告警",
     "slo": "SLO 监控",
     "intelligence": "智能洞察",
+    "metrics": "可靠性指标",
     "chat": "Keigan AI 对话",
     "applications": "应用",
     "platformSettings": "平台设置",

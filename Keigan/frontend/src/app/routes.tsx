@@ -21,6 +21,7 @@ export function createAppRouter(options: { isDeveloperEnvironment: boolean }) {
     { path: "alerts", ...lazyPage(() => import("@/features/alerts/pages/AlertsPage")) },
     { path: "slo", ...lazyPage(() => import("@/features/slo/pages/SloMonitoringPage")) },
     { path: "intelligence", ...lazyPage(() => import("@/features/intelligence/pages/IntelligencePage")) },
+    { path: "metrics", ...lazyPage(() => import("@/features/metrics/pages/ReliabilityMetricsPage")) },
     { path: "chat", ...lazyPage(() => import("@/features/chat/pages/KeiganChatPage")) },
     { path: "chat/:conversationId", ...lazyPage(() => import("@/features/chat/pages/KeiganChatPage")) },
     { path: "applications", ...lazyPage(() => import("@/features/applications/pages/ApplicationsPage")) },

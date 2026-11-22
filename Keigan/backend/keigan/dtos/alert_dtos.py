@@ -8,6 +8,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from keigan.dtos.common_dtos import ApiModel
+from keigan.entities.status_values import AlertGroupingReason
 
 
 # ── Alert sources ──────────────────────────────────────────────────────────────
@@ -274,6 +275,13 @@ class ServiceReference(ApiModel):
     service_name: str
 
 
+class GroupingReasonResponse(ApiModel):
+    """Why the alerts of a group belong together: a stable code and the names and numbers its sentence needs (see ``services/alert_grouping_reason.py``). The screen writes the sentence."""
+
+    code: AlertGroupingReason
+    parameters: dict[str, str | int] = Field(default_factory=dict)
+
+
 class AlertGroupSummaryResponse(ApiModel):
     alert_group_id: str
     application_id: str
@@ -282,7 +290,7 @@ class AlertGroupSummaryResponse(ApiModel):
     group_summary: str | None = None
     group_status: str
     priority_score: float
-    grouping_reason: str | None = None
+    grouping_reason: GroupingReasonResponse
     member_alert_count: int
     total_occurrence_count: int = 0
     services: list[ServiceReference] = Field(default_factory=list)

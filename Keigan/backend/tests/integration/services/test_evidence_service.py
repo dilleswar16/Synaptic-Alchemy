@@ -37,6 +37,9 @@ class RecordingGateway:
     async def query_activity_changes(self, *arguments: object, **keyword_arguments: object) -> list[ChangeEvent]:
         return self.change_events
 
+    def activity_is_simulated(self, use_simulation: bool = False) -> bool:
+        return use_simulation
+
 
 def _service_context(source_kind: str = "log_analytics", query_scope: dict | None = None) -> ServiceTelemetryContext:
     service = MonitoredService(service_id="svc-1", application_id="app-1", service_name="claims-api", service_type="aks", criticality_tier="tier_2")
@@ -140,6 +143,100 @@ class TestActivityLogPeopleAreMasked:
         assert change_events[0].caller == "<EMAIL_1>"
         assert masking_context.masked_value_count >= 1
 
+
+
+class TestAFailedActivityLogReadIsNotReportedAsNoChanges:
+    class FailingChangesGateway(RecordingGateway):
+        async def query_activity_changes(self, *arguments: object, **keyword_arguments: object) -> list[ChangeEvent]:
+            raise IntegrationException("Forbidden", error_code="azure_forbidden")
+
+    async def test_a_refused_read_says_the_changes_could_not_be_checked(self) -> None:
+        evidence_service = await _service(self.FailingChangesGateway([], []))
+        change_events, draft = await evidence_service.collect_change_evidence("app-1", [_service_context()], WINDOW_START, WINDOW_END)
+        assert change_events == []
+        assert draft is not None
+        assert draft.evidence_summary.startswith("Not available:")
+        assert "refused access" in draft.evidence_summary
+        assert "cannot rule this source in or out" in draft.evidence_summary
+        assert "none found" not in draft.evidence_title.lower() and "no deployments" not in draft.evidence_summary.lower()
+
+    async def test_a_read_that_works_and_finds_nothing_still_says_no_changes(self) -> None:
+        evidence_service = await _service(RecordingGateway([], []))
+        _, draft = await evidence_service.collect_change_evidence("app-1", [_service_context()], WINDOW_START, WINDOW_END)
+        assert draft is not None and draft.evidence_summary.startswith("Rule-out: no deployments")
+
+
+class TestReadingChangeEventsRaisesWhenTheReadFails:
+    """``read_change_events`` is the Activity Log read both the investigation pipeline and Ask Keigan use; a failed read must reach the caller as a failure, never as an empty list."""
+
+    class RefusingGateway(RecordingGateway):
+        async def query_activity_changes(self, *arguments: object, **keyword_arguments: object) -> list[ChangeEvent]:
+            raise ForbiddenException("This application's activity log is not approved.")
+
+    class UnreachableGateway(RecordingGateway):
+        async def query_activity_changes(self, *arguments: object, **keyword_arguments: object) -> list[ChangeEvent]:
+            raise IntegrationException("Azure answered 503", error_code="azure_unavailable")
+
+    class ArgumentRecordingGateway(RecordingGateway):
+        def __init__(self, change_events: list[ChangeEvent]) -> None:
+            super().__init__([], change_events)
+            self.requests: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+        async def query_activity_changes(self, *arguments: object, **keyword_arguments: object) -> list[ChangeEvent]:
+            self.requests.append((arguments, keyword_arguments))
+            return self.change_events
+
+    async def test_the_events_are_returned_as_the_source_gave_them(self) -> None:
+        event = ChangeEvent(occurred_at=WINDOW_START, change_kind="deployment", operation_name="Microsoft.Web/sites/write", resource_identifier="/subscriptions/x", description="Release 41", caller="taro.yamada@metlife.co.jp")
+        evidence_service = await _service(RecordingGateway([], [event]))
+        assert await evidence_service.read_change_events("app-1", [_service_context()], WINDOW_START, WINDOW_END) == [event]
+
+    async def test_an_empty_answer_from_a_source_that_worked_is_an_empty_list(self) -> None:
+        evidence_service = await _service(RecordingGateway([], []))
+        assert await evidence_service.read_change_events("app-1", [_service_context()], WINDOW_START, WINDOW_END) == []
+
+    async def test_the_azure_component_of_the_services_decides_where_the_log_is_read(self) -> None:
+        from keigan.entities.application_entities import ApplicationComponent
+
+        gateway = self.ArgumentRecordingGateway([])
+        component = ApplicationComponent(
+            application_id="app-1", component_type="azure_resource_group", component_name="rg-polaris", azure_tenant_id="tenant-1", azure_subscription_id="subscription-1",
+            azure_resource_group_name="rg-polaris", component_configuration_json={"simulated": True},
+        )
+        service_context = ServiceTelemetryContext(_service_context().service, component, [], {})
+        await (await _service(gateway)).read_change_events("app-1", [service_context], WINDOW_START, WINDOW_END)
+        assert gateway.requests == [(("app-1", "tenant-1", "subscription-1", "rg-polaris", WINDOW_START, WINDOW_END), {"use_simulation": True})]
+
+    async def test_the_changes_are_simulated_when_the_gateway_says_so_for_the_component_of_the_services(self) -> None:
+        from keigan.entities.application_entities import ApplicationComponent
+
+        def context_with(configuration: dict) -> ServiceTelemetryContext:
+            component = ApplicationComponent(
+                application_id="app-1", component_type="azure_resource_group", component_name="rg-polaris", azure_tenant_id="tenant-1", azure_subscription_id="subscription-1",
+                azure_resource_group_name="rg-polaris", component_configuration_json=configuration,
+            )
+            return ServiceTelemetryContext(_service_context().service, component, [], {})
+
+        evidence_service = await _service(RecordingGateway([], []))
+        assert evidence_service.are_changes_simulated([context_with({"simulated": True})]) is True
+        assert evidence_service.are_changes_simulated([context_with({})]) is False
+        assert evidence_service.are_changes_simulated([_service_context()]) is False  # no Azure component: the gateway's own mode rule decides
+
+    async def test_a_failed_read_raises_instead_of_returning_no_changes(self) -> None:
+        evidence_service = await _service(self.UnreachableGateway([], []))
+        with pytest.raises(IntegrationException):
+            await evidence_service.read_change_events("app-1", [_service_context()], WINDOW_START, WINDOW_END)
+
+    async def test_a_source_the_access_policy_refuses_raises_the_refusal(self) -> None:
+        evidence_service = await _service(self.RefusingGateway([], []))
+        with pytest.raises(ForbiddenException):
+            await evidence_service.read_change_events("app-1", [_service_context()], WINDOW_START, WINDOW_END)
+
+    async def test_the_pipeline_still_turns_the_same_failure_into_a_could_not_be_checked_item(self) -> None:
+        evidence_service = await _service(self.UnreachableGateway([], []))
+        change_events, draft = await evidence_service.collect_change_evidence("app-1", [_service_context()], WINDOW_START, WINDOW_END)
+        assert change_events == []
+        assert draft is not None and draft.evidence_title == "Recent changes: could not be checked"
 
 
 class StaggeredGateway:

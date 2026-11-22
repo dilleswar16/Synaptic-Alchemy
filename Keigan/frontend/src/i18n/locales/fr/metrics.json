@@ -1,0 +1,58 @@
+{
+  "pageTitle": "Indicateurs de fiabilité",
+  "pageDescription": "À quelle fréquence surviennent les incidents, à quelle vitesse ils sont traités, la fiabilité des investigations de Keigan et ce que consomme l'IA.",
+  "percentilesNote": "Chaque chiffre est la médiane (la moitié des cas était plus rapide), puis le p90 (neuf cas sur dix étaient plus rapides) et n, le nombre de cas sur lequel il repose. Les chiffres issus de peu de cas peuvent varier fortement.",
+  "filters": { "application": "Application", "allApplications": "Toutes mes applications", "period": "Période", "days_one": "{{count}} jour", "days_other": "{{count}} jours", "range": "Affichage du {{from}} au {{to}}." },
+  "empty": { "title": "Aucun incident ni aucune investigation sur cette période", "description": "Choisissez une période plus longue ou une autre application. Les chiffres apparaissent dès qu'il y a des données." },
+  "figure": { "none": "—", "detail": "p90 {{p90}} · n = {{count}}", "noSamples": "Aucune donnée sur cette période", "noSamplesShort": "n = 0", "excluded": "{{count}} exclus : {{reason}}" },
+  "reasons": { "timeToDetect": "aucune alerte avant l'ouverture de l'incident", "outOfOrder": "heure de début ou de fin manquante ou dans le désordre" },
+  "priority": { "unassigned": "Sans priorité", "none": "Aucun" },
+  "info": { "open": "Que signifie {{metric}} ?" },
+  "sections": {
+    "incidents": { "title": "Incidents", "description": "Ouverts et résolus sur cette période, et avec quelle rapidité ils ont été détectés, traités et clos." },
+    "investigations": { "title": "Investigations de Keigan", "description": "Ce que Keigan a investigué et comment les ingénieurs ont évalué le résultat." },
+    "ai": { "title": "Utilisation de l'IA", "description": "Par investigation. Les appels au modèle qui n'appartiennent à aucune investigation, comme le chat, ne sont pas comptés ici." },
+    "trend": { "title": "Tendance hebdomadaire", "description": "Les mêmes chiffres, semaine par semaine." },
+    "applications": { "title": "Par application", "description": "Uniquement les applications que vous pouvez lire. Sélectionnez un en-tête de colonne pour trier." },
+    "definitions": { "title": "Définition de ces chiffres", "description": "Tous les chiffres de cette page sont calculés comme suit." }
+  },
+  "notAvailable": {
+    "label": "Non disponible",
+    "reasons": { "no_acknowledgement_timestamp": "Keigan n'enregistre pas le moment où une personne prend un incident en compte, ce chiffre ne peut donc pas être calculé. Il n'est pas estimé.", "unknown": "Les données nécessaires à ce chiffre ne sont pas enregistrées." }
+  },
+  "statuses": { "queued": "En file d'attente", "running": "En cours", "completed": "Terminée", "completed_evidence_only": "Preuves seulement", "failed": "Échec", "cancelled": "Annulée" },
+  "investigations": { "total_one": "{{count}} investigation démarrée sur cette période", "total_other": "{{count}} investigations démarrées sur cette période", "statusCount": "{{status}} : {{count}}" },
+  "ratings": { "notEnough": "Pas encore assez d'évaluations ({{count}} sur {{minimum}} nécessaires)", "detail": "{{rated}} évaluées sur {{total}} : {{correct}} correctes, {{partial}} partiellement correctes, {{incorrect}} incorrectes" },
+  "ai": {
+    "inputTokens": "Jetons d'entrée par investigation", "outputTokens": "Jetons de sortie par investigation", "costPerInvestigation": "Coût estimé par investigation",
+    "callsDetail": "{{failed}} en échec · {{count}} investigations", "costTotal": "Total {{total}} (dans la devise des prix configurés)",
+    "noPricedInvestigations": "Aucune investigation n'a utilisé uniquement des modèles avec prix", "noPricesTitle": "Pas de coût estimé", "noPricesText": "Le coût n'est estimé que si un administrateur a configuré un prix par modèle. D'ici là, cette page n'affiche que les jetons.",
+    "unpricedTitle": "Certains modèles n'ont pas de prix", "unpricedText": "Exclus de l'estimation : {{models}}. {{count}} investigations les ont utilisés, leur coût n'est donc pas affiché."
+  },
+  "trend": {
+    "incidents": "Incidents par semaine", "opened": "Ouverts", "resolved": "Résolus", "resolve": "Médiane du temps de résolution par semaine (heures)", "resolveSeries": "Heures", "conclusion": "Médiane du temps jusqu'à la conclusion par semaine (minutes)", "conclusionSeries": "Minutes",
+    "tokens": "Médiane de jetons par investigation et par semaine", "tokensSeries": "Jetons", "samples": "Cas derrière chaque barre, semaine par semaine : {{counts}}",
+    "note": "Les semaines commencent le lundi (UTC). Une semaine sans cas n'a pas de barre. La première et la dernière semaine peuvent n'être que partiellement dans la période."
+  },
+  "table": {
+    "caption": "Indicateurs de fiabilité par application", "application": "Application", "incidents": "Ouverts / résolus", "openedResolved": "{{opened}} / {{resolved}}", "detect": "Temps de détection", "firstUpdate": "Première mise à jour", "resolve": "Temps de résolution",
+    "conclusion": "Temps jusqu'à la conclusion", "correct": "Jugées correctes", "tokens": "Jetons d'entrée", "notEnoughRatings": "évaluations insuffisantes ({{count}} sur {{minimum}})", "ratedCount_one": "{{count}} évaluée", "ratedCount_other": "{{count}} évaluées"
+  },
+  "definitions": {
+    "percentiles": { "title": "Médiane, p90 et n", "text": "La médiane est le cas du milieu : la moitié était plus rapide, l'autre moitié plus lente. Le p90 est la valeur que neuf cas sur dix n'ont pas dépassée ; il montre la queue lente. n est le nombre de cas sur lequel repose le chiffre. Les deux sont interpolés entre les rangs." },
+    "incidentsOpened": { "title": "Incidents ouverts", "text": "Incidents dont l'heure d'ouverture tombe dans la période, répartis selon la priorité attribuée par Keigan." },
+    "incidentsResolved": { "title": "Incidents résolus", "text": "Incidents dont l'heure de résolution tombe dans la période, même s'ils ont été ouverts plus tôt." },
+    "timeToDetect": { "title": "Temps de détection", "text": "De la première alerte d'un groupe d'alertes lié à l'incident jusqu'à l'ouverture de l'incident. Cela montre combien de temps un signal a existé avant l'incident, pas le moment réel du début du problème. Les incidents sans alerte antérieure sont exclus et comptés." },
+    "timeToFirstUpdate": { "title": "Temps jusqu'à la première mise à jour", "text": "Du moment où Keigan a enregistré l'incident jusqu'à la première mise à jour envoyée à l'équipe. Les incidents sans mise à jour envoyée ne sont pas inclus." },
+    "timeToResolve": { "title": "Temps de résolution (MTTR)", "text": "De l'ouverture de l'incident à son passage à l'état résolu. Les incidents encore ouverts ne sont pas inclus." },
+    "timeToConclusion": { "title": "Temps jusqu'à la conclusion", "text": "Du démarrage d'une investigation à son achèvement, pour les investigations terminées uniquement." },
+    "timeToAcknowledge": { "title": "Temps de prise en compte (MTTA)", "text": "Ce serait le temps entre l'ouverture d'un incident et sa prise en compte par une personne. Keigan n'enregistre pas cette prise en compte, il n'est donc pas calculé." },
+    "investigationStatuses": { "title": "Investigations par statut", "text": "Investigations créées sur la période, selon leur issue ou leur état actuel." },
+    "ratings": { "title": "Jugées correctes", "text": "Parmi les investigations évaluées par les ingénieurs, la part jugée correcte. Celles que personne n'a évaluées ne sont pas comptées. Aucun pourcentage n'est affiché tant que le nombre minimal d'évaluations n'est pas atteint, car une part issue de quelques évaluations est trompeuse." },
+    "aiTokens": { "title": "Jetons par investigation", "text": "Jetons d'entrée et de sortie de tous les appels au modèle d'une investigation, additionnés par investigation. Le chiffre est la médiane et le p90 sur les investigations." },
+    "aiLatency": { "title": "Latence par appel au modèle", "text": "La durée d'un appel au modèle, sur tous les appels effectués pour les investigations de la période." },
+    "aiCalls": { "title": "Appels au modèle et échecs", "text": "Combien d'appels au modèle ont été effectués pour les investigations de la période et combien ont échoué." },
+    "aiCost": { "title": "Coût estimé", "text": "Les jetons multipliés par le prix configuré par million de jetons de chaque modèle. Keigan ne stocke aucun montant : c'est une estimation, qui n'existe que si des prix sont configurés. Une investigation ayant utilisé un modèle sans prix est exclue." },
+    "weeklyTrend": { "title": "Tendance hebdomadaire", "text": "Chaque barre est la médiane des cas terminés cette semaine-là. Les semaines commencent le lundi (UTC)." }
+  }
+}

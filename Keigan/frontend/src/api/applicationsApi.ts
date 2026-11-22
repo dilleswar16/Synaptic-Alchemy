@@ -375,6 +375,7 @@ export const applicationQueryKeys = {
   integrations: (applicationId: string) => ["applications", applicationId, "integrations"] as const,
   recordLinks: (applicationId: string) => ["applications", applicationId, "record-links"] as const,
   servicenowGroups: (applicationId: string) => ["applications", applicationId, "servicenow-groups"] as const,
+  operatingNotes: (applicationId: string) => ["applications", applicationId, "operating-notes"] as const,
   platformIdentity: ["platform", "identity"] as const,
 };
 
@@ -511,3 +512,15 @@ export const useDeleteRecordLink = (applicationId: string) =>
   useApplicationMutation(applicationId, (recordLinkId: string) => apiDelete<void>(`${applicationPath(applicationId)}/record-links/${recordLinkId}`));
 export const useReplaceServiceNowGroups = (applicationId: string) =>
   useApplicationMutation(applicationId, (groupNames: string[]) => apiPut<ServiceNowGroup[]>(`${applicationPath(applicationId)}/servicenow-groups`, { groupNames }));
+
+/* ── Operating notes: the team's guidance for the AI (never evidence) ───────── */
+export interface OperatingNotes {
+  text: string;
+  maximumCharacters: number;
+  updatedAt: IsoDateTimeString | null;
+  updatedBy: string | null;
+}
+export const useOperatingNotes = (applicationId: string) =>
+  useQuery({ queryKey: applicationQueryKeys.operatingNotes(applicationId), queryFn: () => apiGet<OperatingNotes>(`${applicationPath(applicationId)}/operating-notes`) });
+export const useSaveOperatingNotes = (applicationId: string) =>
+  useApplicationMutation(applicationId, (text: string) => apiPut<OperatingNotes>(`${applicationPath(applicationId)}/operating-notes`, { text }));

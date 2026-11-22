@@ -21,7 +21,7 @@ from keigan.entities.alert_entities import Alert
 from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.incident_entities import Incident
 from keigan.entities.slo_entities import IntelligenceReport, PredictiveSignal, ServiceLevelIndicator, ServiceLevelObjective, SliMeasurement
-from keigan.entities.status_values import IntelligenceReportType, Priority, SignalSeverity, SignalStatus
+from keigan.entities.status_values import IntelligenceReportType, Priority, SignalSeverity, SignalStatus, SloHealthStatus
 from keigan.exceptions.keigan_exceptions import NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
@@ -32,7 +32,7 @@ from keigan.utils.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
 SEVERITY_ORDER = {SignalSeverity.CRITICAL: 0, SignalSeverity.WARNING: 1, SignalSeverity.INFO: 2}
-SLO_STATUS_POINTS = {"healthy": 1.0, "at_risk": 0.6, "breached": 0.2}
+SLO_STATUS_POINTS = {SloHealthStatus.HEALTHY: 1.0, SloHealthStatus.AT_RISK: 0.6, SloHealthStatus.BREACHED: 0.2}
 PROACTIVE_CONFIDENCE_THRESHOLD = 0.8
 OPEN_SIGNAL_STATUSES = (SignalStatus.OPEN, SignalStatus.ACKNOWLEDGED)
 

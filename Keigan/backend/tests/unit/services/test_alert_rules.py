@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from keigan.services.alert_rules import CanonicalAlert, mask_alert_text
+from keigan.services.alert_rules import CanonicalAlert, mask_alert_text, service_neighbours
 
 
 def _alert(**overrides: object) -> CanonicalAlert:
@@ -22,3 +22,7 @@ def test_rule_identifier_is_left_alone_because_fingerprints_and_mute_rules_match
     alert = _alert(rule_id="rule-1")
     mask_alert_text(alert)
     assert alert.rule_id == "rule-1"
+
+
+def test_services_next_to_each_other_in_either_direction_are_neighbours() -> None:
+    assert service_neighbours([("api", "db"), ("web", "api")]) == {"api": {"db", "web"}, "db": {"api"}, "web": {"api"}}

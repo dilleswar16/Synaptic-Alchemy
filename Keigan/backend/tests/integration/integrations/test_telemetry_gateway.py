@@ -11,7 +11,7 @@ from keigan.config import application_context
 from keigan.config.database_config import open_session
 from keigan.config.settings import IntegrationMode, get_settings
 from keigan.entities.application_entities import LogToolConnection
-from keigan.exceptions.keigan_exceptions import ForbiddenException
+from keigan.exceptions.keigan_exceptions import ForbiddenException, ReaderNotAvailableException
 from keigan.integrations.telemetry_gateway import TelemetryGateway, TelemetryQuery, TelemetryTarget
 from keigan.utils.outbound_url_policy import OutboundUrlPolicy
 from support.telemetry_scope import (
@@ -113,3 +113,35 @@ async def test_live_log_tool_connection_test_refuses_a_stored_endpoint_inside_th
     with pytest.raises(ForbiddenException) as refusal:
         await live_gateway().test_log_tool_connection(connection)
     assert refusal.value.detail == "Keigan will not call the elastic test endpoint. This address points at a private or internal network, which Keigan does not call. Ask an application admin to correct the connection."
+
+
+# ── The Activity Log: simulated only where the telemetry mode rules say so ───────────────────────────────────────────────────────
+@pytest.mark.parametrize(("mode", "marked_simulated", "expected"), [
+    (IntegrationMode.SIMULATED, False, True), (IntegrationMode.SIMULATED, True, True), (IntegrationMode.LIVE, True, True), (IntegrationMode.LIVE, False, False),
+])
+def test_the_activity_log_is_simulated_in_simulated_mode_and_for_a_component_marked_simulated_only(mode: IntegrationMode, marked_simulated: bool, expected: bool) -> None:
+    template = application_context.telemetry_gateway()
+    gateway = TelemetryGateway(
+        get_settings().model_copy(update={"telemetry_mode": mode}), template.azure_client, template.log_tool_client_factory, template.telemetry_simulator, template.access_policy,
+        template.outbound_url_policy,
+    )
+    assert gateway.activity_is_simulated(use_simulation=marked_simulated) is expected
+
+
+async def test_in_live_mode_an_application_with_no_azure_subscription_cannot_have_its_activity_log_read_and_is_never_answered_from_the_simulator() -> None:
+    application = await create_scoped_application()
+    with pytest.raises(ReaderNotAvailableException) as unreadable:
+        await live_gateway().query_activity_changes(application.application_id, None, None, None, NOW - timedelta(hours=1), NOW)
+    assert "no Azure subscription is connected" in unreadable.value.detail
+
+
+async def test_in_live_mode_a_component_marked_simulated_is_still_answered_by_the_simulator() -> None:
+    application = await create_scoped_application()
+    changes = await live_gateway().query_activity_changes(application.application_id, None, OWN_SUBSCRIPTION_ID, OWN_RESOURCE_GROUP, NOW - timedelta(hours=1), NOW, use_simulation=True)
+    assert isinstance(changes, list)
+
+
+async def test_in_simulated_mode_an_application_with_no_subscription_is_still_answered_by_the_simulator() -> None:
+    application = await create_scoped_application()
+    changes = await simulated_gateway().query_activity_changes(application.application_id, None, None, None, NOW - timedelta(hours=1), NOW)
+    assert isinstance(changes, list)

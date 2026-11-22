@@ -70,10 +70,8 @@ class AlertPipelineService:
             self.session.add(policy_entity)
             await self.session.flush()
         services = list((await self.session.scalars(select(MonitoredService).where(MonitoredService.application_id == application_id))).all())
-        neighbours: dict[str, set[str]] = {}
-        for dependency in (await self.session.scalars(select(ServiceDependency).where(ServiceDependency.application_id == application_id))).all():
-            neighbours.setdefault(dependency.upstream_service_id, set()).add(dependency.downstream_service_id)
-            neighbours.setdefault(dependency.downstream_service_id, set()).add(dependency.upstream_service_id)
+        dependencies = (await self.session.scalars(select(ServiceDependency).where(ServiceDependency.application_id == application_id))).all()
+        neighbours = alert_rules.service_neighbours((dependency.upstream_service_id, dependency.downstream_service_id) for dependency in dependencies)
         context = ApplicationAlertContext(
             application=application, policy_entity=policy_entity, policy=alert_rules.merge_policy(policy_entity.policy_settings_json), mode=policy_entity.policy_mode,
             services_by_id={service.service_id: service for service in services}, neighbours_by_service_id=neighbours,
@@ -462,7 +460,7 @@ class AlertPipelineService:
                 f"(x{alert_rules.CRITICALITY_WEIGHTS.get(tier, 2)}) times {alert.environment_name} (x{alert_rules.ENVIRONMENT_WEIGHTS.get(alert.environment_name or 'prod', 1)}), with boosts for burning SLOs or rare rules when they apply.")
 
     async def _create_group(self, context: ApplicationAlertContext, alert: Alert, service: MonitoredService | None, score: float, grouping_reason: str, reference_time: datetime) -> AlertGroup:
-        title, summary = await self._generate_title(context, [service.service_name] if service else [], [alert.rule_name], 1, alert.severity_level)
+        title, summary = await self._generate_title(context, [service.service_name] if service else [], [alert.rule_name], alert.severity_level)
         group = AlertGroup(
             application_id=alert.application_id, group_title=title, group_summary=summary, group_status=AlertGroupStatus.OPEN, priority_score=score, grouping_reason=grouping_reason[:400], member_alert_count=1,
             primary_service_id=alert.service_id, highest_severity_level=alert.severity_level, started_at=reference_time, last_activity_at=reference_time,
@@ -482,8 +480,8 @@ class AlertPipelineService:
             group.replace_linked_ids("affected_service_links", [*group.affected_service_ids, alert.service_id])
         alert.alert_group_id = group.alert_group_id
 
-    async def _generate_title(self, context: ApplicationAlertContext, service_names: list[str], rule_names: list[str], alert_count: int, highest_severity_level: int) -> tuple[str, str]:
-        fallback_title, fallback_summary = deterministic_group_title(service_names, rule_names, alert_count)
+    async def _generate_title(self, context: ApplicationAlertContext, service_names: list[str], rule_names: list[str], highest_severity_level: int) -> tuple[str, str]:
+        fallback_title, fallback_summary = deterministic_group_title(service_names, rule_names)
         if self.replay_mode:
             return fallback_title, fallback_summary
         try:

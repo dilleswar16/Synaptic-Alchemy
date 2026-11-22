@@ -73,6 +73,7 @@
   },
   "stages": { "connect": "连接", "teach": "学习", "operate": "运行", "launch": "上线" },
   "requirement": { "required": "必填", "recommended": "推荐", "optional": "可选", "informational": "信息" },
+  "operatingNotes": { "title": "给 AI 的运维说明", "description": "团队写的一段简短说明，AI 在此应用的每次调查和聊天中都会阅读。", "label": "运维说明", "helper": "写下遥测数据无法告诉 AI 的内容：哪些服务承载收入或受监管的流量，哪些告警通常是噪音，安静的夜晚正常情况是什么样，需要提及谁。这只是指导，不是证据：AI 仍然必须引用真实的证据，这些说明也不会更改告警规则或噪音策略。请不要写入密码或个人数据。", "placeholder": "例如：理赔提交承载受监管的流量。02:00 的批处理会使数据库繁忙，这是正常的。安静的夜晚大约每小时 40 个请求。涉及支付的问题请提及值班经理。", "empty": "还没有人写过运维说明。", "readOnly": "只有此应用的管理员可以编辑这些说明。", "counter": "{{used}} / {{maximum}} 个字符", "overLimit": "超出限制 {{excess}} 个字符。请缩短说明后再保存。", "lastEditedBy": "最后编辑者：{{name}}", "neverEdited": "还没有人编辑过这些说明。", "save": "保存说明", "discard": "放弃更改", "unsaved": "有未保存的更改", "savedTitle": "说明已保存", "savedBody": "AI 将从下一次调查或聊天开始使用。", "saveFailedTitle": "说明未能保存", "saveFailed": "操作未成功，请重试。", "leaveTitle": "不保存就离开？", "leaveBody": "你对运维说明所做的更改将会丢失。", "leaveConfirm": "不保存并离开", "leaveStay": "继续编辑" },
   "steps": {
     "components": { "label": "组件", "description": "告诉 Keigan 应用运行在哪里：Azure、硬件、大型机或 SaaS。" },
     "services": { "label": "服务", "description": "Keigan 监控的单元。请检查已发现的内容并补充其余部分。" },
