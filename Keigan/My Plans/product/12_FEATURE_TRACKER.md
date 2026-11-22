@@ -122,7 +122,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | # | Feature | Status | Notes |
 |---|---|---|---|
 | G1 | Incident group chat with subscribed stakeholders | ✅ | Simulated Teams; Japanese welcome for the JP app |
-| G2 | Keigan bot answers questions | ✅ | |
+| G2 | Keigan bot answers questions | ✅ | Through the Ask Keigan engine as the person who asked, trace stored, `query_logs` for application admins only (simulated Teams; a real tenant is untested) |
 | G3 | Chat read on a schedule; facts added to the timeline | ✅ | |
 | G4 | "Keigan, this is finished" → postmortem | ✅ | |
 | G5 | Teams room panel (simulated mirror) | ✅ | Duplicate report post fixed |
@@ -172,7 +172,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | K2 | Question → query → number | ✅ | |
 | K3 | Pattern → chart, with clarification | ✅ | |
 | K4 | Conversation history | ✅ | |
-| K5 | Ask Keigan on the investigation page (roadmap B5, phases 1 and 2): one engine, eight read-only tools, live tool-call trace, citations `[T#] [E#] [R#]`, Stop, history, copy answer with sources, specific error messages | 🟡 | Built and tested (2,300 backend tests, 108 frontend unit tests, browser check at four sizes), **only against the mock model**; needs a real model key, SQL Server for the new index, a screen-reader pass. Design in `23_ASK_KEIGAN_CHAT_SPEC.md`. The Teams bot still uses the old engine until phase 4 |
+| K5 | Ask Keigan on the investigation page (roadmap B5, phases 1 and 2): one engine, eight read-only tools, live tool-call trace, citations `[T#] [E#] [R#]`, Stop, history, copy answer with sources, specific error messages | 🟡 | Built and tested (2,300 backend tests, 108 frontend unit tests, browser check at four sizes), **only against the mock model**; needs a real model key, SQL Server for the new index, a screen-reader pass. Design in `23_ASK_KEIGAN_CHAT_SPEC.md`. The Teams bot uses the same engine since phase 4 part B |
 | K6 | Ask Keigan on the Keigan AI chat page (roadmap B5, phase 3 steps 1, 3 and 4): the global chat on the new engine: the same live trace, citations, Stop, copy and details switch; a conversation created with its first question; six suggested prompts; the number and chart of a log query, charts for series tools; answers hidden after access was lost; phone layout. K1 to K4 now run through it (old stored messages still display) | 🟡 | Built and tested (135 frontend unit tests, browser check at four sizes: the global part passes at 1440 and 390 px, light and dark), **only against the mock model**. Open: new chats keep the title "New conversation" (backend does not set it); tools 9 to 20 are the backend builder's. Step 4 removed the old router and its global path of `POST /messages` (a Keigan AI chat there gets `422`) |
 
 ## L. Administration

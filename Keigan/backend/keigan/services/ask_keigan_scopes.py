@@ -82,19 +82,24 @@ def offered_tools_for(scope: AskKeiganScope, readable_applications: Sequence[App
     return tuple(tool for tool in tool_registry.tools_for(scope) if tool.name not in withheld_tool_names)
 
 
-async def build_investigation_profile(session: AsyncSession, current_user: CurrentUser, investigation_id: str) -> ScopeProfile:
-    """The profile for questions about one investigation. Raises ``NotFoundException`` or ``ForbiddenException`` when the person may not read it, before any model call."""
+async def build_investigation_profile(
+    session: AsyncSession, current_user: CurrentUser, investigation_id: str, withheld_tool_names: frozenset[str] = frozenset(),
+) -> ScopeProfile:
+    """The profile for questions about one investigation. Raises ``NotFoundException`` or ``ForbiddenException`` when the person may not read it, before any model call.
+
+    ``withheld_tool_names`` are tools the caller does not offer in this answer (the Teams room withholds ``query_logs`` from people who are not application admins)."""
     investigation = await InvestigationService(session).load_readable_investigation(current_user, investigation_id)
     context = await load_investigation_context(session, investigation)
     application = ApplicationRef(context.application.application_id, context.application.application_code, context.application.application_name)
     return ScopeProfile(
         scope=AskKeiganScope.INVESTIGATION, conversation_scope=ConversationScope.INVESTIGATION, prompt_key=INVESTIGATION_PROMPT_KEY, feature_name=AskKeiganFeature.INVESTIGATION,
-        readable_applications=(application,), offered_tools=offered_tools_for(AskKeiganScope.INVESTIGATION, (application,), frozenset()),
+        readable_applications=(application,), offered_tools=offered_tools_for(AskKeiganScope.INVESTIGATION, (application,), withheld_tool_names),
         bound_arguments={"application_code": application.code, "investigation_id": investigation.investigation_id},
         context_sections=(PromptSection("Investigation context", context.digest_markdown, is_untrusted=True, source_label=f"investigation:{investigation.investigation_id}"),),
         operating_notes_text=context.application.operating_notes_text, accepted_citation_prefixes=INVESTIGATION_CITATION_PREFIXES,
         reference_citations={**context.evidence_citations, **context.runbook_citations}, budget_application_id=application.id,
         maximum_tool_calls=get_settings().ask_keigan_max_tool_calls_investigation, prompt_variables={"application_name": application.name}, investigation_id=investigation.investigation_id,
+        withheld_tool_names=withheld_tool_names,
     )
 
 

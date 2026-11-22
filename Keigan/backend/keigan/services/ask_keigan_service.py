@@ -51,7 +51,7 @@ from keigan.services.ask_keigan_stream import event_frames
 from keigan.services.ask_keigan_trace import QuestionToStore, RunRegistration, TraceRecorder
 from keigan.services.ask_keigan_transcript import ConversationTurn
 from keigan.services.authorization_service import AuthorizationService
-from keigan.services.chat_service import ChatService
+from keigan.services.chat_service import INVESTIGATION_BOUND_SCOPES, ChatService
 from keigan.utils.pii_masker import PiiMasker
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,7 @@ class StartedAnswer:
 
     answer_run_id: str
     channel: RunEventChannel
+    task: asyncio.Task[AnswerOutcome]  # ends with the answer: a caller with no stream to read (the Teams bot) awaits it for the outcome
 
 
 class AskKeiganService:
@@ -80,8 +81,9 @@ class AskKeiganService:
         self.interruption = RunInterruption(self.registry)
 
     # ── Starting an answer ────────────────────────────────────────────────────────────────────────────────────────────────────
-    async def start(self, current_user: CurrentUser, conversation_id: str, request: AnswerRequest) -> StartedAnswer:
-        """Raises ``NotFoundException``/``ForbiddenException`` (not the owner, or access lost), ``DuplicateRequestException`` (same ``clientRequestId``),
+    async def start(self, current_user: CurrentUser, conversation_id: str, request: AnswerRequest, withheld_tool_names: frozenset[str] = frozenset()) -> StartedAnswer:
+        """``withheld_tool_names`` are tools this answer does not offer (investigation conversations only: the Teams room withholds ``query_logs`` from people who are not application admins).
+        Raises ``NotFoundException``/``ForbiddenException`` (not the owner, or access lost), ``DuplicateRequestException`` (same ``clientRequestId``),
         ``AnswerInProgressException``, ``RateLimitedException``, and the model errors of ``AskKeiganEngine.prepare``: all before anything is stored or any model is called."""
         language_code = current_user.preferred_locale
         conversation = await self.chat_service.open_conversation(current_user, conversation_id)
@@ -94,7 +96,7 @@ class AskKeiganService:
             await self._ensure_no_other_pod_is_answering(conversation_id, language_code)
             self._check_rate_limit(current_user, language_code)
             engine_user = replace(current_user, application_roles_by_application_id=None)  # the answer outlives this request: it must not share the request's cached roles
-            profile = await self._build_profile(engine_user, conversation)
+            profile = await self._build_profile(engine_user, conversation, withheld_tool_names)
             prepared = engine.prepare(profile, language_code)
             masker = PiiMasker()
             history = await self._masked_history(current_user, conversation_id, masker)
@@ -108,12 +110,13 @@ class AskKeiganService:
                 live_run.channel, masker, language_code,
             )
             engine_request = EngineAnswerRequest(engine_user, conversation_id, masked_question, tuple(history), masker)
-            live_run.task = asyncio.create_task(_answer_in_background(engine, prepared, engine_request, recorder, live_run, self.registry))
-            live_run.task.add_done_callback(_log_unexpected_failure)
+            task = asyncio.create_task(_answer_in_background(engine, prepared, engine_request, recorder, live_run, self.registry))
+            live_run.task = task
+            task.add_done_callback(_log_unexpected_failure)
         except BaseException:
             self.registry.release(live_run.answer_run_id)
             raise
-        return StartedAnswer(live_run.answer_run_id, live_run.channel)
+        return StartedAnswer(live_run.answer_run_id, live_run.channel, task)
 
     @staticmethod
     def stream(channel: RunEventChannel) -> AsyncIterator[str]:
@@ -243,12 +246,12 @@ class AskKeiganService:
         except RateLimitedException as limited:
             raise RateLimitedException(AskKeiganErrorCatalogue.describe("rate_limited", language_code=language_code).detail) from limited
 
-    async def _build_profile(self, current_user: CurrentUser, conversation: Conversation) -> ScopeProfile:
-        """The scope of the answer is the scope of its conversation, and nothing else decides it."""
+    async def _build_profile(self, current_user: CurrentUser, conversation: Conversation, withheld_tool_names: frozenset[str]) -> ScopeProfile:
+        """The scope of the answer is the scope of its conversation, and nothing else decides it. A Teams conversation is an investigation conversation that was opened from the room."""
         if conversation.conversation_scope == ConversationScope.KEIGAN_AI_CHAT:
             return await build_global_profile(self.session, current_user, conversation.application_ids)
-        if conversation.conversation_scope == ConversationScope.INVESTIGATION and conversation.investigation_id is not None:
-            return await build_investigation_profile(self.session, current_user, conversation.investigation_id)
+        if conversation.conversation_scope in INVESTIGATION_BOUND_SCOPES and conversation.investigation_id is not None:
+            return await build_investigation_profile(self.session, current_user, conversation.investigation_id, withheld_tool_names)
         raise BusinessValidationException(CONVERSATION_NOT_ANSWERABLE_MESSAGE)
 
     async def _masked_history(self, current_user: CurrentUser, conversation_id: str, masker: PiiMasker) -> list[ConversationTurn]:

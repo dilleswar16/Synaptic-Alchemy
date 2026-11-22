@@ -12,7 +12,7 @@
 // width puts it (a column on a wide screen, a drawer behind a "Conversations" button on a phone), the first question creating the conversation while the answer
 // streams, the cards and citations, copy, "Show tool details", a question about an application the person cannot read, the number and the chart of a log query,
 // Stop (button and Esc, with the server's run read back), reload, rename and delete from the list, an answer hidden after access was lost (403 on its run: one calm
-// caption, no retry loop), messages the old router stored, and the question typed on Home asked once.
+// caption, no retry loop), and the question typed on Home asked once.
 // Usage: node scripts/check-ask-keigan.mjs --web http://localhost:5173 --api http://localhost:8000 [--user upn] [--theme light|dark] [--width 1440] [--out folder] [--scenario all|investigation|global]
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";

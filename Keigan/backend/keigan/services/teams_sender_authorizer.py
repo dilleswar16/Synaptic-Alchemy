@@ -25,8 +25,11 @@ _ENTRA_OBJECT_ID_PATTERN = re.compile(r"^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0
 
 @dataclass(frozen=True)
 class TeamsSenderAccess:
+    """``user`` is who the sender is in Keigan, set whenever ``can_read``: the person Keigan answers as, so an answer never has more access than its author."""
+
     can_read: bool = False
     is_application_admin: bool = False
+    user: CurrentUser | None = None
 
 
 NO_ACCESS = TeamsSenderAccess()
@@ -44,7 +47,7 @@ class TeamsSenderAuthorizer:
             return NO_ACCESS
         if not await self.authorization_service.can_read_application(user, application_id):
             return NO_ACCESS
-        return TeamsSenderAccess(can_read=True, is_application_admin=await self.authorization_service.can_edit_application(user, application_id))
+        return TeamsSenderAccess(can_read=True, is_application_admin=await self.authorization_service.can_edit_application(user, application_id), user=user)
 
     async def _resolve_user(self, sender_identity: str | None, sender_display_name: str | None) -> CurrentUser | None:
         if get_settings().auth_mode == AuthenticationMode.ENTRA:

@@ -281,6 +281,26 @@ sequenceDiagram
     Ntf->>Mail: Email to the application's stakeholders
 ```
 
+A message that addresses Keigan with a question is answered by the Ask Keigan engine, as the person who wrote it (the same `TeamsSenderAuthorizer` result that decides who is heard):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Teams as Microsoft Teams incident chat
+    participant TC as TeamsChatService
+    participant Auth as TeamsSenderAuthorizer
+    participant QA as TeamsQuestionAnswerer
+    participant Ask as AskKeiganService and engine
+    Teams->>TC: "Keigan, ..." (bot activity or poll)
+    TC->>Auth: access_for(application, sender)
+    Auth-->>TC: can_read, is_application_admin and the Keigan user (none: not answered)
+    TC->>QA: answer(investigation, access, question)
+    QA->>Ask: start as the author, investigation profile, query_logs withheld unless admin
+    Ask-->>QA: run outcome (trace stored in the author's Teams conversation)
+    QA-->>TC: answer with Sources line, or none when the engine refused or failed
+    TC->>Teams: post the answer, or the investigation's findings when there is none
+```
+
 ## 7. Keigan AI chat: question to query to chart
 
 ```mermaid

@@ -35,7 +35,7 @@ from keigan.services.ask_keigan_service import AskKeiganService, StartedAnswer
 from keigan.services.ask_keigan_trace import TRUNCATED_OUTPUT_KEY
 from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import utc_now
-from support.ask_keigan_conversations import SeededInvestigation, open_global_chat, open_investigation_chat, running_runs_of, runs_of, seed_investigation, stored_run
+from support.ask_keigan_conversations import SeededInvestigation, open_global_chat, open_investigation_chat, open_teams_conversation, running_runs_of, runs_of, seed_investigation, stored_run
 from support.ask_keigan_runs import ScriptedGateway, Turn, request_for, user
 from support.chat_answer_runs import OWNER as OWNER_OF_STORED_RUNS, store_answer_run
 
@@ -200,6 +200,28 @@ async def test_a_silent_run_from_a_restarted_pod_is_ended_and_does_not_block_a_n
     fresh = await ask_and_finish(setup, ScriptedGateway([Turn(text="E2 is the release [E2].")]))
     assert (await stored_run(old.answer_run_id)).error_code == "answer_interrupted"
     assert (await stored_run(fresh.answer_run_id)).run_status == ChatAnswerRunStatus.COMPLETED
+
+
+# ── The Teams incident chat: the same service, an investigation profile that may withhold a tool, the outcome awaited by the caller ──
+async def test_a_teams_conversation_is_answered_with_the_investigation_profile_without_the_tools_the_caller_withholds(setup: Setup) -> None:
+    conversation_id = await open_teams_conversation(CLMJP_READER, setup.investigation.investigation_id)
+    gateway = ScriptedGateway([Turn(text="Pool exhaustion [E1].")])
+    async with open_session() as session:
+        started = await AskKeiganService(session, setup.registry, AskKeiganEngine(gateway)).start(CLMJP_READER, conversation_id, question(), withheld_tool_names=frozenset({"query_logs"}))
+    outcome = await asyncio.wait_for(started.task, timeout=10)
+    run = await stored_run(started.answer_run_id)
+    assert outcome.status is ChatAnswerRunStatus.COMPLETED and outcome.assistant_message_id == run.assistant_message_id
+    assert "query_logs" not in {tool.name for tool in gateway.offered_tools} and "get_evidence" in {tool.name for tool in gateway.offered_tools}
+    assert run.scope_snapshot_json["withheldTools"] == ["query_logs"] and run.conversation_scope == ConversationScope.INVESTIGATION and run.investigation_id == setup.investigation.investigation_id
+
+
+async def test_a_teams_conversation_is_refused_when_its_owner_can_no_longer_read_the_application(setup: Setup) -> None:
+    conversation_id = await open_teams_conversation(CLMJP_READER, setup.investigation.investigation_id)
+    gateway = ScriptedGateway([])
+    async with open_session() as session:
+        with pytest.raises(ForbiddenException):
+            await AskKeiganService(session, setup.registry, AskKeiganEngine(gateway)).start(user(CLMJP_READER.user_principal_name), conversation_id, question())
+    assert gateway.calls == [] and await runs_of(conversation_id) == []
 
 
 # ── Rate limit, access and unsupported models ─────────────────────────────────────────────────────────────────────────────────

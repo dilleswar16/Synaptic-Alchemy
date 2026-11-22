@@ -26,12 +26,13 @@ from keigan.entities.application_entities import Application
 from keigan.entities.incident_entities import Conversation, ConversationMessage, Incident, Investigation, InvestigationTimelineEvent
 from keigan.entities.notification_entities import Stakeholder, TeamsIncidentChat
 from keigan.entities.status_values import DeliveryStatus, IncidentStatus, MessageAuthorRole, Priority, TeamsChatStatus
-from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, IntegrationException, KeiganException, NotFoundException
+from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, IntegrationException, NotFoundException
 from keigan.integrations.bot_framework_client import BotFrameworkClient
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
 from keigan.security.current_user import CurrentUser
 from keigan.services.notification_renderer import NotificationRenderer, translate
-from keigan.services.teams_sender_authorizer import TeamsSenderAuthorizer
+from keigan.services.teams_question_answerer import TeamsQuestionAnswerer
+from keigan.services.teams_sender_authorizer import TeamsSenderAccess, TeamsSenderAuthorizer
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
 
@@ -327,7 +328,7 @@ class TeamsChatService:
             if any(phrase in lowered for phrase in self.settings.teams_milestone_phrase_list):
                 await self._handle_milestone(chat, author_name, author_identity, language)
             elif is_message_for_keigan(message_text):
-                await self._answer_question(chat, investigation, author_name, author_identity, strip_keigan_address(message_text), allow_log_queries=access.is_application_admin)
+                await self._answer_question(chat, investigation, access, strip_keigan_address(message_text), language)
             else:
                 digest_lines.append(f"{author_aliases.alias(author_name)}: {message_text}")
         if digest_lines and incident is not None:
@@ -344,23 +345,14 @@ class TeamsChatService:
         ))
         await self._post_keigan_message(chat, translate(language, "chat.milestone_ack"), None)
 
-    async def _answer_question(
-        self, chat: TeamsIncidentChat, investigation: Investigation | None, author_name: str, author_upn: str | None, question_text: str, *, allow_log_queries: bool = False
-    ) -> None:
-        """``allow_log_queries`` is true only for application admins: a log query runs with Keigan's identity and returns sample rows into the chat."""
+    async def _answer_question(self, chat: TeamsIncidentChat, investigation: Investigation | None, access: TeamsSenderAccess, question_text: str, language: str) -> None:
+        """The answer comes from Ask Keigan, run as the author (``access.user``); a log query returns sample rows into the chat, so only an application admin gets that tool (V13)."""
         answer_text = None
         if investigation is not None and question_text:
             try:
-                from keigan.services.chat_service import ChatService
-
-                answer = await ChatService(self.session).answer_investigation_question(
-                    investigation.investigation_id, question_text, asked_by_user_principal_name=author_upn, asked_by_display_name=author_name, allow_log_queries=allow_log_queries
-                )
-                answer_text = answer.answer_markdown
-            except KeiganException:
-                answer_text = None
-            except Exception:  # noqa: BLE001 - a chat answer must never break the poller
-                logger.exception("Answering a Teams question failed")
+                answer_text = await TeamsQuestionAnswerer(self.session).answer(investigation.investigation_id, access, question_text, language)
+            except ForbiddenException:  # the author lost access since they were checked: they are told so and see nothing of the investigation
+                answer_text = NOT_AUTHORIZED_REPLY
         if not answer_text:
             answer_text = self._fallback_answer(investigation)
         await self._post_keigan_message(chat, answer_text, None)

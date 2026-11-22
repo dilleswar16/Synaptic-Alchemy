@@ -77,6 +77,13 @@ async def profile_for(current_user: CurrentUser, investigation_id: str):
         return await build_investigation_profile(session, replace(current_user, application_roles_by_application_id=None), investigation_id)
 
 
+async def test_a_tool_the_caller_withholds_is_not_offered_and_is_named_in_the_snapshot_of_the_run(seeded: Seeded) -> None:
+    async with open_session() as session:
+        profile = await build_investigation_profile(session, replace(CLMJP_READER, application_roles_by_application_id=None), seeded.investigation_id, withheld_tool_names=frozenset({"query_logs"}))
+    assert {tool.name for tool in profile.offered_tools} == INVESTIGATION_TOOL_NAMES - {"query_logs"}
+    assert profile.withheld_tool_names == frozenset({"query_logs"}) and profile.snapshot()["withheldTools"] == ["query_logs"]
+
+
 async def test_the_investigation_profile_binds_the_application_and_the_investigation_and_offers_the_eight_tools(seeded: Seeded) -> None:
     profile = await profile_for(CLMJP_READER, seeded.investigation_id)
     assert profile.scope is AskKeiganScope.INVESTIGATION and profile.conversation_scope is ConversationScope.INVESTIGATION

@@ -59,6 +59,12 @@ async def open_investigation_chat(current_user: CurrentUser, investigation_id: s
         return conversation.conversation_id
 
 
+async def open_teams_conversation(current_user: CurrentUser, investigation_id: str) -> str:
+    """The id of the conversation that keeps the answers Keigan gave ``current_user`` in a Teams incident chat (created on first use)."""
+    async with open_session() as session:
+        return await ChatService(session).open_teams_conversation(current_user, investigation_id)
+
+
 async def open_global_chat(current_user: CurrentUser, application_ids: tuple[str, ...] = ()) -> str:
     """The id of a new Keigan AI chat conversation of ``current_user`` (the page creates one per conversation), scoped to ``application_ids`` or, when empty, to every application they read."""
     async with open_session() as session:

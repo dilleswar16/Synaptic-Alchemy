@@ -49,10 +49,6 @@ class ConversationDetailResponse(ConversationResponse):
     messages: list[ChatMessageResponse] = Field(default_factory=list)
 
 
-class SendMessageRequest(ApiModel):
-    message_text: str = Field(min_length=1, max_length=MESSAGE_TEXT_MAXIMUM_CHARACTERS)
-
-
 class SuggestedPromptResponse(ApiModel):
     prompt_text: str
     category: str

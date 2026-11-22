@@ -57,7 +57,9 @@
   "chat": {
     "welcome": "Keigan です。調査結果をここに投稿し、皆さんの議論から学びます。「Keigan, ...」と話しかけてください。インシデントが完了したら「Keigan, this is finished」と伝えるとポストモーテムを準備します。",
     "milestone_ack": "承知しました。ポストモーテムの下書きを作成中です。まもなく Keigan に表示されます。",
-    "no_answer": "現在お答えできません。詳細は Keigan の調査画面をご確認ください。"
+    "no_answer": "現在お答えできません。詳細は Keigan の調査画面をご確認ください。",
+    "unverified_notice": "この回答はどのツール結果も参照していません。未検証として扱ってください。",
+    "sources_label": "出典"
   },
   "ask_keigan_errors": {
     "reference_suffix": "参照番号 {reference}。",

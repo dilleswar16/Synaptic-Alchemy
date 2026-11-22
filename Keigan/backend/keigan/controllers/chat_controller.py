@@ -5,9 +5,7 @@ from fastapi.responses import StreamingResponse
 
 from keigan.config.database_config import provide
 from keigan.dtos.ask_keigan_dtos import AnswerRequest, AnswerRunView, CancelAnswerResponse, StepOutputView
-from keigan.dtos.chat_dtos import (
-    ChatMessageResponse, ConversationCreateRequest, ConversationDetailResponse, ConversationResponse, ConversationUpdateRequest, SendMessageRequest, SuggestedPromptResponse,
-)
+from keigan.dtos.chat_dtos import ConversationCreateRequest, ConversationDetailResponse, ConversationResponse, ConversationUpdateRequest, SuggestedPromptResponse
 from keigan.exceptions.keigan_exceptions import NotAcceptableException
 from keigan.security.current_user import CurrentUser, get_current_user
 from keigan.services.ask_keigan_service import AskKeiganService
@@ -53,11 +51,6 @@ async def update_conversation(conversation_id: str, request: ConversationUpdateR
 async def delete_conversation(conversation_id: str, current_user: CurrentUser = Depends(get_current_user), service: AskKeiganService = Depends(provide(AskKeiganService))) -> Response:
     await service.delete_conversation(current_user, conversation_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.post("/chat/conversations/{conversation_id}/messages", response_model=ChatMessageResponse)
-async def send_message(conversation_id: str, request: SendMessageRequest, current_user: CurrentUser = Depends(get_current_user), service: ChatService = Depends(provide(ChatService))) -> ChatMessageResponse:
-    return await service.send_message(current_user, conversation_id, request)
 
 
 @router.post("/chat/conversations/{conversation_id}/answers", response_class=StreamingResponse, dependencies=[Depends(require_event_stream_accepted)])
