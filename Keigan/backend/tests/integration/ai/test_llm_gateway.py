@@ -307,3 +307,25 @@ async def test_closing_the_gateway_closes_the_credential_and_closing_a_gateway_t
     gateway._managed_identity_token_provider()
     await gateway.aclose()
     assert _FakeAsyncCredential.built[0].closed is True
+
+
+# ── Usage rows are tied to their decision-trace step and can be written now (spec 28, AC-5 and AC-6) ──
+
+
+async def test_every_attempt_of_a_call_carries_its_trace_step_and_can_be_flushed_at_once() -> None:
+    from sqlalchemy import select
+
+    investigation_id, step_id = f"inv-{uuid.uuid4().hex[:8]}", f"step-{uuid.uuid4().hex[:8]}"
+    gateway = LlmGateway(get_settings())
+    context = LlmUsageContext(investigation_id=investigation_id, trace_step_id=step_id, enforce_token_budget=False)
+    await gateway._record_usage("hypothesis_application", ModelTier.DEEP, "model-a", 4500, 400, time.monotonic(), "validation_retry", context, "the reply was not valid")
+    await gateway._record_usage("hypothesis_application", ModelTier.DEEP, "model-a", 4600, 420, time.monotonic(), "succeeded", context)
+    await gateway.flush_pending_usage_records()  # no waiting for the 2-second delay
+    async with open_session() as session:
+        rows = list((await session.scalars(select(LlmUsageRecord).where(LlmUsageRecord.investigation_id == investigation_id).order_by(LlmUsageRecord.outcome_status))).all())
+    assert [row.outcome_status for row in rows] == ["succeeded", "validation_retry"]
+    assert {row.investigation_trace_step_id for row in rows} == {step_id}
+
+
+async def test_flushing_with_nothing_queued_does_nothing() -> None:
+    await LlmGateway(get_settings()).flush_pending_usage_records()

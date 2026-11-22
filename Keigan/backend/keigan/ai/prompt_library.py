@@ -15,11 +15,13 @@ Only *trusted* values (names, ids, settings, catalogue text) may be rendered int
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
+import jinja2.meta
 import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
@@ -94,3 +96,21 @@ class PromptLibrary:
 
     def version_of(self, prompt_key: str) -> str:
         return self.load_template(prompt_key).version
+
+    def template_sha256(self, prompt_key: str) -> str:
+        """SHA-256 over a prompt's file and every template it includes (recursively, in name order, each prefixed by its file name): editing a shared fragment changes every prompt
+        that includes it, even though no version was bumped. Read from the files each time, so it describes what a call actually used."""
+        digest = hashlib.sha256()
+        for template_name in self._template_closure(f"{prompt_key}.md"):
+            digest.update(template_name.encode("utf-8") + b"\0" + (PROMPTS_DIRECTORY / template_name).read_bytes() + b"\0")
+        return digest.hexdigest()
+
+    def _template_closure(self, template_name: str) -> list[str]:
+        pending, found = [template_name], {template_name}
+        while pending:
+            source = (PROMPTS_DIRECTORY / pending.pop()).read_text(encoding="utf-8")
+            for included in jinja2.meta.find_referenced_templates(self._template_environment.parse(source)):
+                if included is not None and included not in found:
+                    found.add(included)
+                    pending.append(included)
+        return sorted(found)

@@ -152,6 +152,7 @@ class LlmUsageContext:
     conversation_id: str | None = None
     requested_by_user_principal_name: str | None = None
     enforce_token_budget: bool = True
+    trace_step_id: str | None = None  # the decision-trace step of the investigation call these attempts belong to (spec 28)
 
 
 @dataclass
@@ -842,6 +843,7 @@ class LlmGateway:
             {
                 "application_id": usage_context.application_id,
                 "investigation_id": usage_context.investigation_id,
+                "investigation_trace_step_id": usage_context.trace_step_id,
                 "conversation_id": usage_context.conversation_id,
                 "feature_name": feature_name,
                 "provider_name": self.provider_name,
@@ -857,6 +859,24 @@ class LlmGateway:
         )
         if self._usage_flush_task is None or self._usage_flush_task.done():
             self._usage_flush_task = asyncio.create_task(self._flush_usage_records())
+
+    async def flush_pending_usage_records(self) -> None:
+        """Write every usage row queued so far now, instead of after the flush delay: a caller that is about to add up the run's tokens (the investigation's completion) must see its last attempts."""
+        if self._usage_flush_task is not None and not self._usage_flush_task.done():
+            self._usage_flush_task.cancel()
+            try:
+                await self._usage_flush_task
+            except asyncio.CancelledError:
+                pass
+        records_to_write, self._pending_usage_records = self._pending_usage_records, []
+        if not records_to_write:
+            return
+        try:
+            async with open_session() as session:
+                session.add_all(LlmUsageRecord(**record_values) for record_values in records_to_write)
+        except Exception as recording_error:  # noqa: BLE001 — accounting must never break the feature
+            self._pending_usage_records = records_to_write + self._pending_usage_records
+            logger.warning("Could not record LLM usage: %s", recording_error)
 
     async def _flush_usage_records(self) -> None:
         """Write usage rows in the background so an AI call never waits on another transaction's database lock (SQLite)."""
