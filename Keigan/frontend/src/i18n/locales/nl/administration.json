@@ -26,6 +26,40 @@
     "notConfigured": "Niet geconfigureerd",
     "testConnection": "Verbinding testen",
     "testFailed": "De test kon niet worden gestart.",
+    "modelsTitle": "AI-modellen",
+    "modelsDescription": "Wat Keigan voor elk ingesteld model heeft vastgesteld. Wijzig dit via LLM_MODEL_CAPABILITIES_JSON of pas de catalogus aan.",
+    "models": {
+      "tiers": {
+        "fast": "Snel model",
+        "deep": "Diep model",
+        "vision": "Visiemodel"
+      },
+      "toolCalling": "Tools aanroepen",
+      "toolCallingValues": {
+        "native": "Ingebouwd in het model",
+        "prompted_json": "JSON in de prompt",
+        "none": "Niet ondersteund"
+      },
+      "parallelToolCalls": "Meerdere toolaanroepen tegelijk",
+      "streamsText": "Streamt tekst",
+      "streamsToolRequests": "Streamt toolverzoeken",
+      "toolChoiceNone": "Kan de opdracht krijgen geen tools te gebruiken",
+      "temperature": "Accepteert een temperatuur",
+      "streamUsage": "Meldt tokengebruik tijdens het streamen",
+      "context": "Contextvenster",
+      "yes": "Ja",
+      "no": "Nee",
+      "tokens": "{{value}} tokens"
+    },
+    "conformance": {
+      "title": "Laatste conformiteitstest",
+      "none": "Nog geen conformiteitsrapport. Voer backend/scripts/run_ask_keigan_conformance.py uit met het ingestelde model.",
+      "passed": "Alle scenario's geslaagd",
+      "failed": "Sommige scenario's mislukt",
+      "summary": "{{passed}} van {{total}} scenario's geslaagd",
+      "ran": "Uitgevoerd op {{date}}",
+      "model": "{{provider}} · {{model}} · {{mode}}"
+    },
     "identityTitle": "Keigan-identiteit",
     "identityDescription": "Geef deze identiteit leestoegang tot de Azure-resources die Keigan moet monitoren.",
     "identity": { "name": "Weergavenaam", "objectId": "Object-ID", "clientId": "Client-ID", "multiTenant": "Client-ID van multitenant-app" },

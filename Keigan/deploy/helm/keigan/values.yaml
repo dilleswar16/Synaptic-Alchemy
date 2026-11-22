@@ -142,6 +142,8 @@ backendEnvironment:
   ASK_KEIGAN_SHUTDOWN_GRACE_SECONDS: "10"
   # Optional: days (30 to 3650) after which stored steps and runs are purged, the answers stay; empty keeps everything.
   ASK_KEIGAN_TRACE_RETENTION_DAYS: ""
+  # Where the conformance script writes its report and the administration page reads the last one (a file path, relative to the working directory).
+  ASK_KEIGAN_CONFORMANCE_REPORT_PATH: "ask_keigan_conformance_report.json"
   # Optional JSON overrides of what each model can do (tool calling, streaming, context size); shape in resources/catalogs/llm_model_capabilities.yaml.
   LLM_MODEL_CAPABILITIES_JSON: "{}"
 

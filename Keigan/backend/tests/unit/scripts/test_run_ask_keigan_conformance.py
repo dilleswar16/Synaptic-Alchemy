@@ -20,6 +20,12 @@ def test_the_script_refuses_to_run_without_the_flag_that_says_the_provider_comes
     assert script._parse_arguments(["--provider-from-env"]).report == script.DEFAULT_REPORT_PATH
 
 
+def test_the_scripts_default_report_path_is_the_one_the_administration_page_reads() -> None:
+    from keigan.config.settings import Settings
+
+    assert script.DEFAULT_REPORT_PATH == Settings.model_fields["ask_keigan_conformance_report_path"].default
+
+
 def test_the_environment_it_forces_is_a_throw_away_database_with_simulated_sources_and_leaves_the_model_settings_alone(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(os, "environ", {"LLM_PROVIDER": "azure_openai", "LLM_API_KEY": "k", "DATABASE_URL": "sqlserver://production"})
     script._configure_environment_for_conformance_run(tmp_path)

@@ -26,6 +26,40 @@
     "notConfigured": "Non configuré",
     "testConnection": "Tester la connexion",
     "testFailed": "Impossible de lancer le test.",
+    "modelsTitle": "Modèles d'IA",
+    "modelsDescription": "Ce que Keigan a déterminé pour chaque modèle configuré. Pour le modifier, définissez LLM_MODEL_CAPABILITIES_JSON ou modifiez le catalogue.",
+    "models": {
+      "tiers": {
+        "fast": "Modèle rapide",
+        "deep": "Modèle approfondi",
+        "vision": "Modèle de vision"
+      },
+      "toolCalling": "Appel d'outils",
+      "toolCallingValues": {
+        "native": "Intégré au modèle",
+        "prompted_json": "JSON dans le prompt",
+        "none": "Non pris en charge"
+      },
+      "parallelToolCalls": "Plusieurs appels d'outils à la fois",
+      "streamsText": "Diffuse le texte",
+      "streamsToolRequests": "Diffuse les demandes d'outils",
+      "toolChoiceNone": "Peut recevoir l'instruction de ne pas utiliser d'outils",
+      "temperature": "Accepte une température",
+      "streamUsage": "Indique l'usage de jetons pendant la diffusion",
+      "context": "Fenêtre de contexte",
+      "yes": "Oui",
+      "no": "Non",
+      "tokens": "{{value}} jetons"
+    },
+    "conformance": {
+      "title": "Dernier test de conformité",
+      "none": "Aucun rapport de conformité pour l'instant. Lancez backend/scripts/run_ask_keigan_conformance.py avec le modèle configuré.",
+      "passed": "Tous les scénarios ont réussi",
+      "failed": "Certains scénarios ont échoué",
+      "summary": "{{passed}} scénarios réussis sur {{total}}",
+      "ran": "Exécuté le {{date}}",
+      "model": "{{provider}} · {{model}} · {{mode}}"
+    },
     "identityTitle": "Identité Keigan",
     "identityDescription": "Accordez à cette identité un accès en lecture aux ressources Azure que Keigan doit surveiller.",
     "identity": { "name": "Nom d'affichage", "objectId": "ID d'objet", "clientId": "ID client", "multiTenant": "ID client de l'application multilocataire" },

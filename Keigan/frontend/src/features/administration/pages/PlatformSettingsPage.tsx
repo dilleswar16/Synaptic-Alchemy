@@ -16,6 +16,7 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useToast } from "@/components/ui/Toast";
+import { ModelCapabilitiesSection } from "@/features/administration/components/ModelCapabilitiesSection";
 import { useFeatureFlag } from "@/config/runtimeConfiguration";
 import { cn } from "@/utils/cn";
 
@@ -170,6 +171,7 @@ export default function PlatformSettingsPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{data.integrations.map((integration) => <IntegrationCard key={integration.integrationKey} integration={integration} />)}</div>
           </section>
           {isSimulationEnabled && data.simulationControlsAvailable ? <SimulationControlsCard /> : null}
+          <ModelCapabilitiesSection models={data.modelCapabilities} report={data.lastConformanceReport} />
           <Card>
             <CardHeader title={t("settings.identityTitle")} description={t("settings.identityDescription")} />
             <CardBody>

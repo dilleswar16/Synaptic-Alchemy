@@ -26,6 +26,40 @@
     "notConfigured": "未配置",
     "testConnection": "测试连接",
     "testFailed": "无法启动测试。",
+    "modelsTitle": "AI 模型",
+    "modelsDescription": "Keigan 对每个已配置模型的判定结果。如需更改，请设置 LLM_MODEL_CAPABILITIES_JSON 或编辑目录。",
+    "models": {
+      "tiers": {
+        "fast": "快速模型",
+        "deep": "深度模型",
+        "vision": "视觉模型"
+      },
+      "toolCalling": "工具调用",
+      "toolCallingValues": {
+        "native": "模型内置",
+        "prompted_json": "提示词中的 JSON",
+        "none": "不支持"
+      },
+      "parallelToolCalls": "同时调用多个工具",
+      "streamsText": "流式输出文本",
+      "streamsToolRequests": "流式输出工具请求",
+      "toolChoiceNone": "可被要求不使用工具",
+      "temperature": "接受温度参数",
+      "streamUsage": "流式传输时报告令牌用量",
+      "context": "上下文窗口",
+      "yes": "是",
+      "no": "否",
+      "tokens": "{{value}} 个令牌"
+    },
+    "conformance": {
+      "title": "最近一次一致性测试",
+      "none": "尚无一致性报告。请对已配置的模型运行 backend/scripts/run_ask_keigan_conformance.py。",
+      "passed": "所有场景均通过",
+      "failed": "部分场景未通过",
+      "summary": "{{total}} 个场景中 {{passed}} 个通过",
+      "ran": "运行于 {{date}}",
+      "model": "{{provider}} · {{model}} · {{mode}}"
+    },
     "identityTitle": "Keigan 身份",
     "identityDescription": "请为此身份授予 Keigan 需监控的 Azure 资源的读取权限。",
     "identity": { "name": "显示名称", "objectId": "对象 ID", "clientId": "客户端 ID", "multiTenant": "多租户应用客户端 ID" },

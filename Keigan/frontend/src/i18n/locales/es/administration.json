@@ -26,6 +26,40 @@
     "notConfigured": "Sin configurar",
     "testConnection": "Probar conexión",
     "testFailed": "No se pudo iniciar la prueba.",
+    "modelsTitle": "Modelos de IA",
+    "modelsDescription": "Lo que Keigan ha determinado para cada modelo configurado. Para cambiarlo, defina LLM_MODEL_CAPABILITIES_JSON o edite el catálogo.",
+    "models": {
+      "tiers": {
+        "fast": "Modelo rápido",
+        "deep": "Modelo profundo",
+        "vision": "Modelo de visión"
+      },
+      "toolCalling": "Llamada a herramientas",
+      "toolCallingValues": {
+        "native": "Integrada en el modelo",
+        "prompted_json": "JSON en el prompt",
+        "none": "No compatible"
+      },
+      "parallelToolCalls": "Varias llamadas a herramientas a la vez",
+      "streamsText": "Transmite texto",
+      "streamsToolRequests": "Transmite solicitudes de herramientas",
+      "toolChoiceNone": "Se le puede indicar que no use herramientas",
+      "temperature": "Acepta temperatura",
+      "streamUsage": "Informa del uso de tokens durante la transmisión",
+      "context": "Ventana de contexto",
+      "yes": "Sí",
+      "no": "No",
+      "tokens": "{{value}} tokens"
+    },
+    "conformance": {
+      "title": "Última prueba de conformidad",
+      "none": "Aún no hay informe de conformidad. Ejecute backend/scripts/run_ask_keigan_conformance.py con el modelo configurado.",
+      "passed": "Todos los escenarios pasaron",
+      "failed": "Algunos escenarios fallaron",
+      "summary": "{{passed}} de {{total}} escenarios pasaron",
+      "ran": "Ejecutada el {{date}}",
+      "model": "{{provider}} · {{model}} · {{mode}}"
+    },
     "identityTitle": "Identidad de Keigan",
     "identityDescription": "Conceda a esta identidad acceso de lectura a los recursos de Azure que Keigan debe monitorizar.",
     "identity": { "name": "Nombre para mostrar", "objectId": "ID de objeto", "clientId": "ID de cliente", "multiTenant": "ID de cliente de la aplicación multiinquilino" },

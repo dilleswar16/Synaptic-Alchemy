@@ -218,7 +218,7 @@ Chart specification (shared with frontend `ChartMessage`):
 | Method | Path | Description |
 |---|---|---|
 | GET | `/dashboard/home?applicationIds=` | greeting data, KPI tiles, application health cards, live incidents, intelligence feed, maintenance windows, recent postmortems |
-| GET | `/administration/settings` | effective settings (secrets redacted) + connection statuses |
+| GET | `/administration/settings` | effective settings (secrets redacted, numbers shown) + connection statuses + the resolved capabilities of each configured AI model + a summary of the last conformance report |
 | POST | `/administration/connection-tests/{integration}` | `servicenow`, `graph`, `llm`, `azure`, `email` |
 | GET | `/administration/usage?from=&to=&groupBy=day|application|feature` | |
 | GET | `/administration/audit-events` | filters |
@@ -234,7 +234,7 @@ Readiness `required[]`/`goodToKnow[]` items: `{requirementKey, stepKey, isDone, 
 
 ### S5 implementation notes (2026-11-20)
 Chat: `POST /chat/conversations` with `investigation` scope returns the user's existing conversation for that investigation. Assistant `messagePayload` also carries `numberValue`, `queryDetails.timeRange` as `{start,end}`, `queryDetails.isSimulated` and `conversationContext` (used for follow-ups). `PATCH` accepts `conversationTitle` and `applicationIds`.
-Administration: `GET /administration/settings` returns `{environment, productVersion, groups[], integrations[], keiganIdentity, simulationControlsAvailable}`; `GET /administration/usage?from=&to=&groupBy=`; `GET /administration/audit-events?actor=&action=&applicationId=&from=&to=&page=&pageSize=`; `GET /administration/jobs` -> `{countsByStatus, countsByType, deadLetters, recentJobs}`; `GET /administration/simulation/scenarios`; `POST /administration/simulation/scenarios/{scenarioKey}` `{applicationId}`.
+Administration: `GET /administration/settings` returns `{environment, productVersion, groups[], integrations[], keiganIdentity, simulationControlsAvailable, modelCapabilities[{modelTier, modelName, toolCalling, parallelToolCalls, streamsText, streamsToolRequests, supportsToolChoiceNone, supportsTemperature, reportsStreamUsage, maxContextTokens}], lastConformanceReport{generatedAt, passed, providerName, modelName, toolCallingMode, scenarioCount, passedCount}|null}`; `GET /administration/usage?from=&to=&groupBy=`; `GET /administration/audit-events?actor=&action=&applicationId=&from=&to=&page=&pageSize=`; `GET /administration/jobs` -> `{countsByStatus, countsByType, deadLetters, recentJobs}`; `GET /administration/simulation/scenarios`; `POST /administration/simulation/scenarios/{scenarioKey}` `{applicationId}`.
 Home: `GET /dashboard/home?applicationIds=` returns `{greetingName, statusSentence, kpis, applicationCards, liveIncidents, intelligenceFeed, maintenanceWindows, recentPostmortems, generatedAt}`.
 
 ### Implementation notes (2026-11-21)

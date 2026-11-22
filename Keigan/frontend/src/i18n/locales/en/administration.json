@@ -26,6 +26,40 @@
     "notConfigured": "Not configured",
     "testConnection": "Test connection",
     "testFailed": "The test could not be started.",
+    "modelsTitle": "AI models",
+    "modelsDescription": "What Keigan resolved for each configured model. To change it, set LLM_MODEL_CAPABILITIES_JSON or edit the catalogue.",
+    "models": {
+      "tiers": {
+        "fast": "Fast model",
+        "deep": "Deep model",
+        "vision": "Vision model"
+      },
+      "toolCalling": "Tool calling",
+      "toolCallingValues": {
+        "native": "Built into the model",
+        "prompted_json": "JSON in the prompt",
+        "none": "Not supported"
+      },
+      "parallelToolCalls": "Several tool calls at once",
+      "streamsText": "Streams text",
+      "streamsToolRequests": "Streams tool requests",
+      "toolChoiceNone": "Can be told not to use tools",
+      "temperature": "Accepts a temperature",
+      "streamUsage": "Reports token use while streaming",
+      "context": "Context window",
+      "yes": "Yes",
+      "no": "No",
+      "tokens": "{{value}} tokens"
+    },
+    "conformance": {
+      "title": "Last conformance run",
+      "none": "No conformance report yet. Run backend/scripts/run_ask_keigan_conformance.py against the configured model.",
+      "passed": "All scenarios passed",
+      "failed": "Some scenarios failed",
+      "summary": "{{passed}} of {{total}} scenarios passed",
+      "ran": "Run on {{date}}",
+      "model": "{{provider}} · {{model}} · {{mode}}"
+    },
     "identityTitle": "Keigan identity",
     "identityDescription": "Grant this identity read access to the Azure resources Keigan should monitor.",
     "identity": { "name": "Display name", "objectId": "Object ID", "clientId": "Client ID", "multiTenant": "Multi-tenant app client ID" },

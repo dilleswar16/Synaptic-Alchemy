@@ -31,6 +31,33 @@ class KeiganIdentityResponse(ApiModel):
     multi_tenant_app_client_id: str | None = None
 
 
+class ModelCapabilitiesResponse(ApiModel):
+    """What one configured AI model can do, as Keigan resolved it (the catalogue and the overrides in the settings)."""
+
+    model_tier: str
+    model_name: str
+    tool_calling: str
+    parallel_tool_calls: bool
+    streams_text: bool
+    streams_tool_requests: bool
+    supports_tool_choice_none: bool
+    supports_temperature: bool
+    reports_stream_usage: bool
+    max_context_tokens: int
+
+
+class ConformanceReportSummaryResponse(ApiModel):
+    """The last run of the Ask Keigan conformance script against a real model (``scripts/run_ask_keigan_conformance.py``)."""
+
+    generated_at: datetime
+    passed: bool
+    provider_name: str
+    model_name: str
+    tool_calling_mode: str
+    scenario_count: int
+    passed_count: int
+
+
 class AdministrationSettingsResponse(ApiModel):
     environment: str
     product_version: str
@@ -38,6 +65,8 @@ class AdministrationSettingsResponse(ApiModel):
     integrations: list[IntegrationStatusResponse]
     keigan_identity: KeiganIdentityResponse
     simulation_controls_available: bool
+    model_capabilities: list[ModelCapabilitiesResponse]
+    last_conformance_report: ConformanceReportSummaryResponse | None = None
 
 
 class ConnectionTestOutcome(ApiModel):

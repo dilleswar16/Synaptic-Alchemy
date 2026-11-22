@@ -24,6 +24,7 @@ from keigan.entities.all_entities import (
 from keigan.entities.status_values import AlertGroupStatus, JobStatus
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.security.current_user import CurrentUser
+from keigan.services.administration_model_capabilities import last_conformance_report, model_capability_views
 from keigan.services.answer_run_retention import purge_expired_answer_runs
 from keigan.services.audit_service import AuditService
 from keigan.services.incident_retention import purge_expired_incidents
@@ -64,7 +65,8 @@ class AdministrationService:
         return AdministrationSettingsResponse(
             environment=str(s.environment.value), product_version=s.product_version,
             groups=[SettingsGroupResponse(group_key=key, group_title=title, settings=groups[key]) for key, title, _ in SETTING_GROUPS if groups[key]],
-            integrations=self._integration_statuses(), keigan_identity=identity, simulation_controls_available=s.is_local_environment or s.environment.value == "test")
+            integrations=self._integration_statuses(), keigan_identity=identity, simulation_controls_available=s.is_local_environment or s.environment.value == "test",
+            model_capabilities=model_capability_views(s), last_conformance_report=last_conformance_report(s.ask_keigan_conformance_report_path))
 
     def _integration_statuses(self) -> list[IntegrationStatusResponse]:
         s = self.settings

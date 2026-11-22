@@ -26,6 +26,40 @@
     "notConfigured": "未設定",
     "testConnection": "接続をテスト",
     "testFailed": "テストを開始できませんでした。",
+    "modelsTitle": "AI モデル",
+    "modelsDescription": "設定済みの各モデルについて Keigan が判定した内容です。変更するには LLM_MODEL_CAPABILITIES_JSON を設定するか、カタログを編集してください。",
+    "models": {
+      "tiers": {
+        "fast": "高速モデル",
+        "deep": "詳細分析モデル",
+        "vision": "画像モデル"
+      },
+      "toolCalling": "ツール呼び出し",
+      "toolCallingValues": {
+        "native": "モデルに内蔵",
+        "prompted_json": "プロンプト内の JSON",
+        "none": "非対応"
+      },
+      "parallelToolCalls": "複数のツールを同時に呼び出し",
+      "streamsText": "テキストのストリーミング",
+      "streamsToolRequests": "ツール要求のストリーミング",
+      "toolChoiceNone": "ツールを使わないよう指示可能",
+      "temperature": "温度パラメータに対応",
+      "streamUsage": "ストリーミング中にトークン使用量を報告",
+      "context": "コンテキストウィンドウ",
+      "yes": "はい",
+      "no": "いいえ",
+      "tokens": "{{value}} トークン"
+    },
+    "conformance": {
+      "title": "直近の適合性テスト",
+      "none": "適合性レポートはまだありません。設定済みのモデルで backend/scripts/run_ask_keigan_conformance.py を実行してください。",
+      "passed": "すべてのシナリオに合格",
+      "failed": "不合格のシナリオがあります",
+      "summary": "{{total}} 件中 {{passed}} 件のシナリオに合格",
+      "ran": "{{date}} に実行",
+      "model": "{{provider}} · {{model}} · {{mode}}"
+    },
     "identityTitle": "Keigan の ID",
     "identityDescription": "Keigan が監視する Azure リソースへの読み取りアクセスを、この ID に付与してください。",
     "identity": { "name": "表示名", "objectId": "オブジェクト ID", "clientId": "クライアント ID", "multiTenant": "マルチテナントアプリのクライアント ID" },

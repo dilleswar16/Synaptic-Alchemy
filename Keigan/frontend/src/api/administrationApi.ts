@@ -16,6 +16,29 @@ export interface IntegrationStatus {
   summary: string;
 }
 
+export interface ModelCapabilities {
+  modelTier: "fast" | "deep" | "vision";
+  modelName: string;
+  toolCalling: "native" | "prompted_json" | "none";
+  parallelToolCalls: boolean;
+  streamsText: boolean;
+  streamsToolRequests: boolean;
+  supportsToolChoiceNone: boolean;
+  supportsTemperature: boolean;
+  reportsStreamUsage: boolean;
+  maxContextTokens: number;
+}
+
+export interface ConformanceReportSummary {
+  generatedAt: IsoDateTimeString;
+  passed: boolean;
+  providerName: string;
+  modelName: string;
+  toolCallingMode: string;
+  scenarioCount: number;
+  passedCount: number;
+}
+
 export interface AdministrationSettings {
   environment: string;
   productVersion: string;
@@ -23,6 +46,8 @@ export interface AdministrationSettings {
   integrations: IntegrationStatus[];
   keiganIdentity: { managedIdentityObjectId: string; managedIdentityClientId: string; managedIdentityDisplayName: string; multiTenantAppClientId: string | null };
   simulationControlsAvailable: boolean;
+  modelCapabilities: ModelCapabilities[];
+  lastConformanceReport: ConformanceReportSummary | null;
 }
 
 export interface ConnectionTestOutcome {

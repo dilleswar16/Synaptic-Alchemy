@@ -265,6 +265,7 @@ class Settings(BaseSettings):
     ask_keigan_digest_evidence_summary_characters: int = Field(default=300, ge=50, le=2000)
     # Stored steps and runs of global conversations older than this many days are purged (the conversation stays). Empty: keep everything.
     ask_keigan_trace_retention_days: int | None = Field(default=None, ge=30, le=3650)
+    ask_keigan_conformance_report_path: Path = Path("ask_keigan_conformance_report.json")  # where the conformance script writes its report and the administration page reads the last one
     # Overrides of resources/catalogs/llm_model_capabilities.yaml (same shape), as JSON. Empty object: the catalog as shipped.
     llm_model_capabilities_json: str = "{}"
 
