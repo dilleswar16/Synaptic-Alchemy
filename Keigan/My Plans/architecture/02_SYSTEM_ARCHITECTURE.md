@@ -88,7 +88,7 @@ backend/
     │   ├── alert_intake_controller.py     # PUBLIC webhook /api/alerts/in/{source_id}
     │   ├── slo_controller.py              # SLIs, SLOs, proposals, measurements, dashboards
     │   ├── intelligence_controller.py     # predictive signals, reports
-    │   ├── chat_controller.py             # Keigan AI chat + investigation chat
+    │   ├── chat_controller.py             # Keigan AI chat + investigation chat; the Ask Keigan answer stream, snapshot, step output and cancel endpoints
     │   ├── notification_controller.py     # stakeholders, test sends, outbox
     │   ├── teams_bot_controller.py        # PUBLIC Bot Framework endpoint /api/teams/messages
     │   ├── dashboard_controller.py        # home aggregates
@@ -111,12 +111,37 @@ backend/
     │   ├── dashboard_service.py           # home aggregates
     │   ├── administration_service.py      # usage, audit queries, effective settings
     │   ├── alert_group_link_service.py    # the only writer of alert group → investigation → incident links
+    │   ├── ask_keigan_tools.py            # Ask Keigan tools over existing services (evidence, timeline, knowledge, safe log query, recent changes, runbooks, application map, SLO status), registered at import
+    │   ├── ask_keigan_engine.py           # AskKeiganEngine: prepare() refuses a model without tools; run() answers one question and never raises for a failed answer
+    │   ├── ask_keigan_loop.py             # the loop: stop check, last-turn rule (tool limit, 85 % token budget), one streamed model turn, tools run one after another
+    │   ├── ask_keigan_tool_runner.py      # one tool call: fresh session + user copy without cached roles (access re-checked every call), trace, citation number, skipped requests
+    │   ├── ask_keigan_prepared_run.py     # before the run exists: capability and context-window checks, rendered system prompt, tool schemas, RunSetup (versions, hashes, limits)
+    │   ├── ask_keigan_scopes.py           # ScopeProfile (tools, bound arguments, context, citation kinds, limits, budget key) and the investigation profile builder
+    │   ├── ask_keigan_investigation_context.py  # the untrusted investigation digest and the E#/R# sources it names
+    │   ├── ask_keigan_transcript.py       # the model's input as data: context, operating notes (masked, untrusted), history, question; earlier turns and tool results
+    │   ├── ask_keigan_trace.py            # TraceRecorder: runs and steps in short transactions, masked, size-capped, published as events; audit row chat.answer
+    │   ├── ask_keigan_events.py           # RunEventChannel (bounded asyncio queue) and the event names/envelope of protocol version 1
+    │   ├── ask_keigan_cancellation.py     # stop flag + stored cancel_requested_at; races a running step against the flag
+    │   ├── ask_keigan_answer_assembler.py # final answer: citation check, follow-up split, sanitising, unverified/refusal flags
+    │   ├── ask_keigan_limit_summary.py    # the deterministic answer when the model gave none at a limit
+    │   ├── ask_keigan_run_state.py        # ExecutedToolCall, AnswerCitation
+    │   ├── ask_keigan_service.py          # AskKeiganService: start (access, rate limit, idempotency, one run per conversation, prepare, store question, detached task), stream, snapshot, step output, cancel
+    │   ├── ask_keigan_run_registry.py     # AnswerRunRegistry (singleton in application_context): the live answers of this process, one per conversation; cancel_all on shutdown
+    │   ├── ask_keigan_run_snapshot.py     # AnswerRunSnapshotBuilder: the stored trace as AnswerRunView (redacts steps on applications the reader lost)
+    │   ├── ask_keigan_stream.py           # events -> server-sent frames, keep-alive comments, early-close cleanup
+    │   ├── ask_keigan_interruption.py     # RunInterruption: ends a run nothing works on (silent past ASK_KEIGAN_STALE_RUN_SECONDS, or cut at shutdown) as failed/answer_interrupted
     │   ├── reference_release.py           # clears or deletes the rows that still point at a deleted service, runbook or document
     │   └── service_scope.py               # checks that the service ids a user sent belong to the application
     ├── ai/
     │   ├── llm_gateway.py                 # THE only place that knows providers; structured output; retries; usage accounting; concurrency
     │   ├── prompt_library.py              # loads versioned prompts from resources/prompts
     │   ├── prompt_safety.py               # spotlighting, injection detection, output validation, command risk
+    │   ├── tool_registry.py               # Ask Keigan tool declarations, per-call checks, read-only guard, masking, model view (no service imports)
+    │   ├── ask_keigan_tool_models.py      # the closed input schemas of the Ask Keigan tools
+    │   ├── ask_keigan_errors.py           # AskKeiganErrorCatalogue: what the person is told when part of an answer fails (EN/JA, from resources/i18n)
+    │   ├── ask_keigan_answer_format.py    # transcript titles, follow-up marker, fixed answers (no access, outside scope), refusal check
+    │   ├── ask_keigan_answer_stream.py    # AnswerTextStreamer: model text -> whole, sanitised, citation-checked paragraphs
+    │   ├── ask_keigan_follow_ups.py       # splits the follow-up questions off an answer
     │   ├── ai_output_schemas.py           # Pydantic schemas the LLM must return
     │   └── investigation_graph.py         # LangGraph state machine for investigations
     ├── integrations/              # outbound adapters (the only code doing network I/O to external systems)
@@ -234,9 +259,12 @@ All settings live in `keigan/config/settings.py` as one typed `Settings` class g
 | Integrations mode | `TELEMETRY_MODE` (live/simulated), `SERVICENOW_MODE` (live/simulated/disabled), `TEAMS_MODE` (live/simulated/disabled), `EMAIL_MODE` (graph/smtp/simulated/disabled) |
 | ServiceNow | `SERVICENOW_INSTANCE_URL`, `SERVICENOW_AUTH_METHOD` (oauth/basic), `SERVICENOW_CLIENT_ID`, `SERVICENOW_CREDENTIAL_SECRET_NAME`, `SERVICENOW_POLL_INTERVAL_SECONDS` |
 | Graph / Teams / Email | `GRAPH_SENDER_MAILBOX`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD_SECRET_NAME`, `TEAMS_BOT_APP_ID`, `TEAMS_BOT_APP_SECRET_NAME`, `TEAMS_APP_CATALOG_ID`, `TEAMS_CHAT_POLL_INTERVAL_MINUTES`, `TEAMS_MILESTONE_PHRASES` |
-| AI | `LLM_PROVIDER` (gemini/azure_openai/openai_compatible/anthropic/mock), `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_API_VERSION`, `LLM_EXTRA_HEADERS_JSON`, `LLM_USE_MANAGED_IDENTITY`, `LLM_FAST_MODEL`, `LLM_DEEP_MODEL`, `LLM_VISION_MODEL`, `LLM_TEMPERATURE`, `LLM_REQUEST_TIMEOUT_SECONDS`, `LLM_MAX_CONCURRENT_REQUESTS`, `LLM_DAILY_TOKEN_BUDGET_PER_APPLICATION`, `LLM_PRICE_PER_MILLION_INPUT_TOKENS`, `LLM_PRICE_PER_MILLION_OUTPUT_TOKENS` |
+| AI | `LLM_PROVIDER` (gemini/azure_openai/openai_compatible/anthropic/mock), `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_API_VERSION`, `LLM_EXTRA_HEADERS_JSON`, `LLM_USE_MANAGED_IDENTITY`, `LLM_FAST_MODEL`, `LLM_DEEP_MODEL`, `LLM_VISION_MODEL`, `LLM_TEMPERATURE`, `LLM_REQUEST_TIMEOUT_SECONDS`, `LLM_MAX_CONCURRENT_REQUESTS`, `LLM_DAILY_TOKEN_BUDGET_PER_APPLICATION`, `LLM_PRICE_PER_MILLION_INPUT_TOKENS`, `LLM_PRICE_PER_MILLION_OUTPUT_TOKENS`, `LLM_MODEL_PRICES_JSON` (optional per-model prices for the reliability metrics cost estimate; empty = tokens only) |
 | Investigation | `INVESTIGATION_LOOKBACK_MINUTES`, `INVESTIGATION_MAX_WINDOW_MINUTES`, `INVESTIGATION_MAX_CONCURRENT`, `INVESTIGATION_EVIDENCE_TOKEN_BUDGET`, `INVESTIGATION_KNOWLEDGE_TOKEN_BUDGET`, `AUTO_SEND_PRELIMINARY_REPORT` |
 | SLO / intelligence | `SLI_COLLECTION_INTERVAL_MINUTES`, `SLO_BACKFILL_DAYS`, `PREDICTIVE_ANALYSIS_INTERVAL_MINUTES`, `INTELLIGENCE_WEEKLY_REPORT_CRON` |
+| Reliability metrics | `METRICS_MINIMUM_RATING_SAMPLE` (5), `METRICS_MAXIMUM_WINDOW_DAYS` (365); prices are `LLM_MODEL_PRICES_JSON` (AI row) |
+| Application content | `APPLICATION_OPERATING_NOTES_MAXIMUM_CHARACTERS` (4000; 100 to 20000), the longest operating notes an application may have |
+| Ask Keigan | `ASK_KEIGAN_MAX_TOOL_CALLS_GLOBAL` (8) and `ASK_KEIGAN_MAX_TOOL_CALLS_INVESTIGATION` (6), 1 to 50: tool calls per answer, the limit on how much Keigan does for one question (there is no time limit); `ASK_KEIGAN_MAX_PARALLEL_TOOL_CALLS` (3; 1 to 5); `ASK_KEIGAN_TOOL_TIMEOUT_SECONDS` (60; 5 to 600) per tool call; `ASK_KEIGAN_STALE_RUN_SECONDS` (300; 60 to 3600) and `ASK_KEIGAN_PROGRESS_HEARTBEAT_SECONDS` (15; 5 to 300), where the stale limit must be at least 3 heartbeats or the API refuses to start; `ASK_KEIGAN_DIGEST_TIMELINE_EVENTS` (15), `ASK_KEIGAN_DIGEST_TOPOLOGY_NODES` (40) and `ASK_KEIGAN_DIGEST_EVIDENCE_SUMMARY_CHARACTERS` (300), what the investigation digest in front of the model holds; `ASK_KEIGAN_ANSWER_TOKEN_BUDGET` (80000; 5000 to 1000000); `ASK_KEIGAN_TOOL_OUTPUT_MODEL_CHARACTERS` (6000), `ASK_KEIGAN_TOOL_OUTPUT_STORED_CHARACTERS` (60000) and `ASK_KEIGAN_TOOL_OUTPUT_PREVIEW_CHARACTERS` (1500), the first and last never larger than the stored size; `ASK_KEIGAN_TOOL_LIST_ITEM_LIMIT` (20; 1 to 200); `ASK_KEIGAN_TOOL_PASSAGE_CHARACTERS` (2400; 200 to 20000: one passage a tool returns, for example a runbook's steps); `ASK_KEIGAN_LOG_QUERY_MAX_LOOKBACK_MINUTES` (43200; 5 to 43200); `ASK_KEIGAN_KNOWLEDGE_TOKEN_BUDGET` (2500; 500 to 20000); `ASK_KEIGAN_HEARTBEAT_SECONDS` (15; 5 to 60); `ASK_KEIGAN_PROTOCOL_REPAIR_ATTEMPTS` (1; 0 to 2); `ASK_KEIGAN_FOLLOW_UP_QUESTION_LIMIT` (3; 0 to 5); `ASK_KEIGAN_SHUTDOWN_GRACE_SECONDS` (10; 1 to 120: how long a stopping process waits for its running answers before it marks their runs interrupted); `ASK_KEIGAN_TRACE_RETENTION_DAYS` (empty = keep everything; otherwise 30 to 3650); `LLM_MODEL_CAPABILITIES_JSON` (overrides of `resources/catalogs/llm_model_capabilities.yaml`, what each model can do); `LLM_MANAGED_IDENTITY_SCOPE` (token scope for managed identity) |
 | Storage / secrets | `FILE_STORAGE_MODE` (local/azure_blob), `AZURE_BLOB_ACCOUNT_URL`, `AZURE_BLOB_CONTAINER`, `SECRET_STORE_MODE` (local_encrypted/key_vault), `AZURE_KEY_VAULT_URL`, `LOCAL_SECRET_ENCRYPTION_KEY`, `MAX_UPLOAD_BYTES` |
 | Security | `PII_MASKING_ENABLED` (always true outside local), `PII_MASK_IP_ADDRESSES` (none/partial/full), `ALERT_INTAKE_MAX_PAYLOAD_BYTES`, `ALERT_INTAKE_RATE_LIMIT_PER_MINUTE`, `CHAT_RATE_LIMIT_PER_MINUTE` |
 | Retention | `RAW_ALERT_RETENTION_DAYS` (30), `INCIDENT_RETENTION_DAYS` (395), `SLI_RAW_RETENTION_DAYS` (90) |
@@ -355,6 +383,49 @@ Scheduler ─▶ poll_incident_chats ─▶ new messages → facts into timeline
 ```
 
 **Alert → alert group → investigation → (optional) ServiceNow incident** (product spec §9). Each step that links the group to its investigation or incident calls `AlertGroupLinkService.link`.
+
+**Ask Keigan answer (spec 23, engine part)**
+
+```
+AskKeiganEngine.prepare(profile) ─▶ refuses a model without tools / a prompt that cannot fit (before any run row exists)
+TraceRecorder.begin ─▶ chat_answer_run(running)         RunEventChannel ◀─ every recorded change is published after its commit
+AskKeiganEngine.run ─▶ AnswerLoop: stop check → last turn? (tool limit | 85 % of token budget) → LlmGateway.stream_agent_turn
+   paragraphs ─▶ answer.text     tool requests ─▶ ToolCallRunner (own session, user copy without cached roles) ─▶ tool_registry.execute_by_name
+   end ─▶ assemble_answer (citations, follow-ups, unverified) ─▶ TraceRecorder.complete_run (message + audit chat.answer) ─▶ answer.completed
+   failure ─▶ AskKeiganErrorCatalogue ─▶ fail_run / cancel_run ─▶ answer.failed (question message links the run)
+```
+
+**Ask Keigan tools (spec 23, section 5; investigation scope, phase 2)** are small read-only functions in `services/ask_keigan_tools.py`, each over one existing service, called in-process with the asker's own access: `get_evidence` and `get_investigation_timeline` (`InvestigationService`), `search_knowledge` and `find_runbooks` (`KnowledgeService`), `query_logs` (`ChatDataQueryService`), `get_topology` (`TopologyService`), `get_slo_status` (`SloService.get_dashboard`, shown as the `SloHealthStatus` enum: computed from measurements and never stored, so no column, no CHECK constraint and no migration) and `list_recent_changes`. The last reads the Azure Activity Log through `EvidenceService.read_change_events`, which **raises** when the read fails (the access policy's refusal, an unreachable or refusing source); the investigation pipeline's `collect_change_evidence` calls it and turns the failure into the "could not be checked" evidence item, and the tool turns it into a failed step ("the Azure Activity Log could not be reached"), so a failed read is never reported as "no changes". The tools are registered for both scopes; the global scope profile arrives in phase 3.
+
+**Ask Keigan, around the engine (spec 23, 4.4.1 and 7.5)**
+
+```
+POST /api/chat/conversations/{id}/answers ─▶ chat_controller (Accept check) ─▶ AskKeiganService.start, in the request session:
+   ChatService.open_conversation (owner + still allowed to read the investigation) ─▶ duplicate clientRequestId? ─▶ registry.register (one live run per conversation)
+   ─▶ a running row of another pod? (silent ones are ended) ─▶ chat rate limit ─▶ scope profile ─▶ engine.prepare ─▶ mask the question
+   ─▶ TraceRecorder.begin: the question message and the run row in ONE transaction ─▶ asyncio.create_task(engine.run(...))  [registered in AnswerRunRegistry; frees the conversation in its finally]
+   (the checks above are the fast path; the database decides a race between pods: a unique clientRequestId -> 409 duplicate_request, the filtered unique index
+    uq_chat_answer_run_one_running_per_conversation -> 409 answer_in_progress, each with the run id, and nothing is stored for the loser)
+StreamingResponse ◀─ event_frames(channel): id/event/data frames, ": keep-alive" every ASK_KEIGAN_HEARTBEAT_SECONDS; the reader going away never stops the task
+GET .../answer-runs/{id}  ─▶ ChatService.open_conversation (owner + still allowed to read) ─▶ stale check (RunInterruption) ─▶ AnswerRunSnapshotBuilder (steps on lost applications redacted); step output: same check
+POST .../answer-runs/{id}/cancel ─▶ owner only (a person who lost access may still stop their own run): chat_answer_run.cancel_requested_at is stored and committed FIRST (any pod), then the registry flag (this pod);
+   the engine checks both between steps and races every step against the flag
+DELETE /api/chat/conversations/{id} ─▶ AskKeiganService.delete_conversation: stop the running answer of this pod and wait for it to end; a silent one is ended as interrupted; one running in another pod is asked
+   to stop and the delete is refused with 409 answer_in_progress; only then the rows are removed
+application lifespan (main.py) on shutdown ─▶ RunInterruption.interrupt_live_runs: cancel the answer tasks, then fail their runs as answer_interrupted
+```
+
+**One end per run.** The run row can be ended by the engine (completed, failed, cancelled), by a stop request, by the stale-run sweep of another pod and by a shutdown. Every end is a single conditional `UPDATE chat_answer_run ... WHERE run_status = 'running'` that is the first statement of its transaction (`TraceRecorder._claim_run_end`); the party that gets rowcount 0 lost the race, writes nothing else (no assistant message, no audit row, no final event), logs at info and, in the engine, returns an outcome with `was_ended_elsewhere`. While a model turn or tool call is in flight, `RunHeartbeat` refreshes `last_progress_at` every `ASK_KEIGAN_PROGRESS_HEARTBEAT_SECONDS` (also a conditional UPDATE, so an ended run is never touched), so the longest silence of a live run is one beat whatever the provider timeouts and retries add up to (`LLM_REQUEST_TIMEOUT_SECONDS` x retries can be several minutes). The settings validator keeps `ASK_KEIGAN_STALE_RUN_SECONDS` at least `STALE_RUN_MINIMUM_HEARTBEATS` (3) heartbeats, so a run is called interrupted only after three missed beats, which only a dead process produces. The sweep itself re-checks the stored progress in its UPDATE (`last_progress_at <= now - stale limit`), so a run that beat after it was judged silent is left alone.
+
+The answer task holds no request-scoped session; every write is a short `open_session()` transaction (SQLite-safe). A pod that dies leaves a `running` row; the next read of that run (snapshot, stop, or a new question in the conversation) ends it as interrupted once `last_progress_at` is older than `ASK_KEIGAN_STALE_RUN_SECONDS` and nothing in the reading process works on it. The registry knows only its own process, so one answer per conversation is enforced by the registry (this pod), a database check for a `running` row (other pods, the fast path) and, for the race between two pods, the filtered unique index on `chat_answer_run(conversation_id) WHERE run_status = 'running'`.
+
+**Read-only guard (spec 23, 9.1).** `read_only_session_guard` wraps the session of one tool call in three layers: `before_flush` (ORM changes; adding an `AuditEvent` row is the only permitted change, never changing or deleting one), `do_orm_execute` (ORM write statements) and `before_cursor_execute` on the session's connection, which lets through only a `SELECT` and the `INSERT INTO audit_event` statement, so `session.execute(text("UPDATE ..."))`, `(await session.connection()).execute(...)` and an ORM `delete(AuditEvent)` raise `ReadOnlyViolation` before they reach the database.
+
+**Language of a tool's messages.** `ToolContext.language_code` (the person's `preferred_locale`) is passed to every message the registry words (refusals, failures, timeouts, the internal-error step, the tool label, the name of a source or record kind): all come from the string tables (`ask_keigan_errors`, `ask_keigan_tools` and `ask_keigan_answers` in `resources/i18n/en.json` and `ja.json`; any other language falls back to English). The code-written `summary` of a tool output is English and is not localised: it is what the model reads and cites, it is the one-line fact of the card (spec 5.2 shows it in English), and the card's label, status and fields around it are localised by the browser.
+
+**Telemetry mode and the Activity Log.** `TelemetryGateway.activity_is_simulated` is the one rule: simulated mode, or a component marked `simulated`. In live mode an application with no Azure subscription has no Activity Log to read: `query_activity_changes` raises `ReaderNotAvailableException` (the tool answers `query_not_answerable` with that sentence) instead of silently answering from the simulator, and every `list_recent_changes` output carries `is_simulated`.
+
+**Managed identity for the model.** `LlmGateway` holds one `azure.identity.aio.ManagedIdentityCredential` (with azure-core's `AsyncioRequestsTransport`, because the default asynchronous transport needs `aiohttp`, which Keigan does not ship) behind one asynchronous token provider used by both `AzureChatOpenAI` (`azure_ad_async_token_provider`) and `ChatOpenAI` (`api_key` as an async callable), so a token refresh never blocks the event loop; `LlmGateway.aclose()` closes the credential.
 
 **AI chat data question**
 

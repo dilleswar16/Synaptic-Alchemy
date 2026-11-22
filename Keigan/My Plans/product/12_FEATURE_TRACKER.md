@@ -1,18 +1,18 @@
 # 12 — Feature tracker
 
 Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated by the lead after each build agent reports and after each integration test.
-**Last updated:** 2026-11-20 — Azure SQL scripts, identity auto-discovery, "Check in Entra" for access groups, sequence / class / ER diagrams.
+**Last updated:** 2026-11-22 — Ask Keigan phases 1 and 2 on the investigation page (K5); 2026-11-21 — reliability metrics page, per-application operating notes, "why these alerts were grouped" sentence (all three built, verified by tests and screenshots; committed on keigan-ui-ux, not pushed). Summary recounted from the rows below.
 
 ## Summary
 
 | | Count | Share |
 |---|---|---|
-| ✅ Done and verified | 92 | 88 % |
-| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 9 | 9 % |
+| ✅ Done and verified | 96 | 87 % |
+| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 10 | 9 % |
 | 🧩 Placeholder by design (configuration saved, reader later) | 2 | 2 % |
-| 🔄 Being built right now | 0 | 0 % |
-| ⬜ Not started | 2 | 2 % |
-| **Total features** | **105** | **98 % built · 88 % verified** |
+| 🔄 Being built right now | 1 | 1 % |
+| ⬜ Not started | 1 | 1 % |
+| **Total features** | **110** | **98 % built · 87 % verified** |
 
 **Legend**
 - ✅ **Done and verified** in the local simulated environment: API tested end to end, and the screen loads in a real browser (headless Edge) with live data and no console or API errors. Mock AI unless stated.
@@ -86,6 +86,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | D16 | SLO proposals step | ✅ | |
 | D17 | Notifications step (stakeholders, service checkboxes) | ✅ | |
 | D19 | Application team: roles lead / developer / infra / devops / tester, status and invitations, team entered when an application is created | ✅ | Design in `20_TEAM_MEMBERS_DESIGN.md`. Real email delivery and Entra sign-in matching need a real tenant |
+| D20 | Operating notes per application: a short text the team writes for the AI, used in investigations and investigation chat as guidance, never evidence (roadmap B2) | ✅ | Built, verified by tests and screenshots; committed on keigan-ui-ux, not pushed. Design in `25_APPLICATION_OPERATING_NOTES.md`. Tested with a scripted model; behaviour with a real model is not verified. Translations not read by native speakers |
 | D18 | Access step (AD group names for SailPoint) | ✅ | "Check in Entra" confirms both groups, shows member counts, saves object IDs. Verified with local users; Entra path needs `GroupMember.Read.All` on Keigan's identity |
 
 ## E. Incidents and investigations (RCA)
@@ -140,6 +141,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | H7 | Alert group → investigation → ServiceNow incident | ✅ | Alerts-before-ticket race fixed |
 | H8 | Alerts page | ✅ | 134 alerts → 6 groups in the demo; funnel consistency fixed |
 | H9 | Weekly noise report | ✅ | API only |
+| H10 | "Why these alerts were grouped" sentence on each alert group, in the list and the drawer (roadmap B3) | ✅ | Built, verified by tests and screenshots; committed on keigan-ui-ux, not pushed. Design in `26_ALERT_GROUPING_REASON.md`. `attached_to_incident` has unit tests only; the investigation page shows the same sentence (fixed 2026-11-21); translations not read by native speakers |
 
 ## I. SLO monitoring
 
@@ -151,6 +153,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | I4 | Multi-window burn-rate alerts | ✅ | |
 | I5 | SLO dashboard and detail charts | ✅ | Reviewed visually |
 | I6 | Ecosystem heatmap | ✅ | |
+| I7 | Reliability metrics page `/metrics`: time to detect, first update, resolve and conclusion, ratings, AI usage and cost, weekly trend (roadmap A4) | ✅ | Built, verified by tests and screenshots; committed on keigan-ui-ux, not pushed. Design in `24_RELIABILITY_METRICS.md`. Time to acknowledge is not available: no acknowledgement timestamp exists. AI section shows no data on the demo seed by design. Translations not read by native speakers |
 
 ## J. Predictive intelligence
 
@@ -169,6 +172,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | K2 | Question → query → number | ✅ | |
 | K3 | Pattern → chart, with clarification | ✅ | |
 | K4 | Conversation history | ✅ | |
+| K5 | Ask Keigan on the investigation page (roadmap B5, phases 1 and 2): one engine, eight read-only tools, live tool-call trace, citations `[T#] [E#] [R#]`, Stop, history, copy answer with sources, specific error messages | 🟡 | Built and tested (2,300 backend tests, 108 frontend unit tests, browser check at four sizes), **only against the mock model**; needs a real model key, SQL Server for the new index, a screen-reader pass. Design in `23_ASK_KEIGAN_CHAT_SPEC.md`. The global chat (K1 to K4) and the Teams bot still use the old engine until phases 3 and 4 |
 
 ## L. Administration
 
@@ -184,7 +188,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | # | Feature | Status | Notes |
 |---|---|---|---|
 | M1 | English | ✅ | |
-| M2 | Japanese, Chinese, Spanish (+ Mexico), Dutch, French | ✅ | 15 namespaces × 5 languages, zero missing keys; es-MX falls back to es. Native-speaker review suggested for a few terms (see learnings log) |
+| M2 | Japanese, Chinese, Spanish (+ Mexico), Dutch, French | ✅ | 16 namespaces × 5 languages, zero missing keys; es-MX falls back to es. Native-speaker review suggested for a few terms (see learnings log) |
 | M3 | Bilingual emails and Teams cards (EN / JA) | ✅ | |
 
 ## N. Deployment and hardening
@@ -194,7 +198,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | N1 | Dockerfiles and nginx with strict security headers | 🟡 | Docker not installed here |
 | N2 | Helm chart | 🟡 | Helm not installed here |
 | N3 | Database migrations (Alembic) | ✅ | 47 tables, no drift; schema-aware (`keigan`); Helm pre-upgrade job (can be switched off). Upgrade/downgrade verified on SQLite; SQL Server output rendered offline |
-| N8 | Azure SQL DDL scripts (`database/azure_sql/`) | 🟡 | Generated from the entities: schema, 47 tables, 32 foreign keys, 62 indexes, migration baseline, managed-identity grants. All batches pass a T-SQL parser and fit SQL Server key limits; needs a real Azure SQL database to run |
+| N8 | Azure SQL DDL scripts (`database/azure_sql/`) | 🟡 | Generated from the entities: schema, 58 tables, 91 foreign keys, 79 indexes, migration baseline, managed-identity grants. All batches pass a T-SQL parser and fit SQL Server key limits; needs a real Azure SQL database to run |
 | N9 | Sequence, class and ER diagrams | ✅ | `13_SEQUENCE_DIAGRAMS.md`, `14_CLASS_DIAGRAM.md`, `15_ENTITY_RELATIONSHIP_DIAGRAM.md` (generated); all 21 diagrams render with Mermaid 11 |
 | N4 | Automated test suites | 🔄 | Backend pytest suite being built first (see `16_HARDENING_PLAN.md`); frontend suites later |
 | N5 | RAG proposal | ✅ | `08_RAG_PROPOSAL.md` |

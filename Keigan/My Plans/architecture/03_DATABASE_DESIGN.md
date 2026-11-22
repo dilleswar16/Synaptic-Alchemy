@@ -20,7 +20,7 @@ Any change must be made here first (or recorded in the change log at the bottom)
 
 Database engines: SQLite (local, WAL mode), **Azure SQL Database** (production target) and PostgreSQL 16 (still supported).
 Local schema is created with `Base.metadata.create_all`. In Azure the schema comes from the generated scripts in
-`database/azure_sql/` (run once before the first install) and Alembic migrations afterwards (baseline `94692c828bd3`, current head `e4c8a1d7b2f6`).
+`database/azure_sql/` (run once before the first install) and Alembic migrations afterwards (baseline `94692c828bd3`, current head `f1b9d3a5c7e2`).
 The column types written below as `VARCHAR` / `TIMESTAMPTZ` are the logical types; on Azure SQL they are created as:
 
 | Logical type | Azure SQL type | Why |
@@ -46,7 +46,8 @@ knowledge:     knowledge_document ── knowledge_chunk · application_topology
 incident:      servicenow_assignment_group · incident ─── investigation ─┬─ investigation_hypothesis
                                                                        ├─ investigation_evidence
                                                                        └─ investigation_timeline_event
-               incident_communication · postmortem_report · conversation ── conversation_message
+               incident_communication · postmortem_report · conversation ─┬─ conversation_message
+                                                                          └─ chat_answer_run ── chat_run_step
 alert:         alert_source ── alert_event · alert ── alert_decision · alert_group · noise_reduction_policy · maintenance_window · alert_mute_rule
 slo:           service_level_indicator ── service_level_objective · sli_measurement · slo_burn_alert
 intelligence:  predictive_signal · intelligence_report
@@ -163,6 +164,10 @@ Local encrypted secret store (used only when `SECRET_STORE_MODE=local_encrypted`
 | onboarding_progress_json | JSON | per-step "nothing to add" markers, last visited step |
 | went_live_at | TIMESTAMPTZ | |
 | went_live_by_user_principal_name | VARCHAR(320) | |
+| operating_notes_text | TEXT (NVARCHAR(max)) | nullable; the team's guidance for the AI, trimmed, line breaks stored as `
+`; longest allowed is `APPLICATION_OPERATING_NOTES_MAXIMUM_CHARACTERS` (default 4000, at most 20000); null = no notes |
+| operating_notes_updated_at | TIMESTAMPTZ | nullable; set only when the text changes |
+| operating_notes_updated_by_user_principal_name | VARCHAR(320) | nullable |
 | [audit] | | |
 
 ### `application_component`
@@ -570,6 +575,63 @@ UNIQUE (`application_id`, `external_incident_number`).
 | output_token_count | INTEGER | |
 | created_at | TIMESTAMPTZ | |
 
+### `chat_answer_run`
+One row per question asked in Ask Keigan: everything Keigan did to answer it. Design: `features/ask-keigan-chat/23_ASK_KEIGAN_CHAT_SPEC.md`, section 6.
+| Column | Type | Notes |
+|---|---|---|
+| answer_run_id | VARCHAR(36) PK | |
+| conversation_id | FK conversation CASCADE | indexed |
+| user_message_id | FK conversation_message NO ACTION | SQL Server allows one cascade path per table, so the code deletes runs before messages |
+| assistant_message_id | FK conversation_message NO ACTION, nullable | set when the answer is stored |
+| client_request_id | VARCHAR(64) | unique with `conversation_id` (`uq_chat_answer_run_conversation_id_client_request_id`) |
+| conversation_scope | VARCHAR(30) | CHECK from `ConversationScope` |
+| investigation_id | FK investigation NO ACTION, nullable | indexed |
+| requested_by_user_principal_name | VARCHAR(320) | indexed with `started_at` |
+| scope_snapshot_json | JSON | applications, bound arguments and withheld tools at the time (an audit snapshot, not a relationship) |
+| run_status | VARCHAR(20) | CHECK from `ChatAnswerRunStatus`: `running`, `completed`, `failed`, `cancelled` |
+| stop_reason | VARCHAR(30), nullable | CHECK from `ChatAnswerStopReason`: `answered`, `tool_limit_reached`, `token_budget_reached`, `cancelled_by_user`, `failed` |
+| engine_version, prompt_key, prompt_version | VARCHAR(20), VARCHAR(80), VARCHAR(20) | |
+| system_prompt_sha256, tool_catalog_sha256 | VARCHAR(64) | the prompt text itself is never stored |
+| offered_tools_json | JSON | name, version, source and schema hash of each offered tool |
+| provider_name, model_name, model_tier | VARCHAR(40), VARCHAR(120), VARCHAR(20) | |
+| tool_calling_mode | VARCHAR(20) | CHECK from `ToolCallingMode`: `native`, `prompted_json`, `scripted_mock` |
+| limits_json | JSON | effective limits and resolved model capabilities |
+| total_input_token_count, total_output_token_count | INTEGER | sum over the model turns; `token_counts_estimated` (BOOLEAN) says a provider reported none |
+| model_turn_count, tool_call_count | INTEGER | |
+| citations_json, follow_up_questions_json | JSON | |
+| is_unverified | BOOLEAN | the answer cites no tool result |
+| cancel_requested_at | TIMESTAMPTZ, nullable | cancellation across pods; written and committed before the in-process flag is set |
+| error_code | VARCHAR(60), nullable | same codes as the API's `errorCode` |
+| error_parameters_json | JSON, nullable | the low-sensitivity values the error message was written from (the failed step, a limit, a retry delay): a reload words the same message as the live stream did |
+| correlation_id | VARCHAR(64), nullable | |
+| started_at, completed_at, duration_milliseconds | TIMESTAMPTZ, TIMESTAMPTZ nullable, INTEGER nullable | |
+| last_progress_at | TIMESTAMPTZ | written at every step start and finish and by the heartbeat every `ASK_KEIGAN_PROGRESS_HEARTBEAT_SECONDS` while a model turn or tool call is in flight; the stale-run check reads it |
+
+Indexes: filtered unique index `uq_chat_answer_run_one_running_per_conversation` on `conversation_id WHERE run_status = 'running'` (SQLite and PostgreSQL partial index, SQL Server filtered unique index): the database allows one running answer per conversation however many pods answer questions, and the application maps a violation to `409 answer_in_progress`. Every end of a run is a conditional `UPDATE ... WHERE run_status = 'running'`.
+
+### `chat_run_step`
+The ordered model turns and tool calls inside one run.
+| Column | Type | Notes |
+|---|---|---|
+| run_step_id | VARCHAR(36) PK | |
+| answer_run_id | FK chat_answer_run CASCADE | unique with `sequence_number` (`uq_chat_run_step_answer_run_id_sequence_number`) |
+| sequence_number | INTEGER | 1, 2, 3 in execution order |
+| step_kind | VARCHAR(20) | CHECK from `ChatRunStepKind`: `model_turn`, `tool_call` |
+| parent_run_step_id | FK chat_run_step NO ACTION, nullable | a tool call points at the model turn that asked for it |
+| step_status | VARCHAR(20) | CHECK from `ChatRunStepStatus`: `running`, `succeeded`, `failed`, `refused`, `skipped`, `cancelled` |
+| started_at, completed_at, duration_milliseconds | TIMESTAMPTZ, TIMESTAMPTZ nullable, INTEGER nullable | |
+| turn_number, turn_finish, model_text, input_token_count, output_token_count | INTEGER, VARCHAR(30), TEXT, INTEGER, INTEGER | model turns; `turn_finish` is left open: `tool_requests`, `answer`, `length`, `protocol_error` |
+| tool_name, tool_version, tool_source | VARCHAR(64), INTEGER, VARCHAR(80) | tool calls; left open because they come from the tool registry (adding a tool needs no migration); `tool_name` is indexed |
+| citation_code | VARCHAR(8), nullable | `T1`, `T2`, ... for executed calls |
+| provider_request_id | VARCHAR(200), nullable | the provider's call id |
+| requested_arguments_json, effective_arguments_json | JSON, nullable | as the model sent them, and after binding and validation (both masked) |
+| application_id | VARCHAR(36), nullable | indexed; a recorded fact kept without a foreign key, like `audit_event.application_id` |
+| records_json, output_json | JSON, nullable | the records the call touched; the validated, masked output (cut at `ASK_KEIGAN_TOOL_OUTPUT_STORED_CHARACTERS`) |
+| output_character_count, output_is_truncated, output_item_count | INTEGER, BOOLEAN, INTEGER (nullable) | |
+| model_view_text, model_view_sha256 | TEXT, VARCHAR(64) (nullable) | the exact masked text the model received for this call |
+| masked_value_count, injection_flagged | INTEGER, BOOLEAN (nullable) | |
+| outcome_code, outcome_message | VARCHAR(60), VARCHAR(400) (nullable) | |
+
 ## 7. Alert tables (`alert_entities.py`)
 
 ### `alert_source`
@@ -653,7 +715,7 @@ UNIQUE (`application_id`, `external_incident_number`).
 | group_summary | TEXT | |
 | group_status | VARCHAR(20) | `open`, `investigating`, `queued`, `resolved` |
 | priority_score | NUMERIC(8,2) | |
-| grouping_reason | VARCHAR(400) | |
+| grouping_reason | VARCHAR(400) | the pipeline's text for why the group was formed. The alert-group endpoints no longer return it: they return a structured reason derived when the group is read (`AlertGroupingReason`; nothing stored) |
 | member_alert_count | INTEGER | |
 | primary_service_id | FK monitored_service NO ACTION | |
 | affected services | association table `alert_group_affected_service` | section 11; the first one is the group's first service |
@@ -911,7 +973,7 @@ The primary key is (owner id, linked id), so an id appears once per list.
 ## 12. Foreign keys for soft references
 
 Columns that name an application, incident, investigation, SLI or service had no foreign key, so deleting the parent left orphans
-behind. Revision `c9e4f1b8d3a7` added the 35 keys below. A fresh schema has 56 tables and 85 foreign keys, counting these and the ones on the
+behind. Revision `c9e4f1b8d3a7` added the 35 keys below. A fresh schema now has 58 tables and 91 foreign keys (the two Ask Keigan trace tables added six; it was 56 and 85 when these keys were added), counting these and the ones on the
 association tables.
 
 **ON DELETE per key.** `CASCADE` where the table has exactly one cascade path from the application; otherwise `NO ACTION`, because
@@ -1032,6 +1094,8 @@ constraints from the entities. Fresh databases and Azure SQL (generated scripts 
 | incidents, investigations, alerts, groups | `INCIDENT_RETENTION_DAYS` (395 ≈ 13 months) | `retention_cleanup` |
 | `background_job` finished | 14 days | `retention_cleanup` |
 | `audit_event`, `llm_usage_record` | 400 days | `retention_cleanup` |
+| `chat_answer_run`, `chat_run_step` of incident and investigation conversations | with the incident (`INCIDENT_RETENTION_DAYS`), removed before the conversation messages | `retention_cleanup` |
+| `chat_answer_run`, `chat_run_step` of global conversations | kept until the person deletes the conversation; only when `ASK_KEIGAN_TRACE_RETENTION_DAYS` is set are traces older than that purged (the conversation stays) | `retention_cleanup` |
 
 ## 17. Change log
 
@@ -1041,4 +1105,7 @@ constraints from the entities. Fresh databases and Azure SQL (generated scripts 
 | 2026-11-19 | Implementation: NUMERIC confidence/score/percentage columns implemented as FLOAT (portable across SQLite/PostgreSQL). Added `investigation.stage_messages_json`, `open_questions_json`, `knowledge_references_json`, `model_names_json`; `investigation_evidence.masked_value_count`, `possible_prompt_injection`. | Lead |
 | 2026-11-20 | Azure SQL support. Schema `keigan`; NVARCHAR / DATETIME2(6) / naming convention (see section 1). SQL Server allows one cascade path per table, so these foreign keys became NO ACTION and the application delete removes the rows itself first: `monitored_service.component_id` (was SET NULL), `service_dependency.downstream_service_id` (was CASCADE), `service_log_source.log_tool_connection_id` (was SET NULL), `investigation.incident_id` (was CASCADE). `incident (application_id, external_incident_number)` unique constraint became a filtered unique index `WHERE external_incident_number IS NOT NULL` (SQL Server treats NULLs as equal in unique constraints). Alembic baseline `94692c828bd3`; DDL scripts in `database/azure_sql/`. | Lead |
 | 2026-11-21 | Team members (revision `e4c8a1d7b2f6`): four invitation columns on `stakeholder`, roles `lead`, `infra`, `devops`, `tester` added to its CHECK, and the filtered unique index `uq_stakeholder_application_email`. The migration stops with a message when two people of one application already share an address. | Final pass |
+| 2026-11-21 | Application operating notes (revision `f1b9d3a5c7e2`): three nullable columns on `application` (`operating_notes_text`, `operating_notes_updated_at`, `operating_notes_updated_by_user_principal_name`). No backfill. Azure SQL: `database/azure_sql/migrations/f1b9d3a5c7e2_application_operating_notes.sql`; scripts 01 to 06 regenerated. The alert grouping reason and the reliability metrics page add no schema. | Feature pass |
+| 2026-11-21 | Ask Keigan trace (revision `a7c3e9f1b5d2`): two new tables, `chat_answer_run` (one row per question) and `chat_run_step` (its model turns and tool calls), with CHECK constraints from the new enums `ChatAnswerRunStatus`, `ChatAnswerStopReason`, `ChatRunStepKind`, `ChatRunStepStatus` and `ToolCallingMode`. One cascade path (conversation, run, step); the two message keys, the investigation key and the step's parent key are NO ACTION, so conversation deletion and retention delete steps, then runs, then messages. Nothing backfilled. Azure SQL: `database/azure_sql/` 02 to 05 regenerated (58 tables, 91 foreign keys, 78 indexes, 53 CHECK constraints) and the delta `database/azure_sql/migrations/a7c3e9f1b5d2_ask_keigan_trace.sql`. | Ask Keigan phase 1 |
+| 2026-11-21 | One running answer per conversation (revision `c5e7a9b3d1f4`): filtered unique index `uq_chat_answer_run_one_running_per_conversation` on `chat_answer_run(conversation_id) WHERE run_status = 'running'`, and the nullable column `chat_answer_run.error_parameters_json`. Before the index is created, a running run that has a newer running run in its conversation is ended as `failed` / `answer_interrupted` (portable SQL, no Python reads); the newest stays running. Azure SQL: `database/azure_sql/` 02 to 05 and `run_all.sql` regenerated (58 tables, 91 foreign keys, 79 indexes, 53 CHECK constraints, baseline `c5e7a9b3d1f4`), the delta `database/azure_sql/migrations/c5e7a9b3d1f4_one_running_answer_and_error_parameters.sql`, the entity-relationship diagram (`15`) and the demo data scripts regenerated. | Ask Keigan backend review fixes |
 | 2026-11-20 | Data model hardening (H11 to H14, revisions `a3f5c0d1e2b4`, `b7d2e9a4c6f1`, `c9e4f1b8d3a7`, `d2a6b0c5e8f9`). Nine association tables replaced the `*_ids_json` id lists (section 11). Foreign keys on every reference to an application, incident, investigation, SLI or service (section 12). The alert group's `investigation_id` and `incident_id` are the single truth and `investigation.alert_group_id` was dropped (section 13). CHECK constraints on 47 status and kind columns, built from `status_values.py` (section 14). Stale value lists corrected: `ai_digest_status`, `incident_source`, `generation_status`, `review_status`, `access_verification_status`, `integration_status`, `connection_status`, `processing_status`, `group_status` and others. | Hardening wave 2 |

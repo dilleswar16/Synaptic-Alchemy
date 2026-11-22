@@ -6,4 +6,4 @@
    shown for the app (a GUID); set it as `TEAMS_APP_CATALOG_ID` in Keigan.
 4. The manifest requests the resource-specific consent permission `ChatMessage.Read.Chat`, which lets Keigan read messages of the chats the app is installed in (and only those).
 
-Full admin steps (Entra registration, Azure Bot, Graph permissions, environment variables) are listed in the S4 section of `My Plans/09_LEARNINGS_LOG.md`.
+Full admin steps (Entra registration, Azure Bot, Graph permissions, environment variables) are listed in the S4 section of `My Plans/build-history/09_LEARNINGS_LOG.md`.

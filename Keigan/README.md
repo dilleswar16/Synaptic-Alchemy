@@ -7,7 +7,7 @@ and blameless postmortems. Keigan **suggests**; people decide and act.
 - Backend: Python 3.12 · FastAPI · SQLAlchemy (async) · LangChain / LangGraph — `backend/`
 - Frontend: React 19 · TypeScript · Vite 6 · Tailwind v4 · TanStack Query · i18next · MSAL — `frontend/`
 - Deployment: Docker + Helm for AKS (frontend and backend namespaces) — `deploy/`
-- Plans, design and decisions: `My Plans/` (start with `00_INDEX.md`; progress in `12_FEATURE_TRACKER.md`)
+- Plans, design and decisions: `My Plans/` (start with `00_STATUS_AND_ROADMAP.md`, then `00_INDEX.md`; feature status in `My Plans/product/12_FEATURE_TRACKER.md`)
 
 ## Run it locally (no cloud access needed)
 
@@ -66,10 +66,10 @@ extra headers in `LLM_EXTRA_HEADERS_JSON`. Nothing outside `backend/keigan/ai/ll
 ## Go live
 
 Switch each integration from `simulated` to `live` in `backend/.env` (`TELEMETRY_MODE`, `SERVICENOW_MODE`, `TEAMS_MODE`, `EMAIL_MODE`),
-set `AUTH_MODE=entra` with the Entra IDs, and follow `My Plans/10_DEPLOYMENT_AKS.md` and `deploy/teams/README.md`.
+set `AUTH_MODE=entra` with the Entra IDs, and follow `My Plans/architecture/10_DEPLOYMENT_AKS.md` and `deploy/teams/README.md`.
 `AUTH_MODE=local` and the default development secrets only start when `ENVIRONMENT` is `local` or `test`; every other
 environment needs Entra and real secrets. The infra checklist (forwarded-header CIDR, egress ranges, Key Vault secrets) is in
-`My Plans/16_HARDENING_PLAN.md` under "Go-live prerequisites".
+`My Plans/quality-and-security/16_HARDENING_PLAN.md` under "Go-live prerequisites".
 
 The Docker image installs third-party packages only from `backend/requirements.lock` (pinned, hashed). After changing the
 dependencies in `backend/pyproject.toml`, regenerate the lock with the command at the top of that file.

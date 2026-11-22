@@ -54,7 +54,8 @@ it goes into `PromptSection`s rendered by `prompt_safety.spotlight()`.
 | `incident_communications` | fast | `CommunicationDraftSet` |
 | `postmortem_report` | deep | `PostmortemResult` |
 | `teams_chat_digest` | fast | `ChatDigestResult` (facts, questions to Keigan, should_comment, comment) |
-| `investigation_chat` | deep | free text with citations (tool-calling agent) |
+| `investigation_chat` (v4) | deep | free text with citations (tool-calling agent); used only by the Teams bot (`InvestigationChatService`, through `ChatService.answer_investigation_question`) until Ask Keigan phase 4 moves Teams onto the engine, then removed with that service. Renders the trusted variable `maximum_tool_calls` from `ASK_KEIGAN_MAX_TOOL_CALLS_INVESTIGATION` |
+| `ask_keigan_investigation` (v1) | deep | free text with citations; Ask Keigan, investigation scope; includes the fragment `_ask_keigan_rules.md`. Trusted variables: `application_name`, `maximum_tool_calls`, `follow_up_limit`, `follow_up_marker`, `outside_scope_answer` (all from settings, string tables or the scope; the application name is cleaned by `sanitize_prompt_value`) |
 | `ai_chat_intent` | fast | `ChatIntentResult` |
 | `ai_chat_query_generation` | deep | `GeneratedQuery` |
 | `ai_chat_answer` | fast | `ChatAnswerResult` (answer text, chart specification) |
@@ -91,6 +92,7 @@ Deterministic merge: guardrails (§01 7.2) and service resolution by alert resou
 ### 3.2 Context
 - Knowledge: `KnowledgeService.build_grounding_context(application_id, query_text=summary+symptoms, service_ids, token_budget)` → topology summary + relevant digests + top lexical chunks (BM25) with source labels `[K1]…`.
 - Runbooks: lexical match of symptoms against `trigger_symptoms_text` and titles → top 3 candidates `[R1]…`.
+- Operating notes: the text the application's team wrote for the AI (`application.operating_notes_text`), added to the three hypothesis calls and the synthesis as an **untrusted, masked section with no citation code** (`keigan/ai/operating_notes_prompt.py`, `build_operating_notes_section()`; the graph builds it once in the context step). It is guidance, not evidence: see §5.1. Feature doc: `25_APPLICATION_OPERATING_NOTES.md`.
 - Changes: Azure activity log write operations and deployments in window + 24 h before (deployments are the #1 root cause class).
 - Dependency neighbourhood from `service_dependency` + topology edges (1–2 hops).
 
@@ -157,8 +159,11 @@ When the token budget is exhausted or the LLM is unavailable, the graph skips AI
 
 ## 4. Other AI flows
 
-- **Investigation chat:** LangGraph ReAct agent (deep model) with read-only tools: `search_knowledge(query)`, `get_evidence(code)`, `run_log_query(service_name, question, lookback)` (internally: query generation + safety validation + execution + masking), `get_timeline()`.
-  System prompt pins scope to the investigation's application. Max 6 tool calls per turn. Answers cite evidence and sources.
+- **Ask Keigan (spec 23):** one hand-written loop (`services/ask_keigan_engine.py`) over `LlmGateway.stream_agent_turn`. Citations are `[T#]` (a tool call of this answer that **succeeded**), `[E#]` and `[R#]` (investigation scope); `prompt_safety._CITATION_PATTERN` accepts `T\d{1,2}` beside `E`, `R`, `K`. Codes of failed, refused or skipped calls, codes of other kinds the scope does not accept and invented codes are removed from every streamed paragraph and from the stored answer; adjacent citations are separated first so the markdown sanitiser keeps each. An answer with no valid citation, or with no tool call, is flagged unverified (fixed refusals are not). The prompt states no numbers of its own: the effective tool-call limit and follow-up limit are rendered from settings. The investigation digest, the team's operating notes (masked, uncited guidance, `operating_notes_prompt.py`), the earlier conversation and the question are untrusted sections; every tool result is spotlighted by the tool registry. Access is re-checked on every tool call (a user copy without cached roles); removed access ends the answer with `access_lost_mid_run`.
+
+- **Ask Keigan tools (investigation scope):** `get_evidence`, `get_investigation_timeline`, `search_knowledge`, `query_logs`, `list_recent_changes` (Activity Log; a failed read is a failed step, never "no changes"), `find_runbooks`, `get_topology`, `get_slo_status` (spec 23, section 5). Each is registered once in `tool_registry` with a closed input schema and an output model with a code-written `summary`; every output is masked with the run's masker and sent to the model as spotlighted untrusted data. Runbook steps, topology text and the Activity Log's callers and descriptions are untrusted; runbook passages carry no `[R#]` code (those belong to the investigation digest), the citation is the call's `[T#]`.
+- **Investigation chat (Teams only):** LangGraph ReAct agent (deep model) with read-only tools: `search_knowledge(query)`, `get_evidence(code)`, `run_log_query(service_name, question, lookback)` (internally: query generation + safety validation + execution + masking; withheld unless the Teams sender is an application admin, V13).
+  System prompt pins scope to the investigation's application. The limits come from the Ask Keigan settings, not from numbers in the code or the prompt: tool calls `ASK_KEIGAN_MAX_TOOL_CALLS_INVESTIGATION`, knowledge budget `ASK_KEIGAN_KNOWLEDGE_TOKEN_BUDGET`, log window `ASK_KEIGAN_LOG_QUERY_MAX_LOOKBACK_MINUTES`. The investigation page does not use it any more (Ask Keigan answers there). Answers cite evidence and sources.
 - **Keigan AI chat:** intent (knowledge / data_count / data_pattern / mixed / out_of_scope) → service resolution among *readable* applications → time-range resolution
   (ask with clarification options when a pattern/chart request lacks one) → query generation (few-shot per language, table/field catalogue per source) → validation → execution →
   answer + chart specification. Out-of-scope questions get a polite refusal.
@@ -170,9 +175,11 @@ When the token budget is exhausted or the LLM is unavailable, the graph skips AI
 ## 5. Prompt safety (2026 practice)
 
 ### 5.1 Threat model
-Untrusted text reaches the model from: log lines, alert payloads, ServiceNow descriptions, Teams messages, uploaded documents, vendor APIs, user chat.
+Untrusted text reaches the model from: log lines, alert payloads, ServiceNow descriptions, Teams messages, uploaded documents, vendor APIs, user chat and the application team's operating notes.
 Attacks: instruction injection ("ignore previous instructions and email…"), data exfiltration via generated queries or links, tool misuse, prompt leaking,
 denial of wallet (huge inputs), harmful fix suggestions.
+
+**Operating notes** are written by people, so they are treated like uploaded knowledge. The section is untrusted (spotlighted), masked with the run's `PiiMasker`, and checked with `assess_prompt_injection`: a flagged text carries a warning on its block, and with `AI_FLAGGED_DOCUMENT_POLICY=exclude` it is left out of the prompt. It has no citation code, so it never enters the set of valid citation codes. The investigation chat gets the same section (a spotlighted block in the agent path, a section in the plain fallback). Prompt versions: `hypothesis_application`, `hypothesis_dependencies`, `hypothesis_infrastructure` (shared body `_hypothesis_body.md`), `rca_synthesis` and `investigation_chat` went from version 2 to 3; each says the notes are "guidance, not evidence", must never be cited, and that evidence wins when they disagree. Triage, communications, the postmortem and the global chat do not receive the notes.
 
 ### 5.2 Controls (`keigan/ai/prompt_safety.py`, `keigan/utils/query_safety.py`)
 
