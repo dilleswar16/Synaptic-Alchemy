@@ -17,7 +17,18 @@ SQL_SERVER_URL = "mssql+aioodbc://@server.database.windows.net:1433/keigan?drive
 FILLER_BY_COLUMN_TYPE = {"INTEGER": 0, "BIGINT": 0, "BOOLEAN": 0, "FLOAT": 0.0}
 TIMESTAMP_FILLER = "2026-01-01 00:00:00.000000"
 # Tables that revisions after the status CHECK revision (d2a6b0c5e8f9) created: they carry their own CHECKs, which that revision did not add.
-TABLES_ADDED_AFTER_THE_CHECK_REVISION = frozenset({"chat_answer_run", "chat_run_step"})
+TABLES_ADDED_AFTER_THE_CHECK_REVISION = frozenset({"chat_answer_run", "chat_run_step", "investigation_coverage_gap"})
+# Columns that revisions after the status CHECK revision added to older tables, each with a CHECK of its own (revision d3f8b1a4c7e9, honest outcomes).
+COLUMNS_CHECKED_AFTER_THE_CHECK_REVISION = frozenset({
+    ("investigation_hypothesis", "hypothesis_state"), ("investigation_hypothesis", "proposed_hypothesis_state"), ("investigation_hypothesis", "state_guard_code"),
+    ("investigation", "investigation_outcome"), ("investigation", "proposed_investigation_outcome"), ("investigation", "outcome_guard_code"),
+    ("investigation_evidence", "check_outcome"), ("investigation_evidence", "baseline_comparison"),
+})
+
+
+def column_of_values_check(table_name: str, constraint_name: str) -> tuple[str, str]:
+    """(table, column) of a ``ck_<table>_<column>_values`` constraint."""
+    return table_name, constraint_name.removeprefix(f"ck_{table_name}_").removesuffix("_values")
 
 
 def run_alembic(*arguments: str, database_file: Path | None = None, sql_server: bool = False) -> str:

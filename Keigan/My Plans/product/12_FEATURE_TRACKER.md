@@ -199,7 +199,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | N1 | Dockerfiles and nginx with strict security headers | 🟡 | Docker not installed here |
 | N2 | Helm chart | 🟡 | Helm not installed here |
 | N3 | Database migrations (Alembic) | ✅ | 47 tables, no drift; schema-aware (`keigan`); Helm pre-upgrade job (can be switched off). Upgrade/downgrade verified on SQLite; SQL Server output rendered offline |
-| N8 | Azure SQL DDL scripts (`database/azure_sql/`) | 🟡 | Generated from the entities: schema, 58 tables, 91 foreign keys, 79 indexes, migration baseline, managed-identity grants. All batches pass a T-SQL parser and fit SQL Server key limits; needs a real Azure SQL database to run |
+| N8 | Azure SQL DDL scripts (`database/azure_sql/`) | 🟡 | Generated from the entities: schema, 59 tables, 92 foreign keys, 80 indexes, migration baseline, managed-identity grants. All batches pass a T-SQL parser and fit SQL Server key limits; needs a real Azure SQL database to run |
 | N9 | Sequence, class and ER diagrams | ✅ | `13_SEQUENCE_DIAGRAMS.md`, `14_CLASS_DIAGRAM.md`, `15_ENTITY_RELATIONSHIP_DIAGRAM.md` (generated); all 21 diagrams render with Mermaid 11 |
 | N4 | Automated test suites | 🔄 | Backend pytest suite being built first (see `16_HARDENING_PLAN.md`); frontend suites later |
 | N5 | RAG proposal | ✅ | `08_RAG_PROPOSAL.md` |

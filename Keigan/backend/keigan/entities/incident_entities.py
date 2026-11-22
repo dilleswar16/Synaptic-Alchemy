@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, identifier_column, utc_now
 from keigan.entities.linked_ids import LinkedIdsMixin, OrderedLinkColumns, linked_ids_property, ordered_links_relationship
-from keigan.entities.status_values import AnalysisPerspective, AssignmentGroupVerificationStatus, ChatAnswerRunStatus, ChatAnswerStopReason, ChatRunStepKind, ChatRunStepStatus, CommunicationStatus, ConversationScope, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStage, InvestigationStatus, InvestigationTrigger, MessageAuthorRole, PostmortemStatus, Priority, RiskLevel, ToolCallingMode, values_check
+from keigan.entities.status_values import AnalysisPerspective, AssignmentGroupVerificationStatus, BaselineComparison, ChatAnswerRunStatus, ChatAnswerStopReason, ChatRunStepKind, ChatRunStepStatus, CommunicationStatus, ConversationScope, CoverageGapKind, CoverageGapReason, EvidenceCheckOutcome, HypothesisState, HypothesisStateGuard, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationOutcome, InvestigationOutcomeGuard, InvestigationStage, InvestigationStatus, InvestigationTrigger, MessageAuthorRole, PostmortemStatus, Priority, RiskLevel, ToolCallingMode, values_check
 
 
 class ServiceNowAssignmentGroup(EntityBase):
@@ -93,6 +93,9 @@ class Investigation(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
         values_check("investigation_status", InvestigationStatus),
         values_check("current_stage_name", InvestigationStage),
         values_check("user_feedback_verdict", InvestigationFeedbackVerdict),
+        values_check("investigation_outcome", InvestigationOutcome),
+        values_check("proposed_investigation_outcome", InvestigationOutcome),
+        values_check("outcome_guard_code", InvestigationOutcomeGuard),
     )
 
     investigation_id: Mapped[str] = identifier_column()
@@ -126,6 +129,12 @@ class Investigation(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
     user_feedback_comment: Mapped[str | None] = mapped_column(Text)
     user_feedback_by_user_principal_name: Mapped[str | None] = mapped_column(String(320))
     failure_reason: Mapped[str | None] = mapped_column(Text)
+    # How far the investigation got (spec 27). Null for rows stored before it, for evidence-only runs and for runs that failed or are still running.
+    investigation_outcome: Mapped[str | None] = mapped_column(String(30))
+    proposed_investigation_outcome: Mapped[str | None] = mapped_column(String(30))  # what the model said before Keigan's rules
+    outcome_guard_code: Mapped[str | None] = mapped_column(String(40))  # the rule that lowered the proposal, if one did
+    outcome_reason_markdown: Mapped[str | None] = mapped_column(Text)
+    leading_perspective_reason_markdown: Mapped[str | None] = mapped_column(Text)
     total_input_token_count: Mapped[int] = mapped_column(Integer, default=0)
     total_output_token_count: Mapped[int] = mapped_column(Integer, default=0)
     model_names_json: Mapped[list[str] | None] = mapped_column()
@@ -161,6 +170,9 @@ class InvestigationHypothesis(EntityBase):
     __table_args__ = (
         values_check("analysis_perspective", AnalysisPerspective),
         values_check("fix_risk_level", RiskLevel),
+        values_check("hypothesis_state", HypothesisState),
+        values_check("proposed_hypothesis_state", HypothesisState),
+        values_check("state_guard_code", HypothesisStateGuard),
     )
 
     hypothesis_id: Mapped[str] = identifier_column()
@@ -176,6 +188,11 @@ class InvestigationHypothesis(EntityBase):
     fix_risk_level: Mapped[str] = mapped_column(String(10), default="medium")
     matched_runbook_id: Mapped[str | None] = mapped_column(String(36))
     is_leading_hypothesis: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The end state after Keigan's rules (spec 27); null for rows stored before it.
+    hypothesis_state: Mapped[str | None] = mapped_column(String(20))
+    proposed_hypothesis_state: Mapped[str | None] = mapped_column(String(20))  # what the model said before the rules
+    state_guard_code: Mapped[str | None] = mapped_column(String(40))  # the rule that lowered the proposal, if one did
+    state_reason_markdown: Mapped[str | None] = mapped_column(Text)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
@@ -185,6 +202,8 @@ class InvestigationEvidence(EntityBase):
     __table_args__ = (
         UniqueConstraint("investigation_id", "evidence_code", name="uq_evidence_code_per_investigation"),
         values_check("signal_strength", RiskLevel),
+        values_check("check_outcome", EvidenceCheckOutcome),
+        values_check("baseline_comparison", BaselineComparison),
     )
 
     evidence_id: Mapped[str] = identifier_column()
@@ -204,10 +223,34 @@ class InvestigationEvidence(EntityBase):
     condensed_patterns_json: Mapped[list[Any] | None] = mapped_column()
     metric_series_json: Mapped[list[Any] | None] = mapped_column()
     signal_strength: Mapped[str] = mapped_column(String(10), default="low")
+    check_outcome: Mapped[str | None] = mapped_column(String(20))  # spec 27; null for rows stored before it
+    baseline_comparison: Mapped[str | None] = mapped_column(String(30))
     masked_value_count: Mapped[int] = mapped_column(Integer, default=0)
     possible_prompt_injection: Mapped[bool] = mapped_column(Boolean, default=False)
     deep_link_url: Mapped[str | None] = mapped_column(String(1000))
     collected_at: Mapped[datetime] = mapped_column(default=utc_now)
+
+
+class InvestigationCoverageGap(EntityBase):
+    """One thing an investigation meant to check and could not, or did not because of a limit (spec 27). Written by code from catalogue names and fixed codes, never from integration text."""
+
+    __tablename__ = "investigation_coverage_gap"
+    __table_args__ = (
+        values_check("gap_kind", CoverageGapKind),
+        values_check("reason_code", CoverageGapReason),
+    )
+
+    coverage_gap_id: Mapped[str] = identifier_column()
+    investigation_id: Mapped[str] = mapped_column(ForeignKey("investigation.investigation_id", ondelete="CASCADE"), index=True)
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
+    gap_kind: Mapped[str] = mapped_column(String(40))
+    reason_code: Mapped[str | None] = mapped_column(String(40))
+    # Recorded facts, not links: the gap outlives a service that is deleted later.
+    service_id: Mapped[str | None] = mapped_column(String(36))
+    service_name: Mapped[str | None] = mapped_column(String(200))
+    source_kind: Mapped[str | None] = mapped_column(String(40))
+    parameters_json: Mapped[dict[str, Any] | None] = mapped_column()
+    recorded_at: Mapped[datetime] = mapped_column(default=utc_now)
 
 
 class InvestigationTimelineEvent(EntityBase):

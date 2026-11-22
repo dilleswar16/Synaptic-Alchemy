@@ -163,6 +163,84 @@ class AnalysisPerspective(StrEnum):
     INFRASTRUCTURE = "infrastructure"
 
 
+class HypothesisState(StrEnum):
+    """The end state of one perspective's hypothesis, after Keigan's rules (spec 27, 4.4)."""
+
+    SUPPORTED = "supported"
+    RULED_OUT = "ruled_out"
+    INCONCLUSIVE = "inconclusive"
+
+
+class HypothesisStateGuard(StrEnum):
+    """The rule that lowered a hypothesis's proposed state; the rules only ever lower a state."""
+
+    SUPPORT_NOT_IN_EVIDENCE = "support_not_in_evidence"
+    CONFIDENCE_BELOW_SUPPORTED_MINIMUM = "confidence_below_supported_minimum"
+    RULE_OUT_NOT_IN_EVIDENCE = "rule_out_not_in_evidence"
+    CONFIDENCE_ABOVE_RULED_OUT_MAXIMUM = "confidence_above_ruled_out_maximum"
+
+
+class InvestigationOutcome(StrEnum):
+    """How far an investigation got: it found a cause, could not settle between explanations, or saw nothing that changed in the data it can read."""
+
+    CAUSE_IDENTIFIED = "cause_identified"
+    INCONCLUSIVE = "inconclusive"
+    CAUSE_NOT_VISIBLE = "cause_not_visible"
+
+
+class InvestigationOutcomeGuard(StrEnum):
+    """The rule that lowered an investigation's proposed outcome."""
+
+    NOTHING_CHANGED_IN_CHECKED_SOURCES = "nothing_changed_in_checked_sources"
+    LEADING_HYPOTHESIS_NOT_SUPPORTED = "leading_hypothesis_not_supported"
+    SYNTHESIS_UNAVAILABLE = "synthesis_unavailable"
+
+
+class EvidenceCheckOutcome(StrEnum):
+    """What a check of one source found: something (signal), a healthy or empty result (no signal), or it could not be read (rows stored before spec 27 only)."""
+
+    SIGNAL = "signal"
+    NO_SIGNAL = "no_signal"
+    NOT_CHECKED = "not_checked"
+
+
+class BaselineComparison(StrEnum):
+    """Whether an evidence item was compared with the healthy window before the investigation window."""
+
+    COMPARED = "compared"
+    NO_BASELINE_FOR_SOURCE = "no_baseline_for_source"
+
+
+class CoverageGapKind(StrEnum):
+    """One thing an investigation meant to check and could not, or did not because of a limit."""
+
+    SOURCE_NOT_READABLE = "source_not_readable"
+    CHANGES_NOT_READABLE = "changes_not_readable"
+    SERVICE_WITHOUT_TELEMETRY = "service_without_telemetry"
+    SERVICES_BEYOND_LIMIT = "services_beyond_limit"
+    CHECKS_BEYOND_LIMIT = "checks_beyond_limit"
+    PLANNED_QUERY_REJECTED = "planned_query_rejected"
+    PLANNED_QUERY_FAILED = "planned_query_failed"
+    RESULTS_LEFT_OUT = "results_left_out"
+    PERSPECTIVE_NOT_ANALYSED = "perspective_not_analysed"
+
+
+class CoverageGapReason(StrEnum):
+    """Why a check was not made: a code Keigan assigned, never text copied from an integration."""
+
+    ACCESS_REFUSED = "access_refused"
+    THROTTLED = "throttled"
+    SOURCE_NOT_FOUND = "source_not_found"
+    SOURCE_ERROR = "source_error"
+    TIMED_OUT = "timed_out"
+    NOT_APPROVED = "not_approved"
+    QUERY_REJECTED = "query_rejected"
+    READER_NOT_AVAILABLE = "reader_not_available"
+    AI_UNAVAILABLE = "ai_unavailable"
+    AI_OUTPUT_INVALID = "ai_output_invalid"
+    UNKNOWN = "unknown"
+
+
 class RiskLevel(StrEnum):
     LOW = "low"
     MEDIUM = "medium"

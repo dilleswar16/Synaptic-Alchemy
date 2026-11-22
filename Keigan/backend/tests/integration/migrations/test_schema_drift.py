@@ -20,7 +20,7 @@ from sqlalchemy import CheckConstraint, create_engine, text
 
 from keigan.entities import all_entities  # noqa: F401  (registers every table)
 from keigan.entities.base_entity import EntityBase
-from support.schema_revisions import TABLES_ADDED_AFTER_THE_CHECK_REVISION
+from support.schema_revisions import COLUMNS_CHECKED_AFTER_THE_CHECK_REVISION, TABLES_ADDED_AFTER_THE_CHECK_REVISION, column_of_values_check
 
 BACKEND_DIRECTORY = Path(__file__).resolve().parents[3]
 AZURE_SQL_DIRECTORY = BACKEND_DIRECTORY.parent / "database" / "azure_sql"
@@ -81,6 +81,7 @@ def test_the_check_constraints_the_revision_adds_are_the_ones_the_entities_decla
         for table in EntityBase.metadata.sorted_tables
         for constraint in table.constraints
         if isinstance(constraint, CheckConstraint) and constraint.name and constraint.name.endswith("_values") and table.name not in TABLES_ADDED_AFTER_THE_CHECK_REVISION
+        and column_of_values_check(table.name, constraint.name) not in COLUMNS_CHECKED_AFTER_THE_CHECK_REVISION
     }
     assert set(revision_module(CHECK_REVISION).CONSTRAINED_COLUMNS) == declared
 
