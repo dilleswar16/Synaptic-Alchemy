@@ -1,6 +1,6 @@
 ---
 prompt_key: hypothesis_dependencies
-version: 3
+version: 4
 model_tier: deep
 output_schema: HypothesisResult
 ---

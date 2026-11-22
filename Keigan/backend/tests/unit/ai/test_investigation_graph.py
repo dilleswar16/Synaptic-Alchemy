@@ -15,7 +15,10 @@ from keigan.ai.prompt_safety import build_valid_citation_codes, restrict_to_know
 @pytest.fixture
 def runner() -> InvestigationGraphRunner:
     graph_runner = InvestigationGraphRunner(None, SimpleNamespace(), offline_ai=True)  # type: ignore[arg-type]
-    graph_runner.evidence_rows = [SimpleNamespace(evidence_code="E1"), SimpleNamespace(evidence_code="E2")]  # type: ignore[list-item]
+    graph_runner.evidence_rows = [  # type: ignore[list-item]
+        SimpleNamespace(evidence_code="E1", check_outcome="signal", signal_strength="high", baseline_comparison="compared"),
+        SimpleNamespace(evidence_code="E2", check_outcome="no_signal", signal_strength="low", baseline_comparison="compared"),
+    ]
     graph_runner.runbook_matches = [SimpleNamespace(reference_code="R1", runbook_title="Restart the pool", runbook_steps_markdown="1. Restart")]
     graph_runner.knowledge_reference_codes = {"K1", "K2"}
     graph_runner.knowledge_markdown = "[K1] Claims API\nThe handler is src/main/java/com/acme/ClaimsController.java and config is in deploy/values.yaml"
@@ -25,7 +28,7 @@ def runner() -> InvestigationGraphRunner:
 def hypothesis_result(**overrides: object) -> HypothesisResult:
     values: dict[str, object] = dict(
         hypothesis_title="Pool exhausted", hypothesis_statement_markdown="The pool is exhausted [E1] [K1] [K9].", reasoning_markdown="See [E2], [R1], [K2] and [E7].",
-        confidence_score=0.6, supporting_evidence_codes=["E1", "E7"], contradicting_evidence_codes=["E2"], proposed_fix=ProposedFix(summary="Raise the pool size"),
+        confidence_score=0.6, assessment="supported", assessment_reason_markdown="The pool is exhausted [E1] and [E9].", supporting_evidence_codes=["E1", "E7"], contradicting_evidence_codes=["E2"], proposed_fix=ProposedFix(summary="Raise the pool size"),
     )
     values.update(overrides)
     return HypothesisResult(**values)  # type: ignore[arg-type]
@@ -53,6 +56,24 @@ class TestRestrictToKnownFilePath:
 
     def test_keeps_the_placeholder(self) -> None:
         assert restrict_to_known_file_path("file not identified", self.KNOWLEDGE) == "file not identified"
+
+
+class TestAHypothesisStateIsCheckedAgainstTheEvidence:
+    def test_a_supported_hypothesis_with_a_decisive_signal_keeps_its_state_and_its_reason_is_cleaned(self, runner: InvestigationGraphRunner) -> None:
+        validated = runner._validated_hypothesis("application", hypothesis_result())
+        assert (validated["hypothesis_state"], validated["proposed_hypothesis_state"], validated["state_guard_code"]) == ("supported", "supported", None)
+        assert validated["state_reason_markdown"] == "The pool is exhausted [E1] and ."  # the invented [E9] is removed
+
+    def test_support_that_cites_only_a_healthy_item_is_lowered_and_says_which_rule_did_it(self, runner: InvestigationGraphRunner) -> None:
+        validated = runner._validated_hypothesis("application", hypothesis_result(supporting_evidence_codes=["E2"]))
+        assert (validated["hypothesis_state"], validated["proposed_hypothesis_state"], validated["state_guard_code"]) == ("inconclusive", "supported", "support_not_in_evidence")
+
+    def test_a_rule_out_that_cites_no_evidence_is_lowered(self, runner: InvestigationGraphRunner) -> None:
+        validated = runner._validated_hypothesis("application", hypothesis_result(assessment="ruled_out", confidence_score=0.1, supporting_evidence_codes=[], contradicting_evidence_codes=["E9"]))
+        assert (validated["hypothesis_state"], validated["state_guard_code"]) == ("inconclusive", "rule_out_not_in_evidence")
+
+    def test_the_decision_is_kept_for_the_decision_trace(self, runner: InvestigationGraphRunner) -> None:
+        assert runner._validated_hypothesis("application", hypothesis_result())["state_decision"].decisive_codes == ("E1",)
 
 
 class TestValidatedHypothesis:

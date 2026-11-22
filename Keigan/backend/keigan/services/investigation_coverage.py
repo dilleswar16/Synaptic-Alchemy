@@ -72,6 +72,7 @@ class CoverageGapCollector:
 
     def __init__(self) -> None:
         self._entries: list[CoverageGapEntry] = []
+        self._persisted_count = 0
 
     @property
     def entries(self) -> tuple[CoverageGapEntry, ...]:
@@ -83,14 +84,17 @@ class CoverageGapCollector:
     ) -> None:
         self._entries.append(CoverageGapEntry(kind, reason, service_id, service_name, source_kind, dict(parameters or {})))
 
-    async def persist(self, session: AsyncSession, investigation_id: str) -> list[InvestigationCoverageGap]:
+    async def persist_new(self, session: AsyncSession, investigation_id: str) -> list[InvestigationCoverageGap]:
+        """Stores the gaps found since the last call (the evidence stage writes its own before the hypotheses start; later stages add theirs)."""
+        first_new = self._persisted_count
         rows = [
             InvestigationCoverageGap(
                 investigation_id=investigation_id, display_order=order, gap_kind=entry.kind, reason_code=entry.reason, service_id=entry.service_id,
                 service_name=entry.service_name, source_kind=entry.source_kind, parameters_json=dict(entry.parameters) or None,
             )
-            for order, entry in enumerate(self._entries)
+            for order, entry in enumerate(self._entries) if order >= first_new
         ]
+        self._persisted_count = len(self._entries)
         session.add_all(rows)
         await session.flush()
         return rows

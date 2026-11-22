@@ -21,6 +21,7 @@ from keigan.ai.investigation_ai_schemas import (
 )
 from keigan.ai.llm_gateway import PromptSection, register_mock_response
 from keigan.ai.prompt_safety import assess_prompt_injection
+from keigan.config.settings import get_settings
 from keigan.entities.status_values import Priority, RiskLevel
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 
@@ -528,12 +529,34 @@ def build_hypothesis(output_schema: type[BaseModel], prompt_sections: list[Promp
     contradicting = [code.strip("[]") for code in re.findall(r"\[E\d+\]", _fill(script["reasoning"][perspective], context)) if confidence < 0.3][:1]
     if confidence < 0.3:
         supporting, contradicting = [], supporting[:2]
+    supporting_codes, contradicting_codes = list(dict.fromkeys(supporting)), list(dict.fromkeys(contradicting))
+    assessment, assessment_reason = _assess(context, perspective, script, confidence, supporting_codes, contradicting_codes)
     return HypothesisResult(
         hypothesis_title=script["title"][perspective], hypothesis_statement_markdown=_fill(script["statement"][perspective], context), reasoning_markdown=_fill(script["reasoning"][perspective], context),
-        confidence_score=confidence, supporting_evidence_codes=list(dict.fromkeys(supporting)), contradicting_evidence_codes=list(dict.fromkeys(contradicting)), proposed_fix=fix,
+        confidence_score=confidence, assessment=assessment, assessment_reason_markdown=assessment_reason, supporting_evidence_codes=list(dict.fromkeys(supporting)), contradicting_evidence_codes=list(dict.fromkeys(contradicting)), proposed_fix=fix,
         fix_risk_level=RiskLevel.MEDIUM if perspective == script["lead"] else RiskLevel.LOW,
         matched_runbook_code=_top_runbook_code(prompt_sections) if perspective == script["lead"] else None,
     )
+
+
+def _is_generic(context: MockInvestigationContext) -> bool:
+    """A window the simulator has no scenario for: by construction nothing caused it, so the mock never claims a cause there."""
+    return (context.scenario_key or "") not in SCENARIO_SCRIPTS
+
+
+def _assess(
+    context: MockInvestigationContext, perspective: str, script: dict[str, Any], confidence: float, supporting: list[str], contradicting: list[str],
+) -> tuple[str, str]:
+    """The state and reason the mock proposes, by the same rules the prompt gives a real model (the confidence bands come from the settings)."""
+    settings = get_settings()
+    cited = lambda codes: " ".join(f"[{code}]" for code in codes)  # noqa: E731
+    if _is_generic(context):
+        return "inconclusive", "The evidence does not establish a cause in this lens."
+    if perspective == script["lead"] and confidence >= settings.investigation_supported_minimum_confidence:
+        return "supported", f"Direct evidence that changed against the baseline fits the onset {cited(supporting)}".strip() + "."
+    if confidence <= settings.investigation_ruled_out_maximum_confidence and contradicting:
+        return "ruled_out", f"A source that was read shows nothing abnormal for this lens {cited(contradicting)}".strip() + "."
+    return "inconclusive", "The evidence neither supports nor rules out this lens."
 
 
 def _top_runbook_code(prompt_sections: list[PromptSection]) -> str | None:
@@ -550,8 +573,13 @@ def build_synthesis(output_schema: type[BaseModel], prompt_sections: list[Prompt
     fix_lines = [f"{index}. {step.description}" + (f"\n```\n{step.command_text}\n```" if step.command_text else "") for index, step in enumerate(lead_fix.steps, start=1)]
     how_to_fix = lead_fix.summary + "\n\n" + "\n".join(fix_lines) + "\n\n**Verify:** " + " ".join(lead_fix.verification_steps) + "\n\n**Rollback:** " + " ".join(lead_fix.rollback_steps or ["Not applicable."])
     confidence = script["confidence"][script["lead"]]
+    is_generic = _is_generic(context)
+    why_first_sentence = _fill(script["why"], context).split(". ")[0].rstrip(".") + "."
     result = RcaSynthesisResult(
-        leading_perspective=script["lead"], leading_perspective_reason=f"Best supported by direct evidence and timing: {script['title'][script['lead']]}.", overall_confidence_score=confidence,
+        leading_perspective=None if is_generic else script["lead"], leading_perspective_reason=f"Best supported by direct evidence and timing: {script['title'][script['lead']]}.",
+        investigation_outcome="cause_not_visible" if is_generic else "cause_identified",
+        outcome_reason_markdown="Nothing Keigan could read changed against the hour before, so the cause is not visible in this data." if is_generic else why_first_sentence,
+        overall_confidence_score=confidence,
         executive_summary=_fill(script["executive"], context), what_went_wrong_markdown=_fill(script["what_went_wrong"], context), why_it_happened_markdown=_fill(script["why"], context),
         how_to_fix_markdown=how_to_fix, open_questions=script["open_questions"],
         applied_runbook_codes=[runbook_code] if (runbook_code := _top_runbook_code(prompt_sections)) else [],

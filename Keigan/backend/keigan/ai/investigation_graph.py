@@ -24,6 +24,7 @@ from keigan.ai.command_risk_classifier import RISK_RANK, classify_command_risk
 from keigan.ai.investigation_ai_caller import InvestigationAiCaller, build_mock_context
 from keigan.ai.investigation_ai_schemas import AdditionalQueryPlan, BlastRadiusNarrative, HypothesisResult, RcaSynthesisResult, TriageResult
 from keigan.ai.investigation_mock_responses import MockInvestigationContext, MockServiceInfo
+from keigan.ai.investigation_outcome_rules import EvidenceFacts, StateThresholds, decide_hypothesis_state, decide_outcome
 from keigan.ai.llm_gateway import PromptSection
 from keigan.ai.operating_notes_prompt import build_operating_notes_section
 from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
@@ -35,11 +36,15 @@ from keigan.entities.application_entities import Application, MonitoredService, 
 from keigan.entities.incident_entities import Incident, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent
 from keigan.entities.notification_entities import Stakeholder
 from keigan.entities.platform_entities import LlmUsageRecord
-from keigan.entities.status_values import AnalysisPerspective, CriticalityTier, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStage, InvestigationStatus, Priority, RiskLevel, SloHealthStatus
+from keigan.entities.status_values import (
+    AnalysisPerspective, CoverageGapKind, CoverageGapReason, CriticalityTier, EvidenceCheckOutcome, HypothesisState, IncidentStatus, InvestigationFeedbackVerdict,
+    InvestigationOutcome, InvestigationStage, InvestigationStatus, Priority, RiskLevel, SloHealthStatus,
+)
 from keigan.exceptions.keigan_exceptions import KeiganException, LlmUnavailableException, TokenBudgetExceededException
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.services.evidence_service import EvidenceDraft, EvidenceService, ServiceTelemetryContext
 from keigan.services.incident_priority_rules import map_servicenow_priority, most_severe_priority
+from keigan.services.investigation_coverage import CoverageGapCollector
 from keigan.utils.pii_masker import MaskingContext, PiiMasker
 from keigan.utils.text_utils import truncate_text
 from keigan.utils.time_utils import utc_now
@@ -65,7 +70,8 @@ class InvestigationGraphRunner:
         self.settings = get_settings()
         self.offline_ai = offline_ai
         self.auto_send_communications = auto_send_communications
-        self.evidence_service = EvidenceService(session)
+        self.coverage = CoverageGapCollector()  # what this run could not check; stored as rows and told to the model
+        self.evidence_service = EvidenceService(session, self.coverage)
         self.masking_context = MaskingContext()
         self.masker = PiiMasker(self.masking_context)
         self.application: Application
@@ -239,7 +245,14 @@ class InvestigationGraphRunner:
         if not ordered_ids:
             ordered_ids = [service.service_id for service in sorted(self.all_services, key=lambda service: service.criticality_tier)]
         unique_ids = [service_id for service_id in dict.fromkeys(ordered_ids) if service_id in services_by_id]
-        return [services_by_id[service_id] for service_id in unique_ids[: self.settings.investigation_max_services]]
+        limit = self.settings.investigation_max_services
+        cut_ids = unique_ids[limit:]
+        if cut_ids:
+            self.coverage.add(
+                CoverageGapKind.SERVICES_BEYOND_LIMIT,
+                parameters={"count": len(cut_ids), "limit": limit, "serviceNames": [services_by_id[service_id].service_name for service_id in cut_ids]},
+            )
+        return [services_by_id[service_id] for service_id in unique_ids[:limit]]
 
     async def _guardrail_priority(self) -> str | None:
         if self.application.criticality_tier != CriticalityTier.TIER_1:
@@ -350,14 +363,15 @@ class InvestigationGraphRunner:
         return {}
 
     async def finalize_evidence_node(self, state: InvestigationState) -> dict[str, Any]:
-        ranked_drafts = self.evidence_service.rank_and_trim(self.evidence_drafts, self.settings.investigation_evidence_token_budget)
+        ranked_drafts = self.evidence_service.select_for_investigation(self.evidence_drafts, self.settings.investigation_evidence_token_budget)
         self.evidence_rows = await self.evidence_service.persist_evidence(self.investigation.investigation_id, ranked_drafts)
+        await self.coverage.persist_new(self.session, self.investigation.investigation_id)
         self.investigation.replace_linked_ids("matched_runbook_links", [])
         await self._refine_runbook_matches()
         if self.mock_context:
             names_by_id = {service.service_id: service.service_name for service in self.all_services}
             self.mock_context.evidence = [
-                {"code": row.evidence_code, "service_name": names_by_id.get(row.service_id or "", "Azure Activity Log"), "category": row.evidence_category, "strength": row.signal_strength, "title": row.evidence_title, "summary": row.evidence_summary or "", "is_rule_out": row.matched_record_count == 0 or (row.evidence_summary or "").startswith(("Rule-out", "Not available"))}
+                {"code": row.evidence_code, "service_name": names_by_id.get(row.service_id or "", "Azure Activity Log"), "category": row.evidence_category, "strength": row.signal_strength, "title": row.evidence_title, "summary": row.evidence_summary or "", "is_rule_out": row.check_outcome != EvidenceCheckOutcome.SIGNAL}
                 for row in self.evidence_rows
             ]
         strong_rows = [row for row in self.evidence_rows if row.signal_strength in (RiskLevel.HIGH, RiskLevel.MEDIUM)]
@@ -401,17 +415,23 @@ class InvestigationGraphRunner:
                 PromptSection("Known issues (runbooks)", runbook_text, is_untrusted=True, source_label="runbooks"),
                 PromptSection("Recurring issues confirmed in the past", self.recurring_issues_markdown or "None recorded.", is_untrusted=True, source_label="earlier investigations"),
                 PromptSection("Incident", f"{self.incident_text}\n\nTriage summary: {self.triage.incident_summary if self.triage else ''}", is_untrusted=True, source_label="incident"),
+                PromptSection("What Keigan could not check", self.coverage.render_for_prompt()),  # trusted: written by code from catalogue names and fixed sentences
                 PromptSection("Evidence index", EvidenceService.render_evidence_markdown(self.evidence_rows, service_names_by_id), is_untrusted=True, source_label="telemetry evidence", maximum_characters=60_000),
                 PromptSection("Task", f"Give your {perspective} perspective hypothesis."),
             ]
             try:
-                result: HypothesisResult = await self._ask(f"hypothesis_{perspective}", sections, HypothesisResult)
+                result: HypothesisResult = await self._ask(
+                    f"hypothesis_{perspective}", sections, HypothesisResult,
+                    supported_minimum_confidence=self.settings.investigation_supported_minimum_confidence, ruled_out_maximum_confidence=self.settings.investigation_ruled_out_maximum_confidence,
+                )
             except (TokenBudgetExceededException, LlmUnavailableException) as unavailable:
                 logger.info("Hypothesis %s skipped: %s", perspective, unavailable)
+                self.coverage.add(CoverageGapKind.PERSPECTIVE_NOT_ANALYSED, CoverageGapReason.AI_UNAVAILABLE, parameters={"perspective": perspective})
                 self.evidence_only = True
                 return {}
             except KeiganException as invalid_output:
                 logger.warning("Hypothesis %s failed: %s", perspective, invalid_output)
+                self.coverage.add(CoverageGapKind.PERSPECTIVE_NOT_ANALYSED, CoverageGapReason.AI_OUTPUT_INVALID, parameters={"perspective": perspective})
                 return {}
             return {"hypotheses": [self._validated_hypothesis(perspective, result)]}
 
@@ -463,14 +483,29 @@ class InvestigationGraphRunner:
             "rollback_steps": [self._clean_ai_text(text, valid_codes) for text in fix.rollback_steps],
         }
         runbook_code = result.matched_runbook_code if result.matched_runbook_code in {match.reference_code for match in self.runbook_matches} else None
+        supporting_codes = [code for code in result.supporting_evidence_codes if code in valid_codes]
+        contradicting_codes = [code for code in result.contradicting_evidence_codes if code in valid_codes]
+        confidence = max(0.0, min(1.0, result.confidence_score))
+        state_decision = decide_hypothesis_state(
+            HypothesisState(result.assessment), confidence, self._evidence_facts(supporting_codes), self._evidence_facts(contradicting_codes),
+            StateThresholds(self.settings.investigation_supported_minimum_confidence, self.settings.investigation_ruled_out_maximum_confidence),
+        )
         return {
             "analysis_perspective": perspective, "hypothesis_title": sanitize_ai_line(result.hypothesis_title, maximum_characters=300),
             "hypothesis_statement_markdown": self._clean_ai_text(result.hypothesis_statement_markdown, valid_codes),
             "reasoning_markdown": self._clean_ai_text(result.reasoning_markdown, valid_codes),
-            "confidence_score": max(0.0, min(1.0, result.confidence_score)),
-            "supporting_evidence_codes": [code for code in result.supporting_evidence_codes if code in valid_codes], "contradicting_evidence_codes": [code for code in result.contradicting_evidence_codes if code in valid_codes],
+            "confidence_score": confidence, "supporting_evidence_codes": supporting_codes, "contradicting_evidence_codes": contradicting_codes,
+            "hypothesis_state": state_decision.final, "proposed_hypothesis_state": state_decision.proposed, "state_guard_code": state_decision.guard,
+            "state_reason_markdown": self._clean_ai_text(result.assessment_reason_markdown, valid_codes), "state_decision": state_decision,
             "proposed_fix": proposed_fix, "fix_risk_level": highest_risk, "matched_runbook_code": runbook_code,
         }
+
+    def _evidence_facts(self, codes: list[str] | None = None) -> list[EvidenceFacts]:
+        """What the rules need to know about the evidence rows behind ``codes`` (every persisted row when ``codes`` is None)."""
+        return [
+            EvidenceFacts(row.evidence_code, row.check_outcome, row.signal_strength, row.baseline_comparison)
+            for row in self.evidence_rows if codes is None or row.evidence_code in codes
+        ]
 
     # ── Stage 5: synthesis ─────────────────────────────────────────────────────
     async def synthesis_node(self, state: InvestigationState) -> dict[str, Any]:
@@ -482,34 +517,47 @@ class InvestigationGraphRunner:
         await self._update_progress("synthesis", "Comparing the three hypotheses and writing the root cause analysis", 74)
         runbook_codes = {match.reference_code: match for match in self.runbook_matches}
         hypotheses_text = "\n\n".join(
-            f"### {hypothesis['analysis_perspective'].capitalize()} (confidence {hypothesis['confidence_score']:.2f})\n{hypothesis['hypothesis_title']}\n{hypothesis['hypothesis_statement_markdown']}\nReasoning: {hypothesis['reasoning_markdown']}\n"
+            f"### {hypothesis['analysis_perspective'].capitalize()} (confidence {hypothesis['confidence_score']:.2f}, state {hypothesis['hypothesis_state']}{self._guard_note(hypothesis)})\n{hypothesis['hypothesis_title']}\n{hypothesis['hypothesis_statement_markdown']}\nReasoning: {hypothesis['reasoning_markdown']}\n"
             f"Supporting: {', '.join(hypothesis['supporting_evidence_codes']) or 'none'}; contradicting: {', '.join(hypothesis['contradicting_evidence_codes']) or 'none'}\nFix summary: {hypothesis['proposed_fix']['summary']}"
             for hypothesis in hypotheses
         )
         service_names_by_id = {service.service_id: service.service_name for service in self.all_services}
         sections = [
             PromptSection("Service catalogue", self._describe_services(self.services)),
+            PromptSection("What Keigan could not check", self.coverage.render_for_prompt()),
             PromptSection("Hypotheses from the three analysts", hypotheses_text, is_untrusted=True, source_label="analyst hypotheses"),
             PromptSection("Evidence index", EvidenceService.render_evidence_markdown(self.evidence_rows, service_names_by_id), is_untrusted=True, source_label="telemetry evidence", maximum_characters=60_000),
             PromptSection("Known issues (runbooks)", "\n\n".join(f"[{code}] {match.runbook_title}\n{match.runbook_steps_markdown}" for code, match in runbook_codes.items()) or "No matching runbooks.", is_untrusted=True, source_label="runbooks"),
             self._knowledge_section(),
             *self._operating_notes_sections(),
-            PromptSection("Task", "Decide the leading perspective and write the root cause analysis."),
+            PromptSection("Task", "Decide the outcome and the leading perspective, and write the root cause analysis."),
         ]
+        synthesis_was_available = True
         try:
             synthesis: RcaSynthesisResult = await self._ask("rca_synthesis", sections, RcaSynthesisResult)
         except (TokenBudgetExceededException, LlmUnavailableException, KeiganException) as failure:
             logger.warning("Synthesis failed (%s); using the strongest hypothesis", failure)
+            synthesis_was_available = False
             best_hypothesis = max(hypotheses, key=lambda hypothesis: hypothesis["confidence_score"])
             synthesis = RcaSynthesisResult(
-                leading_perspective=best_hypothesis["analysis_perspective"], leading_perspective_reason="Synthesis was unavailable; the highest-confidence hypothesis is shown.", overall_confidence_score=best_hypothesis["confidence_score"],
+                leading_perspective=best_hypothesis["analysis_perspective"], leading_perspective_reason="Synthesis was unavailable; the highest-confidence hypothesis is shown.",
+                investigation_outcome="inconclusive", outcome_reason_markdown="The synthesis was unavailable, so the outcome follows the highest-confidence hypothesis.", overall_confidence_score=best_hypothesis["confidence_score"],
                 executive_summary=best_hypothesis["hypothesis_title"], what_went_wrong_markdown=best_hypothesis["hypothesis_statement_markdown"], why_it_happened_markdown=best_hypothesis["reasoning_markdown"],
                 how_to_fix_markdown=best_hypothesis["proposed_fix"]["summary"], open_questions=[],
             )
         clean = lambda markdown_text: self._clean_synthesis_text(markdown_text, runbook_codes)  # noqa: E731
-        leading = next((hypothesis for hypothesis in hypotheses if hypothesis["analysis_perspective"] == synthesis.leading_perspective), max(hypotheses, key=lambda hypothesis: hypothesis["confidence_score"]))
+        strongest_lead = next((hypothesis for hypothesis in hypotheses if hypothesis["analysis_perspective"] == synthesis.leading_perspective), max(hypotheses, key=lambda hypothesis: hypothesis["confidence_score"]))
+        outcome_decision = decide_outcome(
+            InvestigationOutcome(synthesis.investigation_outcome) if synthesis_was_available else None, leading_state=strongest_lead["hypothesis_state"],
+            evidence=self._evidence_facts(), synthesis_was_available=synthesis_was_available,
+        )
+        leading = None if outcome_decision.final == InvestigationOutcome.CAUSE_NOT_VISIBLE else strongest_lead  # nothing visible changed: no explanation is shown as the lead
         maximum_confidence = max(hypothesis["confidence_score"] for hypothesis in hypotheses)
         investigation.overall_confidence_score = round(min(synthesis.overall_confidence_score, maximum_confidence + 0.05), 2)
+        investigation.investigation_outcome, investigation.proposed_investigation_outcome = outcome_decision.final, outcome_decision.proposed
+        investigation.outcome_guard_code = outcome_decision.guard
+        investigation.outcome_reason_markdown = clean(synthesis.outcome_reason_markdown)
+        investigation.leading_perspective_reason_markdown = clean(synthesis.leading_perspective_reason)
         investigation.executive_summary = clean(synthesis.executive_summary)
         investigation.what_went_wrong_markdown = clean(synthesis.what_went_wrong_markdown)
         investigation.why_it_happened_markdown = clean(synthesis.why_it_happened_markdown)
@@ -535,14 +583,25 @@ class InvestigationGraphRunner:
                 supporting_evidence_codes_json=hypothesis["supporting_evidence_codes"], contradicting_evidence_codes_json=hypothesis["contradicting_evidence_codes"],
                 proposed_fix_json=hypothesis["proposed_fix"], fix_risk_level=hypothesis["fix_risk_level"], matched_runbook_id=runbook_match.runbook_id if runbook_match else None,
                 is_leading_hypothesis=hypothesis is leading, display_order=display_order,
+                hypothesis_state=hypothesis["hypothesis_state"], proposed_hypothesis_state=hypothesis["proposed_hypothesis_state"], state_guard_code=hypothesis["state_guard_code"],
+                state_reason_markdown=hypothesis["state_reason_markdown"],
             )
             self.session.add(row)
             self.hypothesis_rows.append(row)
         await self.session.flush()
-        investigation.leading_hypothesis_id = next(row.hypothesis_id for row in self.hypothesis_rows if row.is_leading_hypothesis)
-        self._add_timeline_event("rca_completed", f"Root cause analysis ready (confidence {int((investigation.overall_confidence_score or 0) * 100)}%)", investigation.executive_summary)
+        investigation.leading_hypothesis_id = next((row.hypothesis_id for row in self.hypothesis_rows if row.is_leading_hypothesis), None)
+        await self.coverage.persist_new(self.session, investigation.investigation_id)  # the perspectives that produced nothing
+        self._add_timeline_event(
+            "rca_completed", f"Root cause analysis ready: {outcome_decision.final.value.replace('_', ' ')} (confidence {int((investigation.overall_confidence_score or 0) * 100)}%)", investigation.executive_summary,
+        )
         await self._update_progress("synthesis", "Root cause analysis written; mapping the blast radius", 86)
         return {}
+
+    @staticmethod
+    def _guard_note(hypothesis: dict[str, Any]) -> str:
+        """The synthesis is told when Keigan's rules changed an analyst's state, so it does not repeat a claim the rules refused."""
+        guard = hypothesis["state_guard_code"]
+        return f", the analyst said {hypothesis['proposed_hypothesis_state']} but a rule lowered it ({guard})" if guard else ""
 
     @staticmethod
     def _flag_high_risk_commands(markdown_text: str) -> str:
@@ -629,6 +688,7 @@ class InvestigationGraphRunner:
     # ── Completion ─────────────────────────────────────────────────────────────
     async def _complete(self, evidence_only: bool) -> None:
         investigation = self.investigation
+        await self.coverage.persist_new(self.session, investigation.investigation_id)  # gaps found after the last stage that stored them (an evidence-only run)
         investigation.investigation_status = InvestigationStatus.COMPLETED_EVIDENCE_ONLY if evidence_only or self.evidence_only else InvestigationStatus.COMPLETED
         investigation.progress_percent, investigation.current_stage_name, investigation.completed_at = 100, InvestigationStage.COMPLETED, utc_now()
         model_names = set(self.ai_caller.model_names)

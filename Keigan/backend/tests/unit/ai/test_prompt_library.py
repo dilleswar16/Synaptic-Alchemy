@@ -9,6 +9,7 @@ from keigan.ai.prompt_library import PROMPTS_DIRECTORY, PromptLibrary
 
 LIBRARY = PromptLibrary()
 HYPOTHESIS_KEYS = ("hypothesis_application", "hypothesis_dependencies", "hypothesis_infrastructure")
+HYPOTHESIS_THRESHOLDS = {"supported_minimum_confidence": 0.5, "ruled_out_maximum_confidence": 0.2}  # what the graph passes from the settings
 ASK_KEIGAN_VARIABLES = {
     "maximum_tool_calls": 6, "follow_up_limit": 3, "follow_up_marker": "<<follow-ups>>", "outside_scope_answer": "That is outside what I can answer from Keigan's data.",
     "application_list": "CLMJP — Claims Processing (JP)\nPAYAU — Payments (AU)", "current_date": "2026-11-22",
@@ -30,14 +31,22 @@ def test_application_names_are_cut_to_a_sensible_length() -> None:
 
 @pytest.mark.parametrize("prompt_key", HYPOTHESIS_KEYS)
 def test_the_three_hypothesis_prompts_share_one_body(prompt_key: str) -> None:
-    rendered = LIBRARY.render(prompt_key, application_name="Claims", criticality_tier="tier_1")
+    rendered = LIBRARY.render(prompt_key, application_name="Claims", criticality_tier="tier_1", **HYPOTHESIS_THRESHOLDS)
     assert "Confidence calibration (be strict)" in rendered
     assert "Recurring issues" in rendered  # the shared body explains every section that is passed
 
 
+@pytest.mark.parametrize("prompt_key", HYPOTHESIS_KEYS)
+def test_the_state_rules_in_the_hypothesis_prompts_use_the_numbers_the_guard_uses(prompt_key: str) -> None:
+    """The prompt promises a confidence band and the guard enforces it: both read the same settings (spec 27, AC-19)."""
+    rendered = LIBRARY.render(prompt_key, application_name="Claims", criticality_tier="tier_1", supported_minimum_confidence=0.65, ruled_out_maximum_confidence=0.15)
+    assert "at least 0.65" in rendered and "at most 0.15" in rendered
+    assert "checked: no signal (rule-out)" in rendered and "What Keigan could not check" in rendered
+
+
 def test_each_hypothesis_prompt_keeps_only_its_own_lens() -> None:
-    application = LIBRARY.render("hypothesis_application", application_name="Claims", criticality_tier="tier_1")
-    dependencies = LIBRARY.render("hypothesis_dependencies", application_name="Claims", criticality_tier="tier_1")
+    application = LIBRARY.render("hypothesis_application", application_name="Claims", criticality_tier="tier_1", **HYPOTHESIS_THRESHOLDS)
+    dependencies = LIBRARY.render("hypothesis_dependencies", application_name="Claims", criticality_tier="tier_1", **HYPOTHESIS_THRESHOLDS)
     assert "code defects and bad releases" in application and "code defects and bad releases" not in dependencies
     assert "downstream APIs" in dependencies
 
@@ -67,7 +76,7 @@ def test_a_prompt_without_a_model_cannot_be_used_for_a_model_call() -> None:
 def test_every_prompt_renders_with_the_variables_the_code_passes(prompt_path) -> None:
     rendered = LIBRARY.render(
         prompt_path.stem, application_name="Claims", application_code="CLM", criticality_tier="tier_1", report_type_label="weekly digest", scope_description="the application", file_slug="claims",
-        **ASK_KEIGAN_VARIABLES,
+        **ASK_KEIGAN_VARIABLES, **HYPOTHESIS_THRESHOLDS,
     )
     assert rendered.strip() and "{{" not in rendered and "{%" not in rendered
 

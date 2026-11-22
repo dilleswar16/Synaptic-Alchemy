@@ -10,6 +10,8 @@ IncidentCategoryName = Literal["availability", "latency", "errors", "data", "bat
 PriorityName = Literal["P1", "P2", "P3", "P4"]
 AnalysisPerspectiveName = Literal["application", "dependencies", "infrastructure"]
 RiskLevelName = Literal["low", "medium", "high"]
+HypothesisStateName = Literal["supported", "ruled_out", "inconclusive"]
+InvestigationOutcomeName = Literal["cause_identified", "inconclusive", "cause_not_visible"]
 
 
 class TriageResult(BaseModel):
@@ -61,6 +63,8 @@ class HypothesisResult(BaseModel):
     hypothesis_statement_markdown: str
     reasoning_markdown: str
     confidence_score: float = Field(ge=0.0, le=1.0)
+    assessment: HypothesisStateName = Field(description="supported, ruled_out or inconclusive; see the rules for each state")
+    assessment_reason_markdown: str = Field(description="One or two sentences: why this state, citing the evidence codes that decide it")
     supporting_evidence_codes: list[str] = Field(default_factory=list)
     contradicting_evidence_codes: list[str] = Field(default_factory=list)
     proposed_fix: ProposedFix
@@ -69,8 +73,10 @@ class HypothesisResult(BaseModel):
 
 
 class RcaSynthesisResult(BaseModel):
-    leading_perspective: AnalysisPerspectiveName
+    leading_perspective: AnalysisPerspectiveName | None = Field(description="null only when the outcome is cause_not_visible")
     leading_perspective_reason: str
+    investigation_outcome: InvestigationOutcomeName
+    outcome_reason_markdown: str = Field(description="Two or three sentences: why this outcome, citing evidence; for cause_not_visible, which sources were normal or could not be read")
     overall_confidence_score: float = Field(ge=0.0, le=1.0)
     executive_summary: str
     what_went_wrong_markdown: str
