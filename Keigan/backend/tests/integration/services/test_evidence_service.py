@@ -296,7 +296,7 @@ class TestFailedPlannerQueryIsLoggedAndSkipped:
         planned_query = SimpleNamespace(service_name="claims-api", query_language="kql", query_text="AppRequests | where Success == false | summarize count()", justification="failed requests")
         window_start = datetime(2026, 11, 20, 11, 0, tzinfo=UTC)
         window_end = datetime(2026, 11, 20, 12, 0, tzinfo=UTC)
-        fake_self = SimpleNamespace(_source_supports_language=EvidenceService._source_supports_language, _fill_log_evidence=workspace_throttled)
+        fake_self = SimpleNamespace(_source_supports_language=EvidenceService._source_supports_language, _fill_log_evidence=workspace_throttled, _report_gap=lambda *arguments, **keyword_arguments: None)
         drafts = await EvidenceService.run_planned_queries(fake_self, [planned_query], [service_context], window_start, window_end, window_start - timedelta(days=1), window_start, None)  # type: ignore[arg-type]
         assert drafts == []
         assert any(record.levelno == logging.WARNING and "claims-api" in record.getMessage() for record in caplog.records)
@@ -338,4 +338,5 @@ class TestAFailedQueryTellsWhyTheSourceCouldNotBeRead:
         assert draft.evidence_summary.startswith("Not available: ") and reason in draft.evidence_summary
         assert draft.evidence_summary.endswith("Keigan cannot rule this source in or out.")
         assert "raw" not in draft.evidence_summary and "es-prod" not in draft.evidence_summary and "secret-token" not in draft.evidence_summary
-        assert draft.is_rule_out is True
+        assert draft.failure_reason is not None and draft.check_outcome.value == "not_checked"  # an unread source is a gap, not a rule-out (spec 27, D-A2-2)
+        assert draft.is_rule_out is False

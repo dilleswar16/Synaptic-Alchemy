@@ -18,21 +18,22 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
-import httpx
 import yaml
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from keigan.ai.investigation_outcome_rules import baseline_comparison_of
 from keigan.ai.llm_gateway import estimate_token_count
 from keigan.ai.prompt_safety import assess_prompt_injection
 from keigan.config import application_context
 from keigan.config.settings import RESOURCES_DIRECTORY, get_settings
 from keigan.entities.application_entities import ApplicationComponent, LogToolConnection, MonitoredService, ServiceLogSource
 from keigan.entities.incident_entities import InvestigationEvidence
-from keigan.entities.status_values import CriticalityTier, RiskLevel
+from keigan.entities.status_values import BaselineComparison, CoverageGapKind, CoverageGapReason, CriticalityTier, EvidenceCheckOutcome, RiskLevel
 from keigan.config.logging_config import current_correlation_id
-from keigan.exceptions.keigan_exceptions import ForbiddenException, IntegrationException, ReaderNotAvailableException
+from keigan.exceptions.keigan_exceptions import ReaderNotAvailableException
 from keigan.integrations.telemetry_gateway import ChangeEvent, LogQueryResult, TelemetryQuery, TelemetryTarget
+from keigan.services.investigation_coverage import REASON_SENTENCES, CoverageGapCollector, classify_query_failure
 from keigan.utils.log_condenser import LEVEL_SEVERITY_ORDER, LogPattern, condense_log_records
 from keigan.utils.pii_masker import MaskingContext, PiiMasker
 from keigan.utils.query_safety import QueryRejectedError, describe_query_limits, validate_generated_query
@@ -42,12 +43,16 @@ from keigan.utils.text_utils import truncate_text
 logger = logging.getLogger(__name__)
 
 QUERY_TEMPLATES_PATH = RESOURCES_DIRECTORY / "catalogs" / "query_templates.yaml"
-MAXIMUM_TEMPLATES_PER_SERVICE = 7
 MAXIMUM_CONCURRENT_QUERIES = 4
 STRENGTH_RANK = {RiskLevel.HIGH: 0, RiskLevel.MEDIUM: 1, RiskLevel.LOW: 2}
 DISCRETE_EVENT_CATEGORIES = {"kubernetes_events", "pod_restarts", "batch_failures", "hardware_status", "synthetic_probe", "change_event"}
 CRITICALITY_RANK = {CriticalityTier.TIER_1: 0, CriticalityTier.TIER_2: 1, CriticalityTier.TIER_3: 2}
 SAFE_VARIABLE_PATTERN = re.compile(r"[^A-Za-z0-9_.\-/ ]")
+# What the model reads in each evidence header (the hypothesis prompt explains both).
+CHECK_OUTCOME_PHRASES = {
+    EvidenceCheckOutcome.SIGNAL: "signal", EvidenceCheckOutcome.NO_SIGNAL: "no signal (rule-out)", EvidenceCheckOutcome.NOT_CHECKED: "could not be read",
+}
+BASELINE_PHRASES = {BaselineComparison.COMPARED: "compared", BaselineComparison.NO_BASELINE_FOR_SOURCE: "none for this source"}
 
 
 @dataclass
@@ -75,6 +80,17 @@ class EvidenceDraft:
     criticality_tier: str = CriticalityTier.TIER_2
     latest_activity_at: datetime | None = None
     is_rule_out: bool = False
+    failure_reason: CoverageGapReason | None = None  # set when the source could not be read: the draft is then a gap, never evidence
+
+    @property
+    def check_outcome(self) -> EvidenceCheckOutcome:
+        if self.failure_reason is not None:
+            return EvidenceCheckOutcome.NOT_CHECKED
+        return EvidenceCheckOutcome.NO_SIGNAL if self.is_rule_out else EvidenceCheckOutcome.SIGNAL
+
+    @property
+    def baseline_comparison(self) -> BaselineComparison:
+        return baseline_comparison_of(self.evidence_category)
 
     def ranking_key(self) -> tuple[int, int, int, float]:
         recency = -(self.latest_activity_at.timestamp()) if self.latest_activity_at else 0.0
@@ -93,31 +109,13 @@ class ServiceTelemetryContext:
         return TelemetryTarget.from_entities(self.service, log_source, self.component, connection)
 
 
-# Why a source could not be read, by the error code the integration raised. The integration's own text is never copied into evidence:
-# it can name hosts and indices, and the AI and the screen both show evidence summaries.
-QUERY_FAILURE_REASON_BY_ERROR_CODE = {
-    "azure_forbidden": "Keigan's identity was refused access to this source (a read role is missing)",
-    "azure_throttled": "the source was busy and asked Keigan to slow down",
-    "azure_not_found": "the source was not found (it may have been renamed or removed)",
-}
-QUERY_FAILED_REASON = "the source returned an error"
-QUERY_TIMED_OUT_REASON = "the source took too long to answer"
-QUERY_NOT_APPROVED_REASON = "this source is not approved for this application"
-QUERY_REJECTED_REASON = "Keigan's query safety rules refused the query"
-QUERY_UNKNOWN_REASON = "for a reason Keigan could not identify"
-
-
 def describe_query_failure(query_error: Exception) -> str:
-    """One plain sentence on why an evidence query failed, so the report can say "refused access" instead of "could not be completed"."""
-    if isinstance(query_error, IntegrationException):
-        return QUERY_FAILURE_REASON_BY_ERROR_CODE.get(query_error.error_code, QUERY_FAILED_REASON)
-    if isinstance(query_error, (TimeoutError, httpx.TimeoutException)):
-        return QUERY_TIMED_OUT_REASON
-    if isinstance(query_error, ForbiddenException):
-        return QUERY_NOT_APPROVED_REASON
-    if isinstance(query_error, QueryRejectedError):
-        return QUERY_REJECTED_REASON
-    return f"the query failed {QUERY_UNKNOWN_REASON} (reference {current_correlation_id() or 'none'})"
+    """One plain sentence on why an evidence query failed, so the report can say "refused access" instead of "could not be completed". The integration's own text is never copied:
+    it can name hosts and indices, and the AI and the screen both show evidence summaries."""
+    reason = classify_query_failure(query_error)
+    if reason == CoverageGapReason.UNKNOWN:
+        return f"the query failed {REASON_SENTENCES[reason]} (reference {current_correlation_id() or 'none'})"
+    return REASON_SENTENCES[reason]
 
 
 @lru_cache
@@ -130,10 +128,12 @@ def _sanitize_variable(variable_value: str | None) -> str:
 
 
 class EvidenceService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, coverage: CoverageGapCollector | None = None):
+        """``coverage`` collects what this run could not check; a caller that only reads evidence (a chat tool) passes none."""
         self.session = session
         self.settings = get_settings()
         self.telemetry_gateway = application_context.telemetry_gateway()
+        self.coverage = coverage
 
     # ── Collection ─────────────────────────────────────────────────────────────
     async def load_service_contexts(self, services: list[MonitoredService]) -> list[ServiceTelemetryContext]:
@@ -172,10 +172,26 @@ class EvidenceService:
                 return await self._run_template(service_context, log_source, template, window_start, window_end, baseline_start, baseline_end, masking_context)
 
         pending_runs = []
+        maximum_checks = self.settings.investigation_max_checks_per_service
         for service_context in service_contexts:
+            service = service_context.service
+            if not service_context.log_sources:
+                self._report_gap(CoverageGapKind.SERVICE_WITHOUT_TELEMETRY, service_id=service.service_id, service_name=service.service_name)
             selected_runs = self._select_templates(service_context)
-            pending_runs.extend(run_limited(service_context, log_source, template) for log_source, template in selected_runs)
+            if len(selected_runs) > maximum_checks:
+                self._report_gap(
+                    CoverageGapKind.CHECKS_BEYOND_LIMIT, service_id=service.service_id, service_name=service.service_name,
+                    parameters={"count": len(selected_runs) - maximum_checks, "limit": maximum_checks},
+                )
+            pending_runs.extend(run_limited(service_context, log_source, template) for log_source, template in selected_runs[:maximum_checks])
         return list(await asyncio.gather(*pending_runs))
+
+    def _report_gap(
+        self, kind: CoverageGapKind, reason: CoverageGapReason | None = None, *, service_id: str | None = None, service_name: str | None = None,
+        source_kind: str | None = None, parameters: dict[str, Any] | None = None,
+    ) -> None:
+        if self.coverage is not None:
+            self.coverage.add(kind, reason, service_id=service_id, service_name=service_name, source_kind=source_kind, parameters=parameters)
 
     def _select_templates(self, service_context: ServiceTelemetryContext) -> list[tuple[ServiceLogSource, dict[str, Any]]]:
         selected: list[tuple[ServiceLogSource, dict[str, Any]]] = []
@@ -192,7 +208,7 @@ class EvidenceService:
                     if not (is_specific_match or is_wildcard_match):
                         continue
                 selected.append((log_source, template))
-        return selected[:MAXIMUM_TEMPLATES_PER_SERVICE]
+        return selected
 
     def _template_variables(self, service_context: ServiceTelemetryContext, log_source: ServiceLogSource) -> dict[str, str]:
         service = service_context.service
@@ -236,11 +252,11 @@ class EvidenceService:
                 await self._fill_log_evidence(draft, target, template, query_text, window_start, window_end, baseline_start, baseline_end, masking_context)
         except ReaderNotAvailableException as reader_error:
             draft.evidence_summary = f"Not available: {reader_error.detail}. Keigan cannot rule this source in or out."
-            draft.is_rule_out = True
+            draft.failure_reason = CoverageGapReason.READER_NOT_AVAILABLE
         except Exception as query_error:  # noqa: BLE001 — one failing query must not stop the investigation
             logger.warning("Evidence query %s for %s failed: %s", template["template_key"], service.service_name, query_error)
             draft.evidence_summary = f"Not available: {describe_query_failure(query_error)}. Keigan cannot rule this source in or out."
-            draft.is_rule_out = True
+            draft.failure_reason = classify_query_failure(query_error)
         return draft
 
     # ── Logs ───────────────────────────────────────────────────────────────────
@@ -487,7 +503,7 @@ class EvidenceService:
             # A read that failed says nothing about whether anything changed, so it must never read as "no changes found" (that would rule changes out).
             return [], EvidenceDraft(
                 None, "Azure Activity Log", "activity_log", "change_event", "Recent changes: could not be checked",
-                f"Not available: {describe_query_failure(change_error)}. Keigan cannot rule this source in or out.", is_rule_out=True,
+                f"Not available: {describe_query_failure(change_error)}. Keigan cannot rule this source in or out.", failure_reason=classify_query_failure(change_error),
             )
         masker = PiiMasker(masking_context)
         change_events = [
@@ -535,6 +551,10 @@ class EvidenceService:
                 hardened_baseline_query = validate_generated_query(language, planned_query.query_text, baseline_start, baseline_end, query_scope=matching_source.query_scope_json)
             except QueryRejectedError as rejection:
                 logger.info("Planner query rejected: %s", rejection.detail)
+                self._report_gap(
+                    CoverageGapKind.PLANNED_QUERY_REJECTED, CoverageGapReason.QUERY_REJECTED, service_id=service_context.service.service_id,
+                    service_name=service_context.service.service_name, source_kind=matching_source.source_kind,
+                )
                 continue
             template = {
                 "template_key": "planner_query", "query_language": language, "signal_kind": "generic", "evidence_category": "ai_planned_query",
@@ -549,6 +569,10 @@ class EvidenceService:
                 await self._fill_log_evidence(draft, service_context.target_for(matching_source), template, hardened_query.query_text, window_start, window_end, baseline_start, baseline_end, masking_context, hardened_baseline_query.query_text)
             except Exception as query_error:  # noqa: BLE001
                 logger.warning("Planned query for service %s (%s) failed and was skipped: %s", service_context.service.service_id, service_context.service.service_name, query_error)
+                self._report_gap(
+                    CoverageGapKind.PLANNED_QUERY_FAILED, classify_query_failure(query_error), service_id=service_context.service.service_id,
+                    service_name=service_context.service.service_name, source_kind=matching_source.source_kind,
+                )
                 continue
             drafts.append(draft)
         return drafts
@@ -581,6 +605,28 @@ class EvidenceService:
         return json.dumps(services)
 
     # ── Ranking and persistence ────────────────────────────────────────────────
+    def set_aside_unread(self, drafts: list[EvidenceDraft]) -> list[EvidenceDraft]:
+        """The drafts whose source was read. A source that could not be read is not evidence (it says nothing about a cause or about health): it is reported as a gap and gets no evidence code."""
+        readable: list[EvidenceDraft] = []
+        for draft in drafts:
+            if draft.failure_reason is None:
+                readable.append(draft)
+                continue
+            is_change_read = draft.evidence_category == "change_event"
+            self._report_gap(
+                CoverageGapKind.CHANGES_NOT_READABLE if is_change_read else CoverageGapKind.SOURCE_NOT_READABLE, draft.failure_reason,
+                service_id=draft.service_id, service_name=None if is_change_read else draft.service_name, source_kind=draft.source_kind,
+            )
+        return readable
+
+    def select_for_investigation(self, drafts: list[EvidenceDraft], token_budget: int) -> list[EvidenceDraft]:
+        """What an investigation keeps: the drafts whose source was read, ranked and cut to the token budget; what the budget cut is reported."""
+        readable = self.set_aside_unread(drafts)
+        kept = self.rank_and_trim(readable, token_budget)
+        if len(kept) < len(readable):
+            self._report_gap(CoverageGapKind.RESULTS_LEFT_OUT, parameters={"count": len(readable) - len(kept)})
+        return kept
+
     @staticmethod
     def rank_and_trim(drafts: list[EvidenceDraft], token_budget: int) -> list[EvidenceDraft]:
         ranked_drafts = sorted(drafts, key=EvidenceDraft.ranking_key)
@@ -604,6 +650,7 @@ class EvidenceService:
                 matched_record_count=draft.matched_record_count, baseline_record_count=draft.baseline_record_count,
                 condensed_patterns_json=draft.condensed_patterns or None, metric_series_json=draft.metric_series or None, signal_strength=draft.signal_strength,
                 masked_value_count=draft.masked_value_count, possible_prompt_injection=draft.possible_prompt_injection, deep_link_url=draft.deep_link_url,
+                check_outcome=draft.check_outcome, baseline_comparison=draft.baseline_comparison,
             )
             self.session.add(evidence_row)
             evidence_rows.append(evidence_row)
@@ -614,7 +661,8 @@ class EvidenceService:
     @staticmethod
     def render_draft_markdown(draft: EvidenceDraft, evidence_code: str) -> str:
         return EvidenceService._render_markdown(
-            evidence_code, draft.evidence_title, draft.service_name, draft.signal_strength, draft.evidence_summary, draft.condensed_patterns, draft.metric_series, draft.is_rule_out
+            evidence_code, draft.evidence_title, draft.service_name, draft.signal_strength, draft.evidence_summary, draft.condensed_patterns, draft.metric_series,
+            draft.check_outcome, draft.baseline_comparison,
         )
 
     @staticmethod
@@ -622,14 +670,21 @@ class EvidenceService:
         return "\n\n".join(
             EvidenceService._render_markdown(
                 row.evidence_code, row.evidence_title, service_names_by_id.get(row.service_id or "", "platform"), row.signal_strength, row.evidence_summary or "",
-                row.condensed_patterns_json or [], row.metric_series_json or [], row.matched_record_count == 0,
+                row.condensed_patterns_json or [], row.metric_series_json or [], row.check_outcome, row.baseline_comparison,
             )
             for row in evidence_rows
         )
 
     @staticmethod
-    def _render_markdown(code: str, title: str, service_name: str, strength: str, summary: str, patterns: list[dict[str, Any]], metrics: list[dict[str, Any]], is_rule_out: bool) -> str:
-        lines = [f"[{code}] {title} | service: {service_name} | signal: {strength}{' | rule-out' if is_rule_out else ''}", f"  {summary}"]
+    def _render_markdown(
+        code: str, title: str, service_name: str, strength: str, summary: str, patterns: list[dict[str, Any]], metrics: list[dict[str, Any]],
+        check_outcome: str | None, baseline_comparison: str | None,
+    ) -> str:
+        header = (
+            f"[{code}] {title} | service: {service_name} | signal: {strength} | checked: {CHECK_OUTCOME_PHRASES.get(check_outcome or '', 'not recorded')} "
+            f"| baseline: {BASELINE_PHRASES.get(baseline_comparison or '', 'not recorded')}"
+        )
+        lines = [header, f"  {summary}"]
         for pattern in patterns[:5]:
             trend = "NEW" if pattern.get("isNewPattern") else f"x{pattern['changeRatio']} vs baseline" if pattern.get("changeRatio") else ""
             when = f" first seen {pattern['firstSeenAt']}" if pattern.get("firstSeenAt") else ""
