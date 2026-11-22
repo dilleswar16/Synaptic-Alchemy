@@ -1,6 +1,6 @@
 # Keigan: where we are and what comes next
 
-**Last updated:** 2026-11-21. This is the one page to read first. It says what exists, what is only designed, what is parked, what to build next and when. Detail lives in the documents it points to (all in this folder; see `00_INDEX.md` for the folder map).
+**Last updated:** 2026-11-22. This is the one page to read first. It says what exists, what is only designed, what is parked, what to build next and when. Detail lives in the documents it points to (all in this folder; see `00_INDEX.md` for the folder map).
 
 When this page and the code disagree, fix the page. Update it at the end of every piece of work.
 
@@ -73,11 +73,13 @@ The wave letters and numbers (A1 to E2) are the roadmap in `product/21_PRODUCT_R
 |---|---|---|
 | Keigan AI chat (global scope): a person who lost access to an application can still re-read earlier answers that used its data | `chat_service.py` `get_conversation` | Found 2026-11-21 while fixing the investigation chat. New questions are already limited to readable applications. Fix inside B5: store which applications each answer used and hide an answer when the reader has lost access to any of them |
 | Hard-coded limits remain in the legacy global chat path (`chat_service.py`: lookback and similar) | `chat_service.py` | The investigation chat limits are settings now. The global ones go away with the old router in Ask Keigan phase 3 |
-| Tool-card **summaries** are English for every language (the model reads and cites them; refusals and errors are localised) | `ask_keigan_tools.py` | Decision needed in phase 3: localise the person-facing summary separately from the model's |
+| Tool-card **summaries** (the one-line result under each tool call, for example "E1: High error rate (strong signal, 3 matching records)") are English for every language. They are built by code from the record, not written by the AI; the model reads and cites the same line. Refusals and errors are localised | `ask_keigan_tools.py` | Decision needed in phase 3: localise the person-facing summary separately from the model's |
 | Stale-run marking works by silence (heartbeat plus a conditional update), but was tested only with scripted gateways in one process | `ask_keigan_heartbeat.py`, `ask_keigan_interruption.py` | Test with two real API processes before running more than one pod |
 | The filtered unique index (one running answer per conversation) and the read-only guard's statement check were never run on SQL Server | Alembic `c5e7a9b3d1f4`, `tool_registry.py` | Run on a real Azure SQL database before production |
-| The `ensure_utc` helper is typed as returning an optional date, which gives about eight type-checker complaints in new code (no runtime bug) | `utils/time_utils.py` | Add a typed overload; the project as a whole is not mypy-clean (over 100 older complaints) |
+| The `ensure_utc` helper is typed as always possibly returning nothing, so the type checker flags every caller that passes a real date and uses the result (about eight places in new code; no runtime bug) | `utils/time_utils.py` | Add a typed overload; the project as a whole is not mypy-clean (over 100 older complaints) |
 | No screen-reader (NVDA) pass on the chat panel; no run with a real model; Stop is verified in the browser only through an intercepted stream | Ask Keigan UI | Needs a person with a screen reader and a model key |
+| The administration page hides any setting whose name contains "token", so the harmless numbers `ASK_KEIGAN_ANSWER_TOKEN_BUDGET` and `ASK_KEIGAN_KNOWLEDGE_TOKEN_BUDGET` (and the older daily token budget) show as "set" instead of their value | `settings.py` `safe_settings_for_display` | Match secrets by exact marker (api key, secret, password), not the word "token"; the display is read-only |
+| The Helm values with the new Ask Keigan settings were checked by a test that reads the YAML, but never rendered with `helm template` (Helm is not installed here) | `deploy/helm/keigan/values.yaml` | Run `helm template` once on a machine with Helm |
 | The OpenRCA "about 36%" figure in doc 21 | `product/21_PRODUCT_RESEARCH.md` | Verify at the leaderboard; the page could not be read when checked |
 | The metrics seed has no AI-usage rows and no linked alerts | demo seed | On purpose for usage rows (they would distort reporting); the page shows "no data" |
 
@@ -85,7 +87,7 @@ The wave letters and numbers (A1 to E2) are the roadmap in `product/21_PRODUCT_R
 
 Proper fixes only, no workarounds, no hard-coded values. Backend tests mirror the source tree. Schema changes only through Alembic, then regenerate the Azure SQL scripts and the migration delta. Update these documents with every change. Keigan only reads and suggests. Never merge or modify production data without explicit authorisation, and push only when the owner asks.
 
-## 9. Fixed on 2026-11-21 (after the three builds, before Ask Keigan)
+## 9. Fixed on 2026-11-21 and 2026-11-22 (after the three builds)
 
 | Fix | Test |
 |---|---|
@@ -95,3 +97,4 @@ Proper fixes only, no workarounds, no hard-coded values. Backend tests mirror th
 | Investigation page shows the same translated grouping sentence as the Alerts page | `tests/integration/services/test_investigation_service.py` |
 | Fallback group summary no longer states a stale alert count (demo SQL regenerated) | `tests/unit/ai/test_alert_ai_schemas.py` |
 | The two SLO window tests no longer clear the settings cache | `tests/integration/services/test_slo_service.py` |
+| Every Ask Keigan setting (24 incl. the model-capability overrides) is in `backend/.env`, `backend/.env.example` and the Helm `backendEnvironment`, one comment line each, defaults equal to `settings.py` (2026-11-22) | `tests/unit/config/test_ask_keigan_deployment_settings.py` (49 tests) |

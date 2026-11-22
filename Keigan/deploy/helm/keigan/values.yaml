@@ -93,6 +93,55 @@ backendEnvironment:
   # mssql+aioodbc://@<server>.database.windows.net:1433/<database>?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no
   DATABASE_SCHEMA: keigan
   DATABASE_AUTHENTICATION: managed_identity
+  # Ask Keigan (the chat that calls Keigan's read-only tools and shows each call). An answer is bounded by its tool-call limit and token budget, not by time.
+  # Tool calls one answer may make in the Keigan AI chat page (1 to 50); raise it when answers need more lookups.
+  ASK_KEIGAN_MAX_TOOL_CALLS_GLOBAL: "8"
+  # Tool calls one answer may make in an investigation's chat panel (1 to 50).
+  ASK_KEIGAN_MAX_TOOL_CALLS_INVESTIGATION: "6"
+  # Tool requests run from one model turn (1 to 5); the rest are recorded as skipped.
+  ASK_KEIGAN_MAX_PARALLEL_TOOL_CALLS: "3"
+  # Seconds one tool call may take (5 to 600); stops a hung call, never a long answer.
+  ASK_KEIGAN_TOOL_TIMEOUT_SECONDS: "60"
+  # Input plus output tokens across all model turns of one answer (5000 to 1000000); at 85 % the next turn is the last.
+  ASK_KEIGAN_ANSWER_TOKEN_BUDGET: "80000"
+  # Characters of one tool result sent to the model (500 to 50000); not larger than the stored size.
+  ASK_KEIGAN_TOOL_OUTPUT_MODEL_CHARACTERS: "6000"
+  # Characters of one tool result kept as its full output (1000 to 1000000).
+  ASK_KEIGAN_TOOL_OUTPUT_STORED_CHARACTERS: "60000"
+  # Characters of one tool result sent live to the browser (200 to 10000); not larger than the stored size.
+  ASK_KEIGAN_TOOL_OUTPUT_PREVIEW_CHARACTERS: "1500"
+  # Items a list tool returns (1 to 200).
+  ASK_KEIGAN_TOOL_LIST_ITEM_LIMIT: "20"
+  # Characters of one passage a tool returns, such as a runbook's steps (200 to 20000); longer text is cut.
+  ASK_KEIGAN_TOOL_PASSAGE_CHARACTERS: "2400"
+  # Longest window, in minutes, a log query tool call may look back (5 to 43200).
+  ASK_KEIGAN_LOG_QUERY_MAX_LOOKBACK_MINUTES: "43200"
+  # Token budget of the knowledge passages one search_knowledge call returns (500 to 20000).
+  ASK_KEIGAN_KNOWLEDGE_TOKEN_BUDGET: "2500"
+  # Newest timeline events in the investigation digest the model starts from (0 to 100).
+  ASK_KEIGAN_DIGEST_TIMELINE_EVENTS: "15"
+  # Topology node names in the investigation digest (0 to 500).
+  ASK_KEIGAN_DIGEST_TOPOLOGY_NODES: "40"
+  # Characters of one evidence summary in the investigation digest (50 to 2000).
+  ASK_KEIGAN_DIGEST_EVIDENCE_SUMMARY_CHARACTERS: "300"
+  # Follow-up question chips shown under an answer (0 to 5).
+  ASK_KEIGAN_FOLLOW_UP_QUESTION_LIMIT: "3"
+  # Repair retries per model turn (0 to 2) for models that use the JSON tool protocol instead of native tool calling.
+  ASK_KEIGAN_PROTOCOL_REPAIR_ATTEMPTS: "1"
+  # Seconds without progress (60 to 3600) after which a running answer counts as interrupted, for example after a pod restart.
+  ASK_KEIGAN_STALE_RUN_SECONDS: "300"
+  # How often a live answer records its progress (5 to 300 s); the stale-run limit must be at least 3 times this.
+  ASK_KEIGAN_PROGRESS_HEARTBEAT_SECONDS: "15"
+  # Seconds between keep-alive comments on the answer stream (5 to 60), for proxies with an idle limit.
+  ASK_KEIGAN_HEARTBEAT_SECONDS: "15"
+  # Events one answer may queue for a slow reader (100 to 100000); when full, the browser reads the stored trace instead.
+  ASK_KEIGAN_EVENT_QUEUE_SIZE: "1000"
+  # Seconds (1 to 120) a stopping API process waits for running answers to end before marking them interrupted.
+  ASK_KEIGAN_SHUTDOWN_GRACE_SECONDS: "10"
+  # Optional: days (30 to 3650) after which stored steps and runs are purged, the answers stay; empty keeps everything.
+  ASK_KEIGAN_TRACE_RETENTION_DAYS: ""
+  # Optional JSON overrides of what each model can do (tool calling, streaming, context size); shape in resources/catalogs/llm_model_capabilities.yaml.
+  LLM_MODEL_CAPABILITIES_JSON: "{}"
 
 # Database migration job (Helm pre-install/pre-upgrade hook running "alembic upgrade head").
 # Its identity needs ALTER/CREATE TABLE rights (optional grants in database/azure_sql/06_grant_keigan_identity.sql).

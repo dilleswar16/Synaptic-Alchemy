@@ -552,7 +552,7 @@ Scenarios (first set):
 - Text is yielded in three chunks so the streaming UI path is exercised.
 
 ### 4.7 Limits and settings (validated, documented defaults)
-New fields in `backend/keigan/config/settings.py:Settings` under a section `# ── Ask Keigan ──` (in `Settings`, not `AiSafetySettings`, so they appear on the administration page through `safe_settings_for_display`). Every one goes into `backend/.env.example` with its comment.
+New fields in `backend/keigan/config/settings.py:Settings` under a section `# ── Ask Keigan ──` (in `Settings`, not `AiSafetySettings`, so they appear on the administration page through `safe_settings_for_display`). Every one goes into `backend/.env.example` with its one-line comment, and (built 2026-11-22) into the Helm `backendEnvironment` in `deploy/helm/keigan/values.yaml`; `tests/unit/config/test_ask_keigan_deployment_settings.py` keeps the three in step. They are deployment settings: only the platform team sets them, a change needs a restart, and there is no screen to change them (the administration page shows them read-only).
 
 | Setting | Default | Validation | Meaning |
 |---|---|---|---|
