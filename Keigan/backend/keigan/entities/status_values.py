@@ -275,6 +275,39 @@ class InvestigationAiCallFailure(StrEnum):
     FAILED = "failed"
 
 
+class ActionItemStatus(StrEnum):
+    """A follow-up task after an incident (spec 29). ``proposed`` is an AI suggestion nobody has accepted: it is not tracked, reminded or counted."""
+
+    PROPOSED = "proposed"
+    OPEN = "open"
+    IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"
+    DONE = "done"
+    WONT_DO = "wont_do"
+
+
+class ActionItemType(StrEnum):
+    PREVENT = "prevent"
+    DETECT = "detect"
+    MITIGATE = "mitigate"
+
+
+class ActionItemPriority(StrEnum):
+    """Words, not P-numbers (incident priorities are already P1 to P4). ``top`` means drop everything: the error-budget policy (spec 30) requires one."""
+
+    TOP = "top"
+    HIGH = "high"
+    NORMAL = "normal"
+    LOW = "low"
+
+
+class ActionItemSource(StrEnum):
+    """Where an item came from. Later specs (30, 31, 32) each add a value with their own revision."""
+
+    POSTMORTEM = "postmortem"
+    MANUAL = "manual"
+
+
 class RiskLevel(StrEnum):
     LOW = "low"
     MEDIUM = "medium"

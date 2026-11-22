@@ -31,6 +31,8 @@ CONSTRAINED_COLUMNS: list[tuple[str, str, type[StrEnum]]] = [
     ("investigation", "outcome_guard_code", values.InvestigationOutcomeGuard), ("investigation_hypothesis", "hypothesis_state", values.HypothesisState),
     ("investigation_hypothesis", "proposed_hypothesis_state", values.HypothesisState), ("investigation_hypothesis", "state_guard_code", values.HypothesisStateGuard),
     ("investigation_evidence", "check_outcome", values.EvidenceCheckOutcome), ("investigation_evidence", "baseline_comparison", values.BaselineComparison),
+    ("action_item", "item_source_kind", values.ActionItemSource), ("action_item", "action_type", values.ActionItemType), ("action_item", "action_priority", values.ActionItemPriority),
+    ("action_item", "item_status", values.ActionItemStatus),
     ("investigation_trace_step", "stage_name", values.InvestigationStage), ("investigation_trace_step", "step_kind", values.InvestigationTraceStepKind),
     ("investigation_trace_step", "step_status", values.InvestigationTraceStepStatus), ("investigation_trace_step", "decision_kind", values.InvestigationDecisionKind),
     ("investigation_trace_step", "failure_code", values.InvestigationAiCallFailure),

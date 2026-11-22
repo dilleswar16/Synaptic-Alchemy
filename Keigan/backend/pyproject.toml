@@ -16,6 +16,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "asyncpg>=0.29",
     "pydantic>=2.7,<3",
+    "tzdata>=2024.1",  # the IANA time zone database: action item due dates use the application's own zone, and Windows and slim images have none
     "pydantic-settings>=2.3",
     "httpx>=0.27",
     "PyJWT[crypto]>=2.8",

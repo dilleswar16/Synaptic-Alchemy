@@ -212,6 +212,11 @@ class Settings(BaseSettings):
     investigation_supported_minimum_confidence: float = Field(default=0.5, ge=0.0, le=1.0)  # lowest confidence a supported hypothesis may have (the prompt's "strongly suggests" band)
     investigation_ruled_out_maximum_confidence: float = Field(default=0.2, ge=0.0, le=1.0)  # highest confidence a ruled-out hypothesis may have (the "unlikely" band)
     investigation_trace_raw_output_stored_characters: int = Field(default=20_000, ge=1000, le=200_000)  # characters of one AI call's raw answer kept in the decision trace
+    action_items_maximum_per_postmortem: int = Field(default=8, ge=1, le=20)  # most action items the AI may propose for one postmortem (also told to the model)
+    action_items_maximum_due_days: int = Field(default=180, ge=7, le=730)  # latest due date, in days from today (and the clamp on the AI's suggested days)
+    action_items_details_maximum_characters: int = Field(default=4000, ge=200, le=20_000)
+    action_items_reason_minimum_characters: int = Field(default=10, ge=1, le=200)  # shortest reason for blocked and won't do
+    action_items_external_reference_pattern: str = r"^[A-Z]{2,10}[0-9]{4,12}$"  # accepted shape of a typed ServiceNow task number
     investigation_max_checks_per_service: int = Field(default=7, ge=1, le=30)  # evidence checks one service gets in an investigation; a cut is reported as a gap
     investigation_evidence_token_budget: int = 8_000
     investigation_knowledge_token_budget: int = 6_000
@@ -301,6 +306,15 @@ class Settings(BaseSettings):
     def model_prices_must_be_valid(cls, prices_json: str) -> str:
         parse_model_prices(prices_json)
         return prices_json
+
+    @field_validator("action_items_external_reference_pattern", mode="after")
+    @classmethod
+    def external_reference_pattern_must_be_a_regular_expression(cls, pattern: str) -> str:
+        try:
+            re.compile(pattern)
+        except re.error as invalid:
+            raise ValueError(f"ACTION_ITEMS_EXTERNAL_REFERENCE_PATTERN is not a valid regular expression: {invalid}") from invalid
+        return pattern
 
     @field_validator("ask_keigan_trace_retention_days", mode="before")
     @classmethod

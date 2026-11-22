@@ -94,6 +94,12 @@ backendEnvironment:
   INVESTIGATION_MAX_CHECKS_PER_SERVICE: "7"
   # Characters (1000 to 200000) of one AI call's raw answer kept in an investigation's decision trace; a longer one is cut and marked.
   INVESTIGATION_TRACE_RAW_OUTPUT_STORED_CHARACTERS: "20000"
+  # Action items: most the AI may propose per postmortem, latest due date in days, longest details text, shortest reason for blocked or won't do, and the shape of a typed ServiceNow number.
+  ACTION_ITEMS_MAXIMUM_PER_POSTMORTEM: "8"
+  ACTION_ITEMS_MAXIMUM_DUE_DAYS: "180"
+  ACTION_ITEMS_DETAILS_MAXIMUM_CHARACTERS: "4000"
+  ACTION_ITEMS_REASON_MINIMUM_CHARACTERS: "10"
+  ACTION_ITEMS_EXTERNAL_REFERENCE_PATTERN: '^[A-Z]{2,10}[0-9]{4,12}$'
   # Azure SQL: tables live in the "keigan" schema; Keigan signs in to SQL with its managed identity (no password).
   # DATABASE_URL (Key Vault) then holds no secret, e.g.
   # mssql+aioodbc://@<server>.database.windows.net:1433/<database>?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no

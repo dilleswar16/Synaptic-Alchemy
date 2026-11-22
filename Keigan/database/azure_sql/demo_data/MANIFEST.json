@@ -72,10 +72,11 @@
         "investigation_investigated_service": 22,
         "investigation_matched_runbook": 7,
         "investigation_timeline_event": 70,
+        "investigation_trace_step": 86,
         "postmortem_report": 7,
         "alert_group_affected_service": 14
       },
-      "sha256": "732ccb6069d6dcb974af6454ff36e68f0335718a677b2917de6e5dcc6eabfae9"
+      "sha256": "d43dc839cf379f5bec7948ddd41c74d491412dcd356d21c3d22a8a51063458f2"
     },
     "06_intelligence_and_collaboration.sql": {
       "committed": true,
@@ -88,7 +89,7 @@
         "conversation_message": 9,
         "predictive_signal": 8
       },
-      "sha256": "02e83ba2be032cd2e26969bb8f299efab6301d8d4d67313886ab17ff7205d599"
+      "sha256": "1328ef1586f237d7ac3612f13384fefc0d6b643fd8059b7d891fbfaaddd714d6"
     },
     "99_remove_demo_data.sql": {
       "committed": true,
@@ -133,6 +134,7 @@
         "investigation_investigated_service": 22,
         "investigation_matched_runbook": 7,
         "investigation_timeline_event": 70,
+        "investigation_trace_step": 86,
         "postmortem_report": 7,
         "alert_group_affected_service": 14,
         "platform_setting": 7,
@@ -143,7 +145,7 @@
         "conversation_message": 9,
         "predictive_signal": 8
       },
-      "sha256": "9cd09724ff26d396bd3f83ea35558aeabc8f6999aba15dfe9b061301754fca8a"
+      "sha256": "e9e6e22ede87201b5116a2c4118ed6edd871c0f9917a156129f99fd057cd5bc1"
     },
     "run_all_demo_data.sql": {
       "committed": true,
@@ -152,10 +154,10 @@
     }
   },
   "tables_without_seeded_rows": [
+    "action_item",
     "chat_answer_run",
     "chat_run_step",
     "conversation_application",
-    "investigation_trace_step",
     "slo_burn_alert",
     "stakeholder_subscribed_service"
   ],
@@ -178,7 +180,7 @@
     },
     "audit_event": {
       "reason": "The audit trail is append-only evidence of what really happened; seeded or deleted audit rows would make it untrustworthy.",
-      "seeded_rows": 5
+      "seeded_rows": 12
     }
   }
 }
