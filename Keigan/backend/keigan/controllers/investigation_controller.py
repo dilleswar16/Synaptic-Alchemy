@@ -10,12 +10,14 @@ from keigan.config.database_config import provide
 from keigan.controllers.incident_controller import split_values
 from keigan.dtos.common_dtos import JobAcceptedResponse, PagedResult
 from keigan.dtos.incident_dtos import CommunicationDto, CommunicationSendResult, CommunicationUpdateRequest, GenerateCommunicationsRequest
+from keigan.dtos.investigation_trace_dtos import InvestigationTraceView, RawOutputView
 from keigan.dtos.investigation_dtos import (
     EvidenceDto, InvestigationDetailDto, InvestigationFeedbackRequest, InvestigationProgressDto, InvestigationSummaryDto, StartInvestigationRequest, TimelineEventDto,
 )
 from keigan.security.current_user import CurrentUser, get_current_user
 from keigan.services.communication_service import CommunicationService
 from keigan.services.investigation_service import InvestigationService
+from keigan.services.investigation_trace_service import InvestigationTraceService
 
 router = APIRouter(prefix="/api", tags=["Investigations"])
 
@@ -69,6 +71,18 @@ async def submit_feedback(
 @router.get("/investigations/{investigation_id}/timeline", response_model=list[TimelineEventDto], response_model_by_alias=True)
 async def get_timeline(investigation_id: str, current_user: CurrentUser = Depends(get_current_user), investigation_service: InvestigationService = Depends(provide(InvestigationService))) -> list[TimelineEventDto]:
     return await investigation_service.get_timeline(current_user, investigation_id)
+
+
+@router.get("/investigations/{investigation_id}/trace", response_model=InvestigationTraceView, response_model_by_alias=True)
+async def get_trace(investigation_id: str, current_user: CurrentUser = Depends(get_current_user), trace_service: InvestigationTraceService = Depends(provide(InvestigationTraceService))) -> InvestigationTraceView:
+    return await trace_service.get_trace(current_user, investigation_id)
+
+
+@router.get("/investigations/{investigation_id}/trace/steps/{trace_step_id}/raw-output", response_model=RawOutputView, response_model_by_alias=True)
+async def get_raw_output(
+    investigation_id: str, trace_step_id: str, current_user: CurrentUser = Depends(get_current_user), trace_service: InvestigationTraceService = Depends(provide(InvestigationTraceService))
+) -> RawOutputView:
+    return await trace_service.get_raw_output(current_user, investigation_id, trace_step_id)
 
 
 @router.get("/investigations/{investigation_id}/evidence/{evidence_code}", response_model=EvidenceDto, response_model_by_alias=True)
