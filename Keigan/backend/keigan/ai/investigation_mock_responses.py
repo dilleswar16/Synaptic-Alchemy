@@ -154,7 +154,7 @@ def _rollback_action(service: MockServiceInfo | None, release_text: str) -> FixA
 
 
 def _setting_change(context: MockInvestigationContext, service: MockServiceInfo | None, setting: str, before: str, after: str) -> FixActionOutput:
-    """A setting is changed by editing it (shown as before and after), not by a command: the value would be glued to its name, which no shell quoting rule handles for both shells."""
+    """A setting change: the offline model names the service, the setting and the values; the validator shows it as a before and after edit and, for a service type the configuration command catalogue knows, adds the command that makes it."""
     if service is None:
         return _manual(f"Set {setting} back to {after} (it is {before} now).")
     change_code = _code(context, ("change_event",))

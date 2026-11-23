@@ -5892,7 +5892,13 @@ Set BATCH_IMPORT_PARALLELISM back to 4 on claims-api (it is 16 now).
 
 Change the setting BATCH_IMPORT_PARALLELISM on claims-api from 16 to 4.
 
+```bash
+kubectl set env deployment/claims-api -n claims BATCH_IMPORT_PARALLELISM=4
+```
+
 This restarts the service.
+
+This step contains values Keigan assumed and could not verify.
 
 Check: Failed requests return to baseline.
 

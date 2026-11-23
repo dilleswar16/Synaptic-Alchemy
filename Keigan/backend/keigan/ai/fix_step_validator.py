@@ -9,13 +9,14 @@ that fails a rule is *withheld*: its step keeps its description, the command is 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from keigan.ai.command_risk_classifier import RISK_RANK, classify_command_risk, reveals_secrets
 from keigan.ai.fix_command_check import contains_secret
 from keigan.ai.fix_command_renderer import ParameterValue, RenderedCommand, render_command
 from keigan.ai.fix_command_shape import SLOT_PATTERN, FixCommandTool, FixWithheldReason, check_template_shape
+from keigan.ai.fix_configuration_command import ServiceFacts, command_for_change
 from keigan.ai.fix_parameter_kinds import ValueRefusal, check_value, is_secret_setting_name
 from keigan.ai.investigation_ai_schemas import ConfigurationChangeOutput, FixActionOutput, FixCommandOutput, FixParameterOutput, FixStepOutput
 from keigan.ai.prompt_safety import strip_invisible_characters
@@ -40,6 +41,7 @@ class FixValidationContext:
     maximum_parameters_per_command: int
     clean_markdown: Callable[[str], str]  # descriptions: citations that do not exist removed, markdown neutralised
     clean_line: Callable[[str], str]  # titles and one-line texts
+    services: Mapping[str, ServiceFacts] = field(default_factory=dict)  # service name -> type, resource group and namespace: what a setting change's command is built from
 
 
 def _higher(first: RiskLevel, second: RiskLevel) -> RiskLevel:
@@ -150,7 +152,8 @@ def validate_command(command: FixCommandOutput, context: FixValidationContext) -
 
 
 def validate_configuration_change(change: ConfigurationChangeOutput, context: FixValidationContext, restrict_file_path: Callable[[str], str]) -> dict[str, Any]:
-    """A configuration change is shown as a before and after edit of a named setting (no command is written for it). A secret-looking setting name or value is withheld."""
+    """A configuration change is shown as a before and after edit of a named setting. For a service the configuration command catalogue knows, the command that makes the change is stored with it
+    (it is checked like any command; when it cannot be shown safely, the change stays an edit). A secret-looking setting name or value is withheld."""
     setting = check_parameter(change.setting_name.model_copy(update={"value_kind": "configuration_key"}), context)
     before = check_parameter(change.before_value.model_copy(update={"value_kind": "configuration_value"}), context) if change.before_value else None
     after = check_parameter(change.after_value.model_copy(update={"value_kind": "configuration_value"}), context)
@@ -164,7 +167,17 @@ def validate_configuration_change(change: ConfigurationChangeOutput, context: Fi
         "setting_name": setting, "before_value": before, "after_value": after, "file_path": restrict_file_path(change.file_path) if change.file_path else None,
         "withheld_reason": withheld, "risk_level": RiskLevel.MEDIUM,
         "warnings": [FixWarning.RESTARTS_SERVICE] if change.target_kind in _RESTARTING_TARGETS else [],
+        "command": None if withheld is not None else _command_for(change, context),
     }
+
+
+def _command_for(change: ConfigurationChangeOutput, context: FixValidationContext) -> dict[str, Any] | None:
+    """The command from the catalogue for ``change``, checked like any other; None when there is none or it may not be shown (a value that needs quotes next to the ``=`` is the usual reason)."""
+    command = command_for_change(change, context.services)
+    if command is None:
+        return None
+    checked = validate_command(command, context)
+    return checked if checked["withheld_reason"] is None else None
 
 
 # ── Actions and steps ────────────────────────────────────────────────────────────────────────────
@@ -209,7 +222,7 @@ def _derived_revert(action: dict[str, Any]) -> dict[str, Any] | None:
     before = change["before_value"]
     knows_before = before is not None and before["value"] is not None
     description = "Set the setting back to its previous value." if knows_before else "Set the setting back to the value you read before changing it."
-    revert_change = {**change, "before_value": change["after_value"], "after_value": before, "withheld_reason": None} if knows_before else None
+    revert_change = {**change, "before_value": change["after_value"], "after_value": before, "withheld_reason": None, "command": None} if knows_before else None  # an edit, never the forward command
     return {
         "action_kind": FixActionKind.CONFIGURATION_CHANGE if knows_before else FixActionKind.MANUAL_ACTION, "description": description, "expected_result": "", "risk_level": RiskLevel.MEDIUM,
         "command": None, "configuration_change": revert_change, "evidence_code": None, "withheld_reason": None,
@@ -223,6 +236,7 @@ def _missing_value_count(action: dict[str, Any]) -> int:
     change = action["configuration_change"]
     if change is not None:
         parameters += [entry for entry in (change["setting_name"], change["after_value"]) if entry is not None]
+        parameters += change["command"]["parameters"] if change["command"] is not None else []
     return sum(1 for entry in parameters if entry["status"] != FixValueStatus.VERIFIED and entry["status"] != FixValueStatus.ASSUMED)
 
 
@@ -231,6 +245,7 @@ def _has_assumed_values(action: dict[str, Any]) -> bool:
     change = action["configuration_change"]
     if change is not None:
         parameters += [entry for entry in (change["setting_name"], change["before_value"], change["after_value"]) if entry is not None]
+        parameters += change["command"]["parameters"] if change["command"] is not None else []
         parameters += [] if change["service_in_catalogue"] else [{"status": FixValueStatus.ASSUMED}]
     return any(entry["status"] == FixValueStatus.ASSUMED for entry in parameters)
 

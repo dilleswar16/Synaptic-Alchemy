@@ -203,6 +203,8 @@ export interface FixConfigurationChange {
   withheldReason: string | null;
   riskLevel: FixRisk;
   warnings: string[];
+  /** The command that makes this change, for a service the backend's configuration command catalogue knows; null keeps the change an edit (and for plans stored before the catalogue). */
+  command: FixCommand | null;
 }
 
 export interface FixAction {

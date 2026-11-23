@@ -1,0 +1,40 @@
+# The command a configuration change becomes, by target kind and service type (spec 33, 4.2.3).
+# A change with no entry here stays a before and after edit. Every {{slot}} in a template has an entry under `parameters`.
+# `from` says where the value comes from:
+#   service_name              the service's name in the catalogue (verified when the catalogue holds it)
+#   service_name_as_deployment the service's name used as the deployment name; the catalogue does not hold deployment names, so the value is shown as assumed
+#   resource_group            the Azure resource group the catalogue holds for the service (empty when it holds none)
+#   namespace                 the Kubernetes namespace the catalogue holds for the service (empty when it holds none)
+#   setting_name              the setting the model named, with the source it gave
+#   after_value               the new value the model named, with the source it gave
+# `{{setting}}={{value}}` is the one glued pair: when either value needs quotes the command is not shown and the change stays an edit.
+entries:
+  - target_kind: app_setting
+    service_type: app_service
+    tool: az
+    template: "az webapp config appsettings set --name {{service}} --resource-group {{resource_group}} --settings {{setting}}={{value}}"
+    parameters:
+      service: { kind: azure_resource_name, from: service_name }
+      resource_group: { kind: azure_resource_group, from: resource_group }
+      setting: { kind: configuration_key, from: setting_name }
+      value: { kind: configuration_value, from: after_value }
+
+  - target_kind: app_setting
+    service_type: function_app
+    tool: az
+    template: "az functionapp config appsettings set --name {{service}} --resource-group {{resource_group}} --settings {{setting}}={{value}}"
+    parameters:
+      service: { kind: azure_resource_name, from: service_name }
+      resource_group: { kind: azure_resource_group, from: resource_group }
+      setting: { kind: configuration_key, from: setting_name }
+      value: { kind: configuration_value, from: after_value }
+
+  - target_kind: kubernetes_environment_variable
+    service_type: aks
+    tool: kubectl
+    template: "kubectl set env deployment/{{deployment}} -n {{namespace}} {{setting}}={{value}}"
+    parameters:
+      deployment: { kind: kubernetes_name, from: service_name_as_deployment }
+      namespace: { kind: kubernetes_namespace, from: namespace }
+      setting: { kind: configuration_key, from: setting_name }
+      value: { kind: configuration_value, from: after_value }

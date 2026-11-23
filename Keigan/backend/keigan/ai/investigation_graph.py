@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.fix_command_check import check_suggested_command, command_warnings
 from keigan.ai.fix_plan import PLAN_SCHEMA_VERSION as FIX_SCHEMA_VERSION, build_fix_plan, resolve_plan_steps
+from keigan.ai.fix_configuration_command import ServiceFacts
 from keigan.ai.fix_plan_markdown import render_fix_plan_markdown
 from keigan.ai.fix_step_validator import FixValidationContext, validate_fix_step
 from keigan.ai.command_risk_classifier import RISK_RANK, classify_command_risk
@@ -589,6 +590,10 @@ class InvestigationGraphRunner:
             evidence_codes_with_query=frozenset(row.evidence_code for row in self.evidence_rows if row.query_text), knowledge_text=knowledge_text,
             maximum_command_characters=self.settings.suggested_fix_maximum_command_characters, maximum_parameters_per_command=self.settings.suggested_fix_maximum_parameters_per_command,
             clean_markdown=lambda text: self._clean_ai_text(text, valid_codes), clean_line=lambda text: sanitize_ai_line(text, maximum_characters=300),
+            services={
+                service.service_name: ServiceFacts(service.service_type, self.resource_group_by_service_id.get(service.service_id), service.aks_namespace_filter)
+                for service in self.all_services
+            },
         )
 
     def _evidence_facts(self, codes: list[str] | None = None) -> list[EvidenceFacts]:

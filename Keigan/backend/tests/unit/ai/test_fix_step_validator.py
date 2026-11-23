@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import Any
 
 import pytest
 
 from keigan.ai.fix_command_shape import FixWithheldReason
+from keigan.ai.fix_configuration_command import ServiceFacts
 from keigan.ai.fix_step_validator import FixValidationContext, validate_fix_step
 from keigan.ai.investigation_ai_schemas import ConfigurationChangeOutput, FixActionOutput, FixCommandOutput, FixParameterOutput, FixStepOutput
 from keigan.entities.status_values import FixValueStatus, FixWarning, RiskLevel
@@ -229,6 +231,59 @@ def test_a_setting_that_looks_like_a_secret_is_withheld() -> None:
 def test_a_service_outside_the_catalogue_is_called_out_as_an_assumption() -> None:
     result = validate(step(configuration(service="claims-web-us"), risk="medium"))
     assert result["action"]["configuration_change"]["service_in_catalogue"] is False and result["has_assumed_values"] is True
+
+
+# ── Configuration commands (the catalogue of spec 33, 4.2.3) ──────────────────────────────────
+
+CATALOGUE_CONTEXT = replace(CONTEXT, services={
+    "claims-web-jp": ServiceFacts("app_service", "rg-claims-jp-prod", None), "claims-api": ServiceFacts("aks", "rg-claims-jp-prod", "claims-prod"),
+    "claims-batch": ServiceFacts("app_service", None, None),
+})
+SET_COMMAND = "az webapp config appsettings set --name claims-web-jp --resource-group rg-claims-jp-prod --settings Database__MaxPoolSize=16"
+
+
+def test_a_setting_change_on_a_known_service_also_gets_the_command_that_makes_it() -> None:
+    result = validate(step(configuration(), risk="medium"), CATALOGUE_CONTEXT)
+    change = result["action"]["configuration_change"]
+    assert change["command"]["withheld_reason"] is None and {rendering["dialect"]: rendering["text"] for rendering in change["command"]["renderings"]} == {"bash": SET_COMMAND, "powershell": SET_COMMAND}
+    assert {entry["name"]: entry["status"] for entry in change["command"]["parameters"]}["resource_group"] == FixValueStatus.VERIFIED
+    assert result["risk_level"] == RiskLevel.MEDIUM and FixWarning.RESTARTS_SERVICE in result["warnings"] and result["missing_value_count"] == 0
+
+
+def test_a_resource_group_the_catalogue_lacks_becomes_a_fill_in_field() -> None:
+    result = validate(step(configuration(service="claims-batch"), risk="medium"), CATALOGUE_CONTEXT)
+    command = result["action"]["configuration_change"]["command"]
+    assert [segment["parameter_name"] for segment in command["renderings"][0]["segments"] if segment["kind"] == "missing_value"] == ["resource_group"]
+    assert result["missing_value_count"] == 1
+
+
+def test_the_deployment_name_of_a_kubernetes_change_is_shown_as_assumed() -> None:
+    result = validate(step(configuration(kind="kubernetes_environment_variable", service="claims-api"), risk="medium"), CATALOGUE_CONTEXT)
+    command = result["action"]["configuration_change"]["command"]
+    assert command["renderings"][0]["text"] == "kubectl set env deployment/claims-api -n claims-prod Database__MaxPoolSize=16"
+    assert {entry["name"]: entry["status"] for entry in command["parameters"]}["deployment"] == FixValueStatus.ASSUMED
+    assert result["has_assumed_values"] is True and FixWarning.CONTAINS_ASSUMPTIONS in result["warnings"]
+
+
+def test_a_new_value_that_needs_quotes_keeps_the_change_an_edit() -> None:
+    result = validate(step(configuration(after="max pool size"), risk="medium"), CATALOGUE_CONTEXT)
+    change = result["action"]["configuration_change"]
+    assert change["command"] is None and change["withheld_reason"] is None and change["after_value"]["value"] == "max pool size"
+
+
+def test_a_service_without_a_catalogue_entry_keeps_the_change_an_edit() -> None:
+    assert validate(step(configuration(), risk="medium"))["action"]["configuration_change"]["command"] is None
+
+
+def test_a_withheld_setting_change_has_no_command() -> None:
+    result = validate(step(configuration(setting="Database__Password"), risk="medium"), CATALOGUE_CONTEXT)
+    assert result["action"]["configuration_change"]["command"] is None
+
+
+def test_the_derived_way_back_is_an_edit_and_never_the_forward_command() -> None:
+    result = validate(step(configuration(), risk="medium"), CATALOGUE_CONTEXT)
+    assert result["revert"]["configuration_change"]["command"] is None
+
 
 
 # ── Texts and descriptions ───────────────────────────────────────────────────────────────────────

@@ -27,6 +27,17 @@ def _words(code: str) -> str:
     return code.replace("_", " ")
 
 
+def _command_lines(command: Mapping[str, Any], default_dialect: str) -> list[str]:
+    """A command as a code block in the default shell, or the note that values are missing."""
+    rendering = next((candidate for candidate in command["renderings"] if candidate["dialect"] == default_dialect), command["renderings"][0] if command["renderings"] else None)
+    if rendering is None:
+        return []
+    if rendering["text"] is not None:
+        return [f"```{'powershell' if rendering['dialect'] == 'powershell' else 'bash'}\n{rendering['text']}\n```"]
+    missing = sum(1 for segment in rendering["segments"] if segment["kind"] == "missing_value")
+    return [f"Open this investigation in Keigan to fill in {missing} value{'s' if missing != 1 else ''} before copying the command."]
+
+
 def _action_lines(action: Mapping[str, Any], default_dialect: str, label: str | None = None) -> list[str]:
     """One action as paragraphs: its description, then what to copy or what to see."""
     lines = [f"{label}: {action['description']}" if label else action["description"]]
@@ -34,16 +45,12 @@ def _action_lines(action: Mapping[str, Any], default_dialect: str, label: str | 
     if action["withheld_reason"] is not None:
         lines.append(f"Command withheld: {_words(action['withheld_reason'])}. The step stays; work out the exact values and write it yourself.")
     elif command is not None:
-        rendering = next((candidate for candidate in command["renderings"] if candidate["dialect"] == default_dialect), command["renderings"][0] if command["renderings"] else None)
-        if rendering is not None and rendering["text"] is not None:
-            lines.append(f"```{'powershell' if rendering['dialect'] == 'powershell' else 'bash'}\n{rendering['text']}\n```")
-        elif rendering is not None:
-            missing = sum(1 for segment in rendering["segments"] if segment["kind"] == "missing_value")
-            lines.append(f"Open this investigation in Keigan to fill in {missing} value{'s' if missing != 1 else ''} before copying the command.")
+        lines += _command_lines(command, default_dialect)
     elif change is not None:
         before, after = change["before_value"], change["after_value"]
         shown = lambda entry: entry["value"] if entry and entry["value"] is not None else "(not known)"  # noqa: E731
         lines.append(f"Change the setting {shown(change['setting_name'])} on {change['service_name']} from {shown(before)} to {shown(after)}.")
+        lines += _command_lines(change["command"], default_dialect) if change["command"] is not None else []
     elif action["action_kind"] == FixActionKind.RERUN_EVIDENCE_QUERY and action["evidence_code"]:
         lines.append(f"Run the query behind [{action['evidence_code']}] again.")
     if action["expected_result"]:

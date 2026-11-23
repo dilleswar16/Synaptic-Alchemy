@@ -83,3 +83,16 @@ def test_a_service_with_a_resource_group_still_gets_its_command() -> None:
 def test_the_rollback_of_a_kubernetes_service_is_an_undo_of_its_deployment() -> None:
     action = _rollback_action(MockServiceInfo("s1", "claims-api", "aks", namespace="claims-prod"), "release 41")
     assert action.command is not None and action.command.template == "kubectl rollout undo deployment/{{deployment}} -n {{namespace}}"
+
+
+def test_the_offline_models_setting_change_gets_its_command_from_the_catalogue() -> None:
+    from dataclasses import replace
+
+    from keigan.ai.fix_configuration_command import ServiceFacts
+
+    mock = context_for("database_connection_pool_exhaustion")
+    context = replace(validator_context(mock), services={service.name: ServiceFacts(service.service_type, service.resource_group, service.namespace) for service in mock.services})
+    fix = SCENARIO_SCRIPTS["database_connection_pool_exhaustion"]["fix"](mock)
+    changes = [validate_fix_step(step, f"application-{number}", context)["action"]["configuration_change"] for number, step in enumerate(fix.steps, start=1)]
+    command = next(change["command"] for change in changes if change is not None)
+    assert command["renderings"][0]["text"] == "kubectl set env deployment/claims-api -n claims-prod BATCH_IMPORT_PARALLELISM=4"

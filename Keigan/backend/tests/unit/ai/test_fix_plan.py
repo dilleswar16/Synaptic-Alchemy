@@ -102,3 +102,30 @@ def test_a_withheld_command_is_not_shown_and_says_why() -> None:
 def test_the_default_shell_picks_the_matching_rendering() -> None:
     steps = resolve_plan_steps(build_fix_plan("", [("application", 1)], HYPOTHESES, "application", 8), HYPOTHESES)
     assert "```powershell\naz webapp restart" in render_fix_plan_markdown("", steps, "powershell")
+
+
+def _setting_change_step(resource_group: str | None) -> dict[str, Any]:
+    from dataclasses import replace
+
+    from keigan.ai.fix_configuration_command import ServiceFacts
+    from keigan.ai.investigation_ai_schemas import ConfigurationChangeOutput
+
+    context = replace(CONTEXT, services={"claims-web-jp": ServiceFacts("app_service", resource_group, None)})
+    change = ConfigurationChangeOutput(
+        target_kind="app_setting", service_name="claims-web-jp",
+        setting_name=FixParameterOutput(name="setting", value_kind="configuration_key", value="Database__MaxPoolSize", value_source="knowledge"),
+        before_value=None, after_value=FixParameterOutput(name="after", value_kind="configuration_value", value="16", value_source="knowledge"),
+    )
+    action = FixActionOutput(action_kind="configuration_change", description="Raise the pool", configuration_change=change)
+    return validate_fix_step(FixStepOutput(title="Raise the pool", purpose="mitigate", risk_level="medium", action=action), "application-1", context)
+
+
+def test_a_setting_change_with_a_command_shows_the_edit_and_the_command_in_the_default_shell() -> None:
+    markdown = render_fix_plan_markdown("", [{**_setting_change_step("rg-claims-jp-prod"), "perspective": "application"}], "bash")
+    assert "Change the setting Database__MaxPoolSize on claims-web-jp from (not known) to 16." in markdown
+    assert "```bash\naz webapp config appsettings set --name claims-web-jp --resource-group rg-claims-jp-prod --settings Database__MaxPoolSize=16\n```" in markdown
+
+
+def test_a_setting_change_command_with_a_missing_value_says_to_open_keigan() -> None:
+    markdown = render_fix_plan_markdown("", [{**_setting_change_step(None), "perspective": "application"}], "bash")
+    assert "Open this investigation in Keigan to fill in 1 value before copying the command." in markdown and "```" not in markdown

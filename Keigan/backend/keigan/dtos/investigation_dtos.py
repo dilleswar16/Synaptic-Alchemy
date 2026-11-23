@@ -91,6 +91,7 @@ class FixConfigurationChangeDto(ApiModel):
     withheld_reason: str | None = None
     risk_level: str
     warnings: list[str] = Field(default_factory=list)
+    command: FixCommandDto | None = None  # the command that makes this change, for a service the configuration command catalogue knows; plans stored before it have none
 
 
 class FixActionDto(ApiModel):

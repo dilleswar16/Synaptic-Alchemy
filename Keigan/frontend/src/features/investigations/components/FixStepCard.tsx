@@ -39,6 +39,7 @@ function FixActionView({ action, label, stepRisk }: { action: FixAction; label: 
           <dd><ValueText parameter={change.afterValue} /></dd>
         </dl>
       ) : null}
+      {change?.command && action.withheldReason === null ? <FixCommandBlock command={change.command} riskLevel={stepRisk} /> : null}
       {action.evidenceCode && action.withheldReason === null ? <p className="text-caption text-muted">{t("fix.rerunQuery", { code: action.evidenceCode })}</p> : null}
       {action.withheldReason ? (
         <p role="note" className="rounded-md border border-hairline bg-surface-sunken px-3 py-2 text-caption text-muted">{t(`fix.withheld.${action.withheldReason}`, { defaultValue: t("fix.withheld.unsafe_shell_syntax") })}</p>

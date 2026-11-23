@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from keigan.ai.ai_safety_settings import get_ai_safety_settings
-from keigan.ai.investigation_ai_schemas import CodeChange, FixActionOutput, FixCommandOutput, FixParameterOutput, FixStepOutput, HypothesisResult, ProposedFix
+from keigan.ai.investigation_ai_schemas import CodeChange, ConfigurationChangeOutput, FixActionOutput, FixCommandOutput, FixParameterOutput, FixStepOutput, HypothesisResult, ProposedFix
 from keigan.ai.investigation_graph import InvestigationGraphRunner
 from keigan.ai.prompt_safety import build_valid_citation_codes, restrict_to_known_file_path
 
@@ -15,8 +15,8 @@ from keigan.ai.prompt_safety import build_valid_citation_codes, restrict_to_know
 @pytest.fixture
 def runner() -> InvestigationGraphRunner:
     graph_runner = InvestigationGraphRunner(None, SimpleNamespace(investigation_id="investigation-1"), offline_ai=True)  # type: ignore[arg-type]
-    graph_runner.all_services = [SimpleNamespace(service_name="claims-api", aks_namespace_filter="claims-prod", external_resource_identifier=None)]  # type: ignore[list-item]
-    graph_runner.resource_group_by_service_id = {}
+    graph_runner.all_services = [SimpleNamespace(service_id="service-1", service_name="claims-api", service_type="aks", aks_namespace_filter="claims-prod", external_resource_identifier=None)]  # type: ignore[list-item]
+    graph_runner.resource_group_by_service_id = {"service-1": "rg-claims-jp-prod"}
     graph_runner.evidence_rows = [  # type: ignore[list-item]
         SimpleNamespace(evidence_code="E1", check_outcome="signal", signal_strength="high", baseline_comparison="compared", evidence_title="Pods in claims-prod restarted", evidence_summary="", condensed_patterns_json=None, query_text="ContainerLog | take 10"),
         SimpleNamespace(evidence_code="E2", check_outcome="no_signal", signal_strength="low", baseline_comparison="compared", evidence_title="Latency normal", evidence_summary=None, condensed_patterns_json=None, query_text=None),
@@ -169,6 +169,16 @@ class TestValidatedHypothesis:
         )])
         parameters = runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix))["proposed_fix"]["steps"][0]["action"]["command"]["parameters"]
         assert [(entry["name"], entry["status"]) for entry in parameters] == [("name", "verified"), ("namespace", "verified")]
+
+    def test_a_setting_change_on_a_catalogue_service_gets_the_command_built_from_the_catalogue(self, runner: InvestigationGraphRunner) -> None:
+        change = ConfigurationChangeOutput(
+            target_kind="kubernetes_environment_variable", service_name="claims-api", setting_name=parameter("setting", "configuration_key", "Database__MaxPoolSize", "knowledge", "K1"),
+            before_value=None, after_value=parameter("after", "configuration_value", "16", "knowledge", "K1"),
+        )
+        fix = ProposedFix(summary="s", steps=[step(FixActionOutput(action_kind="configuration_change", description="Raise it", configuration_change=change), risk="medium")])
+        command = runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix))["proposed_fix"]["steps"][0]["action"]["configuration_change"]["command"]
+        assert command["renderings"][0]["text"] == "kubectl set env deployment/claims-api -n claims-prod Database__MaxPoolSize=16"
+
 
 
 class TestSanitizedSynthesisText:
