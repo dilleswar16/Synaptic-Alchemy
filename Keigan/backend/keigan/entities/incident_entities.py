@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, identifier_column, utc_now
 from keigan.entities.linked_ids import LinkedIdsMixin, OrderedLinkColumns, linked_ids_property, ordered_links_relationship
-from keigan.entities.status_values import AnalysisPerspective, AssignmentGroupVerificationStatus, BaselineComparison, ChatAnswerRunStatus, ChatAnswerStopReason, ChatRunStepKind, ChatRunStepStatus, CommunicationStatus, ConversationScope, CoverageGapKind, CoverageGapReason, EvidenceCheckOutcome, HypothesisState, HypothesisStateGuard, IncidentSource, IncidentStatus, InvestigationAiCallFailure, InvestigationDecisionKind, InvestigationFeedbackVerdict, InvestigationOutcome, InvestigationOutcomeGuard, InvestigationStage, InvestigationStatus, InvestigationTraceStepKind, InvestigationTraceStepStatus, InvestigationTrigger, MessageAuthorRole, PostmortemStatus, Priority, RiskLevel, ToolCallingMode, values_check
+from keigan.entities.status_values import AnalysisPerspective, AssignmentGroupVerificationStatus, BaselineComparison, ChatAnswerRunStatus, ChatAnswerStopReason, ChatRunStepKind, ChatRunStepStatus, CommunicationStatus, ConversationScope, CoverageGapKind, CoverageGapReason, EvidenceCheckOutcome, HypothesisState, HypothesisStateGuard, IncidentKeiganHelp, IncidentSource, IncidentStatus, InvestigationAiCallFailure, InvestigationDecisionKind, InvestigationFeedbackVerdict, InvestigationOutcome, InvestigationOutcomeGuard, InvestigationStage, InvestigationStatus, InvestigationTraceStepKind, InvestigationTraceStepStatus, InvestigationTrigger, MessageAuthorRole, PostmortemStatus, Priority, RiskLevel, ToolCallingMode, values_check
 
 
 class ServiceNowAssignmentGroup(EntityBase):
@@ -44,6 +44,7 @@ class Incident(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
         values_check("incident_source", IncidentSource),
         values_check("incident_status", IncidentStatus),
         values_check("keigan_priority", Priority),
+        values_check("keigan_help", IncidentKeiganHelp),
     )
 
     incident_id: Mapped[str] = identifier_column()
@@ -68,6 +69,8 @@ class Incident(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
     detected_by_keigan_at: Mapped[datetime] = mapped_column(default=utc_now)
     first_update_sent_at: Mapped[datetime | None] = mapped_column()
     resolved_at: Mapped[datetime | None] = mapped_column()
+    # The resolver's answer to "how did Keigan's analysis help?" (null when not answered, and for incidents resolved elsewhere).
+    keigan_help: Mapped[str | None] = mapped_column(String(20))
     closed_at: Mapped[datetime | None] = mapped_column()
     external_last_updated_at: Mapped[datetime | None] = mapped_column()
 

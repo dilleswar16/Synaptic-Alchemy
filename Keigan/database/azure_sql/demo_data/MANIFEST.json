@@ -79,7 +79,7 @@
         "alert_group_affected_service": 14,
         "incident_memory_key": 132
       },
-      "sha256": "36a768090ca938f9c5a6435c5f9449c1af5e6058bec3a09932f8a6803c9132a3"
+      "sha256": "ded8e31e7e374c850477aa1770b5a2171d0694c3f210fd7e60f57ac9ce67e5cc"
     },
     "06_intelligence_and_collaboration.sql": {
       "committed": true,

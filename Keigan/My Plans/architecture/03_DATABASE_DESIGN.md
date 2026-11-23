@@ -417,6 +417,7 @@ Generic record for placeholder and real integrations (CMDB, EI portal, enterpris
 | detected_by_keigan_at | TIMESTAMPTZ | |
 | first_update_sent_at | TIMESTAMPTZ | TTFU |
 | resolved_at | TIMESTAMPTZ | |
+| keigan_help | VARCHAR(20) NULL | the resolver's answer to "how did Keigan's analysis help?": `found_cause`, `helped_partly`, `did_not_help`, `not_used`; null when not answered (revision `a1b5c9d3e7f2`, 2026-11-24) |
 | closed_at | TIMESTAMPTZ | |
 | external_last_updated_at | TIMESTAMPTZ | |
 | [audit] | | |

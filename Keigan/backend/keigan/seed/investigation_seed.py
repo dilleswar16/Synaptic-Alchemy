@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.notification_entities import Stakeholder
 from keigan.entities.incident_entities import Incident, IncidentCommunication, Investigation, InvestigationTimelineEvent, PostmortemReport, ServiceNowAssignmentGroup
-from keigan.entities.status_values import ActionItemStatus, CommunicationStatus, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStatus, InvestigationTrigger, PostmortemStatus, StakeholderRecipientType
+from keigan.entities.status_values import ActionItemStatus, CommunicationStatus, IncidentKeiganHelp, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStatus, InvestigationTrigger, PostmortemStatus, StakeholderRecipientType
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.seed.foundation_seed import SeedContext
 from keigan.services.communication_service import CommunicationService
@@ -100,6 +100,7 @@ async def _seed_historical_incident(session: AsyncSession, window: dict[str, Any
     investigation.created_at, investigation.started_at, investigation.completed_at = opened_at + timedelta(minutes=1), opened_at + timedelta(minutes=1), opened_at + timedelta(minutes=4)
     investigation.user_feedback_verdict = InvestigationFeedbackVerdict.PARTIALLY_CORRECT if index == 3 else InvestigationFeedbackVerdict.CORRECT
     investigation.user_feedback_by_user_principal_name = ADMIN_UPN
+    incident.keigan_help = IncidentKeiganHelp.HELPED_PARTLY if index == 3 else IncidentKeiganHelp.FOUND_CAUSE  # what the resolver would say, matching the rating above
     offsets = {"investigation_started": 1, "evidence_collected": 3, "rca_completed": 4, "communications_drafted": 5}
     timeline_events = (await session.scalars(select(InvestigationTimelineEvent).where(InvestigationTimelineEvent.investigation_id == investigation.investigation_id))).all()
     for event in timeline_events:

@@ -109,6 +109,15 @@ class IncidentStatus(StrEnum):
     CLOSED = "closed"
 
 
+class IncidentKeiganHelp(StrEnum):
+    """What the person who resolved an incident says about how far Keigan's analysis helped. Keigan never resolves anything itself, so this is a person's answer, not a measurement."""
+
+    FOUND_CAUSE = "found_cause"
+    HELPED_PARTLY = "helped_partly"
+    DID_NOT_HELP = "did_not_help"
+    NOT_USED = "not_used"
+
+
 class Priority(StrEnum):
     """Incident and notification priority, most severe first."""
 

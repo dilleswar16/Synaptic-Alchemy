@@ -438,6 +438,7 @@ erDiagram
         datetime2 detected_by_keigan_at
         datetime2 first_update_sent_at "nullable"
         datetime2 resolved_at "nullable"
+        nvarchar(20) keigan_help "nullable"
         datetime2 closed_at "nullable"
         datetime2 external_last_updated_at "nullable"
         datetime2 created_at

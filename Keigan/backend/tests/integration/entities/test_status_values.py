@@ -25,7 +25,7 @@ CONSTRAINED_COLUMNS: list[tuple[str, str, type[StrEnum]]] = [
     ("alert", "alert_status", values.AlertStatus), ("alert", "final_disposition", values.AlertFinalDisposition), ("alert_decision", "pipeline_stage", values.AlertPipelineStage),
     ("alert_group", "group_status", values.AlertGroupStatus), ("alert_group", "user_feedback_verdict", values.AlertGroupFeedbackVerdict), ("noise_reduction_policy", "policy_mode", values.NoisePolicyMode),
     ("servicenow_assignment_group", "verification_status", values.AssignmentGroupVerificationStatus), ("incident", "incident_source", values.IncidentSource), ("incident", "incident_status", values.IncidentStatus),
-    ("incident", "keigan_priority", values.Priority), ("investigation", "investigation_trigger", values.InvestigationTrigger), ("investigation", "investigation_status", values.InvestigationStatus),
+    ("incident", "keigan_priority", values.Priority), ("incident", "keigan_help", values.IncidentKeiganHelp), ("investigation", "investigation_trigger", values.InvestigationTrigger), ("investigation", "investigation_status", values.InvestigationStatus),
     ("investigation", "current_stage_name", values.InvestigationStage), ("investigation", "user_feedback_verdict", values.InvestigationFeedbackVerdict),
     ("investigation", "investigation_outcome", values.InvestigationOutcome), ("investigation", "proposed_investigation_outcome", values.InvestigationOutcome),
     ("investigation", "outcome_guard_code", values.InvestigationOutcomeGuard), ("investigation_hypothesis", "hypothesis_state", values.HypothesisState),

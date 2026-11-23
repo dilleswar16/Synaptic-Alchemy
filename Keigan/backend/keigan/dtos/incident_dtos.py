@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import Field
 
 from keigan.dtos.common_dtos import ApiModel
+from keigan.entities.status_values import IncidentKeiganHelp
 
 
 class ApplicationReference(ApiModel):
@@ -45,6 +46,7 @@ class IncidentSummaryDto(ApiModel):
     opened_at: datetime
     detected_by_keigan_at: datetime
     resolved_at: datetime | None = None
+    keigan_help: str | None = None  # the resolver's answer to "how did Keigan's analysis help?"
     duration_minutes: int
     keigan_confidence: float | None = None
     latest_investigation_id: str | None = None
@@ -67,6 +69,7 @@ class IncidentDetailDto(IncidentSummaryDto):
 class ResolveIncidentRequest(ApiModel):
     resolution_note: str | None = Field(default=None, max_length=4000)
     generate_postmortem: bool = True
+    keigan_help: IncidentKeiganHelp | None = None
 
 
 class CommunicationDto(ApiModel):

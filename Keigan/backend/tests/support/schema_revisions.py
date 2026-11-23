@@ -22,7 +22,7 @@ TABLES_ADDED_AFTER_THE_CHECK_REVISION = frozenset({"chat_answer_run", "chat_run_
 COLUMNS_CHECKED_AFTER_THE_CHECK_REVISION = frozenset({
     ("investigation_hypothesis", "hypothesis_state"), ("investigation_hypothesis", "proposed_hypothesis_state"), ("investigation_hypothesis", "state_guard_code"),
     ("investigation", "investigation_outcome"), ("investigation", "proposed_investigation_outcome"), ("investigation", "outcome_guard_code"),
-    ("investigation_evidence", "check_outcome"), ("investigation_evidence", "baseline_comparison"),
+    ("investigation_evidence", "check_outcome"), ("investigation_evidence", "baseline_comparison"), ("incident", "keigan_help"),
 })
 
 

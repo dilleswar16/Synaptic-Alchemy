@@ -283,6 +283,7 @@ class IncidentService:
             raise BusinessValidationException("This incident is already resolved.")
         now = utc_now()
         incident.incident_status, incident.resolved_at, incident.updated_by_user_principal_name = IncidentStatus.RESOLVED, now, current_user.user_principal_name
+        incident.keigan_help = request.keigan_help.value if request.keigan_help else None
         note_text = PiiMasker().mask_text(request.resolution_note or "")
         self.session.add(
             InvestigationTimelineEvent(
@@ -340,7 +341,7 @@ class IncidentService:
                     incident_source=incident.incident_source, external_incident_number=incident.external_incident_number, incident_title=incident.incident_title,
                     servicenow_priority=priority_label_from_servicenow(incident.servicenow_priority), keigan_priority=incident.keigan_priority, incident_category=incident.incident_category,
                     incident_status=incident.incident_status, external_state=incident.external_state, affected_service_names=[service_names[service_id] for service_id in incident.affected_service_ids if service_id in service_names],
-                    assignment_group_name=incident.assignment_group_name, opened_at=incident.opened_at, detected_by_keigan_at=incident.detected_by_keigan_at, resolved_at=incident.resolved_at,
+                    assignment_group_name=incident.assignment_group_name, opened_at=incident.opened_at, detected_by_keigan_at=incident.detected_by_keigan_at, resolved_at=incident.resolved_at, keigan_help=incident.keigan_help,
                     duration_minutes=max(0, int((end_time - incident.opened_at).total_seconds() // 60)), keigan_confidence=investigation.overall_confidence_score if investigation else None,
                     latest_investigation_id=investigation.investigation_id if investigation else None, latest_investigation_status=investigation.investigation_status if investigation else None,
                     servicenow_url=self.servicenow_client.incident_url(incident.external_incident_number) if incident.incident_source != IncidentSource.MANUAL else None,

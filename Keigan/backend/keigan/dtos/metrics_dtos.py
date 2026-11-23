@@ -55,6 +55,25 @@ class MemoryMetricsResponse(ApiModel):
     hidden_entry_count: int  # past incidents an admin hid in the period
 
 
+class KeiganHelpCountResponse(ApiModel):
+    answer: str  # an IncidentKeiganHelp value
+    count: int
+
+
+class KeiganHelpMetricsResponse(ApiModel):
+    """What the people who resolved incidents in the period said about how far Keigan's analysis helped. A person's answer, so it is shown with how many answered."""
+
+    resolved_count: int
+    answered_count: int
+    answers: list[KeiganHelpCountResponse]
+    minimum_sample: int
+    # Percent of answers that said "found the cause"; null while fewer than minimum_sample answers were given.
+    share_found_cause: float | None = None
+    # Time to resolve for incidents answered "found the cause" or "helped partly" against those answered "did not help" or "not used"; each has its own sample size.
+    time_to_resolve_with_help: StatResponse
+    time_to_resolve_without_help: StatResponse
+
+
 class CostResponse(ApiModel):
     is_configured: bool
     total_estimated_cost: float | None = None
@@ -85,6 +104,7 @@ class MetricsSummaryResponse(ApiModel):
     investigations_by_status: list[InvestigationStatusCountResponse]
     ratings: RatingsResponse
     memory: MemoryMetricsResponse
+    keigan_help: KeiganHelpMetricsResponse
     ai_usage: AiUsageResponse
 
 

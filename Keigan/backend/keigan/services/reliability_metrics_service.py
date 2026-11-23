@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config.settings import get_settings
 from keigan.dtos.metrics_dtos import (
-    AiUsageResponse, ApplicationMetricsResponse, CostResponse, InvestigationStatusCountResponse, MemoryMetricsResponse, MetricsOverviewResponse, MetricsSummaryResponse, NotAvailableMetricResponse,
+    AiUsageResponse, ApplicationMetricsResponse, CostResponse, InvestigationStatusCountResponse, KeiganHelpCountResponse, KeiganHelpMetricsResponse, MemoryMetricsResponse, MetricsOverviewResponse, MetricsSummaryResponse, NotAvailableMetricResponse,
     PriorityCountResponse, RatingsResponse, StatResponse, WeeklyPointResponse,
 )
 from keigan.entities.alert_entities import Alert, AlertGroup
@@ -20,7 +20,7 @@ from keigan.entities.application_entities import Application
 from keigan.entities.incident_entities import Incident, Investigation
 from keigan.entities.incident_memory_entities import IncidentMemoryEntry, IncidentMemoryRelevanceFeedback, InvestigationMemoryReference
 from keigan.entities.platform_entities import LlmUsageRecord
-from keigan.entities.status_values import IncidentMemoryRelevanceVerdict, InvestigationStatus, LlmCallOutcome, Priority
+from keigan.entities.status_values import IncidentKeiganHelp, IncidentMemoryRelevanceVerdict, InvestigationStatus, LlmCallOutcome, Priority
 from keigan.security.current_user import CurrentUser
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.reliability_metrics import (
@@ -44,6 +44,7 @@ class IncidentRow:
     first_update_sent_at: datetime | None
     resolved_at: datetime | None
     first_alert_at: datetime | None  # earliest alert in an alert group linked to the incident
+    keigan_help: str | None = None  # the resolver's answer to "how did Keigan's analysis help?"
 
 
 @dataclass(frozen=True)
@@ -121,7 +122,7 @@ class ReliabilityMetricsService:
         """Incidents that were opened, got their first update or were resolved in the period, with the earliest alert of those opened in it."""
         in_scope = Incident.application_id.in_(application_ids)
         rows = (await self.session.execute(select(
-            Incident.incident_id, Incident.application_id, Incident.keigan_priority, Incident.opened_at, Incident.detected_by_keigan_at, Incident.first_update_sent_at, Incident.resolved_at).where(
+            Incident.incident_id, Incident.application_id, Incident.keigan_priority, Incident.opened_at, Incident.detected_by_keigan_at, Incident.first_update_sent_at, Incident.resolved_at, Incident.keigan_help).where(
             in_scope, (Incident.opened_at >= window.start) & (Incident.opened_at < window.end) | (Incident.resolved_at >= window.start) & (Incident.resolved_at < window.end)
             | (Incident.first_update_sent_at >= window.start) & (Incident.first_update_sent_at < window.end)))).all()
         first_alerts = dict((await self.session.execute(
@@ -129,7 +130,7 @@ class ReliabilityMetricsService:
                 in_scope, Incident.opened_at >= window.start, Incident.opened_at < window.end).group_by(AlertGroup.incident_id))).all())
         return [
             IncidentRow(row.incident_id, row.application_id, row.keigan_priority or UNASSIGNED_PRIORITY, row.opened_at, row.detected_by_keigan_at, row.first_update_sent_at, row.resolved_at,
-                        first_alerts.get(row.incident_id))
+                        first_alerts.get(row.incident_id), row.keigan_help)
             for row in rows
         ]
 
@@ -210,7 +211,22 @@ class ReliabilityMetricsService:
                 rated_count=ratings.rated_count, correct_count=ratings.correct_count, partially_correct_count=ratings.partially_correct_count, incorrect_count=ratings.incorrect_count,
                 minimum_sample=self.settings.metrics_minimum_rating_sample, share_correct=ratings.share_correct),
             memory=self._memory(memory, concluded),
+            keigan_help=self._keigan_help(resolved),
             ai_usage=self._ai_usage(calls),
+        )
+
+    def _keigan_help(self, resolved: list[IncidentRow]) -> KeiganHelpMetricsResponse:
+        """The resolvers' answers for incidents resolved in the period, and how long those incidents took to resolve with and without Keigan's help."""
+        answered = [row for row in resolved if row.keigan_help]
+        with_help = {IncidentKeiganHelp.FOUND_CAUSE, IncidentKeiganHelp.HELPED_PARTLY}
+        without_help = {IncidentKeiganHelp.DID_NOT_HELP, IncidentKeiganHelp.NOT_USED}
+        found = sum(1 for row in answered if row.keigan_help == IncidentKeiganHelp.FOUND_CAUSE)
+        minimum = self.settings.metrics_minimum_rating_sample
+        helped, unhelped = (summarize_durations((row.opened_at, row.resolved_at) for row in answered if row.keigan_help in answers) for answers in (with_help, without_help))
+        return KeiganHelpMetricsResponse(
+            resolved_count=len(resolved), answered_count=len(answered), answers=[KeiganHelpCountResponse(answer=answer.value, count=sum(1 for row in answered if row.keigan_help == answer)) for answer in IncidentKeiganHelp],
+            minimum_sample=minimum, share_found_cause=round(100 * found / len(answered), 1) if len(answered) >= minimum else None,
+            time_to_resolve_with_help=_stat(helped.distribution, helped.excluded_count), time_to_resolve_without_help=_stat(unhelped.distribution, unhelped.excluded_count),
         )
 
     def _ai_usage(self, calls: Iterable[CallRow]) -> AiUsageResponse:
