@@ -15,11 +15,13 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.entities.application_entities import Application, MonitoredService
+from keigan.entities.notification_entities import Stakeholder
 from keigan.entities.incident_entities import Incident, IncidentCommunication, Investigation, InvestigationTimelineEvent, PostmortemReport, ServiceNowAssignmentGroup
-from keigan.entities.status_values import CommunicationStatus, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStatus, InvestigationTrigger, PostmortemStatus
+from keigan.entities.status_values import ActionItemStatus, CommunicationStatus, IncidentSource, IncidentStatus, InvestigationFeedbackVerdict, InvestigationStatus, InvestigationTrigger, PostmortemStatus, StakeholderRecipientType
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.seed.foundation_seed import SeedContext
 from keigan.services.communication_service import CommunicationService
+from keigan.services.postmortem_action_items import items_of, render_final_table, replace_action_items_section
 from keigan.services.investigation_service import InvestigationService
 from keigan.utils.pii_masker import PiiMasker
 
@@ -121,7 +123,23 @@ async def _seed_historical_incident(session: AsyncSession, window: dict[str, Any
             postmortem.report_status = PostmortemStatus.FINAL
             postmortem.finalized_by_user_principal_name, postmortem.finalized_at = ADMIN_UPN, min(ended_at + timedelta(days=1), now_utc())
             postmortem.sent_at = postmortem.finalized_at + timedelta(minutes=5)
+            await _accept_the_action_items_of_a_final_postmortem(session, postmortem, incident.application_id, postmortem.finalized_at)
     await session.flush()
+
+
+async def _accept_the_action_items_of_a_final_postmortem(session: AsyncSession, postmortem: PostmortemReport, application_id: str, finalized_at: datetime) -> None:
+    """A final postmortem has no suggestions left: the team accepted its items, gave them owners, and some are done. The report's table is rendered from the rows, as finalising does."""
+    items = await items_of(session, postmortem.postmortem_id)
+    people = list((await session.scalars(select(Stakeholder).where(Stakeholder.application_id == application_id, Stakeholder.recipient_type == StakeholderRecipientType.PERSON, Stakeholder.is_active.is_(True)).order_by(Stakeholder.display_name))).all())
+    for position, item in enumerate(items):
+        item.owner_stakeholder_id = people[position % len(people)].stakeholder_id if people else None
+        item.accepted_at, item.accepted_by_user_principal_name, item.original_due_on = finalized_at, ADMIN_UPN, item.due_on
+        completed_at = finalized_at + timedelta(days=3 + position)
+        if position % 2 == 0 and completed_at <= now_utc():
+            item.item_status, item.completed_at, item.completed_by_user_principal_name = ActionItemStatus.DONE, completed_at, ADMIN_UPN
+        else:
+            item.item_status = ActionItemStatus.IN_PROGRESS if position % 3 == 1 else ActionItemStatus.OPEN
+    postmortem.report_markdown = replace_action_items_section(postmortem.report_markdown or "", await render_final_table(session, postmortem.postmortem_id))
 
 
 def now_utc() -> datetime:

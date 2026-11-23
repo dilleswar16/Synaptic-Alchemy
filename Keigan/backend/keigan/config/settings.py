@@ -218,6 +218,18 @@ class Settings(BaseSettings):
     action_items_maximum_due_days: int = Field(default=180, ge=7, le=730)  # latest due date, in days from today (and the clamp on the AI's suggested days)
     action_items_details_maximum_characters: int = Field(default=4000, ge=200, le=20_000)
     action_items_reason_minimum_characters: int = Field(default=10, ge=1, le=200)  # shortest reason for blocked and won't do
+    error_budget_policy_single_incident_threshold_percent: float = Field(default=20.0, ge=1, le=100)  # one incident using more than this share of an SLO's budget needs a postmortem with a top-priority item
+    error_budget_policy_outage_class_threshold_percent: float = Field(default=20.0, ge=1, le=100)  # one class of outage using more than this share of an SLO's budget over the class window
+    error_budget_policy_outage_class_window_days: int = Field(default=90, ge=7)  # the class window ("a quarter"); at most SLI_RAW_RETENTION_DAYS
+    error_budget_policy_evaluation_interval_minutes: int = Field(default=60, ge=5, le=1440)  # how often impacts and breaches are re-evaluated
+    error_budget_policy_final_after_hours: int = Field(default=24, ge=1, le=168)  # hours after resolution when an incident's budget figure becomes final
+    error_budget_policy_minimum_data_coverage_percent: float = Field(default=50.0, ge=10, le=100)  # least share of the budget window that must have measurements
+    error_budget_policy_minimum_window_events: int = Field(default=1000, ge=0, le=1_000_000_000)  # fewest events in the budget window for a share to be stated
+    error_budget_policy_auto_draft_postmortem: bool = True  # start a postmortem draft when a breach is found on a resolved incident
+    error_budget_policy_waiver_minimum_characters: int = Field(default=20, ge=5, le=500)  # shortest reason for waiving a requirement
+    error_budget_policy_guidance_maximum_characters: int = Field(default=2000, ge=100, le=10_000)  # longest text of what a team does when a budget is used up
+    error_budget_policy_notification_roles: str = "lead"  # team roles (comma separated) told about breaches in addition to subscribers
+    error_budget_policy_breach_retention_days: int = Field(default=730, ge=90, le=3650)  # closed breaches older than this are deleted
     action_items_reminders_enabled: bool = True  # master switch for reminder and escalation emails
     action_items_reminder_hour_local: int = Field(default=9, ge=0, le=23)  # hour, in the application's time zone, at which the daily reminder job runs
     action_items_reminder_days_before_due: int = Field(default=2, ge=0, le=14)  # days before the due date of the due-soon reminder (0 = none)
@@ -316,6 +328,14 @@ class Settings(BaseSettings):
         parse_model_prices(prices_json)
         return prices_json
 
+    @field_validator("error_budget_policy_notification_roles", mode="after")
+    @classmethod
+    def notification_roles_must_be_team_roles(cls, roles: str) -> str:
+        unknown = [role for role in (part.strip() for part in roles.split(",")) if role and role not in {member.value for member in StakeholderRole}]
+        if unknown:
+            raise ValueError(f"ERROR_BUDGET_POLICY_NOTIFICATION_ROLES has unknown team roles: {', '.join(unknown)}")
+        return roles
+
     @field_validator("action_items_escalation_roles", mode="after")
     @classmethod
     def escalation_roles_must_be_team_roles(cls, roles: str) -> str:
@@ -355,6 +375,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_safe_combinations(self) -> "Settings":
+        if self.error_budget_policy_outage_class_window_days > self.sli_raw_retention_days:
+            raise ValueError("ERROR_BUDGET_POLICY_OUTAGE_CLASS_WINDOW_DAYS cannot exceed SLI_RAW_RETENTION_DAYS: the class rule reads the raw SLI measurements, which expire after that many days.")
         if self.environment == EnvironmentName.PROD:
             if not self.pii_masking_enabled:
                 raise ValueError("PII_MASKING_ENABLED must be true when ENVIRONMENT=prod.")
@@ -429,6 +451,10 @@ class Settings(BaseSettings):
     @property
     def is_local_environment(self) -> bool:
         return self.environment in (EnvironmentName.LOCAL, EnvironmentName.DEV)
+
+    @property
+    def error_budget_policy_notification_role_list(self) -> list[str]:
+        return [role.strip() for role in self.error_budget_policy_notification_roles.split(",") if role.strip()]
 
     @property
     def action_items_escalation_role_list(self) -> list[str]:

@@ -74,9 +74,10 @@
         "investigation_timeline_event": 70,
         "investigation_trace_step": 86,
         "postmortem_report": 7,
+        "action_item": 21,
         "alert_group_affected_service": 14
       },
-      "sha256": "d43dc839cf379f5bec7948ddd41c74d491412dcd356d21c3d22a8a51063458f2"
+      "sha256": "7113c5a8726c35b50f8c419601a3e438fec4e9b9cc8033a75933c110090cf835"
     },
     "06_intelligence_and_collaboration.sql": {
       "committed": true,
@@ -89,7 +90,7 @@
         "conversation_message": 9,
         "predictive_signal": 8
       },
-      "sha256": "1328ef1586f237d7ac3612f13384fefc0d6b643fd8059b7d891fbfaaddd714d6"
+      "sha256": "6e67cbf8931654f145143adf6087d0bcfb94b831a91882d582edd82c2b6944c3"
     },
     "99_remove_demo_data.sql": {
       "committed": true,
@@ -136,6 +137,7 @@
         "investigation_timeline_event": 70,
         "investigation_trace_step": 86,
         "postmortem_report": 7,
+        "action_item": 21,
         "alert_group_affected_service": 14,
         "platform_setting": 7,
         "intelligence_report": 4,
@@ -145,7 +147,7 @@
         "conversation_message": 9,
         "predictive_signal": 8
       },
-      "sha256": "e9e6e22ede87201b5116a2c4118ed6edd871c0f9917a156129f99fd057cd5bc1"
+      "sha256": "6a2b128a217feb612a13796a1e65a5a048764f5ba91a695fd6dd405d73bfda93"
     },
     "run_all_demo_data.sql": {
       "committed": true,
@@ -154,10 +156,12 @@
     }
   },
   "tables_without_seeded_rows": [
-    "action_item",
     "chat_answer_run",
     "chat_run_step",
     "conversation_application",
+    "error_budget_policy",
+    "error_budget_policy_breach",
+    "incident_budget_impact",
     "slo_burn_alert",
     "stakeholder_subscribed_service"
   ],

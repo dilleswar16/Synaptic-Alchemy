@@ -33,6 +33,8 @@ CONSTRAINED_COLUMNS: list[tuple[str, str, type[StrEnum]]] = [
     ("investigation_evidence", "check_outcome", values.EvidenceCheckOutcome), ("investigation_evidence", "baseline_comparison", values.BaselineComparison),
     ("action_item", "item_source_kind", values.ActionItemSource), ("action_item", "action_type", values.ActionItemType), ("action_item", "action_priority", values.ActionItemPriority),
     ("action_item", "item_status", values.ActionItemStatus),
+    ("incident_budget_impact", "impact_state", values.IncidentBudgetImpactState), ("error_budget_policy_breach", "breach_kind", values.ErrorBudgetBreachKind),
+    ("error_budget_policy_breach", "requirement_status", values.ErrorBudgetRequirementStatus),
     ("investigation_trace_step", "stage_name", values.InvestigationStage), ("investigation_trace_step", "step_kind", values.InvestigationTraceStepKind),
     ("investigation_trace_step", "step_status", values.InvestigationTraceStepStatus), ("investigation_trace_step", "decision_kind", values.InvestigationDecisionKind),
     ("investigation_trace_step", "failure_code", values.InvestigationAiCallFailure),

@@ -227,6 +227,7 @@ class ApplicationService:
         from sqlalchemy import delete, or_
 
         from keigan.entities.action_item_entities import ActionItem
+        from keigan.entities.error_budget_entities import ErrorBudgetPolicyBreach
         from keigan.entities.alert_entities import AlertGroup
         from keigan.entities.incident_entities import Conversation, Incident, IncidentCommunication, Investigation, InvestigationTimelineEvent, PostmortemReport
         from keigan.entities.notification_entities import NotificationDelivery, TeamsIncidentChat
@@ -236,6 +237,7 @@ class ApplicationService:
         application_incident_ids = select(Incident.incident_id).where(Incident.application_id == application_id)
         application_investigation_ids = select(Investigation.investigation_id).where(Investigation.application_id == application_id)
         for delete_statement in (
+            delete(ErrorBudgetPolicyBreach).where(ErrorBudgetPolicyBreach.application_id == application_id),  # they name incidents, SLOs and action items
             delete(ActionItem).where(ActionItem.application_id == application_id),  # they name the postmortems and incidents deleted below
             delete(MonitoredService).where(MonitoredService.application_id == application_id),
             *(delete(entity).where(or_(entity.incident_id.in_(application_incident_ids), entity.investigation_id.in_(application_investigation_ids)))

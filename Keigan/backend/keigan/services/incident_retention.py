@@ -15,6 +15,7 @@ from sqlalchemy import ColumnElement, delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.entities.action_item_entities import ActionItem
+from keigan.entities.error_budget_entities import ErrorBudgetPolicyBreach
 from keigan.entities.alert_entities import AlertGroup
 from keigan.entities.incident_entities import (
     ChatAnswerRun, Conversation, ConversationMessage, Incident, IncidentCommunication, Investigation, InvestigationCoverageGap, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, InvestigationTraceStep, PostmortemReport,
@@ -94,6 +95,7 @@ async def _delete_incident_batch(session: AsyncSession, incident_ids: list[str],
     removed["notificationDeliveries"] += await _count_deleted(session, delete(NotificationDelivery).where(NotificationDelivery.incident_id.in_(incident_ids)))
     await session.execute(update(ActionItem).where(ActionItem.postmortem_id.in_(select(PostmortemReport.postmortem_id).where(PostmortemReport.incident_id.in_(incident_ids)))).values(postmortem_id=None))
     await session.execute(update(ActionItem).where(ActionItem.incident_id.in_(incident_ids)).values(incident_id=None))
+    await session.execute(update(ErrorBudgetPolicyBreach).where(ErrorBudgetPolicyBreach.incident_id.in_(incident_ids)).values(incident_id=None))  # the breach keeps its snapshot of the number
     removed["postmortems"] += await _count_deleted(session, delete(PostmortemReport).where(PostmortemReport.incident_id.in_(incident_ids)))
     removed["teamsIncidentChats"] += await _count_deleted(session, delete(TeamsIncidentChat).where(TeamsIncidentChat.incident_id.in_(incident_ids)))
     await session.execute(update(AlertGroup).where(AlertGroup.incident_id.in_(incident_ids)).values(incident_id=None))

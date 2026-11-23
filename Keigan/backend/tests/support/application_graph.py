@@ -35,6 +35,7 @@ from keigan.entities.incident_entities import (
     PostmortemReport,
     ServiceNowAssignmentGroup,
 )
+from keigan.entities.error_budget_entities import ErrorBudgetPolicy, ErrorBudgetPolicyBreach, IncidentBudgetImpact
 from keigan.entities.knowledge_entities import ApplicationTopology, KnowledgeChunk, KnowledgeDocument, Runbook, TopologyReviewComment
 from keigan.entities.notification_entities import NotificationDelivery, Stakeholder, TeamsIncidentChat
 from keigan.entities.slo_entities import IntelligenceReport, PredictiveSignal, ServiceLevelIndicator, ServiceLevelObjective, SliMeasurement, SloBurnAlert
@@ -147,10 +148,23 @@ async def create_application_graph() -> ApplicationGraph:
         postmortem = PostmortemReport(incident_id=incident.incident_id, investigation_id=investigation.investigation_id, report_title="postmortem")
         session.add(postmortem)
         await session.flush()
-        session.add(ActionItem(
+        action_item = ActionItem(
             application_id=application_id, incident_id=incident.incident_id, postmortem_id=postmortem.postmortem_id, owner_stakeholder_id=stakeholder.stakeholder_id, item_source_kind="postmortem", item_title="follow-up",
             action_type="prevent", item_status="open",
-        ))
+        )
+        session.add(action_item)
+        await session.flush()
+        session.add_all([
+            ErrorBudgetPolicy(application_id=application_id, is_enabled=True),
+            IncidentBudgetImpact(
+                incident_id=incident.incident_id, application_id=application_id, slo_id=slo.slo_id, sli_name_text="availability", target_percentage=99.9, budget_window_days=30, impact_window_start=now, impact_window_end=now,
+                budget_window_start=now, budget_window_end=now, bad_event_count=1, impact_total_event_count=2, window_total_event_count=3, data_coverage_percent=100.0, is_service_matched=True, impact_state="final", evaluated_at=now,
+            ),
+            ErrorBudgetPolicyBreach(
+                application_id=application_id, breach_kind="single_incident", incident_id=incident.incident_id, slo_id=slo.slo_id, window_days=30, detected_at=now, requirement_status="met",
+                requirement_changed_at=now, qualifying_action_item_id=action_item.action_item_id,
+            ),
+        ])
         session.add_all([
             ConversationMessage(conversation_id=conversation.conversation_id, author_role="user", message_text="hi"),
             InvestigationEvidence(

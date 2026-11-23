@@ -306,6 +306,28 @@ class ActionItemSource(StrEnum):
 
     POSTMORTEM = "postmortem"
     MANUAL = "manual"
+    ERROR_BUDGET_POLICY = "error_budget_policy"  # raised from an outage-class breach card (spec 30)
+
+
+class IncidentBudgetImpactState(StrEnum):
+    """How final one incident's error budget figure is (spec 30)."""
+
+    PROVISIONAL = "provisional"  # the incident is open, or was resolved less than ERROR_BUDGET_POLICY_FINAL_AFTER_HOURS ago
+    FINAL = "final"
+    INSUFFICIENT_DATA = "insufficient_data"  # too few measurements or events: no share is stated
+
+
+class ErrorBudgetBreachKind(StrEnum):
+    SINGLE_INCIDENT = "single_incident"
+    OUTAGE_CLASS = "outage_class"
+    BUDGET_EXHAUSTED = "budget_exhausted"
+
+
+class ErrorBudgetRequirementStatus(StrEnum):
+    OPEN = "open"
+    MET = "met"
+    WAIVED = "waived"
+    ENDED = "ended"  # budget_exhausted only: the SLO is back within its target
 
 
 class RiskLevel(StrEnum):

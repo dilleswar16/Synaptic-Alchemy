@@ -27,6 +27,7 @@ from keigan.security.current_user import CurrentUser
 from keigan.services import alert_rules
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
+from keigan.services.reference_release import release_references
 from keigan.services.sli_measurement_reader import SliMeasurementReader, SliSample, validate_custom_sli_query
 from keigan.utils.query_safety import QueryRejectedError
 from keigan.utils.statistics_utils import burn_rate, error_budget_minutes
@@ -400,6 +401,7 @@ class SloService:
     async def delete_sli(self, current_user: CurrentUser, sli_id: str) -> None:
         sli = await self._editable_sli(current_user, sli_id)
         for slo in (await self.session.scalars(select(ServiceLevelObjective).where(ServiceLevelObjective.sli_id == sli_id))).all():
+            await release_references(self.session, ServiceLevelObjective.slo_id, [slo.slo_id])  # budget impacts and breaches stay, with their snapshots
             await self.session.delete(slo)
         await self.session.execute(SliMeasurement.__table__.delete().where(SliMeasurement.sli_id == sli_id))
         await self.session.delete(sli)
@@ -437,6 +439,7 @@ class SloService:
         if slo is None:
             raise NotFoundException("SLO not found.")
         await AuthorizationService(self.session).ensure_application_admin(current_user, slo.application_id)
+        await release_references(self.session, ServiceLevelObjective.slo_id, [slo_id])  # budget impacts and breaches stay, with their snapshots
         await self.session.delete(slo)
         await AuditService(self.session).record(current_user, "slo.delete", target_entity_type="service_level_objective", target_entity_id=slo_id, application_id=slo.application_id)
 
