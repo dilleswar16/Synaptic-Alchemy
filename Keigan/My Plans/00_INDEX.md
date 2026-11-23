@@ -46,6 +46,7 @@ Documents keep their numbers, so "doc 06" always means the same file. They are g
 | 26 | [Alert grouping reason](features/alert-grouping-reason/26_ALERT_GROUPING_REASON.md) | Built (roadmap B3). The "why were these alerts grouped" sentence. |
 | 23 | [Ask Keigan chat: design and spec](features/ask-keigan-chat/23_ASK_KEIGAN_CHAT_SPEC.md) | Designed, not built (roadmap B5). One chat with every read-only tool and a visible tool-call view; owner decisions D1 to D6 recorded. |
 | 22 | [AI evaluation harness: design and spec](features/ai-evaluation-harness/22_AI_EVALUATION_HARNESS_SPEC.md) | Designed, deferred by decision (roadmap A1). |
+| 37 | [Real-model test plan](features/ai-evaluation-harness/37_REAL_MODEL_TEST_PLAN.md) | Written, not run. A self-contained checklist with acceptance criteria and the agent prompt, for the first real-model results on another machine. |
 | 08 | [RAG proposal](features/semantic-retrieval/08_RAG_PROPOSAL.md) | Future retrieval-augmented knowledge base, once a vector store is provisioned. |
 
 ### quality-and-security/
