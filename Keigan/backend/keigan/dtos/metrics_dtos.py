@@ -41,6 +41,20 @@ class RatingsResponse(ApiModel):
     share_correct: float | None = None
 
 
+class MemoryMetricsResponse(ApiModel):
+    """How the memory of past incidents (spec 34) is used and judged in the period."""
+
+    completed_investigation_count: int
+    investigations_given_a_hint_count: int  # completed investigations whose AI was shown at least one confirmed past incident
+    relevance_answer_count: int
+    relevant_count: int
+    not_relevant_count: int
+    minimum_sample: int
+    # Percent of answers that said "relevant"; null while fewer than minimum_sample answers were given.
+    share_relevant: float | None = None
+    hidden_entry_count: int  # past incidents an admin hid in the period
+
+
 class CostResponse(ApiModel):
     is_configured: bool
     total_estimated_cost: float | None = None
@@ -70,6 +84,7 @@ class MetricsSummaryResponse(ApiModel):
     investigation_count: int
     investigations_by_status: list[InvestigationStatusCountResponse]
     ratings: RatingsResponse
+    memory: MemoryMetricsResponse
     ai_usage: AiUsageResponse
 
 

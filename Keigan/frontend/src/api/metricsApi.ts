@@ -34,6 +34,21 @@ export interface Ratings {
   shareCorrect: number | null;
 }
 
+/** How the memory of past incidents (spec 34) is used and judged in the period. */
+export interface MemoryMetrics {
+  completedInvestigationCount: number;
+  /** Completed investigations whose AI was shown at least one confirmed past incident. */
+  investigationsGivenAHintCount: number;
+  relevanceAnswerCount: number;
+  relevantCount: number;
+  notRelevantCount: number;
+  minimumSample: number;
+  /** Percent of answers that said "relevant"; null while fewer than `minimumSample` answers were given. */
+  shareRelevant: number | null;
+  /** Past incidents an admin hid in the period. */
+  hiddenEntryCount: number;
+}
+
 export interface CostSummary {
   isConfigured: boolean;
   totalEstimatedCost: number | null;
@@ -63,6 +78,7 @@ export interface MetricsSummary {
   investigationCount: number;
   investigationsByStatus: InvestigationStatusCount[];
   ratings: Ratings;
+  memory: MemoryMetrics;
   aiUsage: AiUsage;
 }
 

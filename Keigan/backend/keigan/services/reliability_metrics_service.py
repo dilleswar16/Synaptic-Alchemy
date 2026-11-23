@@ -12,14 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config.settings import get_settings
 from keigan.dtos.metrics_dtos import (
-    AiUsageResponse, ApplicationMetricsResponse, CostResponse, InvestigationStatusCountResponse, MetricsOverviewResponse, MetricsSummaryResponse, NotAvailableMetricResponse,
+    AiUsageResponse, ApplicationMetricsResponse, CostResponse, InvestigationStatusCountResponse, MemoryMetricsResponse, MetricsOverviewResponse, MetricsSummaryResponse, NotAvailableMetricResponse,
     PriorityCountResponse, RatingsResponse, StatResponse, WeeklyPointResponse,
 )
 from keigan.entities.alert_entities import Alert, AlertGroup
 from keigan.entities.application_entities import Application
 from keigan.entities.incident_entities import Incident, Investigation
+from keigan.entities.incident_memory_entities import IncidentMemoryEntry, IncidentMemoryRelevanceFeedback, InvestigationMemoryReference
 from keigan.entities.platform_entities import LlmUsageRecord
-from keigan.entities.status_values import InvestigationStatus, LlmCallOutcome, Priority
+from keigan.entities.status_values import IncidentMemoryRelevanceVerdict, InvestigationStatus, LlmCallOutcome, Priority
 from keigan.security.current_user import CurrentUser
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.reliability_metrics import (
@@ -57,6 +58,18 @@ class InvestigationRow:
 
 
 @dataclass(frozen=True)
+class MemoryRows:
+    given_a_hint: frozenset[str]  # investigation ids whose AI was shown a past incident
+    answers: list[tuple[str, str]]  # (application id, verdict) of each "relevant" or "not relevant" answer in the period
+    hidden_application_ids: list[str]  # the application of each past incident hidden in the period
+
+    def for_application(self, application_id: str, investigation_ids: Iterable[str]) -> MemoryRows:
+        return MemoryRows(
+            self.given_a_hint & frozenset(investigation_ids), [answer for answer in self.answers if answer[0] == application_id], [item for item in self.hidden_application_ids if item == application_id],
+        )
+
+
+@dataclass(frozen=True)
 class CallRow:
     application_id: str
     investigation_created_at: datetime
@@ -83,15 +96,17 @@ class ReliabilityMetricsService:
         incidents = await self._incidents(application_ids, window) if application_ids else []
         investigations = await self._investigations(application_ids, window) if application_ids else []
         calls = await self._calls(application_ids, window) if application_ids else []
+        memory = await self._memory_rows(application_ids, window, investigations) if application_ids else MemoryRows(frozenset(), [], [])
         return MetricsOverviewResponse(
             period_start=window.start, period_end=window.end, application_id=application_id, minimum_rating_sample=self.settings.metrics_minimum_rating_sample,
-            maximum_window_days=self.settings.metrics_maximum_window_days, summary=self._summarize(incidents, investigations, calls, window),
+            maximum_window_days=self.settings.metrics_maximum_window_days, summary=self._summarize(incidents, investigations, calls, window, memory),
             applications=[
                 ApplicationMetricsResponse(
                     application_id=application.application_id, application_name=application.application_name, application_code=application.application_code,
                     **self._summarize(
                         [row for row in incidents if row.application_id == application.application_id], [row for row in investigations if row.application_id == application.application_id],
                         [row for row in calls if row.application_id == application.application_id], window,
+                        memory.for_application(application.application_id, (row.investigation_id for row in investigations if row.application_id == application.application_id)),
                     ).model_dump(),
                 )
                 for application in applications
@@ -126,6 +141,31 @@ class ReliabilityMetricsService:
             | (Investigation.completed_at >= window.start) & (Investigation.completed_at < window.end)))).all()
         return [InvestigationRow(*row) for row in rows]
 
+    async def _memory_rows(self, application_ids: list[str], window: MetricsWindow, investigations: list[InvestigationRow]) -> MemoryRows:
+        """What the memory of past incidents did in the period: which investigations were given a hint, how people answered "was this relevant?", and which entries an admin hid."""
+        investigation_ids = [row.investigation_id for row in investigations]
+        given = frozenset((await self.session.scalars(select(InvestigationMemoryReference.investigation_id).where(InvestigationMemoryReference.investigation_id.in_(investigation_ids)))).all()) if investigation_ids else frozenset()
+        answers = (await self.session.execute(
+            select(Investigation.application_id, IncidentMemoryRelevanceFeedback.relevance_verdict)
+            .join(Investigation, Investigation.investigation_id == IncidentMemoryRelevanceFeedback.investigation_id)
+            .where(Investigation.application_id.in_(application_ids), IncidentMemoryRelevanceFeedback.recorded_at >= window.start, IncidentMemoryRelevanceFeedback.recorded_at < window.end)
+        )).all()
+        hidden = (await self.session.scalars(
+            select(IncidentMemoryEntry.application_id).where(IncidentMemoryEntry.application_id.in_(application_ids), IncidentMemoryEntry.hidden_at >= window.start, IncidentMemoryEntry.hidden_at < window.end)
+        )).all()
+        return MemoryRows(given, [(application_id, verdict) for application_id, verdict in answers], list(hidden))
+
+    def _memory(self, memory: MemoryRows, concluded: list[InvestigationRow]) -> MemoryMetricsResponse:
+        completed = [row for row in concluded if row.status == InvestigationStatus.COMPLETED]
+        relevant = sum(1 for _, verdict in memory.answers if verdict == IncidentMemoryRelevanceVerdict.RELEVANT)
+        answered = len(memory.answers)
+        minimum = self.settings.metrics_minimum_rating_sample
+        return MemoryMetricsResponse(
+            completed_investigation_count=len(completed), investigations_given_a_hint_count=sum(1 for row in completed if row.investigation_id in memory.given_a_hint), relevance_answer_count=answered,
+            relevant_count=relevant, not_relevant_count=answered - relevant, minimum_sample=minimum, share_relevant=round(100 * relevant / answered, 1) if answered >= minimum and answered else None,
+            hidden_entry_count=len(memory.hidden_application_ids),
+        )
+
     async def _calls(self, application_ids: list[str], window: MetricsWindow) -> list[CallRow]:
         """Model calls made for investigations created in the period (calls with no investigation, such as chat, are not part of this page)."""
         rows = (await self.session.execute(select(
@@ -143,7 +183,7 @@ class ReliabilityMetricsService:
     def _in(window: MetricsWindow, moment: datetime | None) -> bool:
         return moment is not None and window.start <= moment < window.end
 
-    def _summarize(self, incidents: list[IncidentRow], investigations: list[InvestigationRow], calls: list[CallRow], window: MetricsWindow) -> MetricsSummaryResponse:
+    def _summarize(self, incidents: list[IncidentRow], investigations: list[InvestigationRow], calls: list[CallRow], window: MetricsWindow, memory: MemoryRows) -> MetricsSummaryResponse:
         """Every figure for one set of rows (all applications, or one). A duration counts in the period in which it ended."""
         opened = [row for row in incidents if self._in(window, row.opened_at)]
         resolved = [row for row in incidents if self._in(window, row.resolved_at)]
@@ -169,6 +209,7 @@ class ReliabilityMetricsService:
             ratings=RatingsResponse(
                 rated_count=ratings.rated_count, correct_count=ratings.correct_count, partially_correct_count=ratings.partially_correct_count, incorrect_count=ratings.incorrect_count,
                 minimum_sample=self.settings.metrics_minimum_rating_sample, share_correct=ratings.share_correct),
+            memory=self._memory(memory, concluded),
             ai_usage=self._ai_usage(calls),
         )
 

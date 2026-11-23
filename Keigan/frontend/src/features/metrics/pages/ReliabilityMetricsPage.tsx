@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Ban, ChartColumn, Clock, CircleCheck, Coins, Cpu, Hourglass, Send, Siren, ThumbsUp, Timer, Zap, type LucideIcon } from "lucide-react";
+import { Ban, ChartColumn, Clock, CircleCheck, Coins, Cpu, EyeOff, History, Hourglass, Send, Siren, ThumbsUp, Timer, Zap, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMetricsOverview, type ApplicationMetrics, type MetricStat, type MetricsOverview, type MetricsSummary, type WeeklyPoint } from "@/api/metricsApi";
 import { useApplicationScope } from "@/auth/applicationScope";
@@ -87,6 +87,7 @@ function Content({ overview }: { overview: MetricsOverview }) {
     <>
       <IncidentSection overview={overview} />
       <InvestigationSection summary={overview.summary} />
+      <MemorySection summary={overview.summary} />
       <AiUsageSection summary={overview.summary} />
       <TrendSection overview={overview} />
       <ApplicationSection applications={overview.applications} />
@@ -180,6 +181,38 @@ function InvestigationSection({ summary }: { summary: MetricsSummary }) {
             </>
           }
         />
+      </div>
+    </section>
+  );
+}
+
+function MemorySection({ summary }: { summary: MetricsSummary }) {
+  const { t } = useTranslation("metrics");
+  const { memory } = summary;
+  if (memory.completedInvestigationCount === 0 && memory.relevanceAnswerCount === 0 && memory.hiddenEntryCount === 0) return null;
+  return (
+    <section aria-labelledby="metrics-memory" className="flex flex-col gap-4">
+      <SectionHeader level={3} id="metrics-memory" title={t("sections.memory.title")} description={t("sections.memory.description")} />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile
+          icon={History}
+          iconTone="info"
+          label={t("memory.givenLabel")}
+          value={t("memory.givenValue", { given: memory.investigationsGivenAHintCount, total: memory.completedInvestigationCount })}
+          secondaryText={t("memory.givenDetail")}
+        />
+        <StatTile
+          icon={ThumbsUp}
+          iconTone="success"
+          label={t("memory.relevantLabel")}
+          value={memory.shareRelevant !== null ? formatPercentage(memory.shareRelevant) : t("figure.none")}
+          secondaryText={
+            memory.shareRelevant === null
+              ? t("memory.notEnough", { count: memory.relevanceAnswerCount, minimum: memory.minimumSample })
+              : t("memory.relevantDetail", { relevant: memory.relevantCount, answered: memory.relevanceAnswerCount })
+          }
+        />
+        <StatTile icon={EyeOff} iconTone="warning" label={t("memory.hiddenLabel")} value={formatCount(memory.hiddenEntryCount)} secondaryText={t("memory.hiddenDetail")} />
       </div>
     </section>
   );

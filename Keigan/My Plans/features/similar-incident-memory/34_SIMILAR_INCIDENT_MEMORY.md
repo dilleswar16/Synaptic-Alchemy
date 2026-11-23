@@ -1,6 +1,6 @@
 # 34 — Similar-incident memory: "last time, the cause was ... and the fix was ..."
 
-> **PHASES 1 TO 3 BUILT (2026-11-24); PHASES 4 TO 6 NOT BUILT.** The owner asked for the memory, its API and its screen (entries, matching, "Seen before"). The prompt section, the Ask Keigan tool, the measurement suites and semantic retrieval are still design only. Section 12 lists what was built and where it differs from this design.
+> **PHASES 1 TO 5 BUILT (2026-11-24); PHASE 6 NOT BUILT.** The memory, its API and screen, the hint for the AI, the Ask Keigan tool, the retrieval suite and the metrics exist. Not done: the harness's paired memory on/off suite (needs A1 and a model), real labelled pairs, and semantic retrieval (phase 6). Section 12 lists what was built and where it differs from this design.
 
 Roadmap item **B1** (doc 21, product research, section 3.5, wave B). Written 2026-11-22 against branch `keigan-ui-ux`.
 
@@ -10,7 +10,7 @@ Roadmap item **B1** (doc 21, product research, section 3.5, wave B). Written 202
 
 **Purpose.** When a new incident looks like one Keigan has seen before, in the same application or another one the reader may see, show the responder what happened last time: the cause, the fix, how trustworthy that memory is (the engineers' verdict) and how old it is. Give the investigation's AI the same hint for the application's own past, labelled as a hint and never as evidence.
 
-**Status.** Design, written 2026-11-22. Phases 1 to 3 built on 2026-11-24 (section 12); phases 4 to 6 not built. Every statement about existing code was checked in the source on 2026-11-22 and carries a `path:symbol` reference.
+**Status.** Design, written 2026-11-22. Phases 1 to 5 built on 2026-11-24 (section 12); phase 6 not built. Every statement about existing code was checked in the source on 2026-11-22 and carries a `path:symbol` reference.
 
 **How to use it.**
 - Owner: read sections 2, 4.1 (especially M3 on semantic retrieval and M4 on access), 6 and 11.
@@ -365,7 +365,7 @@ Overall M (doc 21 estimate), plus phase 6 only if triggered.
 
 ## 12. Build notes (2026-11-24): phases 1 to 3 built
 
-Built on branch `keigan-ui-ux` at the owner's request (the owner then said B1 was wanted). Phases 4 to 6 (prompt section, Ask Keigan tool, measurement, semantic retrieval) are **not built**.
+Built on branch `keigan-ui-ux` at the owner's request (the owner then said B1 was wanted). Phases 4 and 5 were built later the same day (below); phase 6 (semantic retrieval) is **not built**.
 
 **What exists.**
 - Enums in `status_values.py` (`IncidentMemoryEntryStatus`, `IncidentMemoryKeyKind`, `IncidentMemoryCauseSource`, `IncidentMemoryFixSource`, `IncidentMemoryRelevanceVerdict`); entities `IncidentMemoryEntry`, `IncidentMemoryKey`, `IncidentMemoryRelevanceFeedback` in `entities/incident_memory_entities.py`; revision `e6b2d8f4a0c3` (64 to 67 tables); Azure SQL scripts, migration script, ER diagram and demo data regenerated.
@@ -392,5 +392,7 @@ Built on branch `keigan-ui-ux` at the owner's request (the owner then said B1 wa
 **Phase 4b, the Ask Keigan tool (built 2026-11-24).** `find_similar_incidents` (`services/ask_keigan_memory_tools.py`, registered by importing `ask_keigan_tools`), in both scopes, takes exactly one of `investigation_id` (bound in an investigation conversation), `incident_id` (its latest finished investigation) or `text` with `application_code`. It runs `IncidentMemoryService` as the asking person, searches only the applications the conversation covers, re-checks each application that contributed (access removed during an answer refuses it) and lists them as read. The output has a code-written summary, the cause and fix with their sources, `reviewed_as`, `matched_on`, staleness and `was_marked_incorrect`, and no score. The offline planner plans it from "have we seen this before?" and "similar incidents". The investigation scope now offers nine tools, not eight.
 
 **One scoring change for it.** An incident with no facts at all (a description typed in words, or an investigation with nothing to key on) is compared on its words, which then carry the whole score instead of the 0.30 they are worth next to shared facts. Otherwise a text question could never reach the minimum score. Words still never cross applications. The suite's former known miss is now found, and a new case checks that the same words do not bring back an incident whose facts disagree.
+
+**Phase 4c, the numbers in the product (built 2026-11-24).** `GET /metrics/overview` has a `memory` block in every summary (overall and per application): completed investigations in the period and how many of them had a confirmed past incident given to their AI (from `investigation_memory_reference`), the "relevant" and "not relevant" answers recorded in the period and the share relevant (withheld below `METRICS_MINIMUM_RATING_SAMPLE`, like the ratings), and the entries hidden in the period. The page shows them in a "Past-incident memory" section that appears only when there is something to show. This is "given to the AI", not "shown to a reader": what the page showed a reader is computed when they open it and is not stored.
 
 **Checked, not assumed.** Access: a reader never receives an entry of an application they cannot read, and an unreadable or unknown entry answers 404 for relevance, hide and unhide (tests in `tests/integration/controllers/test_incident_memory_controller.py` and `tests/integration/services/test_incident_memory.py`). **Not checked:** the screen in a browser, real incident wording, and the quality of the weights; the retrieval suite of phase 5 does not exist yet.

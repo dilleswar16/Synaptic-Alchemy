@@ -2,57 +2,197 @@
   "pageTitle": "信頼性メトリクス",
   "pageDescription": "インシデントの発生頻度、対応の速さ、Keigan の調査の確かさ、AI の使用量を確認できます。",
   "percentilesNote": "各数値は中央値（半数のケースはこれより速い）、続いて p90（10 件中 9 件はこれより速い）と、その根拠となるケース数 n を示します。ケース数が少ない数値は大きく変動することがあります。",
-  "filters": { "application": "アプリケーション", "allApplications": "自分のすべてのアプリケーション", "period": "期間", "days_other": "{{count}} 日間", "range": "{{from}} から {{to}} までを表示しています。" },
-  "empty": { "title": "この期間にインシデントも調査もありません", "description": "より長い期間か別のアプリケーションを選んでください。データがあれば数値が表示されます。" },
-  "figure": { "none": "—", "detail": "p90 {{p90}} ・ n = {{count}}", "noSamples": "この期間のデータはありません", "noSamplesShort": "n = 0", "excluded": "{{count}} 件を除外（{{reason}}）" },
-  "reasons": { "timeToDetect": "インシデント作成前のアラートがない", "outOfOrder": "開始時刻または終了時刻がない、もしくは順序が逆" },
-  "priority": { "unassigned": "優先度なし", "none": "なし" },
-  "info": { "open": "{{metric}} とは？" },
+  "filters": {
+    "application": "アプリケーション",
+    "allApplications": "自分のすべてのアプリケーション",
+    "period": "期間",
+    "days_other": "{{count}} 日間",
+    "range": "{{from}} から {{to}} までを表示しています。"
+  },
+  "empty": {
+    "title": "この期間にインシデントも調査もありません",
+    "description": "より長い期間か別のアプリケーションを選んでください。データがあれば数値が表示されます。"
+  },
+  "figure": {
+    "none": "—",
+    "detail": "p90 {{p90}} ・ n = {{count}}",
+    "noSamples": "この期間のデータはありません",
+    "noSamplesShort": "n = 0",
+    "excluded": "{{count}} 件を除外（{{reason}}）"
+  },
+  "reasons": {
+    "timeToDetect": "インシデント作成前のアラートがない",
+    "outOfOrder": "開始時刻または終了時刻がない、もしくは順序が逆"
+  },
+  "priority": {
+    "unassigned": "優先度なし",
+    "none": "なし"
+  },
+  "info": {
+    "open": "{{metric}} とは？"
+  },
   "sections": {
-    "incidents": { "title": "インシデント", "description": "この期間に作成・解決された件数と、検知・対応・完了までの速さ。" },
-    "investigations": { "title": "Keigan の調査", "description": "Keigan が調査した内容と、エンジニアによる結果の評価。" },
-    "ai": { "title": "AI の使用量", "description": "調査ごとの値です。チャットなど、調査に属さないモデル呼び出しは含まれません。" },
-    "trend": { "title": "週次トレンド", "description": "同じ数値を週ごとに示します。" },
-    "applications": { "title": "アプリケーション別", "description": "閲覧できるアプリケーションのみ。列見出しを選ぶと並べ替えできます。" },
-    "definitions": { "title": "数値の定義", "description": "このページの数値は次のように計算されます。" }
+    "incidents": {
+      "title": "インシデント",
+      "description": "この期間に作成・解決された件数と、検知・対応・完了までの速さ。"
+    },
+    "investigations": {
+      "title": "Keigan の調査",
+      "description": "Keigan が調査した内容と、エンジニアによる結果の評価。"
+    },
+    "ai": {
+      "title": "AI の使用量",
+      "description": "調査ごとの値です。チャットなど、調査に属さないモデル呼び出しは含まれません。"
+    },
+    "trend": {
+      "title": "週次トレンド",
+      "description": "同じ数値を週ごとに示します。"
+    },
+    "applications": {
+      "title": "アプリケーション別",
+      "description": "閲覧できるアプリケーションのみ。列見出しを選ぶと並べ替えできます。"
+    },
+    "definitions": {
+      "title": "数値の定義",
+      "description": "このページの数値は次のように計算されます。"
+    },
+    "memory": {
+      "title": "過去インシデントの記憶",
+      "description": "過去のインシデントが AI に渡された頻度、提案が関連していたかどうかの回答、非表示にされた件数です。"
+    }
   },
   "notAvailable": {
     "label": "利用不可",
-    "reasons": { "no_acknowledgement_timestamp": "Keigan は担当者がインシデントを認識した時刻を記録していないため、計算できません。推定もしていません。", "unknown": "この数値に必要なデータは記録されていません。" }
+    "reasons": {
+      "no_acknowledgement_timestamp": "Keigan は担当者がインシデントを認識した時刻を記録していないため、計算できません。推定もしていません。",
+      "unknown": "この数値に必要なデータは記録されていません。"
+    }
   },
-  "statuses": { "queued": "待機中", "running": "実行中", "completed": "完了", "completed_evidence_only": "証拠のみ", "failed": "失敗", "cancelled": "キャンセル" },
-  "investigations": { "total_other": "この期間に開始された調査: {{count}} 件", "statusCount": "{{status}}: {{count}}" },
-  "ratings": { "notEnough": "評価がまだ足りません（必要な {{minimum}} 件のうち {{count}} 件）", "detail": "{{total}} 件中 {{rated}} 件を評価: 正しい {{correct}} 件、一部正しい {{partial}} 件、誤り {{incorrect}} 件" },
+  "statuses": {
+    "queued": "待機中",
+    "running": "実行中",
+    "completed": "完了",
+    "completed_evidence_only": "証拠のみ",
+    "failed": "失敗",
+    "cancelled": "キャンセル"
+  },
+  "investigations": {
+    "total_other": "この期間に開始された調査: {{count}} 件",
+    "statusCount": "{{status}}: {{count}}"
+  },
+  "ratings": {
+    "notEnough": "評価がまだ足りません（必要な {{minimum}} 件のうち {{count}} 件）",
+    "detail": "{{total}} 件中 {{rated}} 件を評価: 正しい {{correct}} 件、一部正しい {{partial}} 件、誤り {{incorrect}} 件"
+  },
   "ai": {
-    "inputTokens": "調査あたりの入力トークン", "outputTokens": "調査あたりの出力トークン", "costPerInvestigation": "調査あたりの推定コスト",
-    "callsDetail": "失敗 {{failed}} 件 ・ 調査 {{count}} 件", "costTotal": "合計 {{total}}（設定した価格の通貨）",
-    "noPricedInvestigations": "価格のあるモデルだけを使った調査はありません", "noPricesTitle": "推定コストはありません", "noPricesText": "コストは、管理者がモデルごとの価格を設定した場合にのみ推定されます。それまでは、このページにはトークン数のみが表示されます。",
-    "unpricedTitle": "価格のないモデルがあります", "unpricedText": "推定から除外: {{models}}。これらを使った調査が {{count}} 件あるため、そのコストは表示されません。"
+    "inputTokens": "調査あたりの入力トークン",
+    "outputTokens": "調査あたりの出力トークン",
+    "costPerInvestigation": "調査あたりの推定コスト",
+    "callsDetail": "失敗 {{failed}} 件 ・ 調査 {{count}} 件",
+    "costTotal": "合計 {{total}}（設定した価格の通貨）",
+    "noPricedInvestigations": "価格のあるモデルだけを使った調査はありません",
+    "noPricesTitle": "推定コストはありません",
+    "noPricesText": "コストは、管理者がモデルごとの価格を設定した場合にのみ推定されます。それまでは、このページにはトークン数のみが表示されます。",
+    "unpricedTitle": "価格のないモデルがあります",
+    "unpricedText": "推定から除外: {{models}}。これらを使った調査が {{count}} 件あるため、そのコストは表示されません。"
   },
   "trend": {
-    "incidents": "週ごとのインシデント数", "opened": "作成", "resolved": "解決", "resolve": "週ごとの解決時間の中央値（時間）", "resolveSeries": "時間", "conclusion": "週ごとの結論までの時間の中央値（分）", "conclusionSeries": "分",
-    "tokens": "週ごとの調査あたりトークン数の中央値", "tokensSeries": "トークン", "samples": "各棒の根拠となるケース数（週ごと）: {{counts}}",
+    "incidents": "週ごとのインシデント数",
+    "opened": "作成",
+    "resolved": "解決",
+    "resolve": "週ごとの解決時間の中央値（時間）",
+    "resolveSeries": "時間",
+    "conclusion": "週ごとの結論までの時間の中央値（分）",
+    "conclusionSeries": "分",
+    "tokens": "週ごとの調査あたりトークン数の中央値",
+    "tokensSeries": "トークン",
+    "samples": "各棒の根拠となるケース数（週ごと）: {{counts}}",
     "note": "週は月曜日（UTC）に始まります。ケースがない週には棒がありません。最初と最後の週は期間に一部しか含まれない場合があります。"
   },
   "table": {
-    "caption": "アプリケーション別の信頼性メトリクス", "application": "アプリケーション", "incidents": "作成 / 解決", "openedResolved": "{{opened}} / {{resolved}}", "detect": "検知時間", "firstUpdate": "初回の更新", "resolve": "解決時間",
-    "conclusion": "結論までの時間", "correct": "正しいと評価", "tokens": "入力トークン", "notEnoughRatings": "評価が不足（{{minimum}} 件中 {{count}} 件）", "ratedCount_other": "評価 {{count}} 件"
+    "caption": "アプリケーション別の信頼性メトリクス",
+    "application": "アプリケーション",
+    "incidents": "作成 / 解決",
+    "openedResolved": "{{opened}} / {{resolved}}",
+    "detect": "検知時間",
+    "firstUpdate": "初回の更新",
+    "resolve": "解決時間",
+    "conclusion": "結論までの時間",
+    "correct": "正しいと評価",
+    "tokens": "入力トークン",
+    "notEnoughRatings": "評価が不足（{{minimum}} 件中 {{count}} 件）",
+    "ratedCount_other": "評価 {{count}} 件"
   },
   "definitions": {
-    "percentiles": { "title": "中央値、p90、n", "text": "中央値は真ん中のケースで、半数はそれより速く、半数は遅いことを表します。p90 は 10 件中 9 件が下回った値で、遅い側の傾向を示します。n は数値の根拠となるケース数です。どちらも順位の間を補間して求めます。" },
-    "incidentsOpened": { "title": "作成されたインシデント", "text": "作成時刻が期間内にあるインシデントを、Keigan が付けた優先度別に分けたものです。" },
-    "incidentsResolved": { "title": "解決されたインシデント", "text": "解決時刻が期間内にあるインシデントです。作成がそれ以前であっても含まれます。" },
-    "timeToDetect": { "title": "検知時間", "text": "インシデントに紐づくアラートグループの最初のアラートから、インシデントが作成されるまでの時間です。問題が実際に始まった時刻ではなく、インシデントになる前にシグナルがどれだけ存在したかを示します。それ以前のアラートがないインシデントは除外され、件数が表示されます。" },
-    "timeToFirstUpdate": { "title": "初回更新までの時間", "text": "Keigan がインシデントを登録してから、チームに最初の更新を送るまでの時間です。まだ更新を送っていないインシデントは含まれません。" },
-    "timeToResolve": { "title": "解決時間（MTTR）", "text": "インシデントの作成から解決済みになるまでの時間です。まだ開いているインシデントは含まれません。" },
-    "timeToConclusion": { "title": "結論までの時間", "text": "調査の開始から完了までの時間で、完了した調査のみが対象です。" },
-    "timeToAcknowledge": { "title": "認識までの時間（MTTA）", "text": "インシデント作成から担当者が認識するまでの時間にあたります。Keigan は認識を記録していないため、計算していません。" },
-    "investigationStatuses": { "title": "状態別の調査", "text": "期間内に作成された調査を、結果または現在の状態別に示します。" },
-    "ratings": { "title": "正しいと評価", "text": "エンジニアが評価した調査のうち、正しいと評価された割合です。誰も評価していない調査は数えません。評価数が少ない割合は誤解を招くため、最小件数に達するまで割合は表示しません。" },
-    "aiTokens": { "title": "調査あたりのトークン", "text": "1 件の調査のすべてのモデル呼び出しの入力・出力トークンを調査ごとに合計したものです。数値は調査全体での中央値と p90 です。" },
-    "aiLatency": { "title": "モデル呼び出しごとの遅延", "text": "期間内の調査のために行われたすべての呼び出しについて、1 回の呼び出しにかかった時間です。" },
-    "aiCalls": { "title": "モデル呼び出しと失敗", "text": "期間内の調査のために行われたモデル呼び出しの数と、そのうち失敗した数です。" },
-    "aiCost": { "title": "推定コスト", "text": "トークン数に、モデルごとに設定された 100 万トークンあたりの価格を掛けたものです。Keigan は金額を保存しないため推定値であり、価格が設定されている場合にのみ表示されます。価格のないモデルを使った調査は除外されます。" },
-    "weeklyTrend": { "title": "週次トレンド", "text": "各棒は、その週に終了したケースの中央値です。週は月曜日（UTC）に始まります。" }
+    "percentiles": {
+      "title": "中央値、p90、n",
+      "text": "中央値は真ん中のケースで、半数はそれより速く、半数は遅いことを表します。p90 は 10 件中 9 件が下回った値で、遅い側の傾向を示します。n は数値の根拠となるケース数です。どちらも順位の間を補間して求めます。"
+    },
+    "incidentsOpened": {
+      "title": "作成されたインシデント",
+      "text": "作成時刻が期間内にあるインシデントを、Keigan が付けた優先度別に分けたものです。"
+    },
+    "incidentsResolved": {
+      "title": "解決されたインシデント",
+      "text": "解決時刻が期間内にあるインシデントです。作成がそれ以前であっても含まれます。"
+    },
+    "timeToDetect": {
+      "title": "検知時間",
+      "text": "インシデントに紐づくアラートグループの最初のアラートから、インシデントが作成されるまでの時間です。問題が実際に始まった時刻ではなく、インシデントになる前にシグナルがどれだけ存在したかを示します。それ以前のアラートがないインシデントは除外され、件数が表示されます。"
+    },
+    "timeToFirstUpdate": {
+      "title": "初回更新までの時間",
+      "text": "Keigan がインシデントを登録してから、チームに最初の更新を送るまでの時間です。まだ更新を送っていないインシデントは含まれません。"
+    },
+    "timeToResolve": {
+      "title": "解決時間（MTTR）",
+      "text": "インシデントの作成から解決済みになるまでの時間です。まだ開いているインシデントは含まれません。"
+    },
+    "timeToConclusion": {
+      "title": "結論までの時間",
+      "text": "調査の開始から完了までの時間で、完了した調査のみが対象です。"
+    },
+    "timeToAcknowledge": {
+      "title": "認識までの時間（MTTA）",
+      "text": "インシデント作成から担当者が認識するまでの時間にあたります。Keigan は認識を記録していないため、計算していません。"
+    },
+    "investigationStatuses": {
+      "title": "状態別の調査",
+      "text": "期間内に作成された調査を、結果または現在の状態別に示します。"
+    },
+    "ratings": {
+      "title": "正しいと評価",
+      "text": "エンジニアが評価した調査のうち、正しいと評価された割合です。誰も評価していない調査は数えません。評価数が少ない割合は誤解を招くため、最小件数に達するまで割合は表示しません。"
+    },
+    "aiTokens": {
+      "title": "調査あたりのトークン",
+      "text": "1 件の調査のすべてのモデル呼び出しの入力・出力トークンを調査ごとに合計したものです。数値は調査全体での中央値と p90 です。"
+    },
+    "aiLatency": {
+      "title": "モデル呼び出しごとの遅延",
+      "text": "期間内の調査のために行われたすべての呼び出しについて、1 回の呼び出しにかかった時間です。"
+    },
+    "aiCalls": {
+      "title": "モデル呼び出しと失敗",
+      "text": "期間内の調査のために行われたモデル呼び出しの数と、そのうち失敗した数です。"
+    },
+    "aiCost": {
+      "title": "推定コスト",
+      "text": "トークン数に、モデルごとに設定された 100 万トークンあたりの価格を掛けたものです。Keigan は金額を保存しないため推定値であり、価格が設定されている場合にのみ表示されます。価格のないモデルを使った調査は除外されます。"
+    },
+    "weeklyTrend": {
+      "title": "週次トレンド",
+      "text": "各棒は、その週に終了したケースの中央値です。週は月曜日（UTC）に始まります。"
+    }
+  },
+  "memory": {
+    "givenLabel": "過去のインシデントを渡した調査",
+    "givenValue": "{{total}} 件中 {{given}} 件",
+    "givenDetail": "確認済みの過去インシデントをヒントとして AI に示した、完了した調査です。",
+    "relevantLabel": "関連ありとされた提案",
+    "notEnough": "回答がまだ足りません (必要数 {{minimum}} 件のうち {{count}} 件)",
+    "relevantDetail": "{{answered}} 件の回答のうち {{relevant}} 件が関連ありでした",
+    "hiddenLabel": "非表示にした過去インシデント",
+    "hiddenDetail": "この期間にアプリケーション管理者が非表示にしたものです。"
   }
 }
