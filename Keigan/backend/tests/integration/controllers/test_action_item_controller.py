@@ -218,3 +218,24 @@ async def test_redrafting_replaces_the_suggestions_and_keeps_accepted_items(clie
     statuses = [item["itemStatus"] for item in second]
     assert statuses.count("open") == 1 and statuses.count("proposed") == len(first) and kept_id in {item["actionItemId"] for item in second}
     assert extra_id not in {item["actionItemId"] for item in second}
+
+
+# ── Overview (AC-18, AC-19) ──────────────────────────────────────────────────────────────────────
+
+
+async def test_the_overview_route_is_not_mistaken_for_an_item_and_has_the_documented_shape(client: httpx.AsyncClient, auth_headers: AuthHeaders, application_id: str) -> None:
+    response = await client.get("/api/action-items/overview", params={"applicationIds": application_id, "days": 30}, headers=await auth_headers(READER))
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert {"periodStart", "periodEnd", "periodDays", "completion", "byApplication", "needsAttention", "repeats"} <= body.keys() and body["periodDays"] == 30
+    assert {"acceptedCount", "doneCount", "wontDoCount", "openCount", "overdueCount", "completionRate", "completionRateSampleCount", "medianDaysToComplete", "medianSampleCount", "onTimeShare"} <= body["completion"].keys()
+    assert [row["applicationId"] for row in body["byApplication"]] == [application_id]
+
+
+async def test_the_overview_refuses_a_period_outside_the_limits_and_shows_an_outsider_nothing(client: httpx.AsyncClient, auth_headers: AuthHeaders, application_id: str) -> None:
+    for days in (0, 100000):
+        refused = await client.get("/api/action-items/overview", params={"applicationIds": application_id, "days": days}, headers=await auth_headers(READER))
+        assert refused.status_code == 422, refused.text
+    empty = await client.get("/api/action-items/overview", params={"applicationIds": application_id}, headers=await auth_headers(OUTSIDER))
+    assert empty.status_code == 200 and empty.json()["byApplication"] == [] and empty.json()["needsAttention"] == []
+    assert (await client.get("/api/action-items/overview")).status_code == 401

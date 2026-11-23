@@ -15,6 +15,10 @@
     "pageOf": "Pagina {{page}} van {{total}}",
     "previous": "Vorige",
     "next": "Volgende",
+    "tabs": "Weergaven",
+    "tabItems": "Actiepunten",
+    "tabAttention": "Aandacht nodig",
+    "tabRepeats": "Herhalingen",
     "empty": {
       "tracked": { "title": "Niets om op te volgen", "description": "Geaccepteerde actiepunten die open, bezig of geblokkeerd zijn, verschijnen hier." },
       "finished": { "title": "Nog niets afgerond", "description": "Items die als klaar of als niet doen zijn gemarkeerd, verschijnen hier." },
@@ -81,6 +85,77 @@
     "suggestedTitle_one": "{{count}} voorgesteld actiepunt wacht op een besluit",
     "suggestedTitle_other": "{{count}} voorgestelde actiepunten wachten op een besluit",
     "suggestedBody": "Accepteer of verwerp elk voorstel voordat je de postmortem definitief maakt."
+  },
+  "overview": {
+    "period": "Periode",
+    "periodHelp": "De cijfers gelden voor de gekozen periode. Open en te laat tellen altijd alle onafgeronde actiepunten.",
+    "periodDays_one": "{{count}} dag",
+    "periodDays_other": "{{count}} dagen",
+    "open": "Open actiepunten",
+    "openHelp": "Geaccepteerd en niet afgerond",
+    "overdue": "Te laat",
+    "overdueHelp": "Deadline verstreken",
+    "completionRate": "Afrondingspercentage",
+    "sample_one": "Gebaseerd op {{count}} actiepunt",
+    "sample_other": "Gebaseerd op {{count}} actiepunten",
+    "notEnoughData": "Nog niets om te meten",
+    "medianDays": "Mediane doorlooptijd",
+    "days_one": "{{value}} dag",
+    "days_other": "{{value}} dagen"
+  },
+  "attention": {
+    "empty": {
+      "title": "Niets vraagt aandacht",
+      "description": "In dit bereik zijn er geen actiepunten die te laat zijn, geen actiepunten met hoogste prioriteit zonder eigenaar, geen openstaande beleidseisen en geen ontbrekende postmortems."
+    },
+    "noOwner": "Geen eigenaar",
+    "breachKind": {
+      "single_incident": "Eén incident gebruikte een groot deel",
+      "outage_class": "Eén soort storing gebruikte een groot deel",
+      "budget_exhausted": "Budget op"
+    },
+    "breachShare": "{{share}} % van het budget",
+    "resolvedDaysAgo_one": "{{count}} dag geleden opgelost",
+    "resolvedDaysAgo_other": "{{count}} dagen geleden opgelost",
+    "suggestionsWaiting_one": "{{count}} voorstel wacht al {{days}} dagen",
+    "suggestionsWaiting_other": "{{count}} voorstellen wachten al {{days}} dagen",
+    "kind": {
+      "overdue_item": "Actiepunten die te laat zijn",
+      "top_priority_unowned": "Hoogste prioriteit, geen eigenaar",
+      "policy_breach_open": "Openstaande beleidseisen",
+      "postmortem_missing": "Ontbrekende postmortems",
+      "proposed_waiting": "Wachtende voorstellen"
+    },
+    "kindHelp": {
+      "overdue_item": "Actiepunten waarvan de deadline verstreken is, de meest urgente eerst.",
+      "top_priority_unowned": "Actiepunten met hoogste prioriteit die nog geen eigenaar hebben.",
+      "policy_breach_open": "Een foutbudgetbeleid vraagt om een postmortem of een preventief actiepunt met hoogste prioriteit dat er nog niet is.",
+      "postmortem_missing": "Ernstige incidenten die zijn opgelost maar geen definitieve postmortem hebben.",
+      "proposed_waiting": "Actiepunten die Keigan voorstelde en die niemand heeft geaccepteerd of afgewezen."
+    }
+  },
+  "repeats": {
+    "empty": {
+      "title": "Geen herhaalde incidenten",
+      "description": "Als een incident van dezelfde soort binnen de terugkijkperiode terugkomt op dezelfde dienst, verschijnt de reeks hier."
+    },
+    "groupTitle": "{{service}}: {{category}}",
+    "unknownService": "Dienst zonder naam",
+    "first": "Eerste van deze reeks",
+    "outcome": {
+      "no_postmortem": "Kwam terug; er was geen postmortem afgerond",
+      "no_prevent_item": "Kwam terug; er werd geen vervolgactie bijgehouden om het te voorkomen",
+      "repeated_while_open_one": "Kwam terug terwijl {{count}} vervolgactie nog openstond",
+      "repeated_while_open_other": "Kwam terug terwijl {{count}} vervolgacties nog openstonden",
+      "repeated_after_done": "Kwam terug nadat alle vervolgacties klaar waren: de oplossing werkt mogelijk niet"
+    },
+    "showItems_one": "Toon de {{count}} eerdere vervolgactie",
+    "showItems_other": "Toon de {{count}} eerdere vervolgacties",
+    "itemState": {
+      "done": "Klaar",
+      "not_done": "Niet klaar",
+      "wont_do": "Laten vallen"
+    }
   },
   "errors": { "actionFailed": "Die wijziging kon niet worden opgeslagen." }
 }

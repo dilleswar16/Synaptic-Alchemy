@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, Query, Response
 
 from keigan.config.database_config import provide
 from keigan.controllers.incident_controller import split_values
-from keigan.dtos.action_item_dtos import ActionItemCreateRequest, ActionItemDto, ActionItemStatusRequest, ActionItemUpdateRequest
+from keigan.dtos.action_item_dtos import ActionItemCreateRequest, ActionItemDto, ActionItemOverviewResponse, ActionItemStatusRequest, ActionItemUpdateRequest
 from keigan.dtos.common_dtos import PagedResult
 from keigan.security.current_user import CurrentUser, get_current_user, require_application_admin
+from keigan.services.action_item_overview_service import ActionItemOverviewService
 from keigan.services.action_item_service import ActionItemService
 
 router = APIRouter(prefix="/api", tags=["Action items"])
@@ -32,6 +33,17 @@ async def list_action_items(
         current_user, application_ids=split_values(application_ids), statuses=split_values(statuses), priorities=split_values(priorities), source_kinds=split_values(sources),
         owner=owner, overdue_only=overdue_only, incident_id=incident_id, page=page, page_size=page_size,
     )
+
+
+@router.get("/action-items/overview", response_model=ActionItemOverviewResponse, response_model_by_alias=True)
+async def get_action_items_overview(
+    application_ids: str | None = Query(default=None, alias="applicationIds"),
+    days: int | None = Query(default=None, ge=1, description="Look-back period in days; the default and the longest period are settings."),
+    current_user: CurrentUser = Depends(get_current_user),
+    overview_service: ActionItemOverviewService = Depends(provide(ActionItemOverviewService)),
+) -> ActionItemOverviewResponse:
+    """Completion figures, what needs attention and which incidents came back, for the applications the caller may read. Counts per application, never a ranking of people."""
+    return await overview_service.overview(current_user, split_values(application_ids), days)
 
 
 @router.get("/postmortems/{postmortem_id}/action-items", response_model=list[ActionItemDto], response_model_by_alias=True)

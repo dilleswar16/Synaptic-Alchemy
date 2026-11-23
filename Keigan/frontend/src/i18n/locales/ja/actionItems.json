@@ -15,6 +15,10 @@
     "pageOf": "{{page}} / {{total}} ページ",
     "previous": "前へ",
     "next": "次へ",
+    "tabs": "表示",
+    "tabItems": "アイテム",
+    "tabAttention": "要対応",
+    "tabRepeats": "再発",
     "empty": {
       "tracked": { "title": "フォローアップはありません", "description": "承認済みで、未着手・対応中・保留中のアクションアイテムがここに表示されます。" },
       "finished": { "title": "完了したものはまだありません", "description": "完了または対応しないとしたアイテムがここに表示されます。" },
@@ -78,6 +82,70 @@
     "finalDescription": "このポストモーテムのフォローアップです。完了するまで追跡されます。",
     "suggestedTitle_other": "提案されたアクションアイテムが {{count}} 件待機中です",
     "suggestedBody": "ポストモーテムを確定する前に、各提案を承認または破棄してください。"
+  },
+  "overview": {
+    "period": "期間",
+    "periodHelp": "数値は選択した期間が対象です。未完了と期限超過は、期間に関係なく未完了のアイテムをすべて数えます。",
+    "periodDays_other": "{{count}} 日",
+    "open": "未完了のアイテム",
+    "openHelp": "承認済みで未完了",
+    "overdue": "期限超過",
+    "overdueHelp": "期限を過ぎています",
+    "completionRate": "完了率",
+    "sample_other": "{{count}} 件が対象",
+    "notEnoughData": "まだ測定できるデータがありません",
+    "medianDays": "完了までの中央値",
+    "days_other": "{{value}} 日"
+  },
+  "attention": {
+    "empty": {
+      "title": "対応が必要なものはありません",
+      "description": "この範囲には、期限超過のアイテム、担当者のいない最優先アイテム、未対応のポリシー要件、未作成のポストモーテムはありません。"
+    },
+    "noOwner": "担当者なし",
+    "breachKind": {
+      "single_incident": "1 件のインシデントが大きな割合を消費",
+      "outage_class": "ある種類の障害が大きな割合を消費",
+      "budget_exhausted": "予算を使い切りました"
+    },
+    "breachShare": "予算の {{share}} %",
+    "resolvedDaysAgo_other": "{{count}} 日前に解決",
+    "suggestionsWaiting_other": "提案 {{count}} 件が {{days}} 日間待機中",
+    "kind": {
+      "overdue_item": "期限超過のアイテム",
+      "top_priority_unowned": "最優先で担当者なし",
+      "policy_breach_open": "未対応のポリシー要件",
+      "postmortem_missing": "未作成のポストモーテム",
+      "proposed_waiting": "待機中の提案"
+    },
+    "kindHelp": {
+      "overdue_item": "期限を過ぎたアイテムです。緊急度の高いものから表示します。",
+      "top_priority_unowned": "最優先に設定されているのに、まだ担当者がいないアイテムです。",
+      "policy_breach_open": "エラーバジェットポリシーが求める、ポストモーテムまたは最優先の再発防止アイテムがまだありません。",
+      "postmortem_missing": "解決済みの重大なインシデントで、確定したポストモーテムがありません。",
+      "proposed_waiting": "Keigan が提案したアイテムのうち、まだ誰も承認も破棄もしていないものです。"
+    }
+  },
+  "repeats": {
+    "empty": {
+      "title": "再発したインシデントはありません",
+      "description": "同じ種類のインシデントが、調査期間内に同じサービスで再び発生すると、ここに系列として表示されます。"
+    },
+    "groupTitle": "{{service}}：{{category}}",
+    "unknownService": "サービス名なし",
+    "first": "この系列の最初",
+    "outcome": {
+      "no_postmortem": "再発しました。それ以前に確定したポストモーテムはありませんでした",
+      "no_prevent_item": "再発しました。再発防止のフォローアップは管理されていませんでした",
+      "repeated_while_open_other": "再発しました。フォローアップ {{count}} 件がまだ未完了でした",
+      "repeated_after_done": "すべてのフォローアップが完了した後に再発しました。対策が効いていない可能性があります"
+    },
+    "showItems_other": "以前のフォローアップ {{count}} 件を表示",
+    "itemState": {
+      "done": "完了",
+      "not_done": "未完了",
+      "wont_do": "対応しない"
+    }
   },
   "errors": { "actionFailed": "変更を保存できませんでした。" }
 }

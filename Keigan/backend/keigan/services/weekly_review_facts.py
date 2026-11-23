@@ -88,6 +88,10 @@ async def _action_item_section(session: AsyncSession, application: Application, 
     }
 
 
+def _open_requirement_label(breach: dict[str, Any]) -> str:
+    return f"{breach['kind'].replace('_', ' ')} {breach['incidentNumber'] or breach['sliName'] or ''}".strip()
+
+
 def review_fact_lines(sections: dict[str, Any]) -> list[str]:
     """The same figures as short lines: given to the narration and written into the Markdown."""
     budget, items, runbooks = sections["budget"], sections["actionItems"], sections["runbooks"]
@@ -98,6 +102,8 @@ def review_fact_lines(sections: dict[str, Any]) -> list[str]:
         f"Policy: {'on' if budget['policyIsEnabled'] else 'off'}; {budget['breachesOpenedCount']} breach(es) opened this week, {len(budget['openBreaches'])} open.",
         f"Follow-ups: {items['openCount']} open, {items['overdueCount']} overdue, {items['doneThisWeekCount']} done this week, {items['acceptedThisWeekCount']} accepted this week, {items['suggestedWaitingCount']} suggestion(s) waiting.",
     ]
+    if budget["openBreaches"]:
+        lines.append("Open policy requirements: " + "; ".join(_open_requirement_label(breach) + (f" ({breach['sharePercent']:g}%)" if breach["sharePercent"] is not None else "") for breach in budget["openBreaches"]) + ".")
     if items["topPriorityWithoutOwner"]:
         lines.append("Top-priority items without an owner: " + "; ".join(items["topPriorityWithoutOwner"]) + ".")
     lines.append(f"Runbooks needing attention: {runbooks['withFindingsCount']}" + (" (" + "; ".join(row["title"] for row in runbooks["runbooks"][:5]) + ")" if runbooks["runbooks"] else "") + ".")
@@ -109,6 +115,10 @@ def review_markdown_lines(sections: dict[str, Any]) -> list[str]:
     lines = ["## Error budget"]
     lines += [f"- {row['incidentNumber']} {row['incidentTitle']}: {row['sharePercent']:g} % of {row['sliName']} ({row['impactState']})" for row in budget["incidents"]] or ["- No incident of the week has a stated budget figure."]
     lines += [f"- Policy {'on' if budget['policyIsEnabled'] else 'off'}: {budget['breachesOpenedCount']} breach(es) opened this week; {len(budget['openBreaches'])} open."]
+    lines += [
+        f"- Open policy requirement ({breach['kind'].replace('_', ' ')}): {breach['incidentNumber'] or breach['sliName'] or 'a service'}" + (f", {breach['sharePercent']:g} % of the budget" if breach["sharePercent"] is not None else "")
+        for breach in budget["openBreaches"]
+    ]
     lines += ["", "## Follow-ups", f"- {items['openCount']} open, {items['overdueCount']} overdue, {items['doneThisWeekCount']} done this week, {items['acceptedThisWeekCount']} accepted this week."]
     lines += [f"- Overdue: {row['title']} ({row['daysOverdue']} days, {row['owner'] or 'no owner'})" for row in items["overdue"]]
     lines += [f"- Top priority, no owner: {title}" for title in items["topPriorityWithoutOwner"]]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 from pydantic import ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -84,3 +85,68 @@ class ActionItemStatusRequest(_StrictRequest):
     status: ActionItemStatus
     reason_text: str | None = None
     completion_note_text: str | None = None
+
+
+# ── Overview (spec 29, 4.4 and 4.5): counts per application, never a ranking of people ──────────────────────────────────────────────────
+
+
+class CompletionFiguresDto(ApiModel):
+    accepted_count: int
+    done_count: int
+    wont_do_count: int
+    open_count: int
+    overdue_count: int
+    completion_rate: float | None = None  # percent; absent while there is nothing to divide
+    completion_rate_sample_count: int
+    median_days_to_complete: float | None = None
+    median_sample_count: int
+    on_time_share: float | None = None
+    on_time_sample_count: int
+
+
+class ApplicationCompletionDto(CompletionFiguresDto):
+    application_id: str
+    application_name: str
+
+
+class AttentionEntryDto(ApiModel):
+    kind: str
+    application_id: str
+    application_name: str
+    record_kind: str
+    record_id: str
+    title: str
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class EarlierPreventItemDto(ApiModel):
+    action_item_id: str
+    item_title: str
+    status_at_repeat: str  # done, not_done or wont_do, as it stood when the later incident opened
+
+
+class RepeatIncidentDto(ApiModel):
+    incident_id: str
+    incident_reference: str
+    opened_at: datetime
+    outcome: str | None = None  # absent for the first incident of the group; the others say what happened to the earlier follow-ups
+    earlier_prevent_items: list[EarlierPreventItemDto] = Field(default_factory=list)
+
+
+class RepeatGroupDto(ApiModel):
+    application_id: str
+    application_name: str
+    recurrence_category: str
+    service_id: str
+    service_name: str
+    incidents: list[RepeatIncidentDto]
+
+
+class ActionItemOverviewResponse(ApiModel):
+    period_start: datetime
+    period_end: datetime
+    period_days: int
+    completion: CompletionFiguresDto
+    by_application: list[ApplicationCompletionDto]
+    needs_attention: list[AttentionEntryDto]
+    repeats: list[RepeatGroupDto]

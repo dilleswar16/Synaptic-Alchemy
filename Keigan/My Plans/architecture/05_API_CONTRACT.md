@@ -124,6 +124,7 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | POST | `/action-items/{actionItemId}/status` | `{status, reasonText?, completionNoteText?}`; admin or owner per the transition table; blocked and won't do need a reason; 422 says what is refused |
 | DELETE | `/action-items/{actionItemId}` | 204; admin; a suggestion only (a tracked item closes as won't do) |
 | | | `POST /postmortems/{id}/finalize` answers 422 with field `actionItems` while suggestions remain |
+| GET | `/action-items/overview` | reader; query `applicationIds`, `days` (1 to `ACTION_ITEMS_OVERVIEW_MAXIMUM_DAYS`, default `ACTION_ITEMS_OVERVIEW_DEFAULT_DAYS`); `{periodStart, periodEnd, periodDays, completion, byApplication, needsAttention, repeats}`; completion figures carry their sample counts; counts per application, never per person |
 | | | **Error budget policy (spec 30)** |
 | GET | `/applications/{applicationId}/error-budget-policy` | the policy in force (off with default thresholds when never saved; reading writes nothing): thresholds, window, `usesDefault`, `defaults`, guidance, `canEdit` |
 | PUT | `/applications/{applicationId}/error-budget-policy` | application admin; `isEnabled`, the two thresholds (1 to 100) and the class window (7 to the SLI retention) with null meaning the default, and the guidance text; 422 with the field |

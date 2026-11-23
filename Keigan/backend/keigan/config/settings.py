@@ -15,7 +15,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from keigan.entities.status_values import StakeholderRole
+from keigan.entities.status_values import Priority, StakeholderRole
 
 BACKEND_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 RESOURCES_DIRECTORY = Path(__file__).resolve().parents[1] / "resources"
@@ -244,6 +244,11 @@ class Settings(BaseSettings):
     action_items_escalation_roles: str = "lead,manager"  # team roles (comma separated) that receive escalations and items nobody owns
     action_items_closed_retention_days: int = Field(default=730, ge=90, le=3650)  # closed action items older than this are deleted
     action_items_external_reference_pattern: str = r"^[A-Z]{2,10}[0-9]{4,12}$"  # accepted shape of a typed ServiceNow task number
+    action_items_overview_default_days: int = Field(default=90, ge=7, le=730)  # period of the action items overview when none is chosen
+    action_items_overview_maximum_days: int = Field(default=365, ge=7, le=730)  # longest period the overview may look back
+    action_items_repeat_window_days: int = Field(default=90, ge=7, le=365)  # how far back the repeated incidents view looks (never more than incident retention)
+    action_items_postmortem_required_priorities: str = "P1,P2"  # incident priorities (comma separated) that need a final postmortem
+    action_items_postmortem_grace_days: int = Field(default=3, ge=1, le=30)  # days after resolution, or after suggestions were made, before a missing or waiting postmortem is flagged
     investigation_max_checks_per_service: int = Field(default=7, ge=1, le=30)  # evidence checks one service gets in an investigation; a cut is reported as a gap
     investigation_evidence_token_budget: int = 8_000
     investigation_knowledge_token_budget: int = 6_000
@@ -350,6 +355,14 @@ class Settings(BaseSettings):
             raise ValueError(f"ACTION_ITEMS_ESCALATION_ROLES has unknown team roles: {', '.join(unknown)}")
         return roles
 
+    @field_validator("action_items_postmortem_required_priorities", mode="after")
+    @classmethod
+    def postmortem_required_priorities_must_be_priorities(cls, priorities: str) -> str:
+        unknown = [priority for priority in (part.strip() for part in priorities.split(",")) if priority and priority not in {member.value for member in Priority}]
+        if unknown:
+            raise ValueError(f"ACTION_ITEMS_POSTMORTEM_REQUIRED_PRIORITIES has unknown priorities: {', '.join(unknown)}")
+        return priorities
+
     @field_validator("action_items_external_reference_pattern", mode="after")
     @classmethod
     def external_reference_pattern_must_be_a_regular_expression(cls, pattern: str) -> str:
@@ -383,6 +396,10 @@ class Settings(BaseSettings):
     def validate_safe_combinations(self) -> "Settings":
         if self.error_budget_policy_outage_class_window_days > self.sli_raw_retention_days:
             raise ValueError("ERROR_BUDGET_POLICY_OUTAGE_CLASS_WINDOW_DAYS cannot exceed SLI_RAW_RETENTION_DAYS: the class rule reads the raw SLI measurements, which expire after that many days.")
+        if self.action_items_overview_default_days > self.action_items_overview_maximum_days:
+            raise ValueError("ACTION_ITEMS_OVERVIEW_DEFAULT_DAYS cannot exceed ACTION_ITEMS_OVERVIEW_MAXIMUM_DAYS.")
+        if self.action_items_repeat_window_days > self.incident_retention_days:
+            raise ValueError("ACTION_ITEMS_REPEAT_WINDOW_DAYS cannot exceed INCIDENT_RETENTION_DAYS: the repeated incidents view reads incidents, which expire after that many days.")
         if self.environment == EnvironmentName.PROD:
             if not self.pii_masking_enabled:
                 raise ValueError("PII_MASKING_ENABLED must be true when ENVIRONMENT=prod.")
@@ -461,6 +478,10 @@ class Settings(BaseSettings):
     @property
     def error_budget_policy_notification_role_list(self) -> list[str]:
         return [role.strip() for role in self.error_budget_policy_notification_roles.split(",") if role.strip()]
+
+    @property
+    def action_items_postmortem_required_priority_list(self) -> list[str]:
+        return [priority.strip() for priority in self.action_items_postmortem_required_priorities.split(",") if priority.strip()]
 
     @property
     def action_items_escalation_role_list(self) -> list[str]:

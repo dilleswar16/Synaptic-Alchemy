@@ -130,6 +130,12 @@ backendEnvironment:
   ACTION_ITEMS_ESCALATION_ROLES: "lead,manager"
   ACTION_ITEMS_CLOSED_RETENTION_DAYS: "730"
   ACTION_ITEMS_EXTERNAL_REFERENCE_PATTERN: '^[A-Z]{2,10}[0-9]{4,12}$'
+  # Action items overview: default and longest period in days, look-back of the repeated incidents view, incident priorities that need a final postmortem, and days of grace before one is flagged.
+  ACTION_ITEMS_OVERVIEW_DEFAULT_DAYS: "90"
+  ACTION_ITEMS_OVERVIEW_MAXIMUM_DAYS: "365"
+  ACTION_ITEMS_REPEAT_WINDOW_DAYS: "90"
+  ACTION_ITEMS_POSTMORTEM_REQUIRED_PRIORITIES: "P1,P2"
+  ACTION_ITEMS_POSTMORTEM_GRACE_DAYS: "3"
   # Azure SQL: tables live in the "keigan" schema; Keigan signs in to SQL with its managed identity (no password).
   # DATABASE_URL (Key Vault) then holds no secret, e.g.
   # mssql+aioodbc://@<server>.database.windows.net:1433/<database>?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no

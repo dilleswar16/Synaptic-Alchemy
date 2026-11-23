@@ -15,6 +15,10 @@
     "pageOf": "Page {{page}} sur {{total}}",
     "previous": "Précédent",
     "next": "Suivant",
+    "tabs": "Vues",
+    "tabItems": "Actions",
+    "tabAttention": "À traiter",
+    "tabRepeats": "Récurrences",
     "empty": {
       "tracked": { "title": "Rien à suivre", "description": "Les actions acceptées qui sont ouvertes, en cours ou bloquées apparaissent ici." },
       "finished": { "title": "Rien de terminé pour l'instant", "description": "Les éléments marqués comme faits ou comme abandonnés apparaissent ici." },
@@ -81,6 +85,77 @@
     "suggestedTitle_one": "{{count}} action suggérée attend une décision",
     "suggestedTitle_other": "{{count}} actions suggérées attendent une décision",
     "suggestedBody": "Acceptez ou écartez chaque suggestion avant de finaliser le postmortem."
+  },
+  "overview": {
+    "period": "Période",
+    "periodHelp": "Les chiffres couvrent la période choisie. Les actions ouvertes et en retard comptent toujours toutes les actions non terminées.",
+    "periodDays_one": "{{count}} jour",
+    "periodDays_other": "{{count}} jours",
+    "open": "Actions ouvertes",
+    "openHelp": "Acceptées et non terminées",
+    "overdue": "En retard",
+    "overdueHelp": "Échéance dépassée",
+    "completionRate": "Taux d'achèvement",
+    "sample_one": "Sur la base de {{count}} action",
+    "sample_other": "Sur la base de {{count}} actions",
+    "notEnoughData": "Rien à mesurer pour l'instant",
+    "medianDays": "Délai médian d'achèvement",
+    "days_one": "{{value}} jour",
+    "days_other": "{{value}} jours"
+  },
+  "attention": {
+    "empty": {
+      "title": "Rien à traiter",
+      "description": "Aucune action en retard, aucune action de priorité maximale sans responsable, aucune exigence de politique ouverte et aucun postmortem manquant dans ce périmètre."
+    },
+    "noOwner": "Sans responsable",
+    "breachKind": {
+      "single_incident": "Un incident a consommé une grande part",
+      "outage_class": "Un type de panne a consommé une grande part",
+      "budget_exhausted": "Budget épuisé"
+    },
+    "breachShare": "{{share}} % du budget",
+    "resolvedDaysAgo_one": "Résolu il y a {{count}} jour",
+    "resolvedDaysAgo_other": "Résolu il y a {{count}} jours",
+    "suggestionsWaiting_one": "{{count}} suggestion attend depuis {{days}} jours",
+    "suggestionsWaiting_other": "{{count}} suggestions attendent depuis {{days}} jours",
+    "kind": {
+      "overdue_item": "Actions en retard",
+      "top_priority_unowned": "Priorité maximale, sans responsable",
+      "policy_breach_open": "Exigences de politique ouvertes",
+      "postmortem_missing": "Postmortems manquants",
+      "proposed_waiting": "Suggestions en attente"
+    },
+    "kindHelp": {
+      "overdue_item": "Actions dont l'échéance est dépassée, les plus urgentes d'abord.",
+      "top_priority_unowned": "Actions de priorité maximale qui n'ont pas encore de responsable.",
+      "policy_breach_open": "Une politique de budget d'erreur demande un postmortem ou une action préventive de priorité maximale qui n'existe pas encore.",
+      "postmortem_missing": "Incidents graves résolus qui n'ont pas de postmortem final.",
+      "proposed_waiting": "Actions suggérées par Keigan que personne n'a acceptées ni écartées."
+    }
+  },
+  "repeats": {
+    "empty": {
+      "title": "Aucun incident répété",
+      "description": "Quand un incident du même type revient sur le même service dans la période de recherche, la série apparaît ici."
+    },
+    "groupTitle": "{{service}} : {{category}}",
+    "unknownService": "Service non nommé",
+    "first": "Premier de cette série",
+    "outcome": {
+      "no_postmortem": "Il est revenu ; aucun postmortem n'avait été terminé avant lui",
+      "no_prevent_item": "Il est revenu ; aucune action n'était suivie pour l'éviter",
+      "repeated_while_open_one": "Il est revenu alors que {{count}} action de suivi était encore ouverte",
+      "repeated_while_open_other": "Il est revenu alors que {{count}} actions de suivi étaient encore ouvertes",
+      "repeated_after_done": "Il est revenu après la réalisation de toutes les actions : le correctif n'a peut-être pas fonctionné"
+    },
+    "showItems_one": "Voir l'{{count}} action précédente",
+    "showItems_other": "Voir les {{count}} actions précédentes",
+    "itemState": {
+      "done": "Faite",
+      "not_done": "Non faite",
+      "wont_do": "Abandonnée"
+    }
   },
   "errors": { "actionFailed": "Cette modification n'a pas pu être enregistrée." }
 }

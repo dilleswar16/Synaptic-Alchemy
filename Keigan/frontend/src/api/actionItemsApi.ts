@@ -140,3 +140,80 @@ export const useAcceptActionItem = () =>
 export const useChangeActionItemStatus = () =>
   useActionItemMutation((variables: { actionItemId: string; body: ActionItemStatusBody }) => apiPost<ActionItem, ActionItemStatusBody>(`/action-items/${variables.actionItemId}/status`, variables.body));
 export const useDiscardActionItem = () => useActionItemMutation((actionItemId: string) => apiDelete(`/action-items/${actionItemId}`));
+
+/* ── Overview (spec 29, 4.4): counts per application, never a ranking of people ──────────── */
+export type AttentionKind = "overdue_item" | "top_priority_unowned" | "policy_breach_open" | "postmortem_missing" | "proposed_waiting";
+export type RepeatOutcome = "no_postmortem" | "no_prevent_item" | "repeated_while_open" | "repeated_after_done";
+export type PreventItemStateAtRepeat = "done" | "not_done" | "wont_do";
+
+export interface CompletionFigures {
+  acceptedCount: number;
+  doneCount: number;
+  wontDoCount: number;
+  openCount: number;
+  overdueCount: number;
+  /** Percent, or null while there is nothing to divide. */
+  completionRate: number | null;
+  completionRateSampleCount: number;
+  medianDaysToComplete: number | null;
+  medianSampleCount: number;
+  onTimeShare: number | null;
+  onTimeSampleCount: number;
+}
+
+export interface ApplicationCompletion extends CompletionFigures {
+  applicationId: Identifier;
+  applicationName: string;
+}
+
+export interface AttentionEntry {
+  kind: AttentionKind;
+  applicationId: Identifier;
+  applicationName: string;
+  recordKind: string;
+  recordId: Identifier;
+  title: string;
+  /** Per kind: daysOverdue, priority, breachKind, sharePercent, incidentPriority, proposedCount, daysWaiting, incidentId, incidentReference. */
+  parameters: Record<string, string | number | null>;
+}
+
+export interface EarlierPreventItem {
+  actionItemId: Identifier;
+  itemTitle: string;
+  statusAtRepeat: PreventItemStateAtRepeat;
+}
+
+export interface RepeatIncident {
+  incidentId: Identifier;
+  incidentReference: string;
+  openedAt: IsoDateTimeString;
+  /** Absent for the first incident of the group. */
+  outcome: RepeatOutcome | null;
+  earlierPreventItems: EarlierPreventItem[];
+}
+
+export interface RepeatGroup {
+  applicationId: Identifier;
+  applicationName: string;
+  recurrenceCategory: string;
+  serviceId: Identifier;
+  serviceName: string;
+  incidents: RepeatIncident[];
+}
+
+export interface ActionItemOverview {
+  periodStart: IsoDateTimeString;
+  periodEnd: IsoDateTimeString;
+  periodDays: number;
+  completion: CompletionFigures;
+  byApplication: ApplicationCompletion[];
+  needsAttention: AttentionEntry[];
+  repeats: RepeatGroup[];
+}
+
+export const useActionItemsOverview = (applicationIds: string[], days: number) =>
+  useQuery({
+    queryKey: [...actionItemQueryKeys.all, "overview", applicationIds, days] as const,
+    placeholderData: keepPreviousData,
+    queryFn: ({ signal }) => apiGet<ActionItemOverview>("/action-items/overview", { signal, query: { applicationIds: applicationIds.join(",") || undefined, days } }),
+  });

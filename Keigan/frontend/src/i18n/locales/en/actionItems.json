@@ -15,6 +15,10 @@
     "pageOf": "Page {{page}} of {{total}}",
     "previous": "Previous",
     "next": "Next",
+    "tabs": "Views",
+    "tabItems": "Items",
+    "tabAttention": "Needs attention",
+    "tabRepeats": "Repeats",
     "empty": {
       "tracked": { "title": "Nothing to follow up", "description": "Accepted action items that are open, in progress or blocked appear here." },
       "finished": { "title": "Nothing finished yet", "description": "Items marked done or won't do appear here." },
@@ -81,6 +85,77 @@
     "suggestedTitle_one": "{{count}} suggested action item is waiting",
     "suggestedTitle_other": "{{count}} suggested action items are waiting",
     "suggestedBody": "Accept or discard each suggestion before you finalise the postmortem."
+  },
+  "overview": {
+    "period": "Period",
+    "periodHelp": "The figures cover the period you choose. Open and overdue always count every unfinished item.",
+    "periodDays_one": "{{count}} day",
+    "periodDays_other": "{{count}} days",
+    "open": "Open items",
+    "openHelp": "Accepted and not finished",
+    "overdue": "Overdue",
+    "overdueHelp": "Past their due date",
+    "completionRate": "Completion rate",
+    "sample_one": "Based on {{count}} item",
+    "sample_other": "Based on {{count}} items",
+    "notEnoughData": "Nothing to measure yet",
+    "medianDays": "Median time to finish",
+    "days_one": "{{value}} day",
+    "days_other": "{{value}} days"
+  },
+  "attention": {
+    "empty": {
+      "title": "Nothing needs attention",
+      "description": "No overdue items, top-priority items without an owner, open policy requirements or missing postmortems in this scope."
+    },
+    "noOwner": "No owner",
+    "breachKind": {
+      "single_incident": "One incident used a large share",
+      "outage_class": "One kind of outage used a large share",
+      "budget_exhausted": "Budget used up"
+    },
+    "breachShare": "{{share}} % of the budget",
+    "resolvedDaysAgo_one": "Resolved {{count}} day ago",
+    "resolvedDaysAgo_other": "Resolved {{count}} days ago",
+    "suggestionsWaiting_one": "{{count}} suggestion waiting for {{days}} days",
+    "suggestionsWaiting_other": "{{count}} suggestions waiting for {{days}} days",
+    "kind": {
+      "overdue_item": "Overdue items",
+      "top_priority_unowned": "Top priority, no owner",
+      "policy_breach_open": "Open policy requirements",
+      "postmortem_missing": "Postmortems missing",
+      "proposed_waiting": "Suggestions waiting"
+    },
+    "kindHelp": {
+      "overdue_item": "Items past their due date, the most urgent first.",
+      "top_priority_unowned": "Items marked top priority that nobody owns yet.",
+      "policy_breach_open": "An error budget policy asks for a postmortem or a top-priority prevent item that is not there yet.",
+      "postmortem_missing": "Serious incidents that were resolved but have no final postmortem.",
+      "proposed_waiting": "Items Keigan suggested that nobody has accepted or discarded."
+    }
+  },
+  "repeats": {
+    "empty": {
+      "title": "No repeated incidents",
+      "description": "When an incident of the same kind comes back on the same service inside the look-back window, the series appears here."
+    },
+    "groupTitle": "{{service}}: {{category}}",
+    "unknownService": "Service not named",
+    "first": "First in this series",
+    "outcome": {
+      "no_postmortem": "Came back; no postmortem had been finished before it",
+      "no_prevent_item": "Came back; no follow-up was tracked to prevent it",
+      "repeated_while_open_one": "Came back while {{count}} follow-up was still open",
+      "repeated_while_open_other": "Came back while {{count}} follow-ups were still open",
+      "repeated_after_done": "Came back after every follow-up was done: the fix may not have worked"
+    },
+    "showItems_one": "Show the {{count}} earlier follow-up",
+    "showItems_other": "Show the {{count}} earlier follow-ups",
+    "itemState": {
+      "done": "Done",
+      "not_done": "Not done",
+      "wont_do": "Dropped"
+    }
   },
   "errors": { "actionFailed": "That change could not be saved." }
 }

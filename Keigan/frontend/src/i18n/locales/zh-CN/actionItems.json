@@ -15,6 +15,10 @@
     "pageOf": "第 {{page}} 页，共 {{total}} 页",
     "previous": "上一页",
     "next": "下一页",
+    "tabs": "视图",
+    "tabItems": "行动项",
+    "tabAttention": "需要关注",
+    "tabRepeats": "重复发生",
     "empty": {
       "tracked": { "title": "没有需要跟进的事项", "description": "已接受且处于待办、进行中或受阻状态的行动项会显示在这里。" },
       "finished": { "title": "还没有已结束的事项", "description": "标记为已完成或不再处理的事项会显示在这里。" },
@@ -78,6 +82,70 @@
     "finalDescription": "此次事后复盘的跟进事项，将持续跟踪直至完成。",
     "suggestedTitle_other": "有 {{count}} 条建议的行动项在等待处理",
     "suggestedBody": "确定事后复盘之前，请接受或丢弃每一条建议。"
+  },
+  "overview": {
+    "period": "时间范围",
+    "periodHelp": "数字按所选时间范围统计。“未完成”和“已逾期”始终统计所有未完成的行动项。",
+    "periodDays_other": "{{count}} 天",
+    "open": "未完成的行动项",
+    "openHelp": "已接受但尚未完成",
+    "overdue": "已逾期",
+    "overdueHelp": "已超过截止日期",
+    "completionRate": "完成率",
+    "sample_other": "基于 {{count}} 项",
+    "notEnoughData": "暂时没有可统计的数据",
+    "medianDays": "完成用时（中位数）",
+    "days_other": "{{value}} 天"
+  },
+  "attention": {
+    "empty": {
+      "title": "没有需要关注的事项",
+      "description": "此范围内没有已逾期的行动项、没有负责人的最高优先级行动项、未满足的策略要求，也没有缺失的复盘。"
+    },
+    "noOwner": "无负责人",
+    "breachKind": {
+      "single_incident": "单个事件占用了很大比例",
+      "outage_class": "某一类故障占用了很大比例",
+      "budget_exhausted": "预算已用尽"
+    },
+    "breachShare": "占预算的 {{share}} %",
+    "resolvedDaysAgo_other": "{{count}} 天前已解决",
+    "suggestionsWaiting_other": "{{count}} 条建议已等待 {{days}} 天",
+    "kind": {
+      "overdue_item": "已逾期的行动项",
+      "top_priority_unowned": "最高优先级，无负责人",
+      "policy_breach_open": "未满足的策略要求",
+      "postmortem_missing": "缺失的复盘",
+      "proposed_waiting": "等待处理的建议"
+    },
+    "kindHelp": {
+      "overdue_item": "已超过截止日期的行动项，最紧急的排在前面。",
+      "top_priority_unowned": "标为最高优先级但还没有负责人的行动项。",
+      "policy_breach_open": "错误预算策略要求提供复盘或最高优先级的预防类行动项，但目前还没有。",
+      "postmortem_missing": "已解决的严重事件，但没有最终定稿的复盘。",
+      "proposed_waiting": "Keigan 建议的行动项，尚无人接受或舍弃。"
+    }
+  },
+  "repeats": {
+    "empty": {
+      "title": "没有重复发生的事件",
+      "description": "当同类事件在回溯期内再次出现在同一服务上时，这一系列会显示在这里。"
+    },
+    "groupTitle": "{{service}}：{{category}}",
+    "unknownService": "未命名的服务",
+    "first": "本系列中的第一起",
+    "outcome": {
+      "no_postmortem": "再次发生；此前没有完成的复盘",
+      "no_prevent_item": "再次发生；没有跟踪任何用于预防的跟进事项",
+      "repeated_while_open_other": "再次发生时，仍有 {{count}} 项跟进事项未完成",
+      "repeated_after_done": "所有跟进事项完成后再次发生：修复可能没有奏效"
+    },
+    "showItems_other": "查看之前的 {{count}} 项跟进事项",
+    "itemState": {
+      "done": "已完成",
+      "not_done": "未完成",
+      "wont_do": "已放弃"
+    }
   },
   "errors": { "actionFailed": "无法保存该更改。" }
 }
