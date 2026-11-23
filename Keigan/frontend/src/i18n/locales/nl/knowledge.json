@@ -164,6 +164,8 @@
   },
   "health": {
     "title": "Gezondheid van runbooks",
+    "createItem": "Actiepunt aanmaken",
+    "itemTitle": "Het runbook verbeteren: {{runbook}}",
     "allFine": "Alle {{count}} runbooks zien er gezond uit.",
     "summary_one": "{{count}} van {{total}} runbooks heeft aandacht nodig.",
     "summary_other": "{{count}} van {{total}} runbooks hebben aandacht nodig.",

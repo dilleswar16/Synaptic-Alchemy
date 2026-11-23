@@ -164,6 +164,8 @@
   },
   "health": {
     "title": "Salud de los runbooks",
+    "createItem": "Crear acción de seguimiento",
+    "itemTitle": "Mejorar el runbook: {{runbook}}",
     "allFine": "Los {{count}} runbooks se ven bien.",
     "summary_one": "{{count}} de {{total}} runbooks necesita atención.",
     "summary_other": "{{count}} de {{total}} runbooks necesitan atención.",

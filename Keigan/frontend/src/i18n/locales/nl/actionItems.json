@@ -58,6 +58,10 @@
     "moved_one": "Einddatum {{count}} keer verschoven (eerst {{date}})",
     "moved_other": "Einddatum {{count}} keer verschoven (eerst {{date}})",
     "incident": "Incident {{reference}}",
+    "runbook": "Runbook: {{title}}",
+    "trackedIn": "Gevolgd in ServiceNow: {{number}} ({{status}})",
+    "trackFailed": "Kon niet naar ServiceNow worden gestuurd. Probeer het opnieuw via het menu.",
+    "trackInServiceNow": "Volgen in ServiceNow",
     "reason": "Reden: {{text}}",
     "completionNote": "Gedaan: {{text}}"
   },

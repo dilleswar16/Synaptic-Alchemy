@@ -57,7 +57,8 @@
       "elapsed": "已耗时",
       "duration": "持续时间",
       "feedback": "您的判断"
-    }
+    },
+    "seenBefore": "以往类似：{{count}}"
   },
   "feedback": {
     "title": "这个根因正确吗？",
@@ -659,5 +660,58 @@
       "status": "结果"
     },
     "details": "详情（仅含编号、代码和数字）"
+  },
+  "similarIncidents": {
+    "title": "以往类似事件",
+    "description": "具有相同事实的过往事件。这是以往工作的提示，不是证据：只有本次调查发现的内容才算数。",
+    "cause": "上次的原因：",
+    "fix": "解决方式：",
+    "matchedOn": "匹配依据：",
+    "wasThisRelevant": "这条相关吗？",
+    "relevant": "相关",
+    "notRelevant": "不相关",
+    "relevanceFailed": "无法保存您的回答",
+    "mayBeOutOfDate": "可能已过时",
+    "analysisMarkedIncorrect": "Keigan 的分析被标记为不正确。",
+    "trust": {
+      "correct": "已确认",
+      "partially_correct": "部分正确",
+      "incorrect": "已标记为不正确",
+      "none": "未审核"
+    },
+    "causeSource": {
+      "postmortem": "来自已批准的事后复盘",
+      "investigation": "Keigan 的分析",
+      "none": "无记录"
+    },
+    "fixSource": {
+      "resolution_note": "解决说明",
+      "fix_plan": "Keigan 建议的方案",
+      "hypothesis_fix": "Keigan 建议的修复",
+      "none": "无记录"
+    },
+    "keyKind": {
+      "service": "相同服务",
+      "shared_resource": "相同共享资源",
+      "alert_rule": "相同告警规则",
+      "error_signature": "相同错误",
+      "change_operation": "相同类型的变更",
+      "dependency_target": "相同的故障依赖",
+      "incident_category": "相同类别"
+    },
+    "stale": {
+      "older_than_threshold": "这是很久以前发生的。",
+      "service_removed": "相关服务已被移除。"
+    },
+    "hide": {
+      "action": "隐藏",
+      "title": "不再推荐这个过往事件？",
+      "description": "“{{title}}”将不再推荐给任何人。以后可以重新显示。",
+      "reason": "为什么没有用？",
+      "cancel": "取消",
+      "confirm": "隐藏",
+      "done": "已隐藏",
+      "failed": "无法隐藏"
+    }
   }
 }

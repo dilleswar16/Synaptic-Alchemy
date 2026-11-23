@@ -10,14 +10,14 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config.settings import get_settings
 from keigan.entities.action_item_entities import ActionItem
 from keigan.entities.application_entities import Application
 from keigan.entities.notification_entities import Stakeholder
-from keigan.entities.status_values import StakeholderRecipientType
+from keigan.entities.status_values import ExternalSyncStatus, StakeholderRecipientType
 from keigan.services.action_item_rules import TRACKED_STATUSES, ReminderKind, days_overdue, local_today, reminder_kind
 from keigan.services.notification_service import NotificationService
 from keigan.utils.string_table import translate
@@ -43,7 +43,8 @@ class ActionItemReminderService:
             return counts
         now = utc_now()
         today = local_today(application.time_zone_name, now)
-        items = list((await self.session.scalars(select(ActionItem).where(ActionItem.application_id == application_id, ActionItem.item_status.in_(TRACKED_STATUSES), ActionItem.due_on.is_not(None)))).all())
+        items = list((await self.session.scalars(select(ActionItem).where(ActionItem.application_id == application_id, ActionItem.item_status.in_(TRACKED_STATUSES), ActionItem.due_on.is_not(None),
+            or_(ActionItem.external_sync_status.is_(None), ActionItem.external_sync_status != ExternalSyncStatus.LINKED)))).all())  # an item ServiceNow tracks gets its reminders there, not from Keigan
         kinds = {item.action_item_id: self._kind_of(item, today, application.time_zone_name) for item in items}
         due = [item for item in items if kinds[item.action_item_id] is not None]
         if not due:

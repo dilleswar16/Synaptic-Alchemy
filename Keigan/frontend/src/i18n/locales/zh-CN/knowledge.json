@@ -163,6 +163,8 @@
   },
   "health": {
     "title": "Runbook 健康状况",
+    "createItem": "创建行动项",
+    "itemTitle": "改进运行手册：{{runbook}}",
     "allFine": "全部 {{count}} 个 Runbook 状态良好。",
     "summary_other": "{{total}} 个 Runbook 中有 {{count}} 个需要关注。",
     "kind": {

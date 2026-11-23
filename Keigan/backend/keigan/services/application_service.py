@@ -232,10 +232,13 @@ class ApplicationService:
         from keigan.entities.incident_entities import Conversation, Incident, IncidentCommunication, Investigation, InvestigationTimelineEvent, PostmortemReport
         from keigan.entities.notification_entities import NotificationDelivery, TeamsIncidentChat
 
+        from keigan.services.incident_memory_retention import delete_incident_memory
+
         application_service_ids = list((await self.session.scalars(select(MonitoredService.service_id).where(MonitoredService.application_id == application_id))).all())
         await release_references(self.session, MonitoredService.service_id, application_service_ids)
         application_incident_ids = select(Incident.incident_id).where(Incident.application_id == application_id)
         application_investigation_ids = select(Investigation.investigation_id).where(Investigation.application_id == application_id)
+        await delete_incident_memory(self.session, application_investigation_ids)  # answers about this application's entries from other applications' investigations go too
         for delete_statement in (
             delete(ErrorBudgetPolicyBreach).where(ErrorBudgetPolicyBreach.application_id == application_id),  # they name incidents, SLOs and action items
             delete(ActionItem).where(ActionItem.application_id == application_id),  # they name the postmortems and incidents deleted below

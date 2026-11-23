@@ -32,6 +32,7 @@ from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.error_budget_policy_service import ErrorBudgetPolicyService
+from keigan.services.incident_memory_builder import enqueue_memory_refresh_for_incident
 from keigan.services.postmortem_action_items import ensure_none_proposed, render_action_items_table, render_final_table, replace_action_items_section, replace_proposed_items
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
@@ -392,6 +393,7 @@ class CommunicationService:
         await AuditService(self.session).record(current_user, "postmortem.finalize", target_entity_type="postmortem_report", target_entity_id=postmortem_id, application_id=application_id)
         await self.session.flush()
         await ErrorBudgetPolicyService(self.session).refresh_requirement(postmortem.incident_id)  # a final postmortem with its top-priority prevent item meets the policy
+        await enqueue_memory_refresh_for_incident(self.session, postmortem.incident_id)  # its root cause is the best account of the cause
         return self._postmortem_dto(postmortem)
 
     async def send_postmortem(self, current_user: CurrentUser, postmortem_id: str) -> CommunicationSendResult | dict[str, Any]:

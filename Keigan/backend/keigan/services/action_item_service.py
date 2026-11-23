@@ -17,14 +17,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
 from keigan.config.settings import Settings, get_settings
 from keigan.dtos.action_item_dtos import (
-    AcceptAllActionItemsResponse, ActionItemCreateRequest, ActionItemDto, ActionItemOwnerDto, ActionItemStatusRequest, ActionItemUpdateRequest, SkippedActionItemDto,
+    AcceptAllActionItemsResponse, ActionItemCreateRequest, ActionItemDto, ActionItemExternalDto, ActionItemOwnerDto, ActionItemStatusRequest, ActionItemUpdateRequest, SkippedActionItemDto,
 )
 from keigan.dtos.common_dtos import PagedResult
 from keigan.entities.action_item_entities import ActionItem
 from keigan.entities.application_entities import Application
 from keigan.entities.incident_entities import Incident, PostmortemReport
+from keigan.entities.knowledge_entities import Runbook
 from keigan.entities.notification_entities import Stakeholder
-from keigan.entities.status_values import ActionItemPriority, ActionItemSource, ActionItemStatus, StakeholderRecipientType
+from keigan.entities.status_values import ActionItemPriority, ActionItemSource, ActionItemStatus, ExternalSyncStatus, StakeholderRecipientType
+from keigan.integrations.servicenow_client import servicenow_task_url
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.action_item_rules import (
@@ -100,6 +102,11 @@ class ActionItemService:
         await self.authorization.ensure_application_admin(current_user, application_id)
         application = await self._application(application_id)
         incident, postmortem = await self._linked_records(application_id, request.incident_id, request.postmortem_id)
+        if request.runbook_id is not None:
+            runbook = await self.session.get(Runbook, request.runbook_id)
+            if runbook is None or runbook.application_id != application_id:
+                raise BusinessValidationException("The runbook was not found in this application.")
+            source_kind, source_record_id = ActionItemSource.RUNBOOK_HEALTH, runbook.runbook_id
         today = local_today(application.time_zone_name, utc_now())
         due_on = self._valid_due_date(request.due_on, today)
         item = ActionItem(
@@ -175,6 +182,8 @@ class ActionItemService:
 
     async def change_status(self, current_user: CurrentUser, action_item_id: str, request: ActionItemStatusRequest) -> ActionItemDto:
         item = await self._load(action_item_id)
+        if item.external_sync_status == ExternalSyncStatus.LINKED:
+            raise BusinessValidationException("This item is tracked in ServiceNow: change its status there.")
         actor = await self._actor(current_user, item)
         previous = ActionItemStatus(item.item_status)
         if not can_transition(actor, previous, request.status):
@@ -316,10 +325,24 @@ class ActionItemService:
             current_user, action_name, target_entity_type="action_item", target_entity_id=item.action_item_id, application_id=item.application_id, action_details=details or None,
         )
 
+    async def dtos_for(self, current_user: CurrentUser, items: list[ActionItem]) -> list[ActionItemDto]:
+        return await self._dtos(current_user, items)
+
+    def _external_of(self, item: ActionItem) -> ActionItemExternalDto | None:
+        if item.external_sync_status is None:
+            return None
+        url = servicenow_task_url(self.settings.servicenow_instance_url, self.settings.action_items_servicenow_table, item.external_reference_text) if item.external_sync_status == ExternalSyncStatus.LINKED else None
+        return ActionItemExternalDto(
+            system=item.external_system, number=item.external_reference_text if item.external_sync_status == ExternalSyncStatus.LINKED else None, url=url,
+            status_text=item.external_status_text, synced_at=item.external_synced_at, sync_status=item.external_sync_status,
+        )
+
     async def _dtos(self, current_user: CurrentUser, items: list[ActionItem]) -> list[ActionItemDto]:
         if not items:
             return []
         applications = {row.application_id: row for row in (await self.session.scalars(select(Application).where(Application.application_id.in_({item.application_id for item in items})))).all()}
+        runbook_ids = {item.source_record_id for item in items if item.item_source_kind == ActionItemSource.RUNBOOK_HEALTH and item.source_record_id}
+        runbook_titles = {row.runbook_id: row.runbook_title for row in (await self.session.scalars(select(Runbook).where(Runbook.runbook_id.in_(runbook_ids)))).all()} if runbook_ids else {}
         owner_ids = {item.owner_stakeholder_id for item in items if item.owner_stakeholder_id}
         owners = {row.stakeholder_id: row for row in (await self.session.scalars(select(Stakeholder).where(Stakeholder.stakeholder_id.in_(owner_ids)))).all()} if owner_ids else {}
         admin_application_ids = {application_id for application_id in applications if await self.authorization.can_edit_application(current_user, application_id)}
@@ -330,16 +353,19 @@ class ActionItemService:
             actor = Actor.ADMIN if item.application_id in admin_application_ids else Actor.OWNER if owner is not None and owner.is_active and self._matches(owner, current_user) else Actor.READER
             today = local_today(application.time_zone_name, now)
             current = ActionItemStatus(item.item_status)
-            allowed = [status.value for status in ActionItemStatus if can_transition(actor, current, status)]
+            allowed = [] if item.external_sync_status == ExternalSyncStatus.LINKED else [status.value for status in ActionItemStatus if can_transition(actor, current, status)]  # ServiceNow owns a linked item's status
             dtos.append(ActionItemDto(
                 action_item_id=item.action_item_id, application_id=item.application_id, application_name=application.application_name, incident_id=item.incident_id,
                 incident_reference=item.incident_reference_text, postmortem_id=item.postmortem_id, source_kind=item.item_source_kind, item_title=item.item_title,
+                runbook_id=item.source_record_id if item.item_source_kind == ActionItemSource.RUNBOOK_HEALTH else None, runbook_title=runbook_titles.get(item.source_record_id or ""),
                 item_details_markdown=item.item_details_markdown, action_type=item.action_type, action_priority=item.action_priority, item_status=item.item_status,
                 suggested_owner_role_text=item.suggested_owner_role_text,
                 owner=ActionItemOwnerDto(stakeholder_id=owner.stakeholder_id, display_name=owner.display_name, stakeholder_role=owner.stakeholder_role) if owner else None,
                 due_on=item.due_on, original_due_on=item.original_due_on, due_on_change_count=item.due_on_change_count, is_overdue=is_overdue(item.item_status, item.due_on, today),
                 days_overdue=days_overdue(item.item_status, item.due_on, today), status_reason_text=item.status_reason_text, completion_note_text=item.completion_note_text,
                 completed_at=item.completed_at, completed_by=item.completed_by_user_principal_name, accepted_at=item.accepted_at, external_reference_text=item.external_reference_text,
+                external=self._external_of(item),
+                can_send_external=self.settings.action_items_external_tracking_enabled and actor == Actor.ADMIN and item.item_status in TRACKED_BY_DEFAULT and item.external_sync_status != ExternalSyncStatus.LINKED,
                 can_edit=actor == Actor.ADMIN, can_change_status=bool(allowed), allowed_statuses=allowed, created_at=item.created_at, updated_at=item.updated_at,
             ))
         return dtos

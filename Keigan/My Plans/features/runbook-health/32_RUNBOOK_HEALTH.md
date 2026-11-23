@@ -121,6 +121,6 @@ Built in three steps on `keigan-ui-ux`: rules and settings with tests; service, 
 Differences from this design:
 - The weekly digest's Markdown carries a "Runbooks" block and the structured `runbooks` section (spec 31 now lists four sections).
 - The card is shown on the Runbooks step only; it hides itself when the application has no runbooks.
-- No action item is created from a finding (it would need a new source value and a revision); the Action items page's "New action item" is the way.
+- An action item can now be created from a finding (2026-11-24): the card's "Create action item" button opens the form with the runbook's title and findings; the item has the source `runbook_health` and the runbook's id (revision `d5a9b3e7c1f8`).
 - Not seen in a browser.
 

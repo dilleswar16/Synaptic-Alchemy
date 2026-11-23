@@ -163,6 +163,8 @@
   },
   "health": {
     "title": "Runbook の健全性",
+    "createItem": "アクションアイテムを作成",
+    "itemTitle": "ランブックを改善: {{runbook}}",
     "allFine": "{{count}} 件の Runbook はすべて問題ありません。",
     "summary_other": "{{total}} 件中 {{count}} 件の Runbook に対応が必要です。",
     "kind": {

@@ -21,8 +21,8 @@ export interface ActionItemDialogProps {
   item?: ActionItem;
   /** Fields the owner (a reader of the application) may not change are locked. */
   detailsOnly?: boolean;
-  /** The starting type and priority of a new item (the error budget policy asks for a top-priority prevent item). */
-  preset?: { actionType?: ActionItemType; actionPriority?: ActionItemPriority };
+  /** The starting values of a new item (the error budget policy asks for a top-priority prevent item; a runbook finding starts with a title and its details). */
+  preset?: { actionType?: ActionItemType; actionPriority?: ActionItemPriority; itemTitle?: string; itemDetailsMarkdown?: string };
   onSubmit: (fields: ActionItemFields & { itemTitle: string; actionType: ActionItemType; dueOn: string }) => Promise<void>;
 }
 
@@ -41,14 +41,14 @@ export function ActionItemDialog({ open, onOpenChange, mode, applicationId, item
 
   useEffect(() => {
     if (!open) return;
-    setItemTitle(item?.itemTitle ?? "");
-    setDetails(item?.itemDetailsMarkdown ?? "");
+    setItemTitle(item?.itemTitle ?? preset?.itemTitle ?? "");
+    setDetails(item?.itemDetailsMarkdown ?? preset?.itemDetailsMarkdown ?? "");
     setActionType(item?.actionType ?? preset?.actionType ?? "prevent");
     setPriority(item?.actionPriority ?? preset?.actionPriority ?? "normal");
     setOwnerId(item?.owner?.stakeholderId ?? unassigned);
     setDueOn(item?.dueOn ?? "");
     setFailure(null);
-  }, [open, item, preset?.actionType, preset?.actionPriority]);
+  }, [open, item, preset?.actionType, preset?.actionPriority, preset?.itemTitle, preset?.itemDetailsMarkdown]);
 
   const people = (stakeholders ?? []).filter((member) => member.recipientType === "person" && member.isActive !== false);
   const canSave = itemTitle.trim().length >= 2 && dueOn !== "";

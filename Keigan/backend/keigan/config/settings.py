@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError,
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from keigan.entities.status_values import Priority, ShellDialect, StakeholderRole
+from keigan.utils.action_item_priority_map import parse_priority_map
 
 BACKEND_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 RESOURCES_DIRECTORY = Path(__file__).resolve().parents[1] / "resources"
@@ -248,6 +249,9 @@ class Settings(BaseSettings):
     action_items_escalation_roles: str = "lead,manager"  # team roles (comma separated) that receive escalations and items nobody owns
     action_items_closed_retention_days: int = Field(default=730, ge=90, le=3650)  # closed action items older than this are deleted
     action_items_external_reference_pattern: str = r"^[A-Z]{2,10}[0-9]{4,12}$"  # accepted shape of a typed ServiceNow task number
+    action_items_external_tracking_enabled: bool = False  # when true, an application admin may send an item to ServiceNow as a task; once sent, ServiceNow owns the item's status
+    action_items_servicenow_table: str = Field(default="task", pattern=r"^[a-z][a-z0-9_]{0,79}$")  # the ServiceNow table the tasks are created in
+    action_items_servicenow_priorities: str = "top:1,high:2,normal:3,low:4"  # the ServiceNow priority of each action item priority
     action_items_overview_default_days: int = Field(default=90, ge=7, le=730)  # period of the action items overview when none is chosen
     action_items_overview_maximum_days: int = Field(default=365, ge=7, le=730)  # longest period the overview may look back
     action_items_repeat_window_days: int = Field(default=90, ge=7, le=365)  # how far back the repeated incidents view looks (never more than incident retention)
@@ -257,6 +261,13 @@ class Settings(BaseSettings):
     investigation_evidence_token_budget: int = 8_000
     investigation_knowledge_token_budget: int = 6_000
     auto_send_preliminary_report: bool = True
+
+    # ── Similar incident memory (spec 34) ──────────────────────────────────────
+    incident_memory_maximum_shown: int = Field(default=5, ge=1, le=20)  # past incidents suggested on the page
+    incident_memory_minimum_score: float = Field(default=0.35, ge=0.0, le=1.0)  # suggestions scoring lower are not shown
+    incident_memory_stale_after_days: int = Field(default=180, ge=7, le=395)  # older suggestions are labelled "may be out of date"
+    incident_memory_text_maximum_characters: int = Field(default=400, ge=100, le=2000)  # length of the stored cause and fix texts
+    incident_memory_keyword_candidate_limit: int = Field(default=300, ge=50, le=5000)  # recent entries of the same application compared by wording only
 
     # ── Application teams ──────────────────────────────────────────────────────
     team_members_maximum_per_application: int = Field(default=100, ge=1)
@@ -367,6 +378,12 @@ class Settings(BaseSettings):
         unknown = [priority for priority in (part.strip() for part in priorities.split(",")) if priority and priority not in {member.value for member in Priority}]
         if unknown:
             raise ValueError(f"ACTION_ITEMS_POSTMORTEM_REQUIRED_PRIORITIES has unknown priorities: {', '.join(unknown)}")
+        return priorities
+
+    @field_validator("action_items_servicenow_priorities", mode="after")
+    @classmethod
+    def servicenow_priorities_must_name_every_priority(cls, priorities: str) -> str:
+        parse_priority_map(priorities)
         return priorities
 
     @field_validator("action_items_external_reference_pattern", mode="after")

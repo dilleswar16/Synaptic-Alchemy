@@ -58,6 +58,10 @@
     "moved_one": "Fecha de vencimiento cambiada {{count}} vez (la primera era {{date}})",
     "moved_other": "Fecha de vencimiento cambiada {{count}} veces (la primera era {{date}})",
     "incident": "Incidente {{reference}}",
+    "runbook": "Runbook: {{title}}",
+    "trackedIn": "En seguimiento en ServiceNow: {{number}} ({{status}})",
+    "trackFailed": "No se pudo enviar a ServiceNow. Inténtalo de nuevo desde el menú.",
+    "trackInServiceNow": "Seguir en ServiceNow",
     "reason": "Motivo: {{text}}",
     "completionNote": "Hecho: {{text}}"
   },

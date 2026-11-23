@@ -25,7 +25,7 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | GET | `/public/health` | liveness `{ status: "ok" }` |
 | GET | `/public/readiness` | database reachable, worker heartbeat age |
 | POST | `/alerts/in/{alertSourceId}` | webhook intake (token in `X-Keigan-Token` header or `?token=`; optional `X-Keigan-Signature` HMAC-SHA256 whose key is the webhook secret itself, stored in the secret store; sources created before 2026-11-20 accept the token only until their secret is rotated) → 202 |
-| POST | `/teams/messages` | Bot Framework activities (JWT validated) |
+| POST | `/teams/messages` | Bot Framework activities (JWT validated). A `message` with no text and a `value` of `{keiganAction: "rate_investigation", investigationId, verdict}` is a pressed rating button on a Keigan card: handled as the sender (same access rules as `POST /investigations/{id}/feedback`), answered in the chat; any other `value` is ignored |
 
 ## 3. Authentication
 
@@ -102,6 +102,11 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | POST | `/investigations/{investigationId}/rerun` | 202 `{ jobId }` where `jobId` is the NEW investigation id (the previous run and its feedback are kept) |
 | GET | `/investigations/{investigationId}/evidence/{evidenceCode}` | one evidence item (e.g. `E3`) |
 | POST | `/investigations/{investigationId}/feedback` | `{ verdict, comment }` |
+| GET | `/investigations/{investigationId}/similar-incidents` | reader of the investigation's application; past incidents that look like this one, best first, computed as the reader (applications they cannot read contribute nothing): `{items: [{memoryEntryId, application, isSameApplication, incidentId, incidentNumber, incidentTitle, investigationId, occurredAt, ageDays, verdict, causeText, causeSource, fixText, fixSource, matchReasons: [{keyKind, displayText}], isStale, staleReasons, myRelevanceVerdict, canHide}], isAvailable}`. `isAvailable` is false while the investigation is running. No score is returned; `causeText` is null when that past analysis was marked incorrect (spec 34) |
+| PUT | `/investigations/{investigationId}/similar-incidents/{memoryEntryId}/relevance` | 204; reader; body `{verdict: relevant \| not_relevant}`; replaces the caller's earlier answer; 404 when the entry is unknown or in an application the caller cannot read (never 403) |
+| DELETE | `/investigations/{investigationId}/similar-incidents/{memoryEntryId}/relevance` | 204; clears the caller's answer |
+| POST | `/incident-memory/{memoryEntryId}/hide` | 204; application admin of the entry's application; body `{reason}` (1 to 500 characters, masked); the entry is no longer suggested to anyone; audit event `incident_memory.hide` (the reason's length only). 404 when the caller cannot read the entry, 403 when they can read but not administer it |
+| POST | `/incident-memory/{memoryEntryId}/unhide` | 204; application admin; the entry is suggested again; audit event `incident_memory.unhide` |
 | GET | `/investigations/{investigationId}/timeline` | |
 | GET | `/investigations/{investigationId}/communications` | drafts and sent |
 | POST | `/investigations/{investigationId}/communications/generate` | `{ communicationType, languageCodes }` → 202 |
@@ -122,6 +127,7 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | POST | `/applications/{applicationId}/action-items` | 201; application admin; a manual item starts open |
 | PATCH | `/action-items/{actionItemId}` | admin changes any field (a moved due date is counted); the owner may change `itemDetailsMarkdown` only |
 | POST | `/postmortems/{postmortemId}/action-items/accept-all` | admin; accepts every suggestion of the postmortem that has an acceptable due date, each as a single accept would; returns `{accepted: ActionItem[], skipped: [{actionItemId, itemTitle, reason}]}` with `reason` `no_due_date` or `due_date_not_allowed`; 404 for an unknown postmortem |
+| POST | `/action-items/{actionItemId}/external-task` | admin; creates a ServiceNow task for a tracked item (422 while `ACTION_ITEMS_EXTERNAL_TRACKING_ENABLED` is false, for a suggestion or a finished item, and for one already linked); returns the item with `external {system, number, url, statusText, syncedAt, syncStatus}` (`linked` or `failed`); a linked item's `allowedStatuses` is empty and its status can only change through ServiceNow |
 | POST | `/action-items/{actionItemId}/accept` | admin; optional field edits applied first; a suggestion becomes open and its due date must be today or later |
 | POST | `/action-items/{actionItemId}/status` | `{status, reasonText?, completionNoteText?}`; admin or owner per the transition table; blocked and won't do need a reason; 422 says what is refused |
 | DELETE | `/action-items/{actionItemId}` | 204; admin; a suggestion only (a tracked item closes as won't do) |

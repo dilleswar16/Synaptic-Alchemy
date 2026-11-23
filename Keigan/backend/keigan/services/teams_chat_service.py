@@ -31,6 +31,7 @@ from keigan.integrations.bot_framework_client import BotFrameworkClient
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
 from keigan.security.current_user import CurrentUser
 from keigan.services.notification_renderer import NotificationRenderer, translate
+from keigan.services.teams_card_actions import CardAction, parse_card_action
 from keigan.services.teams_question_answerer import TeamsQuestionAnswerer
 from keigan.services.teams_sender_authorizer import TeamsSenderAccess, TeamsSenderAuthorizer
 from keigan.utils.pii_masker import PiiMasker
@@ -416,6 +417,29 @@ class TeamsChatService:
             logger.warning("A Teams activity from tenant %s was rejected", tenant or "(none)")
             raise ForbiddenException("This Teams tenant is not allowed to use Keigan.")
 
+    async def _handle_card_action(self, chat: TeamsIncidentChat, sender: dict[str, Any], action: CardAction) -> None:
+        """A person pressed a rating button on a Keigan card. The bot acts as that person: the rating is recorded by the same code, with the same access rules, as on the investigation page."""
+        from keigan.dtos.investigation_dtos import InvestigationFeedbackRequest
+        from keigan.services.investigation_service import InvestigationService
+
+        application = await self.session.get(Application, chat.application_id)
+        language = application.primary_locale if application else "en"
+        access = await TeamsSenderAuthorizer(self.session).access_for(chat.application_id, sender.get("aadObjectId"), sender.get("name"))
+        if not access.can_read or access.user is None:
+            logger.info("Ignored a Teams card button from a sender without access to application %s", chat.application_id)
+            await self._post_keigan_message(chat, NOT_AUTHORIZED_REPLY, None)
+            return
+        investigation = await self.session.get(Investigation, action.investigation_id)
+        if investigation is None or investigation.incident_id != chat.incident_id:  # a button is only good for the investigation of the incident whose chat it was pressed in
+            await self._post_keigan_message(chat, translate(language, "chat.rating_unavailable"), None)
+            return
+        try:
+            await InvestigationService(self.session).submit_feedback(access.user, investigation.investigation_id, InvestigationFeedbackRequest(verdict=action.verdict))
+        except ForbiddenException:
+            await self._post_keigan_message(chat, translate(language, "chat.rating_needs_admin"), None)
+            return
+        await self._post_keigan_message(chat, translate(language, "chat.rating_recorded"), None)
+
     async def handle_bot_activity(self, activity: dict[str, Any]) -> None:
         self._ensure_expected_tenant(activity)
         conversation_id = (activity.get("conversation") or {}).get("id")
@@ -432,6 +456,11 @@ class TeamsChatService:
         if activity_type == "message":
             sender = activity.get("from") or {}
             plain_text = PiiMasker().mask_text(HTML_TAG_PATTERN.sub(" ", activity.get("text") or "").strip())
+            card_action = parse_card_action(activity.get("value"))  # a pressed card button carries data and no text
+            if card_action is not None:
+                await self._handle_card_action(chat, sender, card_action)
+                await self.session.flush()
+                return
             if not plain_text:
                 return
             if not (await TeamsSenderAuthorizer(self.session).access_for(chat.application_id, sender.get("aadObjectId"), sender.get("name"))).can_read:

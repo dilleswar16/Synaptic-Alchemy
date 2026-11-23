@@ -57,7 +57,8 @@
       "elapsed": "Écoulé",
       "duration": "Durée",
       "feedback": "Votre avis"
-    }
+    },
+    "seenBefore": "Déjà vu : {{count}}"
   },
   "feedback": {
     "title": "Cette cause racine était-elle la bonne ?",
@@ -661,5 +662,58 @@
       "status": "Résultat"
     },
     "details": "Détails (identifiants, codes et nombres uniquement)"
+  },
+  "similarIncidents": {
+    "title": "Déjà vu",
+    "description": "Incidents passés aux faits identiques. Des pistes issues d'un travail antérieur, pas des preuves : seul ce que cette investigation a trouvé compte.",
+    "cause": "La dernière fois, la cause était :",
+    "fix": "Résolu par :",
+    "matchedOn": "Correspond sur :",
+    "wasThisRelevant": "Était-ce pertinent ?",
+    "relevant": "Pertinent",
+    "notRelevant": "Non pertinent",
+    "relevanceFailed": "Impossible d'enregistrer votre réponse",
+    "mayBeOutOfDate": "Peut être obsolète",
+    "analysisMarkedIncorrect": "L'analyse de Keigan a été marquée comme incorrecte.",
+    "trust": {
+      "correct": "Confirmé",
+      "partially_correct": "Partiellement juste",
+      "incorrect": "Marqué incorrect",
+      "none": "Non examiné"
+    },
+    "causeSource": {
+      "postmortem": "du postmortem approuvé",
+      "investigation": "analyse de Keigan",
+      "none": "non renseignée"
+    },
+    "fixSource": {
+      "resolution_note": "note de résolution",
+      "fix_plan": "plan suggéré par Keigan",
+      "hypothesis_fix": "correctif suggéré par Keigan",
+      "none": "non renseigné"
+    },
+    "keyKind": {
+      "service": "même service",
+      "shared_resource": "même ressource partagée",
+      "alert_rule": "même règle d'alerte",
+      "error_signature": "même erreur",
+      "change_operation": "même type de changement",
+      "dependency_target": "même dépendance en échec",
+      "incident_category": "même catégorie"
+    },
+    "stale": {
+      "older_than_threshold": "C'est arrivé il y a longtemps.",
+      "service_removed": "Les services concernés ont été supprimés."
+    },
+    "hide": {
+      "action": "Masquer",
+      "title": "Ne plus suggérer cet incident passé ?",
+      "description": "« {{title}} » ne sera plus suggéré à personne. Vous pourrez le réafficher plus tard.",
+      "reason": "Pourquoi n'est-il pas utile ?",
+      "cancel": "Annuler",
+      "confirm": "Masquer",
+      "done": "Masqué",
+      "failed": "Impossible de le masquer"
+    }
   }
 }

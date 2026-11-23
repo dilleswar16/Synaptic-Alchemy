@@ -307,6 +307,59 @@ class ActionItemSource(StrEnum):
     POSTMORTEM = "postmortem"
     MANUAL = "manual"
     ERROR_BUDGET_POLICY = "error_budget_policy"  # raised from an outage-class breach card (spec 30)
+    RUNBOOK_HEALTH = "runbook_health"  # raised from a finding about a runbook (spec 32); ``source_record_id`` is the runbook
+
+
+class ExternalSyncStatus(StrEnum):
+    """Where an item stands with the task that tracks it in another system (spec 29, 4.7). No value at all means the item was never sent."""
+
+    PENDING = "pending"
+    LINKED = "linked"
+    FAILED = "failed"
+
+
+class IncidentMemoryEntryStatus(StrEnum):
+    """The state of one remembered incident (spec 34). Only active entries are suggested."""
+
+    ACTIVE = "active"
+    SUPERSEDED = "superseded"  # replaced by a newer entry for the same incident
+    HIDDEN = "hidden"  # an admin chose that this one is never suggested
+
+
+class IncidentMemoryKeyKind(StrEnum):
+    """What a match key describes (spec 34, 4.3). The order is the order keys are listed in."""
+
+    SERVICE = "service"
+    SHARED_RESOURCE = "shared_resource"
+    ALERT_RULE = "alert_rule"
+    ERROR_SIGNATURE = "error_signature"
+    CHANGE_OPERATION = "change_operation"
+    DEPENDENCY_TARGET = "dependency_target"
+    INCIDENT_CATEGORY = "incident_category"
+
+
+class IncidentMemoryCauseSource(StrEnum):
+    """Where an entry's cause text came from (spec 34, 4.2)."""
+
+    POSTMORTEM = "postmortem"
+    INVESTIGATION = "investigation"
+    NONE = "none"
+
+
+class IncidentMemoryFixSource(StrEnum):
+    """Where an entry's "what fixed it" text came from (spec 34, 4.2)."""
+
+    RESOLUTION_NOTE = "resolution_note"
+    FIX_PLAN = "fix_plan"
+    HYPOTHESIS_FIX = "hypothesis_fix"
+    NONE = "none"
+
+
+class IncidentMemoryRelevanceVerdict(StrEnum):
+    """A person's judgement of one suggested past incident (spec 34, 4.6)."""
+
+    RELEVANT = "relevant"
+    NOT_RELEVANT = "not_relevant"
 
 
 class IncidentBudgetImpactState(StrEnum):

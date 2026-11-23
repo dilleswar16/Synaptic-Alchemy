@@ -14,6 +14,7 @@ import { CitationRow } from "./CitationRow";
 import { CoverageGapsCard } from "./CoverageGapsCard";
 import { OutcomeSummary } from "./OutcomeSummary";
 import { RuledOutCard } from "./RuledOutCard";
+import { SimilarIncidentsCard } from "./SimilarIncidentsCard";
 import { FixStepCard } from "./FixStepCard";
 import { runbookElementId } from "./investigationPresentation";
 
@@ -83,6 +84,8 @@ export function RcaSection({ detail, onSelectEvidence, selectedRunbookId = null 
           ) : null}
         </div>
       </Card>
+
+      <SimilarIncidentsCard investigationId={detail.investigationId} />
 
       <div className="grid gap-5 xl:grid-cols-3">
         <Card>

@@ -23,6 +23,7 @@ from keigan.entities.incident_entities import (
 from keigan.entities.notification_entities import NotificationDelivery, TeamsIncidentChat
 from keigan.entities.status_values import IncidentStatus, InvestigationStatus
 from keigan.services.answer_run_retention import delete_answer_runs
+from keigan.services.incident_memory_retention import delete_incident_memory
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,7 @@ async def _delete_investigations(session: AsyncSession, investigation_ids: list[
     removed["evidence"] += await _count_deleted(session, delete(InvestigationEvidence).where(InvestigationEvidence.investigation_id.in_(investigation_ids)))
     removed["coverageGaps"] += await _count_deleted(session, delete(InvestigationCoverageGap).where(InvestigationCoverageGap.investigation_id.in_(investigation_ids)))
     removed["investigationTraceSteps"] += await _count_deleted(session, delete(InvestigationTraceStep).where(InvestigationTraceStep.investigation_id.in_(investigation_ids)))
+    removed["incidentMemoryEntries"] += await delete_incident_memory(session, investigation_ids)
     await session.execute(update(AlertGroup).where(AlertGroup.investigation_id.in_(investigation_ids)).values(investigation_id=None))
     removed["investigations"] += await _count_deleted(session, delete(Investigation).where(Investigation.investigation_id.in_(investigation_ids)))
 
@@ -106,7 +108,7 @@ async def purge_expired_incidents(session: AsyncSession, cutoff: datetime, batch
     """Remove expired incidents and standalone investigations in batches of ``batch_size``, committing after each batch. Returns row counts per kind."""
     removed = dict.fromkeys(
         ("incidents", "investigations", "hypotheses", "evidence", "coverageGaps", "investigationTraceSteps", "investigationTimelineEvents", "incidentCommunications", "postmortems", "conversations", "conversationMessages",
-         "notificationDeliveries", "teamsIncidentChats", "chatAnswerRuns", "chatRunSteps"), 0,
+         "notificationDeliveries", "teamsIncidentChats", "chatAnswerRuns", "chatRunSteps", "incidentMemoryEntries"), 0,
     )
     while incident_ids := list((await session.scalars(_expired_incident_ids(cutoff, batch_size))).all()):
         await _delete_incident_batch(session, incident_ids, removed)

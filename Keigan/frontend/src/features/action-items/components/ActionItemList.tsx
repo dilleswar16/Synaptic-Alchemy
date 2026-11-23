@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { CalendarClock, Check, EllipsisVertical, Pencil, Trash2, Undo2, UserRound } from "lucide-react";
+import { CalendarClock, Check, EllipsisVertical, ExternalLink, Pencil, Trash2, Undo2, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
-  useAcceptActionItem, useChangeActionItemStatus, useDiscardActionItem, useUpdateActionItem,
+  useAcceptActionItem, useChangeActionItemStatus, useDiscardActionItem, useSendActionItemToServiceNow, useUpdateActionItem,
   type ActionItem, type ActionItemFields, type ActionItemPriority, type ActionItemStatus,
 } from "@/api/actionItemsApi";
 import { isApiError } from "@/api/httpClient";
@@ -32,6 +32,7 @@ export function ActionItemList({ items, showApplication = false }: { items: Acti
   const update = useUpdateActionItem();
   const changeStatus = useChangeActionItemStatus();
   const discard = useDiscardActionItem();
+  const sendToServiceNow = useSendActionItemToServiceNow();
   const [editing, setEditing] = useState<{ item: ActionItem; mode: "edit" | "accept" } | null>(null);
   const [moving, setMoving] = useState<{ item: ActionItem; status: ActionItemStatus } | null>(null);
   const reportError = (failure: unknown) => showToast({ tone: "danger", title: t("errors.actionFailed"), description: isApiError(failure) ? failure.detail : undefined });
@@ -48,6 +49,15 @@ export function ActionItemList({ items, showApplication = false }: { items: Acti
     }
     for (const status of item.allowedStatuses) {
       entries.push({ key: status, label: t(`statusAction.${status}`), icon: status === "open" ? Undo2 : undefined, onSelect: () => setMoving({ item, status }) });
+    }
+    if (item.canSendExternal) {
+      entries.push({
+        key: "track", label: t("row.trackInServiceNow"), icon: ExternalLink,
+        onSelect: () => sendToServiceNow.mutate(item.actionItemId, {
+          onError: reportError,
+          onSuccess: (sent) => { if (sent.external?.syncStatus === "failed") showToast({ tone: "warning", title: t("row.trackFailed") }); },
+        }),
+      });
     }
     if (item.canEdit || item.canChangeStatus) entries.push({ key: "edit", label: t("row.edit"), icon: Pencil, onSelect: () => setEditing({ item, mode: "edit" }) });
     return entries;
@@ -67,6 +77,12 @@ export function ActionItemList({ items, showApplication = false }: { items: Acti
                   <StatusChip tone={priorityTones[item.actionPriority]} size="sm" variant="outline">{t(`priority.${item.actionPriority}`)}</StatusChip>
                   <StatusChip tone="neutral" size="sm" variant="outline" icon={false}>{t(`type.${item.actionType}`)}</StatusChip>
                   {item.isOverdue ? <StatusChip tone="danger" size="sm">{t("row.overdueDays", { count: item.daysOverdue })}</StatusChip> : null}
+                  {item.external?.syncStatus === "linked" ? (
+                    <StatusChip tone="info" size="sm" variant="outline">
+                      {item.external.url ? <a href={item.external.url} target="_blank" rel="noreferrer" className="underline">{t("row.trackedIn", { number: item.external.number ?? "", status: item.external.statusText ?? "" })}</a> : t("row.trackedIn", { number: item.external.number ?? "", status: item.external.statusText ?? "" })}
+                    </StatusChip>
+                  ) : null}
+                  {item.external?.syncStatus === "failed" ? <StatusChip tone="warning" size="sm">{t("row.trackFailed")}</StatusChip> : null}
                 </div>
                 <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-body-sm text-muted">
                   <span className="inline-flex items-center gap-1.5"><UserRound size={14} aria-hidden />{item.owner ? item.owner.displayName : item.suggestedOwnerRoleText ? t("row.suggestedRole", { role: item.suggestedOwnerRoleText }) : t("row.unassigned")}</span>
@@ -74,6 +90,7 @@ export function ActionItemList({ items, showApplication = false }: { items: Acti
                   {item.dueOnChangeCount > 0 && item.originalDueOn ? <span>{t("row.moved", { count: item.dueOnChangeCount, date: formatDueDate(item.originalDueOn) })}</span> : null}
                   {showApplication ? <span>{item.applicationName}</span> : null}
                   {item.incidentReference ? <span>{t("row.incident", { reference: item.incidentReference })}</span> : null}
+                  {item.runbookTitle ? <span>{t("row.runbook", { title: item.runbookTitle })}</span> : null}
                 </p>
                 {item.statusReasonText ? <p className="mt-1 text-body-sm text-muted">{t("row.reason", { text: item.statusReasonText })}</p> : null}
                 {item.completionNoteText ? <p className="mt-1 text-body-sm text-muted">{t("row.completionNote", { text: item.completionNoteText })}</p> : null}

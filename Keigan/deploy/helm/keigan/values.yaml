@@ -135,12 +135,22 @@ backendEnvironment:
   ACTION_ITEMS_ESCALATION_ROLES: "lead,manager"
   ACTION_ITEMS_CLOSED_RETENTION_DAYS: "730"
   ACTION_ITEMS_EXTERNAL_REFERENCE_PATTERN: '^[A-Z]{2,10}[0-9]{4,12}$'
+  # Sending an action item to ServiceNow as a task: whether it is allowed, the table, and the ServiceNow priority of each action item priority.
+  ACTION_ITEMS_EXTERNAL_TRACKING_ENABLED: "false"
+  ACTION_ITEMS_SERVICENOW_TABLE: "task"
+  ACTION_ITEMS_SERVICENOW_PRIORITIES: "top:1,high:2,normal:3,low:4"
   # Action items overview: default and longest period in days, look-back of the repeated incidents view, incident priorities that need a final postmortem, and days of grace before one is flagged.
   ACTION_ITEMS_OVERVIEW_DEFAULT_DAYS: "90"
   ACTION_ITEMS_OVERVIEW_MAXIMUM_DAYS: "365"
   ACTION_ITEMS_REPEAT_WINDOW_DAYS: "90"
   ACTION_ITEMS_POSTMORTEM_REQUIRED_PRIORITIES: "P1,P2"
   ACTION_ITEMS_POSTMORTEM_GRACE_DAYS: "3"
+  # Similar past incidents (spec 34): most suggested, lowest score, days before one is labelled out of date, characters kept of the cause and the fix, and recent entries compared by wording alone.
+  INCIDENT_MEMORY_MAXIMUM_SHOWN: "5"
+  INCIDENT_MEMORY_MINIMUM_SCORE: "0.35"
+  INCIDENT_MEMORY_STALE_AFTER_DAYS: "180"
+  INCIDENT_MEMORY_TEXT_MAXIMUM_CHARACTERS: "400"
+  INCIDENT_MEMORY_KEYWORD_CANDIDATE_LIMIT: "300"
   # Azure SQL: tables live in the "keigan" schema; Keigan signs in to SQL with its managed identity (no password).
   # DATABASE_URL (Key Vault) then holds no secret, e.g.
   # mssql+aioodbc://@<server>.database.windows.net:1433/<database>?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no

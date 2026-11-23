@@ -25,6 +25,7 @@ from keigan.exceptions.keigan_exceptions import IntegrationException, NotFoundEx
 from keigan.integrations.email_sender import SmtpEmailSender
 from keigan.integrations.microsoft_graph_client import MicrosoftGraphClient
 from keigan.services.notification_renderer import NotificationRenderer, RenderedEmail, resolve_language_code, translate
+from keigan.services.teams_card_actions import rating_actions
 from keigan.utils.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
@@ -276,6 +277,7 @@ class NotificationService:
         card = self.renderer.render_card(
             "preliminary_report", "en", "preliminary_report", incident.incident_title, investigation.executive_summary or "",
             [(translate("en", "labels.incident"), incident.external_incident_number or ""), (translate("en", "labels.priority"), priority), self.confidence_or_outcome_fact(investigation, "en")], f"/incidents/{incident.incident_id}",
+            extra_actions=rating_actions(investigation.investigation_id, "en") if investigation.investigation_status.startswith("completed") else None,
         )
         card_posted = await chat_service.post_card_if_chat_exists(incident.incident_id, f"Preliminary report: {incident.incident_title}", investigation.executive_summary or "", card)
         return {"emailsQueued": queued_count, "cardPosted": card_posted}

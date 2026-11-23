@@ -13,6 +13,9 @@ from keigan.config.database_config import open_session
 from keigan.entities.platform_entities import PlatformSetting
 
 SERVICENOW_SIMULATION_SETTING_KEY = "simulation_servicenow_incidents"
+SERVICENOW_TASK_SIMULATION_SETTING_KEY = "simulation_servicenow_tasks"
+SIMULATED_TASK_FIRST_NUMBER = 10_000
+SIMULATED_TASK_DEFAULT_STATE = "Open"
 
 
 def _servicenow_timestamp(timestamp: datetime) -> str:
@@ -76,4 +79,44 @@ class ServiceNowSimulator:
                 incident_record["sys_updated_on"] = _servicenow_timestamp(datetime.now(UTC))
                 await self._save_incidents(incidents)
                 return incident_record
+        return None
+
+    # ── Tasks (the ``task`` table; only what action item tracking reads and writes) ──
+    async def _load_tasks(self) -> list[dict[str, Any]]:
+        async with open_session() as session:
+            stored_setting = await session.get(PlatformSetting, SERVICENOW_TASK_SIMULATION_SETTING_KEY)
+            return list(((stored_setting.setting_value_json if stored_setting else None) or {}).get("tasks", []))
+
+    async def _save_tasks(self, tasks: list[dict[str, Any]]) -> None:
+        async with open_session() as session:
+            stored_setting = await session.get(PlatformSetting, SERVICENOW_TASK_SIMULATION_SETTING_KEY)
+            if stored_setting is None:
+                session.add(PlatformSetting(setting_key=SERVICENOW_TASK_SIMULATION_SETTING_KEY, setting_value_json={"tasks": tasks}, setting_description="Simulated ServiceNow tasks"))
+            else:
+                stored_setting.setting_value_json = {"tasks": tasks}
+
+    async def create_task(self, task_fields: dict[str, Any]) -> dict[str, Any]:
+        tasks = await self._load_tasks()
+        now = _servicenow_timestamp(datetime.now(UTC))
+        task_record = {
+            **{key: value for key, value in task_fields.items() if key in ("short_description", "description", "priority", "due_date")},
+            "sys_id": uuid.uuid4().hex, "number": f"TASK{SIMULATED_TASK_FIRST_NUMBER + len(tasks) + 1:07d}", "state": SIMULATED_TASK_DEFAULT_STATE, "sys_created_on": now, "sys_updated_on": now,
+        }
+        tasks.append(task_record)
+        await self._save_tasks(tasks)
+        return task_record
+
+    async def read_tasks(self, record_identifiers: list[str]) -> list[dict[str, Any]]:
+        wanted = set(record_identifiers)
+        return [task_record for task_record in await self._load_tasks() if task_record["sys_id"] in wanted]
+
+    async def update_task(self, record_identifier: str, changed_fields: dict[str, Any]) -> dict[str, Any] | None:
+        """What a person does in ServiceNow (closing a task, for example); the portal never calls this."""
+        tasks = await self._load_tasks()
+        for task_record in tasks:
+            if task_record["sys_id"] == record_identifier:
+                task_record.update(changed_fields)
+                task_record["sys_updated_on"] = _servicenow_timestamp(datetime.now(UTC))
+                await self._save_tasks(tasks)
+                return task_record
         return None

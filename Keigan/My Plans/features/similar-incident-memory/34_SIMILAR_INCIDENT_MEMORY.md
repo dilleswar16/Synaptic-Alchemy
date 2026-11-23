@@ -1,6 +1,6 @@
 # 34 — Similar-incident memory: "last time, the cause was ... and the fix was ..."
 
-> **DESIGN ONLY. NOT SCHEDULED TO BUILD.** The owner does not want this built yet (2026-11-22). This document exists so the design is ready when the owner decides to start; no code, migration or setting from it should be added before then.
+> **PHASES 1 TO 3 BUILT (2026-11-24); PHASES 4 TO 6 NOT BUILT.** The owner asked for the memory, its API and its screen (entries, matching, "Seen before"). The prompt section, the Ask Keigan tool, the measurement suites and semantic retrieval are still design only. Section 12 lists what was built and where it differs from this design.
 
 Roadmap item **B1** (doc 21, product research, section 3.5, wave B). Written 2026-11-22 against branch `keigan-ui-ux`.
 
@@ -10,7 +10,7 @@ Roadmap item **B1** (doc 21, product research, section 3.5, wave B). Written 202
 
 **Purpose.** When a new incident looks like one Keigan has seen before, in the same application or another one the reader may see, show the responder what happened last time: the cause, the fix, how trustworthy that memory is (the engineers' verdict) and how old it is. Give the investigation's AI the same hint for the application's own past, labelled as a hint and never as evidence.
 
-**Status.** Design, written 2026-11-22; not built, and **not scheduled**. Every statement about existing code was checked in the source on 2026-11-22 and carries a `path:symbol` reference.
+**Status.** Design, written 2026-11-22. Phases 1 to 3 built on 2026-11-24 (section 12); phases 4 to 6 not built. Every statement about existing code was checked in the source on 2026-11-22 and carries a `path:symbol` reference.
 
 **How to use it.**
 - Owner: read sections 2, 4.1 (especially M3 on semantic retrieval and M4 on access), 6 and 11.
@@ -360,3 +360,27 @@ Overall M (doc 21 estimate), plus phase 6 only if triggered.
 3. **Q3. Longer memory:** should summaries outlive the 395-day incident retention (they are small and masked)? A compliance question.
 4. **Q4. Resolution notes in AI prompts:** they are human free text; names are replaced by known-name masking, but other personal details are only pattern-masked. Acceptable?
 5. **Q5. When to build:** the status page says "when the harness or users show repeat incidents are missed"; this design does not change that.
+
+---
+
+## 12. Build notes (2026-11-24): phases 1 to 3 built
+
+Built on branch `keigan-ui-ux` at the owner's request (the owner then said B1 was wanted). Phases 4 to 6 (prompt section, Ask Keigan tool, measurement, semantic retrieval) are **not built**.
+
+**What exists.**
+- Enums in `status_values.py` (`IncidentMemoryEntryStatus`, `IncidentMemoryKeyKind`, `IncidentMemoryCauseSource`, `IncidentMemoryFixSource`, `IncidentMemoryRelevanceVerdict`); entities `IncidentMemoryEntry`, `IncidentMemoryKey`, `IncidentMemoryRelevanceFeedback` in `entities/incident_memory_entities.py`; revision `e6b2d8f4a0c3` (64 to 67 tables); Azure SQL scripts, migration script, ER diagram and demo data regenerated.
+- `utils/error_signature.py`, `services/incident_memory_keys.py`, `incident_memory_scoring.py` (pure), `incident_memory_builder.py` (the job `refresh_incident_memory_entry`), `incident_memory_retriever.py` (`SimilarIncidentRetriever` protocol and `StructuredKeywordRetriever`), `incident_memory_service.py`, `incident_memory_retention.py`; `controllers/incident_memory_controller.py`; `dtos/incident_memory_dtos.py`; catalogue `resources/catalogs/incident_similarity.yaml`.
+- Five settings (`INCIDENT_MEMORY_MAXIMUM_SHOWN`, `_MINIMUM_SCORE`, `_STALE_AFTER_DAYS`, `_TEXT_MAXIMUM_CHARACTERS`, `_KEYWORD_CANDIDATE_LIMIT`) in `settings.py`, `.env.example` and Helm, with a test that checks all three.
+- Refresh triggers: an investigation completing (not evidence-only), `submit_feedback`, `resolve_incident`, `finalize_postmortem`. Retention: incident retention and application deletion remove entries, keys and answers before the investigations. `scripts/rebuild_incident_memory.py` builds what is missing and is safe to repeat. The demo seed builds an entry for every seeded completed investigation.
+- Screen: `SimilarIncidentsCard.tsx` on the RCA tab (shown only when there is a match), a "Seen before: N" chip in the investigation header, relevance buttons, and a hide dialog for application admins; `investigations.similarIncidents.*` in the six languages; `api/incidentMemoryApi.ts`.
+
+**Deviations from the design above (all deliberate).**
+1. **Three key kinds are not produced yet:** `alert_rule`, `change_operation`, `dependency_target`. They have weights in the catalogue and values in the enum, so a later change only adds facts to `build_match_keys`. Today an entry has keys of the kinds `service`, `shared_resource`, `error_signature` and `incident_category`.
+2. **No down-weighting of very common keys** (the first risk in section 11). The shared words use IDF over the candidate set; the keys do not. Revisit when real data shows a key that matches everything.
+3. **`investigation_memory_reference` and `INCIDENT_MEMORY_MAXIMUM_IN_PROMPT` belong to phase 4** and were not added; the API therefore has no `wasGivenToAnalysis` field yet.
+4. **A past incident marked incorrect is not shown with the starting weights.** Its multiplier is 0.3, so even sharing every key it scores at most 0.3, below the default minimum of 0.35. The "Marked incorrect" label and the rule that its cause text is not repeated are built and tested (with a lower minimum), but with the defaults such an incident does not appear. Lower `INCIDENT_MEMORY_MINIMUM_SCORE` or raise the multiplier in the catalogue if the owner wants those shown. This is one of the numbers to calibrate (decision M9).
+5. **Hide and unhide do not queue a refresh.** They set the status directly, and unhide re-settles the incident's live entry in the same request.
+6. **Search words come from the title, the incident description, the triage summary and key symptoms, and the stored cause and fix.** Error templates are keys, not words.
+7. **Links in the card go to the past investigation** (always readable by construction), not to the incident.
+
+**Checked, not assumed.** Access: a reader never receives an entry of an application they cannot read, and an unreadable or unknown entry answers 404 for relevance, hide and unhide (tests in `tests/integration/controllers/test_incident_memory_controller.py` and `tests/integration/services/test_incident_memory.py`). **Not checked:** the screen in a browser, real incident wording, and the quality of the weights; the retrieval suite of phase 5 does not exist yet.

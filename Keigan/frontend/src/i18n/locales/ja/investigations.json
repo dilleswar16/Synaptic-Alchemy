@@ -57,7 +57,8 @@
       "elapsed": "経過時間",
       "duration": "所要時間",
       "feedback": "あなたの評価"
-    }
+    },
+    "seenBefore": "過去の類似: {{count}}"
   },
   "feedback": {
     "title": "この根本原因は正しかったですか？",
@@ -659,5 +660,58 @@
       "status": "結果"
     },
     "details": "詳細（ID・コード・数値のみ）"
+  },
+  "similarIncidents": {
+    "title": "過去の類似インシデント",
+    "description": "同じ事実を持つ過去のインシデントです。以前の作業からのヒントであり、証拠ではありません。この調査で見つかったことだけが根拠になります。",
+    "cause": "前回の原因:",
+    "fix": "対処:",
+    "matchedOn": "一致した点:",
+    "wasThisRelevant": "これは関連していましたか?",
+    "relevant": "関連あり",
+    "notRelevant": "関連なし",
+    "relevanceFailed": "回答を保存できませんでした",
+    "mayBeOutOfDate": "情報が古い可能性があります",
+    "analysisMarkedIncorrect": "Keigan の分析は誤りとされました。",
+    "trust": {
+      "correct": "確認済み",
+      "partially_correct": "一部正しい",
+      "incorrect": "誤りとされた",
+      "none": "未確認"
+    },
+    "causeSource": {
+      "postmortem": "承認済みのポストモーテムより",
+      "investigation": "Keigan の分析",
+      "none": "記録なし"
+    },
+    "fixSource": {
+      "resolution_note": "解決メモ",
+      "fix_plan": "Keigan が提案した計画",
+      "hypothesis_fix": "Keigan が提案した対処",
+      "none": "記録なし"
+    },
+    "keyKind": {
+      "service": "同じサービス",
+      "shared_resource": "同じ共有リソース",
+      "alert_rule": "同じアラートルール",
+      "error_signature": "同じエラー",
+      "change_operation": "同じ種類の変更",
+      "dependency_target": "同じ障害依存先",
+      "incident_category": "同じカテゴリ"
+    },
+    "stale": {
+      "older_than_threshold": "かなり前の出来事です。",
+      "service_removed": "対象のサービスは削除されています。"
+    },
+    "hide": {
+      "action": "非表示",
+      "title": "この過去のインシデントを提案しないようにしますか?",
+      "description": "「{{title}}」は誰にも提案されなくなります。後でもう一度表示できます。",
+      "reason": "役に立たない理由",
+      "cancel": "キャンセル",
+      "confirm": "非表示にする",
+      "done": "非表示にしました",
+      "failed": "非表示にできませんでした"
+    }
   }
 }

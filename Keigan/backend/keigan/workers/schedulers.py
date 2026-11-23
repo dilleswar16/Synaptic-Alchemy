@@ -13,11 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config.database_config import open_session
 from keigan.config.settings import IntegrationMode, get_settings
+from keigan.entities.action_item_entities import ActionItem
 from keigan.entities.application_entities import Application
 from keigan.entities.incident_entities import ServiceNowAssignmentGroup
 from keigan.entities.notification_entities import TeamsIncidentChat
 from keigan.entities.slo_entities import ServiceLevelIndicator, ServiceLevelObjective
-from keigan.entities.status_values import ApplicationLifecycleStatus, IntelligenceReportType, TeamsChatStatus
+from keigan.entities.status_values import ApplicationLifecycleStatus, ExternalSyncStatus, IntelligenceReportType, TeamsChatStatus
 from keigan.services.action_item_rules import local_now
 from keigan.services.error_budget_policy_service import enqueue_error_budget_evaluation
 from keigan.workers.job_queue import JobQueue
@@ -46,6 +47,17 @@ async def enqueue_servicenow_polls(session: AsyncSession) -> None:
     for application_id in await _live_application_ids(session):
         if application_id in application_ids_with_groups:
             await JobQueue(session).enqueue("poll_servicenow", {"application_id": application_id}, deduplication_key=f"poll_servicenow:{application_id}", priority_number=20)
+
+
+async def enqueue_action_item_task_syncs(session: AsyncSession) -> None:
+    """Reads the ServiceNow tasks of the applications that have action items tracked there (only while tracking is on and ServiceNow is not disabled)."""
+    settings = get_settings()
+    if not settings.action_items_external_tracking_enabled or settings.servicenow_mode == IntegrationMode.DISABLED:
+        return
+    application_ids_with_linked_items = set((await session.scalars(select(ActionItem.application_id).where(ActionItem.external_sync_status == ExternalSyncStatus.LINKED).distinct())).all())
+    for application_id in await _live_application_ids(session):
+        if application_id in application_ids_with_linked_items:
+            await JobQueue(session).enqueue("sync_action_item_tasks", {"application_id": application_id}, deduplication_key=f"sync_action_item_tasks:{application_id}", priority_number=25)
 
 
 async def enqueue_sli_collection(session: AsyncSession) -> None:
@@ -114,6 +126,7 @@ def build_schedules() -> list[IntervalSchedule]:
     settings = get_settings()
     return [
         IntervalSchedule("servicenow_poll", settings.servicenow_poll_interval_seconds, enqueue_servicenow_polls),
+        IntervalSchedule("action_item_task_sync", settings.servicenow_poll_interval_seconds, enqueue_action_item_task_syncs),
         IntervalSchedule("sli_collection", settings.sli_collection_interval_minutes * 60, enqueue_sli_collection),
         IntervalSchedule("predictive_analysis", settings.predictive_analysis_interval_minutes * 60, enqueue_predictive_analysis),
         IntervalSchedule("teams_chat_poll", settings.teams_chat_poll_interval_minutes * 60, enqueue_teams_chat_polls),

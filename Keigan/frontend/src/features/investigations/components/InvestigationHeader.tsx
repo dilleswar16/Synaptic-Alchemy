@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, MessageSquareText, RotateCcw, ThumbsUp, CircleCheck } from "lucide-react";
+import { ExternalLink, History, MessageSquareText, RotateCcw, ThumbsUp, CircleCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { useRerunInvestigation, type InvestigationDetail } from "@/api/investigationsApi";
 import { isApiError } from "@/api/httpClient";
+import { useSimilarIncidents } from "@/api/incidentMemoryApi";
 import { AiGeneratedChip } from "@/components/ui/AiGeneratedChip";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -12,6 +13,7 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { useToast } from "@/components/ui/Toast";
 import { formatDateTime, formatDuration } from "@/utils/formatters";
 import { investigationStatusTone } from "./investigationPresentation";
+import { similarIncidentsElementId } from "./SimilarIncidentsCard";
 
 function useNow(intervalMilliseconds: number): number {
   const [now, setNow] = useState(() => Date.now());
@@ -46,6 +48,7 @@ export function InvestigationHeader({ detail, canEdit, onOpenTeamsRoom, onResolv
   const { showToast } = useToast();
   const rerun = useRerunInvestigation(detail.investigationId);
   const now = useNow(30_000);
+  const seenBeforeCount = useSimilarIncidents(detail.investigationId).data?.items.length ?? 0;
   const incident = detail.incident;
   const isOpenIncident = incident ? !["resolved", "closed"].includes(incident.incidentStatus) : false;
   const detectedAt = detail.detectedAt ? new Date(detail.detectedAt).getTime() : null;
@@ -76,6 +79,11 @@ export function InvestigationHeader({ detail, canEdit, onOpenTeamsRoom, onResolv
               </StatusChip>
               {incident ? <StatusChip tone={isOpenIncident ? "alert" : "success"} variant="outline">{t(`incidentStatus.${incident.incidentStatus}`)}</StatusChip> : <StatusChip tone="neutral" variant="outline">{t(`trigger.${detail.investigationTrigger}`)}</StatusChip>}
               <AiGeneratedChip modelName={detail.modelNames.join(", ") || null} generatedAt={detail.completedAt} size="sm" />
+              {seenBeforeCount > 0 ? (
+                <button type="button" onClick={() => document.getElementById(similarIncidentsElementId)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2">
+                  <StatusChip tone="info" variant="outline" icon={History}>{t("header.seenBefore", { count: seenBeforeCount })}</StatusChip>
+                </button>
+              ) : null}
             </div>
             <h1 className="break-words font-display text-h2 text-default">{detail.incidentTitle ?? t("header.manualTitle")}</h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body-sm text-muted">

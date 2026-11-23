@@ -66,6 +66,7 @@
         "alert_group": 13,
         "incident_affected_service": 19,
         "incident_communication": 56,
+        "incident_memory_entry": 7,
         "investigation_coverage_gap": 6,
         "investigation_evidence": 103,
         "investigation_hypothesis": 21,
@@ -75,9 +76,10 @@
         "investigation_trace_step": 86,
         "postmortem_report": 7,
         "action_item": 21,
-        "alert_group_affected_service": 14
+        "alert_group_affected_service": 14,
+        "incident_memory_key": 129
       },
-      "sha256": "50a00e18bf999d8528e46628e970e744723489f628a3c36fdb7dd78ef5c12503"
+      "sha256": "a9f1791a6f5500203f756a48e98590c9960118b3086f27cc0104d78de84024d9"
     },
     "06_intelligence_and_collaboration.sql": {
       "committed": true,
@@ -90,7 +92,7 @@
         "conversation_message": 9,
         "predictive_signal": 8
       },
-      "sha256": "f5a8beb4b61aeac63b90cbcaef17e9c2805ebf78f98d4cd196c75c0c26df0843"
+      "sha256": "55afb4aa50aeb5fa8b8d83e9bb681cd48dfea604c53e73e6a431851090f47f77"
     },
     "99_remove_demo_data.sql": {
       "committed": true,
@@ -129,6 +131,7 @@
         "alert_group": 13,
         "incident_affected_service": 19,
         "incident_communication": 56,
+        "incident_memory_entry": 7,
         "investigation_coverage_gap": 6,
         "investigation_evidence": 103,
         "investigation_hypothesis": 21,
@@ -139,6 +142,7 @@
         "postmortem_report": 7,
         "action_item": 21,
         "alert_group_affected_service": 14,
+        "incident_memory_key": 129,
         "platform_setting": 7,
         "intelligence_report": 4,
         "teams_incident_chat": 1,
@@ -147,7 +151,7 @@
         "conversation_message": 9,
         "predictive_signal": 8
       },
-      "sha256": "6a2b128a217feb612a13796a1e65a5a048764f5ba91a695fd6dd405d73bfda93"
+      "sha256": "6306d3847fde489f7859121a48636194db29d42998fcc33510174ecff02ae0ff"
     },
     "run_all_demo_data.sql": {
       "committed": true,
@@ -162,13 +166,14 @@
     "error_budget_policy",
     "error_budget_policy_breach",
     "incident_budget_impact",
+    "incident_memory_relevance_feedback",
     "slo_burn_alert",
     "stakeholder_subscribed_service"
   ],
   "excluded_tables": {
     "background_job": {
       "reason": "Job queue rows are picked up and run by the workers (for example a queued simulate_alerts_for_scenario); seeded jobs would run in Azure.",
-      "seeded_rows": 1
+      "seeded_rows": 8
     },
     "stored_secret": {
       "reason": "Holds secret values; secrets are created through the Keigan UI or Key Vault, never from a script in the repository.",

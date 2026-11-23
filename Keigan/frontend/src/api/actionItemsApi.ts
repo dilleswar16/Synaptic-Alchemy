@@ -18,6 +18,16 @@ export interface ActionItemOwner {
   stakeholderRole: string;
 }
 
+/** The task that tracks an item in ServiceNow. Once `syncStatus` is "linked", ServiceNow owns the item's status. */
+export interface ActionItemExternal {
+  system: string | null;
+  number: string | null;
+  url: string | null;
+  statusText: string | null;
+  syncedAt: IsoDateTimeString | null;
+  syncStatus: "pending" | "linked" | "failed";
+}
+
 export interface ActionItem {
   actionItemId: Identifier;
   applicationId: Identifier;
@@ -26,6 +36,9 @@ export interface ActionItem {
   incidentReference: string | null;
   postmortemId: Identifier | null;
   sourceKind: string;
+  /** The runbook a runbook-health item was raised from; the title is null when that runbook has since been deleted. */
+  runbookId: Identifier | null;
+  runbookTitle: string | null;
   itemTitle: string;
   itemDetailsMarkdown: string | null;
   actionType: ActionItemType;
@@ -45,6 +58,10 @@ export interface ActionItem {
   completedBy: string | null;
   acceptedAt: IsoDateTimeString | null;
   externalReferenceText: string | null;
+  /** Null for an item that was never sent as a task. */
+  external: ActionItemExternal | null;
+  /** Tracking is on, the caller may edit, the item is tracked and not already linked. */
+  canSendExternal: boolean;
   /** What the caller may do, worked out by the server so the screen never offers a refused action. */
   canEdit: boolean;
   canChangeStatus: boolean;
@@ -77,6 +94,7 @@ export interface ActionItemCreateBody extends ActionItemFields {
   dueOn: string;
   incidentId?: Identifier;
   postmortemId?: Identifier;
+  runbookId?: Identifier;
 }
 
 export interface ActionItemStatusBody {
@@ -139,6 +157,8 @@ export const useAcceptActionItem = () =>
   useActionItemMutation((variables: { actionItemId: string; body?: ActionItemFields }) => apiPost<ActionItem, ActionItemFields | undefined>(`/action-items/${variables.actionItemId}/accept`, variables.body));
 export const useChangeActionItemStatus = () =>
   useActionItemMutation((variables: { actionItemId: string; body: ActionItemStatusBody }) => apiPost<ActionItem, ActionItemStatusBody>(`/action-items/${variables.actionItemId}/status`, variables.body));
+/** Creates a ServiceNow task for the item; a failure comes back as `external.syncStatus: "failed"` and the item can be sent again. */
+export const useSendActionItemToServiceNow = () => useActionItemMutation((actionItemId: string) => apiPost<ActionItem, undefined>(`/action-items/${actionItemId}/external-task`, undefined));
 /** What "accept all" did: the items now tracked, and the suggestions left for a person (with why). */
 export interface AcceptAllResult {
   accepted: ActionItem[];

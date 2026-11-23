@@ -164,6 +164,8 @@
   },
   "health": {
     "title": "Runbook health",
+    "createItem": "Create action item",
+    "itemTitle": "Improve the runbook: {{runbook}}",
     "allFine": "All {{count}} runbooks look healthy.",
     "summary_one": "{{count}} of {{total}} runbooks needs attention.",
     "summary_other": "{{count}} of {{total}} runbooks need attention.",

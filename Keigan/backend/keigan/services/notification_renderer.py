@@ -131,11 +131,14 @@ class NotificationRenderer:
         )
 
     def render_card(
-        self, card_name: str, language_code: str | None, heading_key: str, title: str, summary: str, facts: list[tuple[str, str]], action_path: str | None = None
+        self, card_name: str, language_code: str | None, heading_key: str, title: str, summary: str, facts: list[tuple[str, str]], action_path: str | None = None, extra_actions: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         language = resolve_language_code(language_code)
         rendered = self._card_environment.get_template(f"{card_name}.json.j2").render(
             heading=translate(language, f"cards.{heading_key}"), title=sanitize_ai_line(title), summary=sanitize_ai_markdown(summary), facts=[{"label": label, "value": value} for label, value in facts if value],
             open_label=translate(language, "cards.open"), action_url=f"{self.settings.frontend_base_url.rstrip('/')}{action_path}" if action_path else None,
         )
-        return json.loads(rendered)
+        card: dict[str, Any] = json.loads(rendered)
+        if extra_actions:
+            card.setdefault("actions", []).extend(extra_actions)  # buttons the bot answers (roadmap D2), after the link that opens Keigan
+        return card

@@ -21,6 +21,7 @@ from keigan.entities.status_values import ActionItemStatus, CommunicationStatus,
 from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.seed.foundation_seed import SeedContext
 from keigan.services.communication_service import CommunicationService
+from keigan.services.incident_memory_builder import IncidentMemoryBuilder
 from keigan.services.postmortem_action_items import items_of, render_final_table, replace_action_items_section
 from keigan.services.investigation_service import InvestigationService
 from keigan.utils.pii_masker import PiiMasker
@@ -45,7 +46,16 @@ async def seed(session: AsyncSession, seed_context: SeedContext) -> None:
             logger.exception("Could not seed the historical incident %s", window.get("external_incident_number"))
             await session.rollback()
     await session.commit()  # the ServiceNow simulator writes through its own session
+    await _remember_the_historical_incidents(session)
     await _trigger_live_scenario(session, seed_context)
+
+
+async def _remember_the_historical_incidents(session: AsyncSession) -> None:
+    """What a new investigation is shown as "seen before": one entry per completed historical investigation, built the way the running system builds them (spec 34)."""
+    builder = IncidentMemoryBuilder(session)
+    for investigation_id in (await session.scalars(select(Investigation.investigation_id).where(Investigation.investigation_status == InvestigationStatus.COMPLETED).order_by(Investigation.created_at))).all():
+        await builder.refresh_entry(investigation_id)
+    await session.commit()
 
 
 async def _seed_historical_incident(session: AsyncSession, window: dict[str, Any], index: int, *, is_recent: bool, now: datetime) -> None:

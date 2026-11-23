@@ -78,11 +78,17 @@
     "preliminary_report": "暫定レポート",
     "postmortem_ready": "ポストモーテム完成",
     "intelligence_alert": "予兆シグナル",
-    "open": "Keigan で開く"
+    "open": "Keigan で開く",
+    "rate_correct": "分析は正しかった",
+    "rate_partial": "一部正しい",
+    "rate_incorrect": "分析は誤りだった"
   },
   "chat": {
     "welcome": "Keigan です。調査結果をここに投稿し、皆さんの議論から学びます。「Keigan, ...」と話しかけてください。インシデントが完了したら「Keigan, this is finished」と伝えるとポストモーテムを準備します。",
     "milestone_ack": "承知しました。ポストモーテムの下書きを作成中です。まもなく Keigan に表示されます。",
+    "rating_recorded": "ありがとうございます。分析への評価を記録しました。",
+    "rating_needs_admin": "分析を「正しい」と評価できるのはアプリケーション管理者のみです。管理者に依頼するか、別のボタンを選んでください。",
+    "rating_unavailable": "この分析はすでに評価できません。",
     "no_answer": "現在お答えできません。詳細は Keigan の調査画面をご確認ください。",
     "unverified_notice": "この回答はどのツール結果も参照していません。未検証として扱ってください。",
     "sources_label": "出典"

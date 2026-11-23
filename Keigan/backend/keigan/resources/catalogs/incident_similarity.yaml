@@ -1,0 +1,24 @@
+# How alike two incidents are (spec 34, 4.4). A starting guess (decision M9): to be calibrated with real pairs before anyone relies on the order.
+# key_weights: what sharing one kind of key is worth (each kind counts once, however many keys of it are shared); they add up, capped at 1.
+# keyword_weight: what the share of the current incident's words found in the past one is worth, on top.
+# verdict_multipliers: how much an admin's verdict on the past investigation changes the score ("none" = nobody reviewed it).
+# cross_application_required_key_kinds: a past incident of ANOTHER application is shown only when it shares at least one key of these kinds; wording alone is not enough across applications.
+key_weights:
+  error_signature: 0.35
+  alert_rule: 0.25
+  dependency_target: 0.15
+  shared_resource: 0.15
+  service: 0.15
+  change_operation: 0.10
+  incident_category: 0.05
+keyword_weight: 0.30
+verdict_multipliers:
+  correct: 1.0
+  partially_correct: 0.8
+  none: 0.6
+  incorrect: 0.3
+cross_application_required_key_kinds:
+  - error_signature
+  - alert_rule
+  - shared_resource
+  - dependency_target

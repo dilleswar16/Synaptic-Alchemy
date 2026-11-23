@@ -56,6 +56,10 @@
     "noDueDate": "期限なし",
     "moved_other": "期限を {{count}} 回変更（当初 {{date}}）",
     "incident": "インシデント {{reference}}",
+    "runbook": "ランブック: {{title}}",
+    "trackedIn": "ServiceNow で追跡中: {{number}}（{{status}}）",
+    "trackFailed": "ServiceNow に送信できませんでした。メニューからもう一度お試しください。",
+    "trackInServiceNow": "ServiceNow で追跡",
     "reason": "理由: {{text}}",
     "completionNote": "実施内容: {{text}}"
   },

@@ -52,6 +52,7 @@ from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.services.evidence_service import EvidenceDraft, EvidenceService, ServiceTelemetryContext
 from keigan.services.incident_priority_rules import map_servicenow_priority, most_severe_priority
 from keigan.services.audit_service import AuditService
+from keigan.services.incident_memory_builder import enqueue_memory_refresh
 from keigan.services.investigation_coverage import CoverageGapCollector
 from keigan.services.investigation_trace_adjustments import hypothesis_adjustments, synthesis_adjustments
 from keigan.services.investigation_trace_recorder import InvestigationTraceRecorder
@@ -859,4 +860,6 @@ class InvestigationGraphRunner:
             self.incident.incident_status = IncidentStatus.IDENTIFIED
         message = "Investigation complete" + (" (evidence only: AI was unavailable)" if investigation.investigation_status == InvestigationStatus.COMPLETED_EVIDENCE_ONLY else "")
         investigation.stage_messages_json = [*(investigation.stage_messages_json or []), {"at": utc_now().isoformat(), "stage": "completed", "message": message}]
+        if investigation.investigation_status == InvestigationStatus.COMPLETED:
+            await enqueue_memory_refresh(self.session, investigation.investigation_id)  # an evidence-only run has no analysis to remember
         await self.session.commit()

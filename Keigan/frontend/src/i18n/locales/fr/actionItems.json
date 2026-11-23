@@ -58,6 +58,10 @@
     "moved_one": "Échéance repoussée {{count}} fois (initialement {{date}})",
     "moved_other": "Échéance repoussée {{count}} fois (initialement {{date}})",
     "incident": "Incident {{reference}}",
+    "runbook": "Runbook : {{title}}",
+    "trackedIn": "Suivi dans ServiceNow : {{number}} ({{status}})",
+    "trackFailed": "Envoi à ServiceNow impossible. Réessayez depuis le menu.",
+    "trackInServiceNow": "Suivre dans ServiceNow",
     "reason": "Motif : {{text}}",
     "completionNote": "Fait : {{text}}"
   },

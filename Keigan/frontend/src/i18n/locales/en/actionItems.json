@@ -58,6 +58,10 @@
     "moved_one": "Due date moved {{count}} time (first {{date}})",
     "moved_other": "Due date moved {{count}} times (first {{date}})",
     "incident": "Incident {{reference}}",
+    "runbook": "Runbook: {{title}}",
+    "trackedIn": "Tracked in ServiceNow: {{number}} ({{status}})",
+    "trackFailed": "Could not be sent to ServiceNow. Try again from the menu.",
+    "trackInServiceNow": "Track in ServiceNow",
     "reason": "Reason: {{text}}",
     "completionNote": "Done: {{text}}"
   },

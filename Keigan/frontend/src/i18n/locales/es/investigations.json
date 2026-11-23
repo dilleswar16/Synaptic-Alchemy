@@ -57,7 +57,8 @@
       "elapsed": "Transcurrido",
       "duration": "Duración",
       "feedback": "Su valoración"
-    }
+    },
+    "seenBefore": "Visto antes: {{count}}"
   },
   "feedback": {
     "title": "¿Era correcta esta causa raíz?",
@@ -661,5 +662,58 @@
       "status": "Resultado"
     },
     "details": "Detalles (solo identificadores, códigos y números)"
+  },
+  "similarIncidents": {
+    "title": "Visto antes",
+    "description": "Incidentes pasados con los mismos hechos. Pistas de trabajo anterior, no evidencia: solo cuenta lo que encontró esta investigación.",
+    "cause": "La vez anterior, la causa fue:",
+    "fix": "Se resolvió con:",
+    "matchedOn": "Coincide en:",
+    "wasThisRelevant": "¿Fue relevante?",
+    "relevant": "Relevante",
+    "notRelevant": "No relevante",
+    "relevanceFailed": "No se pudo guardar su respuesta",
+    "mayBeOutOfDate": "Puede estar desactualizado",
+    "analysisMarkedIncorrect": "El análisis de Keigan se marcó como incorrecto.",
+    "trust": {
+      "correct": "Confirmado",
+      "partially_correct": "Parcialmente correcto",
+      "incorrect": "Marcado como incorrecto",
+      "none": "Sin revisar"
+    },
+    "causeSource": {
+      "postmortem": "del postmortem aprobado",
+      "investigation": "análisis de Keigan",
+      "none": "sin registrar"
+    },
+    "fixSource": {
+      "resolution_note": "nota de resolución",
+      "fix_plan": "plan sugerido por Keigan",
+      "hypothesis_fix": "solución sugerida por Keigan",
+      "none": "sin registrar"
+    },
+    "keyKind": {
+      "service": "mismo servicio",
+      "shared_resource": "mismo recurso compartido",
+      "alert_rule": "misma regla de alerta",
+      "error_signature": "mismo error",
+      "change_operation": "mismo tipo de cambio",
+      "dependency_target": "misma dependencia con fallos",
+      "incident_category": "misma categoría"
+    },
+    "stale": {
+      "older_than_threshold": "Ocurrió hace mucho tiempo.",
+      "service_removed": "Los servicios a los que se refería se han eliminado."
+    },
+    "hide": {
+      "action": "Ocultar",
+      "title": "¿Dejar de sugerir este incidente pasado?",
+      "description": "«{{title}}» no se sugerirá a nadie. Puede volver a mostrarse más tarde.",
+      "reason": "¿Por qué no es útil?",
+      "cancel": "Cancelar",
+      "confirm": "Ocultar",
+      "done": "Oculto",
+      "failed": "No se pudo ocultar"
+    }
   }
 }

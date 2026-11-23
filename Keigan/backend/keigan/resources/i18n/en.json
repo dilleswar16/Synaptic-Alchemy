@@ -78,11 +78,17 @@
     "preliminary_report": "Preliminary report",
     "postmortem_ready": "Postmortem ready",
     "intelligence_alert": "Predictive signal",
-    "open": "Open in Keigan"
+    "open": "Open in Keigan",
+    "rate_correct": "Analysis was correct",
+    "rate_partial": "Partly correct",
+    "rate_incorrect": "Analysis was wrong"
   },
   "chat": {
     "welcome": "I am Keigan. I will post investigation findings here and learn from your discussion. Ask me with \"Keigan, ...\". Say \"Keigan, this is finished\" when the incident is done and I will prepare the postmortem.",
     "milestone_ack": "Understood. I am generating the postmortem draft now; it will appear in Keigan shortly.",
+    "rating_recorded": "Thanks. Your rating of the analysis is recorded.",
+    "rating_needs_admin": "Only an application admin can mark an analysis as correct. Ask one, or choose another button.",
+    "rating_unavailable": "That analysis is no longer available to rate.",
     "no_answer": "I could not answer that right now. Open the investigation in Keigan for the full findings.",
     "unverified_notice": "This answer does not point to any tool result. Treat it as unverified.",
     "sources_label": "Sources"

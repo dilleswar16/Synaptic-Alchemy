@@ -57,7 +57,8 @@
       "elapsed": "Elapsed",
       "duration": "Duration",
       "feedback": "Your verdict"
-    }
+    },
+    "seenBefore": "Seen before: {{count}}"
   },
   "feedback": {
     "title": "Was this root cause right?",
@@ -661,5 +662,58 @@
       "status": "Result"
     },
     "details": "Details (ids, codes and numbers only)"
+  },
+  "similarIncidents": {
+    "title": "Seen before",
+    "description": "Past incidents with the same facts. Hints from earlier work, not evidence: only what this investigation found counts.",
+    "cause": "Last time, the cause was:",
+    "fix": "Fixed by:",
+    "matchedOn": "Matched on:",
+    "wasThisRelevant": "Was this relevant?",
+    "relevant": "Relevant",
+    "notRelevant": "Not relevant",
+    "relevanceFailed": "Could not save your answer",
+    "mayBeOutOfDate": "May be out of date",
+    "analysisMarkedIncorrect": "Keigan's analysis was marked incorrect.",
+    "trust": {
+      "correct": "Confirmed",
+      "partially_correct": "Partly right",
+      "incorrect": "Marked incorrect",
+      "none": "Not reviewed"
+    },
+    "causeSource": {
+      "postmortem": "from the approved postmortem",
+      "investigation": "Keigan's analysis",
+      "none": "not recorded"
+    },
+    "fixSource": {
+      "resolution_note": "resolution note",
+      "fix_plan": "Keigan's suggested plan",
+      "hypothesis_fix": "Keigan's suggested fix",
+      "none": "not recorded"
+    },
+    "keyKind": {
+      "service": "same service",
+      "shared_resource": "same shared resource",
+      "alert_rule": "same alert rule",
+      "error_signature": "same error",
+      "change_operation": "same kind of change",
+      "dependency_target": "same failing dependency",
+      "incident_category": "same category"
+    },
+    "stale": {
+      "older_than_threshold": "It happened a long time ago.",
+      "service_removed": "The services it was about have been removed."
+    },
+    "hide": {
+      "action": "Hide",
+      "title": "Stop suggesting this past incident?",
+      "description": "\"{{title}}\" will not be suggested to anyone. You can show it again later.",
+      "reason": "Why is it not useful?",
+      "cancel": "Cancel",
+      "confirm": "Hide it",
+      "done": "Hidden",
+      "failed": "Could not hide it"
+    }
   }
 }

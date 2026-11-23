@@ -54,3 +54,21 @@ def test_an_invalid_external_reference_pattern_stops_startup() -> None:
 def test_a_value_outside_its_range_stops_startup(name: str, value: int) -> None:
     with pytest.raises(ValidationError):
         Settings(**{name: value})
+
+
+def test_external_tracking_is_off_until_someone_turns_it_on() -> None:
+    assert Settings(_env_file=None).action_items_external_tracking_enabled is False
+
+
+def test_the_priority_map_defaults_to_one_to_four_and_a_bad_one_stops_startup() -> None:
+    assert Settings(_env_file=None).action_items_servicenow_priorities == "top:1,high:2,normal:3,low:4"
+    with pytest.raises(ValidationError, match="must name every priority"):
+        Settings(action_items_servicenow_priorities="top:1,high:2")
+    with pytest.raises(ValidationError, match="not an action item priority"):
+        Settings(action_items_servicenow_priorities="urgent:1,high:2,normal:3,low:4")
+
+
+@pytest.mark.parametrize("table", ["", "Task", "sc task", "task; drop", "1task"])
+def test_a_table_name_that_is_not_a_servicenow_table_name_stops_startup(table: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings(action_items_servicenow_table=table)

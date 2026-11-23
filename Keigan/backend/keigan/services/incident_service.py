@@ -27,6 +27,7 @@ from keigan.security.current_user import CurrentUser
 from keigan.services.alert_group_link_service import AlertGroupLinkService
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
+from keigan.services.incident_memory_builder import enqueue_memory_refresh_for_incident
 from keigan.services.incident_priority_rules import PRIORITY_NAMES, map_servicenow_priority
 from keigan.services.investigation_service import InvestigationService
 from keigan.utils.pii_masker import PiiMasker
@@ -305,6 +306,7 @@ class IncidentService:
                 "generate_communications", {"investigation_id": latest_investigation.investigation_id, "communication_types": ["resolution_update"], "language_codes": ["en", "ja"]},
                 deduplication_key=f"resolution_comms:{incident_id}",
             )
+        await enqueue_memory_refresh_for_incident(self.session, incident_id)  # the resolution note is what fixed it
         if request.generate_postmortem:
             from keigan.services.communication_service import CommunicationService
 

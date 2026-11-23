@@ -57,7 +57,8 @@
       "elapsed": "Verstreken",
       "duration": "Duur",
       "feedback": "Uw oordeel"
-    }
+    },
+    "seenBefore": "Eerder gezien: {{count}}"
   },
   "feedback": {
     "title": "Klopte deze hoofdoorzaak?",
@@ -661,5 +662,58 @@
       "status": "Resultaat"
     },
     "details": "Details (alleen id's, codes en getallen)"
+  },
+  "similarIncidents": {
+    "title": "Eerder gezien",
+    "description": "Eerdere incidenten met dezelfde feiten. Aanwijzingen uit eerder werk, geen bewijs: alleen wat dit onderzoek vond telt.",
+    "cause": "De vorige keer was de oorzaak:",
+    "fix": "Opgelost door:",
+    "matchedOn": "Overeenkomst op:",
+    "wasThisRelevant": "Was dit relevant?",
+    "relevant": "Relevant",
+    "notRelevant": "Niet relevant",
+    "relevanceFailed": "Uw antwoord kon niet worden opgeslagen",
+    "mayBeOutOfDate": "Mogelijk verouderd",
+    "analysisMarkedIncorrect": "De analyse van Keigan is als onjuist gemarkeerd.",
+    "trust": {
+      "correct": "Bevestigd",
+      "partially_correct": "Deels juist",
+      "incorrect": "Als onjuist gemarkeerd",
+      "none": "Niet beoordeeld"
+    },
+    "causeSource": {
+      "postmortem": "uit de goedgekeurde postmortem",
+      "investigation": "analyse van Keigan",
+      "none": "niet vastgelegd"
+    },
+    "fixSource": {
+      "resolution_note": "oplossingsnotitie",
+      "fix_plan": "plan voorgesteld door Keigan",
+      "hypothesis_fix": "oplossing voorgesteld door Keigan",
+      "none": "niet vastgelegd"
+    },
+    "keyKind": {
+      "service": "dezelfde service",
+      "shared_resource": "dezelfde gedeelde resource",
+      "alert_rule": "dezelfde alertregel",
+      "error_signature": "dezelfde fout",
+      "change_operation": "hetzelfde soort wijziging",
+      "dependency_target": "dezelfde falende afhankelijkheid",
+      "incident_category": "dezelfde categorie"
+    },
+    "stale": {
+      "older_than_threshold": "Het gebeurde lang geleden.",
+      "service_removed": "De services waar het over ging zijn verwijderd."
+    },
+    "hide": {
+      "action": "Verbergen",
+      "title": "Dit eerdere incident niet meer voorstellen?",
+      "description": "\"{{title}}\" wordt aan niemand meer voorgesteld. U kunt het later weer tonen.",
+      "reason": "Waarom is het niet nuttig?",
+      "cancel": "Annuleren",
+      "confirm": "Verbergen",
+      "done": "Verborgen",
+      "failed": "Kon niet worden verborgen"
+    }
   }
 }

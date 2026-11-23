@@ -35,6 +35,13 @@ def read_field_display(record: dict[str, Any], field_name: str) -> str:
     return "" if field_value is None else str(field_value)
 
 
+def servicenow_task_url(instance_url: str, table: str, number: str | None) -> str | None:
+    """The page of a task in the ServiceNow instance (the instance of the simulation when none is configured)."""
+    if not number:
+        return None
+    return f"{instance_url.rstrip('/') or 'https://metlife.service-now.com'}/nav_to.do?uri={table}.do?sysparm_query=number={number}"
+
+
 def normalized_state_name(record: dict[str, Any]) -> str:
     state_text = read_field_display(record, "state").strip().lower() or SERVICENOW_STATE_NAMES.get(read_field_value(record, "state"), "")
     return SERVICENOW_STATE_NAMES.get(state_text, state_text)
@@ -92,6 +99,25 @@ class ServiceNowClient:
             return await self._simulator.update_incident(system_identifier, changed_fields)
         response_body = await self._send_request("PATCH", f"/api/now/table/incident/{system_identifier}", json_body=changed_fields)
         return dict(response_body.get("result", {}))
+
+    # ── Tasks (action items tracked in ServiceNow) ───────────────────────────────
+    def task_url(self, table: str, number: str | None) -> str | None:
+        return servicenow_task_url(self.settings.servicenow_instance_url, table, number)
+
+    async def create_task(self, table: str, task_fields: dict[str, Any]) -> dict[str, Any]:
+        if self.is_simulated:
+            return await self._simulator.create_task(task_fields)
+        response_body = await self._send_request("POST", f"/api/now/table/{table}", json_body=task_fields, params={"sysparm_display_value": "true", "sysparm_fields": "sys_id,number,state"})
+        return dict(response_body.get("result", {}))
+
+    async def read_tasks(self, table: str, record_identifiers: list[str]) -> list[dict[str, Any]]:
+        if self.is_simulated:
+            return await self._simulator.read_tasks(record_identifiers)
+        response_body = await self._send_request(
+            "GET", f"/api/now/table/{table}",
+            params={"sysparm_query": f"sys_idIN{','.join(record_identifiers)}", "sysparm_display_value": "true", "sysparm_fields": "sys_id,number,state", "sysparm_limit": str(len(record_identifiers))},
+        )
+        return list(response_body.get("result", []))
 
     # ── Live transport ─────────────────────────────────────────────────────────
     async def _authorization(self) -> tuple[dict[str, str], tuple[str, str] | None]:

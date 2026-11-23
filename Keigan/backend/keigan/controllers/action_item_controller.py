@@ -13,6 +13,7 @@ from keigan.dtos.common_dtos import PagedResult
 from keigan.security.current_user import CurrentUser, get_current_user, require_application_admin
 from keigan.services.action_item_overview_service import ActionItemOverviewService
 from keigan.services.action_item_service import ActionItemService
+from keigan.services.action_item_tracking_service import ActionItemTrackingService
 
 router = APIRouter(prefix="/api", tags=["Action items"])
 
@@ -92,6 +93,14 @@ async def accept_all_action_items(
 ) -> AcceptAllActionItemsResponse:
     """Accepts every suggestion of the postmortem that has an acceptable due date; the others stay suggested and are listed with the reason. Application admins only."""
     return await action_item_service.accept_all(current_user, postmortem_id)
+
+
+@router.post("/action-items/{action_item_id}/external-task", response_model=ActionItemDto, response_model_by_alias=True)
+async def send_action_item_to_servicenow(
+    action_item_id: str, current_user: CurrentUser = Depends(get_current_user), tracking_service: ActionItemTrackingService = Depends(provide(ActionItemTrackingService)),
+) -> ActionItemDto:
+    """Creates a ServiceNow task for a tracked item (when tracking is switched on). From then on ServiceNow owns the item's status. Application admins only."""
+    return await tracking_service.send(current_user, action_item_id)
 
 
 @router.post("/action-items/{action_item_id}/status", response_model=ActionItemDto, response_model_by_alias=True)

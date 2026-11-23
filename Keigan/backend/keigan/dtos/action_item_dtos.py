@@ -20,6 +20,17 @@ class ActionItemOwnerDto(ApiModel):
     stakeholder_role: str
 
 
+class ActionItemExternalDto(ApiModel):
+    """The task that tracks an item in another system. Once ``sync_status`` is linked, that system owns the item's status."""
+
+    system: str | None = None
+    number: str | None = None
+    url: str | None = None
+    status_text: str | None = None
+    synced_at: datetime | None = None
+    sync_status: str  # an ExternalSyncStatus
+
+
 class ActionItemDto(ApiModel):
     action_item_id: str
     application_id: str
@@ -28,6 +39,8 @@ class ActionItemDto(ApiModel):
     incident_reference: str | None = None
     postmortem_id: str | None = None
     source_kind: str
+    runbook_id: str | None = None  # the runbook a runbook-health item was raised from
+    runbook_title: str | None = None  # null when that runbook has since been deleted
     item_title: str
     item_details_markdown: str | None = None
     action_type: str
@@ -46,6 +59,8 @@ class ActionItemDto(ApiModel):
     completed_by: str | None = None
     accepted_at: datetime | None = None
     external_reference_text: str | None = None
+    external: ActionItemExternalDto | None = None  # null for an item that was never sent as a task
+    can_send_external: bool = False  # tracking is on, the caller may edit, the item is tracked and not already linked
     can_edit: bool  # the caller may change the item's fields
     can_change_status: bool
     allowed_statuses: list[str] = Field(default_factory=list)  # what the caller may move it to, so the screen never offers a refused action
@@ -66,6 +81,7 @@ class ActionItemCreateRequest(_StrictRequest):
     due_on: date
     incident_id: str | None = None
     postmortem_id: str | None = None
+    runbook_id: str | None = None  # a finding about this runbook is the reason for the item (spec 32)
     external_reference_text: str | None = None
 
 

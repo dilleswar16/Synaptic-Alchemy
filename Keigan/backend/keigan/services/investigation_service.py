@@ -33,6 +33,7 @@ from keigan.services.alert_group_link_service import AlertGroupLinkService
 from keigan.services.alert_service import AlertService
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
+from keigan.services.incident_memory_builder import enqueue_memory_refresh
 from keigan.services.service_scope import unknown_service_ids
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
@@ -187,6 +188,7 @@ class InvestigationService:
         investigation.user_feedback_by_user_principal_name = current_user.user_principal_name
         await AuditService(self.session).record(current_user, "investigation.feedback", target_entity_type="investigation", target_entity_id=investigation_id, application_id=investigation.application_id, action_details={"verdict": request.verdict})
         await self.session.flush()
+        await enqueue_memory_refresh(self.session, investigation_id)  # the verdict changes how far the past incident is trusted, and which investigation of its incident stands for it
         return (await self.summarize_investigations([investigation]))[0]
 
     async def load_readable_investigation(self, current_user: CurrentUser, investigation_id: str, require_admin: bool = False) -> Investigation:

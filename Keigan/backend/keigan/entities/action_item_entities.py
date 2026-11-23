@@ -8,7 +8,7 @@ from sqlalchemy import Date, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, identifier_column
-from keigan.entities.status_values import ActionItemPriority, ActionItemSource, ActionItemStatus, ActionItemType, values_check
+from keigan.entities.status_values import ActionItemPriority, ActionItemSource, ActionItemStatus, ActionItemType, ExternalSyncStatus, values_check
 
 
 class ActionItem(AuditColumnsMixin, EntityBase):
@@ -21,6 +21,7 @@ class ActionItem(AuditColumnsMixin, EntityBase):
         values_check("action_type", ActionItemType),
         values_check("action_priority", ActionItemPriority),
         values_check("item_status", ActionItemStatus),
+        values_check("external_sync_status", ExternalSyncStatus),
     )
 
     action_item_id: Mapped[str] = identifier_column()
@@ -48,6 +49,11 @@ class ActionItem(AuditColumnsMixin, EntityBase):
     accepted_at: Mapped[datetime | None] = mapped_column()
     accepted_by_user_principal_name: Mapped[str | None] = mapped_column(String(320))
     external_reference_text: Mapped[str | None] = mapped_column(String(60))  # a task number typed by a person (spec 29, 4.7); writing to ServiceNow is a later step
+    external_system: Mapped[str | None] = mapped_column(String(30))  # the system that tracks this item as a task (an open column, like record_system); null until it is sent
+    external_record_identifier: Mapped[str | None] = mapped_column(String(100))  # that system's own id of the task (the ServiceNow sys_id)
+    external_status_text: Mapped[str | None] = mapped_column(String(100))  # the task's state as that system last said it
+    external_synced_at: Mapped[datetime | None] = mapped_column()
+    external_sync_status: Mapped[str | None] = mapped_column(String(20))  # an ExternalSyncStatus; null = never sent. Once linked, that system owns the item's status
     last_reminded_at: Mapped[datetime | None] = mapped_column()
     reminder_count: Mapped[int] = mapped_column(Integer, default=0)
     display_order: Mapped[int] = mapped_column(Integer, default=0)

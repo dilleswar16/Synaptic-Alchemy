@@ -56,6 +56,10 @@
     "noDueDate": "无到期日",
     "moved_other": "到期日已调整 {{count}} 次（最初为 {{date}}）",
     "incident": "事件 {{reference}}",
+    "runbook": "运行手册：{{title}}",
+    "trackedIn": "已在 ServiceNow 中跟踪：{{number}}（{{status}}）",
+    "trackFailed": "无法发送到 ServiceNow。请从菜单重试。",
+    "trackInServiceNow": "在 ServiceNow 中跟踪",
     "reason": "原因：{{text}}",
     "completionNote": "完成情况：{{text}}"
   },

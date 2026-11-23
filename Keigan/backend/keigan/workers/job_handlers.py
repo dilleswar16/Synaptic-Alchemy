@@ -30,7 +30,9 @@ JOB_HANDLER_REFERENCES: dict[str, JobHandlerReference] = {
     "build_topology": JobHandlerReference("keigan.services.knowledge_service", "KnowledgeService", "build_topology"),  # application_id, requested_by_user_principal_name
     # ── S2 incidents, investigations, communications ──────────────────────────
     "poll_servicenow": JobHandlerReference("keigan.services.incident_service", "IncidentService", "poll_servicenow_for_application"),  # application_id
+    "sync_action_item_tasks": JobHandlerReference("keigan.services.action_item_tracking_service", "ActionItemTrackingService", "sync_application"),  # application_id
     "run_investigation": JobHandlerReference("keigan.services.investigation_service", "InvestigationService", "run_investigation"),  # investigation_id
+    "refresh_incident_memory_entry": JobHandlerReference("keigan.services.incident_memory_builder", "IncidentMemoryBuilder", "refresh_entry"),  # investigation_id
     "generate_communications": JobHandlerReference("keigan.services.communication_service", "CommunicationService", "generate_communications"),  # investigation_id, communication_types, language_codes
     "generate_postmortem": JobHandlerReference("keigan.services.communication_service", "CommunicationService", "generate_postmortem"),  # incident_id, generation_trigger, requested_by_user_principal_name
     # ── S3 alerts and SLOs ─────────────────────────────────────────────────────

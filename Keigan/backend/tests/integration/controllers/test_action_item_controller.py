@@ -11,6 +11,7 @@ from sqlalchemy import select
 from keigan.config.database_config import open_session
 from keigan.entities.action_item_entities import ActionItem
 from keigan.entities.incident_entities import Incident, PostmortemReport
+from keigan.entities.knowledge_entities import Runbook
 from keigan.entities.notification_entities import Stakeholder
 from keigan.entities.status_values import ActionItemStatus, IncidentStatus
 from keigan.utils.time_utils import utc_now
@@ -284,3 +285,93 @@ async def test_accept_all_skips_a_suggestion_whose_due_date_cannot_be_accepted_a
 async def test_accept_all_on_an_unknown_postmortem_is_not_found(client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
     response = await client.post("/api/postmortems/no-such-postmortem/action-items/accept-all", headers=await auth_headers(APP_ADMIN))
     assert response.status_code == 404 and "postmortem was not found" in response.text
+
+
+# ── From a runbook finding (roadmap C4 gap) ────────────────────────────────────────────────────
+
+
+async def make_runbook(application_id: str, title: str) -> str:
+    async with open_session() as session:
+        runbook = Runbook(application_id=application_id, runbook_title=title)
+        session.add(runbook)
+        await session.flush()
+        return runbook.runbook_id
+
+
+async def test_an_item_can_be_raised_from_a_runbook_and_shows_which_one(client: httpx.AsyncClient, auth_headers: AuthHeaders, application_id: str) -> None:
+    runbook_id = await make_runbook(application_id, "Restart the claims API")
+    item = await create_item(client, auth_headers, application_id, itemTitle="Add trigger symptoms to the claims runbook", runbookId=runbook_id)
+    assert item["sourceKind"] == "runbook_health" and item["runbookId"] == runbook_id and item["runbookTitle"] == "Restart the claims API"
+    again = (await client.get(f"/api/action-items/{item['actionItemId']}", headers=await auth_headers(READER))).json()
+    assert again["sourceKind"] == "runbook_health" and again["runbookTitle"] == "Restart the claims API"
+
+
+async def test_an_ordinary_item_has_no_runbook(client: httpx.AsyncClient, auth_headers: AuthHeaders, application_id: str) -> None:
+    item = await create_item(client, auth_headers, application_id)
+    assert item["sourceKind"] == "manual" and item["runbookId"] is None and item["runbookTitle"] is None
+
+
+async def test_a_runbook_of_another_application_or_none_at_all_is_refused(client: httpx.AsyncClient, auth_headers: AuthHeaders, application_id: str, seed_context) -> None:
+    other_runbook_id = await make_runbook(seed_context.application_ids_by_code["PAYAU"], "Not ours")
+    for runbook_id in (other_runbook_id, "no-such-runbook"):
+        response = await client.post(f"/api/applications/{application_id}/action-items", headers=await auth_headers(APP_ADMIN), json={"itemTitle": "Fix it", "actionType": "prevent", "dueOn": due_in(14), "runbookId": runbook_id})
+        assert response.status_code == 422 and "runbook was not found in this application" in response.text
+
+
+# ── Tracked in ServiceNow (roadmap D1) ─────────────────────────────────────────────────────────
+
+
+async def test_the_send_button_is_offered_only_when_tracking_is_on_and_only_to_an_admin(client: httpx.AsyncClient, auth_headers: AuthHeaders, application_id: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    from keigan.config.settings import get_settings
+
+    item = await create_item(client, auth_headers, application_id)
+    assert item["canSendExternal"] is False and item["external"] is None  # switched off by default
+    monkeypatch.setattr(get_settings(), "action_items_external_tracking_enabled", True)
+    as_admin = (await client.get(f"/api/action-items/{item['actionItemId']}", headers=await auth_headers(APP_ADMIN))).json()
+    as_reader = (await client.get(f"/api/action-items/{item['actionItemId']}", headers=await auth_headers(READER))).json()
+    assert as_admin["canSendExternal"] is True and as_reader["canSendExternal"] is False
+
+
+async def test_an_admin_sends_an_item_and_a_reader_cannot(client: httpx.AsyncClient, auth_headers: AuthHeaders, application_id: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    from keigan.config.settings import get_settings
+
+    item = await create_item(client, auth_headers, application_id)
+    assert (await client.post(f"/api/action-items/{item['actionItemId']}/external-task", headers=await auth_headers(APP_ADMIN))).status_code == 422  # switched off
+    monkeypatch.setattr(get_settings(), "action_items_external_tracking_enabled", True)
+    assert (await client.post(f"/api/action-items/{item['actionItemId']}/external-task", headers=await auth_headers(READER))).status_code == 403
+    response = await client.post(f"/api/action-items/{item['actionItemId']}/external-task", headers=await auth_headers(APP_ADMIN))
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["external"]["syncStatus"] == "linked" and body["external"]["number"].startswith("TASK") and body["external"]["url"] and body["canSendExternal"] is False
+    assert body["externalReferenceText"] == body["external"]["number"]
+    assert (await client.post(f"/api/action-items/{item['actionItemId']}/external-task", headers=await auth_headers(APP_ADMIN))).status_code == 422  # already tracked
+
+
+async def test_a_task_closed_in_servicenow_finishes_the_item_on_the_next_sync(client: httpx.AsyncClient, auth_headers: AuthHeaders, application_id: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    from keigan.config.settings import get_settings
+    from keigan.integrations.simulation.servicenow_simulator import ServiceNowSimulator
+    from keigan.services.action_item_tracking_service import ActionItemTrackingService
+
+    monkeypatch.setattr(get_settings(), "action_items_external_tracking_enabled", True)
+    item = await create_item(client, auth_headers, application_id)
+    await client.post(f"/api/action-items/{item['actionItemId']}/external-task", headers=await auth_headers(APP_ADMIN))
+    async with open_session() as session:
+        identifier = (await session.get(ActionItem, item["actionItemId"])).external_record_identifier
+    await ServiceNowSimulator().update_task(identifier, {"state": "Closed Complete"})
+    async with open_session() as session:
+        await ActionItemTrackingService(session).sync_application(application_id)
+    after = (await client.get(f"/api/action-items/{item['actionItemId']}", headers=await auth_headers(READER))).json()
+    assert after["itemStatus"] == "done" and after["external"]["statusText"] == "Closed Complete" and after["completedBy"] == "servicenow"
+
+
+async def test_once_linked_the_status_is_servicenows_to_change(client: httpx.AsyncClient, auth_headers: AuthHeaders, application_id: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    from keigan.config.settings import get_settings
+
+    monkeypatch.setattr(get_settings(), "action_items_external_tracking_enabled", True)
+    item = await create_item(client, auth_headers, application_id)
+    assert item["allowedStatuses"]  # before it is sent a person may move it
+    await client.post(f"/api/action-items/{item['actionItemId']}/external-task", headers=await auth_headers(APP_ADMIN))
+    linked = (await client.get(f"/api/action-items/{item['actionItemId']}", headers=await auth_headers(APP_ADMIN))).json()
+    assert linked["allowedStatuses"] == [] and linked["canChangeStatus"] is False
+    refused = await set_status(client, auth_headers, APP_ADMIN, item["actionItemId"], "done")
+    assert refused.status_code == 422 and "tracked in ServiceNow" in refused.text
