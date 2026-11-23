@@ -6,12 +6,21 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from keigan.ai.fix_parameter_kinds import kind_names
+
 IncidentCategoryName = Literal["availability", "latency", "errors", "data", "batch", "security", "capacity", "dependency", "change_related"]
 PriorityName = Literal["P1", "P2", "P3", "P4"]
 AnalysisPerspectiveName = Literal["application", "dependencies", "infrastructure"]
 RiskLevelName = Literal["low", "medium", "high"]
 HypothesisStateName = Literal["supported", "ruled_out", "inconclusive"]
 InvestigationOutcomeName = Literal["cause_identified", "inconclusive", "cause_not_visible"]
+FixStepPurposeName = Literal["diagnose", "mitigate", "durable_fix"]
+FixActionKindName = Literal["command", "configuration_change", "manual_action", "rerun_evidence_query"]
+FixCommandToolName = Literal["kubectl", "az", "helm", "powershell", "shell", "sql"]
+FixValueSourceName = Literal["service_catalogue", "evidence", "runbook", "knowledge", "unknown"]
+ConfigurationTargetKindName = Literal["app_setting", "kubernetes_environment_variable", "helm_value", "file"]
+# The value kinds of resources/catalogs/fix_parameter_kinds.yaml: the model may only name a kind that exists (a test keeps this in step with the catalogue).
+FixParameterKindName = Literal[tuple(kind_names())]  # type: ignore[valid-type]
 
 
 class TriageResult(BaseModel):
@@ -36,10 +45,47 @@ class AdditionalQueryPlan(BaseModel):
     queries: list[PlannedQuery] = Field(default_factory=list, description="At most three read-only queries")
 
 
-class FixStep(BaseModel):
+class FixParameterOutput(BaseModel):
+    name: str = Field(description="lower_snake_case; matches one {{name}} slot of the template")
+    value_kind: FixParameterKindName = Field(description="What kind of value this is; it decides which characters are allowed")
+    value: str | None = Field(default=None, description="The value, or null when you do not know it. Never a placeholder such as <resource-group>")
+    value_source: FixValueSourceName = Field(default="unknown", description="Where you read the value; use service_catalogue only for names in 'Application and services'")
+    source_code: str | None = Field(default=None, description="The E#, R# or K# code the value was read from; required for evidence, runbook and knowledge")
+
+
+class FixCommandOutput(BaseModel):
+    tool: FixCommandToolName
+    dialect: Literal["any", "bash", "powershell"] = Field(default="any", description="'any' when the same command works in both shells (az, kubectl, helm)")
+    template: str = Field(description="ONE command on ONE line. Every value that names a resource or comes from data is a {{slot}} with a parameter. No ;, &&, ||, redirects, $(...) or backticks; a pipe only into grep or Select-String")
+    parameters: list[FixParameterOutput] = Field(default_factory=list)
+
+
+class ConfigurationChangeOutput(BaseModel):
+    target_kind: ConfigurationTargetKindName
+    service_name: str = Field(description="A name from 'Application and services'")
+    setting_name: FixParameterOutput
+    before_value: FixParameterOutput | None = Field(default=None, description="The current value when the evidence or knowledge shows it, otherwise null")
+    after_value: FixParameterOutput
+    file_path: str | None = Field(default=None, description="target_kind 'file' only: a file path found in the knowledge base")
+
+
+class FixActionOutput(BaseModel):
+    action_kind: FixActionKindName
     description: str
-    command_text: str | None = Field(default=None, description="A copyable command (kubectl, az, SQL, ...) using real resource names, or null")
-    command_language: str | None = Field(default=None, description="bash | powershell | sql | kql | text")
+    command: FixCommandOutput | None = Field(default=None, description="action_kind 'command' only")
+    configuration_change: ConfigurationChangeOutput | None = Field(default=None, description="action_kind 'configuration_change' only")
+    evidence_code: str | None = Field(default=None, description="action_kind 'rerun_evidence_query' only: the E# whose stored query is run again")
+    expected_result: str = Field(default="", description="What the person should see when it worked")
+
+
+class FixStepOutput(BaseModel):
+    title: str
+    purpose: FixStepPurposeName
+    action: FixActionOutput
+    check: FixActionOutput | None = Field(default=None, description="How to see that the action worked; prefer rerun_evidence_query with the E# that showed the problem")
+    revert: FixActionOutput | None = Field(default=None, description="How to undo the action; a manual_action that says why when nothing needs undoing")
+    risk_level: RiskLevelName
+    assumptions: list[str] = Field(default_factory=list, description="What you assumed and could not verify")
 
 
 class CodeChange(BaseModel):
@@ -52,10 +98,13 @@ class CodeChange(BaseModel):
 
 class ProposedFix(BaseModel):
     summary: str
-    steps: list[FixStep] = Field(default_factory=list)
+    steps: list[FixStepOutput] = Field(default_factory=list, description="Diagnose steps first, then the least risky mitigation, then the durable fix")
     code_changes: list[CodeChange] = Field(default_factory=list)
-    verification_steps: list[str] = Field(default_factory=list)
-    rollback_steps: list[str] = Field(default_factory=list)
+
+
+class FixStepReference(BaseModel):
+    perspective: AnalysisPerspectiveName
+    step_number: int = Field(ge=1, description="The number of the analyst's step, as listed in 'Hypotheses from the three analysts'")
 
 
 class HypothesisResult(BaseModel):
@@ -81,7 +130,8 @@ class RcaSynthesisResult(BaseModel):
     executive_summary: str
     what_went_wrong_markdown: str
     why_it_happened_markdown: str
-    how_to_fix_markdown: str
+    fix_overview_markdown: str = Field(description="Two to five sentences: what to do first and why, citing [E#], [R#] or [K#]. No commands")
+    recommended_fix_steps: list[FixStepReference] = Field(default_factory=list, description="Steps picked from the analysts' numbered steps, in the order a responder should take them, diagnose first")
     open_questions: list[str] = Field(default_factory=list)
     applied_runbook_codes: list[str] = Field(default_factory=list)
 

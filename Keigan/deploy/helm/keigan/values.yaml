@@ -103,6 +103,11 @@ backendEnvironment:
   # Error budget policy: one-incident and outage-class thresholds (percent of an SLO's budget), the class window in days, minutes between evaluations, hours until a figure is final, minimum data coverage and events, auto-draft of the postmortem, waiver and guidance lengths, roles told, days breaches are kept.
   # Suggested fixes: longest command shown as copyable.
   SUGGESTED_FIX_MAXIMUM_COMMAND_CHARACTERS: "600"
+  # Suggested fixes: steps kept per hypothesis (1 to 12), steps in the fix plan (1 to 20), most parameters per command (1 to 20), and the default shell (bash or powershell).
+  SUGGESTED_FIX_MAXIMUM_STEPS: "6"
+  SUGGESTED_FIX_PLAN_MAXIMUM_STEPS: "8"
+  SUGGESTED_FIX_MAXIMUM_PARAMETERS_PER_COMMAND: "8"
+  SUGGESTED_FIX_DEFAULT_SHELL_DIALECT: "bash"
   # Runbook health: days before a never-used runbook is flagged, days before a runbook is flagged as not updated, fewest rated investigations and the share rated incorrect that flag a runbook.
   RUNBOOK_HEALTH_UNUSED_AFTER_DAYS: "60"
   RUNBOOK_HEALTH_STALE_AFTER_DAYS: "180"

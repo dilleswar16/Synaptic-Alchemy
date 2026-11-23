@@ -93,4 +93,4 @@ async def test_the_model_is_told_the_two_confidence_bands_from_the_settings(seed
 
     monkeypatch.setattr(InvestigationAiCaller, "ask", recording_ask)
     await run_manual_investigation(seed_context)
-    assert seen and all(variables == {"supported_minimum_confidence": 0.65, "ruled_out_maximum_confidence": 0.15} for variables in seen)
+    assert seen and all(variables == {"supported_minimum_confidence": 0.65, "ruled_out_maximum_confidence": 0.15, "maximum_fix_steps": get_settings().suggested_fix_maximum_steps} for variables in seen)

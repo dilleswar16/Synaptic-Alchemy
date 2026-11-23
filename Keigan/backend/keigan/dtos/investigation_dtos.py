@@ -5,13 +5,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
+from keigan.ai.fix_parameter_kinds import bare_safe_pattern, kind_catalogue
 from keigan.dtos.common_dtos import ApiModel
 from keigan.dtos.incident_dtos import ApplicationReference, IncidentSummaryDto
 
 
 class FixStepDto(ApiModel):
+    """A step of a fix written before spec 33 phase 2 (schema version 1): free text with an optional command."""
+
     description: str = ""
     command_text: str | None = None
     command_language: str | None = None
@@ -28,14 +31,121 @@ class CodeChangeDto(ApiModel):
     after_snippet: str | None = None
 
 
-class ProposedFixDto(ApiModel):
-    """Typed so the stored snake_case JSON is returned in camelCase like the rest of the API."""
+class FixParameterDto(ApiModel):
+    """One value of a suggested command or setting, with its status and the rules the browser checks a typed value with (the same patterns the server uses)."""
 
+    name: str
+    value_kind: str
+    value: str | None = None  # never a refused or masked value: those are cleared on the server
+    value_source: str = "unknown"
+    source_code: str | None = None
+    status: str  # verified, assumed, missing, masked or refused
+    status_reason: str | None = None
+    value_pattern: str | None = None
+    bare_pattern: str | None = None
+    maximum_length: int | None = None
+    label_key: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _with_the_rules_of_its_kind(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "value_pattern" not in data:
+            rules = kind_catalogue().get(data.get("value_kind", ""))
+            if rules:
+                return {**data, "value_pattern": rules["pattern"], "bare_pattern": bare_safe_pattern(), "maximum_length": rules["maximum_length"], "label_key": rules["label_key"]}
+        return data
+
+
+class FixSegmentDto(ApiModel):
+    kind: str  # literal, value, assumed_value or missing_value
+    text: str = ""
+    parameter_name: str | None = None
+
+
+class FixRenderingDto(ApiModel):
+    dialect: str
+    text: str | None = None  # null while a value is missing
+    risk_level: str
+    segments: list[FixSegmentDto] = Field(default_factory=list)
+
+
+class FixCommandDto(ApiModel):
+    tool: str
+    dialect: str
+    template: str
+    parameters: list[FixParameterDto] = Field(default_factory=list)
+    withheld_reason: str | None = None
+    renderings: list[FixRenderingDto] = Field(default_factory=list)
+    risk_level: str
+    warnings: list[str] = Field(default_factory=list)
+
+
+class FixConfigurationChangeDto(ApiModel):
+    target_kind: str
+    service_name: str
+    service_in_catalogue: bool
+    setting_name: FixParameterDto
+    before_value: FixParameterDto | None = None
+    after_value: FixParameterDto
+    file_path: str | None = None
+    withheld_reason: str | None = None
+    risk_level: str
+    warnings: list[str] = Field(default_factory=list)
+
+
+class FixActionDto(ApiModel):
+    action_kind: str
+    description: str
+    expected_result: str = ""
+    risk_level: str
+    command: FixCommandDto | None = None
+    configuration_change: FixConfigurationChangeDto | None = None
+    evidence_code: str | None = None
+    withheld_reason: str | None = None
+
+
+class FixStepV2Dto(ApiModel):
+    """A checked step (schema version 2): what to do, how to see it worked, how to undo it, each with its own risk (spec 33)."""
+
+    step_id: str
+    title: str
+    purpose: str
+    risk_level: str
+    risk_reasons: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    has_assumed_values: bool = False
+    missing_value_count: int = 0
+    action: FixActionDto
+    check: FixActionDto | None = None
+    revert: FixActionDto | None = None
+    perspective: str | None = None  # set on the steps of the fix plan: which analyst wrote it
+
+
+class ProposedFixDto(ApiModel):
+    """Typed so the stored snake_case JSON is returned in camelCase like the rest of the API. Version 1 rows keep their free-text ``steps``; version 2 rows carry ``fix_steps``."""
+
+    schema_version: int = 1
     summary: str = ""
     steps: list[FixStepDto] = Field(default_factory=list)
+    fix_steps: list[FixStepV2Dto] = Field(default_factory=list)
     code_changes: list[CodeChangeDto] = Field(default_factory=list)
     verification_steps: list[str] = Field(default_factory=list)
     rollback_steps: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _version_two_steps_are_checked_steps(cls, data: Any) -> Any:
+        if isinstance(data, dict) and data.get("schema_version") == 2:
+            return {**data, "steps": [], "fix_steps": data.get("steps", [])}
+        return data
+
+
+class FixPlanDto(ApiModel):
+    """The steps the synthesis recommends, resolved from the analysts' checked steps."""
+
+    overview_markdown: str = ""
+    steps: list[FixStepV2Dto] = Field(default_factory=list)
 
 
 class StartInvestigationRequest(ApiModel):
@@ -183,6 +293,7 @@ class InvestigationDetailDto(InvestigationSummaryDto):
     what_went_wrong_markdown: str | None = None
     why_it_happened_markdown: str | None = None
     how_to_fix_markdown: str | None = None
+    fix_plan: FixPlanDto | None = None  # null for investigations written before spec 33 phase 2
     open_questions: list[str] = Field(default_factory=list)
     leading_hypothesis_id: str | None = None
     outcome: InvestigationOutcomeDto | None = None

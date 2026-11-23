@@ -560,6 +560,61 @@ class SloHealthStatus(StrEnum):
     NO_DATA = "no_data"
 
 
+class FixStepPurpose(StrEnum):
+    """What a suggested fix step is for (spec 33). Read-only diagnosis comes first, then the least risky mitigation, then the durable fix. Describes JSON content, not a column."""
+
+    DIAGNOSE = "diagnose"
+    MITIGATE = "mitigate"
+    DURABLE_FIX = "durable_fix"
+
+
+class FixActionKind(StrEnum):
+    COMMAND = "command"
+    CONFIGURATION_CHANGE = "configuration_change"
+    MANUAL_ACTION = "manual_action"
+    RERUN_EVIDENCE_QUERY = "rerun_evidence_query"
+
+
+class ShellDialect(StrEnum):
+    BASH = "bash"
+    POWERSHELL = "powershell"
+
+
+class FixValueSource(StrEnum):
+    """Where the model says a value in a command came from. Keigan's code checks the claim; it never takes it on trust."""
+
+    SERVICE_CATALOGUE = "service_catalogue"
+    EVIDENCE = "evidence"
+    RUNBOOK = "runbook"
+    KNOWLEDGE = "knowledge"
+    UNKNOWN = "unknown"
+
+
+class FixValueStatus(StrEnum):
+    VERIFIED = "verified"  # found in the source it claims
+    ASSUMED = "assumed"  # kept and highlighted: the source does not show it
+    MISSING = "missing"  # no usable value: the person types it
+    MASKED = "masked"  # a masking placeholder: the real value is never kept
+    REFUSED = "refused"  # not a valid value of its kind: cleared and not shown (it may be the attack)
+
+
+class ConfigurationTargetKind(StrEnum):
+    APP_SETTING = "app_setting"
+    KUBERNETES_ENVIRONMENT_VARIABLE = "kubernetes_environment_variable"
+    HELM_VALUE = "helm_value"
+    FILE = "file"
+
+
+class FixWarning(StrEnum):
+    NO_REVERT = "no_revert"
+    NO_VALIDATION = "no_validation"
+    PRINTS_SECRETS = "prints_secrets"
+    RESTARTS_SERVICE = "restarts_service"
+    CONTAINS_ASSUMPTIONS = "contains_assumptions"
+    VALIDATION_CHANGES_STATE = "validation_changes_state"
+    REVERT_IS_HIGH_RISK = "revert_is_high_risk"
+
+
 def sql_in_list(values: type[StrEnum]) -> str:
     """``'a', 'b'`` for a SQL ``IN (...)``. The members are plain identifiers, so quoting needs no escaping."""
     return ", ".join(f"'{member.value}'" for member in values)

@@ -5886,29 +5886,55 @@ Claim submissions in Claims Processing (JP) are failing because a recent configu
 **Suggested fix**
 Restore the previous batch import concurrency, restart the service to release saturated connections, then cap parallelism below the pool size.
 
-1. Restore BATCH_IMPORT_PARALLELISM=4 on claims-api.
+**Step 1. Restore the previous batch import concurrency** (mitigate; medium risk)
 
-```
-kubectl set env deployment/claims-api BATCH_IMPORT_PARALLELISM=4 -n claims
-```
+Set BATCH_IMPORT_PARALLELISM back to 4 on claims-api (it is 16 now).
 
-2. Restart claims-api so new pods pick up the corrected configuration.
+Change the setting BATCH_IMPORT_PARALLELISM on claims-api from 16 to 4.
 
-```
+This restarts the service.
+
+Check: Failed requests return to baseline.
+
+Run the query behind [E6] again.
+
+Expected: No failures within 10 minutes.
+
+Undo: Set the setting back to its previous value.
+
+Change the setting BATCH_IMPORT_PARALLELISM on claims-api from 4 to 16.
+
+**Step 2. Restart the service** (mitigate; medium risk)
+
+Restart claims-api so new pods pick up the corrected configuration.
+
+```bash
 kubectl rollout restart deployment/claims-api -n claims
 ```
 
-3. Confirm SQL sessions are falling back below 60 percent.
+Check: Failed requests return to baseline.
 
+Run the query behind [E6] again.
+
+Expected: No failures within 10 minutes.
+
+Undo: Nothing to undo: new instances start from the corrected configuration.
+
+**Step 3. Confirm SQL sessions are falling back** (diagnose; low risk)
+
+Confirm SQL sessions are falling back below 60 percent.
+
+```bash
+az monitor metrics list --resource ''/subscriptions/8d1c3f2a-4b6e-4c1d-9a7f-21530c1a0001/resourceGroups/RG_21530_CLMJP_PRD01/providers/Microsoft.Sql/servers/databases/claims-sql'' --metric sessions_percent --interval PT5M --aggregation Maximum
 ```
-az monitor metrics list --resource /subscriptions/8d1c3f2a-4b6e-4c1d-9a7f-21530c1a0001/resourceGroups/RG_21530_CLMJP_PRD01/providers/Microsoft.Sql/servers/databases/claims-sql --metric sessions_percent --interval PT5M --aggregation Maximum
-```
 
-4. Durable fix: size the connection pool for peak parallelism and reject configuration where parallelism exceeds the pool.
+Expected: The maximum of sessions_percent stays below 60.
 
-**Verify:** Failed requests on POST /api/claims return to baseline within 10 minutes. SQL sessions stay below 60 percent for 30 minutes.
+**Step 4. Cap parallelism below the pool size** (durable fix; low risk)
 
-**Rollback:** If errors persist, scale the service back to its previous replica count and reopen the investigation.', NULL, NULL, 0, 0, '2026-11-14 03:33:05.000000'),
+Size the connection pool for peak parallelism and reject configuration where parallelism exceeds the pool.
+
+Check: Confirm the service refuses to start when parallelism exceeds the pool.', NULL, NULL, 0, 0, '2026-11-14 03:33:05.000000'),
     (N'00000000-0000-4000-8000-0000000004ba', N'00000000-0000-4000-8000-0000000004b1', N'teams_participant', N'Rui Reader', N'rui.reader@keigan.local', N'I restarted the claims-api pods and increased the connection pool size to 200.', NULL, NULL, 0, 0, '2026-11-14 03:38:00.000000'),
     (N'00000000-0000-4000-8000-0000000004bb', N'00000000-0000-4000-8000-0000000004b1', N'teams_participant', N'Aiko AppAdmin', N'aiko.appadmin@keigan.local', N'再起動後、エラー率が下がりました。顧客への影響も解消しています。', NULL, NULL, 0, 0, '2026-11-14 03:41:00.000000'),
     (N'00000000-0000-4000-8000-0000000004bc', N'00000000-0000-4000-8000-0000000004b1', N'teams_participant', N'Rui Reader', N'rui.reader@keigan.local', N'Keigan, this is finished', NULL, NULL, 0, 0, '2026-11-14 03:44:00.000000'),

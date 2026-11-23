@@ -44,7 +44,7 @@ async def test_a_reader_of_the_application_reads_the_trace_in_order(client: http
     assert [step["sequenceNumber"] for step in trace["steps"]] == list(range(1, len(trace["steps"]) + 1))
     assert trace["steps"][0]["stepKind"] == "inputs" and trace["steps"][-1]["stepKind"] == "outcome"
     synthesis = next(step["aiCall"] for step in trace["steps"] if step["aiCall"] and step["aiCall"]["featureName"] == "rca_synthesis")
-    assert synthesis["promptVersion"] == "5" and len(synthesis["promptTemplateSha256"]) == 64 and synthesis["hasRawOutput"] is True
+    assert synthesis["promptVersion"] == "6" and len(synthesis["promptTemplateSha256"]) == 64 and synthesis["hasRawOutput"] is True
     assert synthesis["inputSections"] and "content" not in synthesis["inputSections"][0] and synthesis["tokenCountsEstimated"] is True
     assert trace["totals"]["aiCallCount"] >= 5 and trace["totals"]["inputTokenCount"] > 0 and trace["outcome"]["code"] in {"cause_identified", "inconclusive", "cause_not_visible"}
     assert {item["promptKey"] for item in trace["prompts"]} >= {"rca_synthesis", "incident_triage"}

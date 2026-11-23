@@ -77,7 +77,7 @@
         "action_item": 21,
         "alert_group_affected_service": 14
       },
-      "sha256": "38c9698cde73d7ec09adabe032a6424db7e916a3b4b669bff04f4dd6145cc363"
+      "sha256": "48f4cd10f86dd1330db9e24c8bcd1217bab4f926db4944f83f9e7340adcb51dd"
     },
     "06_intelligence_and_collaboration.sql": {
       "committed": true,
@@ -90,7 +90,7 @@
         "conversation_message": 9,
         "predictive_signal": 8
       },
-      "sha256": "8f6d8fbfdce6bb83a750886e13663ca1bde3c04bf58a51de6674a43d9e529d18"
+      "sha256": "72866909c468abb9ec8b0f410c3aedb3739935adb7a0b3d6e618f2f976b1bf0d"
     },
     "99_remove_demo_data.sql": {
       "committed": true,

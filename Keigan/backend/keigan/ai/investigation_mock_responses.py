@@ -16,8 +16,8 @@ from typing import Any, Callable
 from pydantic import BaseModel
 
 from keigan.ai.investigation_ai_schemas import (
-    AdditionalQueryPlan, BlastRadiusNarrative, CodeChange, CommunicationDraft, CommunicationDraftSet, FixStep, HypothesisResult, PostmortemActionItem,
-    PostmortemResult, PostmortemTimelineEntry, ProposedFix, RcaSynthesisResult, TriageResult,
+    AdditionalQueryPlan, BlastRadiusNarrative, CodeChange, CommunicationDraft, CommunicationDraftSet, ConfigurationChangeOutput, FixActionOutput, FixCommandOutput, FixParameterOutput,
+    FixStepOutput, FixStepReference, HypothesisResult, PostmortemActionItem, PostmortemResult, PostmortemTimelineEntry, ProposedFix, RcaSynthesisResult, TriageResult,
 )
 from keigan.ai.llm_gateway import PromptSection, register_mock_response
 from keigan.ai.prompt_safety import assess_prompt_injection
@@ -90,57 +90,106 @@ def _service(context: MockInvestigationContext, name: str | None) -> MockService
     return next((service for service in context.services if service.name == name), None)
 
 
-def _restart_command(service: MockServiceInfo | None) -> FixStep:
+# ── Fix building blocks (spec 33): templates with typed slots, never placeholders; an unknown value is None and becomes a fill-in field ─────────────────────────────
+def _code(context: MockInvestigationContext, categories: tuple[str, ...], service_name: str | None = None) -> str | None:
+    picked = _pick(context, categories, service_name) or _pick(context, categories)
+    return picked.strip("[]") or None
+
+
+def _catalogue(name: str, kind: str, value: str | None) -> FixParameterOutput:
+    return FixParameterOutput(name=name, value_kind=kind, value=value, value_source="service_catalogue" if value else "unknown")  # type: ignore[arg-type]
+
+
+def _manual(description: str, expected_result: str = "") -> FixActionOutput:
+    return FixActionOutput(action_kind="manual_action", description=description, expected_result=expected_result)
+
+
+def _command(template: str, parameters: list[FixParameterOutput], tool: str, description: str, expected_result: str = "") -> FixActionOutput:
+    return FixActionOutput(
+        action_kind="command", description=description, expected_result=expected_result,
+        command=FixCommandOutput(tool=tool, template=template, parameters=parameters),  # type: ignore[arg-type]
+    )
+
+
+def _rerun(evidence_code: str | None, description: str, expected_result: str) -> FixActionOutput:
+    """Check by running the evidence query that showed the problem again; a manual check when the investigation has no such evidence."""
+    if evidence_code is None:
+        return _manual(description, expected_result)
+    return FixActionOutput(action_kind="rerun_evidence_query", description=description, evidence_code=evidence_code, expected_result=expected_result)
+
+
+def _step(title: str, purpose: str, risk: str, action: FixActionOutput, check: FixActionOutput | None = None, revert: FixActionOutput | None = None) -> FixStepOutput:
+    return FixStepOutput(title=title, purpose=purpose, risk_level=risk, action=action, check=check, revert=revert)  # type: ignore[arg-type]
+
+
+def _kubernetes_parameters(service: MockServiceInfo, deployment_slot: str = "deployment") -> list[FixParameterOutput]:
+    return [_catalogue(deployment_slot, "kubernetes_name", service.name), _catalogue("namespace", "kubernetes_namespace", service.namespace)]
+
+
+def _app_parameters(service: MockServiceInfo) -> list[FixParameterOutput]:
+    return [_catalogue("service", "azure_resource_name", service.name), _catalogue("resource_group", "azure_resource_group", service.resource_group)]
+
+
+def _restart_action(service: MockServiceInfo | None) -> FixActionOutput:
     if service is None:
-        return FixStep(description="Restart the affected service through the normal change process.")
+        return _manual("Restart the affected service through the normal change process.")
     if service.service_type == "aks":
-        return FixStep(description=f"Restart {service.name} so new pods pick up the corrected configuration.", command_text=f"kubectl rollout restart deployment/{service.name} -n {service.namespace or 'default'}", command_language="bash")
+        return _command("kubectl rollout restart deployment/{{deployment}} -n {{namespace}}", _kubernetes_parameters(service), "kubectl", f"Restart {service.name} so new pods pick up the corrected configuration.")
     if service.service_type in ("function_app", "app_service"):
-        command_group, kind_text = ("functionapp", "function app") if service.service_type == "function_app" else ("webapp", "app service")
-        if not service.resource_group:
-            return FixStep(description=f"Restart the {kind_text} {service.name}. Look up its resource group first: the service catalogue does not name one.")
-        return FixStep(description=f"Restart the {kind_text} {service.name}.", command_text=f"az {command_group} restart --name {service.name} --resource-group {service.resource_group}", command_language="bash")
-    return FixStep(description=f"Restart {service.name} through the normal change process.")
+        group, kind_text = ("functionapp", "function app") if service.service_type == "function_app" else ("webapp", "app service")
+        return _command(f"az {group} restart --name {{{{service}}}} --resource-group {{{{resource_group}}}}", _app_parameters(service), "az", f"Restart the {kind_text} {service.name}.")
+    return _manual(f"Restart {service.name} through the normal change process.")
 
 
-def _rollback_command(service: MockServiceInfo | None, release_text: str) -> FixStep:
+def _rollback_action(service: MockServiceInfo | None, release_text: str) -> FixActionOutput:
     if service is not None and service.service_type == "aks":
-        return FixStep(description=f"Roll back {service.name} to the previous revision ({release_text}).", command_text=f"kubectl rollout undo deployment/{service.name} -n {service.namespace or 'default'}", command_language="bash")
+        return _command("kubectl rollout undo deployment/{{deployment}} -n {{namespace}}", _kubernetes_parameters(service), "kubectl", f"Roll back {service.name} to the previous revision ({release_text}).")
     if service is not None and service.service_type in ("app_service", "function_app"):
-        command_group = "webapp" if service.service_type == "app_service" else "functionapp"
-        if not service.resource_group:
-            return FixStep(description=f"Swap the previous release back into production ({release_text}). Look up the resource group of {service.name} first: the service catalogue does not name one.")
-        return FixStep(
-            description=f"Swap the previous release back into production ({release_text}).",
-            command_text=f"az {command_group} deployment slot swap --name {service.name} --resource-group {service.resource_group} --slot staging --target-slot production",
-            command_language="bash",
+        group = "webapp" if service.service_type == "app_service" else "functionapp"
+        return _command(
+            f"az {group} deployment slot swap --name {{{{service}}}} --resource-group {{{{resource_group}}}} --slot staging --target-slot production", _app_parameters(service), "az",
+            f"Swap the previous release back into production ({release_text}).",
         )
-    return FixStep(description=f"Roll back the last release ({release_text}) through the release pipeline.")
+    return _manual(f"Roll back the last release ({release_text}) through the release pipeline.")
 
 
-def _setting_command(service: MockServiceInfo | None, setting: str, value: str) -> FixStep:
-    if service is not None and service.service_type == "aks":
-        return FixStep(description=f"Restore {setting}={value} on {service.name}.", command_text=f"kubectl set env deployment/{service.name} {setting}={value} -n {service.namespace or 'default'}", command_language="bash")
-    if service is None or not service.resource_group:  # no guessed names and no placeholders: the engineer looks the missing value up first
-        return FixStep(description=f"Restore {setting}={value}. Look up the app and its resource group first: the service catalogue does not name them.")
-    command_group = "functionapp" if service.service_type == "function_app" else "webapp"
-    return FixStep(description=f"Restore {setting}={value}.", command_text=f"az {command_group} config appsettings set --name {service.name} --resource-group {service.resource_group} --settings {setting}={value}", command_language="bash")
+def _setting_change(context: MockInvestigationContext, service: MockServiceInfo | None, setting: str, before: str, after: str) -> FixActionOutput:
+    """A setting is changed by editing it (shown as before and after), not by a command: the value would be glued to its name, which no shell quoting rule handles for both shells."""
+    if service is None:
+        return _manual(f"Set {setting} back to {after} (it is {before} now).")
+    change_code = _code(context, ("change_event",))
+    evidence = (lambda name, value: FixParameterOutput(name=name, value_kind="configuration_value", value=value, value_source="evidence", source_code=change_code)) if change_code else (  # type: ignore[arg-type]
+        lambda name, value: FixParameterOutput(name=name, value_kind="configuration_value", value=value, value_source="unknown")  # type: ignore[arg-type]
+    )
+    return FixActionOutput(
+        action_kind="configuration_change", description=f"Set {setting} back to {after} on {service.name} (it is {before} now).",
+        configuration_change=ConfigurationChangeOutput(
+            target_kind="kubernetes_environment_variable" if service.service_type == "aks" else "app_setting", service_name=service.name,
+            setting_name=FixParameterOutput(name="setting", value_kind="configuration_key", value=setting, value_source="evidence" if change_code else "unknown", source_code=change_code),
+            before_value=evidence("before", before), after_value=evidence("after", after),
+        ),
+    )
 
 
 # ── Scenario scripts ───────────────────────────────────────────────────────────
 def _fix_database_connection_pool_exhaustion(context: MockInvestigationContext) -> ProposedFix:
     primary, dependency = _service(context, context.primary_service_name), _service(context, context.dependency_service_name)
+    metric_code = _code(context, ("failed_requests", "slow_requests"), context.primary_service_name)
     sql_check = (
-        f"az monitor metrics list --resource {dependency.resource_identifier} --metric sessions_percent --interval PT5M --aggregation Maximum"
-        if dependency and dependency.resource_identifier else None
+        _command(
+            "az monitor metrics list --resource {{resource_id}} --metric sessions_percent --interval PT5M --aggregation Maximum",
+            [_catalogue("resource_id", "azure_resource_id", dependency.resource_identifier)], "az", "Confirm SQL sessions are falling back below 60 percent.",
+            "The maximum of sessions_percent stays below 60.",
+        )
+        if dependency and dependency.resource_identifier else _rerun(_code(context, ("metrics",), context.dependency_service_name), "Confirm SQL sessions are falling back below 60 percent.", "SQL sessions stay below 60 percent.")
     )
     return ProposedFix(
         summary="Restore the previous batch import concurrency, restart the service to release saturated connections, then cap parallelism below the pool size.",
         steps=[
-            _setting_command(primary, "BATCH_IMPORT_PARALLELISM", "4"),
-            _restart_command(primary),
-            FixStep(description="Confirm SQL sessions are falling back below 60 percent.", command_text=sql_check, command_language="bash" if sql_check else None),
-            FixStep(description="Durable fix: size the connection pool for peak parallelism and reject configuration where parallelism exceeds the pool."),
+            _step("Restore the previous batch import concurrency", "mitigate", "medium", _setting_change(context, primary, "BATCH_IMPORT_PARALLELISM", "16", "4"), _rerun(metric_code, "Failed requests return to baseline.", "No failures within 10 minutes.")),
+            _step("Restart the service", "mitigate", "medium", _restart_action(primary), _rerun(metric_code, "Failed requests return to baseline.", "No failures within 10 minutes."), _manual("Nothing to undo: new instances start from the corrected configuration.")),
+            _step("Confirm SQL sessions are falling back", "diagnose", "low", sql_check),
+            _step("Cap parallelism below the pool size", "durable_fix", "low", _manual("Size the connection pool for peak parallelism and reject configuration where parallelism exceeds the pool."), _manual("Confirm the service refuses to start when parallelism exceeds the pool.")),
         ],
         code_changes=[
             CodeChange(
@@ -149,19 +198,21 @@ def _fix_database_connection_pool_exhaustion(context: MockInvestigationContext) 
                 before_snippet="batch.import.parallelism: 16\nhikari.maximumPoolSize: 10", after_snippet="batch.import.parallelism: 4\nhikari.maximumPoolSize: 20  # parallelism must stay below pool size",
             )
         ],
-        verification_steps=["Failed requests on POST /api/claims return to baseline within 10 minutes.", "SQL sessions stay below 60 percent for 30 minutes."],
-        rollback_steps=["If errors persist, scale the service back to its previous replica count and reopen the investigation."],
     )
 
 
 def _fix_bad_deployment_null_reference(context: MockInvestigationContext) -> ProposedFix:
     primary = _service(context, context.primary_service_name)
+    exception_code = _code(context, ("exceptions", "error_logs"), context.primary_service_name)
     return ProposedFix(
         summary="Roll back to the previous release now; ship a null-safe fix and a regression test before redeploying.",
         steps=[
-            _rollback_command(primary, "release 2026.11.19.1"),
-            FixStep(description="Verify the policy lookup operation returns HTTP 200 for a legacy policy (one without riders)."),
-            FixStep(description="Hot-fix: handle policies whose riders list is null, add a regression test with a legacy policy, redeploy through the pipeline."),
+            _step(
+                "Roll back to the previous release", "mitigate", "medium", _rollback_action(primary, "release 2026.11.19.1"), _rerun(exception_code, "The NullReferenceException stops.", "No new exceptions of that type."),
+                _manual("Redeploy release 2026.11.19.1 only after the hot-fix is verified in a staging slot."),
+            ),
+            _step("Verify legacy policies load", "diagnose", "low", _rerun(_code(context, ("failed_requests",), context.primary_service_name), "Verify the policy lookup operation returns HTTP 200 for a legacy policy (one without riders).", "Failed requests return to baseline.")),
+            _step("Ship the null-safe hot-fix", "durable_fix", "low", _manual("Handle policies whose riders list is null, add a regression test with a legacy policy, redeploy through the pipeline."), _manual("Confirm the exception count stays at zero after the redeploy.")),
         ],
         code_changes=[
             CodeChange(
@@ -170,18 +221,20 @@ def _fix_bad_deployment_null_reference(context: MockInvestigationContext) -> Pro
                 before_snippet="var riders = policy.Riders.Select(MapRider).ToList();", after_snippet="var riders = (policy.Riders ?? Enumerable.Empty<Rider>()).Select(MapRider).ToList();",
             )
         ],
-        verification_steps=["Exception count for System.NullReferenceException drops to zero.", "Failed requests for GET /api/policies/{id} return to baseline."],
-        rollback_steps=["Redeploy release 2026.11.19.1 only after the hot-fix is verified in a staging slot."],
     )
 
 
 def _fix_downstream_api_timeout(context: MockInvestigationContext) -> ProposedFix:
+    partner_code = _code(context, ("failed_dependencies", "error_logs"), context.primary_service_name)
     return ProposedFix(
         summary="Stop amplifying the partner slowdown: enable the circuit-breaker fallback, add jitter to retries and engage the partner.",
         steps=[
-            FixStep(description="Check the partner endpoint latency from a trusted host (read-only).", command_text='curl -s -o /dev/null -w "%{time_total}s\\n" https://api.partner-bank.example/payments/v2/health', command_language="bash"),
-            FixStep(description="Enable the payment gateway circuit-breaker fallback so confirmations are queued instead of retried synchronously."),
-            FixStep(description="Raise the incident with the partner bank's operations contact and share the timeout timestamps from the evidence."),
+            _step("Check the partner endpoint latency", "diagnose", "low", _rerun(partner_code, "Check the partner endpoint latency from a trusted host (read-only).", "Latency is back below the timeout.")),
+            _step(
+                "Enable the circuit-breaker fallback", "mitigate", "medium", _manual("Enable the payment gateway circuit-breaker fallback so confirmations are queued instead of retried synchronously."),
+                _rerun(partner_code, "Outbound HTTP client pool usage falls.", "Pool usage below 70 percent."), _manual("Disable the fallback queue once the partner is healthy and drain deferred confirmations."),
+            ),
+            _step("Engage the partner", "mitigate", "low", _manual("Raise the incident with the partner bank's operations contact and share the timeout timestamps from the evidence.")),
         ],
         code_changes=[
             CodeChange(
@@ -191,22 +244,24 @@ def _fix_downstream_api_timeout(context: MockInvestigationContext) -> ProposedFi
                 after_snippet="Policy.Handle<TaskCanceledException>().WaitAndRetryAsync(Backoff.DecorrelatedJitterBackoffV2(TimeSpan.FromSeconds(2), 3))",
             )
         ],
-        verification_steps=["Outbound HTTP client pool usage falls below 70 percent.", "Confirmation latency returns below 10 seconds once the partner recovers."],
-        rollback_steps=["Disable the fallback queue once the partner is healthy and drain deferred confirmations."],
     )
 
 
 def _fix_node_memory_pressure_oom(context: MockInvestigationContext) -> ProposedFix:
     primary = _service(context, context.primary_service_name)
-    namespace = (primary.namespace if primary else None) or "default"
+    restart_code = _code(context, ("pod_restarts", "kubernetes_events"), context.primary_service_name)
+    parameters = _kubernetes_parameters(primary, "name") if primary else [_catalogue("name", "kubernetes_name", None), _catalogue("namespace", "kubernetes_namespace", None)]
     name = primary.name if primary else "the deployment"
     return ProposedFix(
         summary="Relieve memory pressure with a temporary limit increase and restart; fix the renderer's unreleased image buffers.",
         steps=[
-            FixStep(description="Confirm which pods are close to the limit (read-only).", command_text=f"kubectl top pods -n {namespace}", command_language="bash"),
-            FixStep(description=f"Temporarily raise the memory limit of {name} to 2Gi.", command_text=f"kubectl set resources deployment/{name} -n {namespace} --limits=memory=2Gi", command_language="bash"),
-            FixStep(description="Restart the deployment to clear leaked memory.", command_text=f"kubectl rollout restart deployment/{name} -n {namespace}", command_language="bash"),
-            FixStep(description="Durable fix: release image buffers after each render and add a memory-based alert at 80 percent of the limit."),
+            _step("Confirm which pods are close to the limit", "diagnose", "low", _command("kubectl top pods -n {{namespace}}", [parameters[1]], "kubectl", "Confirm which pods are close to the limit (read-only).")),
+            _step(
+                "Temporarily raise the memory limit", "mitigate", "medium", _command("kubectl set resources deployment/{{name}} -n {{namespace}} --limits=memory=2Gi", parameters, "kubectl", f"Temporarily raise the memory limit of {name} to 2Gi."),
+                _rerun(restart_code, "No new OOMKilled restarts.", "No new restarts for 30 minutes."), _command("kubectl rollout undo deployment/{{name}} -n {{namespace}}", parameters, "kubectl", "Return to the previous revision, with its old limit."),
+            ),
+            _step("Restart the deployment", "mitigate", "medium", _command("kubectl rollout restart deployment/{{name}} -n {{namespace}}", parameters, "kubectl", "Restart the deployment to clear leaked memory."), _rerun(restart_code, "No new OOMKilled restarts.", "No new restarts for 30 minutes."), _manual("Nothing to undo: new pods start from the current revision.")),
+            _step("Release image buffers", "durable_fix", "low", _manual("Release image buffers after each render and add a memory-based alert at 80 percent of the limit."), _manual("Confirm memory stays flat across a day of rendering.")),
         ],
         code_changes=[
             CodeChange(
@@ -214,32 +269,37 @@ def _fix_node_memory_pressure_oom(context: MockInvestigationContext) -> Proposed
                 before_snippet="var bitmap = Render(document);\nreturn bitmap.ToPng();", after_snippet="using var bitmap = Render(document);\nreturn bitmap.ToPng();",
             )
         ],
-        verification_steps=[f"kubectl get pods -n {namespace} shows no new OOMKilled restarts for 30 minutes.", "Gateway 502 rate returns to baseline."],
-        rollback_steps=[f"kubectl rollout undo deployment/{name} -n {namespace}  # if the restart makes things worse"],
     )
 
 
 def _fix_certificate_expiry(context: MockInvestigationContext) -> ProposedFix:
+    handshake_code = _code(context, ("error_logs", "exceptions", "failed_dependencies"), context.primary_service_name)
     return ProposedFix(
         summary="Rotate the expired mutual-TLS client certificate and restart the dependent services so they load it.",
         steps=[
-            FixStep(description="Confirm the expiry date of the certificate presented to policy-core (read-only).", command_text="openssl s_client -connect policy-core.internal.example:443 -servername policy-core.internal.example </dev/null 2>/dev/null | openssl x509 -noout -enddate", command_language="bash"),
-            FixStep(description="Issue a replacement certificate and import it into Key Vault (vault and certificate names are not recorded in the knowledge base; confirm them with the platform team)."),
-            _restart_command(_service(context, context.primary_service_name)),
-            FixStep(description="Durable fix: add a certificate-expiry alert at 30, 14 and 7 days and automate rotation."),
+            _step("Confirm the certificate's expiry date", "diagnose", "low", _manual("Confirm the expiry date of the certificate presented to policy-core (read-only), with the TLS inspection tool your team uses.")),
+            _step(
+                "Replace the certificate", "mitigate", "medium",
+                _manual("Issue a replacement certificate and import it into Key Vault (vault and certificate names are not recorded in the knowledge base; confirm them with the platform team)."),
+                _rerun(handshake_code, "TLS handshake errors disappear.", "No new handshake errors."), _manual("No undo is possible for an expired certificate; escalate to the certificate authority team if issuance is delayed."),
+            ),
+            _step("Restart the service", "mitigate", "medium", _restart_action(_service(context, context.primary_service_name)), _rerun(handshake_code, "TLS handshake errors disappear.", "No new handshake errors."), _manual("Nothing to undo: the service starts with the current certificate.")),
+            _step("Alert before certificates expire", "durable_fix", "low", _manual("Add a certificate-expiry alert at 30, 14 and 7 days and automate rotation."), _manual("Confirm the alert fires in a test.")),
         ],
-        verification_steps=["TLS handshake errors disappear from the logs.", "Channel API availability returns above 99 percent."],
-        rollback_steps=["No rollback is possible for an expired certificate; escalate to the certificate authority team if issuance is delayed."],
     )
 
 
 def _fix_apim_backend_throttling(context: MockInvestigationContext) -> ProposedFix:
+    throttle_code = _code(context, ("failed_requests", "slow_requests"), context.primary_service_name)
     return ProposedFix(
         summary="Raise the rate limit temporarily to stop user-facing 429 responses, then restore the 60 second polling interval in the mobile app.",
         steps=[
-            FixStep(description="Raise the per-subscription limit in the inbound policy of the mobile policy-summary operation (change process applies)."),
-            FixStep(description="Ship the mobile hot-fix that restores the 60 second polling interval and add client-side back-off on 429."),
-            FixStep(description="After the hot-fix reaches most users, restore the original rate limit."),
+            _step(
+                "Raise the rate limit temporarily", "mitigate", "medium", _manual("Raise the per-subscription limit in the inbound policy of the mobile policy-summary operation (change process applies)."),
+                _rerun(throttle_code, "429 responses drop.", "Below 1 percent."), _manual("Restore the previous policy revision of the API in API Management."),
+            ),
+            _step("Ship the mobile hot-fix", "durable_fix", "low", _manual("Ship the mobile hot-fix that restores the 60 second polling interval and add client-side back-off on 429."), _manual("Confirm request volume per subscription returns to the baseline rate.")),
+            _step("Restore the original rate limit", "mitigate", "low", _manual("After the hot-fix reaches most users, restore the original rate limit."), _manual("Confirm 429 responses stay below 1 percent.")),
         ],
         code_changes=[
             CodeChange(
@@ -248,8 +308,6 @@ def _fix_apim_backend_throttling(context: MockInvestigationContext) -> ProposedF
                 after_snippet='<rate-limit-by-key calls="400" renewal-period="60" counter-key="@(context.Subscription.Id)" />',
             )
         ],
-        verification_steps=["429 responses drop below 1 percent.", "Request volume per subscription returns to the baseline rate."],
-        rollback_steps=["Restore the previous policy revision of the API in API Management."],
     )
 
 
@@ -257,13 +315,16 @@ def _fix_batch_job_abend(context: MockInvestigationContext) -> ProposedFix:
     return ProposedFix(
         summary="Correct or skip the malformed input record, then restart the job from the failed step as the runbook describes.",
         steps=[
-            FixStep(description="Identify the malformed packed-decimal premium amount in PBIL.INPUT.D1119 from the dump of step STEP030."),
-            FixStep(description="Correct or remove the record in a copy of the input data set (data change, requires batch operations approval)."),
-            FixStep(description="Restart PBIL0400 from STEP030.", command_text="//PBIL0400 JOB (ACCT),'PREMIUM BILLING',RESTART=STEP030", command_language="text"),
-            FixStep(description="Check that downstream statement generation starts and completes."),
+            _step("Find the malformed record", "diagnose", "low", _manual("Identify the malformed packed-decimal premium amount in PBIL.INPUT.D1119 from the dump of step STEP030.")),
+            _step(
+                "Correct the input record", "mitigate", "medium", _manual("Correct or remove the record in a copy of the input data set (data change, requires batch operations approval)."),
+                _manual("Compare the copy with the original to see only that record changed."), _manual("Keep the original input data set untouched so the run can be repeated."),
+            ),
+            _step(
+                "Restart the job from the failed step", "mitigate", "medium", _manual("Restart PBIL0400 from STEP030 with RESTART=STEP030 on the job card, through the batch scheduler."),
+                _manual("PBIL0400 ends with condition code 0000 and downstream statements are produced."), _manual("Nothing to undo: a failed run can be repeated from the same step."),
+            ),
         ],
-        verification_steps=["PBIL0400 ends with condition code 0000.", "Downstream statements are produced for the billing cycle."],
-        rollback_steps=["Keep the original input data set untouched so the run can be repeated."],
     )
 
 
@@ -271,12 +332,10 @@ def _fix_saas_vendor_outage(context: MockInvestigationContext) -> ProposedFix:
     return ProposedFix(
         summary="Nothing can be fixed on the Keigan side; track the vendor incident, inform employees and agree an ETA.",
         steps=[
-            FixStep(description="Subscribe to the vendor status page incident and share the link with the incident channel."),
-            FixStep(description="Post a banner or intranet notice that enrolment may be slow or unavailable."),
-            FixStep(description="Open a priority ticket with the vendor support channel quoting the synthetic probe failure times."),
+            _step("Track the vendor incident", "mitigate", "low", _manual("Subscribe to the vendor status page incident and share the link with the incident channel.")),
+            _step("Tell employees", "mitigate", "low", _manual("Post a banner or intranet notice that enrolment may be slow or unavailable.")),
+            _step("Open a vendor ticket", "mitigate", "low", _manual("Open a priority ticket with the vendor support channel quoting the synthetic probe failure times."), _rerun(_code(context, ("synthetic_probe",)), "Synthetic probes succeed.", "Three consecutive runs succeed.")),
         ],
-        verification_steps=["Synthetic probes succeed for three consecutive runs."],
-        rollback_steps=["Not applicable: no change is made to MetLife systems."],
     )
 
 
@@ -469,7 +528,7 @@ def _generic_script(context: MockInvestigationContext) -> dict[str, Any]:
     summary_text = strongest["summary"] if strongest else "No significant signal was found in the investigation window."
     code = f"[{strongest['code']}]" if strongest else ""
     return {
-        "lead": lead, "confidence": confidence, "fix": lambda ctx: ProposedFix(summary="Gather more evidence before changing anything.", steps=[FixStep(description="Review the strongest evidence items and confirm whether the symptom is still present.")], verification_steps=["Re-run the investigation after new telemetry is available."], rollback_steps=[]),
+        "lead": lead, "confidence": confidence, "fix": lambda ctx: ProposedFix(summary="Gather more evidence before changing anything.", steps=[_step("Review the strongest evidence", "diagnose", "low", _manual("Review the strongest evidence items and confirm whether the symptom is still present.", "You know whether the symptom is still there."))]),
         "title": {perspective: f"{perspective.capitalize()} cause cannot be confirmed from the evidence" for perspective in confidence},
         "statement": {perspective: f"The strongest signal is: {summary_text} {code}" if perspective == lead else f"Nothing in the evidence points to this lens. {{c_rule}}" for perspective in confidence},
         "reasoning": {perspective: f"The collected evidence does not establish a clear cause. {summary_text} {code}" for perspective in confidence},
@@ -527,7 +586,7 @@ def build_hypothesis(output_schema: type[BaseModel], prompt_sections: list[Promp
     confidence = script["confidence"][perspective]
     fix = script["fix"](context) if perspective == script["lead"] else ProposedFix(
         summary="No change is recommended from this perspective until the leading hypothesis is ruled out.",
-        steps=[FixStep(description="Re-check this lens if the leading hypothesis is disproved.")], verification_steps=["Confirm the leading hypothesis fix resolves the symptoms."], rollback_steps=[],
+        steps=[_step("Re-check this lens", "diagnose", "low", _manual("Re-check this lens if the leading hypothesis is disproved."))],
     )
     supporting = [code.strip("[]") for code in re.findall(r"\[E\d+\]", _fill(script["reasoning"][perspective], context))]
     contradicting = [code.strip("[]") for code in re.findall(r"\[E\d+\]", _fill(script["reasoning"][perspective], context)) if confidence < 0.3][:1]
@@ -574,8 +633,7 @@ def build_synthesis(output_schema: type[BaseModel], prompt_sections: list[Prompt
     assert context is not None
     script = _script_for(context)
     lead_fix = script["fix"](context)
-    fix_lines = [f"{index}. {step.description}" + (f"\n```\n{step.command_text}\n```" if step.command_text else "") for index, step in enumerate(lead_fix.steps, start=1)]
-    how_to_fix = lead_fix.summary + "\n\n" + "\n".join(fix_lines) + "\n\n**Verify:** " + " ".join(lead_fix.verification_steps) + "\n\n**Rollback:** " + " ".join(lead_fix.rollback_steps or ["Not applicable."])
+    recommended = [FixStepReference(perspective=script["lead"], step_number=number) for number in range(1, len(lead_fix.steps) + 1)]
     confidence = script["confidence"][script["lead"]]
     is_generic = _is_generic(context)
     why_first_sentence = _fill(script["why"], context).split(". ")[0].rstrip(".") + "."
@@ -585,7 +643,7 @@ def build_synthesis(output_schema: type[BaseModel], prompt_sections: list[Prompt
         outcome_reason_markdown="Nothing Keigan could read changed against the hour before, so the cause is not visible in this data." if is_generic else why_first_sentence,
         overall_confidence_score=confidence,
         executive_summary=_fill(script["executive"], context), what_went_wrong_markdown=_fill(script["what_went_wrong"], context), why_it_happened_markdown=_fill(script["why"], context),
-        how_to_fix_markdown=how_to_fix, open_questions=script["open_questions"],
+        fix_overview_markdown=lead_fix.summary, recommended_fix_steps=[] if is_generic else recommended, open_questions=script["open_questions"],
         applied_runbook_codes=[runbook_code] if (runbook_code := _top_runbook_code(prompt_sections)) else [],
     )
     context.synthesis = {**result.model_dump(), "scenario_script_key": context.scenario_key}

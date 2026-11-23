@@ -23,6 +23,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.fix_command_check import check_suggested_command, command_warnings
+from keigan.ai.fix_plan import PLAN_SCHEMA_VERSION as FIX_SCHEMA_VERSION, build_fix_plan, resolve_plan_steps
+from keigan.ai.fix_plan_markdown import render_fix_plan_markdown
+from keigan.ai.fix_step_validator import FixValidationContext, validate_fix_step
 from keigan.ai.command_risk_classifier import RISK_RANK, classify_command_risk
 from keigan.ai.investigation_ai_caller import InvestigationAiCaller, build_mock_context
 from keigan.ai.investigation_ai_schemas import AdditionalQueryPlan, BlastRadiusNarrative, HypothesisResult, RcaSynthesisResult, TriageResult
@@ -486,7 +489,7 @@ class InvestigationGraphRunner:
             try:
                 result: HypothesisResult = await self._ask(
                     f"hypothesis_{perspective}", sections, HypothesisResult,
-                    supported_minimum_confidence=self.settings.investigation_supported_minimum_confidence, ruled_out_maximum_confidence=self.settings.investigation_ruled_out_maximum_confidence,
+                    supported_minimum_confidence=self.settings.investigation_supported_minimum_confidence, ruled_out_maximum_confidence=self.settings.investigation_ruled_out_maximum_confidence, maximum_fix_steps=self.settings.suggested_fix_maximum_steps,
                 )
             except (TokenBudgetExceededException, LlmUnavailableException) as unavailable:
                 logger.info("Hypothesis %s skipped: %s", perspective, unavailable)
@@ -529,28 +532,23 @@ class InvestigationGraphRunner:
     def _validated_hypothesis(self, perspective: str, result: HypothesisResult) -> dict[str, Any]:
         valid_codes = self._valid_citation_codes()
         known_knowledge_text = f"{self.knowledge_markdown}\n" + "\n".join(f"{match.runbook_title}\n{match.runbook_steps_markdown}" for match in self.runbook_matches)
-        highest_risk = result.fix_risk_level
-        steps = []
-        for step in result.proposed_fix.steps:
-            command_text = strip_invisible_characters(step.command_text) if step.command_text else None
-            command_risk = classify_command_risk(command_text) if command_text else None
-            if command_risk and RISK_RANK[command_risk] > RISK_RANK[highest_risk]:
-                highest_risk = command_risk  # a withheld command still counts: the hypothesis stays as risky as what it proposed
-            withheld_reason = check_suggested_command(command_text, step.command_language, self.settings.suggested_fix_maximum_command_characters) if command_text else None
-            steps.append({
-                **step.model_dump(), "description": self._clean_ai_text(step.description, valid_codes), "command_text": None if withheld_reason else command_text, "command_risk_level": command_risk,
-                "command_withheld_reason": withheld_reason.value if withheld_reason else None, "command_warnings": command_warnings(command_text) if command_text else [],
-            })
         fix = result.proposed_fix
+        validation_context = self._fix_validation_context(valid_codes, known_knowledge_text)
+        steps = [
+            validate_fix_step(step, f"{perspective}-{number}", validation_context, lambda path: restrict_to_known_file_path(path, known_knowledge_text))
+            for number, step in enumerate(fix.steps[:self.settings.suggested_fix_maximum_steps], start=1)
+        ]
+        highest_risk = result.fix_risk_level
+        for step in steps:
+            if RISK_RANK[step["risk_level"]] > RISK_RANK[highest_risk]:
+                highest_risk = step["risk_level"]  # a withheld step still counts: the hypothesis stays as risky as what it proposed
         proposed_fix = {
-            "summary": self._clean_ai_text(fix.summary, valid_codes), "steps": steps,
+            "schema_version": FIX_SCHEMA_VERSION, "summary": self._clean_ai_text(fix.summary, valid_codes), "steps": steps,
             "code_changes": [
                 {**change.model_dump(), "file_path": restrict_to_known_file_path(change.file_path, known_knowledge_text), "change_description": self._clean_ai_text(change.change_description, valid_codes),
                  "before_snippet": strip_invisible_characters(change.before_snippet) if change.before_snippet else None, "after_snippet": strip_invisible_characters(change.after_snippet) if change.after_snippet else None}
                 for change in fix.code_changes
             ],
-            "verification_steps": [self._clean_ai_text(text, valid_codes) for text in fix.verification_steps],
-            "rollback_steps": [self._clean_ai_text(text, valid_codes) for text in fix.rollback_steps],
         }
         runbook_code = result.matched_runbook_code if result.matched_runbook_code in {match.reference_code for match in self.runbook_matches} else None
         replaced_file_paths = sum(1 for change, kept in zip(fix.code_changes, proposed_fix["code_changes"]) if kept["file_path"] != change.file_path)
@@ -562,8 +560,8 @@ class InvestigationGraphRunner:
             StateThresholds(self.settings.investigation_supported_minimum_confidence, self.settings.investigation_ruled_out_maximum_confidence),
         )
         raw_texts = [
-            result.hypothesis_statement_markdown, result.reasoning_markdown, result.assessment_reason_markdown, fix.summary, *(step.description for step in fix.steps),
-            *(change.change_description for change in fix.code_changes), *fix.verification_steps, *fix.rollback_steps,
+            result.hypothesis_statement_markdown, result.reasoning_markdown, result.assessment_reason_markdown, fix.summary, *(step.title for step in fix.steps),
+            *(action.description for step in fix.steps for action in (step.action, step.check, step.revert) if action is not None), *(change.change_description for change in fix.code_changes),
         ]
         adjustments = hypothesis_adjustments(
             raw_texts=raw_texts, valid_codes=valid_codes, dropped_evidence_codes=[code for code in (*result.supporting_evidence_codes, *result.contradicting_evidence_codes) if code not in valid_codes],
@@ -578,6 +576,20 @@ class InvestigationGraphRunner:
             "state_reason_markdown": self._clean_ai_text(result.assessment_reason_markdown, valid_codes), "state_decision": state_decision,
             "proposed_fix": proposed_fix, "fix_risk_level": highest_risk, "matched_runbook_code": runbook_code,
         }
+
+    def _fix_validation_context(self, valid_codes: set[str], knowledge_text: str) -> FixValidationContext:
+        """What a value in a suggested command may be checked against: the catalogue, this investigation's evidence and the knowledge the model was given (spec 33, 4.4)."""
+        catalogue_values = {value for service in self.all_services for value in (service.service_name, service.aks_namespace_filter, service.external_resource_identifier) if value}
+        catalogue_values.update(self.resource_group_by_service_id.values())
+        return FixValidationContext(
+            catalogue_values=frozenset(catalogue_values),
+            evidence_texts={
+                row.evidence_code: "\n".join([row.evidence_title, row.evidence_summary or "", *(str(pattern.get("template", "")) for pattern in (row.condensed_patterns_json or []))]) for row in self.evidence_rows
+            },
+            evidence_codes_with_query=frozenset(row.evidence_code for row in self.evidence_rows if row.query_text), knowledge_text=knowledge_text,
+            maximum_command_characters=self.settings.suggested_fix_maximum_command_characters, maximum_parameters_per_command=self.settings.suggested_fix_maximum_parameters_per_command,
+            clean_markdown=lambda text: self._clean_ai_text(text, valid_codes), clean_line=lambda text: sanitize_ai_line(text, maximum_characters=300),
+        )
 
     def _evidence_facts(self, codes: list[str] | None = None) -> list[EvidenceFacts]:
         """What the rules need to know about the evidence rows behind ``codes`` (every persisted row when ``codes`` is None)."""
@@ -597,7 +609,8 @@ class InvestigationGraphRunner:
         runbook_codes = {match.reference_code: match for match in self.runbook_matches}
         hypotheses_text = "\n\n".join(
             f"### {hypothesis['analysis_perspective'].capitalize()} (confidence {hypothesis['confidence_score']:.2f}, state {hypothesis['hypothesis_state']}{self._guard_note(hypothesis)})\n{hypothesis['hypothesis_title']}\n{hypothesis['hypothesis_statement_markdown']}\nReasoning: {hypothesis['reasoning_markdown']}\n"
-            f"Supporting: {', '.join(hypothesis['supporting_evidence_codes']) or 'none'}; contradicting: {', '.join(hypothesis['contradicting_evidence_codes']) or 'none'}\nFix summary: {hypothesis['proposed_fix']['summary']}"
+            f"Supporting: {', '.join(hypothesis['supporting_evidence_codes']) or 'none'}; contradicting: {', '.join(hypothesis['contradicting_evidence_codes']) or 'none'}\nFix summary: {hypothesis['proposed_fix']['summary']}\n"
+            + "\n".join(f"step {number} ({step['purpose'].replace('_', ' ')}, {step['risk_level']}): {step['title']}" for number, step in enumerate(hypothesis["proposed_fix"]["steps"], start=1))
             for hypothesis in hypotheses
         )
         service_names_by_id = {service.service_id: service.service_name for service in self.all_services}
@@ -613,7 +626,7 @@ class InvestigationGraphRunner:
         ]
         synthesis_was_available = True
         try:
-            synthesis: RcaSynthesisResult = await self._ask("rca_synthesis", sections, RcaSynthesisResult)
+            synthesis: RcaSynthesisResult = await self._ask("rca_synthesis", sections, RcaSynthesisResult, maximum_plan_steps=self.settings.suggested_fix_plan_maximum_steps)
         except (TokenBudgetExceededException, LlmUnavailableException, KeiganException) as failure:
             logger.warning("Synthesis failed (%s); using the strongest hypothesis", failure)
             synthesis_was_available = False
@@ -625,7 +638,7 @@ class InvestigationGraphRunner:
                 leading_perspective=best_hypothesis["analysis_perspective"], leading_perspective_reason="Synthesis was unavailable; the highest-confidence hypothesis is shown.",
                 investigation_outcome=InvestigationOutcome.INCONCLUSIVE, outcome_reason_markdown="The synthesis was unavailable, so the outcome follows the highest-confidence hypothesis.", overall_confidence_score=best_hypothesis["confidence_score"],
                 executive_summary=best_hypothesis["hypothesis_title"], what_went_wrong_markdown=best_hypothesis["hypothesis_statement_markdown"], why_it_happened_markdown=best_hypothesis["reasoning_markdown"],
-                how_to_fix_markdown=best_hypothesis["proposed_fix"]["summary"], open_questions=[],
+                fix_overview_markdown=best_hypothesis["proposed_fix"]["summary"], recommended_fix_steps=[], open_questions=[],
             )
         clean = lambda markdown_text: self._clean_synthesis_text(markdown_text, runbook_codes)  # noqa: E731
         strongest_lead = next((hypothesis for hypothesis in hypotheses if hypothesis["analysis_perspective"] == synthesis.leading_perspective), max(hypotheses, key=lambda hypothesis: hypothesis["confidence_score"]))
@@ -638,7 +651,7 @@ class InvestigationGraphRunner:
         investigation.overall_confidence_score = round(min(synthesis.overall_confidence_score, maximum_confidence + 0.05), 2)
         if synthesis_was_available:
             self.recorder.add_adjustments("rca_synthesis", synthesis_adjustments(
-                raw_texts=[synthesis.outcome_reason_markdown, synthesis.leading_perspective_reason, synthesis.executive_summary, synthesis.what_went_wrong_markdown, synthesis.why_it_happened_markdown, synthesis.how_to_fix_markdown],
+                raw_texts=[synthesis.outcome_reason_markdown, synthesis.leading_perspective_reason, synthesis.executive_summary, synthesis.what_went_wrong_markdown, synthesis.why_it_happened_markdown, synthesis.fix_overview_markdown],
                 valid_codes=self._valid_citation_codes() | set(runbook_codes), confidence_from=synthesis.overall_confidence_score, confidence_to=investigation.overall_confidence_score, outcome_decision=outcome_decision,
             ))
         investigation.investigation_outcome, investigation.proposed_investigation_outcome = outcome_decision.final, outcome_decision.proposed
@@ -648,7 +661,13 @@ class InvestigationGraphRunner:
         investigation.executive_summary = clean(synthesis.executive_summary)
         investigation.what_went_wrong_markdown = clean(synthesis.what_went_wrong_markdown)
         investigation.why_it_happened_markdown = clean(synthesis.why_it_happened_markdown)
-        investigation.how_to_fix_markdown = clean(synthesis.how_to_fix_markdown)
+        fix_overview = clean(synthesis.fix_overview_markdown)
+        fix_plan = build_fix_plan(
+            fix_overview, [(reference.perspective, reference.step_number) for reference in synthesis.recommended_fix_steps], hypotheses, strongest_lead["analysis_perspective"],
+            self.settings.suggested_fix_plan_maximum_steps,
+        )
+        investigation.fix_plan_json = fix_plan
+        investigation.how_to_fix_markdown = render_fix_plan_markdown(fix_overview, resolve_plan_steps(fix_plan, hypotheses), self.settings.suggested_fix_default_shell_dialect.value)
         investigation.open_questions_json = [sanitize_ai_line(question, maximum_characters=500) for question in synthesis.open_questions[:5]]
         applied_runbook_ids = [runbook_codes[code].runbook_id for code in synthesis.applied_runbook_codes if code in runbook_codes]
         investigation.replace_linked_ids("matched_runbook_links", applied_runbook_ids)

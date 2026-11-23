@@ -17,8 +17,9 @@ from keigan.config.logging_config import current_correlation_id
 from keigan.config.settings import get_settings
 from keigan.dtos.common_dtos import JobAcceptedResponse, PagedResult
 from keigan.dtos.incident_dtos import ApplicationReference
+from keigan.ai.fix_plan import resolve_plan_steps
 from keigan.dtos.investigation_dtos import (
-    NOT_RECORDED_OUTCOME, CoverageGapDto, EvidenceDto, HypothesisDto, InvestigationDetailDto, InvestigationFeedbackRequest, InvestigationOutcomeDto, InvestigationProgressDto,
+    NOT_RECORDED_OUTCOME, CoverageGapDto, EvidenceDto, FixPlanDto, FixStepV2Dto, HypothesisDto, InvestigationDetailDto, InvestigationFeedbackRequest, InvestigationOutcomeDto, InvestigationProgressDto,
     InvestigationSummaryDto, RunbookReference, ServiceReference, StartInvestigationRequest, TimelineEventDto,
 )
 from keigan.entities.alert_entities import Alert, AlertDecision, AlertGroup
@@ -269,7 +270,8 @@ class InvestigationService:
             outcome=outcome_of(investigation), leading_perspective_reason_markdown=investigation.leading_perspective_reason_markdown,
             coverage_gaps=await self._coverage_gaps(investigation.investigation_id, evidence_rows),
             triage=investigation.triage_result_json, what_went_wrong_markdown=investigation.what_went_wrong_markdown, why_it_happened_markdown=investigation.why_it_happened_markdown,
-            how_to_fix_markdown=investigation.how_to_fix_markdown, open_questions=investigation.open_questions_json or [], leading_hypothesis_id=investigation.leading_hypothesis_id,
+            how_to_fix_markdown=investigation.how_to_fix_markdown, fix_plan=self._fix_plan(investigation, hypothesis_rows), open_questions=investigation.open_questions_json or [],
+            leading_hypothesis_id=investigation.leading_hypothesis_id,
             hypotheses=[
                 HypothesisDto(
                     hypothesis_id=row.hypothesis_id, analysis_perspective=row.analysis_perspective, hypothesis_title=row.hypothesis_title, hypothesis_statement_markdown=row.hypothesis_statement_markdown,
@@ -288,6 +290,15 @@ class InvestigationService:
             user_feedback_comment=investigation.user_feedback_comment, total_input_token_count=investigation.total_input_token_count, total_output_token_count=investigation.total_output_token_count,
             model_names=investigation.model_names_json or [], detected_at=incident.detected_by_keigan_at if incident else investigation.created_at, first_update_sent_at=incident.first_update_sent_at if incident else None,
         )
+
+    @staticmethod
+    def _fix_plan(investigation: Investigation, hypothesis_rows: list[InvestigationHypothesis]) -> FixPlanDto | None:
+        """The recommended steps resolved from the analysts' stored steps. None for an investigation written before the plan existed."""
+        plan = investigation.fix_plan_json
+        if not plan:
+            return None
+        hypotheses = [{"analysis_perspective": row.analysis_perspective, "proposed_fix": row.proposed_fix_json or {}} for row in hypothesis_rows]
+        return FixPlanDto(overview_markdown=plan.get("overview_markdown", ""), steps=[FixStepV2Dto.model_validate(step) for step in resolve_plan_steps(plan, hypotheses)])
 
     async def _coverage_gaps(self, investigation_id: str, evidence_rows: list[InvestigationEvidence]) -> list[CoverageGapDto]:
         """The gaps Keigan stored, then the unread sources an older investigation stored as evidence items (they say \"not available\" in their text, and are listed here instead of being shown as findings)."""

@@ -119,6 +119,7 @@ class Investigation(LinkedIdsMixin, AuditColumnsMixin, EntityBase):
     why_it_happened_markdown: Mapped[str | None] = mapped_column(Text)
     how_to_fix_markdown: Mapped[str | None] = mapped_column(Text)
     open_questions_json: Mapped[list[str] | None] = mapped_column()
+    fix_plan_json: Mapped[dict[str, Any] | None] = mapped_column()  # the recommended fix steps as references to the hypotheses' checked steps (spec 33); null for earlier investigations
     overall_confidence_score: Mapped[float | None] = mapped_column(Float)
     leading_hypothesis_id: Mapped[str | None] = mapped_column(String(36))
     blast_radius_json: Mapped[dict[str, Any] | None] = mapped_column()

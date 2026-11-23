@@ -70,6 +70,11 @@ def check_value(kind: str, value: str) -> ValueRefusal | None:
     return None
 
 
+def bare_safe_pattern() -> str:
+    """The pattern of a value that needs no quotes, for the browser (it quotes nothing itself: it only shows the command Keigan rendered)."""
+    return _load().bare_safe.pattern
+
+
 def needs_quotes(value: str) -> bool:
     return not _load().bare_safe.fullmatch(value)
 

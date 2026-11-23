@@ -49,7 +49,7 @@ async def test_a_run_records_its_inputs_decisions_ai_calls_evidence_and_outcome_
 async def test_each_ai_call_names_its_prompt_and_what_went_in_by_hash(seed_context) -> None:
     steps = await trace_of(await run_manual_investigation(seed_context))
     synthesis = next(step for step in steps if step.feature_name == "rca_synthesis")
-    assert synthesis.prompt_version == "5" and len(synthesis.prompt_template_sha256) == 64 and len(synthesis.system_prompt_sha256) == 64
+    assert synthesis.prompt_version == "6" and len(synthesis.prompt_template_sha256) == 64 and len(synthesis.system_prompt_sha256) == 64
     titles = {section["title"] for section in synthesis.input_manifest_json}
     assert {"Evidence index", "What Keigan could not check", "Hypotheses from the three analysts"} <= titles
     assert all(len(section["sha256"]) == 64 and "content" not in section for section in synthesis.input_manifest_json)
@@ -94,7 +94,7 @@ async def test_the_audit_row_of_a_finished_investigation_has_codes_and_counts_on
     details = audit.action_details_json
     assert details["status"] == "completed" and details["outcome"] == "cause_not_visible" and details["traceStepCount"] >= 10 and details["coverageGapCount"] >= 0
     assert details["hypothesisStates"] == {"application": "inconclusive", "dependencies": "inconclusive", "infrastructure": "inconclusive"}
-    assert details["promptVersions"]["rca_synthesis"] == "5" and set(details) >= {"modelNames", "inputTokenCount", "outputTokenCount", "outcomeGuard"}
+    assert details["promptVersions"]["rca_synthesis"] == "6" and set(details) >= {"modelNames", "inputTokenCount", "outputTokenCount", "outcomeGuard"}
 
 
 async def test_a_run_that_fails_keeps_the_committed_steps_and_adds_a_failed_outcome_and_an_audit_row(seed_context, monkeypatch: pytest.MonkeyPatch) -> None:

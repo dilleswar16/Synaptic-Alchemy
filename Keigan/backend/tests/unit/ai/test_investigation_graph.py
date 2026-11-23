@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from keigan.ai.ai_safety_settings import get_ai_safety_settings
-from keigan.ai.investigation_ai_schemas import CodeChange, FixStep, HypothesisResult, ProposedFix
+from keigan.ai.investigation_ai_schemas import CodeChange, FixActionOutput, FixCommandOutput, FixParameterOutput, FixStepOutput, HypothesisResult, ProposedFix
 from keigan.ai.investigation_graph import InvestigationGraphRunner
 from keigan.ai.prompt_safety import build_valid_citation_codes, restrict_to_known_file_path
 
@@ -15,14 +15,32 @@ from keigan.ai.prompt_safety import build_valid_citation_codes, restrict_to_know
 @pytest.fixture
 def runner() -> InvestigationGraphRunner:
     graph_runner = InvestigationGraphRunner(None, SimpleNamespace(investigation_id="investigation-1"), offline_ai=True)  # type: ignore[arg-type]
+    graph_runner.all_services = [SimpleNamespace(service_name="claims-api", aks_namespace_filter="claims-prod", external_resource_identifier=None)]  # type: ignore[list-item]
+    graph_runner.resource_group_by_service_id = {}
     graph_runner.evidence_rows = [  # type: ignore[list-item]
-        SimpleNamespace(evidence_code="E1", check_outcome="signal", signal_strength="high", baseline_comparison="compared"),
-        SimpleNamespace(evidence_code="E2", check_outcome="no_signal", signal_strength="low", baseline_comparison="compared"),
+        SimpleNamespace(evidence_code="E1", check_outcome="signal", signal_strength="high", baseline_comparison="compared", evidence_title="Pods in claims-prod restarted", evidence_summary="", condensed_patterns_json=None, query_text="ContainerLog | take 10"),
+        SimpleNamespace(evidence_code="E2", check_outcome="no_signal", signal_strength="low", baseline_comparison="compared", evidence_title="Latency normal", evidence_summary=None, condensed_patterns_json=None, query_text=None),
     ]
     graph_runner.runbook_matches = [SimpleNamespace(reference_code="R1", runbook_title="Restart the pool", runbook_steps_markdown="1. Restart")]
     graph_runner.knowledge_reference_codes = {"K1", "K2"}
     graph_runner.knowledge_markdown = "[K1] Claims API\nThe handler is src/main/java/com/acme/ClaimsController.java and config is in deploy/values.yaml"
     return graph_runner
+
+
+def parameter(name: str, kind: str, value: str | None, source: str = "service_catalogue", code: str | None = None) -> FixParameterOutput:
+    return FixParameterOutput(name=name, value_kind=kind, value=value, value_source=source, source_code=code)  # type: ignore[arg-type]
+
+
+def command(template: str, tool: str, *parameters: FixParameterOutput) -> FixActionOutput:
+    return FixActionOutput(action_kind="command", description="Do the thing", command=FixCommandOutput(tool=tool, template=template, parameters=list(parameters)))  # type: ignore[arg-type]
+
+
+def manual(description: str) -> FixActionOutput:
+    return FixActionOutput(action_kind="manual_action", description=description)
+
+
+def step(action: FixActionOutput, *, title: str = "A step", purpose: str = "mitigate", risk: str = "low", check: FixActionOutput | None = None, revert: FixActionOutput | None = None) -> FixStepOutput:
+    return FixStepOutput(title=title, purpose=purpose, action=action, check=check, revert=revert, risk_level=risk)  # type: ignore[arg-type]
 
 
 def hypothesis_result(**overrides: object) -> HypothesisResult:
@@ -96,43 +114,61 @@ class TestValidatedHypothesis:
 
     def test_links_and_images_in_fix_texts_are_neutralised(self, runner: InvestigationGraphRunner) -> None:
         fix = ProposedFix(
-            summary="Read [this](https://evil.example/x) ![p](https://evil.example/p.png)", verification_steps=["Open https://evil.example/y"], rollback_steps=["[r](https://evil.example/z)"],
-            steps=[FixStep(description="See <https://evil.example/s>")],
+            summary="Read [this](https://evil.example/x) ![p](https://evil.example/p.png)",
+            steps=[step(manual("See <https://evil.example/s>"), title="[t](https://evil.example/u)", check=manual("Open [c](https://evil.example/c)"), revert=manual("[r](https://evil.example/z)"))],
         )
         validated = runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix, hypothesis_title="[t](https://evil.example/t)"))
         serialised = str(validated)
         assert "](https://evil.example" not in serialised
         assert "![" not in serialised
 
-    def test_a_namespaced_delete_command_raises_the_risk_to_high(self, runner: InvestigationGraphRunner) -> None:
-        fix = ProposedFix(summary="s", steps=[FixStep(description="d", command_text="kubectl -n prod delete pod claims-api-0")])
+    def test_a_namespaced_delete_command_raises_the_risk_to_high_and_is_withheld_without_a_way_back(self, runner: InvestigationGraphRunner) -> None:
+        fix = ProposedFix(summary="s", steps=[step(command("kubectl delete pod {{pod}} -n {{namespace}}", "kubectl", parameter("pod", "kubernetes_name", "claims-api-0"), parameter("namespace", "kubernetes_namespace", "prod")))])
         validated = runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix, fix_risk_level="low"))
         assert validated["fix_risk_level"] == "high"
-        assert validated["proposed_fix"]["steps"][0]["command_risk_level"] == "high"
+        assert validated["proposed_fix"]["schema_version"] == 2 and validated["proposed_fix"]["steps"][0]["step_id"] == "application-1"
+        assert validated["proposed_fix"]["steps"][0]["risk_level"] == "high" and validated["proposed_fix"]["steps"][0]["action"]["withheld_reason"] == "destructive_without_revert"
 
-    @pytest.mark.parametrize(("command", "language", "reason"), [
-        ("az webapp restart --name claims-web --resource-group <resource-group>", "bash", "unsafe_shell_syntax"),
-        ("kubectl get pods; kubectl delete pod x", "bash", "unsafe_shell_syntax"),
-        ("kubectl get secret db -o yaml > secret.txt", "bash", "unsafe_shell_syntax"),
-        ("az webapp config appsettings set --name a --resource-group r --settings Db=Password=hunter2;X=1", "bash", "unsafe_shell_syntax"),
+    @pytest.mark.parametrize(("template", "tool", "reason"), [
+        ("az webapp restart --name claims-web --resource-group <resource-group>", "az", "unsafe_shell_syntax"),
+        ("kubectl get pods; kubectl delete pod x", "kubectl", "unsafe_shell_syntax"),
+        ("kubectl get secret db -o yaml > secret.txt", "kubectl", "unsafe_shell_syntax"),
+        ("az webapp config appsettings set --name a --resource-group r --settings Db=Password=hunter2;X=1", "az", "unsafe_shell_syntax"),
         ("UPDATE claims SET status = 'x' WHERE id = 1", "sql", "data_changing_sql"),
     ])
-    def test_an_unsafe_command_is_withheld_but_its_risk_still_counts(self, runner: InvestigationGraphRunner, command: str, language: str, reason: str) -> None:
-        fix = ProposedFix(summary="s", steps=[FixStep(description="Do the thing", command_text=command, command_language=language)])
+    def test_an_unsafe_command_is_withheld_but_its_risk_still_counts(self, runner: InvestigationGraphRunner, template: str, tool: str, reason: str) -> None:
+        fix = ProposedFix(summary="s", steps=[step(command(template, tool), risk="low")])
         validated = runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix, fix_risk_level="low"))
-        step = validated["proposed_fix"]["steps"][0]
-        assert step["command_text"] is None and step["command_withheld_reason"] == reason and step["description"] == "Do the thing"
-        assert step["command_risk_level"] is not None and validated["fix_risk_level"] != "low"
+        stored = validated["proposed_fix"]["steps"][0]
+        assert stored["action"]["command"]["withheld_reason"] == reason and stored["action"]["command"]["renderings"] == [] and stored["action"]["description"] == "Do the thing"
+        assert validated["fix_risk_level"] != "low"
 
     def test_a_plain_command_is_kept_and_a_command_that_prints_secrets_is_marked(self, runner: InvestigationGraphRunner) -> None:
-        fix = ProposedFix(summary="s", steps=[FixStep(description="a", command_text="kubectl get pods -n prod"), FixStep(description="b", command_text="kubectl get secret db -o yaml")])
+        fix = ProposedFix(summary="s", steps=[
+            step(command("kubectl get pods -n {{namespace}}", "kubectl", parameter("namespace", "kubernetes_namespace", "claims-prod")), purpose="diagnose"),
+            step(command("kubectl get secret {{name}} -o yaml", "kubectl", parameter("name", "kubernetes_name", "claims-api")), purpose="diagnose", revert=manual("Nothing to undo: it only reads.")),
+        ])
         steps = runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix))["proposed_fix"]["steps"]
-        assert steps[0]["command_text"] == "kubectl get pods -n prod" and steps[0]["command_withheld_reason"] is None and steps[0]["command_warnings"] == []
-        assert steps[1]["command_risk_level"] == "high" and steps[1]["command_warnings"] == ["prints_secrets"]
+        assert steps[0]["action"]["command"]["renderings"][0]["text"] == "kubectl get pods -n claims-prod" and steps[0]["action"]["command"]["withheld_reason"] is None and steps[0]["warnings"] == []
+        assert steps[1]["risk_level"] == "high" and steps[1]["warnings"] == ["prints_secrets"]
 
     def test_an_unknown_command_is_at_least_medium(self, runner: InvestigationGraphRunner) -> None:
-        fix = ProposedFix(summary="s", steps=[FixStep(description="d", command_text="mytool --reset-everything")])
+        fix = ProposedFix(summary="s", steps=[step(command("mytool --reset-everything", "shell"), revert=manual("Nothing to undo."))])
         assert runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix, fix_risk_level="low"))["fix_risk_level"] == "medium"
+
+    def test_steps_beyond_the_maximum_are_dropped_in_order(self, runner: InvestigationGraphRunner, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(runner.settings, "suggested_fix_maximum_steps", 2)
+        fix = ProposedFix(summary="s", steps=[step(manual(f"Step {number}"), title=f"Step {number}", purpose="diagnose") for number in range(1, 5)])
+        steps = runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix))["proposed_fix"]["steps"]
+        assert [stored["step_id"] for stored in steps] == ["application-1", "application-2"]
+
+    def test_a_value_is_checked_against_the_catalogue_and_the_evidence_the_runner_holds(self, runner: InvestigationGraphRunner) -> None:
+        fix = ProposedFix(summary="s", steps=[step(
+            command("kubectl rollout restart deployment/{{name}} -n {{namespace}}", "kubectl", parameter("name", "kubernetes_name", "claims-api"), parameter("namespace", "kubernetes_namespace", "claims-prod", "evidence", "E1")),
+            revert=manual("Nothing to undo."), check=FixActionOutput(action_kind="rerun_evidence_query", description="c", evidence_code="E1"),
+        )])
+        parameters = runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix))["proposed_fix"]["steps"][0]["action"]["command"]["parameters"]
+        assert [(entry["name"], entry["status"]) for entry in parameters] == [("name", "verified"), ("namespace", "verified")]
 
 
 class TestSanitizedSynthesisText:

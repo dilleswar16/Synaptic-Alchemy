@@ -9,7 +9,7 @@ from keigan.ai.prompt_library import PROMPTS_DIRECTORY, PromptLibrary
 
 LIBRARY = PromptLibrary()
 HYPOTHESIS_KEYS = ("hypothesis_application", "hypothesis_dependencies", "hypothesis_infrastructure")
-HYPOTHESIS_THRESHOLDS = {"supported_minimum_confidence": 0.5, "ruled_out_maximum_confidence": 0.2, "maximum_action_items": 8}  # what the graph passes from the settings
+HYPOTHESIS_THRESHOLDS = {"supported_minimum_confidence": 0.5, "ruled_out_maximum_confidence": 0.2, "maximum_action_items": 8, "maximum_fix_steps": 6, "maximum_plan_steps": 8}  # what the graph passes from the settings
 ASK_KEIGAN_VARIABLES = {
     "maximum_tool_calls": 6, "follow_up_limit": 3, "follow_up_marker": "<<follow-ups>>", "outside_scope_answer": "That is outside what I can answer from Keigan's data.",
     "application_list": "CLMJP — Claims Processing (JP)\nPAYAU — Payments (AU)", "current_date": "2026-11-22",
@@ -39,7 +39,7 @@ def test_the_three_hypothesis_prompts_share_one_body(prompt_key: str) -> None:
 @pytest.mark.parametrize("prompt_key", HYPOTHESIS_KEYS)
 def test_the_state_rules_in_the_hypothesis_prompts_use_the_numbers_the_guard_uses(prompt_key: str) -> None:
     """The prompt promises a confidence band and the guard enforces it: both read the same settings (spec 27, AC-19)."""
-    rendered = LIBRARY.render(prompt_key, application_name="Claims", criticality_tier="tier_1", supported_minimum_confidence=0.65, ruled_out_maximum_confidence=0.15)
+    rendered = LIBRARY.render(prompt_key, application_name="Claims", criticality_tier="tier_1", supported_minimum_confidence=0.65, ruled_out_maximum_confidence=0.15, maximum_fix_steps=5)
     assert "at least 0.65" in rendered and "at most 0.15" in rendered
     assert "checked: no signal (rule-out)" in rendered and "What Keigan could not check" in rendered
 
@@ -78,7 +78,7 @@ def test_every_prompt_renders_with_the_variables_the_code_passes(prompt_path) ->
         prompt_path.stem, application_name="Claims", application_code="CLM", criticality_tier="tier_1", report_type_label="weekly digest", scope_description="the application", file_slug="claims",
         **ASK_KEIGAN_VARIABLES, **HYPOTHESIS_THRESHOLDS,
     )
-    assert rendered.strip() and "{{" not in rendered and "{%" not in rendered
+    assert rendered.strip() and "{{" not in rendered.replace("{{name}}", "") and "{%" not in rendered  # {{name}} is the slot syntax the hypothesis prompts explain to the model: the only braces allowed
 
 
 def test_fragments_are_not_loadable_as_prompts() -> None:
