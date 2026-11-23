@@ -85,3 +85,21 @@ def test_links_in_the_answer_are_defanged() -> None:
 def test_two_citations_in_a_row_both_survive_the_sanitiser() -> None:
     answer = assemble("Both agree [T1][T2].", [call(1), call(2)])
     assert answer.markdown == "Both agree [T1] [T2]." and [citation.code for citation in answer.citations] == ["T1", "T2"]
+
+
+# ── Diagrams (spec 36, AC-3): the stored answer carries the same marker the streamed paragraphs did ──
+
+
+def test_a_diagram_that_fails_the_check_is_withheld_in_the_finished_answer_and_a_good_one_is_kept() -> None:
+    raw = "Calls [T1].\n\n```mermaid\nflowchart LR\n  A --> B\n```\n\n```mermaid\nflowchart LR\n  A[see https://example.com] --> B\n```\n<<follow-ups>>\nWhat next?"
+    answer = assemble(raw, [call(1)])
+    assert "```mermaid\nflowchart LR\n  A --> B\n```" in answer.markdown and "```mermaid-withheld:link\n" in answer.markdown
+    assert answer.follow_ups == ("What next?",)
+
+
+def test_the_diagram_limits_come_from_the_settings(monkeypatch) -> None:
+    from keigan.config.settings import get_settings
+
+    monkeypatch.setattr(get_settings(), "ask_keigan_diagram_maximum_lines", 10)
+    long_diagram = "```mermaid\nflowchart LR\n" + "  A --> B\n" * 11 + "```"
+    assert "```mermaid-withheld:too_many_lines\n" in assemble(long_diagram, [call(1)]).markdown

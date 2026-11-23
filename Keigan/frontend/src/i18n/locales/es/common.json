@@ -93,6 +93,25 @@
   "markdown": {
     "copyCode": "Copiar código"
   },
+  "mermaid": {
+    "drawing": "Dibujando el diagrama…",
+    "failed": "No se pudo dibujar este diagrama. Este es su código.",
+    "label": "Diagrama ({{kind}})",
+    "illustration": "Dibujado por la IA de Keigan a partir de esta respuesta. Compruébalo con las fuentes citadas.",
+    "showSource": "Ver código",
+    "withheld": {
+      "other": "Este diagrama no se dibujó. Este es su código.",
+      "empty": "Este diagrama no se dibujó porque está vacío.",
+      "too_long": "Este diagrama no se dibujó porque es demasiado largo.",
+      "too_many_lines": "Este diagrama no se dibujó porque tiene demasiadas líneas.",
+      "unknown_type": "Este diagrama no se dibujó porque su tipo no es compatible.",
+      "directive": "Este diagrama no se dibujó porque intenta cambiar cómo se dibujan los diagramas.",
+      "interaction": "Este diagrama no se dibujó porque contiene partes en las que se puede hacer clic.",
+      "link": "Este diagrama no se dibujó porque contiene un enlace.",
+      "html": "Este diagrama no se dibujó porque contiene marcado.",
+      "math": "Este diagrama no se dibujó porque contiene una fórmula."
+    }
+  },
   "ai": {
     "keigan": "Keigan",
     "generatedBy": "Generado por Keigan",

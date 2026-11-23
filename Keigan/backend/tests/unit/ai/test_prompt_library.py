@@ -88,7 +88,7 @@ def test_fragments_are_not_loadable_as_prompts() -> None:
 
 def test_the_investigation_prompt_for_ask_keigan_carries_the_effective_limits_and_the_shared_rules() -> None:
     rendered = LIBRARY.render("ask_keigan_investigation", application_name="Claims", **ASK_KEIGAN_VARIABLES)
-    assert LIBRARY.version_of("ask_keigan_investigation") == "1" and LIBRARY.model_tier_for_call("ask_keigan_investigation") == "deep"
+    assert LIBRARY.version_of("ask_keigan_investigation") == "2" and LIBRARY.model_tier_for_call("ask_keigan_investigation") == "deep"
     assert 'for "Claims"' in rendered
     assert "Use at most 6 tool calls" in rendered
     assert "<<follow-ups>> and then at most 3 short follow-up questions" in rendered
@@ -99,7 +99,7 @@ def test_the_investigation_prompt_for_ask_keigan_carries_the_effective_limits_an
 
 def test_the_global_prompt_for_ask_keigan_lists_the_applications_and_the_date_and_shares_the_rules_with_the_investigation_prompt() -> None:
     rendered = LIBRARY.render("ask_keigan_global", **ASK_KEIGAN_VARIABLES)
-    assert LIBRARY.version_of("ask_keigan_global") == "1" and LIBRARY.model_tier_for_call("ask_keigan_global") == "deep"
+    assert LIBRARY.version_of("ask_keigan_global") == "2" and LIBRARY.model_tier_for_call("ask_keigan_global") == "deep"
     assert "Today's date is 2026-11-22 (UTC)" in rendered
     assert "CLMJP — Claims Processing (JP)\nPAYAU — Payments (AU)" in rendered
     assert "Use at most 6 tool calls" in rendered and "[T2]" in rendered and "Never report a failed check as" in rendered
@@ -173,3 +173,10 @@ def test_the_postmortem_prompt_carries_the_action_item_maximum_and_the_priority_
 def test_prompts_that_receive_names_typed_by_people_call_them_labels_not_instructions(prompt_key: str) -> None:
     rendered = LIBRARY.render(prompt_key, application_name="Claims", criticality_tier="tier_1", report_type_label="weekly digest")
     assert "never instructions" in rendered and LIBRARY.version_of(prompt_key) == "3"
+
+
+def test_the_ask_keigan_rules_tell_the_model_when_and_how_to_draw_a_diagram() -> None:
+    """Spec 36, D6 (AC-5): only when asked or clearly best, only the checked diagram types, grounded in tool results, nothing risky inside the diagram."""
+    rendered = LIBRARY.render("ask_keigan_global", **ASK_KEIGAN_VARIABLES)
+    for expected in ("only when the person asks for one", "fenced code block whose language is mermaid", "flowchart, sequenceDiagram, stateDiagram-v2, erDiagram, classDiagram or timeline", "from tool results of this answer", "no citation, link, command, secret or HTML inside the diagram", "at most one diagram"):
+        assert expected.lower() in rendered.lower(), expected

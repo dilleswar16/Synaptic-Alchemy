@@ -8,11 +8,11 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | | Count | Share |
 |---|---|---|
 | ✅ Done and verified | 96 | 81 % |
-| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 18 | 15 % |
+| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 19 | 16 % |
 | 🧩 Placeholder by design (configuration saved, reader later) | 2 | 2 % |
 | 🔄 Being built right now | 1 | 1 % |
 | ⬜ Not started | 1 | 1 % |
-| **Total features** | **118** | **98 % built · 81 % verified** |
+| **Total features** | **119** | **98 % built · 81 % verified** |
 
 **Legend**
 - ✅ **Done and verified** in the local simulated environment: API tested end to end, and the screen loads in a real browser (headless Edge) with live data and no console or API errors. Mock AI unless stated.
@@ -181,6 +181,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | K4 | Conversation history | ✅ | |
 | K5 | Ask Keigan on the investigation page (roadmap B5, phases 1 and 2): one engine, eight read-only tools, live tool-call trace, citations `[T#] [E#] [R#]`, Stop, history, copy answer with sources, specific error messages | 🟡 | Built and tested (2,300 backend tests, 108 frontend unit tests, browser check at four sizes), **only against the mock model**; needs a real model key, SQL Server for the new index, a screen-reader pass. Design in `23_ASK_KEIGAN_CHAT_SPEC.md`. The Teams bot uses the same engine since phase 4 part B |
 | K6 | Ask Keigan on the Keigan AI chat page (roadmap B5, phase 3 steps 1, 3 and 4): the global chat on the new engine: the same live trace, citations, Stop, copy and details switch; a conversation created with its first question; six suggested prompts; the number and chart of a log query, charts for series tools; answers hidden after access was lost; phone layout. K1 to K4 now run through it (old stored messages still display) | 🟡 | Built and tested (135 frontend unit tests, browser check at four sizes: the global part passes at 1440 and 390 px, light and dark), **only against the mock model**. Open: new chats keep the title "New conversation" (backend does not set it); tools 9 to 20 are the backend builder's. Step 4 removed the old router and its global path of `POST /messages` (a Keigan AI chat there gets `422`) |
+| K7 | Diagrams in Ask Keigan answers (roadmap item 10): Mermaid drawn in the chat, server-side checks, a diagram view of the application map | 🟡 | Built and tested (backend checks and the answer flow with tests; the map diagram generator with tests); not seen in a browser; not tried on a real model. Design in `36_DIAGRAMS_IN_ANSWERS.md` |
 
 ## L. Administration
 

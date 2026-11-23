@@ -67,3 +67,16 @@ def test_an_empty_stream_gives_nothing() -> None:
 
 def test_adjacent_citations_survive_the_sanitiser_as_two_citations() -> None:
     assert stream(["Both agree [T1][T2]." + chr(10) * 2], frozenset({"T1", "T2"})) == ["Both agree [T1] [T2]."]
+
+
+# ── Diagrams (spec 36, AC-3) ─────────────────────────────────────────────────────────────────────
+
+
+def test_a_diagram_is_released_whole_with_its_blank_lines_and_a_bad_one_is_marked_withheld() -> None:
+    good = "```mermaid\nflowchart LR\n  A --> B\n\n  B --> C\n```"
+    bad = "```mermaid\nflowchart LR\n  A --> B\n  click A href \"x\"\n```"
+    assert stream(["Flow:\n\n", good[:20], good[20:], "\n\nThen:\n\n", bad, "\n\nEnd."]) == ["Flow:", good, "Then:", bad.replace("```mermaid\n", "```mermaid-withheld:interaction\n", 1), "End."]
+
+
+def test_a_diagram_still_open_when_the_model_stops_is_judged_like_a_closed_one() -> None:
+    assert stream(["Flow:\n\n```mermaid\nflowchart LR\n  A[<script>x</script>] --> B"]) == ["Flow:", "```mermaid-withheld:html\nflowchart LR\n  A[<script>x</script>] --> B\n```"]  # the sanitiser closes the fence on a line of its own

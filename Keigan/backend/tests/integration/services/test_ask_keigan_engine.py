@@ -206,7 +206,7 @@ async def test_the_run_stores_what_is_needed_to_reproduce_it(seeded: Seeded) -> 
     gateway = ScriptedGateway([answer_turn("Done.")])
     finished = await run_with(seeded, "Hello?", gateway)
     run = finished.run
-    assert (run.prompt_key, run.prompt_version, run.model_tier, run.provider_name, run.conversation_scope, run.investigation_id) == ("ask_keigan_investigation", "1", "deep", "mock", "investigation", seeded.investigation_id)
+    assert (run.prompt_key, run.prompt_version, run.model_tier, run.provider_name, run.conversation_scope, run.investigation_id) == ("ask_keigan_investigation", "2", "deep", "mock", "investigation", seeded.investigation_id)
     assert re.fullmatch(r"[0-9a-f]{64}", run.system_prompt_sha256) and re.fullmatch(r"[0-9a-f]{64}", run.tool_catalog_sha256)
     assert {tool["name"] for tool in run.offered_tools_json} == INVESTIGATION_TOOL_NAMES
     assert run.limits_json["maximumToolCalls"] == get_settings().ask_keigan_max_tool_calls_investigation and run.limits_json["answerTokenBudget"] == get_settings().ask_keigan_answer_token_budget
@@ -714,3 +714,15 @@ async def test_a_live_answer_refreshes_its_progress_while_the_model_works_and_st
     beats_at_the_end = beats
     await asyncio.sleep(0.05)
     assert beats == beats_at_the_end  # the heartbeat does not outlive the answer
+
+
+# ── Diagrams (spec 36, AC-3) ─────────────────────────────────────────────────────────────────────────────────────────────────
+async def test_a_bad_diagram_is_withheld_in_the_streamed_text_and_in_the_stored_answer_and_a_good_one_is_kept(seeded: Seeded) -> None:
+    good = "```mermaid\nflowchart LR\n  A[API] --> B[(Database)]\n```"
+    bad = "```mermaid\nflowchart LR\n  A --> B\n  click A href \"x\"\n```"
+    gateway = ScriptedGateway([Turn(requests=(evidence_call(),)), answer_turn(f"The flow:\n\n{good}\n\nWhich failed [T1].\n\n{bad}\n\nDone.")])
+    finished = await run_with(seeded, "Draw the flow and show evidence E1", gateway)
+    (answer,) = finished.assistant_messages
+    assert good in answer.message_text and "```mermaid-withheld:interaction\n" in answer.message_text and "```mermaid\nflowchart LR\n  A --> B\n  click" not in answer.message_text
+    streamed = "\n\n".join(event.data["text"] for event in finished.of(AnswerEventName.ANSWER_TEXT) if event.data["turnNumber"] == 2)
+    assert good in streamed and "```mermaid-withheld:interaction\n" in streamed

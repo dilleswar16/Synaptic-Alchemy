@@ -104,7 +104,9 @@
       "edge": "{{source}} → {{target}}",
       "version": "Versión {{version}}",
       "review": "Revisión: {{status}}",
-      "uncertainties": "Sin certeza sobre"
+      "uncertainties": "Sin certeza sobre",
+      "diagram": "Ver como diagrama",
+      "diagramCaption": "Dibujado por código a partir de este mapa de la aplicación. Se omite toda conexión con un componente que el mapa no lista aquí."
     },
     "passages": {
       "match": "Coincidencia {{percentage}}"

@@ -104,7 +104,9 @@
       "edge": "{{source}} → {{target}}",
       "version": "Versie {{version}}",
       "review": "Beoordeling: {{status}}",
-      "uncertainties": "Onzeker over"
+      "uncertainties": "Onzeker over",
+      "diagram": "Als diagram tonen",
+      "diagramCaption": "Door code getekend op basis van deze applicatiekaart. Een verbinding met een component dat de kaart hier niet toont, is weggelaten."
     },
     "passages": {
       "match": "Overeenkomst {{percentage}}"

@@ -93,6 +93,25 @@
   "markdown": {
     "copyCode": "复制代码"
   },
+  "mermaid": {
+    "drawing": "正在绘制图表…",
+    "failed": "无法绘制此图表。以下是它的源码。",
+    "label": "图表（{{kind}}）",
+    "illustration": "由 Keigan 的 AI 根据此回答绘制。请对照所引用的来源核实。",
+    "showSource": "显示源码",
+    "withheld": {
+      "other": "此图表未绘制。以下是它的源码。",
+      "empty": "此图表为空，因此未绘制。",
+      "too_long": "此图表过长，因此未绘制。",
+      "too_many_lines": "此图表行数过多，因此未绘制。",
+      "unknown_type": "此图表的类型不受支持，因此未绘制。",
+      "directive": "此图表试图更改图表的绘制方式，因此未绘制。",
+      "interaction": "此图表包含可点击的部分，因此未绘制。",
+      "link": "此图表包含链接，因此未绘制。",
+      "html": "此图表包含标记代码，因此未绘制。",
+      "math": "此图表包含公式，因此未绘制。"
+    }
+  },
   "ai": {
     "keigan": "Keigan",
     "generatedBy": "由 Keigan 生成",

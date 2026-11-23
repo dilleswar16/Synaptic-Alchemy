@@ -104,7 +104,9 @@
       "edge": "{{source}} → {{target}}",
       "version": "Version {{version}}",
       "review": "Review: {{status}}",
-      "uncertainties": "Not certain about"
+      "uncertainties": "Not certain about",
+      "diagram": "Show as a diagram",
+      "diagramCaption": "Drawn by code from this application map. A connection to a component the map does not list here is left out."
     },
     "passages": {
       "match": "Match {{percentage}}"

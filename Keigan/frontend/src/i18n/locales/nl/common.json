@@ -93,6 +93,25 @@
   "markdown": {
     "copyCode": "Code kopiëren"
   },
+  "mermaid": {
+    "drawing": "Diagram wordt getekend…",
+    "failed": "Dit diagram kon niet worden getekend. Hier is de bron.",
+    "label": "Diagram ({{kind}})",
+    "illustration": "Door de AI van Keigan getekend op basis van dit antwoord. Controleer het aan de hand van de genoemde bronnen.",
+    "showSource": "Bron tonen",
+    "withheld": {
+      "other": "Dit diagram is niet getekend. Hier is de bron.",
+      "empty": "Dit diagram is niet getekend omdat het leeg is.",
+      "too_long": "Dit diagram is niet getekend omdat het te lang is.",
+      "too_many_lines": "Dit diagram is niet getekend omdat het te veel regels heeft.",
+      "unknown_type": "Dit diagram is niet getekend omdat het type niet wordt ondersteund.",
+      "directive": "Dit diagram is niet getekend omdat het probeert te veranderen hoe diagrammen worden getekend.",
+      "interaction": "Dit diagram is niet getekend omdat het aanklikbare onderdelen bevat.",
+      "link": "Dit diagram is niet getekend omdat het een link bevat.",
+      "html": "Dit diagram is niet getekend omdat het opmaakcode bevat.",
+      "math": "Dit diagram is niet getekend omdat het een formule bevat."
+    }
+  },
   "ai": {
     "keigan": "Keigan",
     "generatedBy": "Gegenereerd door Keigan",

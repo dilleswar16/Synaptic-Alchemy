@@ -104,7 +104,9 @@
       "edge": "{{source}} → {{target}}",
       "version": "Version {{version}}",
       "review": "Revue : {{status}}",
-      "uncertainties": "Points incertains"
+      "uncertainties": "Points incertains",
+      "diagram": "Afficher en schéma",
+      "diagramCaption": "Dessiné par du code à partir de cette carte de l'application. Une connexion vers un composant que la carte ne liste pas ici est omise."
     },
     "passages": {
       "match": "Correspondance {{percentage}}"

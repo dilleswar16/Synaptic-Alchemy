@@ -146,3 +146,9 @@ class TestSanitizeAiModel:
         assert "](https://evil.example" not in cleaned.model_dump_json()
         assert cleaned.summary == "s i"
         assert cleaned.action_items[0].due_in_days == 14
+
+
+def test_a_code_fence_left_open_at_the_end_is_closed_on_a_line_of_its_own() -> None:
+    """The closing fence used to be glued to the last code line (``... --> B```), which is not a fence and would reach the screen as part of the code (spec 36)."""
+    assert sanitize_ai_markdown("Text\n\n```mermaid\nflowchart LR\n  A --> B") == "Text\n\n```mermaid\nflowchart LR\n  A --> B\n```"
+    assert sanitize_ai_markdown("```text\none\n```") == "```text\none\n```"

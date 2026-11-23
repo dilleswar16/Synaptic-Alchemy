@@ -1,8 +1,10 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/Badge";
 import { MarkdownView } from "@/components/ui/MarkdownView";
+import { MermaidDiagram } from "@/components/ui/MermaidDiagram";
 import { formatList } from "@/utils/formatters";
+import { graphToMermaid } from "./graphDiagram";
 import { readGraphModel, type GraphEdge, type GraphModel, type GraphNode } from "./toolOutputModels";
 import { formatEnumToken } from "./toolValues";
 
@@ -66,16 +68,30 @@ function GraphMeta({ graph }: { graph: GraphModel }) {
   );
 }
 
-/** The application map as two lists, components and connections, with the notes the map was built with. Everything is text. */
+/** The map as a picture, drawn by code from the map's own components and connections (spec 36, D7). It is drawn only once opened. */
+function GraphDiagram({ source }: { source: string }) {
+  const { t } = useTranslation("chat");
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <details className="text-body-sm" onToggle={(event) => setIsOpen(event.currentTarget.open)}>
+      <summary className="cursor-pointer text-muted hover:text-default">{t("tool.graph.diagram")}</summary>
+      {isOpen ? <MermaidDiagram source={source} caption={t("tool.graph.diagramCaption")} /> : null}
+    </details>
+  );
+}
+
+/** The application map as two lists, components and connections, with the notes the map was built with, and a picture of it when there are not too many components. */
 export function GraphOutput({ output }: { output: Record<string, unknown> }) {
   const { t } = useTranslation("chat");
   const graph = readGraphModel(output);
   if (!graph || (graph.nodes.length === 0 && graph.edges.length === 0 && !graph.summaryMarkdown)) {
     return null;
   }
+  const diagramSource = graphToMermaid(graph);
   return (
     <div className="flex flex-col gap-3">
       <GraphMeta graph={graph} />
+      {diagramSource ? <GraphDiagram source={diagramSource} /> : null}
       {graph.nodes.length > 0 ? (
         <GraphList heading={t("tool.graph.nodes")} shown={graph.nodeCount} total={graph.totalNodeCount}>
           {graph.nodes.map((node) => <NodeItem key={node.key} node={node} />)}

@@ -6,10 +6,10 @@ import re
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 
-from keigan.ai.ask_keigan_answer_format import is_fixed_refusal, separate_adjacent_citations
+from keigan.ai.ask_keigan_answer_cleaning import clean_answer_markdown
+from keigan.ai.ask_keigan_answer_format import is_fixed_refusal
 from keigan.ai.ask_keigan_follow_ups import split_follow_ups
-from keigan.ai.output_sanitizer import sanitize_ai_markdown
-from keigan.ai.prompt_safety import find_citation_codes, remove_invalid_citations
+from keigan.ai.prompt_safety import find_citation_codes
 from keigan.entities.status_values import ChatRunStepStatus
 from keigan.services.ask_keigan_run_state import AnswerCitation, ExecutedToolCall
 
@@ -37,7 +37,7 @@ def build_citation_targets(reference_citations: Mapping[str, AnswerCitation], ac
 
 def assemble_answer(model_text: str, citation_targets: Mapping[str, AnswerCitation], *, tool_call_count: int, follow_up_limit: int) -> AssembledAnswer:
     follow_up_split = split_follow_ups(model_text, follow_up_limit)
-    markdown = sanitize_ai_markdown(separate_adjacent_citations(remove_invalid_citations(follow_up_split.answer_text, set(citation_targets))))
+    markdown = clean_answer_markdown(follow_up_split.answer_text, citation_targets)
     cited_codes = sorted(find_citation_codes(markdown), key=_code_order)
     is_refusal = is_fixed_refusal(markdown)
     return AssembledAnswer(

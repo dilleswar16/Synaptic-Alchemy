@@ -288,6 +288,8 @@ class Settings(BaseSettings):
     ask_keigan_progress_heartbeat_seconds: int = Field(default=15, ge=5, le=300)  # how often a live answer refreshes its last_progress_at; the stale limit must be at least 3 beats
     ask_keigan_answer_token_budget: int = Field(default=80_000, ge=5000, le=1_000_000)  # input plus output tokens across all turns of one answer
     ask_keigan_tool_output_model_characters: int = Field(default=6000, ge=500, le=50_000)  # characters of one tool result sent to the model
+    ask_keigan_diagram_maximum_characters: int = Field(default=6000, ge=500, le=20_000)  # longest Mermaid diagram an answer may carry; a longer one is shown as code, not drawn
+    ask_keigan_diagram_maximum_lines: int = Field(default=120, ge=10, le=500)  # most lines of one Mermaid diagram; more is shown as code, not drawn
     ask_keigan_tool_output_stored_characters: int = Field(default=60_000, ge=1000, le=1_000_000)  # characters of one tool output stored as "full output"
     ask_keigan_tool_output_preview_characters: int = Field(default=1500, ge=200, le=10_000)  # characters of output sent live to the browser
     ask_keigan_tool_list_item_limit: int = Field(default=20, ge=1, le=200)  # items a list tool returns

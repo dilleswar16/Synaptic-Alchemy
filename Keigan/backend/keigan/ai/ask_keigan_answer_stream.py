@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import re
 
-from keigan.ai.ask_keigan_answer_format import FOLLOW_UP_MARKER, separate_adjacent_citations
-from keigan.ai.output_sanitizer import sanitize_ai_markdown
-from keigan.ai.prompt_safety import remove_invalid_citations
+from keigan.ai.ask_keigan_answer_cleaning import clean_answer_markdown
+from keigan.ai.ask_keigan_answer_format import FOLLOW_UP_MARKER
 
 _PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n")
 _FENCE_LINE = re.compile(r"^\s*(?:```|~~~)", re.MULTILINE)
@@ -60,5 +59,5 @@ class AnswerTextStreamer:
         return kept_paragraphs
 
     def _clean(self, paragraphs: list[str]) -> list[str]:
-        cleaned_paragraphs = (sanitize_ai_markdown(separate_adjacent_citations(remove_invalid_citations(paragraph, self._valid_citation_codes))) for paragraph in paragraphs)
+        cleaned_paragraphs = (clean_answer_markdown(paragraph, self._valid_citation_codes) for paragraph in paragraphs)
         return [paragraph for paragraph in cleaned_paragraphs if paragraph.strip()]

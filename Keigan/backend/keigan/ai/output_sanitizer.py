@@ -122,7 +122,8 @@ class _Serializer:
     def _render_leaf_block(self, token: Token) -> str | None:
         if token.type == "fence":
             fence_markup = token.markup or "```"
-            return f"{fence_markup}{token.info}\n{token.content}{fence_markup}"
+            closing_line_start = "" if token.content.endswith("\n") or not token.content else "\n"  # a fence left open at the end of the text has no final newline: the closing fence must still start a line
+            return f"{fence_markup}{token.info}\n{token.content}{closing_line_start}{fence_markup}"
         if token.type == "code_block":
             return "\n".join(f"    {line}" if line else "" for line in token.content.rstrip("\n").split("\n"))
         if token.type == "hr":

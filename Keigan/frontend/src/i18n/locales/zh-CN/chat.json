@@ -101,7 +101,9 @@
       "edge": "{{source}} → {{target}}",
       "version": "版本 {{version}}",
       "review": "评审：{{status}}",
-      "uncertainties": "不确定之处"
+      "uncertainties": "不确定之处",
+      "diagram": "以图表显示",
+      "diagramCaption": "由代码根据此应用地图绘制。地图中未在此列出的组件的连接已省略。"
     },
     "passages": {
       "match": "匹配度 {{percentage}}"

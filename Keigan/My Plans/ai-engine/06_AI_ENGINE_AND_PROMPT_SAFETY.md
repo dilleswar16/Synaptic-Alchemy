@@ -271,3 +271,10 @@ Observations not acted on:
 - `evidence_query_planner` and `topology_builder` use the deep tier and are the longest structured outputs: the first thing to measure on a real model is the structured-output failure rate (the gateway retries once).
 - `teams_chat_digest` writes facts in English whatever the chat language (a design choice recorded in its text); the timeline therefore mixes languages if the incident UI is Japanese.
 - Each prompt's numbers that come from settings are rendered as variables (`maximum_action_items`, thresholds); no prompt hard-codes a limit that a setting also holds, except the 'three queries' of the evidence planner and 'two to four sentences' style limits, which are wording rather than limits the code enforces.
+
+
+---
+
+## Diagrams in Ask Keigan answers, 2026-11-23 (spec 36)
+
+An answer may carry a fenced `mermaid` block. Control, in order: (1) the prompt rules (`_ask_keigan_rules.md`, `ask_keigan_global` and `ask_keigan_investigation` version 2): draw only when asked or clearly best, only the allowed types, names from tool results, nothing risky inside; (2) `keigan/ai/mermaid_diagram_check.py` on every released paragraph and on the finished answer (`ask_keigan_answer_cleaning.clean_answer_markdown`): a diagram that fails is rewritten to `mermaid-withheld:<problem>` and the screen shows its source with the reason; refused: configuration directives (`%%{`, front matter), `click`/`link`/`callback`, `href`, `javascript:`, URLs, HTML (except `<br>`), `$$` formulas, unknown types, over `ASK_KEIGAN_DIAGRAM_MAXIMUM_CHARACTERS` or `..._LINES`; (3) the browser draws in Mermaid's strict level with HTML labels off. The diagram is captioned as an illustration: a picture looks more certain than the text, and its connections are not checked against the cited results.

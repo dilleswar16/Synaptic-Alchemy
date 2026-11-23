@@ -93,6 +93,25 @@
   "markdown": {
     "copyCode": "Copier le code"
   },
+  "mermaid": {
+    "drawing": "Dessin du schéma…",
+    "failed": "Ce schéma n'a pas pu être dessiné. Voici sa source.",
+    "label": "Schéma ({{kind}})",
+    "illustration": "Dessiné par l'IA de Keigan à partir de cette réponse. Vérifiez-le avec les sources citées.",
+    "showSource": "Afficher la source",
+    "withheld": {
+      "other": "Ce schéma n'a pas été dessiné. Voici sa source.",
+      "empty": "Ce schéma n'a pas été dessiné car il est vide.",
+      "too_long": "Ce schéma n'a pas été dessiné car il est trop long.",
+      "too_many_lines": "Ce schéma n'a pas été dessiné car il a trop de lignes.",
+      "unknown_type": "Ce schéma n'a pas été dessiné car son type n'est pas pris en charge.",
+      "directive": "Ce schéma n'a pas été dessiné car il cherche à modifier la façon dont les schémas sont dessinés.",
+      "interaction": "Ce schéma n'a pas été dessiné car il contient des éléments cliquables.",
+      "link": "Ce schéma n'a pas été dessiné car il contient un lien.",
+      "html": "Ce schéma n'a pas été dessiné car il contient du balisage.",
+      "math": "Ce schéma n'a pas été dessiné car il contient une formule."
+    }
+  },
   "ai": {
     "keigan": "Keigan",
     "generatedBy": "Généré par Keigan",

@@ -101,7 +101,9 @@
       "edge": "{{source}} → {{target}}",
       "version": "バージョン {{version}}",
       "review": "レビュー: {{status}}",
-      "uncertainties": "確信が持てない点"
+      "uncertainties": "確信が持てない点",
+      "diagram": "図で表示",
+      "diagramCaption": "このアプリケーションマップからコードが描いた図です。ここに表示されていないコンポーネントへの接続は省略されています。"
     },
     "passages": {
       "match": "一致度 {{percentage}}"

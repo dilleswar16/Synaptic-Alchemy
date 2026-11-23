@@ -8,6 +8,7 @@ import { cn } from "@/utils/cn";
 import { splitCitationCodes } from "@/utils/citationCodes";
 import { allowedLinkUrl } from "@/utils/linkSafety";
 import { CopyButton } from "./CopyButton";
+import { MermaidDiagram, WithheldDiagram } from "./MermaidDiagram";
 
 export interface MarkdownViewProps {
   content: string;
@@ -25,6 +26,17 @@ interface HastNode {
   type: string;
   value?: string;
   children?: HastNode[];
+  properties?: { className?: unknown };
+}
+
+const mermaidLanguage = "mermaid";
+const withheldMermaidPrefix = "mermaid-withheld:";
+
+/** The language of a fenced block: the `language-…` class react-markdown puts on the `code` element inside the `pre`. */
+function languageOfBlock(node: HastNode | undefined): string | null {
+  const classNames = node?.children?.[0]?.properties?.className;
+  const languageClass = Array.isArray(classNames) ? classNames.find((name): name is string => typeof name === "string" && name.startsWith("language-")) : undefined;
+  return languageClass ? languageClass.slice("language-".length) : null;
 }
 
 function textOfNode(node: HastNode | undefined): string {
@@ -40,6 +52,9 @@ function textOfNode(node: HastNode | undefined): string {
 function CodeBlock({ node, children }: ComponentProps<"pre"> & { node?: HastNode }) {
   const { t } = useTranslation("common");
   const codeText = textOfNode(node).replace(/\n$/, "");
+  const language = languageOfBlock(node);
+  if (language === mermaidLanguage) return <MermaidDiagram source={codeText} />;
+  if (language?.startsWith(withheldMermaidPrefix)) return <WithheldDiagram source={codeText} reason={language.slice(withheldMermaidPrefix.length)} />;
   return (
     <div className="keigan-prose-code-block flex items-start overflow-hidden rounded-md border border-white/10 bg-code-surface">
       <pre tabIndex={0} className="min-w-0 flex-1 overflow-x-auto px-4 py-3.5 font-mono text-code whitespace-pre text-on-code">
