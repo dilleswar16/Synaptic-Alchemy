@@ -58,7 +58,13 @@
       "duration": "Durée",
       "feedback": "Votre avis"
     },
-    "seenBefore": "Déjà vu : {{count}}"
+    "seenBefore": "Déjà vu : {{count}}",
+    "keiganHelp": {
+      "found_cause": "Keigan a trouvé la cause",
+      "helped_partly": "Keigan a aidé en partie",
+      "did_not_help": "Keigan n'a pas aidé",
+      "not_used": "Keigan non utilisé"
+    }
   },
   "feedback": {
     "title": "Cette cause racine était-elle la bonne ?",
@@ -435,7 +441,25 @@
     "confirm": "Résoudre l'incident",
     "resolvedTitle": "Incident résolu",
     "postmortemStarted": "Le post-mortem est en cours de rédaction.",
-    "failed": "Impossible de résoudre l'incident"
+    "failed": "Impossible de résoudre l'incident",
+    "keiganHelp": {
+      "label": "Comment l'analyse de Keigan a-t-elle aidé ?",
+      "help": "Facultatif. Votre réponse s'affiche sur l'incident et dans les métriques de fiabilité. C'est votre jugement : Keigan ne résout jamais un incident lui-même.",
+      "helpWithRating": "Facultatif. Suggérée d'après votre évaluation de l'analyse ; modifiez-la si elle n'est pas juste. Elle s'affiche sur l'incident et dans les métriques de fiabilité.",
+      "answer": {
+        "found_cause": "Elle a trouvé la cause",
+        "helped_partly": "Elle a aidé en partie",
+        "did_not_help": "Elle n'a pas aidé",
+        "not_used": "Elle n'a pas été utilisée",
+        "none": "Ne pas enregistrer de réponse"
+      },
+      "description": {
+        "found_cause": "L'analyse a désigné ce qui n'allait pas.",
+        "helped_partly": "Une partie était utile, le reste a été trouvé par l'équipe.",
+        "did_not_help": "L'analyse était fausse ou a manqué la cause.",
+        "not_used": "L'incident a été résolu sans l'analyse."
+      }
+    }
   },
   "chat": {
     "open": "Demander à Keigan",

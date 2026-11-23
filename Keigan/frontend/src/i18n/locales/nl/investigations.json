@@ -58,7 +58,13 @@
       "duration": "Duur",
       "feedback": "Uw oordeel"
     },
-    "seenBefore": "Eerder gezien: {{count}}"
+    "seenBefore": "Eerder gezien: {{count}}",
+    "keiganHelp": {
+      "found_cause": "Keigan vond de oorzaak",
+      "helped_partly": "Keigan hielp gedeeltelijk",
+      "did_not_help": "Keigan hielp niet",
+      "not_used": "Keigan niet gebruikt"
+    }
   },
   "feedback": {
     "title": "Klopte deze hoofdoorzaak?",
@@ -435,7 +441,25 @@
     "confirm": "Incident oplossen",
     "resolvedTitle": "Incident opgelost",
     "postmortemStarted": "De postmortem wordt geschreven.",
-    "failed": "Het incident kon niet worden opgelost"
+    "failed": "Het incident kon niet worden opgelost",
+    "keiganHelp": {
+      "label": "Hoe heeft de analyse van Keigan geholpen?",
+      "help": "Optioneel. Uw antwoord staat bij het incident en in de betrouwbaarheidsmetrieken. Het is uw oordeel: Keigan lost zelf nooit incidenten op.",
+      "helpWithRating": "Optioneel. Voorgesteld op basis van uw beoordeling van de analyse; pas het aan als het niet klopt. Het staat bij het incident en in de betrouwbaarheidsmetrieken.",
+      "answer": {
+        "found_cause": "Ze vond de oorzaak",
+        "helped_partly": "Ze hielp gedeeltelijk",
+        "did_not_help": "Ze hielp niet",
+        "not_used": "Ze is niet gebruikt",
+        "none": "Geen antwoord vastleggen"
+      },
+      "description": {
+        "found_cause": "De analyse wees aan wat er mis was.",
+        "helped_partly": "Een deel was nuttig, de rest vond het team zelf.",
+        "did_not_help": "De analyse was onjuist of miste de oorzaak.",
+        "not_used": "Het incident is opgelost zonder de analyse."
+      }
+    }
   },
   "chat": {
     "open": "Vraag het Keigan",

@@ -88,6 +88,7 @@ function Content({ overview }: { overview: MetricsOverview }) {
       <IncidentSection overview={overview} />
       <InvestigationSection summary={overview.summary} />
       <MemorySection summary={overview.summary} />
+      <KeiganHelpSection summary={overview.summary} />
       <AiUsageSection summary={overview.summary} />
       <TrendSection overview={overview} />
       <ApplicationSection applications={overview.applications} />
@@ -214,6 +215,46 @@ function MemorySection({ summary }: { summary: MetricsSummary }) {
         />
         <StatTile icon={EyeOff} iconTone="warning" label={t("memory.hiddenLabel")} value={formatCount(memory.hiddenEntryCount)} secondaryText={t("memory.hiddenDetail")} />
       </div>
+    </section>
+  );
+}
+
+function KeiganHelpSection({ summary }: { summary: MetricsSummary }) {
+  const { t } = useTranslation("metrics");
+  const { keiganHelp } = summary;
+  if (keiganHelp.answeredCount === 0) return null;
+  const found = keiganHelp.answers.find((row) => row.answer === "found_cause")?.count ?? 0;
+  return (
+    <section aria-labelledby="metrics-keigan-help" className="flex flex-col gap-4">
+      <SectionHeader level={3} id="metrics-keigan-help" title={t("sections.keiganHelp.title")} description={t("sections.keiganHelp.description")} />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile
+          icon={ThumbsUp}
+          iconTone="success"
+          label={t("keiganHelp.foundLabel")}
+          value={keiganHelp.shareFoundCause !== null ? formatPercentage(keiganHelp.shareFoundCause) : t("figure.none")}
+          secondaryText={
+            keiganHelp.shareFoundCause === null
+              ? t("keiganHelp.notEnough", { count: keiganHelp.answeredCount, minimum: keiganHelp.minimumSample })
+              : t("keiganHelp.foundDetail", { found, answered: keiganHelp.answeredCount, resolved: keiganHelp.resolvedCount })
+          }
+        />
+        <StatTile
+          icon={Timer}
+          iconTone="brand"
+          label={t("keiganHelp.withLabel")}
+          value={keiganHelp.timeToResolveWithHelp.sampleCount > 0 ? formatSeconds(keiganHelp.timeToResolveWithHelp.median) : t("figure.none")}
+          secondaryText={t("keiganHelp.withDetail", { count: keiganHelp.timeToResolveWithHelp.sampleCount })}
+        />
+        <StatTile
+          icon={Timer}
+          iconTone="neutral"
+          label={t("keiganHelp.withoutLabel")}
+          value={keiganHelp.timeToResolveWithoutHelp.sampleCount > 0 ? formatSeconds(keiganHelp.timeToResolveWithoutHelp.median) : t("figure.none")}
+          secondaryText={t("keiganHelp.withoutDetail", { count: keiganHelp.timeToResolveWithoutHelp.sampleCount })}
+        />
+      </div>
+      <p className="text-body-sm text-muted">{keiganHelp.answers.map((row) => `${t(`keiganHelp.answer.${row.answer}`)} ${formatCount(row.count)}`).join(" · ")}</p>
     </section>
   );
 }

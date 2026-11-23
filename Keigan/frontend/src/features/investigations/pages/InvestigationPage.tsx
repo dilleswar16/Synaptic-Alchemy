@@ -109,7 +109,7 @@ export default function InvestigationPage() {
         {showTeams && detail.incidentId ? <TabsContent value="teams"><TeamsRoomPanel incidentId={detail.incidentId} /></TabsContent> : null}
       </Tabs>
 
-      {detail.incidentId ? <ResolveDialog open={isResolveOpen} onOpenChange={setIsResolveOpen} incidentId={detail.incidentId} onResolved={() => setTab("postmortem")} /> : null}
+      {detail.incidentId ? <ResolveDialog open={isResolveOpen} onOpenChange={setIsResolveOpen} incidentId={detail.incidentId} onResolved={() => setTab("postmortem")} analysisVerdict={detail.userFeedbackVerdict} /> : null}
       <FeedbackDialog open={isFeedbackOpen} onOpenChange={setIsFeedbackOpen} investigationId={detail.investigationId} currentVerdict={detail.userFeedbackVerdict} />
       <InvestigationChatPanel investigationId={detail.investigationId} onSelectEvidence={selectEvidence} onSelectRunbook={selectRunbook} />
     </>

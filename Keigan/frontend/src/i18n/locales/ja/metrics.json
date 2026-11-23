@@ -59,6 +59,10 @@
     "memory": {
       "title": "過去インシデントの記憶",
       "description": "過去のインシデントが AI に渡された頻度、提案が関連していたかどうかの回答、非表示にされた件数です。"
+    },
+    "keiganHelp": {
+      "title": "Keigan の支援で解決",
+      "description": "インシデントを解決した担当者が、Keigan の分析がどこまで役立ったかを答えた結果です。測定値ではなく回答であり、回答のあったインシデントのみ集計します。"
     }
   },
   "notAvailable": {
@@ -194,5 +198,20 @@
     "relevantDetail": "{{answered}} 件の回答のうち {{relevant}} 件が関連ありでした",
     "hiddenLabel": "非表示にした過去インシデント",
     "hiddenDetail": "この期間にアプリケーション管理者が非表示にしたものです。"
+  },
+  "keiganHelp": {
+    "foundLabel": "「原因を特定した」と回答",
+    "notEnough": "回答がまだ足りません（必要 {{minimum}} 件中 {{count}} 件）",
+    "foundDetail": "回答 {{answered}} 件中 {{found}} 件（解決済み {{resolved}} 件）",
+    "withLabel": "Keigan の支援ありの解決時間",
+    "withDetail": "中央値。「原因を特定した」または「一部役に立った」と回答した {{count}} 件から算出。",
+    "withoutLabel": "支援なしの解決時間",
+    "withoutDetail": "中央値。「役に立たなかった」または「使わなかった」と回答した {{count}} 件から算出。",
+    "answer": {
+      "found_cause": "原因を特定",
+      "helped_partly": "一部役に立った",
+      "did_not_help": "役に立たなかった",
+      "not_used": "使わなかった"
+    }
   }
 }

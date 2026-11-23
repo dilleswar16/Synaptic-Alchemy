@@ -59,6 +59,10 @@
     "memory": {
       "title": "过往事件记忆",
       "description": "过往事件被提供给 AI 的频率、人们是否认为建议相关，以及被隐藏的数量。"
+    },
+    "keiganHelp": {
+      "title": "在 Keigan 帮助下解决",
+      "description": "解决事件的人对 Keigan 分析帮助程度的回答。这是他们的回答，不是测量值，只统计有回答的事件。"
     }
   },
   "notAvailable": {
@@ -194,5 +198,20 @@
     "relevantDetail": "{{answered}} 条回答中有 {{relevant}} 条认为相关",
     "hiddenLabel": "被隐藏的过往事件",
     "hiddenDetail": "本期间由应用管理员隐藏。"
+  },
+  "keiganHelp": {
+    "foundLabel": "回答 Keigan 找到了原因",
+    "notEnough": "回答还不够（需要 {{minimum}} 个，现有 {{count}} 个）",
+    "foundDetail": "{{answered}} 个回答中的 {{found}} 个（已解决 {{resolved}} 个事件）",
+    "withLabel": "有 Keigan 帮助的解决时间",
+    "withDetail": "中位数，来自 {{count}} 个回答“找到了原因”或“部分有帮助”的事件。",
+    "withoutLabel": "无帮助的解决时间",
+    "withoutDetail": "中位数，来自 {{count}} 个回答“没有帮助”或“未使用”的事件。",
+    "answer": {
+      "found_cause": "找到了原因",
+      "helped_partly": "部分有帮助",
+      "did_not_help": "没有帮助",
+      "not_used": "未使用"
+    }
   }
 }

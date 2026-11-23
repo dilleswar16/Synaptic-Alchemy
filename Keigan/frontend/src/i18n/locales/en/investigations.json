@@ -58,7 +58,13 @@
       "duration": "Duration",
       "feedback": "Your verdict"
     },
-    "seenBefore": "Seen before: {{count}}"
+    "seenBefore": "Seen before: {{count}}",
+    "keiganHelp": {
+      "found_cause": "Keigan found the cause",
+      "helped_partly": "Keigan helped partly",
+      "did_not_help": "Keigan did not help",
+      "not_used": "Keigan not used"
+    }
   },
   "feedback": {
     "title": "Was this root cause right?",
@@ -435,7 +441,25 @@
     "confirm": "Resolve incident",
     "resolvedTitle": "Incident resolved",
     "postmortemStarted": "The postmortem is being written.",
-    "failed": "Could not resolve the incident"
+    "failed": "Could not resolve the incident",
+    "keiganHelp": {
+      "label": "How did Keigan's analysis help?",
+      "help": "Optional. Your answer shows on the incident and in the reliability metrics. It is your judgement: Keigan never resolves incidents itself.",
+      "helpWithRating": "Optional. Suggested from your rating of the analysis; change it if it is not right. It shows on the incident and in the reliability metrics.",
+      "answer": {
+        "found_cause": "It found the cause",
+        "helped_partly": "It helped partly",
+        "did_not_help": "It did not help",
+        "not_used": "It was not used",
+        "none": "Do not record an answer"
+      },
+      "description": {
+        "found_cause": "The analysis pointed to what was wrong.",
+        "helped_partly": "Some of it was useful, but people found the rest.",
+        "did_not_help": "The analysis was wrong or missed the cause.",
+        "not_used": "The incident was fixed without the analysis."
+      }
+    }
   },
   "chat": {
     "open": "Ask Keigan",

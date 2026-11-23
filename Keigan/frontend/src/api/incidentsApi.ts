@@ -12,6 +12,9 @@ export interface ApplicationReference {
   applicationName: string;
 }
 
+/** The resolver's answer to "how did Keigan's analysis help?". */
+export type KeiganHelp = "found_cause" | "helped_partly" | "did_not_help" | "not_used";
+
 export interface IncidentSummary {
   incidentId: Identifier;
   application: ApplicationReference;
@@ -28,6 +31,8 @@ export interface IncidentSummary {
   openedAt: IsoDateTimeString;
   detectedByKeiganAt: IsoDateTimeString;
   resolvedAt: IsoDateTimeString | null;
+  /** The resolver's answer; null when none was given. */
+  keiganHelp?: KeiganHelp | null;
   durationMinutes: number;
   keiganConfidence: number | null;
   latestInvestigationId: Identifier | null;
@@ -124,7 +129,7 @@ export function useIncident(incidentId: string | undefined) {
 export function useResolveIncident(incidentId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: { resolutionNote?: string; generatePostmortem: boolean }) => apiPost<IncidentDetail, typeof request>(`/incidents/${incidentId}/resolve`, request),
+    mutationFn: (request: { resolutionNote?: string; generatePostmortem: boolean; keiganHelp?: KeiganHelp }) => apiPost<IncidentDetail, typeof request>(`/incidents/${incidentId}/resolve`, request),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: incidentQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: ["investigations"] });

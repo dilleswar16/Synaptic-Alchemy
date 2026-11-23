@@ -35,6 +35,18 @@ export interface Ratings {
 }
 
 /** How the memory of past incidents (spec 34) is used and judged in the period. */
+/** What the people who resolved incidents in the period said about how far Keigan's analysis helped. */
+export interface KeiganHelpMetrics {
+  resolvedCount: number;
+  answeredCount: number;
+  answers: { answer: string; count: number }[];
+  minimumSample: number;
+  /** Percent of answers that said "found the cause"; null while fewer than `minimumSample` answers were given. */
+  shareFoundCause: number | null;
+  timeToResolveWithHelp: MetricStat;
+  timeToResolveWithoutHelp: MetricStat;
+}
+
 export interface MemoryMetrics {
   completedInvestigationCount: number;
   /** Completed investigations whose AI was shown at least one confirmed past incident. */
@@ -79,6 +91,7 @@ export interface MetricsSummary {
   investigationsByStatus: InvestigationStatusCount[];
   ratings: Ratings;
   memory: MemoryMetrics;
+  keiganHelp: KeiganHelpMetrics;
   aiUsage: AiUsage;
 }
 

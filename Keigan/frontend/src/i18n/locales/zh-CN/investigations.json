@@ -58,7 +58,13 @@
       "duration": "持续时间",
       "feedback": "您的判断"
     },
-    "seenBefore": "以往类似：{{count}}"
+    "seenBefore": "以往类似：{{count}}",
+    "keiganHelp": {
+      "found_cause": "Keigan 找到了原因",
+      "helped_partly": "Keigan 部分有帮助",
+      "did_not_help": "Keigan 没有帮助",
+      "not_used": "未使用 Keigan"
+    }
   },
   "feedback": {
     "title": "这个根因正确吗？",
@@ -433,7 +439,25 @@
     "confirm": "解决事件",
     "resolvedTitle": "事件已解决",
     "postmortemStarted": "正在撰写复盘。",
-    "failed": "无法解决事件"
+    "failed": "无法解决事件",
+    "keiganHelp": {
+      "label": "Keigan 的分析起到了什么作用？",
+      "help": "可选。您的回答会显示在事件和可靠性指标中。这是您的判断：Keigan 不会自行解决事件。",
+      "helpWithRating": "可选。根据您对分析的评价给出建议；如不准确请修改。会显示在事件和可靠性指标中。",
+      "answer": {
+        "found_cause": "找到了原因",
+        "helped_partly": "部分有帮助",
+        "did_not_help": "没有帮助",
+        "not_used": "未使用",
+        "none": "不记录回答"
+      },
+      "description": {
+        "found_cause": "分析指出了问题所在。",
+        "helped_partly": "一部分有用，其余由人找到。",
+        "did_not_help": "分析有误或没有发现原因。",
+        "not_used": "未使用分析就解决了事件。"
+      }
+    }
   },
   "chat": {
     "open": "询问 Keigan",

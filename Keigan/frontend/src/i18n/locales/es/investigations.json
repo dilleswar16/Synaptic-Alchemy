@@ -58,7 +58,13 @@
       "duration": "Duración",
       "feedback": "Su valoración"
     },
-    "seenBefore": "Visto antes: {{count}}"
+    "seenBefore": "Visto antes: {{count}}",
+    "keiganHelp": {
+      "found_cause": "Keigan encontró la causa",
+      "helped_partly": "Keigan ayudó en parte",
+      "did_not_help": "Keigan no ayudó",
+      "not_used": "Keigan no se usó"
+    }
   },
   "feedback": {
     "title": "¿Era correcta esta causa raíz?",
@@ -435,7 +441,25 @@
     "confirm": "Resolver incidente",
     "resolvedTitle": "Incidente resuelto",
     "postmortemStarted": "Se está redactando el postmortem.",
-    "failed": "No se pudo resolver el incidente"
+    "failed": "No se pudo resolver el incidente",
+    "keiganHelp": {
+      "label": "¿Cómo ayudó el análisis de Keigan?",
+      "help": "Opcional. Su respuesta se muestra en el incidente y en las métricas de fiabilidad. Es su criterio: Keigan nunca resuelve incidentes por sí mismo.",
+      "helpWithRating": "Opcional. Sugerida a partir de su valoración del análisis; cámbiela si no es correcta. Se muestra en el incidente y en las métricas de fiabilidad.",
+      "answer": {
+        "found_cause": "Encontró la causa",
+        "helped_partly": "Ayudó en parte",
+        "did_not_help": "No ayudó",
+        "not_used": "No se usó",
+        "none": "No registrar una respuesta"
+      },
+      "description": {
+        "found_cause": "El análisis señaló lo que fallaba.",
+        "helped_partly": "Una parte fue útil, pero el resto lo encontró el equipo.",
+        "did_not_help": "El análisis fue erróneo o no vio la causa.",
+        "not_used": "El incidente se resolvió sin el análisis."
+      }
+    }
   },
   "chat": {
     "open": "Preguntar a Keigan",

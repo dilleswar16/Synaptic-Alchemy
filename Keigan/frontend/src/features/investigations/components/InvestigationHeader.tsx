@@ -41,6 +41,8 @@ interface InvestigationHeaderProps {
   onFeedback: () => void;
 }
 
+const keiganHelpTone = { found_cause: "success", helped_partly: "info", did_not_help: "warning", not_used: "neutral" } as const;
+
 /** Header card: incident, priorities, status, services, timers and the page actions. */
 export function InvestigationHeader({ detail, canEdit, onOpenTeamsRoom, onResolve, onFeedback }: InvestigationHeaderProps) {
   const { t } = useTranslation("investigations");
@@ -78,6 +80,7 @@ export function InvestigationHeader({ detail, canEdit, onOpenTeamsRoom, onResolv
                 {t(`status.${detail.investigationStatus}`)}
               </StatusChip>
               {incident ? <StatusChip tone={isOpenIncident ? "alert" : "success"} variant="outline">{t(`incidentStatus.${incident.incidentStatus}`)}</StatusChip> : <StatusChip tone="neutral" variant="outline">{t(`trigger.${detail.investigationTrigger}`)}</StatusChip>}
+              {incident?.keiganHelp ? <StatusChip tone={keiganHelpTone[incident.keiganHelp]} variant="outline">{t(`header.keiganHelp.${incident.keiganHelp}`)}</StatusChip> : null}
               <AiGeneratedChip modelName={detail.modelNames.join(", ") || null} generatedAt={detail.completedAt} size="sm" />
               {seenBeforeCount > 0 ? (
                 <button type="button" onClick={() => document.getElementById(similarIncidentsElementId)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2">

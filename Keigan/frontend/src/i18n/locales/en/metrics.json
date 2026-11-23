@@ -60,6 +60,10 @@
     "memory": {
       "title": "Past-incident memory",
       "description": "How often past incidents were given to the AI, whether people found the suggestions relevant, and how many were hidden."
+    },
+    "keiganHelp": {
+      "title": "Resolved with Keigan's help",
+      "description": "What the people who resolved incidents said about how far Keigan's analysis helped. It is their answer, not a measurement, and only answered incidents are counted."
     }
   },
   "notAvailable": {
@@ -197,5 +201,20 @@
     "relevantDetail": "{{relevant}} of {{answered}} answers said relevant",
     "hiddenLabel": "Past incidents hidden",
     "hiddenDetail": "Hidden by an application admin in this period."
+  },
+  "keiganHelp": {
+    "foundLabel": "Said Keigan found the cause",
+    "notEnough": "Not enough answers yet ({{count}} of {{minimum}} needed)",
+    "foundDetail": "{{found}} of {{answered}} answers ({{resolved}} incidents resolved)",
+    "withLabel": "Time to resolve with Keigan's help",
+    "withDetail": "Median, from {{count}} incidents answered \"found the cause\" or \"helped partly\".",
+    "withoutLabel": "Time to resolve without help",
+    "withoutDetail": "Median, from {{count}} incidents answered \"did not help\" or \"not used\".",
+    "answer": {
+      "found_cause": "Found the cause",
+      "helped_partly": "Helped partly",
+      "did_not_help": "Did not help",
+      "not_used": "Not used"
+    }
   }
 }

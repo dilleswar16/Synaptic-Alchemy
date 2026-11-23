@@ -60,6 +60,10 @@
     "memory": {
       "title": "Geheugen van eerdere incidenten",
       "description": "Hoe vaak eerdere incidenten aan de AI zijn gegeven, of mensen de suggesties relevant vonden en hoeveel er zijn verborgen."
+    },
+    "keiganHelp": {
+      "title": "Opgelost met hulp van Keigan",
+      "description": "Wat de mensen die incidenten oplosten zeiden over hoe ver de analyse van Keigan hielp. Het is hun antwoord, geen meting, en alleen incidenten met een antwoord tellen mee."
     }
   },
   "notAvailable": {
@@ -197,5 +201,20 @@
     "relevantDetail": "{{relevant}} van {{answered}} antwoorden zei relevant",
     "hiddenLabel": "Eerdere incidenten verborgen",
     "hiddenDetail": "Verborgen door een applicatiebeheerder in deze periode."
+  },
+  "keiganHelp": {
+    "foundLabel": "Zeiden dat Keigan de oorzaak vond",
+    "notEnough": "Nog niet genoeg antwoorden ({{count}} van {{minimum}} nodig)",
+    "foundDetail": "{{found}} van {{answered}} antwoorden ({{resolved}} incidenten opgelost)",
+    "withLabel": "Oplostijd met hulp van Keigan",
+    "withDetail": "Mediaan, van {{count}} incidenten met antwoord 'vond de oorzaak' of 'hielp gedeeltelijk'.",
+    "withoutLabel": "Oplostijd zonder hulp",
+    "withoutDetail": "Mediaan, van {{count}} incidenten met antwoord 'hielp niet' of 'niet gebruikt'.",
+    "answer": {
+      "found_cause": "Vond de oorzaak",
+      "helped_partly": "Hielp gedeeltelijk",
+      "did_not_help": "Hielp niet",
+      "not_used": "Niet gebruikt"
+    }
   }
 }

@@ -60,6 +60,10 @@
     "memory": {
       "title": "Mémoire des incidents passés",
       "description": "Combien de fois des incidents passés ont été donnés à l'IA, si les suggestions ont été jugées pertinentes et combien ont été masqués."
+    },
+    "keiganHelp": {
+      "title": "Résolu avec l'aide de Keigan",
+      "description": "Ce que les personnes qui ont résolu des incidents ont dit de l'aide apportée par l'analyse de Keigan. C'est leur réponse, pas une mesure, et seuls les incidents avec réponse sont comptés."
     }
   },
   "notAvailable": {
@@ -197,5 +201,20 @@
     "relevantDetail": "{{relevant}} réponses sur {{answered}} disaient pertinent",
     "hiddenLabel": "Incidents passés masqués",
     "hiddenDetail": "Masqués par un administrateur de l'application sur cette période."
+  },
+  "keiganHelp": {
+    "foundLabel": "Ont dit que Keigan a trouvé la cause",
+    "notEnough": "Pas encore assez de réponses ({{count}} sur {{minimum}} nécessaires)",
+    "foundDetail": "{{found}} réponses sur {{answered}} ({{resolved}} incidents résolus)",
+    "withLabel": "Temps de résolution avec l'aide de Keigan",
+    "withDetail": "Médiane, sur {{count}} incidents répondus « a trouvé la cause » ou « a aidé en partie ».",
+    "withoutLabel": "Temps de résolution sans aide",
+    "withoutDetail": "Médiane, sur {{count}} incidents répondus « n'a pas aidé » ou « non utilisée ».",
+    "answer": {
+      "found_cause": "A trouvé la cause",
+      "helped_partly": "A aidé en partie",
+      "did_not_help": "N'a pas aidé",
+      "not_used": "Non utilisée"
+    }
   }
 }

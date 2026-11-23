@@ -58,7 +58,13 @@
       "duration": "所要時間",
       "feedback": "あなたの評価"
     },
-    "seenBefore": "過去の類似: {{count}}"
+    "seenBefore": "過去の類似: {{count}}",
+    "keiganHelp": {
+      "found_cause": "Keigan が原因を特定",
+      "helped_partly": "Keigan が一部支援",
+      "did_not_help": "Keigan は役に立たず",
+      "not_used": "Keigan 未使用"
+    }
   },
   "feedback": {
     "title": "この根本原因は正しかったですか？",
@@ -433,7 +439,25 @@
     "confirm": "インシデントを解決",
     "resolvedTitle": "インシデントを解決しました",
     "postmortemStarted": "ポストモーテムを作成中です。",
-    "failed": "インシデントを解決できませんでした"
+    "failed": "インシデントを解決できませんでした",
+    "keiganHelp": {
+      "label": "Keigan の分析はどのように役立ちましたか？",
+      "help": "任意です。回答はインシデントと信頼性メトリクスに表示されます。あなたの判断であり、Keigan 自身がインシデントを解決することはありません。",
+      "helpWithRating": "任意です。分析への評価から提案しています。違う場合は変更してください。インシデントと信頼性メトリクスに表示されます。",
+      "answer": {
+        "found_cause": "原因を特定した",
+        "helped_partly": "一部役に立った",
+        "did_not_help": "役に立たなかった",
+        "not_used": "使わなかった",
+        "none": "回答を記録しない"
+      },
+      "description": {
+        "found_cause": "分析が問題の箇所を示していた。",
+        "helped_partly": "一部は有用だったが、残りは人が見つけた。",
+        "did_not_help": "分析が誤っていたか、原因を見逃した。",
+        "not_used": "分析を使わずに解決した。"
+      }
+    }
   },
   "chat": {
     "open": "Keigan に質問",
