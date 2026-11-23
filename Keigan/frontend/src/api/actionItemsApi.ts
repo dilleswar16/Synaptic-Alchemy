@@ -107,6 +107,7 @@ export const actionItemQueryKeys = {
   all: ["action-items"] as const,
   list: (filters: ActionItemFilters) => ["action-items", "list", filters] as const,
   forPostmortem: (postmortemId: string) => ["action-items", "postmortem", postmortemId] as const,
+  one: (actionItemId: string) => ["action-items", "one", actionItemId] as const,
 };
 
 /* ── Hooks ─────────────────────────────────────────────────────────── */
@@ -128,6 +129,15 @@ export const useActionItems = (filters: ActionItemFilters) =>
           pageSize,
         },
       }),
+  });
+
+/** One item by id, for a link that points at it (`/action-items?item=<id>`). */
+export const useActionItem = (actionItemId: string | null) =>
+  useQuery({
+    queryKey: actionItemQueryKeys.one(actionItemId ?? ""),
+    enabled: Boolean(actionItemId),
+    retry: false,
+    queryFn: ({ signal }) => apiGet<ActionItem>(`/action-items/${actionItemId}`, { signal }),
   });
 
 export const usePostmortemActionItems = (postmortemId: string | undefined) =>

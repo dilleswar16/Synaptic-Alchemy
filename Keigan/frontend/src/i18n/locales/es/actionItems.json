@@ -20,24 +20,74 @@
     "tabAttention": "Requieren atención",
     "tabRepeats": "Repeticiones",
     "empty": {
-      "tracked": { "title": "Nada que seguir", "description": "Aquí aparecen las acciones aceptadas que están abiertas, en curso o bloqueadas." },
-      "finished": { "title": "Aún no hay nada finalizado", "description": "Aquí aparecen los elementos marcados como hechos o como no se hará." },
-      "suggested": { "title": "No hay sugerencias pendientes", "description": "Keigan sugiere acciones cuando redacta un postmortem. Cada una espera aquí hasta que una persona la acepta o la descarta." }
-    }
+      "tracked": {
+        "title": "Nada que seguir",
+        "description": "Aquí aparecen las acciones aceptadas que están abiertas, en curso o bloqueadas."
+      },
+      "finished": {
+        "title": "Aún no hay nada finalizado",
+        "description": "Aquí aparecen los elementos marcados como hechos o como no se hará."
+      },
+      "suggested": {
+        "title": "No hay sugerencias pendientes",
+        "description": "Keigan sugiere acciones cuando redacta un postmortem. Cada una espera aquí hasta que una persona la acepta o la descarta."
+      }
+    },
+    "linkedItem": "Elemento de acción vinculado",
+    "showAllItems": "Ver todos",
+    "linkedItemUnavailableTitle": "No se pudo abrir este elemento de acción",
+    "linkedItemUnavailable": "Puede que se haya eliminado o que no tenga acceso a su aplicación."
   },
-  "status": { "proposed": "Sugerida", "open": "Abierta", "in_progress": "En curso", "blocked": "Bloqueada", "done": "Hecha", "wont_do": "No se hará" },
-  "priority": { "top": "Máxima prioridad", "high": "Alta", "normal": "Normal", "low": "Baja" },
-  "type": { "prevent": "Prevenir", "detect": "Detectar", "mitigate": "Mitigar" },
+  "status": {
+    "proposed": "Sugerida",
+    "open": "Abierta",
+    "in_progress": "En curso",
+    "blocked": "Bloqueada",
+    "done": "Hecha",
+    "wont_do": "No se hará"
+  },
+  "priority": {
+    "top": "Máxima prioridad",
+    "high": "Alta",
+    "normal": "Normal",
+    "low": "Baja"
+  },
+  "type": {
+    "prevent": "Prevenir",
+    "detect": "Detectar",
+    "mitigate": "Mitigar"
+  },
   "typeHelp": {
     "prevent": "Evita que vuelva a ocurrir.",
     "detect": "Permite detectarlo antes la próxima vez.",
     "mitigate": "Reduce el impacto o el tiempo de recuperación."
   },
-  "statusAction": { "open": "Reabrir", "in_progress": "Empezar a trabajar", "blocked": "Marcar como bloqueada", "done": "Marcar como hecha", "wont_do": "No se hará" },
+  "statusAction": {
+    "open": "Reabrir",
+    "in_progress": "Empezar a trabajar",
+    "blocked": "Marcar como bloqueada",
+    "done": "Marcar como hecha",
+    "wont_do": "No se hará"
+  },
   "statusDialog": {
-    "title": { "open": "Reabrir este elemento", "in_progress": "Empezar a trabajar en este elemento", "blocked": "Marcar este elemento como bloqueado", "done": "Marcar este elemento como hecho", "wont_do": "Cerrar este elemento como no se hará" },
-    "confirm": { "open": "Reabrir elemento", "in_progress": "Empezar a trabajar", "blocked": "Marcar como bloqueada", "done": "Marcar como hecha", "wont_do": "Cerrar como no se hará" },
-    "plain": { "open": "El elemento vuelve a estar abierto y se borra su finalización.", "in_progress": "El elemento pasa a estar en curso." },
+    "title": {
+      "open": "Reabrir este elemento",
+      "in_progress": "Empezar a trabajar en este elemento",
+      "blocked": "Marcar este elemento como bloqueado",
+      "done": "Marcar este elemento como hecho",
+      "wont_do": "Cerrar este elemento como no se hará"
+    },
+    "confirm": {
+      "open": "Reabrir elemento",
+      "in_progress": "Empezar a trabajar",
+      "blocked": "Marcar como bloqueada",
+      "done": "Marcar como hecha",
+      "wont_do": "Cerrar como no se hará"
+    },
+    "plain": {
+      "open": "El elemento vuelve a estar abierto y se borra su finalización.",
+      "in_progress": "El elemento pasa a estar en curso."
+    },
     "reasonLabel": "Motivo",
     "reasonHelp": "Explica por qué, para que la siguiente persona lo entienda. Queda en el elemento.",
     "noteLabel": "Qué se hizo",
@@ -93,7 +143,10 @@
     "acceptAll_other": "Aceptar las {{count}} sugerencias",
     "skippedTitle_one": "Se dejó 1 sugerencia para ti",
     "skippedTitle_other": "Se dejaron {{count}} sugerencias para ti",
-    "skipReason": { "no_due_date": "No tiene fecha límite. Ábrela y elige una.", "due_date_not_allowed": "Su fecha límite ya pasó o es demasiado lejana. Ábrela y cámbiala." }
+    "skipReason": {
+      "no_due_date": "No tiene fecha límite. Ábrela y elige una.",
+      "due_date_not_allowed": "Su fecha límite ya pasó o es demasiado lejana. Ábrela y cámbiala."
+    }
   },
   "overview": {
     "period": "Periodo",
@@ -166,5 +219,7 @@
       "wont_do": "Descartada"
     }
   },
-  "errors": { "actionFailed": "No se pudo guardar ese cambio." }
+  "errors": {
+    "actionFailed": "No se pudo guardar ese cambio."
+  }
 }

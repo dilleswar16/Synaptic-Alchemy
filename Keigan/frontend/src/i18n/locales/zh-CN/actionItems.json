@@ -20,24 +20,74 @@
     "tabAttention": "需要关注",
     "tabRepeats": "重复发生",
     "empty": {
-      "tracked": { "title": "没有需要跟进的事项", "description": "已接受且处于待办、进行中或受阻状态的行动项会显示在这里。" },
-      "finished": { "title": "还没有已结束的事项", "description": "标记为已完成或不再处理的事项会显示在这里。" },
-      "suggested": { "title": "没有等待处理的建议", "description": "Keigan 在起草事后复盘时会建议行动项。每条建议会在这里等待，直到有人接受或丢弃。" }
-    }
+      "tracked": {
+        "title": "没有需要跟进的事项",
+        "description": "已接受且处于待办、进行中或受阻状态的行动项会显示在这里。"
+      },
+      "finished": {
+        "title": "还没有已结束的事项",
+        "description": "标记为已完成或不再处理的事项会显示在这里。"
+      },
+      "suggested": {
+        "title": "没有等待处理的建议",
+        "description": "Keigan 在起草事后复盘时会建议行动项。每条建议会在这里等待，直到有人接受或丢弃。"
+      }
+    },
+    "linkedItem": "链接的行动项",
+    "showAllItems": "显示全部",
+    "linkedItemUnavailableTitle": "无法打开此行动项",
+    "linkedItemUnavailable": "它可能已被删除，或您无权访问其应用。"
   },
-  "status": { "proposed": "建议", "open": "待办", "in_progress": "进行中", "blocked": "受阻", "done": "已完成", "wont_do": "不再处理" },
-  "priority": { "top": "最高优先级", "high": "高", "normal": "普通", "low": "低" },
-  "type": { "prevent": "预防", "detect": "检测", "mitigate": "缓解" },
+  "status": {
+    "proposed": "建议",
+    "open": "待办",
+    "in_progress": "进行中",
+    "blocked": "受阻",
+    "done": "已完成",
+    "wont_do": "不再处理"
+  },
+  "priority": {
+    "top": "最高优先级",
+    "high": "高",
+    "normal": "普通",
+    "low": "低"
+  },
+  "type": {
+    "prevent": "预防",
+    "detect": "检测",
+    "mitigate": "缓解"
+  },
   "typeHelp": {
     "prevent": "防止问题再次发生。",
     "detect": "下次更早发现。",
     "mitigate": "减小影响或缩短恢复时间。"
   },
-  "statusAction": { "open": "重新打开", "in_progress": "开始处理", "blocked": "标记为受阻", "done": "标记为已完成", "wont_do": "不再处理" },
+  "statusAction": {
+    "open": "重新打开",
+    "in_progress": "开始处理",
+    "blocked": "标记为受阻",
+    "done": "标记为已完成",
+    "wont_do": "不再处理"
+  },
   "statusDialog": {
-    "title": { "open": "重新打开此事项", "in_progress": "开始处理此事项", "blocked": "将此事项标记为受阻", "done": "将此事项标记为已完成", "wont_do": "以“不再处理”关闭此事项" },
-    "confirm": { "open": "重新打开", "in_progress": "开始处理", "blocked": "标记为受阻", "done": "标记为已完成", "wont_do": "以不再处理关闭" },
-    "plain": { "open": "事项将回到待办，完成记录会被清除。", "in_progress": "事项将变为进行中。" },
+    "title": {
+      "open": "重新打开此事项",
+      "in_progress": "开始处理此事项",
+      "blocked": "将此事项标记为受阻",
+      "done": "将此事项标记为已完成",
+      "wont_do": "以“不再处理”关闭此事项"
+    },
+    "confirm": {
+      "open": "重新打开",
+      "in_progress": "开始处理",
+      "blocked": "标记为受阻",
+      "done": "标记为已完成",
+      "wont_do": "以不再处理关闭"
+    },
+    "plain": {
+      "open": "事项将回到待办，完成记录会被清除。",
+      "in_progress": "事项将变为进行中。"
+    },
     "reasonLabel": "原因",
     "reasonHelp": "说明原因，方便下一个人理解。它会保留在事项上。",
     "noteLabel": "完成了什么",
@@ -88,7 +138,10 @@
     "suggestedBody": "确定事后复盘之前，请接受或丢弃每一条建议。",
     "acceptAll_other": "接受全部 {{count}} 条建议",
     "skippedTitle_other": "{{count}} 条建议需要你处理",
-    "skipReason": { "no_due_date": "没有截止日期。请打开并选择一个。", "due_date_not_allowed": "截止日期已过或过于遥远。请打开并修改。" }
+    "skipReason": {
+      "no_due_date": "没有截止日期。请打开并选择一个。",
+      "due_date_not_allowed": "截止日期已过或过于遥远。请打开并修改。"
+    }
   },
   "overview": {
     "period": "时间范围",
@@ -154,5 +207,7 @@
       "wont_do": "已放弃"
     }
   },
-  "errors": { "actionFailed": "无法保存该更改。" }
+  "errors": {
+    "actionFailed": "无法保存该更改。"
+  }
 }

@@ -20,24 +20,74 @@
     "tabAttention": "Needs attention",
     "tabRepeats": "Repeats",
     "empty": {
-      "tracked": { "title": "Nothing to follow up", "description": "Accepted action items that are open, in progress or blocked appear here." },
-      "finished": { "title": "Nothing finished yet", "description": "Items marked done or won't do appear here." },
-      "suggested": { "title": "No suggestions waiting", "description": "Keigan suggests action items when it drafts a postmortem. Each waits here until a person accepts or discards it." }
-    }
+      "tracked": {
+        "title": "Nothing to follow up",
+        "description": "Accepted action items that are open, in progress or blocked appear here."
+      },
+      "finished": {
+        "title": "Nothing finished yet",
+        "description": "Items marked done or won't do appear here."
+      },
+      "suggested": {
+        "title": "No suggestions waiting",
+        "description": "Keigan suggests action items when it drafts a postmortem. Each waits here until a person accepts or discards it."
+      }
+    },
+    "linkedItem": "Linked action item",
+    "showAllItems": "Show all items",
+    "linkedItemUnavailableTitle": "This action item could not be opened",
+    "linkedItemUnavailable": "It may have been removed, or you may not have access to its application."
   },
-  "status": { "proposed": "Suggested", "open": "Open", "in_progress": "In progress", "blocked": "Blocked", "done": "Done", "wont_do": "Won't do" },
-  "priority": { "top": "Top priority", "high": "High", "normal": "Normal", "low": "Low" },
-  "type": { "prevent": "Prevent", "detect": "Detect", "mitigate": "Mitigate" },
+  "status": {
+    "proposed": "Suggested",
+    "open": "Open",
+    "in_progress": "In progress",
+    "blocked": "Blocked",
+    "done": "Done",
+    "wont_do": "Won't do"
+  },
+  "priority": {
+    "top": "Top priority",
+    "high": "High",
+    "normal": "Normal",
+    "low": "Low"
+  },
+  "type": {
+    "prevent": "Prevent",
+    "detect": "Detect",
+    "mitigate": "Mitigate"
+  },
   "typeHelp": {
     "prevent": "Stops this from happening again.",
     "detect": "Finds it sooner next time.",
     "mitigate": "Reduces the impact or the time to recover."
   },
-  "statusAction": { "open": "Reopen", "in_progress": "Start work", "blocked": "Mark as blocked", "done": "Mark as done", "wont_do": "Won't do" },
+  "statusAction": {
+    "open": "Reopen",
+    "in_progress": "Start work",
+    "blocked": "Mark as blocked",
+    "done": "Mark as done",
+    "wont_do": "Won't do"
+  },
   "statusDialog": {
-    "title": { "open": "Reopen this item", "in_progress": "Start work on this item", "blocked": "Mark this item as blocked", "done": "Mark this item as done", "wont_do": "Close this item as won't do" },
-    "confirm": { "open": "Reopen item", "in_progress": "Start work", "blocked": "Mark as blocked", "done": "Mark as done", "wont_do": "Close as won't do" },
-    "plain": { "open": "The item goes back to open and its completion is cleared.", "in_progress": "The item moves to in progress." },
+    "title": {
+      "open": "Reopen this item",
+      "in_progress": "Start work on this item",
+      "blocked": "Mark this item as blocked",
+      "done": "Mark this item as done",
+      "wont_do": "Close this item as won't do"
+    },
+    "confirm": {
+      "open": "Reopen item",
+      "in_progress": "Start work",
+      "blocked": "Mark as blocked",
+      "done": "Mark as done",
+      "wont_do": "Close as won't do"
+    },
+    "plain": {
+      "open": "The item goes back to open and its completion is cleared.",
+      "in_progress": "The item moves to in progress."
+    },
     "reasonLabel": "Reason",
     "reasonHelp": "Say why, so the next person understands. It stays on the item.",
     "noteLabel": "What was done",
@@ -93,7 +143,10 @@
     "acceptAll_other": "Accept all {{count}} suggestions",
     "skippedTitle_one": "1 suggestion was left for you",
     "skippedTitle_other": "{{count}} suggestions were left for you",
-    "skipReason": { "no_due_date": "It has no due date. Open it and choose one.", "due_date_not_allowed": "Its due date is in the past or too far away. Open it and change it." }
+    "skipReason": {
+      "no_due_date": "It has no due date. Open it and choose one.",
+      "due_date_not_allowed": "Its due date is in the past or too far away. Open it and change it."
+    }
   },
   "overview": {
     "period": "Period",
@@ -166,5 +219,7 @@
       "wont_do": "Dropped"
     }
   },
-  "errors": { "actionFailed": "That change could not be saved." }
+  "errors": {
+    "actionFailed": "That change could not be saved."
+  }
 }

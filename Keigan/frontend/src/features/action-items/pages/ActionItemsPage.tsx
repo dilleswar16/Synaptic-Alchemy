@@ -2,10 +2,11 @@ import { useState } from "react";
 import { ListChecks, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
-import { useActionItems, useActionItemsOverview, useCreateActionItem, type ActionItemFields, type ActionItemFilters, type ActionItemStatus, type ActionItemType } from "@/api/actionItemsApi";
+import { useActionItem, useActionItems, useActionItemsOverview, useCreateActionItem, type ActionItemFields, type ActionItemFilters, type ActionItemStatus, type ActionItemType } from "@/api/actionItemsApi";
 import { useAccessControl } from "@/auth/accessControl";
 import { useApplicationScope } from "@/auth/applicationScope";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Banner } from "@/components/ui/Banner";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -43,7 +44,9 @@ export default function ActionItemsPage() {
   const [periodDays, setPeriodDays] = useState<number>(defaultPeriodDays);
   const [statusView, setStatusView] = useState<StatusView>("tracked");
   const [ownerView, setOwnerView] = useState<OwnerView>(searchParams.get("owner") === "me" ? "me" : "all");
-  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [overdueOnly, setOverdueOnly] = useState(searchParams.get("overdueOnly") === "true");  // the escalation email links here
+  const linkedItemId = searchParams.get("item");
+  const linkedItem = useActionItem(linkedItemId);
   const [page, setPage] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
   const create = useCreateActionItem();
@@ -73,6 +76,17 @@ export default function ActionItemsPage() {
           options={periodChoices.map((days) => ({ value: String(days), label: t("overview.periodDays", { count: days }) }))}
         />
       </div>
+      {linkedItemId ? (
+        <section aria-label={t("page.linkedItem")} className="flex flex-col gap-3 rounded-lg border border-hairline bg-surface p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-h4 text-default">{t("page.linkedItem")}</h2>
+            <Button size="sm" variant="ghost" onClick={() => setSearchParams((current) => { const next = new URLSearchParams(current); next.delete("item"); return next; }, { replace: true })}>{t("page.showAllItems")}</Button>
+          </div>
+          {linkedItem.isLoading ? <Skeleton className="h-16 w-full" /> : null}
+          {linkedItem.isError ? <Banner tone="warning" title={t("page.linkedItemUnavailableTitle")}>{t("page.linkedItemUnavailable")}</Banner> : null}
+          {linkedItem.data ? <ActionItemList items={[linkedItem.data]} showApplication /> : null}
+        </section>
+      ) : null}
       {overview.data ? <OverviewTiles completion={overview.data.completion} /> : overview.isLoading ? <Skeleton className="h-28 w-full" /> : null}
       {overview.isError ? <ErrorState error={overview.error} onRetry={() => void overview.refetch()} /> : null}
       <Tabs value={tab} onValueChange={(value) => setSearchParams((current) => { const next = new URLSearchParams(current); next.set("tab", value); return next; }, { replace: true })}>

@@ -13,7 +13,9 @@ import { ActionItemDialog } from "./ActionItemDialog";
 /** The order the groups appear in: the most urgent first (the server already sorts the entries inside each group). */
 const kindOrder: AttentionKind[] = ["overdue_item", "top_priority_unowned", "policy_breach_open", "postmortem_missing", "proposed_waiting"];
 
+/** Where an entry leads: an entry about one action item opens that item; the others look the incident up by its number. */
 function incidentSearchPath(entry: AttentionEntry): string | null {
+  if (entry.recordKind === "action_item") return `/action-items?item=${encodeURIComponent(entry.recordId)}`;
   const reference = entry.parameters.incidentReference;
   return typeof reference === "string" && reference ? `/incidents?search=${encodeURIComponent(reference)}` : null;
 }

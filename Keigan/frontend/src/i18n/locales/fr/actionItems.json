@@ -20,24 +20,74 @@
     "tabAttention": "À traiter",
     "tabRepeats": "Récurrences",
     "empty": {
-      "tracked": { "title": "Rien à suivre", "description": "Les actions acceptées qui sont ouvertes, en cours ou bloquées apparaissent ici." },
-      "finished": { "title": "Rien de terminé pour l'instant", "description": "Les éléments marqués comme faits ou comme abandonnés apparaissent ici." },
-      "suggested": { "title": "Aucune suggestion en attente", "description": "Keigan suggère des actions lorsqu'il rédige un postmortem. Chacune attend ici qu'une personne l'accepte ou l'écarte." }
-    }
+      "tracked": {
+        "title": "Rien à suivre",
+        "description": "Les actions acceptées qui sont ouvertes, en cours ou bloquées apparaissent ici."
+      },
+      "finished": {
+        "title": "Rien de terminé pour l'instant",
+        "description": "Les éléments marqués comme faits ou comme abandonnés apparaissent ici."
+      },
+      "suggested": {
+        "title": "Aucune suggestion en attente",
+        "description": "Keigan suggère des actions lorsqu'il rédige un postmortem. Chacune attend ici qu'une personne l'accepte ou l'écarte."
+      }
+    },
+    "linkedItem": "Action liée",
+    "showAllItems": "Tout afficher",
+    "linkedItemUnavailableTitle": "Impossible d'ouvrir cette action",
+    "linkedItemUnavailable": "Elle a peut-être été supprimée, ou vous n'avez pas accès à son application."
   },
-  "status": { "proposed": "Suggérée", "open": "Ouverte", "in_progress": "En cours", "blocked": "Bloquée", "done": "Terminée", "wont_do": "Abandonnée" },
-  "priority": { "top": "Priorité maximale", "high": "Élevée", "normal": "Normale", "low": "Faible" },
-  "type": { "prevent": "Prévenir", "detect": "Détecter", "mitigate": "Atténuer" },
+  "status": {
+    "proposed": "Suggérée",
+    "open": "Ouverte",
+    "in_progress": "En cours",
+    "blocked": "Bloquée",
+    "done": "Terminée",
+    "wont_do": "Abandonnée"
+  },
+  "priority": {
+    "top": "Priorité maximale",
+    "high": "Élevée",
+    "normal": "Normale",
+    "low": "Faible"
+  },
+  "type": {
+    "prevent": "Prévenir",
+    "detect": "Détecter",
+    "mitigate": "Atténuer"
+  },
   "typeHelp": {
     "prevent": "Empêche que cela se reproduise.",
     "detect": "Permet de le repérer plus tôt la prochaine fois.",
     "mitigate": "Réduit l'impact ou le temps de rétablissement."
   },
-  "statusAction": { "open": "Rouvrir", "in_progress": "Commencer le travail", "blocked": "Marquer comme bloquée", "done": "Marquer comme terminée", "wont_do": "Abandonner" },
+  "statusAction": {
+    "open": "Rouvrir",
+    "in_progress": "Commencer le travail",
+    "blocked": "Marquer comme bloquée",
+    "done": "Marquer comme terminée",
+    "wont_do": "Abandonner"
+  },
   "statusDialog": {
-    "title": { "open": "Rouvrir cet élément", "in_progress": "Commencer le travail sur cet élément", "blocked": "Marquer cet élément comme bloqué", "done": "Marquer cet élément comme terminé", "wont_do": "Clore cet élément comme abandonné" },
-    "confirm": { "open": "Rouvrir l'élément", "in_progress": "Commencer le travail", "blocked": "Marquer comme bloquée", "done": "Marquer comme terminée", "wont_do": "Clore comme abandonnée" },
-    "plain": { "open": "L'élément redevient ouvert et son achèvement est effacé.", "in_progress": "L'élément passe en cours." },
+    "title": {
+      "open": "Rouvrir cet élément",
+      "in_progress": "Commencer le travail sur cet élément",
+      "blocked": "Marquer cet élément comme bloqué",
+      "done": "Marquer cet élément comme terminé",
+      "wont_do": "Clore cet élément comme abandonné"
+    },
+    "confirm": {
+      "open": "Rouvrir l'élément",
+      "in_progress": "Commencer le travail",
+      "blocked": "Marquer comme bloquée",
+      "done": "Marquer comme terminée",
+      "wont_do": "Clore comme abandonnée"
+    },
+    "plain": {
+      "open": "L'élément redevient ouvert et son achèvement est effacé.",
+      "in_progress": "L'élément passe en cours."
+    },
     "reasonLabel": "Motif",
     "reasonHelp": "Dites pourquoi, pour que la personne suivante comprenne. Cela reste sur l'élément.",
     "noteLabel": "Ce qui a été fait",
@@ -93,7 +143,10 @@
     "acceptAll_other": "Accepter les {{count}} suggestions",
     "skippedTitle_one": "1 suggestion vous est laissée",
     "skippedTitle_other": "{{count}} suggestions vous sont laissées",
-    "skipReason": { "no_due_date": "Elle n’a pas d’échéance. Ouvrez-la et choisissez-en une.", "due_date_not_allowed": "Son échéance est passée ou trop lointaine. Ouvrez-la et modifiez-la." }
+    "skipReason": {
+      "no_due_date": "Elle n’a pas d’échéance. Ouvrez-la et choisissez-en une.",
+      "due_date_not_allowed": "Son échéance est passée ou trop lointaine. Ouvrez-la et modifiez-la."
+    }
   },
   "overview": {
     "period": "Période",
@@ -166,5 +219,7 @@
       "wont_do": "Abandonnée"
     }
   },
-  "errors": { "actionFailed": "Cette modification n'a pas pu être enregistrée." }
+  "errors": {
+    "actionFailed": "Cette modification n'a pas pu être enregistrée."
+  }
 }

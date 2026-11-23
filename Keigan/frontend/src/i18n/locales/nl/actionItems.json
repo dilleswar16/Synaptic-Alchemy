@@ -20,24 +20,74 @@
     "tabAttention": "Aandacht nodig",
     "tabRepeats": "Herhalingen",
     "empty": {
-      "tracked": { "title": "Niets om op te volgen", "description": "Geaccepteerde actiepunten die open, bezig of geblokkeerd zijn, verschijnen hier." },
-      "finished": { "title": "Nog niets afgerond", "description": "Items die als klaar of als niet doen zijn gemarkeerd, verschijnen hier." },
-      "suggested": { "title": "Geen voorstellen in de wacht", "description": "Keigan stelt actiepunten voor wanneer het een postmortem opstelt. Elk voorstel wacht hier tot iemand het accepteert of verwerpt." }
-    }
+      "tracked": {
+        "title": "Niets om op te volgen",
+        "description": "Geaccepteerde actiepunten die open, bezig of geblokkeerd zijn, verschijnen hier."
+      },
+      "finished": {
+        "title": "Nog niets afgerond",
+        "description": "Items die als klaar of als niet doen zijn gemarkeerd, verschijnen hier."
+      },
+      "suggested": {
+        "title": "Geen voorstellen in de wacht",
+        "description": "Keigan stelt actiepunten voor wanneer het een postmortem opstelt. Elk voorstel wacht hier tot iemand het accepteert of verwerpt."
+      }
+    },
+    "linkedItem": "Gekoppeld actiepunt",
+    "showAllItems": "Alles tonen",
+    "linkedItemUnavailableTitle": "Dit actiepunt kon niet worden geopend",
+    "linkedItemUnavailable": "Het is mogelijk verwijderd, of u hebt geen toegang tot de applicatie."
   },
-  "status": { "proposed": "Voorgesteld", "open": "Open", "in_progress": "Bezig", "blocked": "Geblokkeerd", "done": "Klaar", "wont_do": "Niet doen" },
-  "priority": { "top": "Hoogste prioriteit", "high": "Hoog", "normal": "Normaal", "low": "Laag" },
-  "type": { "prevent": "Voorkomen", "detect": "Detecteren", "mitigate": "Beperken" },
+  "status": {
+    "proposed": "Voorgesteld",
+    "open": "Open",
+    "in_progress": "Bezig",
+    "blocked": "Geblokkeerd",
+    "done": "Klaar",
+    "wont_do": "Niet doen"
+  },
+  "priority": {
+    "top": "Hoogste prioriteit",
+    "high": "Hoog",
+    "normal": "Normaal",
+    "low": "Laag"
+  },
+  "type": {
+    "prevent": "Voorkomen",
+    "detect": "Detecteren",
+    "mitigate": "Beperken"
+  },
   "typeHelp": {
     "prevent": "Voorkomt dat dit opnieuw gebeurt.",
     "detect": "Zorgt dat je het de volgende keer eerder ziet.",
     "mitigate": "Verkleint de impact of de hersteltijd."
   },
-  "statusAction": { "open": "Heropenen", "in_progress": "Aan de slag", "blocked": "Markeren als geblokkeerd", "done": "Markeren als klaar", "wont_do": "Niet doen" },
+  "statusAction": {
+    "open": "Heropenen",
+    "in_progress": "Aan de slag",
+    "blocked": "Markeren als geblokkeerd",
+    "done": "Markeren als klaar",
+    "wont_do": "Niet doen"
+  },
   "statusDialog": {
-    "title": { "open": "Dit item heropenen", "in_progress": "Aan dit item beginnen", "blocked": "Dit item als geblokkeerd markeren", "done": "Dit item als klaar markeren", "wont_do": "Dit item sluiten als niet doen" },
-    "confirm": { "open": "Item heropenen", "in_progress": "Aan de slag", "blocked": "Markeren als geblokkeerd", "done": "Markeren als klaar", "wont_do": "Sluiten als niet doen" },
-    "plain": { "open": "Het item wordt weer open en de afronding wordt gewist.", "in_progress": "Het item gaat naar bezig." },
+    "title": {
+      "open": "Dit item heropenen",
+      "in_progress": "Aan dit item beginnen",
+      "blocked": "Dit item als geblokkeerd markeren",
+      "done": "Dit item als klaar markeren",
+      "wont_do": "Dit item sluiten als niet doen"
+    },
+    "confirm": {
+      "open": "Item heropenen",
+      "in_progress": "Aan de slag",
+      "blocked": "Markeren als geblokkeerd",
+      "done": "Markeren als klaar",
+      "wont_do": "Sluiten als niet doen"
+    },
+    "plain": {
+      "open": "Het item wordt weer open en de afronding wordt gewist.",
+      "in_progress": "Het item gaat naar bezig."
+    },
     "reasonLabel": "Reden",
     "reasonHelp": "Leg uit waarom, zodat de volgende het begrijpt. Het blijft bij het item staan.",
     "noteLabel": "Wat is er gedaan",
@@ -93,7 +143,10 @@
     "acceptAll_other": "Alle {{count}} voorstellen accepteren",
     "skippedTitle_one": "1 voorstel is aan jou overgelaten",
     "skippedTitle_other": "{{count}} voorstellen zijn aan jou overgelaten",
-    "skipReason": { "no_due_date": "Het heeft geen einddatum. Open het en kies er een.", "due_date_not_allowed": "De einddatum ligt in het verleden of te ver weg. Open het en pas hem aan." }
+    "skipReason": {
+      "no_due_date": "Het heeft geen einddatum. Open het en kies er een.",
+      "due_date_not_allowed": "De einddatum ligt in het verleden of te ver weg. Open het en pas hem aan."
+    }
   },
   "overview": {
     "period": "Periode",
@@ -166,5 +219,7 @@
       "wont_do": "Laten vallen"
     }
   },
-  "errors": { "actionFailed": "Die wijziging kon niet worden opgeslagen." }
+  "errors": {
+    "actionFailed": "Die wijziging kon niet worden opgeslagen."
+  }
 }
