@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "./tokens.css";
+@import "./designs.css";
+@import "./backdrops.css";
 
 /*
  * Dark mode follows `data-theme="dark"` on <html> (set by useTheme), not the media query.
@@ -131,14 +133,15 @@
   --text-display: var(--text-display);
   --text-display--line-height: var(--text-display-line-height);
   --text-display--font-weight: 700;
-  --text-display--letter-spacing: -0.015em;
+  --text-display--letter-spacing: -0.025em;
   --text-h1: var(--text-h1);
   --text-h1--line-height: var(--text-h1-line-height);
   --text-h1--font-weight: 700;
-  --text-h1--letter-spacing: -0.01em;
+  --text-h1--letter-spacing: -0.012em;
   --text-h2: var(--text-h2);
   --text-h2--line-height: var(--text-h2-line-height);
-  --text-h2--font-weight: 650;
+  --text-h2--font-weight: 700;
+  --text-h2--letter-spacing: -0.008em;
   --text-h3: var(--text-h3);
   --text-h3--line-height: var(--text-h3-line-height);
   --text-h3--font-weight: 600;
@@ -289,6 +292,13 @@
 @utility bg-gradient-ai {
   background-image: var(--gradient-ai);
 }
+/* The page background: canvas colour plus the chosen backdrop (styles/backdrops.css). Fixed so glows and grids stay put while scrolling. */
+@utility app-backdrop {
+  background-color: var(--color-canvas);
+  background-image: var(--backdrop-image, none);
+  background-size: var(--backdrop-size, auto);
+  background-attachment: var(--backdrop-attachment, fixed);
+}
 @utility bg-hero-wash {
   background-image: var(--gradient-hero-wash);
 }
@@ -305,13 +315,11 @@
     linear-gradient(var(--gradient-border-fill, var(--color-surface)), var(--gradient-border-fill, var(--color-surface))) padding-box,
     var(--gradient-brand) border-box;
 }
-/* Eyebrow labels such as "OPERATE" in the sidebar. */
+/* Group labels such as "Operate" in the sidebar: sentence case, no tracking, so they read as labels rather than shouting. */
 @utility eyebrow {
-  font-size: 0.71875rem;
+  font-size: 0.78125rem;
   line-height: 1rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--color-text-subtle);
 }
 @utility tabular-numbers {
@@ -377,17 +385,21 @@
     font-size: var(--text-h1);
     line-height: var(--text-h1-line-height);
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.012em;
+    word-spacing: 0.06em;
   }
   h2 {
     font-size: var(--text-h2);
     line-height: var(--text-h2-line-height);
-    font-weight: 650;
+    font-weight: 700;
+    letter-spacing: -0.008em;
+    word-spacing: 0.06em;
   }
   h3 {
     font-size: var(--text-h3);
     line-height: var(--text-h3-line-height);
     font-weight: 600;
+    word-spacing: 0.05em;
   }
   h4 {
     font-size: var(--text-h4);
@@ -412,7 +424,7 @@
   }
 
   ::selection {
-    background-color: color-mix(in srgb, var(--metlife-blue-1) 24%, transparent);
+    background-color: color-mix(in srgb, var(--color-brand-fill) 28%, transparent);
   }
 
   /* Focus ring: visible for keyboard users only (doc 04 §5). */

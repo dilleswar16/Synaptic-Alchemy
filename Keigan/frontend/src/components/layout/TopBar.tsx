@@ -11,6 +11,7 @@ import { Kbd } from "@/components/ui/Kbd";
 import { Popover } from "@/components/ui/Popover";
 import { ApplicationScopeSwitcher } from "./ApplicationScopeSwitcher";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { DesignSwitcher } from "./DesignSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 
 export interface TopBarProps {
@@ -44,6 +45,7 @@ export function TopBar({ onOpenNavigation, onOpenCommandPalette }: TopBarProps) 
       </button>
       <IconButton icon={Search} label={t("commandPalette.open")} onClick={onOpenCommandPalette} className="lg:hidden" />
       <LanguageSwitcher />
+      <DesignSwitcher />
       <ThemeToggle />
       <Popover
         align="end"

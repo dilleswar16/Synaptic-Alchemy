@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Activity, Bell, Download, Gauge, Plus, Siren, Trash2 } from "lucide-react";
+import { DesignPicker } from "./DesignPicker";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { FunnelChart } from "@/components/charts/FunnelChart";
@@ -102,9 +103,13 @@ export default function DesignSystemShowcasePage() {
     <>
       <PageHeader
         title="Design system"
-        description="Every Keigan UI component in its main variants. Use the theme toggle to review light and dark."
+        description="Pick a design and a page background, then review every Keigan UI component in it. Use the theme toggle for light and dark."
         actions={<ThemeToggle />}
       />
+
+      <Section title="Design and background">
+        <DesignPicker />
+      </Section>
 
       <Section title="Brand">
         <Row>

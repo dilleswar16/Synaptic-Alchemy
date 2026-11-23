@@ -59,6 +59,9 @@
     "conflictDescription": "请重新加载以查看最新版本，然后再次修改。",
     "reference": "参考编号 {{correlationId}}"
   },
+  "design": {
+    "change": "更改设计"
+  },
   "theme": {
     "label": "主题",
     "light": "浅色",

@@ -59,6 +59,9 @@
     "conflictDescription": "再読み込みして最新の状態を確認し、もう一度変更してください。",
     "reference": "参照 {{correlationId}}"
   },
+  "design": {
+    "change": "デザインを変更"
+  },
   "theme": {
     "label": "テーマ",
     "light": "ライト",

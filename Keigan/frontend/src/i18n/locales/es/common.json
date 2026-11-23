@@ -59,6 +59,9 @@
     "conflictDescription": "Recargue para ver la versión más reciente y vuelva a hacer su cambio.",
     "reference": "Referencia {{correlationId}}"
   },
+  "design": {
+    "change": "Cambiar diseño"
+  },
   "theme": {
     "label": "Tema",
     "light": "Claro",

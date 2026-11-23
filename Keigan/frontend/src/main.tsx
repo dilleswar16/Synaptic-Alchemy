@@ -2,8 +2,12 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles/global.css";
 import { Bootstrap } from "./app/Bootstrap";
+import { initializeBackdrop } from "./hooks/useBackdrop";
+import { initializeDesign } from "./hooks/useDesign";
 import { initializeTheme } from "./hooks/useTheme";
 
+initializeBackdrop();
+initializeDesign();
 initializeTheme();
 
 const rootElement = document.getElementById("root");

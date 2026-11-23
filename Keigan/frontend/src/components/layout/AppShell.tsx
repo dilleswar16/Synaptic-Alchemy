@@ -81,7 +81,7 @@ export function AppShell() {
   }, [isOverlayOpen]);
 
   return (
-    <div className="min-h-dvh bg-canvas">
+    <div className="min-h-dvh app-backdrop">
       <a
         href="#main-content"
         className="sr-only z-[100] rounded-sm bg-action px-4 py-2 text-body font-semibold text-on-action focus:not-sr-only focus:fixed focus:top-3 focus:left-3"

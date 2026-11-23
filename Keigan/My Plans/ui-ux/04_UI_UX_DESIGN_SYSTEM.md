@@ -138,6 +138,28 @@ Section eyebrows ("OPERATE" in the sidebar) may be small caps-style uppercase 11
 Numbers in tables and KPIs use `font-variant-numeric: tabular-nums`. Weights: Noto Sans 400/500/600/700, Figtree 500/600/700.
 Japanese text: line-height +0.1, letter-spacing 0.02em on body.
 
+### 1.4 Design and background switch (trial, 2026-11-23)
+
+The team has not chosen a look yet, so the app can show any of nine designs, each in light and dark, on any of six page backgrounds. Nothing is committed to one of them.
+
+| Design | What it is |
+|---|---|
+| Fresh (default) | Light green: neutral off-white canvas `#F5F7F5`, white surfaces, emerald action `#006C46` (6.5:1 with white), Plus Jakarta Sans headings and Inter body. The values in §1.2 below that mention MetLife blue describe Classic. |
+| Indigo | Lavender-white canvas, indigo action `#4338CA`, Manrope headings. |
+| Azure | Cool slate surfaces, azure action `#1D4ED8`, Geist. |
+| Graphite | Near-monochrome with one teal action `#0F766E`, DM Sans, tighter corners (4 to 16 px). |
+| Coral | Navy action `#0F2A43` on cool grey, coral `#E8553D` for brand marks and chart highlights, Hanken Grotesk, tighter corners. |
+| Ocean | Sea-glass canvas, cyan-teal action `#0E7490`, Outfit. |
+| Violet | Soft lavender canvas, violet action `#6D28D9` with a mint finish, Onest. |
+| Ledger | Ink action `#0D1411` with lime `#B9E34B` highlights on near-white paper, Instrument Sans, slightly tighter corners. |
+| Classic | The original MetLife blue system (Figtree, Noto Sans). |
+
+Page backgrounds (any design): Plain, Dots, Square grid, Gradient, Aurora (soft glows in the brand, info and AI colours from the corners) and Aurora grid. They are built from the active design's tokens in `styles/backdrops.css`, selected with `data-backdrop` on `<html>` and painted by the `app-backdrop` utility on the app shell (fixed, so glows and grids stay put while the page scrolls).
+
+How it works: `tokens.css` holds the Fresh values. `styles/designs.css` overrides only semantic tokens (surfaces, borders, text, action, brand, gradients, logo, chart accents, shadows, fonts, corners) for each other design, per theme, with `[data-design="<id>"][data-theme="light|dark"]`; fonts and corners sit on `[data-design]` alone so the Japanese and Chinese body stacks still win. Because the selectors are attribute-based, any element can carry `data-design` and `data-theme` to preview a design in place; the Design system page does this for its design tiles. `hooks/useDesign.ts` and `hooks/useBackdrop.ts` set the attributes on `<html>`, keep the choices in `localStorage` (`keigan.design`, `keigan.backdrop`) and load a design's extra Google Fonts when it is chosen or previewed. Where to choose: the **Design system page** (`/design-system`, developer environments) has a picker with a live preview tile per design and per background; the palette button in the top bar (`DesignSwitcher`, string `common:design.change` in all seven locale folders; design names are not translated) switches the design from any page. Because pages use semantic tokens, a switch restyles every page; the status colours (danger, warning, success, alert) and the purple AI marks are shared by all designs, and each design sets its own `--gradient-ai` for the Ask Keigan panel. The confidence meter blends from the action colour to the success colour, so it follows the design.
+
+Open items: validate each design's chart palette for colour-blind separation (`npm run check:contrast` has not been run on the new designs); `meta theme-color` still uses fixed green values; only Home was reviewed in every design; remove the switchers and the unused designs and backgrounds once the team has chosen.
+
 ## 2. Space, shape, depth
 
 - **Spacing scale** (4 px base): 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64. Card padding 24 (20 on dense cards); page gutters 32 desktop, 20 tablet, 16 mobile; section gap 32; form label→control 8; between fields 20.

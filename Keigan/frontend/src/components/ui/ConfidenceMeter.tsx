@@ -27,8 +27,8 @@ export function confidenceLevelFor(percentage: number): ConfidenceLevel {
   return "low";
 }
 
-/** Brand sweep from Dark Blue to Green across the five segments. */
-const segmentColours = ["#0061A0", "#007ABC", "#0090DA", "#52B0A8", "#A4CE4E"];
+/** Sweep from the action colour to the success colour across the five segments, so it follows the chosen design. */
+const segmentColours = [0, 25, 50, 75, 100].map((successShare) => `color-mix(in srgb, var(--color-action) ${100 - successShare}%, var(--color-success-fill) ${successShare}%)`);
 
 /** Five-segment confidence bar + percentage + level label (doc 04 §5). */
 export function ConfidenceMeter({ percentage, showLabel = true, size = "md", className }: ConfidenceMeterProps) {

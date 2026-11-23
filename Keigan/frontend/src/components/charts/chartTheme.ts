@@ -27,7 +27,7 @@ export const chartToneColors: Record<ChartColorToken, string> = {
   info: "var(--color-info-fill)",
   ai: "var(--color-ai-fill)",
   neutral: "var(--color-neutral-fill)",
-  brand: "var(--metlife-blue-1)",
+  brand: "var(--color-brand-fill)",
   target: "var(--chart-target)",
   anomaly: "var(--chart-anomaly)",
 };

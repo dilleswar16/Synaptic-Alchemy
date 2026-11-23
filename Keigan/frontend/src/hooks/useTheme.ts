@@ -47,7 +47,7 @@ function applyThemeToDocument(resolvedTheme: ResolvedTheme): void {
   rootElement.classList.add("theme-switching");
   rootElement.dataset.theme = resolvedTheme;
   rootElement.style.colorScheme = resolvedTheme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolvedTheme === "dark" ? "#0A1420" : "#0061A0");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolvedTheme === "dark" ? "#0A1A14" : "#006C46");
   window.requestAnimationFrame(() => rootElement.classList.remove("theme-switching"));
 }
 

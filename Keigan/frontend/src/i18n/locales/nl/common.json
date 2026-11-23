@@ -59,6 +59,9 @@
     "conflictDescription": "Laad opnieuw om de nieuwste versie te zien en voer uw wijziging opnieuw door.",
     "reference": "Referentie {{correlationId}}"
   },
+  "design": {
+    "change": "Ontwerp wijzigen"
+  },
   "theme": {
     "label": "Thema",
     "light": "Licht",

@@ -1,0 +1,61 @@
+/*
+ * Page background styles (square grid, dots, gradient, aurora). Chosen with `data-backdrop` on <html> (see hooks/useBackdrop.ts)
+ * and painted by the `app-backdrop` utility on the app shell. They are built from the active design's tokens, so every design
+ * and both themes get a matching version. "plain" has no rules: the flat canvas colour.
+ */
+
+:root {
+  --backdrop-glow-1: 22%;
+  --backdrop-glow-2: 18%;
+  --backdrop-glow-3: 14%;
+  --backdrop-line: 7%;
+  --backdrop-dot: 18%;
+}
+
+[data-theme="dark"] {
+  --backdrop-glow-1: 28%;
+  --backdrop-glow-2: 22%;
+  --backdrop-glow-3: 20%;
+  --backdrop-line: 9%;
+  --backdrop-dot: 22%;
+}
+
+[data-backdrop="dots"] {
+  --backdrop-image: radial-gradient(circle, color-mix(in srgb, var(--color-text) var(--backdrop-dot), transparent) 1px, transparent 1.5px);
+  --backdrop-size: 22px 22px;
+}
+
+[data-backdrop="grid"] {
+  --backdrop-image:
+    linear-gradient(color-mix(in srgb, var(--color-text) var(--backdrop-line), transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-text) var(--backdrop-line), transparent) 1px, transparent 1px);
+  --backdrop-size: 32px 32px;
+}
+
+[data-backdrop="gradient"] {
+  --backdrop-image: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-brand-fill) 14%, var(--color-canvas)) 0%,
+    var(--color-canvas) 42%,
+    color-mix(in srgb, var(--color-info-fill) 11%, var(--color-canvas)) 100%
+  );
+  --backdrop-size: auto;
+}
+
+[data-backdrop="aurora"] {
+  --backdrop-image:
+    radial-gradient(60% 45% at 6% 0%, color-mix(in srgb, var(--color-brand-fill) var(--backdrop-glow-1), transparent), transparent 72%),
+    radial-gradient(50% 42% at 94% 2%, color-mix(in srgb, var(--color-info-fill) var(--backdrop-glow-2), transparent), transparent 72%),
+    radial-gradient(55% 45% at 72% 100%, color-mix(in srgb, var(--color-ai-fill) var(--backdrop-glow-3), transparent), transparent 72%);
+  --backdrop-size: auto;
+}
+
+[data-backdrop="aurora-grid"] {
+  --backdrop-image:
+    linear-gradient(color-mix(in srgb, var(--color-text) var(--backdrop-line), transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-text) var(--backdrop-line), transparent) 1px, transparent 1px),
+    radial-gradient(60% 45% at 6% 0%, color-mix(in srgb, var(--color-brand-fill) var(--backdrop-glow-1), transparent), transparent 72%),
+    radial-gradient(50% 42% at 94% 2%, color-mix(in srgb, var(--color-info-fill) var(--backdrop-glow-2), transparent), transparent 72%),
+    radial-gradient(55% 45% at 72% 100%, color-mix(in srgb, var(--color-ai-fill) var(--backdrop-glow-3), transparent), transparent 72%);
+  --backdrop-size: 32px 32px, 32px 32px, auto, auto, auto;
+}
