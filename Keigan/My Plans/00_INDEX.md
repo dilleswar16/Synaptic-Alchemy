@@ -47,6 +47,8 @@ Documents keep their numbers, so "doc 06" always means the same file. They are g
 | 23 | [Ask Keigan chat: design and spec](features/ask-keigan-chat/23_ASK_KEIGAN_CHAT_SPEC.md) | Designed, not built (roadmap B5). One chat with every read-only tool and a visible tool-call view; owner decisions D1 to D6 recorded. |
 | 22 | [AI evaluation harness: design and spec](features/ai-evaluation-harness/22_AI_EVALUATION_HARNESS_SPEC.md) | Designed, deferred by decision (roadmap A1). |
 | 37 | [Real-model test plan](features/ai-evaluation-harness/37_REAL_MODEL_TEST_PLAN.md) | Written, not run. A self-contained checklist with acceptance criteria and the agent prompt, for the first real-model results on another machine. |
+| 38 | [Competitor and gap research](product/38_COMPETITOR_AND_GAP_RESEARCH.md) | A second market study (2026-11-24): about 20 vendors from their own pages, 25 capability and 16 frontend gaps, 14 ideas beyond the competitors, a next-ten list and questions for the owner. Some vendor pages could not be read; those claims are marked unverified. |
+| 39 | [Later to-dos](product/39_LATER_TODOS.md) | Things worth doing later, not now: personal notification preferences and quiet hours, Teams acknowledge and approve actions, multi-hop alert grouping, composite SLOs and SLOs as code, alert quality scoring, and the other open items. |
 | 08 | [RAG proposal](features/semantic-retrieval/08_RAG_PROPOSAL.md) | Future retrieval-augmented knowledge base, once a vector store is provisioned. |
 
 ### quality-and-security/
