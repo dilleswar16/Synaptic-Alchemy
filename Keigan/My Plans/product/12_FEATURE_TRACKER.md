@@ -1,18 +1,18 @@
 # 12 — Feature tracker
 
 Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated by the lead after each build agent reports and after each integration test.
-**Last updated:** 2026-11-22 — Ask Keigan phase 3 frontend: the Keigan AI chat page on the new engine (K6); Ask Keigan phases 1 and 2 on the investigation page (K5); 2026-11-21 — reliability metrics page, per-application operating notes, "why these alerts were grouped" sentence (all three built, verified by tests and screenshots; committed on keigan-ui-ux, not pushed). Summary recounted from the rows below.
+**Last updated:** 2026-11-24 — similar-incident memory (E-SM) added, action items, error budget and runbook health rows brought up to date; 2026-11-22 — Ask Keigan phase 3 frontend: the Keigan AI chat page on the new engine (K6); Ask Keigan phases 1 and 2 on the investigation page (K5); 2026-11-21 — reliability metrics page, per-application operating notes, "why these alerts were grouped" sentence (all three built, verified by tests and screenshots; committed on keigan-ui-ux, not pushed). Summary recounted from the rows below.
 
 ## Summary
 
 | | Count | Share |
 |---|---|---|
-| ✅ Done and verified | 96 | 81 % |
-| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 19 | 16 % |
+| ✅ Done and verified | 96 | 80 % |
+| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 20 | 17 % |
 | 🧩 Placeholder by design (configuration saved, reader later) | 2 | 2 % |
 | 🔄 Being built right now | 1 | 1 % |
 | ⬜ Not started | 1 | 1 % |
-| **Total features** | **119** | **98 % built · 81 % verified** |
+| **Total features** | **120** | **98 % built · 80 % verified** |
 
 **Legend**
 - ✅ **Done and verified** in the local simulated environment: API tested end to end, and the screen loads in a real browser (headless Edge) with live data and no console or API errors. Mock AI unless stated.
@@ -95,10 +95,11 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 |---|---|---|---|
 | E1 | ServiceNow polling | ✅ | Simulated ServiceNow |
 | E-DT | Decision trace (roadmap A3): the Decision trace tab (steps in order, AI calls with prompt version and hashes, what went in by hash, what Keigan's checks changed, raw answers for admins), audit rows, correct token totals | 🟡 | Built and tested with the offline model; not seen in a browser; details shown as JSON, no cost or download yet. Design in `28_DECISION_TRACE.md` |
-| E-AI | Action items (roadmap C1): postmortem follow-ups as tracked rows (owner, due date, priority, type, status), accept-or-discard of AI suggestions before finalising, daily reminders and escalations, the Action items page | 🟡 | Built and tested with the offline model and SQLite, including the overview (completion figures, needs attention, repeats); not seen in a browser. Design in `29_ACTION_ITEMS.md` |
-| E-EB | Error-budget policy (roadmap C2): budget impact per incident and SLO, the team's policy (off by default), the postmortem requirement with waiver, outage-class and used-up-budget rules, breach messages | 🟡 | Built and tested with SQLite and the offline model; not seen in a browser; no "needs attention" or weekly-review entry yet. Design in `30_ERROR_BUDGET_POLICY.md` |
+| E-AI | Action items (roadmap C1): postmortem follow-ups as tracked rows (owner, due date, priority, type, status), accept-or-discard of AI suggestions before finalising, daily reminders and escalations, the Action items page | 🟡 | Built and tested with the offline model and SQLite, including the overview (completion figures, needs attention, repeats), the links to ServiceNow tasks (kept in step by a job), the Teams card actions, an item raised from a runbook finding, and a link that opens one item; not seen in a browser; no ServiceNow or Teams run. Design in `29_ACTION_ITEMS.md` |
+| E-EB | Error-budget policy (roadmap C2): budget impact per incident and SLO, the team's policy (off by default), the postmortem requirement with waiver, outage-class and used-up-budget rules, breach messages | 🟡 | Built and tested with SQLite and the offline model; a breach is posted to the incident's Teams chat as a card in the application's language; not seen in a browser; no Teams run. Design in `30_ERROR_BUDGET_POLICY.md` |
 | E-WR | Weekly health review (roadmap C3): error budget and follow-up sections in the weekly digest, mark as reviewed with a note | 🟡 | Built and tested with the offline model and SQLite; not seen in a browser; no reminder for unreviewed digests. Design in `31_WEEKLY_HEALTH_REVIEW.md` |
-| E-RH | Runbook health (roadmap C4): the findings card on the Runbooks step and the digest count | 🟡 | Built and tested; not seen in a browser; no action item from a finding. Design in `32_RUNBOOK_HEALTH.md` |
+| E-RH | Runbook health (roadmap C4): the findings card on the Runbooks step and the digest count | 🟡 | Built and tested; a finding can become an action item; the findings also show on the application list and next to the runbooks an investigation matched; not seen in a browser. Design in `32_RUNBOOK_HEALTH.md` |
+| E-SM | Similar-incident memory, "Seen before" (roadmap B1, spec 34 phases 1 to 5): each completed investigation is remembered as one masked entry; matching on seven kinds of keys plus words; the card on the investigation page with relevance ratings and hide; incidents marked incorrect shown apart and labelled; confirmed past incidents given to the AI as hints, not evidence; the Ask Keigan tool "have we seen this before?"; the metrics block; a retrieval suite (12 synthetic cases, recall and access gates) | 🟡 | Built and tested with the offline model and SQLite (about 140 tests match memory, similar or retrieval); not seen in a browser; the effect of the hint on a real model is untested (plan in `37_REAL_MODEL_TEST_PLAN.md`); the suite has 12 synthetic cases, not the 30 real pairs the spec asks for before semantic retrieval is considered. Design in `34_SIMILAR_INCIDENT_MEMORY.md` |
 | E-FX | Better suggested fixes (roadmap E1), part 1: code checks on every suggested command, withheld commands with reasons, secret-printing commands rated high, fenced code in emails | 🟡 | Built and tested; phases 1 to 3 (safety checks, typed slots, checked steps, the fix plan, the step cards with fill-in fields); phase 5 scoring not built; not tried on a real model, not seen in a browser. Design in `33_BETTER_SUGGESTED_FIXES.md` |
 | E-HO | Honest outcomes (roadmap A2): state per hypothesis, outcome per investigation, what Keigan could not check, check outcome and baseline on every evidence item, outcome-first emails, Teams answers and drafts | 🟡 | Built and tested with the offline model (backend tests, typecheck, locale check, build); not seen in a browser; needs a real model to show how it distributes states. Design in `27_HONEST_OUTCOMES.md` |
 | E2 | Priority triage P1–P4 | ✅ | |
