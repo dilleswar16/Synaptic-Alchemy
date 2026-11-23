@@ -7,12 +7,12 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 
 | | Count | Share |
 |---|---|---|
-| ✅ Done and verified | 96 | 80 % |
-| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 20 | 17 % |
+| ✅ Done and verified | 96 | 79 % |
+| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 21 | 17 % |
 | 🧩 Placeholder by design (configuration saved, reader later) | 2 | 2 % |
 | 🔄 Being built right now | 1 | 1 % |
 | ⬜ Not started | 1 | 1 % |
-| **Total features** | **120** | **98 % built · 80 % verified** |
+| **Total features** | **121** | **98 % built · 79 % verified** |
 
 **Legend**
 - ✅ **Done and verified** in the local simulated environment: API tested end to end, and the screen loads in a real browser (headless Edge) with live data and no console or API errors. Mock AI unless stated.
@@ -99,6 +99,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | E-EB | Error-budget policy (roadmap C2): budget impact per incident and SLO, the team's policy (off by default), the postmortem requirement with waiver, outage-class and used-up-budget rules, breach messages | 🟡 | Built and tested with SQLite and the offline model; a breach is posted to the incident's Teams chat as a card in the application's language; not seen in a browser; no Teams run. Design in `30_ERROR_BUDGET_POLICY.md` |
 | E-WR | Weekly health review (roadmap C3): error budget and follow-up sections in the weekly digest, mark as reviewed with a note | 🟡 | Built and tested with the offline model and SQLite; not seen in a browser; no reminder for unreviewed digests. Design in `31_WEEKLY_HEALTH_REVIEW.md` |
 | E-RH | Runbook health (roadmap C4): the findings card on the Runbooks step and the digest count | 🟡 | Built and tested; a finding can become an action item; the findings also show on the application list and next to the runbooks an investigation matched; not seen in a browser. Design in `32_RUNBOOK_HEALTH.md` |
+| E-KH | Resolved with Keigan's help (idea N4 of the market study): the person resolving an incident answers "how did Keigan's analysis help?" (found the cause, helped partly, did not help, not used), suggested from their rating of the analysis; a chip on the incident header; a block on the metrics page with the shares and the resolve time with and without help | 🟡 | Built and tested with SQLite; not seen in a browser. It is a person's answer, not a measurement; there is no list filter yet. A new column on the incident (`keigan_help`) |
 | E-SM | Similar-incident memory, "Seen before" (roadmap B1, spec 34 phases 1 to 5): each completed investigation is remembered as one masked entry; matching on seven kinds of keys plus words; the card on the investigation page with relevance ratings and hide; incidents marked incorrect shown apart and labelled; confirmed past incidents given to the AI as hints, not evidence; the Ask Keigan tool "have we seen this before?"; the metrics block; a retrieval suite (12 synthetic cases, recall and access gates) | 🟡 | Built and tested with the offline model and SQLite (about 140 tests match memory, similar or retrieval); not seen in a browser; the effect of the hint on a real model is untested (plan in `37_REAL_MODEL_TEST_PLAN.md`); the suite has 12 synthetic cases, not the 30 real pairs the spec asks for before semantic retrieval is considered. Design in `34_SIMILAR_INCIDENT_MEMORY.md` |
 | E-FX | Better suggested fixes (roadmap E1), part 1: code checks on every suggested command, withheld commands with reasons, secret-printing commands rated high, fenced code in emails | 🟡 | Built and tested; phases 1 to 3 (safety checks, typed slots, checked steps, the fix plan, the step cards with fill-in fields); phase 5 scoring not built; not tried on a real model, not seen in a browser. Design in `33_BETTER_SUGGESTED_FIXES.md` |
 | E-HO | Honest outcomes (roadmap A2): state per hypothesis, outcome per investigation, what Keigan could not check, check outcome and baseline on every evidence item, outcome-first emails, Teams answers and drafts | 🟡 | Built and tested with the offline model (backend tests, typecheck, locale check, build); not seen in a browser; needs a real model to show how it distributes states. Design in `27_HONEST_OUTCOMES.md` |

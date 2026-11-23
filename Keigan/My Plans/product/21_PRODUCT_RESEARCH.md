@@ -268,7 +268,7 @@ New ideas the research added that were not in Part 1:
 - **N1. Per-application operating instructions** (Azure's "custom instructions": which services are revenue-critical, which alerts must never be merged, which are regulated).
 - **N2. Inconclusive is a result, not a failure**, and is reported (Datadog marks a whole investigation inconclusive when it is; some vendors' older plans did not bill inconclusive runs [T]).
 - **N3. Per-trigger autonomy with a trial period** (Azure run modes), as the design for any future action.
-- **N4. "Closed by AI" style attribution** to measure what the AI actually handled (ServiceNow).
+- **N4. "Closed by AI" style attribution** to measure what the AI actually handled (ServiceNow). *(Built 2026-11-24 as "Resolved with Keigan's help": the person resolving answers how far the analysis helped; shown on the incident and on the metrics page. It is a person's answer, not a measurement, and Keigan still never resolves anything itself.)*
 - **N5. Scheduled health reviews** per application (Azure scheduled tasks, Grafana automations).
 - **N6. Investigation per hypothesis, not bulk summary**, and evidence pre-processed in code before the model sees it (Datadog). Applies to our existing pipeline.
 - **N7. Healthy-window baseline** for every claim of "changed" (Elastic).
@@ -319,7 +319,7 @@ Sizes are relative: **S** days, **M** one to two weeks, **L** several weeks. The
 
 - **Datadog**: the distraction came from an early summarise-everything agent and was fixed by investigating per hypothesis with only that link's telemetry; separately, moving from phases to a ReAct loop cut cost. The fact-check found that every Keigan perspective receives the full evidence index (`investigation_graph.py`), so test whether per-hypothesis evidence helps; the harness (A1) can measure it.
 - **Elastic**: every number names its tool and every claim names a record id. Check that Keigan's citations point to ids a person can open.
-- **ORCA-bench**: weaker models invent causes when the real cause is outside the data. Keigan's "evidence-only" mode and "no data" wording are the right instinct; add an explicit "cause not visible in the data I can see" outcome.
+- **ORCA-bench**: weaker models invent causes when the real cause is outside the data. Keigan's "evidence-only" mode and "no data" wording are the right instinct; add an explicit "cause not visible in the data I can see" outcome. *(Built 2026-11-23 with honest outcomes, spec 27: the `cause_not_visible` outcome.)*
 - **CNCF**: stale runbooks are worse than none. Runbook health (C4) addresses it.
 - **Rootly's own advice**: introduce summaries and retrospectives before remediation. Keigan already does; keep remediation propose-only.
 
