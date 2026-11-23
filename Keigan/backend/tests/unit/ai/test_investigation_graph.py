@@ -110,6 +110,26 @@ class TestValidatedHypothesis:
         assert validated["fix_risk_level"] == "high"
         assert validated["proposed_fix"]["steps"][0]["command_risk_level"] == "high"
 
+    @pytest.mark.parametrize(("command", "language", "reason"), [
+        ("az webapp restart --name claims-web --resource-group <resource-group>", "bash", "unsafe_shell_syntax"),
+        ("kubectl get pods; kubectl delete pod x", "bash", "unsafe_shell_syntax"),
+        ("kubectl get secret db -o yaml > secret.txt", "bash", "unsafe_shell_syntax"),
+        ("az webapp config appsettings set --name a --resource-group r --settings Db=Password=hunter2;X=1", "bash", "unsafe_shell_syntax"),
+        ("UPDATE claims SET status = 'x' WHERE id = 1", "sql", "data_changing_sql"),
+    ])
+    def test_an_unsafe_command_is_withheld_but_its_risk_still_counts(self, runner: InvestigationGraphRunner, command: str, language: str, reason: str) -> None:
+        fix = ProposedFix(summary="s", steps=[FixStep(description="Do the thing", command_text=command, command_language=language)])
+        validated = runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix, fix_risk_level="low"))
+        step = validated["proposed_fix"]["steps"][0]
+        assert step["command_text"] is None and step["command_withheld_reason"] == reason and step["description"] == "Do the thing"
+        assert step["command_risk_level"] is not None and validated["fix_risk_level"] != "low"
+
+    def test_a_plain_command_is_kept_and_a_command_that_prints_secrets_is_marked(self, runner: InvestigationGraphRunner) -> None:
+        fix = ProposedFix(summary="s", steps=[FixStep(description="a", command_text="kubectl get pods -n prod"), FixStep(description="b", command_text="kubectl get secret db -o yaml")])
+        steps = runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix))["proposed_fix"]["steps"]
+        assert steps[0]["command_text"] == "kubectl get pods -n prod" and steps[0]["command_withheld_reason"] is None and steps[0]["command_warnings"] == []
+        assert steps[1]["command_risk_level"] == "high" and steps[1]["command_warnings"] == ["prints_secrets"]
+
     def test_an_unknown_command_is_at_least_medium(self, runner: InvestigationGraphRunner) -> None:
         fix = ProposedFix(summary="s", steps=[FixStep(description="d", command_text="mytool --reset-everything")])
         assert runner._validated_hypothesis("application", hypothesis_result(proposed_fix=fix, fix_risk_level="low"))["fix_risk_level"] == "medium"
@@ -124,6 +144,16 @@ class TestSanitizedSynthesisText:
         cleaned = runner._clean_synthesis_text("[x](https://evil.example)\n\n```bash\nkubectl -n prod delete pod a\n```", {})
         assert "](https://evil.example" not in cleaned
         assert "**High risk.**" in cleaned
+
+    def test_an_unsafe_command_block_in_the_synthesis_is_replaced_by_a_note(self, runner: InvestigationGraphRunner) -> None:
+        cleaned = runner._clean_synthesis_text("Restart it.\n\n```bash\naz webapp restart --name a --resource-group <resource-group>\n```\n\nThen check.", {})
+        assert "Command not shown" in cleaned and "<resource-group>" not in cleaned and "```" not in cleaned and "Then check." in cleaned
+
+    def test_a_safe_block_stays_and_a_secret_printing_one_is_marked(self, runner: InvestigationGraphRunner) -> None:
+        safe = runner._clean_synthesis_text("```bash\nkubectl get pods -n prod\n```", {})
+        assert "kubectl get pods -n prod" in safe and "Command not shown" not in safe
+        secret = runner._clean_synthesis_text("```bash\nkubectl get secret db -o yaml\n```", {})
+        assert "**Prints secrets.**" in secret and "**High risk.**" in secret
 
     def test_the_allowed_hosts_come_from_settings(self, runner: InvestigationGraphRunner, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(get_ai_safety_settings(), "ai_output_allowed_link_hosts", "docs.example.org")

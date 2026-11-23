@@ -32,7 +32,7 @@ _ESCAPED_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
 
 
 def markdown_to_safe_html(markdown_text: str | None) -> str:
-    """Tiny Markdown subset (headings, bullets, bold, inline code, links, paragraphs) on already-escaped text.
+    """Tiny Markdown subset (headings, bullets, bold, inline code, links, paragraphs, fenced code blocks) on already-escaped text.
 
     The text is sanitised first (links only to allowed hosts, no images or HTML), so the only links that can appear are allowed ones.
     """
@@ -40,7 +40,21 @@ def markdown_to_safe_html(markdown_text: str | None) -> str:
         return ""
     output_parts: list[str] = []
     open_list = False
+    fenced_lines: list[str] | None = None  # the lines of the fenced code block being read (a suggested command): escaped, never formatted
     for raw_line in sanitize_ai_markdown(markdown_text).splitlines():
+        if raw_line.strip().startswith("```"):
+            if fenced_lines is None:
+                if open_list:
+                    output_parts.append("</ul>")
+                    open_list = False
+                fenced_lines = []
+            else:
+                output_parts.append(_code_block_html(fenced_lines))
+                fenced_lines = None
+            continue
+        if fenced_lines is not None:
+            fenced_lines.append(raw_line.rstrip())
+            continue
         line = html.escape(raw_line.rstrip())
         line = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", line)
         line = re.sub(r"`(.+?)`", r"<code>\1</code>", line)
@@ -61,9 +75,16 @@ def markdown_to_safe_html(markdown_text: str | None) -> str:
             output_parts.append(f'<h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">{heading_match.group(2)}</h3>')
         elif line.strip():
             output_parts.append(f'<p style="margin:6px 0;">{line}</p>')
+    if fenced_lines is not None:  # an unclosed fence: still show what was written, as code
+        output_parts.append(_code_block_html(fenced_lines))
     if open_list:
         output_parts.append("</ul>")
     return "\n".join(output_parts)
+
+
+def _code_block_html(lines: list[str]) -> str:
+    code = html.escape("\n".join(lines))
+    return f'<pre style="margin:8px 0;padding:10px 12px;background:#f3f5f7;border:1px solid #d5dbe0;border-radius:6px;overflow:auto;font-size:13px;"><code>{code}</code></pre>'
 
 
 class NotificationRenderer:

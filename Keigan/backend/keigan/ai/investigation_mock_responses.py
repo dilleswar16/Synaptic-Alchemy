@@ -95,10 +95,11 @@ def _restart_command(service: MockServiceInfo | None) -> FixStep:
         return FixStep(description="Restart the affected service through the normal change process.")
     if service.service_type == "aks":
         return FixStep(description=f"Restart {service.name} so new pods pick up the corrected configuration.", command_text=f"kubectl rollout restart deployment/{service.name} -n {service.namespace or 'default'}", command_language="bash")
-    if service.service_type == "function_app":
-        return FixStep(description=f"Restart the function app {service.name}.", command_text=f"az functionapp restart --name {service.name} --resource-group {service.resource_group or '<resource-group>'}", command_language="bash")
-    if service.service_type == "app_service":
-        return FixStep(description=f"Restart the app service {service.name}.", command_text=f"az webapp restart --name {service.name} --resource-group {service.resource_group or '<resource-group>'}", command_language="bash")
+    if service.service_type in ("function_app", "app_service"):
+        command_group, kind_text = ("functionapp", "function app") if service.service_type == "function_app" else ("webapp", "app service")
+        if not service.resource_group:
+            return FixStep(description=f"Restart the {kind_text} {service.name}. Look up its resource group first: the service catalogue does not name one.")
+        return FixStep(description=f"Restart the {kind_text} {service.name}.", command_text=f"az {command_group} restart --name {service.name} --resource-group {service.resource_group}", command_language="bash")
     return FixStep(description=f"Restart {service.name} through the normal change process.")
 
 
@@ -107,9 +108,11 @@ def _rollback_command(service: MockServiceInfo | None, release_text: str) -> Fix
         return FixStep(description=f"Roll back {service.name} to the previous revision ({release_text}).", command_text=f"kubectl rollout undo deployment/{service.name} -n {service.namespace or 'default'}", command_language="bash")
     if service is not None and service.service_type in ("app_service", "function_app"):
         command_group = "webapp" if service.service_type == "app_service" else "functionapp"
+        if not service.resource_group:
+            return FixStep(description=f"Swap the previous release back into production ({release_text}). Look up the resource group of {service.name} first: the service catalogue does not name one.")
         return FixStep(
             description=f"Swap the previous release back into production ({release_text}).",
-            command_text=f"az {command_group} deployment slot swap --name {service.name} --resource-group {service.resource_group or '<resource-group>'} --slot staging --target-slot production",
+            command_text=f"az {command_group} deployment slot swap --name {service.name} --resource-group {service.resource_group} --slot staging --target-slot production",
             command_language="bash",
         )
     return FixStep(description=f"Roll back the last release ({release_text}) through the release pipeline.")
@@ -118,9 +121,10 @@ def _rollback_command(service: MockServiceInfo | None, release_text: str) -> Fix
 def _setting_command(service: MockServiceInfo | None, setting: str, value: str) -> FixStep:
     if service is not None and service.service_type == "aks":
         return FixStep(description=f"Restore {setting}={value} on {service.name}.", command_text=f"kubectl set env deployment/{service.name} {setting}={value} -n {service.namespace or 'default'}", command_language="bash")
-    resource_group = (service.resource_group if service else None) or "<resource-group>"
-    command_group = "functionapp" if service is not None and service.service_type == "function_app" else "webapp"
-    return FixStep(description=f"Restore {setting}={value}.", command_text=f"az {command_group} config appsettings set --name {service.name if service else '<app>'} --resource-group {resource_group} --settings {setting}={value}", command_language="bash")
+    if service is None or not service.resource_group:  # no guessed names and no placeholders: the engineer looks the missing value up first
+        return FixStep(description=f"Restore {setting}={value}. Look up the app and its resource group first: the service catalogue does not name them.")
+    command_group = "functionapp" if service.service_type == "function_app" else "webapp"
+    return FixStep(description=f"Restore {setting}={value}.", command_text=f"az {command_group} config appsettings set --name {service.name} --resource-group {service.resource_group} --settings {setting}={value}", command_language="bash")
 
 
 # ── Scenario scripts ───────────────────────────────────────────────────────────

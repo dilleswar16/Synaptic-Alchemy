@@ -509,3 +509,20 @@ Overall M (doc 21 estimated S to M; the safety rules in section 6 are what make 
 3. **Q3. "This fix worked" feedback** per step, separate from the investigation verdict? It would feed similar-incident memory (doc 34). Not in this design.
 4. **Q4. Data-changing SQL** stays a manual action only (F6). Confirm with the data owners.
 5. **Q5.** A security reviewer should read `fix_parameter_kinds.yaml` and the rules in 6.2 before release.
+
+
+---
+
+## 12. Build notes (2026-11-23): part 1
+
+Built on `keigan-ui-ux` by the lead, deliberately **part of the design**: phase 1 (core checks), the fenced-code part of phase 4, and a bridge that applies the checks to the commands a hypothesis proposes today. No schema change.
+
+Built:
+- `resources/catalogs/fix_parameter_kinds.yaml` and `ai/fix_parameter_kinds.py` (twelve kinds; patterns are matched with `fullmatch`, because a pattern's `$` also matches before a trailing newline, which the first test run found); `ai/fix_command_shape.py` (the rules of 6.2, SQL handled separately); `ai/fix_command_renderer.py` (segments, quoting by code, the whole-word rule, missing values); `secret_revealing_command_patterns` in `command_risk_rules.yaml` with `reveals_secrets`; `tests/support/fix_value_quoting_vectors.json` (read by the backend tests; the frontend test that should read it is not written).
+- `ai/fix_command_check.py` applies shape, length, secret and data-changing-SQL checks; `InvestigationGraphRunner._validated_hypothesis` withholds a failing command (`command_text` null, `command_withheld_reason`, `command_warnings` in the stored JSON and in `FixStepDto`), still counts its risk, and `_flag_high_risk_commands` applies the same checks to the synthesis's fenced blocks.
+- Prompts: hypothesis and synthesis **version 5** no longer ask for `<placeholder>` values; the offline model leaves the command out when the resource group is unknown.
+- `markdown_to_safe_html` renders fenced code blocks (AC-19). Setting `SUGGESTED_FIX_MAXIMUM_COMMAND_CHARACTERS`.
+- The hypothesis card shows the withheld reason and the secret warning (six locales).
+
+Not built (the design's phases 2, 3 and 5, and the channel tests): the new output schema with typed parameters, `fix_step_validator.py` (source checks: verified and assumed values), `fix_plan.py` and `fix_plan_markdown.py`, `investigation.fix_plan_json` and its revision, validate and revert steps with their own risk, `FixStepCard`, `CommandBlock` segments and fill-in fields, the confirm dialog for high risk, dialect tabs, the section 4.8 metrics, AC-24 and AC-28 tests. Because slots do not exist yet, a command with an unknown value is withheld instead of offered with a fill-in field.
+Found while building: the spec's example resource group `rg-claims (jp)` contains a space, which Azure does not allow; the vectors use `rg-claims(jp)`.

@@ -101,6 +101,8 @@ backendEnvironment:
   ACTION_ITEMS_REASON_MINIMUM_CHARACTERS: "10"
   # Action item reminders: master switch, local hour of the daily job, days before the due date, days between overdue reminders, days overdue before escalation, escalation roles, days before closed items are deleted.
   # Error budget policy: one-incident and outage-class thresholds (percent of an SLO's budget), the class window in days, minutes between evaluations, hours until a figure is final, minimum data coverage and events, auto-draft of the postmortem, waiver and guidance lengths, roles told, days breaches are kept.
+  # Suggested fixes: longest command shown as copyable.
+  SUGGESTED_FIX_MAXIMUM_COMMAND_CHARACTERS: "600"
   # Runbook health: days before a never-used runbook is flagged, days before a runbook is flagged as not updated, fewest rated investigations and the share rated incorrect that flag a runbook.
   RUNBOOK_HEALTH_UNUSED_AFTER_DAYS: "60"
   RUNBOOK_HEALTH_STALE_AFTER_DAYS: "180"

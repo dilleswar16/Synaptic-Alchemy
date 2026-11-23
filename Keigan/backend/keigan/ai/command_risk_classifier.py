@@ -56,6 +56,7 @@ class _Rules:
     sql_high: frozenset[str]
     sql_client_executables: frozenset[str]
     sql_tautology_pattern: re.Pattern[str]
+    secret_revealing_patterns: tuple[re.Pattern[str], ...]
 
 
 @lru_cache
@@ -77,7 +78,7 @@ def _load_rules() -> _Rules:
         high_risk_prefixes=tuple(catalog["high_risk_executable_prefixes"]), high_risk_arguments=frozenset(catalog["high_risk_arguments"]),
         high_risk_argument_pairs=tuple((first, second) for first, second in catalog["high_risk_argument_pairs"]), families_by_executable=families_by_executable,
         sql_mode_keywords=frozenset(sql_entry["mode_keywords"]), sql_read_only=frozenset(sql_entry["read_only"]), sql_high=frozenset(sql_entry[RiskLevel.HIGH]), sql_client_executables=frozenset(sql_entry["client_executables"]),
-        sql_tautology_pattern=re.compile(sql_entry["tautology_pattern"]),
+        sql_tautology_pattern=re.compile(sql_entry["tautology_pattern"]), secret_revealing_patterns=tuple(re.compile(pattern) for pattern in catalog["secret_revealing_command_patterns"]),
     )
 
 
@@ -85,11 +86,19 @@ def _highest(first_risk: str, second_risk: str) -> str:
     return first_risk if RISK_RANK[first_risk] >= RISK_RANK[second_risk] else second_risk
 
 
+def reveals_secrets(command_text: str) -> bool:
+    """True for a command that prints secrets (reading a Kubernetes secret as YAML, showing a Key Vault secret, listing storage keys or app settings, admin credentials)."""
+    normalised = " ".join(strip_invisible_characters(command_text or "").lower().split())
+    return any(pattern.search(normalised) for pattern in _load_rules().secret_revealing_patterns)
+
+
 def classify_command_risk(command_text: str) -> str:
-    """Return ``high``, ``medium`` or ``low`` for a command, a pipeline or a multi-line block of commands."""
+    """Return ``high``, ``medium`` or ``low`` for a command, a pipeline or a multi-line block of commands. A command that prints secrets is always high."""
     cleaned_text = strip_invisible_characters(command_text or "").strip()
     if not cleaned_text:
         return RiskLevel.LOW
+    if reveals_secrets(cleaned_text):
+        return RiskLevel.HIGH
     if _starts_with_sql(cleaned_text, _load_rules()):
         return _classify_sql(cleaned_text)
     risk_level = RiskLevel.LOW
@@ -140,6 +149,23 @@ def _split_simple_commands(tokens: list[str]) -> tuple[list[list[str]], bool]:
 def _executable_name(token: str) -> str:
     return ntpath.basename(token.replace("/", "\\")).lower().removesuffix(".exe")
 
+
+def tokenize_command(command_line: str) -> list[str]:
+    """The words of a command line, quotes resolved (used by the suggested-fix checks, which share this tokenizer)."""
+    return _tokenize(command_line)
+
+
+def executable_name(token: str) -> str:
+    """A command word as a lower-case program name: path and ``.exe`` removed."""
+    return _executable_name(token)
+
+
+def read_only_executable_names() -> frozenset[str]:
+    return _load_rules().read_only_executables
+
+
+def read_only_executable_prefixes() -> tuple[str, ...]:
+    return _load_rules().read_only_prefixes
 
 def _classify_shell_line(command_line: str) -> str:
     rules = _load_rules()

@@ -1,7 +1,10 @@
 {
   "pageTitle": "Investigation",
   "pageDescription": "Keigan's root cause analysis, evidence, blast radius and communications for an incident.",
-  "breadcrumb": { "incidents": "Incident room", "manual": "Manual investigation" },
+  "breadcrumb": {
+    "incidents": "Incident room",
+    "manual": "Manual investigation"
+  },
   "tabs": {
     "label": "Investigation sections",
     "rca": "Root cause",
@@ -127,12 +130,24 @@
     "proposedFix": "Proposed fix",
     "highRisk": "High risk: confirm with change process",
     "highRiskCommand": "High risk: confirm with your change process before running.",
-    "risk": { "low": "Low risk", "medium": "Medium risk", "high": "High risk" },
+    "risk": {
+      "low": "Low risk",
+      "medium": "Medium risk",
+      "high": "High risk"
+    },
     "codeChanges": "Code changes",
     "before": "Before",
     "after": "After",
     "verify": "Verify",
-    "rollback": "Roll back"
+    "rollback": "Roll back",
+    "printsSecrets": "This command prints secrets to the screen. Run it only where that is acceptable.",
+    "withheld": {
+      "unsafe_shell_syntax": "Keigan did not show this command: it chained several commands, redirected output, or contained a placeholder that would not run safely.",
+      "unknown_slot": "Keigan did not show this command: it contained a value that was not filled in.",
+      "secret_in_command": "Keigan did not show this command: it contained a password, key or token.",
+      "data_changing_sql": "Keigan did not show this SQL: it changes data. Ask a database administrator.",
+      "command_too_long": "Keigan did not show this command: it is longer than the limit."
+    }
   },
   "evidence": {
     "intro": "Queries ran over {{window}} and over a baseline window of the same length just before it. Personal data is masked.",
@@ -142,7 +157,11 @@
     "platform": "Platform",
     "emptyTitle": "No evidence collected",
     "emptyDescription": "Evidence appears here once Keigan has queried the application's services.",
-    "strength": { "high": "Strong signal", "medium": "Medium signal", "low": "Weak or none" },
+    "strength": {
+      "high": "Strong signal",
+      "medium": "Medium signal",
+      "low": "Weak or none"
+    },
     "category": {
       "error_logs": "Error logs",
       "exceptions": "Exceptions",
@@ -178,7 +197,8 @@
     "injectionTitle": "Possible prompt injection",
     "injectionDescription": "Some log text looked like instructions to an AI. It was quoted as data and never followed.",
     "query": "Show the {{language}} query",
-    "queryTitle_one": "Query ({{count}} matching record)", "queryTitle_other": "Query ({{count}} matching records)",
+    "queryTitle_one": "Query ({{count}} matching record)",
+    "queryTitle_other": "Query ({{count}} matching records)",
     "window": "Window {{start}} to {{end}}",
     "metricPeak": "Peak {{peak}} {{unit}} (baseline {{baseline}})",
     "baselineLabel": "Baseline",
@@ -198,12 +218,21 @@
     "graphTitle": "Impacted services",
     "graphDescription": "Direct: showing failure signals. Indirect: depends on a failing service.",
     "none": "none",
-    "impact": { "direct": "Directly impacted", "indirect": "Indirectly impacted", "investigated": "Examined" },
+    "impact": {
+      "direct": "Directly impacted",
+      "indirect": "Indirectly impacted",
+      "investigated": "Examined"
+    },
     "narrativeTitle": "Who is affected",
     "slosTitle": "SLOs at risk",
     "noSlos": "No SLO is currently at risk for this application.",
     "sloFallback": "SLO",
-    "sloStatus": { "healthy": "Healthy", "at_risk": "At risk", "breached": "Breached", "no_data": "No data" },
+    "sloStatus": {
+      "healthy": "Healthy",
+      "at_risk": "At risk",
+      "breached": "Breached",
+      "no_data": "No data"
+    },
     "stakeholdersTitle": "Stakeholders to inform",
     "noStakeholders": "No stakeholders are subscribed to the impacted services.",
     "healthySlos_one": "{{count}} other SLO for these services is healthy.",
@@ -245,8 +274,15 @@
       "progress_update": "Progress update",
       "resolution_update": "Resolution update"
     },
-    "audience": { "stakeholders": "Stakeholders", "executives": "Executives" },
-    "status": { "draft": "Draft", "approved": "Approved", "sent": "Sent" },
+    "audience": {
+      "stakeholders": "Stakeholders",
+      "executives": "Executives"
+    },
+    "status": {
+      "draft": "Draft",
+      "approved": "Approved",
+      "sent": "Sent"
+    },
     "subject": "Subject",
     "body": "Message",
     "sentAt": "Sent {{time}}",
@@ -276,7 +312,12 @@
     "generatingDescription": "Keigan is combining the incident, timeline, chat facts and communications.",
     "failedTitle": "The postmortem could not be generated",
     "failedDescription": "Try again later or write it by hand.",
-    "status": { "generating": "Generating", "draft": "Draft", "final": "Final", "failed": "Failed" },
+    "status": {
+      "generating": "Generating",
+      "draft": "Draft",
+      "final": "Final",
+      "failed": "Failed"
+    },
     "draftHelp": "AI-written draft. Review, edit and finalise before sharing.",
     "finalizedAt": "Finalised {{time}}",
     "edit": "Edit",

@@ -119,3 +119,12 @@ sql:
   # Executables that take SQL on the command line (the quoted argument is classified as SQL).
   client_executables: [sqlcmd, psql, mysql, mariadb, sqlplus, mongosh, bcp]
   tautology_pattern: '(?is)\bwhere\s+(1\s*=\s*1|true|''[^'']*''\s*=\s*''[^'']*''|\d+\s*=\s*\d+|not\s+false)\s*(;|$|--)'
+
+# Commands that PRINT secrets (spec 33, 6.4). Matched on the normalised command text (lower case, single spaces). A match makes the command high risk with the warning prints_secrets:
+# whoever pastes it puts a secret on a screen, in a terminal history or in a ticket.
+secret_revealing_command_patterns:
+  - '\b(kubectl|oc)\s+(get|view)\s+secrets?\b.*(-o|--output)[ =]?(yaml|json|jsonpath|go-template|custom-columns)'
+  - '\baz\s+keyvault\s+secret\s+(show|download)\b'
+  - '\baz\s+storage\s+account\s+keys\s+list\b'
+  - '\baz\s+(webapp|functionapp)\s+config\s+appsettings\s+list\b'
+  - '\baz\s+aks\s+get-credentials\b.*--admin'

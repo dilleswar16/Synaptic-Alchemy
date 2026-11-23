@@ -83,6 +83,8 @@ function HypothesisCard({ hypothesis, detail, onSelectEvidence }: { hypothesis: 
                 <li key={stepIndex} className="flex flex-col gap-2">
                   <p className="text-body-sm text-default"><span className="mr-1.5 font-semibold text-muted">{stepIndex + 1}.</span>{step.description}</p>
                   {step.commandText ? <CommandBlock commands={step.commandText} riskLevel={step.commandRiskLevel ?? "low"} wrapLines /> : null}
+                  {step.commandWithheldReason ? <p className="rounded-md border border-hairline bg-surface-sunken px-3 py-2 text-caption text-muted">{t(`hypotheses.withheld.${step.commandWithheldReason}`, { defaultValue: t("hypotheses.withheld.unsafe_shell_syntax") })}</p> : null}
+                  {step.commandWarnings?.includes("prints_secrets") ? <p className="flex items-center gap-1.5 text-caption font-semibold text-danger"><TriangleAlert aria-hidden="true" size={13} />{t("hypotheses.printsSecrets")}</p> : null}
                   {step.commandRiskLevel === "high" ? <p className="flex items-center gap-1.5 text-caption font-semibold text-danger"><TriangleAlert aria-hidden="true" size={13} />{t("hypotheses.highRiskCommand")}</p> : null}
                 </li>
               ))}

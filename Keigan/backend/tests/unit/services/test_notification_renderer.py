@@ -36,3 +36,21 @@ def test_a_generated_subject_from_an_incident_title_is_one_line() -> None:
 def test_the_card_summary_is_sanitised() -> None:
     card = RENDERER.render_card("preliminary_report", "en", "preliminary_report", "T", "[x](https://evil.example/z)", [("Incident", "INC1")])
     assert "](https://evil.example" not in str(card)
+
+
+# ── Fenced code blocks (spec 33, AC-19): a suggested command must reach a technical-role email as code ──────────────────
+
+
+def test_a_fenced_block_is_one_escaped_pre_code_block_and_leaves_no_stray_backticks() -> None:
+    from keigan.services.notification_renderer import markdown_to_safe_html
+
+    rendered = markdown_to_safe_html("Restart it.\n\n```bash\nkubectl get pods | grep <x> && echo \"a\"\n```\n\n- then check")
+    assert rendered.count("<pre") == 1 and "<code>kubectl get pods | grep &lt;x&gt; &amp;&amp; echo &quot;a&quot;</code>" in rendered
+    assert "`" not in rendered and "<ul" in rendered and "<p style=\"margin:6px 0;\">Restart it.</p>" in rendered
+
+
+def test_nothing_inside_a_fence_is_formatted_and_an_unclosed_fence_still_shows_as_code() -> None:
+    from keigan.services.notification_renderer import markdown_to_safe_html
+
+    rendered = markdown_to_safe_html("```\n**not bold** `x` [a](https://example.com)\n")
+    assert "<strong>" not in rendered and "<a href" not in rendered and rendered.count("<pre") == 1

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from keigan.ai.command_risk_classifier import classify_command_risk
+from keigan.ai.command_risk_classifier import classify_command_risk, reveals_secrets
 
 
 class TestHighRisk:
@@ -139,3 +139,26 @@ class TestMultiLineBlocks:
 
     def test_unbalanced_quotes_do_not_hide_a_destructive_verb(self) -> None:
         assert classify_command_risk("kubectl -n 'prod delete pod x") == "high"
+
+
+# ── Commands that print secrets (spec 33, 6.4; AC-11) ───────────────────────────────────────────
+
+
+@pytest.mark.parametrize("command", [
+    "az keyvault secret show --vault-name v --name n",
+    "az keyvault secret download --vault-name v --name n --file x",
+    "kubectl get secret db -o yaml",
+    "kubectl get secrets -n prod --output=json",
+    "kubectl get secret db -o jsonpath='{.data.password}'",
+    "az storage account keys list --account-name a",
+    "az webapp config appsettings list --name a --resource-group r",
+    "az functionapp config appsettings list --name a --resource-group r",
+    "az aks get-credentials --resource-group r --name c --admin",
+])
+def test_a_command_that_prints_secrets_is_high_risk(command: str) -> None:
+    assert classify_command_risk(command) == "high" and reveals_secrets(command)
+
+
+@pytest.mark.parametrize("command", ["kubectl get secret db", "kubectl get pods -o yaml", "az keyvault secret list --vault-name v", "az webapp config appsettings set --name a --settings x=1"])
+def test_reading_names_or_other_objects_is_not_a_secret_print(command: str) -> None:
+    assert not reveals_secrets(command)

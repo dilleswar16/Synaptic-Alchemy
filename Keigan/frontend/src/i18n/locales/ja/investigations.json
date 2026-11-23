@@ -1,7 +1,10 @@
 {
   "pageTitle": "調査",
   "pageDescription": "インシデントに対する Keigan の根本原因分析、証拠、影響範囲、コミュニケーションです。",
-  "breadcrumb": { "incidents": "インシデントルーム", "manual": "手動調査" },
+  "breadcrumb": {
+    "incidents": "インシデントルーム",
+    "manual": "手動調査"
+  },
   "tabs": {
     "label": "調査のセクション",
     "rca": "根本原因",
@@ -127,12 +130,24 @@
     "proposedFix": "提案する対処",
     "highRisk": "高リスク: 変更管理プロセスで確認してください",
     "highRiskCommand": "高リスク: 実行前に変更管理プロセスで確認してください。",
-    "risk": { "low": "低リスク", "medium": "中リスク", "high": "高リスク" },
+    "risk": {
+      "low": "低リスク",
+      "medium": "中リスク",
+      "high": "高リスク"
+    },
     "codeChanges": "コード変更",
     "before": "変更前",
     "after": "変更後",
     "verify": "検証",
-    "rollback": "ロールバック"
+    "rollback": "ロールバック",
+    "printsSecrets": "このコマンドはシークレットを画面に表示します。許容される環境でのみ実行してください。",
+    "withheld": {
+      "unsafe_shell_syntax": "Keigan はこのコマンドを表示しませんでした。複数のコマンドの連結、出力のリダイレクト、または安全に実行できないプレースホルダーが含まれていました。",
+      "unknown_slot": "Keigan はこのコマンドを表示しませんでした。未入力の値が含まれていました。",
+      "secret_in_command": "Keigan はこのコマンドを表示しませんでした。パスワード、キー、またはトークンが含まれていました。",
+      "data_changing_sql": "Keigan はこの SQL を表示しませんでした。データを変更します。データベース管理者に依頼してください。",
+      "command_too_long": "Keigan はこのコマンドを表示しませんでした。上限より長くなっています。"
+    }
   },
   "evidence": {
     "intro": "クエリは {{window}} と、その直前の同じ長さのベースライン期間を対象に実行されました。個人情報はマスクされています。",
@@ -142,7 +157,11 @@
     "platform": "プラットフォーム",
     "emptyTitle": "収集された証拠はありません",
     "emptyDescription": "Keigan がアプリケーションのサービスに問い合わせると、証拠がここに表示されます。",
-    "strength": { "high": "強いシグナル", "medium": "中程度のシグナル", "low": "弱い、またはなし" },
+    "strength": {
+      "high": "強いシグナル",
+      "medium": "中程度のシグナル",
+      "low": "弱い、またはなし"
+    },
     "category": {
       "error_logs": "エラーログ",
       "exceptions": "例外",
@@ -198,12 +217,21 @@
     "graphTitle": "影響を受けるサービス",
     "graphDescription": "直接: 障害シグナルが出ているサービス。間接: 障害中のサービスに依存しているサービス。",
     "none": "なし",
-    "impact": { "direct": "直接影響あり", "indirect": "間接影響あり", "investigated": "調査済み" },
+    "impact": {
+      "direct": "直接影響あり",
+      "indirect": "間接影響あり",
+      "investigated": "調査済み"
+    },
     "narrativeTitle": "影響を受ける対象",
     "slosTitle": "リスクのある SLO",
     "noSlos": "このアプリケーションで現在リスクのある SLO はありません。",
     "sloFallback": "SLO",
-    "sloStatus": { "healthy": "正常", "at_risk": "リスクあり", "breached": "違反", "no_data": "データなし" },
+    "sloStatus": {
+      "healthy": "正常",
+      "at_risk": "リスクあり",
+      "breached": "違反",
+      "no_data": "データなし"
+    },
     "stakeholdersTitle": "連絡すべきステークホルダー",
     "noStakeholders": "影響を受けるサービスを購読しているステークホルダーはいません。",
     "healthySlos_one": "これらのサービスの他の {{count}} 件の SLO は正常です。",
@@ -245,8 +273,15 @@
       "progress_update": "進捗更新",
       "resolution_update": "解決通知"
     },
-    "audience": { "stakeholders": "ステークホルダー", "executives": "経営層" },
-    "status": { "draft": "下書き", "approved": "承認済み", "sent": "送信済み" },
+    "audience": {
+      "stakeholders": "ステークホルダー",
+      "executives": "経営層"
+    },
+    "status": {
+      "draft": "下書き",
+      "approved": "承認済み",
+      "sent": "送信済み"
+    },
     "subject": "件名",
     "body": "メッセージ",
     "sentAt": "{{time}}に送信",
@@ -276,7 +311,12 @@
     "generatingDescription": "Keigan がインシデント、タイムライン、チャットの事実、コミュニケーションをまとめています。",
     "failedTitle": "ポストモーテムを生成できませんでした",
     "failedDescription": "後でもう一度お試しいただくか、手動で作成してください。",
-    "status": { "generating": "生成中", "draft": "下書き", "final": "確定", "failed": "失敗" },
+    "status": {
+      "generating": "生成中",
+      "draft": "下書き",
+      "final": "確定",
+      "failed": "失敗"
+    },
     "draftHelp": "AI が作成した下書きです。共有前に確認、編集し、確定してください。",
     "finalizedAt": "{{time}}に確定",
     "edit": "編集",

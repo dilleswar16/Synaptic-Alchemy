@@ -1,0 +1,26 @@
+# The kinds of value a suggested fix may put into a command (spec 33, 4.2.2), and what each may look like.
+# Every pattern excludes whitespace at the ends, quotes (single, double, backtick and the curly quotes PowerShell treats as quotes), $ ; & | < > backslash and control characters,
+# and no value may start with "-" (checked in code too, against option injection). Patterns are written so Python's re and JavaScript accept them: ASCII classes, anchors, bounded repeats.
+# A reviewer from security should read this file before release (spec 33, Q5).
+kinds:
+  kubernetes_name: { pattern: '^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$', maximum_length: 253, label_key: kubernetes_name }
+  kubernetes_namespace: { pattern: '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$', maximum_length: 63, label_key: kubernetes_namespace }
+  azure_resource_group: { pattern: '^[A-Za-z0-9_()-]([A-Za-z0-9._()-]{0,88}[A-Za-z0-9_()-])?$', maximum_length: 90, label_key: azure_resource_group }
+  azure_resource_name: { pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,259}$', maximum_length: 260, label_key: azure_resource_name }
+  azure_resource_id: { pattern: '^/subscriptions/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/resourceGroups/[A-Za-z0-9._()-]{1,90}(/providers/[A-Za-z0-9._/-]{1,400})?$', maximum_length: 600, label_key: azure_resource_id }
+  azure_subscription_id: { pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$', maximum_length: 36, label_key: azure_subscription_id }
+  helm_release: { pattern: '^[a-z0-9]([-a-z0-9.]{0,51}[a-z0-9])?$', maximum_length: 53, label_key: helm_release }
+  integer: { pattern: '^[0-9]{1,9}$', maximum_length: 9, label_key: integer }
+  duration: { pattern: '^[0-9]{1,6}(ms|s|m|h)$', maximum_length: 8, label_key: duration }
+  configuration_key: { pattern: '^[A-Za-z_][A-Za-z0-9_.:-]{0,199}$', maximum_length: 200, label_key: configuration_key }
+  configuration_value: { pattern: '^[A-Za-z0-9._:/@+=,%]([A-Za-z0-9 ._:/@+=,%-]{0,498}[A-Za-z0-9._:/@+=,%-])?$', maximum_length: 500, label_key: configuration_value }
+  hostname: { pattern: '^[A-Za-z0-9]([-A-Za-z0-9.]{0,251}[A-Za-z0-9])?$', maximum_length: 253, label_key: hostname }
+
+# A value matching this needs no quotes in bash or PowerShell; any other value is wrapped in single quotes by the renderer (correct in both because no kind allows a quote character).
+bare_safe_pattern: '^[A-Za-z0-9][A-Za-z0-9._/:=@+-]*$'
+
+# What the masker puts in place of personal data and secrets: such a value is never usable, the person types the real one.
+masking_placeholder_pattern: '^<[A-Z][A-Z_]*(_[0-9]+)?>$'
+
+# A configuration setting whose name contains one of these is refused: a secret is changed in Key Vault, not on a command line.
+secret_setting_name_fragments: [password, passwd, secret, token, connectionstring, apikey, accountkey, sas, credential, privatekey]

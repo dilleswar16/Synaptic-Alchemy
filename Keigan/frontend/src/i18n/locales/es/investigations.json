@@ -1,7 +1,10 @@
 {
   "pageTitle": "Investigación",
   "pageDescription": "El análisis de causa raíz, la evidencia, el radio de impacto y las comunicaciones de Keigan sobre un incidente.",
-  "breadcrumb": { "incidents": "Sala de incidentes", "manual": "Investigación manual" },
+  "breadcrumb": {
+    "incidents": "Sala de incidentes",
+    "manual": "Investigación manual"
+  },
   "tabs": {
     "label": "Secciones de la investigación",
     "rca": "Causa raíz",
@@ -127,12 +130,24 @@
     "proposedFix": "Solución propuesta",
     "highRisk": "Riesgo alto: confirme con el proceso de cambios",
     "highRiskCommand": "Riesgo alto: confirme con su proceso de cambios antes de ejecutar.",
-    "risk": { "low": "Riesgo bajo", "medium": "Riesgo medio", "high": "Riesgo alto" },
+    "risk": {
+      "low": "Riesgo bajo",
+      "medium": "Riesgo medio",
+      "high": "Riesgo alto"
+    },
     "codeChanges": "Cambios de código",
     "before": "Antes",
     "after": "Después",
     "verify": "Verificar",
-    "rollback": "Revertir"
+    "rollback": "Revertir",
+    "printsSecrets": "Este comando muestra secretos en pantalla. Ejecútalo solo donde eso sea aceptable.",
+    "withheld": {
+      "unsafe_shell_syntax": "Keigan no mostró este comando: encadenaba varios comandos, redirigía la salida o contenía un marcador de posición que no se ejecutaría de forma segura.",
+      "unknown_slot": "Keigan no mostró este comando: contenía un valor sin rellenar.",
+      "secret_in_command": "Keigan no mostró este comando: contenía una contraseña, clave o token.",
+      "data_changing_sql": "Keigan no mostró este SQL: modifica datos. Consulta a un administrador de bases de datos.",
+      "command_too_long": "Keigan no mostró este comando: supera el límite de longitud."
+    }
   },
   "evidence": {
     "intro": "Las consultas se ejecutaron sobre {{window}} y sobre una ventana de referencia de la misma duración inmediatamente anterior. Los datos personales están enmascarados.",
@@ -142,7 +157,11 @@
     "platform": "Plataforma",
     "emptyTitle": "No se recopiló evidencia",
     "emptyDescription": "La evidencia aparece aquí cuando Keigan ha consultado los servicios de la aplicación.",
-    "strength": { "high": "Señal fuerte", "medium": "Señal media", "low": "Débil o ninguna" },
+    "strength": {
+      "high": "Señal fuerte",
+      "medium": "Señal media",
+      "low": "Débil o ninguna"
+    },
     "category": {
       "error_logs": "Registros de error",
       "exceptions": "Excepciones",
@@ -178,7 +197,8 @@
     "injectionTitle": "Posible inyección de prompt",
     "injectionDescription": "Parte del texto de los registros parecía instrucciones para una IA. Se citó como dato y nunca se siguió.",
     "query": "Mostrar la consulta {{language}}",
-    "queryTitle_one": "Consulta ({{count}} registro coincidente)", "queryTitle_other": "Consulta ({{count}} registros coincidentes)",
+    "queryTitle_one": "Consulta ({{count}} registro coincidente)",
+    "queryTitle_other": "Consulta ({{count}} registros coincidentes)",
     "window": "Ventana de {{start}} a {{end}}",
     "metricPeak": "Pico de {{peak}} {{unit}} (referencia {{baseline}})",
     "baselineLabel": "Referencia",
@@ -198,12 +218,21 @@
     "graphTitle": "Servicios afectados",
     "graphDescription": "Directo: muestra señales de fallo. Indirecto: depende de un servicio que falla.",
     "none": "ninguno",
-    "impact": { "direct": "Impacto directo", "indirect": "Impacto indirecto", "investigated": "Examinado" },
+    "impact": {
+      "direct": "Impacto directo",
+      "indirect": "Impacto indirecto",
+      "investigated": "Examinado"
+    },
     "narrativeTitle": "A quién afecta",
     "slosTitle": "SLO en riesgo",
     "noSlos": "Ningún SLO está actualmente en riesgo para esta aplicación.",
     "sloFallback": "SLO",
-    "sloStatus": { "healthy": "Saludable", "at_risk": "En riesgo", "breached": "Incumplido", "no_data": "Sin datos" },
+    "sloStatus": {
+      "healthy": "Saludable",
+      "at_risk": "En riesgo",
+      "breached": "Incumplido",
+      "no_data": "Sin datos"
+    },
     "stakeholdersTitle": "Partes interesadas a informar",
     "noStakeholders": "Ninguna parte interesada está suscrita a los servicios afectados.",
     "healthySlos_one": "{{count}} SLO más de estos servicios está en buen estado.",
@@ -245,8 +274,15 @@
       "progress_update": "Actualización de progreso",
       "resolution_update": "Actualización de resolución"
     },
-    "audience": { "stakeholders": "Partes interesadas", "executives": "Directivos" },
-    "status": { "draft": "Borrador", "approved": "Aprobado", "sent": "Enviado" },
+    "audience": {
+      "stakeholders": "Partes interesadas",
+      "executives": "Directivos"
+    },
+    "status": {
+      "draft": "Borrador",
+      "approved": "Aprobado",
+      "sent": "Enviado"
+    },
     "subject": "Asunto",
     "body": "Mensaje",
     "sentAt": "Enviado {{time}}",
@@ -276,7 +312,12 @@
     "generatingDescription": "Keigan está combinando el incidente, la cronología, los datos del chat y las comunicaciones.",
     "failedTitle": "No se pudo generar el postmortem",
     "failedDescription": "Inténtelo más tarde o redáctelo a mano.",
-    "status": { "generating": "Generando", "draft": "Borrador", "final": "Final", "failed": "Fallido" },
+    "status": {
+      "generating": "Generando",
+      "draft": "Borrador",
+      "final": "Final",
+      "failed": "Fallido"
+    },
     "draftHelp": "Borrador redactado por IA. Revíselo, edítelo y finalícelo antes de compartirlo.",
     "finalizedAt": "Finalizado {{time}}",
     "edit": "Editar",

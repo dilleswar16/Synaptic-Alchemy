@@ -1,7 +1,10 @@
 {
   "pageTitle": "调查",
   "pageDescription": "Keigan 针对事件的根因分析、证据、影响范围和沟通内容。",
-  "breadcrumb": { "incidents": "事件室", "manual": "手动调查" },
+  "breadcrumb": {
+    "incidents": "事件室",
+    "manual": "手动调查"
+  },
   "tabs": {
     "label": "调查章节",
     "rca": "根因",
@@ -127,12 +130,24 @@
     "proposedFix": "建议的修复",
     "highRisk": "高风险：请按变更流程确认",
     "highRiskCommand": "高风险：执行前请按变更流程确认。",
-    "risk": { "low": "低风险", "medium": "中风险", "high": "高风险" },
+    "risk": {
+      "low": "低风险",
+      "medium": "中风险",
+      "high": "高风险"
+    },
     "codeChanges": "代码变更",
     "before": "变更前",
     "after": "变更后",
     "verify": "验证",
-    "rollback": "回滚"
+    "rollback": "回滚",
+    "printsSecrets": "此命令会把机密打印到屏幕上。请仅在可接受的环境中运行。",
+    "withheld": {
+      "unsafe_shell_syntax": "Keigan 未显示此命令：它串联了多个命令、重定向了输出，或包含无法安全运行的占位符。",
+      "unknown_slot": "Keigan 未显示此命令：其中有未填写的值。",
+      "secret_in_command": "Keigan 未显示此命令：其中包含密码、密钥或令牌。",
+      "data_changing_sql": "Keigan 未显示此 SQL：它会更改数据。请联系数据库管理员。",
+      "command_too_long": "Keigan 未显示此命令：它超过了长度上限。"
+    }
   },
   "evidence": {
     "intro": "查询覆盖了 {{window}}，以及紧邻其前、长度相同的基线窗口。个人数据已脱敏。",
@@ -142,7 +157,11 @@
     "platform": "平台",
     "emptyTitle": "未收集到证据",
     "emptyDescription": "Keigan 查询应用的各服务后，证据将显示在此处。",
-    "strength": { "high": "强信号", "medium": "中等信号", "low": "弱信号或无" },
+    "strength": {
+      "high": "强信号",
+      "medium": "中等信号",
+      "low": "弱信号或无"
+    },
     "category": {
       "error_logs": "错误日志",
       "exceptions": "异常",
@@ -198,12 +217,21 @@
     "graphTitle": "受影响的服务",
     "graphDescription": "直接：出现故障信号。间接：依赖于出现故障的服务。",
     "none": "无",
-    "impact": { "direct": "直接受影响", "indirect": "间接受影响", "investigated": "已检查" },
+    "impact": {
+      "direct": "直接受影响",
+      "indirect": "间接受影响",
+      "investigated": "已检查"
+    },
     "narrativeTitle": "受影响对象",
     "slosTitle": "存在风险的 SLO",
     "noSlos": "此应用目前没有存在风险的 SLO。",
     "sloFallback": "SLO",
-    "sloStatus": { "healthy": "健康", "at_risk": "有风险", "breached": "已违约", "no_data": "无数据" },
+    "sloStatus": {
+      "healthy": "健康",
+      "at_risk": "有风险",
+      "breached": "已违约",
+      "no_data": "无数据"
+    },
     "stakeholdersTitle": "需通知的相关方",
     "noStakeholders": "没有相关方订阅了受影响的服务。",
     "healthySlos_one": "这些服务的另外 {{count}} 个 SLO 状态正常。",
@@ -245,8 +273,15 @@
       "progress_update": "进展更新",
       "resolution_update": "解决通知"
     },
-    "audience": { "stakeholders": "相关方", "executives": "高管" },
-    "status": { "draft": "草稿", "approved": "已批准", "sent": "已发送" },
+    "audience": {
+      "stakeholders": "相关方",
+      "executives": "高管"
+    },
+    "status": {
+      "draft": "草稿",
+      "approved": "已批准",
+      "sent": "已发送"
+    },
     "subject": "主题",
     "body": "消息",
     "sentAt": "{{time}}发送",
@@ -276,7 +311,12 @@
     "generatingDescription": "Keigan 正在整合事件、时间线、群聊事实和沟通内容。",
     "failedTitle": "无法生成复盘",
     "failedDescription": "请稍后重试，或手动撰写。",
-    "status": { "generating": "生成中", "draft": "草稿", "final": "终稿", "failed": "失败" },
+    "status": {
+      "generating": "生成中",
+      "draft": "草稿",
+      "final": "终稿",
+      "failed": "失败"
+    },
     "draftHelp": "AI 撰写的草稿。共享前请审阅、编辑并定稿。",
     "finalizedAt": "{{time}}定稿",
     "edit": "编辑",

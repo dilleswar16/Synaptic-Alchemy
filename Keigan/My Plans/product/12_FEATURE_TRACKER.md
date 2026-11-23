@@ -7,12 +7,12 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 
 | | Count | Share |
 |---|---|---|
-| ✅ Done and verified | 96 | 82 % |
-| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 17 | 15 % |
+| ✅ Done and verified | 96 | 81 % |
+| 🟡 Built; needs your environment to verify (tenant, keys, live systems) | 18 | 15 % |
 | 🧩 Placeholder by design (configuration saved, reader later) | 2 | 2 % |
 | 🔄 Being built right now | 1 | 1 % |
 | ⬜ Not started | 1 | 1 % |
-| **Total features** | **117** | **98 % built · 82 % verified** |
+| **Total features** | **118** | **98 % built · 81 % verified** |
 
 **Legend**
 - ✅ **Done and verified** in the local simulated environment: API tested end to end, and the screen loads in a real browser (headless Edge) with live data and no console or API errors. Mock AI unless stated.
@@ -99,6 +99,7 @@ Every feature from `01_PRODUCT_SPECIFICATION.md`, with its real status. Updated 
 | E-EB | Error-budget policy (roadmap C2): budget impact per incident and SLO, the team's policy (off by default), the postmortem requirement with waiver, outage-class and used-up-budget rules, breach messages | 🟡 | Built and tested with SQLite and the offline model; not seen in a browser; no "needs attention" or weekly-review entry yet. Design in `30_ERROR_BUDGET_POLICY.md` |
 | E-WR | Weekly health review (roadmap C3): error budget and follow-up sections in the weekly digest, mark as reviewed with a note | 🟡 | Built and tested with the offline model and SQLite; not seen in a browser; no reminder for unreviewed digests. Design in `31_WEEKLY_HEALTH_REVIEW.md` |
 | E-RH | Runbook health (roadmap C4): the findings card on the Runbooks step and the digest count | 🟡 | Built and tested; not seen in a browser; no action item from a finding. Design in `32_RUNBOOK_HEALTH.md` |
+| E-FX | Better suggested fixes (roadmap E1), part 1: code checks on every suggested command, withheld commands with reasons, secret-printing commands rated high, fenced code in emails | 🟡 | Built and tested; phases 2 to 5 (typed slots, fill-in fields, validate and revert steps, plan, scoring) not built; not seen in a browser. Design in `33_BETTER_SUGGESTED_FIXES.md` |
 | E-HO | Honest outcomes (roadmap A2): state per hypothesis, outcome per investigation, what Keigan could not check, check outcome and baseline on every evidence item, outcome-first emails, Teams answers and drafts | 🟡 | Built and tested with the offline model (backend tests, typecheck, locale check, build); not seen in a browser; needs a real model to show how it distributes states. Design in `27_HONEST_OUTCOMES.md` |
 | E2 | Priority triage P1–P4 | ✅ | |
 | E3 | Evidence collection | ✅ | 27 evidence items, 12 strong, on the demo incident |

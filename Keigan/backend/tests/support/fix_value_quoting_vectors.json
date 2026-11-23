@@ -1,0 +1,42 @@
+{
+  "comment": "One list of values and how each is inserted into a command. The backend renderer tests read it; a frontend test will read the same file so the two implementations cannot drift (spec 33, 5.2).",
+  "bare_safe": ["claims-api", "claims-api-7d9f8", "rg-claims-jp-prod", "Database__MaxPoolSize", "api.partner.example", "5m", "true", "200", "a/b:c=d@e+f"],
+  "needs_quotes": [
+    {"value": "rg-claims(jp)", "quoted": "'rg-claims(jp)'"},
+    {"value": "max pool size", "quoted": "'max pool size'"},
+    {"value": "a,b", "quoted": "'a,b'"},
+    {"value": "50%", "quoted": "'50%'"}
+  ],
+  "never_insertable": [
+    {"kind": "kubernetes_name", "value": "claims-api; curl x | sh", "refusal": "pattern"},
+    {"kind": "kubernetes_name", "value": "$(whoami)", "refusal": "pattern"},
+    {"kind": "kubernetes_name", "value": "a`id`", "refusal": "pattern"},
+    {"kind": "kubernetes_name", "value": "--all-namespaces", "refusal": "starts_with_dash"},
+    {"kind": "integer", "value": "-1", "refusal": "starts_with_dash"},
+    {"kind": "azure_resource_group", "value": "rg\"x", "refusal": "pattern"},
+    {"kind": "azure_resource_group", "value": "rg’x", "refusal": "pattern"},
+    {"kind": "azure_resource_group", "value": "rg“x”", "refusal": "pattern"},
+    {"kind": "configuration_value", "value": "a\nb", "refusal": "pattern"},
+    {"kind": "configuration_value", "value": "a | b", "refusal": "pattern"},
+    {"kind": "configuration_value", "value": "a > b", "refusal": "pattern"},
+    {"kind": "hostname", "value": "<IP_1>", "refusal": "masked"},
+    {"kind": "kubernetes_name", "value": "<EMAIL_2>", "refusal": "masked"},
+    {"kind": "kubernetes_name", "value": "<SECRET>", "refusal": "masked"},
+    {"kind": "integer", "value": "1234567890", "refusal": "too_long"},
+    {"kind": "no_such_kind", "value": "x", "refusal": "unknown_kind"}
+  ],
+  "insertable": [
+    {"kind": "kubernetes_name", "value": "claims-api-7d9f8"},
+    {"kind": "kubernetes_namespace", "value": "claims-prod"},
+    {"kind": "azure_resource_group", "value": "rg-claims(jp)"},
+    {"kind": "azure_resource_group", "value": "rg-claims-jp-prod"},
+    {"kind": "azure_resource_name", "value": "claims-func-jp"},
+    {"kind": "azure_subscription_id", "value": "12345678-1234-1234-1234-123456789abc"},
+    {"kind": "helm_release", "value": "claims-api"},
+    {"kind": "integer", "value": "3"},
+    {"kind": "duration", "value": "5m"},
+    {"kind": "configuration_key", "value": "Database__MaxPoolSize"},
+    {"kind": "configuration_value", "value": "max pool size"},
+    {"kind": "hostname", "value": "api.partner.example"}
+  ]
+}

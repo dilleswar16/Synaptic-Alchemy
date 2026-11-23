@@ -1,7 +1,10 @@
 {
   "pageTitle": "Onderzoek",
   "pageDescription": "De hoofdoorzaakanalyse, het bewijs, de impactradius en de communicatie van Keigan voor een incident.",
-  "breadcrumb": { "incidents": "Incidentenkamer", "manual": "Handmatig onderzoek" },
+  "breadcrumb": {
+    "incidents": "Incidentenkamer",
+    "manual": "Handmatig onderzoek"
+  },
   "tabs": {
     "label": "Onderdelen van het onderzoek",
     "rca": "Hoofdoorzaak",
@@ -127,12 +130,24 @@
     "proposedFix": "Voorgestelde oplossing",
     "highRisk": "Hoog risico: bevestig via het wijzigingsproces",
     "highRiskCommand": "Hoog risico: bevestig via uw wijzigingsproces voordat u dit uitvoert.",
-    "risk": { "low": "Laag risico", "medium": "Gemiddeld risico", "high": "Hoog risico" },
+    "risk": {
+      "low": "Laag risico",
+      "medium": "Gemiddeld risico",
+      "high": "Hoog risico"
+    },
     "codeChanges": "Codewijzigingen",
     "before": "Voor",
     "after": "Na",
     "verify": "Verifiëren",
-    "rollback": "Terugdraaien"
+    "rollback": "Terugdraaien",
+    "printsSecrets": "Dit commando toont geheimen op het scherm. Voer het alleen uit waar dat acceptabel is.",
+    "withheld": {
+      "unsafe_shell_syntax": "Keigan toonde dit commando niet: het koppelde meerdere commando's, leidde uitvoer om of bevatte een tijdelijke aanduiding die niet veilig zou draaien.",
+      "unknown_slot": "Keigan toonde dit commando niet: het bevatte een niet ingevulde waarde.",
+      "secret_in_command": "Keigan toonde dit commando niet: het bevatte een wachtwoord, sleutel of token.",
+      "data_changing_sql": "Keigan toonde deze SQL niet: hij wijzigt gegevens. Vraag een databasebeheerder.",
+      "command_too_long": "Keigan toonde dit commando niet: het is langer dan de limiet."
+    }
   },
   "evidence": {
     "intro": "Queries zijn uitgevoerd over {{window}} en over een basislijnperiode van dezelfde lengte direct daarvoor. Persoonsgegevens zijn gemaskeerd.",
@@ -142,7 +157,11 @@
     "platform": "Platform",
     "emptyTitle": "Geen bewijs verzameld",
     "emptyDescription": "Bewijs verschijnt hier zodra Keigan de services van de applicatie heeft bevraagd.",
-    "strength": { "high": "Sterk signaal", "medium": "Gemiddeld signaal", "low": "Zwak of geen" },
+    "strength": {
+      "high": "Sterk signaal",
+      "medium": "Gemiddeld signaal",
+      "low": "Zwak of geen"
+    },
     "category": {
       "error_logs": "Foutlogs",
       "exceptions": "Excepties",
@@ -178,7 +197,8 @@
     "injectionTitle": "Mogelijke promptinjectie",
     "injectionDescription": "Een deel van de logtekst leek op instructies aan een AI. Het is als gegevens geciteerd en nooit opgevolgd.",
     "query": "De {{language}}-query tonen",
-    "queryTitle_one": "Query ({{count}} overeenkomend record)", "queryTitle_other": "Query ({{count}} overeenkomende records)",
+    "queryTitle_one": "Query ({{count}} overeenkomend record)",
+    "queryTitle_other": "Query ({{count}} overeenkomende records)",
     "window": "Venster {{start}} tot {{end}}",
     "metricPeak": "Piek {{peak}} {{unit}} (basislijn {{baseline}})",
     "baselineLabel": "Basislijn",
@@ -198,12 +218,21 @@
     "graphTitle": "Getroffen services",
     "graphDescription": "Direct: toont storingssignalen. Indirect: hangt af van een falende service.",
     "none": "geen",
-    "impact": { "direct": "Direct getroffen", "indirect": "Indirect getroffen", "investigated": "Onderzocht" },
+    "impact": {
+      "direct": "Direct getroffen",
+      "indirect": "Indirect getroffen",
+      "investigated": "Onderzocht"
+    },
     "narrativeTitle": "Wie wordt getroffen",
     "slosTitle": "SLO's in gevaar",
     "noSlos": "Er is momenteel geen SLO in gevaar voor deze applicatie.",
     "sloFallback": "SLO",
-    "sloStatus": { "healthy": "Gezond", "at_risk": "In gevaar", "breached": "Geschonden", "no_data": "Geen gegevens" },
+    "sloStatus": {
+      "healthy": "Gezond",
+      "at_risk": "In gevaar",
+      "breached": "Geschonden",
+      "no_data": "Geen gegevens"
+    },
     "stakeholdersTitle": "Te informeren belanghebbenden",
     "noStakeholders": "Geen belanghebbenden zijn geabonneerd op de getroffen services.",
     "healthySlos_one": "{{count}} andere SLO van deze services is gezond.",
@@ -245,8 +274,15 @@
       "progress_update": "Voortgangsupdate",
       "resolution_update": "Oplossingsupdate"
     },
-    "audience": { "stakeholders": "Belanghebbenden", "executives": "Directie" },
-    "status": { "draft": "Concept", "approved": "Goedgekeurd", "sent": "Verzonden" },
+    "audience": {
+      "stakeholders": "Belanghebbenden",
+      "executives": "Directie"
+    },
+    "status": {
+      "draft": "Concept",
+      "approved": "Goedgekeurd",
+      "sent": "Verzonden"
+    },
     "subject": "Onderwerp",
     "body": "Bericht",
     "sentAt": "Verzonden {{time}}",
@@ -276,7 +312,12 @@
     "generatingDescription": "Keigan combineert het incident, de tijdlijn, chatfeiten en communicatie.",
     "failedTitle": "De postmortem kon niet worden gegenereerd",
     "failedDescription": "Probeer het later opnieuw of schrijf hem handmatig.",
-    "status": { "generating": "Genereren", "draft": "Concept", "final": "Definitief", "failed": "Mislukt" },
+    "status": {
+      "generating": "Genereren",
+      "draft": "Concept",
+      "final": "Definitief",
+      "failed": "Mislukt"
+    },
     "draftHelp": "Door AI geschreven concept. Controleer, bewerk en rond af voordat u het deelt.",
     "finalizedAt": "Afgerond {{time}}",
     "edit": "Bewerken",

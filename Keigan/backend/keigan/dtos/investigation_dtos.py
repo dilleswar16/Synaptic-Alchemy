@@ -16,6 +16,8 @@ class FixStepDto(ApiModel):
     command_text: str | None = None
     command_language: str | None = None
     command_risk_level: str | None = None
+    command_withheld_reason: str | None = None  # why Keigan did not show the command (spec 33): the description stays
+    command_warnings: list[str] = Field(default_factory=list)
 
 
 class CodeChangeDto(ApiModel):

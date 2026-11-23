@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from keigan.ai.fix_command_check import check_suggested_command, command_warnings
 from keigan.ai.command_risk_classifier import RISK_RANK, classify_command_risk
 from keigan.ai.investigation_ai_caller import InvestigationAiCaller, build_mock_context
 from keigan.ai.investigation_ai_schemas import AdditionalQueryPlan, BlastRadiusNarrative, HypothesisResult, RcaSynthesisResult, TriageResult
@@ -534,8 +535,12 @@ class InvestigationGraphRunner:
             command_text = strip_invisible_characters(step.command_text) if step.command_text else None
             command_risk = classify_command_risk(command_text) if command_text else None
             if command_risk and RISK_RANK[command_risk] > RISK_RANK[highest_risk]:
-                highest_risk = command_risk
-            steps.append({**step.model_dump(), "description": self._clean_ai_text(step.description, valid_codes), "command_text": command_text, "command_risk_level": command_risk})
+                highest_risk = command_risk  # a withheld command still counts: the hypothesis stays as risky as what it proposed
+            withheld_reason = check_suggested_command(command_text, step.command_language, self.settings.suggested_fix_maximum_command_characters) if command_text else None
+            steps.append({
+                **step.model_dump(), "description": self._clean_ai_text(step.description, valid_codes), "command_text": None if withheld_reason else command_text, "command_risk_level": command_risk,
+                "command_withheld_reason": withheld_reason.value if withheld_reason else None, "command_warnings": command_warnings(command_text) if command_text else [],
+            })
         fix = result.proposed_fix
         proposed_fix = {
             "summary": self._clean_ai_text(fix.summary, valid_codes), "steps": steps,
@@ -689,9 +694,19 @@ class InvestigationGraphRunner:
 
     @staticmethod
     def _flag_high_risk_commands(markdown_text: str) -> str:
+        """The synthesis's fenced commands pass the same checks as a hypothesis's steps: a block with an unsafe command is replaced by a note saying why; a risky or secret-printing one is marked."""
+        maximum_characters = get_settings().suggested_fix_maximum_command_characters
+
         def annotate(block_match: re.Match[str]) -> str:
-            is_high_risk = classify_command_risk(block_match.group(1)) == RiskLevel.HIGH
-            return block_match.group(0) + ("\n> **High risk.** Confirm with your change process before running this command.\n" if is_high_risk else "")
+            block_text = block_match.group(1)
+            command_lines = [line.strip() for line in block_text.splitlines() if line.strip() and not line.strip().startswith(("#", "//"))]
+            for command_line in command_lines:
+                reason = check_suggested_command(command_line, None, maximum_characters)
+                if reason is not None:
+                    return f"> **Command not shown.** Keigan withheld it ({reason.value.replace('_', ' ')}). The step stays; look up the values and write the command yourself.\n"
+            warnings = [f"\n> **Prints secrets.** This command shows secrets on the screen.\n" for line in command_lines if command_warnings(line)][:1]
+            is_high_risk = classify_command_risk(block_text) == RiskLevel.HIGH
+            return block_match.group(0) + ("\n> **High risk.** Confirm with your change process before running this command.\n" if is_high_risk else "") + "".join(warnings)
 
         return _FENCED_BLOCK_PATTERN.sub(annotate, markdown_text)
 

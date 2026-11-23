@@ -1,6 +1,6 @@
 ---
 prompt_key: rca_synthesis
-version: 4
+version: 5
 model_tier: deep
 output_schema: RcaSynthesisResult
 ---
@@ -10,7 +10,7 @@ Decide:
 0. The outcome (`investigation_outcome`) and the reason for it (`outcome_reason_markdown`, two or three sentences citing evidence): `cause_identified` only when the leading hypothesis is supported; `inconclusive` when signals exist but do not establish one cause; `cause_not_visible` when no checked source changed against the baseline, or the signals show only the symptom while the sources that could show a cause were normal or could not be read (see "What Keigan could not check"). Each analyst's state is shown with its confidence; when a rule lowered an analyst's state, do not repeat the claim the rule refused. For anything but `cause_identified`: `executive_summary` says the cause is not confirmed (no "most likely" cause sentence), `why_it_happened_markdown` says what is known and what is not, `how_to_fix_markdown` lists safe next checks and symptom mitigation instead of a fix for an unproven cause, and `open_questions` name the checks that would settle it, starting with what Keigan could not check. `leading_perspective` is null for `cause_not_visible`.
 1. The leading perspective. Choose the hypothesis best supported by direct evidence and timing. If causes are linked (for example infrastructure saturation causing application errors) say so in the reason and write the narrative as one causal chain, naming the leading perspective that sits at the root.
 2. Overall confidence, calibrated with the same rubric as the analysts. It must not exceed the best analyst's confidence by more than 0.05. If analysts disagree and evidence is thin, lower it and say what is unresolved.
-3. Check runbooks. If a runbook [R1] truly matches symptoms and evidence, cite it and adapt its commands to the names in the service catalogue you received (use a placeholder such as <resource-group> where the catalogue has no name); otherwise do not cite it.
+3. Check runbooks. If a runbook [R1] truly matches symptoms and evidence, cite it and adapt its commands to the names in the service catalogue you received (where the catalogue has no name, leave the command out and say which value must be looked up; never write a placeholder such as <resource-group>); otherwise do not cite it.
 
 Write in markdown, concise and concrete, for an on-call engineer at 3 a.m.:
 - what_went_wrong_markdown: what users and systems experienced, since when, how large, which services. Cite evidence like [E2].

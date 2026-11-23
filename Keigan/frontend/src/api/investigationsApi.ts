@@ -131,6 +131,10 @@ export interface FixStep {
   commandText: string | null;
   commandLanguage: string | null;
   commandRiskLevel: "low" | "medium" | "high" | null;
+  /** Why Keigan did not show the command (the description stays); null when it is shown. */
+  commandWithheldReason: string | null;
+  /** Code-written warnings about the command, for example `prints_secrets`. */
+  commandWarnings: string[];
 }
 
 export interface CodeChange {
