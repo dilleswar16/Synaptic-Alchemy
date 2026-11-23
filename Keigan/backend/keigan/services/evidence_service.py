@@ -521,7 +521,7 @@ class EvidenceService:
                 "template": change_event.description, "level": "change", "count": 1, "baselineCount": 0, "isNewPattern": True, "changeRatio": None,
                 "firstSeenAt": change_event.occurred_at.isoformat(), "lastSeenAt": change_event.occurred_at.isoformat(),
                 "sampleLinesMasked": [f"{change_event.operation_name} by {change_event.caller or 'unknown'}"], "topDimensionValues": {},
-                "changeKind": change_event.change_kind, "caller": change_event.caller,
+                "changeKind": change_event.change_kind, "caller": change_event.caller, "operationName": change_event.operation_name,
             }
             for change_event in change_events[-10:]
         ]

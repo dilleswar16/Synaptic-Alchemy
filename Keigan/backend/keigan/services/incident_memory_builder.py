@@ -16,19 +16,21 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.config.settings import Settings, get_settings
+from keigan.entities.alert_entities import Alert, AlertGroup
 from keigan.entities.application_entities import MonitoredService
 from keigan.entities.incident_entities import Incident, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent, PostmortemReport
 from keigan.entities.incident_memory_entities import IncidentMemoryEntry, IncidentMemoryKey
 from keigan.entities.status_values import (
     EvidenceCheckOutcome, IncidentMemoryCauseSource, IncidentMemoryEntryStatus, IncidentMemoryFixSource, InvestigationOutcome, InvestigationStatus, PostmortemStatus, RiskLevel,
 )
-from keigan.services.incident_memory_keys import MemoryFacts, build_match_keys
+from keigan.services.incident_memory_keys import MemoryFacts, alert_rule_fact, build_match_keys, change_operation_of, dependency_target_of
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.text_utils import term_frequencies, truncate_text
 from keigan.utils.time_utils import utc_now
 from keigan.workers.job_queue import JobQueue
 
 REFRESH_JOB_TYPE = "refresh_incident_memory_entry"  # must stay a key of JOB_HANDLER_REFERENCES (a test checks it)
+CHANGE_EVIDENCE_CATEGORY = "change_event"  # the category evidence collection gives the Activity Log changes
 RESOLUTION_EVENT_TYPE = "incident_resolved"
 UNTITLED_INVESTIGATION = "Investigation without an incident"
 MAXIMUM_TITLE_CHARACTERS = 500
@@ -89,13 +91,41 @@ class InvestigationFacts:
     facts: MemoryFacts
 
 
-def _templates(evidence_rows: Sequence[InvestigationEvidence]) -> list[str]:
+@dataclass(frozen=True)
+class EvidenceFacts:
+    error_templates: list[str]
+    change_operations: list[str]
+    dependency_targets: list[str]
+
+
+def _evidence_facts(evidence_rows: Sequence[InvestigationEvidence]) -> EvidenceFacts:
+    """Only rows with a medium or high signal, no rule-outs and no suspected prompt injection say anything about the cause. A change row's patterns are changes, not errors."""
     templates: list[str] = []
+    operations: list[str] = []
+    targets: list[str] = []
     for row in evidence_rows:
         if row.signal_strength not in SIGNAL_LEVELS or row.possible_prompt_injection or row.check_outcome == EvidenceCheckOutcome.NO_SIGNAL:
             continue
-        templates.extend(str(pattern.get("template", "")) for pattern in (row.condensed_patterns_json or []) if isinstance(pattern, dict))
-    return templates
+        for pattern in (item for item in (row.condensed_patterns_json or []) if isinstance(item, dict)):
+            if row.evidence_category == CHANGE_EVIDENCE_CATEGORY:
+                operation = change_operation_of(pattern)
+                if operation:
+                    operations.append(operation)
+                continue
+            template = str(pattern.get("template", ""))
+            templates.append(template)
+            target = dependency_target_of(template)
+            if target:
+                targets.append(target)
+    return EvidenceFacts(templates, list(dict.fromkeys(operations)), list(dict.fromkeys(targets)))
+
+
+async def _alert_rules(session: AsyncSession, investigation_id: str) -> list[tuple[str, str]]:
+    """The rules of the alerts that were grouped into this investigation."""
+    rules = (await session.execute(
+        select(Alert.rule_identifier, Alert.rule_name).where(Alert.alert_group_id.in_(select(AlertGroup.alert_group_id).where(AlertGroup.investigation_id == investigation_id)))
+    )).all()
+    return list(dict.fromkeys(fact for fact in (alert_rule_fact(identifier, name) for identifier, name in rules) if fact))
 
 
 async def load_investigation_facts(session: AsyncSession, investigation: Investigation) -> InvestigationFacts:
@@ -109,9 +139,11 @@ async def load_investigation_facts(session: AsyncSession, investigation: Investi
         part for part in (title, incident.incident_description if incident else None, str(triage.get("incident_summary") or ""), "\n".join(str(symptom) for symptom in triage.get("key_symptoms") or [])) if part
     )
     occurred_at = (incident.opened_at if incident else None) or investigation.investigation_window_start or investigation.created_at
+    found = _evidence_facts(evidence_rows)
     facts = MemoryFacts(
         services={service.service_id: service.service_name for service in services}, resource_identifiers=[service.external_resource_identifier or "" for service in services],
-        error_templates=_templates(evidence_rows), incident_category=(incident.incident_category if incident else None) or triage.get("incident_category"),
+        error_templates=found.error_templates, incident_category=(incident.incident_category if incident else None) or triage.get("incident_category"),
+        alert_rules=await _alert_rules(session, investigation.investigation_id), change_operations=found.change_operations, dependency_targets=found.dependency_targets,
     )
     return InvestigationFacts(investigation.application_id, investigation.incident_id, truncate_text(title, MAXIMUM_TITLE_CHARACTERS), wording, occurred_at, service_ids, facts)
 
