@@ -1,0 +1,12 @@
+{
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.4",
+  "body": [
+    {"type": "TextBlock", "text": {{ heading | tojson }}, "weight": "Bolder", "size": "Medium", "color": "Accent"},
+    {"type": "TextBlock", "text": {{ title | tojson }}, "wrap": true, "weight": "Bolder"},
+    {"type": "FactSet", "facts": [{% for fact in facts %}{"title": {{ fact.label | tojson }}, "value": {{ fact.value | tojson }}}{% if not loop.last %}, {% endif %}{% endfor %}]},
+    {"type": "TextBlock", "text": {{ summary | tojson }}, "wrap": true, "spacing": "Medium"}
+  ]{% if action_url %},
+  "actions": [{"type": "Action.OpenUrl", "title": {{ open_label | tojson }}, "url": {{ action_url | tojson }}}]{% endif %}
+}

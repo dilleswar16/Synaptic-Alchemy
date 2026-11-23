@@ -435,3 +435,6 @@ Differences from this design, and what remains:
 - The notification type `error_budget_policy` is in the subscription list and the screen's list; the single-incident message is also posted to the incident's Teams chat as plain text, not a card. Email strings exist in English and Japanese.
 - Not built: the "Needs attention" entry and the weekly review section (they need the overview of doc 29), the demo seed for the policy (the test seed has no SLOs), the browser script; the breach retention in `run_retention_cleanup` is covered only by the settings test.
 - Found, not fixed: burn alerts ignore the per-SLO `burn_rate_policy_json` (see 3.2).
+
+### 12.x The Teams card for a breach (2026-11-24)
+A single-incident breach is posted to the incident's Teams chat as a card (heading, the SLO, the share of its budget used against the threshold, the incident, and an "Open in Keigan" button) in the application's own language (English or Japanese), no longer as a plain message. Test: `tests/integration/services/test_error_budget_breach_card.py`.

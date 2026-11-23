@@ -70,8 +70,19 @@ class ErrorBudgetPolicyNotifier:
             if await self.notifications.queue_email(application.application_id, NOTIFICATION_TYPE, address, rendered, incident_id=None):
                 queued += 1
         if breach.breach_kind == ErrorBudgetBreachKind.SINGLE_INCIDENT and breach.incident_id:
-            share_text = f"{breach.measured_share_percent:g} %" if breach.measured_share_percent is not None else ""
-            await self.notifications.post_to_incident_chat(
-                breach.incident_id, translate("en", "types.error_budget_policy_single.chat", share=share_text, slo=breach.sli_name_text or "", threshold=f"{breach.threshold_percent:g}" if breach.threshold_percent is not None else ""),
-            )
+            await self._post_card(breach, application, action_path)
         return queued
+
+    async def _post_card(self, breach: ErrorBudgetPolicyBreach, application: Application, action_path: str) -> None:
+        """A card in the incident's Teams chat, in the application's own language: what the incident used, against which limit, and a button to open it."""
+        language = application.primary_locale
+        share_text = f"{breach.measured_share_percent:g} %" if breach.measured_share_percent is not None else ""
+        threshold_text = f"{breach.threshold_percent:g} %" if breach.threshold_percent is not None else ""
+        summary = translate(language, "types.error_budget_policy_single.chat", share=share_text, slo=breach.sli_name_text or "", threshold=f"{breach.threshold_percent:g}" if breach.threshold_percent is not None else "")
+        card = self.notifications.renderer.render_card(
+            "error_budget_breach", language, "error_budget_breach", breach.sli_name_text or application.application_name, summary,
+            [(translate(language, "labels.application"), application.application_name), (translate(language, "labels.slo"), breach.sli_name_text or ""), (translate(language, "labels.budget_share"), share_text),
+             (translate(language, "labels.threshold"), threshold_text), (translate(language, "labels.incident"), breach.incident_reference_text or "")],
+            action_path,
+        )
+        await self.notifications.post_to_incident_chat(breach.incident_id or "", summary, card)

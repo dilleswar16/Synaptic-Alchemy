@@ -78,6 +78,7 @@
     "preliminary_report": "Preliminary report",
     "postmortem_ready": "Postmortem ready",
     "intelligence_alert": "Predictive signal",
+    "error_budget_breach": "Error budget policy",
     "open": "Open in Keigan",
     "rate_correct": "Analysis was correct",
     "rate_partial": "Partly correct",
