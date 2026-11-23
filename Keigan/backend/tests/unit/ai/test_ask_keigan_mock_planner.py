@@ -370,7 +370,8 @@ LIST_PREDICTIVE_SIGNALS = tool("list_predictive_signals", {"application_codes": 
 GET_HEALTH_SCORE = tool("get_health_score", {"application_code": _CODE_ENUM, "days": {"type": "integer", "minimum": 7, "maximum": 90}}, ("application_code",))
 LIST_TEAM_MEMBERS = tool("list_team_members", {"application_code": _CODE_ENUM, "roles": {"type": "array"}}, ("application_code",))
 GET_RELIABILITY_METRICS = tool("get_reliability_metrics", {"application_codes": {"type": "array"}, "lookback_hours": _LOOKBACK})
-GLOBAL_TOOLS = (*INVESTIGATION_TOOLS, GET_INVESTIGATION, LIST_INVESTIGATIONS, LIST_INCIDENTS, GET_INCIDENT, LIST_ALERT_GROUPS, GET_ALERT_GROUP, GET_ALERT_NOISE_SUMMARY, GET_SLO_HISTORY,
+FIND_SIMILAR_INCIDENTS = tool("find_similar_incidents", {"investigation_id": {"type": "string"}, "incident_id": {"type": "string"}, "text": {"type": "string"}, "application_code": _CODE_ENUM})
+GLOBAL_TOOLS = (*INVESTIGATION_TOOLS, FIND_SIMILAR_INCIDENTS, GET_INVESTIGATION, LIST_INVESTIGATIONS, LIST_INCIDENTS, GET_INCIDENT, LIST_ALERT_GROUPS, GET_ALERT_GROUP, GET_ALERT_NOISE_SUMMARY, GET_SLO_HISTORY,
                 LIST_PREDICTIVE_SIGNALS, GET_HEALTH_SCORE, LIST_TEAM_MEMBERS, GET_RELIABILITY_METRICS)
 SAMPLE_ID = "6f1e2c3a-9b1d-4c2e-8f10-3a5b7c9d1e2f"
 
@@ -388,6 +389,7 @@ SAMPLE_ID = "6f1e2c3a-9b1d-4c2e-8f10-3a5b7c9d1e2f"
     ("What is the health score of PAYAU?", ("get_health_score", {"application_code": "PAYAU"})),
     ("Who is on the team for CLMJP?", ("list_team_members", {"application_code": "CLMJP"})),
     ("What are the reliability metrics for the last 30 days?", ("get_reliability_metrics", {"lookback_hours": 720})),
+    (f"Have we seen investigation {SAMPLE_ID} before?", ("find_similar_incidents", {"investigation_id": SAMPLE_ID})),
     ("インシデント一覧を見せて", ("list_incidents", {})),
     ("CLMJP の健全性スコアは？", ("get_health_score", {"application_code": "CLMJP"})),
     ("信頼性の指標を教えて", ("get_reliability_metrics", {})),

@@ -42,7 +42,7 @@ from support.telemetry_scope import create_log_tool_connection, create_scoped_ap
 
 pytestmark = pytest.mark.usefixtures("seed_context")
 
-INVESTIGATION_TOOLS = {"get_evidence", "get_investigation_timeline", "search_knowledge", "query_logs", "list_recent_changes", "find_runbooks", "get_topology", "get_slo_status"}
+INVESTIGATION_TOOLS = {"get_evidence", "get_investigation_timeline", "search_knowledge", "query_logs", "list_recent_changes", "find_runbooks", "get_topology", "get_slo_status", "find_similar_incidents"}
 FIRST_EVENT_AT = datetime(2026, 1, 5, 9, 0)
 
 
@@ -832,6 +832,10 @@ async def reader_asks_for_chad_investigation(seeded: Seeded) -> ToolOutcome:
     return await run_tool("get_investigation", {"investigation_id": seeded.chad_investigation_id}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
 
 
+async def reader_asks_for_chad_similar_incidents(seeded: Seeded) -> ToolOutcome:
+    return await run_tool("find_similar_incidents", {"investigation_id": seeded.chad_investigation_id}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
+
+
 async def reader_lists_chad_investigations(seeded: Seeded) -> ToolOutcome:
     await global_rows.create_investigation(seeded.chad_application_id, executive_summary="chadcrossmarker investigation")
     return await run_tool("list_investigations", {"application_codes": ["CHAD"]}, CLMJP_AND_PAYAU_READER, scope=AskKeiganScope.GLOBAL)
@@ -909,6 +913,7 @@ CROSS_APPLICATION_CASES: dict[str, CrossApplicationCase] = {
     "get_health_score": reader_asks_for_the_chad_health_score,
     "list_team_members": reader_asks_for_the_chad_team,
     "get_reliability_metrics": reader_asks_for_the_chad_reliability,
+    "find_similar_incidents": reader_asks_for_chad_similar_incidents,
 }
 
 
@@ -953,7 +958,7 @@ async def test_a_keigan_admin_reads_every_application_through_the_tools(seeded: 
 
 
 # ── Read-only (spec 9.1) ──────────────────────────────────────────────────────────────────────────────────────────────────────
-def test_every_registered_tool_is_read_only_and_investigation_scope_offers_the_eight_tools() -> None:
+def test_every_registered_tool_is_read_only_and_investigation_scope_offers_its_tools() -> None:
     assert all(definition.access is ToolAccess.READ for definition in tool_registry.all_tools())
     assert {definition.name for definition in tool_registry.tools_for(AskKeiganScope.INVESTIGATION)} == INVESTIGATION_TOOLS
 

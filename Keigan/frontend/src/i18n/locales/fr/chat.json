@@ -226,6 +226,9 @@
     },
     "list_team_members": {
       "label": "A listé l'équipe"
+    },
+    "find_similar_incidents": {
+      "label": "A cherché des incidents passés similaires"
     }
   },
   "arguments": {

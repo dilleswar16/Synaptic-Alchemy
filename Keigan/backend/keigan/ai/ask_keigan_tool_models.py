@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from keigan.entities.status_values import (
     AlertGroupStatus, IncidentSource, IncidentStatus, InvestigationStatus, Priority, SignalSeverity, SignalStatus, SloHealthStatus, StakeholderRole,
@@ -165,3 +165,23 @@ class GetReliabilityMetricsInput(BaseModel):
 
     application_codes: list[ApplicationCode] = Field(default_factory=list, max_length=20, description="Codes of the applications to measure. Empty means every application you were given.")
     lookback_hours: LookbackHours = 720
+
+
+class FindSimilarIncidentsInput(BaseModel):
+    """Exactly one of an investigation, an incident or a description in words (with the application it is about)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    investigation_id: str | None = Field(default=None, max_length=36, description="Find past incidents like this investigation.")
+    incident_id: str | None = Field(default=None, max_length=36, description="Find past incidents like this incident (its latest finished investigation).")
+    text: str | None = Field(default=None, min_length=3, max_length=500, description="Describe the situation in a few words. Needs application_code.")
+    application_code: ApplicationCode | None = Field(default=None, description="The application the description is about. Only for text.")
+
+    @model_validator(mode="after")
+    def exactly_one_way_to_ask(self) -> "FindSimilarIncidentsInput":
+        given = [name for name in ("investigation_id", "incident_id", "text") if getattr(self, name)]
+        if len(given) != 1:
+            raise ValueError("Give exactly one of investigation_id, incident_id or text.")
+        if self.text and not self.application_code:
+            raise ValueError("A description needs application_code.")
+        return self

@@ -179,6 +179,12 @@ def _incident_arguments(question: _Question, keyword_match: re.Match[str], prope
     return {"incident_reference": number.group(0).upper()} if number else None
 
 
+def _similar_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any]:
+    """An investigation named in the question; none when the conversation is about one investigation (the engine binds it)."""
+    identifier = _IDENTIFIER.search(question.text)
+    return {"investigation_id": identifier.group(0)} if identifier else {}
+
+
 def _alert_group_arguments(question: _Question, keyword_match: re.Match[str], properties: dict[str, Any]) -> dict[str, Any] | None:
     identifier = _IDENTIFIER.search(question.text)
     return {"alert_group_id": identifier.group(0)} if identifier else None
@@ -203,6 +209,7 @@ def _application_arguments(question: _Question, keyword_match: re.Match[str], pr
 
 # Table order breaks ties between groups that start at the same position.
 _TOOL_RULES: tuple[_ToolRule, ...] = (
+    _ToolRule("find_similar_incidents", re.compile(r"\b(?:seen|happened)\b[^.?!]*\bbefore\b|\bsimilar (?:incidents?|issues?|problems?)\b|過去に|以前にも|似た(?:インシデント|障害|事象)", re.IGNORECASE), _similar_arguments, ("What fixed it last time?", "Which evidence matches the earlier incident?", "Is there a runbook for this?")),
     _ToolRule(
         "get_evidence", re.compile(r"(?<![A-Za-z0-9])E(\d{1,3})(?![A-Za-z0-9])", re.IGNORECASE), _evidence_arguments,
         ("What does the timeline say around this evidence?", "Which hypothesis does this evidence support?", "What else was found on the same service?"),

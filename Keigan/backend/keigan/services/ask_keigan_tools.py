@@ -31,7 +31,7 @@ from keigan.entities.application_entities import MonitoredService
 from keigan.entities.status_values import SloHealthStatus
 from keigan.exceptions.keigan_exceptions import ForbiddenException, IntegrationException, NotFoundException, ReaderNotAvailableException
 from keigan.services.chat_data_query_service import ChatDataQueryService, QueryNotAnswerableError
-from keigan.services import ask_keigan_alert_tools, ask_keigan_investigation_tools, ask_keigan_signal_tools, ask_keigan_team_metric_tools  # noqa: F401 — importing a tool module registers its tools
+from keigan.services import ask_keigan_alert_tools, ask_keigan_investigation_tools, ask_keigan_memory_tools, ask_keigan_signal_tools, ask_keigan_team_metric_tools  # noqa: F401 — importing a tool module registers its tools
 from keigan.services.ask_keigan_tool_support import (
     MINUTES_PER_HOUR, application_id_of, checked_applications, describe_window, limited, plural, read_tool, readable_application, utc_minute,
 )

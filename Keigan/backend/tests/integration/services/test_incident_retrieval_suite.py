@@ -7,9 +7,6 @@ import pytest
 from keigan.config.database_config import open_session
 from support.incident_retrieval_suite import CaseOutcome, RetrievalCase, SuiteReport, load_cases, run_cases, summarise
 
-KNOWN_MISSES = {"wording_only_inside_one_application_is_a_known_miss"}  # documented in the case file: words alone score at most 0.30 against a minimum of 0.35
-
-
 @pytest.fixture(scope="module")
 async def outcomes(seed_context) -> list[CaseOutcome]:
     application_ids = {"claims": seed_context.application_ids_by_code["CLMJP"], "payments": seed_context.application_ids_by_code["PAYAU"], "chad": seed_context.application_ids_by_code["CHAD"]}
@@ -46,10 +43,9 @@ async def test_the_order_and_the_incorrect_label_are_as_labelled(report: SuiteRe
     assert report.out_of_order_cases == [] and report.wrongly_unlabelled_or_labelled == []
 
 
-async def test_the_only_miss_is_the_documented_one_and_it_is_about_weights_not_vocabulary(report: SuiteReport) -> None:
-    assert set(report.missed_cases) == KNOWN_MISSES
-    assert report.missed_cases["wording_only_inside_one_application_is_a_known_miss"] == {"same_words_no_facts": "missing_facts"}  # high overlap, so more weight on words would find it, not vectors
+async def test_no_labelled_case_is_missed(report: SuiteReport) -> None:
+    assert report.missed_cases == {}
 
 
 async def test_the_scores_have_not_dropped(report: SuiteReport) -> None:
-    assert report.recall_at_3 >= 0.85 and report.recall_at_1 >= 0.85 and report.mean_reciprocal_rank >= 0.85  # 6 of the 7 cases that expect something (the seventh is the documented miss)
+    assert report.recall_at_3 == 1.0 and report.recall_at_1 == 1.0 and report.mean_reciprocal_rank == 1.0  # synthetic cases written with the rules in mind: a drop means a rule changed, not that real incidents are found less

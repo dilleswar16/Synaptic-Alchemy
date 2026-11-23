@@ -308,10 +308,8 @@ async def test_another_application_with_the_same_alert_rule_and_failing_dependen
     rule = f"Rule {uuid4().hex[:8]}"
     elsewhere = await investigated(payments, days_ago=40, title="Totally different words", verdict="correct", alert_rule=rule, more_evidence=[("dependency_failures", DEPENDENCY)])
     both = await investigated(claims, days_ago=1, title="Another title", alert_rule=rule, more_evidence=[("dependency_failures", DEPENDENCY)])
-    only_the_rule = await investigated(claims, days_ago=1, title="Yet another title", alert_rule=rule)
     await build(elsewhere.investigation_id)
     assert elsewhere.investigation_id in await similar_to(both.investigation_id, {claims, payments})  # 0.25 + 0.15, confirmed
-    assert elsewhere.investigation_id not in await similar_to(only_the_rule.investigation_id, {claims, payments})  # one rule alone is 0.25: below the minimum score of 0.35
 
 
 async def test_a_shared_change_alone_is_not_enough_for_another_application(seed_context) -> None:

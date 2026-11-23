@@ -221,6 +221,9 @@
     },
     "list_team_members": {
       "label": "已列出团队成员"
+    },
+    "find_similar_incidents": {
+      "label": "查找了类似的过往事件"
     }
   },
   "arguments": {

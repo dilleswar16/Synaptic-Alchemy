@@ -41,7 +41,7 @@ from support.telemetry_scope import create_scoped_application
 pytestmark = pytest.mark.usefixtures("seed_context")
 
 ADMIN = user("keigan.admin@keigan.local", "KEIGAN_admin", is_admin=True)
-INVESTIGATION_TOOL_NAMES = {"get_evidence", "get_investigation_timeline", "search_knowledge", "query_logs", "list_recent_changes", "find_runbooks", "get_topology", "get_slo_status"}
+INVESTIGATION_TOOL_NAMES = {"get_evidence", "get_investigation_timeline", "search_knowledge", "query_logs", "list_recent_changes", "find_runbooks", "get_topology", "get_slo_status", "find_similar_incidents"}
 NOTES = "Claims submission is the revenue path. Page ops.lead@keigan.local first."
 FIRST_EVENT_AT = datetime(2026, 1, 5, 9, 0)
 OUTSIDE_SCOPE = fixed_answer("outside_scope", "en")

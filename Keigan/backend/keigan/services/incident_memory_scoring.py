@@ -116,6 +116,9 @@ def score_matches(current: CurrentIncident, candidates: Sequence[MemoryCandidate
         for term in set(current.terms) & candidate.terms:
             document_frequency[term] = document_frequency.get(term, 0) + 1
     matches: list[ScoredMatch] = []
+    # An incident with no facts at all (a description typed in words, or an investigation that found nothing to key on) has only its words to compare: they carry the whole score
+    # instead of the small share they are worth next to shared facts.
+    keyword_weight = 1.0 if not current.keys else config.keyword_weight
     for candidate in candidates:
         shared = _shared_keys(current, candidate)
         shared_kinds = {key.kind for key in shared}
@@ -124,7 +127,7 @@ def score_matches(current: CurrentIncident, candidates: Sequence[MemoryCandidate
             continue  # wording or a weak key is not enough to compare two applications
         structured = min(1.0, sum(config.key_weights.get(kind, 0.0) for kind in shared_kinds))
         keyword = _keyword_share(current.terms, candidate, document_frequency, len(candidates))
-        raw = min(1.0, structured + config.keyword_weight * keyword)
+        raw = min(1.0, structured + keyword_weight * keyword)
         is_rejected = candidate.verdict == config.rejected_verdict
         score = raw if is_rejected else raw * config.verdict_multipliers.get(candidate.verdict or NO_VERDICT, config.verdict_multipliers[NO_VERDICT])
         if score < config.minimum_score:

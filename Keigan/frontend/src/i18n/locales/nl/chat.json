@@ -226,6 +226,9 @@
     },
     "list_team_members": {
       "label": "Team opgesomd"
+    },
+    "find_similar_incidents": {
+      "label": "Zocht naar vergelijkbare eerdere incidenten"
     }
   },
   "arguments": {

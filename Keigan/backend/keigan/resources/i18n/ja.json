@@ -279,6 +279,7 @@
     "list_predictive_signals": {"label": "予兆シグナルを一覧にしました"},
     "get_health_score": {"label": "健全性スコアを確認しました"},
     "list_team_members": {"label": "チームを一覧にしました"},
-    "get_reliability_metrics": {"label": "信頼性の指標を読み取りました"}
+    "get_reliability_metrics": {"label": "信頼性の指標を読み取りました"},
+    "find_similar_incidents": {"label": "過去の類似インシデントを探しました"}
   }
 }

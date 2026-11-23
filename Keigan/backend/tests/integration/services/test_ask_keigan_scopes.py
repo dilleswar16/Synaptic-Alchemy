@@ -35,7 +35,7 @@ def user(user_principal_name: str, *group_names: str, is_admin: bool = False) ->
 CLMJP_READER = user("clmjp.reader@keigan.local", "CLMJP_reader")
 PAYAU_ONLY_READER = user("payau.reader@keigan.local", "PAYAU_reader")
 ADMIN = user("keigan.admin@keigan.local", "KEIGAN_admin", is_admin=True)
-INVESTIGATION_TOOL_NAMES = {"get_evidence", "get_investigation_timeline", "search_knowledge", "query_logs", "list_recent_changes", "find_runbooks", "get_topology", "get_slo_status"}
+INVESTIGATION_TOOL_NAMES = {"get_evidence", "get_investigation_timeline", "search_knowledge", "query_logs", "list_recent_changes", "find_runbooks", "get_topology", "get_slo_status", "find_similar_incidents"}
 CHAT_NOTES = "Claims submission is the revenue path. Nightly batch noise is normal."
 
 
@@ -84,7 +84,7 @@ async def test_a_tool_the_caller_withholds_is_not_offered_and_is_named_in_the_sn
     assert profile.withheld_tool_names == frozenset({"query_logs"}) and profile.snapshot()["withheldTools"] == ["query_logs"]
 
 
-async def test_the_investigation_profile_binds_the_application_and_the_investigation_and_offers_the_eight_tools(seeded: Seeded) -> None:
+async def test_the_investigation_profile_binds_the_application_and_the_investigation_and_offers_its_tools(seeded: Seeded) -> None:
     profile = await profile_for(CLMJP_READER, seeded.investigation_id)
     assert profile.scope is AskKeiganScope.INVESTIGATION and profile.conversation_scope is ConversationScope.INVESTIGATION
     assert profile.prompt_key == "ask_keigan_investigation" and profile.feature_name is AskKeiganFeature.INVESTIGATION

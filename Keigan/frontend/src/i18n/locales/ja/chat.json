@@ -221,6 +221,9 @@
     },
     "list_team_members": {
       "label": "チームを一覧表示しました"
+    },
+    "find_similar_incidents": {
+      "label": "過去の類似インシデントを探しました"
     }
   },
   "arguments": {

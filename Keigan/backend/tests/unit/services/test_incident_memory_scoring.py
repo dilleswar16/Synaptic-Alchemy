@@ -102,6 +102,14 @@ def test_a_marked_incorrect_incident_still_needs_the_minimum_score_and_the_cap_a
     assert score_matches(current(ERROR), strong, similarity_config(minimum_score=0.35, stale_after_days=180, maximum_shown=5, maximum_rejected_shown=0), NOW) == []
 
 
+def test_an_incident_with_no_facts_is_compared_on_its_words_alone_and_they_carry_the_whole_score() -> None:
+    terms = ("timeout", "claims", "batch")
+    [match] = score_matches(current(terms=terms), [past("m1", terms=frozenset(terms), verdict="correct")], CONFIG, NOW)
+    assert match.score == pytest.approx(1.0)  # not the 0.30 they are worth next to shared facts
+    half = score_matches(current(terms=terms), [past("m2", terms=frozenset(terms[:1]), verdict="correct")], CONFIG, NOW)
+    assert half == []  # a third of the words is below the minimum score
+
+
 def test_nothing_below_the_minimum_score_is_shown() -> None:
     assert score_matches(current(CATEGORY), [past("m1", CATEGORY)], CONFIG, NOW) == []
 

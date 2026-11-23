@@ -6,6 +6,8 @@ or unknown entry answers "not found" and never "forbidden".
 
 from __future__ import annotations
 
+from collections.abc import Collection
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +21,8 @@ from keigan.exceptions.keigan_exceptions import NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
-from keigan.services.incident_memory_builder import IncidentMemoryBuilder, load_investigation_facts
+from keigan.services.incident_memory_builder import IncidentMemoryBuilder, InvestigationFacts, load_investigation_facts
+from keigan.services.incident_memory_keys import MemoryFacts
 from keigan.services.incident_memory_retriever import CurrentInvestigation, RetrievedMatch, SimilarIncidentRetriever, StructuredKeywordRetriever
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
@@ -36,31 +39,59 @@ class IncidentMemoryService:
         self.retriever: SimilarIncidentRetriever = retriever or StructuredKeywordRetriever(session, self.settings)
 
     # ── Reading ────────────────────────────────────────────────────────────────
-    async def similar_incidents(self, current_user: CurrentUser, investigation_id: str) -> SimilarIncidentsResponse:
+    async def similar_incidents(self, current_user: CurrentUser, investigation_id: str, *, limit_to: Collection[str] | None = None) -> SimilarIncidentsResponse:
+        """``limit_to`` narrows the applications searched below what the person may read (an Ask Keigan conversation can be scoped to fewer)."""
         investigation = await self.session.get(Investigation, investigation_id)
         if investigation is None:
             raise NotFoundException("The investigation was not found.")
         await self.authorization.ensure_application_reader(current_user, investigation.application_id)
         if investigation.investigation_status not in AVAILABLE_STATUSES:
             return SimilarIncidentsResponse(items=[], is_available=False)
-        readable = await self.authorization.readable_application_ids(current_user)
         current = CurrentInvestigation(investigation_id, await load_investigation_facts(self.session, investigation))
-        matches = await self.retriever.find(current, readable)
+        matches = await self.retriever.find(current, await self._searched_applications(current_user, limit_to))
         return SimilarIncidentsResponse(items=await self._dtos(current_user, investigation, matches), is_available=True)
 
-    async def _dtos(self, current_user: CurrentUser, investigation: Investigation, matches: list[RetrievedMatch]) -> list[SimilarIncidentDto]:
+    async def similar_to_incident(self, current_user: CurrentUser, incident_id: str, *, limit_to: Collection[str] | None = None) -> SimilarIncidentsResponse:
+        """The matches for the latest finished investigation of an incident; none (and not available) while it has not been investigated yet."""
+        incident = await self.session.get(Incident, incident_id)
+        if incident is None:
+            raise NotFoundException("The incident was not found.")
+        await self.authorization.ensure_application_reader(current_user, incident.application_id)
+        investigation_id = await self.session.scalar(
+            select(Investigation.investigation_id).where(Investigation.incident_id == incident_id, Investigation.investigation_status.in_(AVAILABLE_STATUSES)).order_by(Investigation.created_at.desc()).limit(1)
+        )
+        if investigation_id is None:
+            return SimilarIncidentsResponse(items=[], is_available=False)
+        return await self.similar_incidents(current_user, investigation_id, limit_to=limit_to)
+
+    async def similar_to_text(self, current_user: CurrentUser, application_id: str, text: str, *, limit_to: Collection[str] | None = None) -> SimilarIncidentsResponse:
+        """Matches for a description typed in words. With no facts to share it can only match inside the named application (wording alone never crosses applications)."""
+        await self.authorization.ensure_application_reader(current_user, application_id)
+        facts = InvestigationFacts(application_id, None, text[:80], text, utc_now(), [], MemoryFacts({}, [], [], None))
+        matches = await self.retriever.find(CurrentInvestigation(f"words-{application_id}", facts), await self._searched_applications(current_user, limit_to))
+        return SimilarIncidentsResponse(items=await self._dtos(current_user, None, matches, home_application_id=application_id), is_available=True)
+
+    async def _searched_applications(self, current_user: CurrentUser, limit_to: Collection[str] | None) -> set[str]:
+        readable = await self.authorization.readable_application_ids(current_user)
+        return readable if limit_to is None else readable & set(limit_to)
+
+    async def _dtos(self, current_user: CurrentUser, investigation: Investigation | None, matches: list[RetrievedMatch], *, home_application_id: str | None = None) -> list[SimilarIncidentDto]:
         if not matches:
             return []
         entries = [match.entry for match in matches]
         applications = {row.application_id: row for row in (await self.session.scalars(select(Application).where(Application.application_id.in_({entry.application_id for entry in entries})))).all()}
         incident_ids = {entry.incident_id for entry in entries if entry.incident_id}
         incident_numbers = dict((await self.session.execute(select(Incident.incident_id, Incident.external_incident_number).where(Incident.incident_id.in_(incident_ids)))).all()) if incident_ids else {}
-        mine = dict((await self.session.execute(
-            select(IncidentMemoryRelevanceFeedback.incident_memory_entry_id, IncidentMemoryRelevanceFeedback.relevance_verdict).where(
-                IncidentMemoryRelevanceFeedback.investigation_id == investigation.investigation_id, IncidentMemoryRelevanceFeedback.user_principal_name == current_user.user_principal_name,
-            )
-        )).all())
-        given = set((await self.session.scalars(select(InvestigationMemoryReference.incident_memory_entry_id).where(InvestigationMemoryReference.investigation_id == investigation.investigation_id))).all())
+        mine: dict[str, str] = {}
+        given: set[str] = set()
+        if investigation is not None:  # a description typed in words has no investigation to answer on or to give a hint to
+            mine = dict((await self.session.execute(
+                select(IncidentMemoryRelevanceFeedback.incident_memory_entry_id, IncidentMemoryRelevanceFeedback.relevance_verdict).where(
+                    IncidentMemoryRelevanceFeedback.investigation_id == investigation.investigation_id, IncidentMemoryRelevanceFeedback.user_principal_name == current_user.user_principal_name,
+                )
+            )).all())
+            given = set((await self.session.scalars(select(InvestigationMemoryReference.incident_memory_entry_id).where(InvestigationMemoryReference.investigation_id == investigation.investigation_id))).all())
+        home = investigation.application_id if investigation is not None else home_application_id
         administered = await self.authorization.editable_application_ids(current_user)
         items: list[SimilarIncidentDto] = []
         for match in matches:
@@ -69,7 +100,7 @@ class IncidentMemoryService:
             was_marked_incorrect = match.verdict == InvestigationFeedbackVerdict.INCORRECT and entry.cause_source == IncidentMemoryCauseSource.INVESTIGATION
             items.append(SimilarIncidentDto(
                 memory_entry_id=entry.incident_memory_entry_id, application=MemoryApplicationDto(application_id=application.application_id, application_name=application.application_name),
-                is_same_application=entry.application_id == investigation.application_id, incident_id=entry.incident_id, incident_number=incident_numbers.get(entry.incident_id),
+                is_same_application=entry.application_id == home, incident_id=entry.incident_id, incident_number=incident_numbers.get(entry.incident_id),
                 incident_title=entry.incident_title_text, investigation_id=entry.investigation_id, occurred_at=entry.occurred_at, age_days=match.match.age_days, verdict=match.verdict,
                 cause_text=None if was_marked_incorrect else entry.cause_text, cause_source=entry.cause_source, fix_text=entry.fix_text, fix_source=entry.fix_source,
                 match_reasons=[MatchReasonDto(key_kind=reason.kind, display_text=reason.display_text) for reason in match.match.reasons], is_rejected=match.match.is_rejected, was_given_to_analysis=entry.incident_memory_entry_id in given, is_stale=match.match.is_stale,

@@ -194,10 +194,9 @@ cases:
         facts: {services: [payments-api], alert_rules: ["Partner API error rate"], dependency_targets: [partner-api.example.com]}
     expect: [payments_partner_outage]
 
-  - id: wording_only_inside_one_application_is_a_known_miss
+  - id: wording_only_inside_one_application_when_the_incident_has_no_facts
     description: >-
-      The same words and no shared fact inside one application. With the starting weights words alone reach at most 0.30, below the minimum score of 0.35, so it is not found.
-      This case documents that limit: if the weights change and it is found, update the suite's expected misses.
+      An incident with no facts at all (nothing to key on) has only its words to compare; inside one application they carry the whole score, so the same words are found.
     reader_can_read: [claims]
     current:
       application: claims
@@ -212,3 +211,20 @@ cases:
         wording: The nightly reconciliation job ran out of memory on a large claim file
         facts: {}
     expect: [same_words_no_facts]
+
+  - id: the_same_words_are_not_enough_when_the_facts_disagree
+    description: The incident has facts, and none are shared with the past one that merely uses the same words; the words alone are worth little next to disagreeing facts.
+    reader_can_read: [claims]
+    current:
+      application: claims
+      wording: Nightly reconciliation job runs out of memory when the claim file is large
+      facts: {services: [claims-batch], errors: ["OutOfMemoryError: Java heap space"]}
+    past:
+      - id: same_words_other_facts
+        application: claims
+        days_ago: 70
+        verdict: correct
+        title: Reconciliation job out of memory
+        wording: The nightly reconciliation job ran out of memory on a large claim file
+        facts: {services: [claims-ui], errors: ["Browser tab crashed: Aw, Snap"]}
+    must_not_appear: [same_words_other_facts]
