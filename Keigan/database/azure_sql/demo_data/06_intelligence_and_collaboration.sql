@@ -70,11 +70,15 @@ Health score 86/100 (SLOs 50.0/50, signals 15.0/25, incidents 21.0/25). Incident
 - 2 open, 1 overdue, 1 done this week, 3 accepted this week.
 - Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)
 
+## Runbooks
+
+- 0 runbook(s) need attention.
+
 ## Recommendations
 
 - Review open predictive signals with the owning teams.
 - Check that error budgets for at-risk SLOs are still meaningful.
-- Confirm on-call runbooks cover the recurring incident categories.', N'{"healthScore": 86, "healthComponents": {"slo": 50.0, "signals": 15.0, "incidents": 21.0}, "executiveSummary": "Health score 86/100 (SLOs 50.0/50, signals 15.0/25, incidents 21.0/25). Incidents: 1 (1 x P2). Alert noise: 4 alerts reduced to 2 groups. Overall reliability is acceptable, with the open predictive signals below deserving attention this week.", "slos": [{"sliName": "claims-apim: Gateway availability", "serviceName": "claims-apim", "target": 99.5, "compliance": 99.923, "budgetRemainingPercent": 84.5, "status": "healthy"}, {"sliName": "claims-api: Pod readiness", "serviceName": "claims-api", "target": 99.5, "compliance": 99.907, "budgetRemainingPercent": 81.4, "status": "healthy"}, {"sliName": "claims-api: Request availability", "serviceName": "claims-api", "target": 99.5, "compliance": 99.907, "budgetRemainingPercent": 81.4, "status": "healthy"}, {"sliName": "claims-api: Request latency", "serviceName": "claims-api", "target": 95.0, "compliance": 98.459, "budgetRemainingPercent": 69.2, "status": "healthy"}, {"sliName": "claims-apim: Gateway latency", "serviceName": "claims-apim", "target": 95.0, "compliance": 98.511, "budgetRemainingPercent": 70.2, "status": "healthy"}, {"sliName": "claims-document-renderer: Pod readiness", "serviceName": "claims-document-renderer", "target": 99.5, "compliance": 99.918, "budgetRemainingPercent": 83.6, "status": "healthy"}, {"sliName": "claims-document-renderer: Request availability", "serviceName": "claims-document-renderer", "target": 99.5, "compliance": 99.918, "budgetRemainingPercent": 83.6, "status": "healthy"}, {"sliName": "claims-document-renderer: Request latency", "serviceName": "claims-document-renderer", "target": 95.0, "compliance": 98.506, "budgetRemainingPercent": 70.1, "status": "healthy"}, {"sliName": "claims-intake-func: Execution duration", "serviceName": "claims-intake-func", "target": 95.0, "compliance": 100.0, "budgetRemainingPercent": 100.0, "status": "healthy"}, {"sliName": "claims-intake-func: Execution success", "serviceName": "claims-intake-func", "target": 99.5, "compliance": 99.95, "budgetRemainingPercent": 90.0, "status": "healthy"}, {"sliName": "claims-nightly-etl: Pipeline success", "serviceName": "claims-nightly-etl", "target": 99.95, "compliance": 99.967, "budgetRemainingPercent": 35.0, "status": "healthy"}, {"sliName": "claims-sql: Successful connections", "serviceName": "claims-sql", "target": 99.5, "compliance": 99.92, "budgetRemainingPercent": 84.0, "status": "healthy"}, {"sliName": "claims-workflow: Run success", "serviceName": "claims-workflow", "target": 99.9, "compliance": 100.0, "budgetRemainingPercent": 100.0, "status": "healthy"}], "recommendations": ["Review open predictive signals with the owning teams.", "Check that error budgets for at-risk SLOs are still meaningful.", "Confirm on-call runbooks cover the recurring incident categories."], "incidents": {"total": 1, "byPriority": {"P2": 1}}, "noise": {"alerts": 4, "groups": 2}, "signals": [{"predictiveSignalId": "00000000-0000-4000-8000-000000000446", "title": "claims-document-renderer: Memory is climbing and will reach 90% in about 1.7 days", "severity": "critical", "detector": "saturation_trend", "confidence": 0.92, "explanation": "Memory on claims-document-renderer (node_memory_working_set_percentage) is 84.0% now, was 62.0% seven days ago; trend +3.52 percentage points per day (fit quality R2 0.93); forecast to reach 90% in 1.7 days."}], "budget": {"policyIsEnabled": false, "incidents": [], "incidentsWithoutFigureCount": 1, "breachesOpenedCount": 0, "openBreaches": []}, "actionItems": {"openCount": 2, "overdueCount": 1, "overdue": [{"title": "Alert when container memory exceeds 80 percent of its limit", "owner": "Haruto Manager", "priority": "normal", "daysOverdue": 10, "incidentNumber": "INC004090137"}], "doneThisWeekCount": 1, "acceptedThisWeekCount": 3, "topPriorityWithoutOwner": [], "suggestedWaitingCount": 0}}', '2026-11-20 12:00:00.000000', NULL, NULL, NULL, N'["aiko.appadmin@keigan.local", "haruto.manager@keigan.local", "nao.infra@keigan.local", "rui.reader@keigan.local", "sora.devops@keigan.local", "yui.executive@keigan.local"]', '2026-11-19 12:00:00.000000'),
+- Confirm on-call runbooks cover the recurring incident categories.', N'{"healthScore": 86, "healthComponents": {"slo": 50.0, "signals": 15.0, "incidents": 21.0}, "executiveSummary": "Health score 86/100 (SLOs 50.0/50, signals 15.0/25, incidents 21.0/25). Incidents: 1 (1 x P2). Alert noise: 4 alerts reduced to 2 groups. Overall reliability is acceptable, with the open predictive signals below deserving attention this week.", "slos": [{"sliName": "claims-apim: Gateway availability", "serviceName": "claims-apim", "target": 99.5, "compliance": 99.923, "budgetRemainingPercent": 84.5, "status": "healthy"}, {"sliName": "claims-api: Pod readiness", "serviceName": "claims-api", "target": 99.5, "compliance": 99.907, "budgetRemainingPercent": 81.4, "status": "healthy"}, {"sliName": "claims-api: Request availability", "serviceName": "claims-api", "target": 99.5, "compliance": 99.907, "budgetRemainingPercent": 81.4, "status": "healthy"}, {"sliName": "claims-api: Request latency", "serviceName": "claims-api", "target": 95.0, "compliance": 98.459, "budgetRemainingPercent": 69.2, "status": "healthy"}, {"sliName": "claims-apim: Gateway latency", "serviceName": "claims-apim", "target": 95.0, "compliance": 98.511, "budgetRemainingPercent": 70.2, "status": "healthy"}, {"sliName": "claims-document-renderer: Pod readiness", "serviceName": "claims-document-renderer", "target": 99.5, "compliance": 99.918, "budgetRemainingPercent": 83.6, "status": "healthy"}, {"sliName": "claims-document-renderer: Request availability", "serviceName": "claims-document-renderer", "target": 99.5, "compliance": 99.918, "budgetRemainingPercent": 83.6, "status": "healthy"}, {"sliName": "claims-document-renderer: Request latency", "serviceName": "claims-document-renderer", "target": 95.0, "compliance": 98.506, "budgetRemainingPercent": 70.1, "status": "healthy"}, {"sliName": "claims-intake-func: Execution duration", "serviceName": "claims-intake-func", "target": 95.0, "compliance": 100.0, "budgetRemainingPercent": 100.0, "status": "healthy"}, {"sliName": "claims-intake-func: Execution success", "serviceName": "claims-intake-func", "target": 99.5, "compliance": 99.95, "budgetRemainingPercent": 90.0, "status": "healthy"}, {"sliName": "claims-nightly-etl: Pipeline success", "serviceName": "claims-nightly-etl", "target": 99.95, "compliance": 99.967, "budgetRemainingPercent": 35.0, "status": "healthy"}, {"sliName": "claims-sql: Successful connections", "serviceName": "claims-sql", "target": 99.5, "compliance": 99.92, "budgetRemainingPercent": 84.0, "status": "healthy"}, {"sliName": "claims-workflow: Run success", "serviceName": "claims-workflow", "target": 99.9, "compliance": 100.0, "budgetRemainingPercent": 100.0, "status": "healthy"}], "recommendations": ["Review open predictive signals with the owning teams.", "Check that error budgets for at-risk SLOs are still meaningful.", "Confirm on-call runbooks cover the recurring incident categories."], "incidents": {"total": 1, "byPriority": {"P2": 1}}, "noise": {"alerts": 4, "groups": 2}, "signals": [{"predictiveSignalId": "00000000-0000-4000-8000-000000000446", "title": "claims-document-renderer: Memory is climbing and will reach 90% in about 1.7 days", "severity": "critical", "detector": "saturation_trend", "confidence": 0.92, "explanation": "Memory on claims-document-renderer (node_memory_working_set_percentage) is 84.0% now, was 62.0% seven days ago; trend +3.52 percentage points per day (fit quality R2 0.93); forecast to reach 90% in 1.7 days."}], "budget": {"policyIsEnabled": false, "incidents": [], "incidentsWithoutFigureCount": 1, "breachesOpenedCount": 0, "openBreaches": []}, "actionItems": {"openCount": 2, "overdueCount": 1, "overdue": [{"title": "Alert when container memory exceeds 80 percent of its limit", "owner": "Haruto Manager", "priority": "normal", "daysOverdue": 10, "incidentNumber": "INC004090137"}], "doneThisWeekCount": 1, "acceptedThisWeekCount": 3, "topPriorityWithoutOwner": [], "suggestedWaitingCount": 0}, "runbooks": {"withFindingsCount": 0, "runbooks": []}}', '2026-11-20 12:00:00.000000', NULL, NULL, NULL, N'["aiko.appadmin@keigan.local", "haruto.manager@keigan.local", "nao.infra@keigan.local", "rui.reader@keigan.local", "sora.devops@keigan.local", "yui.executive@keigan.local"]', '2026-11-19 12:00:00.000000'),
     (N'00000000-0000-4000-8000-00000000045d', N'00000000-0000-4000-8000-000000000001', N'proactive_alert', N'Keigan Intelligence Report: Claims Processing (JP) (proactive alert, 2026-11-20)', '2026-11-19 12:00:00.000000', '2026-11-20 12:00:00.000000', 86, N'# Keigan Intelligence Report: Claims Processing (JP) (proactive alert, 2026-11-20)
 
 **Health score: 86/100**
@@ -155,11 +159,15 @@ Health score 94/100 (SLOs 50.0/50, signals 20.0/25, incidents 23.5/25). Incident
 - 3 open, 1 overdue, 1 done this week, 3 accepted this week.
 - Overdue: Alert 30, 14 and 7 days before any certificate expires (6 days, Kai Admin)
 
+## Runbooks
+
+- 0 runbook(s) need attention.
+
 ## Recommendations
 
 - Review open predictive signals with the owning teams.
 - Check that error budgets for at-risk SLOs are still meaningful.
-- Confirm on-call runbooks cover the recurring incident categories.', N'{"healthScore": 94, "healthComponents": {"slo": 50.0, "signals": 20.0, "incidents": 23.5}, "executiveSummary": "Health score 94/100 (SLOs 50.0/50, signals 20.0/25, incidents 23.5/25). Incidents: 1 (1 x P3). Alert noise: 2 alerts reduced to 2 groups. Overall reliability is acceptable, with the open predictive signals below deserving attention this week.", "slos": [{"sliName": "chad-apim: Gateway availability", "serviceName": "chad-apim", "target": 99.5, "compliance": 99.842, "budgetRemainingPercent": 68.4, "status": "healthy"}, {"sliName": "azaustaekub14470pr0101: Pod readiness", "serviceName": "azaustaekub14470pr0101", "target": 99.5, "compliance": 99.926, "budgetRemainingPercent": 85.3, "status": "healthy"}, {"sliName": "azaustaekub14470pr0101: Request availability", "serviceName": "azaustaekub14470pr0101", "target": 99.5, "compliance": 99.926, "budgetRemainingPercent": 85.3, "status": "healthy"}, {"sliName": "azaustaekub14470pr0101: Request latency", "serviceName": "azaustaekub14470pr0101", "target": 95.0, "compliance": 98.516, "budgetRemainingPercent": 70.3, "status": "healthy"}, {"sliName": "chad-apim: Gateway latency", "serviceName": "chad-apim", "target": 95.0, "compliance": 98.506, "budgetRemainingPercent": 70.1, "status": "healthy"}, {"sliName": "chad-notifications-func: Execution duration", "serviceName": "chad-notifications-func", "target": 95.0, "compliance": 100.0, "budgetRemainingPercent": 100.0, "status": "healthy"}, {"sliName": "chad-notifications-func: Execution success", "serviceName": "chad-notifications-func", "target": 99.5, "compliance": 99.953, "budgetRemainingPercent": 90.5, "status": "healthy"}, {"sliName": "channel-gateway-app: Request availability", "serviceName": "channel-gateway-app", "target": 99.5, "compliance": 99.896, "budgetRemainingPercent": 79.1, "status": "healthy"}, {"sliName": "channel-gateway-app: Request latency", "serviceName": "channel-gateway-app", "target": 95.0, "compliance": 98.517, "budgetRemainingPercent": 70.3, "status": "healthy"}, {"sliName": "channel-gateway-app: Web app availability", "serviceName": "channel-gateway-app", "target": 99.5, "compliance": 99.896, "budgetRemainingPercent": 79.1, "status": "healthy"}, {"sliName": "channel-gateway-app: Web app latency", "serviceName": "channel-gateway-app", "target": 95.0, "compliance": 98.517, "budgetRemainingPercent": 70.3, "status": "healthy"}], "recommendations": ["Review open predictive signals with the owning teams.", "Check that error budgets for at-risk SLOs are still meaningful.", "Confirm on-call runbooks cover the recurring incident categories."], "incidents": {"total": 1, "byPriority": {"P3": 1}}, "noise": {"alerts": 2, "groups": 2}, "signals": [{"predictiveSignalId": "00000000-0000-4000-8000-000000000448", "title": "chad-apim: Gateway availability is unusually bad for this hour of the week", "severity": "warning", "detector": "seasonal_anomaly", "confidence": 0.8993321165147481, "explanation": "SLI chad-apim: Gateway availability: error ratio 0.388% against 0.061% usual for this hour of the week; robust z-score 10.0 for 3 consecutive hours."}, {"predictiveSignalId": "00000000-0000-4000-8000-000000000449", "title": "chad-apim: Gateway availability error budget will be exhausted in about 26.6 days at the current pace", "severity": "info", "detector": "error_budget_exhaustion", "confidence": 0.75, "explanation": "SLO chad-apim: Gateway availability target 99.5% over 30 days; compliance 99.842%; error budget remaining 68.4% (147.7 of 216.0 minutes); burn rate 0.8x (1h 0.75, 6h 0.76, 3d 0.77); forecast exhaustion in 26.6 days."}], "budget": {"policyIsEnabled": false, "incidents": [], "incidentsWithoutFigureCount": 1, "breachesOpenedCount": 0, "openBreaches": []}, "actionItems": {"openCount": 3, "overdueCount": 1, "overdue": [{"title": "Alert 30, 14 and 7 days before any certificate expires", "owner": "Kai Admin", "priority": "normal", "daysOverdue": 6, "incidentNumber": "INC004090274"}], "doneThisWeekCount": 1, "acceptedThisWeekCount": 3, "topPriorityWithoutOwner": [], "suggestedWaitingCount": 0}}', '2026-11-20 12:00:00.000000', NULL, NULL, NULL, N'["aiko.appadmin@keigan.local", "keigan.admin@keigan.local"]', '2026-11-19 12:00:00.000000'),
+- Confirm on-call runbooks cover the recurring incident categories.', N'{"healthScore": 94, "healthComponents": {"slo": 50.0, "signals": 20.0, "incidents": 23.5}, "executiveSummary": "Health score 94/100 (SLOs 50.0/50, signals 20.0/25, incidents 23.5/25). Incidents: 1 (1 x P3). Alert noise: 2 alerts reduced to 2 groups. Overall reliability is acceptable, with the open predictive signals below deserving attention this week.", "slos": [{"sliName": "chad-apim: Gateway availability", "serviceName": "chad-apim", "target": 99.5, "compliance": 99.842, "budgetRemainingPercent": 68.4, "status": "healthy"}, {"sliName": "azaustaekub14470pr0101: Pod readiness", "serviceName": "azaustaekub14470pr0101", "target": 99.5, "compliance": 99.926, "budgetRemainingPercent": 85.3, "status": "healthy"}, {"sliName": "azaustaekub14470pr0101: Request availability", "serviceName": "azaustaekub14470pr0101", "target": 99.5, "compliance": 99.926, "budgetRemainingPercent": 85.3, "status": "healthy"}, {"sliName": "azaustaekub14470pr0101: Request latency", "serviceName": "azaustaekub14470pr0101", "target": 95.0, "compliance": 98.516, "budgetRemainingPercent": 70.3, "status": "healthy"}, {"sliName": "chad-apim: Gateway latency", "serviceName": "chad-apim", "target": 95.0, "compliance": 98.506, "budgetRemainingPercent": 70.1, "status": "healthy"}, {"sliName": "chad-notifications-func: Execution duration", "serviceName": "chad-notifications-func", "target": 95.0, "compliance": 100.0, "budgetRemainingPercent": 100.0, "status": "healthy"}, {"sliName": "chad-notifications-func: Execution success", "serviceName": "chad-notifications-func", "target": 99.5, "compliance": 99.953, "budgetRemainingPercent": 90.5, "status": "healthy"}, {"sliName": "channel-gateway-app: Request availability", "serviceName": "channel-gateway-app", "target": 99.5, "compliance": 99.896, "budgetRemainingPercent": 79.1, "status": "healthy"}, {"sliName": "channel-gateway-app: Request latency", "serviceName": "channel-gateway-app", "target": 95.0, "compliance": 98.517, "budgetRemainingPercent": 70.3, "status": "healthy"}, {"sliName": "channel-gateway-app: Web app availability", "serviceName": "channel-gateway-app", "target": 99.5, "compliance": 99.896, "budgetRemainingPercent": 79.1, "status": "healthy"}, {"sliName": "channel-gateway-app: Web app latency", "serviceName": "channel-gateway-app", "target": 95.0, "compliance": 98.517, "budgetRemainingPercent": 70.3, "status": "healthy"}], "recommendations": ["Review open predictive signals with the owning teams.", "Check that error budgets for at-risk SLOs are still meaningful.", "Confirm on-call runbooks cover the recurring incident categories."], "incidents": {"total": 1, "byPriority": {"P3": 1}}, "noise": {"alerts": 2, "groups": 2}, "signals": [{"predictiveSignalId": "00000000-0000-4000-8000-000000000448", "title": "chad-apim: Gateway availability is unusually bad for this hour of the week", "severity": "warning", "detector": "seasonal_anomaly", "confidence": 0.8993321165147481, "explanation": "SLI chad-apim: Gateway availability: error ratio 0.388% against 0.061% usual for this hour of the week; robust z-score 10.0 for 3 consecutive hours."}, {"predictiveSignalId": "00000000-0000-4000-8000-000000000449", "title": "chad-apim: Gateway availability error budget will be exhausted in about 26.6 days at the current pace", "severity": "info", "detector": "error_budget_exhaustion", "confidence": 0.75, "explanation": "SLO chad-apim: Gateway availability target 99.5% over 30 days; compliance 99.842%; error budget remaining 68.4% (147.7 of 216.0 minutes); burn rate 0.8x (1h 0.75, 6h 0.76, 3d 0.77); forecast exhaustion in 26.6 days."}], "budget": {"policyIsEnabled": false, "incidents": [], "incidentsWithoutFigureCount": 1, "breachesOpenedCount": 0, "openBreaches": []}, "actionItems": {"openCount": 3, "overdueCount": 1, "overdue": [{"title": "Alert 30, 14 and 7 days before any certificate expires", "owner": "Kai Admin", "priority": "normal", "daysOverdue": 6, "incidentNumber": "INC004090274"}], "doneThisWeekCount": 1, "acceptedThisWeekCount": 3, "topPriorityWithoutOwner": [], "suggestedWaitingCount": 0}, "runbooks": {"withFindingsCount": 0, "runbooks": []}}', '2026-11-20 12:00:00.000000', NULL, NULL, NULL, N'["aiko.appadmin@keigan.local", "keigan.admin@keigan.local"]', '2026-11-19 12:00:00.000000'),
     (N'00000000-0000-4000-8000-00000000046f', N'00000000-0000-4000-8000-000000000029', N'proactive_alert', N'Keigan Intelligence Report: Channel APIs for Digital (AU) (proactive alert, 2026-11-20)', '2026-11-19 12:00:00.000000', '2026-11-20 12:00:00.000000', 94, N'# Keigan Intelligence Report: Channel APIs for Digital (AU) (proactive alert, 2026-11-20)
 
 **Health score: 94/100**
@@ -296,6 +304,10 @@ INSERT INTO #demo_rows ([notification_delivery_id], [application_id], [incident_
 <li>2 open, 1 overdue, 1 done this week, 3 accepted this week.</li>
 <li>Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)</li>
 </ul>
+<h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Runbooks</h3>
+<ul style="margin:6px 0 6px 18px;padding:0;">
+<li>0 runbook(s) need attention.</li>
+</ul>
 <h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Recommendations</h3>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>Review open predictive signals with the owning teams.</li>
@@ -359,6 +371,10 @@ Health score 86/100 (SLOs 50.0/50, signals 15.0/25, incidents 21.0/25). Incident
 
 - 2 open, 1 overdue, 1 done this week, 3 accepted this week.
 - Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)
+
+## Runbooks
+
+- 0 runbook(s) need attention.
 
 ## Recommendations
 
@@ -439,6 +455,10 @@ Keigan で開く: http://localhost:5173/intelligence
 <li>2 open, 1 overdue, 1 done this week, 3 accepted this week.</li>
 <li>Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)</li>
 </ul>
+<h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Runbooks</h3>
+<ul style="margin:6px 0 6px 18px;padding:0;">
+<li>0 runbook(s) need attention.</li>
+</ul>
 <h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Recommendations</h3>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>Review open predictive signals with the owning teams.</li>
@@ -502,6 +522,10 @@ Health score 86/100 (SLOs 50.0/50, signals 15.0/25, incidents 21.0/25). Incident
 
 - 2 open, 1 overdue, 1 done this week, 3 accepted this week.
 - Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)
+
+## Runbooks
+
+- 0 runbook(s) need attention.
 
 ## Recommendations
 
@@ -582,6 +606,10 @@ Keigan で開く: http://localhost:5173/intelligence
 <li>2 open, 1 overdue, 1 done this week, 3 accepted this week.</li>
 <li>Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)</li>
 </ul>
+<h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Runbooks</h3>
+<ul style="margin:6px 0 6px 18px;padding:0;">
+<li>0 runbook(s) need attention.</li>
+</ul>
 <h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Recommendations</h3>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>Review open predictive signals with the owning teams.</li>
@@ -645,6 +673,10 @@ Health score 86/100 (SLOs 50.0/50, signals 15.0/25, incidents 21.0/25). Incident
 
 - 2 open, 1 overdue, 1 done this week, 3 accepted this week.
 - Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)
+
+## Runbooks
+
+- 0 runbook(s) need attention.
 
 ## Recommendations
 
@@ -725,6 +757,10 @@ Keigan で開く: http://localhost:5173/intelligence
 <li>2 open, 1 overdue, 1 done this week, 3 accepted this week.</li>
 <li>Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)</li>
 </ul>
+<h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Runbooks</h3>
+<ul style="margin:6px 0 6px 18px;padding:0;">
+<li>0 runbook(s) need attention.</li>
+</ul>
 <h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Recommendations</h3>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>Review open predictive signals with the owning teams.</li>
@@ -788,6 +824,10 @@ Health score 86/100 (SLOs 50.0/50, signals 15.0/25, incidents 21.0/25). Incident
 
 - 2 open, 1 overdue, 1 done this week, 3 accepted this week.
 - Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)
+
+## Runbooks
+
+- 0 runbook(s) need attention.
 
 ## Recommendations
 
@@ -868,6 +908,10 @@ This message was generated automatically by Keigan. Please verify critical facts
 <li>2 open, 1 overdue, 1 done this week, 3 accepted this week.</li>
 <li>Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)</li>
 </ul>
+<h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Runbooks</h3>
+<ul style="margin:6px 0 6px 18px;padding:0;">
+<li>0 runbook(s) need attention.</li>
+</ul>
 <h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Recommendations</h3>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>Review open predictive signals with the owning teams.</li>
@@ -931,6 +975,10 @@ Health score 86/100 (SLOs 50.0/50, signals 15.0/25, incidents 21.0/25). Incident
 
 - 2 open, 1 overdue, 1 done this week, 3 accepted this week.
 - Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)
+
+## Runbooks
+
+- 0 runbook(s) need attention.
 
 ## Recommendations
 
@@ -1011,6 +1059,10 @@ This message was generated automatically by Keigan. Please verify critical facts
 <li>2 open, 1 overdue, 1 done this week, 3 accepted this week.</li>
 <li>Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)</li>
 </ul>
+<h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Runbooks</h3>
+<ul style="margin:6px 0 6px 18px;padding:0;">
+<li>0 runbook(s) need attention.</li>
+</ul>
 <h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Recommendations</h3>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>Review open predictive signals with the owning teams.</li>
@@ -1074,6 +1126,10 @@ Health score 86/100 (SLOs 50.0/50, signals 15.0/25, incidents 21.0/25). Incident
 
 - 2 open, 1 overdue, 1 done this week, 3 accepted this week.
 - Overdue: Alert when container memory exceeds 80 percent of its limit (10 days, Haruto Manager)
+
+## Runbooks
+
+- 0 runbook(s) need attention.
 
 ## Recommendations
 
@@ -1891,6 +1947,10 @@ Keigan で開く: http://localhost:5173/intelligence
 <li>3 open, 1 overdue, 1 done this week, 3 accepted this week.</li>
 <li>Overdue: Alert 30, 14 and 7 days before any certificate expires (6 days, Kai Admin)</li>
 </ul>
+<h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Runbooks</h3>
+<ul style="margin:6px 0 6px 18px;padding:0;">
+<li>0 runbook(s) need attention.</li>
+</ul>
 <h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Recommendations</h3>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>Review open predictive signals with the owning teams.</li>
@@ -1953,6 +2013,10 @@ Health score 94/100 (SLOs 50.0/50, signals 20.0/25, incidents 23.5/25). Incident
 
 - 3 open, 1 overdue, 1 done this week, 3 accepted this week.
 - Overdue: Alert 30, 14 and 7 days before any certificate expires (6 days, Kai Admin)
+
+## Runbooks
+
+- 0 runbook(s) need attention.
 
 ## Recommendations
 
@@ -2032,6 +2096,10 @@ Keigan で開く: http://localhost:5173/intelligence
 <li>3 open, 1 overdue, 1 done this week, 3 accepted this week.</li>
 <li>Overdue: Alert 30, 14 and 7 days before any certificate expires (6 days, Kai Admin)</li>
 </ul>
+<h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Runbooks</h3>
+<ul style="margin:6px 0 6px 18px;padding:0;">
+<li>0 runbook(s) need attention.</li>
+</ul>
 <h3 style="margin:14px 0 4px 0;font-size:15px;color:#0061a0;">Recommendations</h3>
 <ul style="margin:6px 0 6px 18px;padding:0;">
 <li>Review open predictive signals with the owning teams.</li>
@@ -2094,6 +2162,10 @@ Health score 94/100 (SLOs 50.0/50, signals 20.0/25, incidents 23.5/25). Incident
 
 - 3 open, 1 overdue, 1 done this week, 3 accepted this week.
 - Overdue: Alert 30, 14 and 7 days before any certificate expires (6 days, Kai Admin)
+
+## Runbooks
+
+- 0 runbook(s) need attention.
 
 ## Recommendations
 
