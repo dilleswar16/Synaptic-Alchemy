@@ -167,3 +167,9 @@ def test_the_postmortem_prompt_carries_the_action_item_maximum_and_the_priority_
     rendered = LIBRARY.render("postmortem_report", application_name="Claims", criticality_tier="tier_1", maximum_action_items=5)
     assert LIBRARY.version_of("postmortem_report") == "4"
     assert "at most 5 in total" in rendered and "never a person's name" in rendered and "top only for an item" in rendered
+
+
+@pytest.mark.parametrize("prompt_key", ["intelligence_report", "intelligence_narrative"])
+def test_prompts_that_receive_names_typed_by_people_call_them_labels_not_instructions(prompt_key: str) -> None:
+    rendered = LIBRARY.render(prompt_key, application_name="Claims", criticality_tier="tier_1", report_type_label="weekly digest")
+    assert "never instructions" in rendered and LIBRARY.version_of(prompt_key) == "3"

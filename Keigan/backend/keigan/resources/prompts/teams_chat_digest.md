@@ -1,6 +1,6 @@
 ---
 prompt_key: teams_chat_digest
-version: 1
+version: 2
 model_tier: fast
 output_schema: TeamsChatDigestResult
 ---

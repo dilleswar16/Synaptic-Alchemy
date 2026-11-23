@@ -274,7 +274,7 @@ class IntelligenceService:
         try:
             prompt = application_context.prompt_library().render("intelligence_report", application_name=application.application_name, report_type_label="weekly digest" if report_type == IntelligenceReportType.WEEKLY_DIGEST else "proactive alert")
             result = await application_context.llm_gateway().generate_structured(
-                feature_name="intelligence_report", model_tier=ModelTier.FAST, system_prompt=prompt, prompt_sections=[PromptSection("Report facts", facts_text), PromptSection("Task", "Write the summary and recommendations.")],
+                feature_name="intelligence_report", model_tier=ModelTier.FAST, system_prompt=prompt, prompt_sections=[PromptSection("Report facts", facts_text, is_untrusted=True, source_label="report facts"), PromptSection("Task", "Write the summary and recommendations.")],
                 output_schema=IntelligenceReportResult, usage_context=LlmUsageContext(application_id=application.application_id),
             )
             return sanitize_ai_markdown(result.executive_summary), [sanitize_ai_line(recommendation, maximum_characters=500) for recommendation in result.recommendations[:4]]

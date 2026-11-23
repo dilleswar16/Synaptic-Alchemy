@@ -250,3 +250,24 @@ Masking runs before persistence of evidence and before every LLM call; masked co
 6. **Rule-outs** — empty results on healthy services are recorded so the model can exclude them.
 7. **Feedback loop** — RCA verdicts and alert feedback are stored per application; future prompts include the application's last confirmed root causes (recurring-issue memory).
 8. **Evaluation harness (later)** — replay recorded incidents (masked) against prompt versions; score with human-labelled root causes.
+
+
+---
+
+## Prompt review, 2026-11-23 (by the lead, while building C1 to E1)
+
+Scope: every prompt file in `backend/keigan/resources/prompts/` was read against the rules of section 5 (data blocks untrusted, placeholders kept, no invented facts, output only what the schema asks) and against what the code now feeds them. The prompts of the features built that day (postmortem v4, hypotheses and synthesis v5) were changed as part of those features. A review on a real model has **not** been done (no key was available): wording was checked by reading, not by measuring.
+
+Changed:
+- `intelligence_report` v3: the weekly digest's facts now include action item and runbook titles typed by people, so the prompt says names and titles are labels, never instructions, and describes the new facts (budget use, follow-ups, runbooks); `IntelligenceService._narrate_report` now sends the facts as an **untrusted, spotlighted section** (they were plain trusted text).
+- `intelligence_narrative` v3: the same rule for names in the signal facts (SLI, service and metric names are configuration text).
+- `knowledge_document_digest` v2: tells the model to keep masking placeholders (it was the only text prompt over uploaded content without the line). `teams_chat_digest` v2: version only (the placeholder rule was already there; bumped so the trace shows the reviewed text).
+- `postmortem_report` v4 and the hypothesis and synthesis prompts v5 (see specs 30 and 33): priority, role-not-name and budget-impact rules; no `<placeholder>` values, one command per line.
+
+Read and left unchanged (already carry the untrusted-data, placeholder and no-invention rules): `incident_triage`, `incident_communications`, `evidence_query_planner`, `blast_radius_narrative`, `alert_group_title`, `architecture_image_description`, `topology_builder`, `rca_synthesis`, the Ask Keigan prompts and their shared fragments (reviewed with that feature).
+
+Observations not acted on:
+- `incident_communications` writes in the requested language but lists style rules in English only; Japanese is covered, other languages rely on 'follow the same rules'. Worth a real-model check in Spanish, French, Dutch and Chinese.
+- `evidence_query_planner` and `topology_builder` use the deep tier and are the longest structured outputs: the first thing to measure on a real model is the structured-output failure rate (the gateway retries once).
+- `teams_chat_digest` writes facts in English whatever the chat language (a design choice recorded in its text); the timeline therefore mixes languages if the incident UI is Japanese.
+- Each prompt's numbers that come from settings are rendered as variables (`maximum_action_items`, thresholds); no prompt hard-codes a limit that a setting also holds, except the 'three queries' of the evidence planner and 'two to four sentences' style limits, which are wording rather than limits the code enforces.
