@@ -21,11 +21,13 @@ export interface ActionItemDialogProps {
   item?: ActionItem;
   /** Fields the owner (a reader of the application) may not change are locked. */
   detailsOnly?: boolean;
+  /** The starting type and priority of a new item (the error budget policy asks for a top-priority prevent item). */
+  preset?: { actionType?: ActionItemType; actionPriority?: ActionItemPriority };
   onSubmit: (fields: ActionItemFields & { itemTitle: string; actionType: ActionItemType; dueOn: string }) => Promise<void>;
 }
 
 /** One form for creating, editing and accepting an action item. The owner list is the application's active team members who are people. */
-export function ActionItemDialog({ open, onOpenChange, mode, applicationId, item, detailsOnly = false, onSubmit }: ActionItemDialogProps) {
+export function ActionItemDialog({ open, onOpenChange, mode, applicationId, item, detailsOnly = false, preset, onSubmit }: ActionItemDialogProps) {
   const { t } = useTranslation("actionItems");
   const { data: stakeholders } = useStakeholders(applicationId);
   const [itemTitle, setItemTitle] = useState("");
@@ -41,12 +43,12 @@ export function ActionItemDialog({ open, onOpenChange, mode, applicationId, item
     if (!open) return;
     setItemTitle(item?.itemTitle ?? "");
     setDetails(item?.itemDetailsMarkdown ?? "");
-    setActionType(item?.actionType ?? "prevent");
-    setPriority(item?.actionPriority ?? "normal");
+    setActionType(item?.actionType ?? preset?.actionType ?? "prevent");
+    setPriority(item?.actionPriority ?? preset?.actionPriority ?? "normal");
     setOwnerId(item?.owner?.stakeholderId ?? unassigned);
     setDueOn(item?.dueOn ?? "");
     setFailure(null);
-  }, [open, item]);
+  }, [open, item, preset?.actionType, preset?.actionPriority]);
 
   const people = (stakeholders ?? []).filter((member) => member.recipientType === "person" && member.isActive !== false);
   const canSave = itemTitle.trim().length >= 2 && dueOn !== "";

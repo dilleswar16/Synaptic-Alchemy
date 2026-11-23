@@ -26,7 +26,10 @@
     "due": "Due",
     "days_overdue": "Days overdue",
     "owner_role": "Owner role",
-    "owner": "Owner"
+    "owner": "Owner",
+    "budget_share": "Share of the budget used",
+    "threshold": "Policy threshold (%)",
+    "window": "Window (days)"
   },
   "outcome": {
     "cause_identified": { "label": "Cause identified", "sentence": "Keigan identified the most likely cause." },
@@ -65,6 +68,9 @@
     "test": {"subject": "Keigan test notification for {application_name}", "headline": "Test notification", "intro": "This is a test message so you can confirm that Keigan notifications reach you."},
     "action_item_reminder": {"subject": "Action items that need your attention in {application_name}", "headline": "Action items need your attention", "intro": "These follow-up tasks you own in {application_name} are due soon or overdue."},
     "action_item_escalation": {"subject": "Overdue action items in {application_name}", "headline": "Overdue action items", "intro": "These follow-up tasks in {application_name} are long overdue or have no owner, and need a decision."},
+    "error_budget_policy_single": {"subject": "Error budget policy: {title} in {application_name}", "headline": "One incident used too much error budget", "intro": "An incident in {application_name} used more of an SLO's error budget than the team's policy allows. The postmortem now needs a top-priority prevent action item, or a waiver.", "chat": "Error budget policy: this incident used {share} of the {slo} budget (limit {threshold} %). Finalising the postmortem needs at least one accepted top-priority prevent action item."},
+    "error_budget_policy_class": {"subject": "Error budget policy: a kind of outage keeps using budget in {application_name}", "headline": "One kind of outage used too much error budget", "intro": "Incidents of the same kind in {application_name} together used more of an SLO's error budget than the team's policy allows over the window. A top-priority action item is required."},
+    "error_budget_policy_exhausted": {"subject": "Error budget used up: {title} in {application_name}", "headline": "An SLO's error budget is used up", "intro": "The error budget of an SLO in {application_name} is used up. Below is what the team agreed to do."},
     "team_invitation": {"subject": "You were added to {application_name} in Keigan", "headline": "You are on the team", "intro": "You were added to the team of {application_name} in Keigan, which gathers evidence and explains incidents for the application.", "access_note": "To open the application you need access through the group {reader_group}. If you cannot open it, request that group (or {admin_group} to change settings) in SailPoint. Keigan does not grant access itself."}
   },
   "cards": {

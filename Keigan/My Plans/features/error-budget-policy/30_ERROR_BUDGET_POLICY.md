@@ -419,3 +419,19 @@ Build after doc 29 steps 1–3 and 5. Doc 31 reads impacts and breaches after st
 2. **Who may waive**: decided application admins. Should waivers on Tier 1 applications need a Keigan admin (closer to Google's escalation to the CTO)?
 3. **Per-tier or per-SLO thresholds**: v1 has one policy per application. Needed?
 4. **Release freeze**: Keigan only shows the agreed response. Should a later wave tell ServiceNow change management (D1) when a budget is exhausted?
+
+
+---
+
+## 12. Build notes (2026-11-23)
+
+Built in four steps on `keigan-ui-ux` (data model, settings and maths; impacts, schedule and card; policy, breaches, gate, waiver and messages; the screens).
+
+Differences from this design, and what remains:
+- Revision `f4a8c2e6b0d7`; the postmortem prompt is **version 4** (versions 2 and 3 were taken). The new NO ACTION keys are released by the existing delete paths (SLO delete, application delete, incident expiry, closed action item retention).
+- `incident_recurrence.recurrence_key` now exists and `PredictiveDetectors.recurring_incidents` uses it (same behaviour).
+- The evaluation job takes an optional clock for tests only. A resolved incident is re-evaluated until two evaluation intervals after its figure became final, which freezes it; an incident that was not evaluated in that time (for example before the policy existed) has no figure.
+- The outage-class rule runs on every evaluation, not once a day; it is idempotent (no breach is opened again for a class within the class window, even after it was met).
+- The notification type `error_budget_policy` is in the subscription list and the screen's list; the single-incident message is also posted to the incident's Teams chat as plain text, not a card. Email strings exist in English and Japanese.
+- Not built: the "Needs attention" entry and the weekly review section (they need the overview of doc 29), the demo seed for the policy (the test seed has no SLOs), the browser script; the breach retention in `run_retention_cleanup` is covered only by the settings test.
+- Found, not fixed: burn alerts ignore the per-SLO `burn_rate_policy_json` (see 3.2).

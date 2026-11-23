@@ -26,5 +26,51 @@
     "matchedByService": "By an affected service",
     "applicationWide": "Application-wide SLO",
     "overlapNote": "Overlapping incidents each count the minutes they share, so shares are not added together. The figure is provisional until a day after resolution, while late measurements may still arrive."
+  },
+  "policy": {
+    "title": "Error budget policy",
+    "description": "What the team agreed to do when reliability costs too much. Keigan holds the application to it, inside Keigan only: it never blocks a deployment or changes a customer system.",
+    "saved": "Policy saved",
+    "holdUs": "Keigan holds this application to the policy",
+    "offHelp": "Off: Keigan shows the budget impact on incidents but holds nobody to it.",
+    "singleThreshold": "One incident may use",
+    "classThreshold": "One kind of outage may use",
+    "classWindow": "Window for a kind of outage",
+    "defaultHint": "Empty means the default, {{value}} %",
+    "windowHint": "Days. Default {{default}}, at most {{maximum}} (the SLI history Keigan keeps)",
+    "guidance": "What we do when an SLO's budget is used up",
+    "guidanceHelp": "Shown on the SLO page and in the email when a budget is used up. At most {{maximum}} characters.",
+    "guidancePlaceholder": "For example: pause feature releases except urgent and security fixes until the SLO is met again.",
+    "sentenceOn": "If one incident uses more than {{threshold}} % of an SLO's budget, Keigan drafts a postmortem and needs an accepted top-priority 'prevent' action item before it can be finalised. If one kind of outage uses more than the limit over {{window}} days, a top-priority item is needed too.",
+    "sentenceOff": "Off. Turn it on once the team has agreed to it.",
+    "save": "Save policy"
+  },
+  "banner": {
+    "waivedTitle": "Policy requirement waived",
+    "waived": "Waived by {{by}}: {{reason}}",
+    "metTitle": "Policy met",
+    "met": "This incident used {{share}} % of the {{sli}} budget (limit {{threshold}} %). The postmortem has the action item the policy asks for.",
+    "provisionalTitle": "Provisional: over the policy limit",
+    "provisional": "This incident used {{share}} % of the {{sli}} budget (limit {{threshold}} %). The figure becomes final a day after resolution; nothing is required until then.",
+    "openTitle": "Error budget policy",
+    "open": "This incident used {{share}} % of the {{sli}} budget (limit {{threshold}} %). Finalising needs at least one accepted top-priority 'prevent' action item.",
+    "addItem": "Add top-priority item",
+    "waive": "Waive"
+  },
+  "waive": {
+    "title": "Waive the policy requirement",
+    "description": "The postmortem can then be finalised without the top-priority item. Your name and reason are recorded and shown on the postmortem.",
+    "cancel": "Cancel",
+    "confirm": "Waive requirement",
+    "reason": "Reason",
+    "reasonHelp": "Say why, for example that the measurement was wrong or the risk was accepted."
+  },
+  "exhausted": {
+    "title": "Budget used up: {{sli}} ({{application}})",
+    "agreed": "Your team agreed: {{guidance}}",
+    "noResponse": "No agreed response is written yet. An application admin can add one in the policy card on the SLO step of the application."
+  },
+  "errors": {
+    "actionFailed": "That could not be saved."
   }
 }

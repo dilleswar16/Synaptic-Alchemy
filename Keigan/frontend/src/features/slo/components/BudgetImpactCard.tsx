@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusChip } from "@/components/ui/StatusChip";
 import type { StatusTone } from "@/components/ui/toneStyles";
 import { formatDateTime, formatNumber } from "@/utils/formatters";
+import { BreachPanel } from "./BreachPanel";
 import { meterTone } from "./budgetImpactPresentation";
 
 const stateTones: Record<BudgetImpactState, StatusTone> = { provisional: "info", final: "success", insufficient_data: "neutral" };
@@ -58,7 +59,7 @@ function ImpactRow({ impact, thresholdPercent, minimumCoveragePercent }: { impac
 }
 
 /** What this incident cost each SLO's error budget. Shown whether or not the team turned the policy on: it is information first. */
-export function BudgetImpactCard({ incidentId }: { incidentId: string }) {
+export function BudgetImpactCard({ incidentId, postmortemId }: { incidentId: string; postmortemId?: string }) {
   const { t } = useTranslation("errorBudgetPolicy");
   const { data, isLoading, isError, error, refetch } = useIncidentBudgetImpact(incidentId);
   if (isLoading) return <Skeleton className="h-32 w-full" />;
@@ -67,7 +68,8 @@ export function BudgetImpactCard({ incidentId }: { incidentId: string }) {
   return (
     <Card radius="lg">
       <CardHeader title={t("impact.title")} description={data.policy.isEnabled ? t("impact.policyOn", { threshold: formatNumber(data.policy.singleIncidentThresholdPercent, { maximumFractionDigits: 0 }) }) : t("impact.policyOff")} actions={<Gauge size={18} aria-hidden className="text-muted" />} />
-      <CardBody>
+      <CardBody className="flex flex-col gap-4">
+        {data.breach ? <BreachPanel breach={data.breach} incidentId={incidentId} postmortemId={postmortemId} /> : null}
         {data.impacts.length === 0 ? (
           <EmptyState icon={Gauge} title={t("impact.emptyTitle")} description={t("impact.emptyDescription")} />
         ) : (

@@ -67,10 +67,10 @@ class IncidentBudgetImpactService:
         affected_service_ids = set(incident.affected_service_ids)
         rows: list[IncidentBudgetImpact] = []
         for slo, sli, is_service_matched in await self._matching_slos(incident.application_id, affected_service_ids):
-            impact = await self._totals(sli.sli_id, start, end)
+            impact = await self.totals(sli.sli_id, start, end)
             budget_end = end
             budget_start = budget_end - timedelta(days=slo.rolling_window_days)
-            window = await self._totals(sli.sli_id, budget_start, budget_end)
+            window = await self.totals(sli.sli_id, budget_start, budget_end)
             share = budget_share(
                 impact, window, slo.target_percentage, slo.rolling_window_days, minimum_coverage_percent=self.settings.error_budget_policy_minimum_data_coverage_percent,
                 minimum_window_events=self.settings.error_budget_policy_minimum_window_events,
@@ -109,7 +109,7 @@ class IncidentBudgetImpactService:
                 matched.append((slo, sli, False))
         return matched
 
-    async def _totals(self, sli_id: str, start: datetime, end: datetime) -> MeasurementTotals:
+    async def totals(self, sli_id: str, start: datetime, end: datetime) -> MeasurementTotals:
         good, total, windows = (await self.session.execute(
             select(
                 func.coalesce(func.sum(SliMeasurement.good_event_count), 0), func.coalesce(func.sum(SliMeasurement.total_event_count), 0),

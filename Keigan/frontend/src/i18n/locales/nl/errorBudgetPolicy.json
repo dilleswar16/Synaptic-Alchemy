@@ -26,5 +26,51 @@
     "matchedByService": "Via een getroffen dienst",
     "applicationWide": "SLO voor de hele applicatie",
     "overlapNote": "Overlappende incidenten tellen elk de minuten die ze delen, dus de percentages worden niet opgeteld. Het cijfer is voorlopig tot een dag na het oplossen, omdat late metingen nog kunnen binnenkomen."
+  },
+  "policy": {
+    "title": "Foutenbudgetbeleid",
+    "description": "Wat het team heeft afgesproken te doen wanneer betrouwbaarheid te veel kost. Keigan houdt de applicatie eraan, alleen binnen Keigan: het blokkeert nooit een deployment en wijzigt geen systeem van de klant.",
+    "saved": "Beleid opgeslagen",
+    "holdUs": "Keigan houdt deze applicatie aan het beleid",
+    "offHelp": "Uit: Keigan toont de impact van incidenten op het budget maar houdt niemand eraan.",
+    "singleThreshold": "Eén incident mag gebruiken",
+    "classThreshold": "Eén soort storing mag gebruiken",
+    "classWindow": "Venster voor een soort storing",
+    "defaultHint": "Leeg betekent de standaardwaarde, {{value}} %",
+    "windowHint": "Dagen. Standaard {{default}}, hooguit {{maximum}} (de SLI-geschiedenis die Keigan bewaart)",
+    "guidance": "Wat we doen als het budget van een SLO op is",
+    "guidanceHelp": "Wordt getoond op de SLO-pagina en in de e-mail wanneer een budget op is. Maximaal {{maximum}} tekens.",
+    "guidancePlaceholder": "Bijvoorbeeld: functie-releases pauzeren, behalve dringende en beveiligingsfixes, tot de SLO weer gehaald wordt.",
+    "sentenceOn": "Als één incident meer dan {{threshold}} % van het budget van een SLO gebruikt, stelt Keigan een postmortem op en is een geaccepteerd 'voorkomen'-actiepunt met hoogste prioriteit nodig voordat het definitief kan worden. Als één soort storing de limiet in {{window}} dagen overschrijdt, is ook een actiepunt met hoogste prioriteit nodig.",
+    "sentenceOff": "Uit. Zet het aan zodra het team het eens is.",
+    "save": "Beleid opslaan"
+  },
+  "banner": {
+    "waivedTitle": "Beleidseis vrijgesteld",
+    "waived": "Vrijgesteld door {{by}}: {{reason}}",
+    "metTitle": "Beleid gehaald",
+    "met": "Dit incident gebruikte {{share}} % van het budget van {{sli}} (limiet {{threshold}} %). De postmortem bevat het actiepunt dat het beleid vraagt.",
+    "provisionalTitle": "Voorlopig: boven de limiet van het beleid",
+    "provisional": "Dit incident gebruikte {{share}} % van het budget van {{sli}} (limiet {{threshold}} %). Het cijfer wordt definitief een dag na het oplossen; tot dan wordt niets gevraagd.",
+    "openTitle": "Foutenbudgetbeleid",
+    "open": "Dit incident gebruikte {{share}} % van het budget van {{sli}} (limiet {{threshold}} %). Definitief maken vraagt minstens één geaccepteerd 'voorkomen'-actiepunt met hoogste prioriteit.",
+    "addItem": "Actiepunt met hoogste prioriteit toevoegen",
+    "waive": "Vrijstellen"
+  },
+  "waive": {
+    "title": "De beleidseis vrijstellen",
+    "description": "Daarna kan de postmortem definitief worden zonder het actiepunt met hoogste prioriteit. Je naam en reden worden vastgelegd en getoond op de postmortem.",
+    "cancel": "Annuleren",
+    "confirm": "Eis vrijstellen",
+    "reason": "Reden",
+    "reasonHelp": "Leg uit waarom, bijvoorbeeld dat de meting niet klopte of het risico is geaccepteerd."
+  },
+  "exhausted": {
+    "title": "Budget op: {{sli}} ({{application}})",
+    "agreed": "Jullie team heeft afgesproken: {{guidance}}",
+    "noResponse": "Er is nog geen afgesproken reactie opgeschreven. Een beheerder van de applicatie kan die toevoegen in de beleidskaart bij de SLO-stap van de applicatie."
+  },
+  "errors": {
+    "actionFailed": "Dat kon niet worden opgeslagen."
   }
 }

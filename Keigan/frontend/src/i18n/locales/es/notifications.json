@@ -79,13 +79,15 @@
     "intelligence_report": "Informes de inteligencia",
     "slo_burn_alert": "Alertas de consumo de SLO",
     "alert_group": "Grupos de alertas",
+    "error_budget_policy": "Política de presupuesto de errores",
     "incident_detectedHelp": "Un correo en cuanto se detecta un incidente; también decide quién es invitado al chat del incidente.",
     "preliminary_reportHelp": "Los primeros hallazgos de Keigan, normalmente en pocos minutos.",
     "progress_updateHelp": "Actualizaciones aprobadas y aviso de resolución.",
     "postmortemHelp": "El postmortem una vez finalizado y enviado.",
     "intelligence_reportHelp": "Resumen semanal y alertas predictivas proactivas.",
     "slo_burn_alertHelp": "Cuando un presupuesto de error se consume más rápido de lo previsto.",
-    "alert_groupHelp": "Alertas agrupadas que requieren atención."
+    "alert_groupHelp": "Alertas agrupadas que requieren atención.",
+    "error_budget_policyHelp": "Cuando un incidente, un tipo de caída o un presupuesto agotado incumple la política de presupuesto de errores del equipo."
   },
   "priorities": { "P1": "Solo P1", "P2": "P2 y superiores", "P3": "P3 y superiores", "P4": "Todas las prioridades" },
   "languages": { "en": "Inglés", "ja": "Japonés" },

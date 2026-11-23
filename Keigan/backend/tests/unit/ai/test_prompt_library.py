@@ -165,5 +165,5 @@ def test_the_three_hypothesis_prompts_each_have_their_own_hash_but_all_depend_on
 
 def test_the_postmortem_prompt_carries_the_action_item_maximum_and_the_priority_rule() -> None:
     rendered = LIBRARY.render("postmortem_report", application_name="Claims", criticality_tier="tier_1", maximum_action_items=5)
-    assert LIBRARY.version_of("postmortem_report") == "3"
+    assert LIBRARY.version_of("postmortem_report") == "4"
     assert "at most 5 in total" in rendered and "never a person's name" in rendered and "top only for an item" in rendered

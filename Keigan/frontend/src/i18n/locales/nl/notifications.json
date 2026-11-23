@@ -79,13 +79,15 @@
     "intelligence_report": "Intelligence-rapporten",
     "slo_burn_alert": "SLO-burnmeldingen",
     "alert_group": "Meldingsgroepen",
+    "error_budget_policy": "Foutenbudgetbeleid",
     "incident_detectedHelp": "Een e-mail zodra een incident wordt gedetecteerd; bepaalt ook wie wordt uitgenodigd voor de incidentchat.",
     "preliminary_reportHelp": "De eerste bevindingen van Keigan, meestal binnen enkele minuten.",
     "progress_updateHelp": "Goedgekeurde updates en het bericht over de oplossing.",
     "postmortemHelp": "De postmortem zodra die is afgerond en verzonden.",
     "intelligence_reportHelp": "Wekelijks overzicht en proactieve voorspellende meldingen.",
     "slo_burn_alertHelp": "Wanneer een foutbudget sneller opgaat dan gepland.",
-    "alert_groupHelp": "Gegroepeerde meldingen die aandacht nodig hebben."
+    "alert_groupHelp": "Gegroepeerde meldingen die aandacht nodig hebben.",
+    "error_budget_policyHelp": "Wanneer een incident, een soort storing of een opgebruikt budget het foutenbudgetbeleid van het team overtreedt."
   },
   "priorities": { "P1": "Alleen P1", "P2": "P2 en hoger", "P3": "P3 en hoger", "P4": "Alle prioriteiten" },
   "languages": { "en": "Engels", "ja": "Japans" },

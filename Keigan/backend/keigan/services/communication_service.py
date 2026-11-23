@@ -31,6 +31,7 @@ from keigan.exceptions.keigan_exceptions import BusinessValidationException, Kei
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
+from keigan.services.error_budget_policy_service import ErrorBudgetPolicyService
 from keigan.services.postmortem_action_items import ensure_none_proposed, render_action_items_table, render_final_table, replace_action_items_section, replace_proposed_items
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
@@ -291,6 +292,7 @@ class CommunicationService:
             PromptSection("Facts from the responders' chat", "\n".join(chat_facts) or "None recorded.", is_untrusted=True, source_label="teams chat facts"),
             PromptSection("Teams conversation", masker.mask_text("\n".join(f"{mask_author_name(masker, message.author_display_name or message.author_role)}: {mask_known_names(masker, message.message_text, person_names)}" for message in chat_messages)) or "None.", is_untrusted=True, source_label="teams chat"),
             PromptSection("Communications sent", "\n".join(f"{communication.sent_at}: {communication.subject_line}" for communication in sent_communications) or "None sent.", is_untrusted=True, source_label="communications"),
+            *await self._error_budget_sections(incident_id),
             PromptSection("Task", "Write the blameless postmortem."),
         ]
         services = list((await self.session.scalars(select(MonitoredService).where(MonitoredService.application_id == application.application_id))).all())
@@ -318,6 +320,16 @@ class CommunicationService:
         postmortem.report_status, postmortem.generation_trigger = PostmortemStatus.DRAFT, generation_trigger
         self.session.add(InvestigationTimelineEvent(incident_id=incident_id, investigation_id=postmortem.investigation_id, event_type="postmortem_drafted", event_title="Postmortem draft prepared", event_source="keigan"))
         return {"postmortemId": postmortem.postmortem_id}
+
+    async def _error_budget_sections(self, incident_id: str) -> list[PromptSection]:
+        """Keigan-computed facts (numbers from code, not untrusted text): the budget each SLO lost, and the team's policy requirement when this incident breached it."""
+        impact_lines, has_breach = await ErrorBudgetPolicyService(self.session).error_budget_prompt_facts(incident_id)
+        sections: list[PromptSection] = []
+        if impact_lines:
+            sections.append(PromptSection("Error budget impact", "\n".join(impact_lines)))
+        if has_breach:
+            sections.append(PromptSection("Error budget policy", "The team's policy requires at least one action item with priority top and type prevent that addresses the root cause."))
+        return sections
 
     @staticmethod
     def render_postmortem_markdown(result: PostmortemResult, action_table: str) -> str:
@@ -374,10 +386,12 @@ class CommunicationService:
         if postmortem.report_status not in (PostmortemStatus.DRAFT,):
             raise BusinessValidationException("Only a draft postmortem can be finalised.")
         await ensure_none_proposed(self.session, postmortem_id)
+        await ErrorBudgetPolicyService(self.session).ensure_finalising_is_allowed(postmortem.incident_id)
         postmortem.report_markdown = replace_action_items_section(postmortem.report_markdown or "", await render_final_table(self.session, postmortem_id))  # the rows are the truth
         postmortem.report_status, postmortem.finalized_by_user_principal_name, postmortem.finalized_at = PostmortemStatus.FINAL, current_user.user_principal_name, utc_now()
         await AuditService(self.session).record(current_user, "postmortem.finalize", target_entity_type="postmortem_report", target_entity_id=postmortem_id, application_id=application_id)
         await self.session.flush()
+        await ErrorBudgetPolicyService(self.session).refresh_requirement(postmortem.incident_id)  # a final postmortem with its top-priority prevent item meets the policy
         return self._postmortem_dto(postmortem)
 
     async def send_postmortem(self, current_user: CurrentUser, postmortem_id: str) -> CommunicationSendResult | dict[str, Any]:

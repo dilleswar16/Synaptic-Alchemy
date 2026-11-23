@@ -79,13 +79,15 @@
     "intelligence_report": "智能洞察报告",
     "slo_burn_alert": "SLO 燃烧告警",
     "alert_group": "告警组",
+    "error_budget_policy": "错误预算策略",
     "incident_detectedHelp": "发现事件后立即发送邮件；同时决定谁会被邀请加入事件群聊。",
     "preliminary_reportHelp": "Keigan 的初步发现，通常在几分钟内送达。",
     "progress_updateHelp": "已批准的更新和解决通知。",
     "postmortemHelp": "复盘定稿并发送后通知。",
     "intelligence_reportHelp": "每周摘要和主动预测告警。",
     "slo_burn_alertHelp": "当错误预算消耗快于计划时通知。",
-    "alert_groupHelp": "需要关注的聚合告警。"
+    "alert_groupHelp": "需要关注的聚合告警。",
+    "error_budget_policyHelp": "当事件、同类故障或已用尽的预算违反团队的错误预算策略时发送。"
   },
   "priorities": { "P1": "仅 P1", "P2": "P2 及以上", "P3": "P3 及以上", "P4": "所有优先级" },
   "languages": { "en": "英语", "ja": "日语" },

@@ -13,7 +13,7 @@ from keigan.utils.email_address import normalize_email_address
 RecipientType = Literal["person", "teams_channel", "distribution_list"]
 StakeholderRole = Literal["sre", "developer", "manager", "executive", "business_owner", "vendor_contact", "lead", "infra", "devops", "tester"]
 PriorityCode = Literal["P1", "P2", "P3", "P4"]
-NOTIFICATION_TYPE_VALUES = ("incident_detected", "preliminary_report", "progress_update", "postmortem", "intelligence_report", "slo_burn_alert", "alert_group")
+NOTIFICATION_TYPE_VALUES = ("incident_detected", "preliminary_report", "progress_update", "postmortem", "intelligence_report", "slo_burn_alert", "alert_group", "error_budget_policy")
 NOTIFICATION_CHANNEL_VALUES = ("email", "teams_incident_chat", "teams_channel")
 
 

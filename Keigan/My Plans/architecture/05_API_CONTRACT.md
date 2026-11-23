@@ -124,6 +124,14 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | POST | `/action-items/{actionItemId}/status` | `{status, reasonText?, completionNoteText?}`; admin or owner per the transition table; blocked and won't do need a reason; 422 says what is refused |
 | DELETE | `/action-items/{actionItemId}` | 204; admin; a suggestion only (a tracked item closes as won't do) |
 | | | `POST /postmortems/{id}/finalize` answers 422 with field `actionItems` while suggestions remain |
+| | | **Error budget policy (spec 30)** |
+| GET | `/applications/{applicationId}/error-budget-policy` | the policy in force (off with default thresholds when never saved; reading writes nothing): thresholds, window, `usesDefault`, `defaults`, guidance, `canEdit` |
+| PUT | `/applications/{applicationId}/error-budget-policy` | application admin; `isEnabled`, the two thresholds (1 to 100) and the class window (7 to the SLI retention) with null meaning the default, and the guidance text; 422 with the field |
+| GET | `/incidents/{incidentId}/budget-impact` | per SLO the share of the budget used with its inputs and state (provisional, final, insufficient_data), the policy summary and the incident's breach when there is one |
+| GET | `/error-budget-breaches` | breaches in the caller's applications; `applicationIds`, `statuses` (default open), `kinds`; exhausted breaches carry the team's guidance text |
+| POST | `/error-budget-breaches/{breachId}/waive` | application admin; `{reasonText}` of at least the configured length; only an open requirement; audited |
+| POST | `/error-budget-breaches/{breachId}/action-items` | application admin, outage class only: a top-priority item (priority forced) that meets the requirement |
+| | | `POST /postmortems/{id}/finalize` also answers 422 (field `actionItems`) while a final, open policy breach has no accepted top-priority 'prevent' item |
 
 ## 7. Chat
 

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { ChevronRight, Target } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useErrorBudgetBreaches } from "@/api/errorBudgetApi";
 import { useSloDashboard, type SloSummary } from "@/api/sloApi";
+import { Banner } from "@/components/ui/Banner";
 import { useApplicationScope } from "@/auth/applicationScope";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -16,8 +18,10 @@ import { SloDetailDrawer } from "../components/SloDetailDrawer";
 /** SLO monitoring: headline SLO hero, SLO cards (compliance vs target, budget, burn chips), detail drawer and the ecosystem heatmap. */
 export default function SloMonitoringPage() {
   const { t } = useTranslation("slo");
+  const { t: translateBudget } = useTranslation("errorBudgetPolicy");
   const { applicationIds } = useApplicationScope();
   const dashboardQuery = useSloDashboard(applicationIds);
+  const exhausted = useErrorBudgetBreaches({ applicationIds, statuses: ["open"], kinds: ["budget_exhausted"] }).data ?? [];
   const [selectedSloId, setSelectedSloId] = useState<string | null>(null);
   const slos = dashboardQuery.data ?? [];
   const needsAttention = (slo: SloSummary) => slo.status === "breached" || slo.status === "at_risk";
@@ -39,6 +43,11 @@ export default function SloMonitoringPage() {
           </div>
         ) : null}
       </PageHeader>
+      {exhausted.map((breach) => (
+        <Banner key={breach.breachId} tone="danger" title={translateBudget("exhausted.title", { sli: breach.sliName ?? "", application: breach.applicationName })}>
+          {breach.guidanceText ? translateBudget("exhausted.agreed", { guidance: breach.guidanceText }) : translateBudget("exhausted.noResponse")}
+        </Banner>
+      ))}
       {dashboardQuery.isLoading ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-44 w-full" />)}</div> : null}
       {dashboardQuery.isError ? <ErrorState error={dashboardQuery.error} onRetry={() => dashboardQuery.refetch()} /> : null}
       {dashboardQuery.isSuccess && slos.length === 0 ? <EmptyState icon={Target} title={t("emptyTitle")} description={t("emptyDescription")} /> : null}

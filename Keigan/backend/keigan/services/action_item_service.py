@@ -30,6 +30,7 @@ from keigan.services.action_item_rules import (
 )
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
+from keigan.services.error_budget_policy_service import on_action_items_changed
 from keigan.services.postmortem_action_items import incident_reference_of
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
@@ -91,7 +92,9 @@ class ActionItemService:
         return PagedResult[ActionItemDto](items=dtos[start:start + page_size], total_count=len(dtos), page=page, page_size=page_size)
 
     # ── Changing ───────────────────────────────────────────────────────────────
-    async def create(self, current_user: CurrentUser, application_id: str, request: ActionItemCreateRequest) -> ActionItemDto:
+    async def create(
+        self, current_user: CurrentUser, application_id: str, request: ActionItemCreateRequest, *, source_kind: ActionItemSource = ActionItemSource.MANUAL, source_record_id: str | None = None,
+    ) -> ActionItemDto:
         await self.authorization.ensure_application_admin(current_user, application_id)
         application = await self._application(application_id)
         incident, postmortem = await self._linked_records(application_id, request.incident_id, request.postmortem_id)
@@ -99,7 +102,7 @@ class ActionItemService:
         due_on = self._valid_due_date(request.due_on, today)
         item = ActionItem(
             application_id=application_id, incident_id=incident.incident_id if incident else None, postmortem_id=postmortem.postmortem_id if postmortem else None,
-            incident_reference_text=incident_reference_of(incident) if incident else None, item_source_kind=ActionItemSource.MANUAL, item_title=self._clean_line(request.item_title, 300),
+            incident_reference_text=incident_reference_of(incident) if incident else None, item_source_kind=source_kind, source_record_id=source_record_id, item_title=self._clean_line(request.item_title, 300),
             item_details_markdown=self._clean_markdown(request.item_details_markdown), action_type=request.action_type, action_priority=request.action_priority, item_status=ActionItemStatus.OPEN,
             owner_stakeholder_id=await self._validated_owner(application_id, request.owner_stakeholder_id), due_on=due_on, original_due_on=due_on,
             external_reference_text=self._valid_external_reference(request.external_reference_text), accepted_at=utc_now(), accepted_by_user_principal_name=current_user.user_principal_name,
@@ -108,6 +111,7 @@ class ActionItemService:
         self.session.add(item)
         await self.session.flush()
         await self._audit(current_user, "action_item.create", item, {"status": item.item_status})
+        await on_action_items_changed(self.session, item.incident_id)
         return (await self._dtos(current_user, [item]))[0]
 
     async def update(self, current_user: CurrentUser, action_item_id: str, request: ActionItemUpdateRequest) -> ActionItemDto:
@@ -119,6 +123,7 @@ class ActionItemService:
         changed = await self._apply_changes(item, request, sent, current_user)
         await self.session.flush()
         await self._audit(current_user, "action_item.update", item, changed)
+        await on_action_items_changed(self.session, item.incident_id)
         return (await self._dtos(current_user, [item]))[0]
 
     async def accept(self, current_user: CurrentUser, action_item_id: str, request: ActionItemUpdateRequest | None = None) -> ActionItemDto:
@@ -136,6 +141,7 @@ class ActionItemService:
         item.accepted_at, item.accepted_by_user_principal_name = utc_now(), current_user.user_principal_name
         await self.session.flush()
         await self._audit(current_user, "action_item.accept", item, {"dueOn": item.due_on.isoformat()})
+        await on_action_items_changed(self.session, item.incident_id)
         return (await self._dtos(current_user, [item]))[0]
 
     async def change_status(self, current_user: CurrentUser, action_item_id: str, request: ActionItemStatusRequest) -> ActionItemDto:
@@ -159,6 +165,7 @@ class ActionItemService:
         item.updated_by_user_principal_name = current_user.user_principal_name
         await self.session.flush()
         await self._audit(current_user, "action_item.status", item, {"from": previous.value, "to": request.status.value})
+        await on_action_items_changed(self.session, item.incident_id)  # turning the qualifying item to won't do reopens the policy requirement at once
         return (await self._dtos(current_user, [item]))[0]
 
     async def discard(self, current_user: CurrentUser, action_item_id: str) -> None:

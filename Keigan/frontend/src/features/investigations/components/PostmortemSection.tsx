@@ -119,7 +119,7 @@ export function PostmortemSection({ detail, canEdit }: { detail: InvestigationDe
           {isEditing ? <Textarea label={t("postmortem.editorLabel")} value={draft} onChange={(event) => setDraft(event.target.value)} autoResize maximumRows={40} isMonospace /> : <MarkdownView content={markdown} size="large" />}
         </CardBody>
       </Card>
-      <BudgetImpactCard incidentId={incidentId} />
+      <BudgetImpactCard incidentId={incidentId} postmortemId={postmortem.postmortemId} />
       {postmortem.reportStatus === "draft" || isFinal ? <PostmortemActionItems postmortemId={postmortem.postmortemId} isFinal={isFinal} /> : null}
       <ConfirmDialog
         open={isFinalizeOpen}

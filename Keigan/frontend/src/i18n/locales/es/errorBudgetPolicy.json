@@ -26,5 +26,51 @@
     "matchedByService": "Por un servicio afectado",
     "applicationWide": "SLO de toda la aplicación",
     "overlapNote": "Los incidentes que se solapan cuentan cada uno los minutos que comparten, por lo que los porcentajes no se suman. La cifra es provisional hasta un día después de la resolución, mientras pueden llegar mediciones tardías."
+  },
+  "policy": {
+    "title": "Política de presupuesto de errores",
+    "description": "Lo que el equipo acordó hacer cuando la fiabilidad cuesta demasiado. Keigan hace que la aplicación lo cumpla solo dentro de Keigan: nunca bloquea un despliegue ni cambia un sistema del cliente.",
+    "saved": "Política guardada",
+    "holdUs": "Keigan exige esta política a la aplicación",
+    "offHelp": "Desactivada: Keigan muestra el impacto en el presupuesto de los incidentes pero no exige nada a nadie.",
+    "singleThreshold": "Un incidente puede usar",
+    "classThreshold": "Un tipo de caída puede usar",
+    "classWindow": "Ventana para un tipo de caída",
+    "defaultHint": "Vacío significa el valor por defecto, {{value}} %",
+    "windowHint": "Días. Por defecto {{default}}, como máximo {{maximum}} (el historial de SLI que guarda Keigan)",
+    "guidance": "Qué hacemos cuando se agota el presupuesto de un SLO",
+    "guidanceHelp": "Se muestra en la página de SLO y en el correo cuando se agota un presupuesto. Máximo {{maximum}} caracteres.",
+    "guidancePlaceholder": "Por ejemplo: pausar los lanzamientos de funciones, salvo correcciones urgentes y de seguridad, hasta que el SLO vuelva a cumplirse.",
+    "sentenceOn": "Si un incidente usa más del {{threshold}} % del presupuesto de un SLO, Keigan redacta un postmortem y exige una acción de prevención de máxima prioridad aceptada antes de poder finalizarlo. Si un tipo de caída supera el límite en {{window}} días, también se necesita una acción de máxima prioridad.",
+    "sentenceOff": "Desactivada. Actívala cuando el equipo lo haya acordado.",
+    "save": "Guardar política"
+  },
+  "banner": {
+    "waivedTitle": "Requisito de la política eximido",
+    "waived": "Eximido por {{by}}: {{reason}}",
+    "metTitle": "Política cumplida",
+    "met": "Este incidente usó el {{share}} % del presupuesto de {{sli}} (límite {{threshold}} %). El postmortem tiene la acción que pide la política.",
+    "provisionalTitle": "Provisional: por encima del límite de la política",
+    "provisional": "Este incidente usó el {{share}} % del presupuesto de {{sli}} (límite {{threshold}} %). La cifra es definitiva un día después de la resolución; hasta entonces no se exige nada.",
+    "openTitle": "Política de presupuesto de errores",
+    "open": "Este incidente usó el {{share}} % del presupuesto de {{sli}} (límite {{threshold}} %). Para finalizar hace falta al menos una acción de prevención de máxima prioridad aceptada.",
+    "addItem": "Añadir acción de máxima prioridad",
+    "waive": "Eximir"
+  },
+  "waive": {
+    "title": "Eximir el requisito de la política",
+    "description": "Después se podrá finalizar el postmortem sin la acción de máxima prioridad. Tu nombre y el motivo quedan registrados y se muestran en el postmortem.",
+    "cancel": "Cancelar",
+    "confirm": "Eximir requisito",
+    "reason": "Motivo",
+    "reasonHelp": "Explica por qué, por ejemplo que la medición era errónea o que se aceptó el riesgo."
+  },
+  "exhausted": {
+    "title": "Presupuesto agotado: {{sli}} ({{application}})",
+    "agreed": "Vuestro equipo acordó: {{guidance}}",
+    "noResponse": "Aún no hay una respuesta acordada. Un administrador de la aplicación puede añadirla en la tarjeta de política del paso de SLO de la aplicación."
+  },
+  "errors": {
+    "actionFailed": "No se pudo guardar."
   }
 }

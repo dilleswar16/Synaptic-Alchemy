@@ -25,5 +25,51 @@
     "matchedByService": "按受影响的服务",
     "applicationWide": "应用级 SLO",
     "overlapNote": "重叠的事件各自计入共同的时间，因此占比不能相加。在解决后一天内数值为暂定，因为迟到的测量数据可能仍会到达。"
+  },
+  "policy": {
+    "title": "错误预算策略",
+    "description": "团队约定在可靠性代价过高时要做什么。Keigan 仅在 Keigan 内部要求遵守：它不会阻止部署，也不会更改客户系统。",
+    "saved": "策略已保存",
+    "holdUs": "让 Keigan 要求此应用遵守该策略",
+    "offHelp": "关闭：Keigan 会显示事件对预算的影响，但不会要求任何人遵守。",
+    "singleThreshold": "单次事件的上限",
+    "classThreshold": "同类故障的上限",
+    "classWindow": "同类故障的统计窗口",
+    "defaultHint": "留空表示默认值 {{value}} %",
+    "windowHint": "天数。默认 {{default}}，最多 {{maximum}}（Keigan 保留的 SLI 历史）",
+    "guidance": "SLO 预算用尽时我们的做法",
+    "guidanceHelp": "预算用尽时显示在 SLO 页面和邮件中。最多 {{maximum}} 个字符。",
+    "guidancePlaceholder": "例如：在 SLO 重新达标之前，暂停除紧急和安全修复之外的功能发布。",
+    "sentenceOn": "如果单次事件消耗的 SLO 预算超过 {{threshold}} %，Keigan 会起草事后复盘，并要求在定稿前有一个已接受的最高优先级“预防”行动项。如果同类故障在 {{window}} 天内超过上限，同样需要最高优先级行动项。",
+    "sentenceOff": "已关闭。团队达成一致后再开启。",
+    "save": "保存策略"
+  },
+  "banner": {
+    "waivedTitle": "策略要求已豁免",
+    "waived": "{{by}} 已豁免：{{reason}}",
+    "metTitle": "策略已满足",
+    "met": "此事件消耗了 {{sli}} 预算的 {{share}} %（上限 {{threshold}} %）。事后复盘包含策略所要求的行动项。",
+    "provisionalTitle": "暂定：超过策略上限",
+    "provisional": "此事件消耗了 {{sli}} 预算的 {{share}} %（上限 {{threshold}} %）。该数值在解决一天后定稿，在此之前不要求任何操作。",
+    "openTitle": "错误预算策略",
+    "open": "此事件消耗了 {{sli}} 预算的 {{share}} %（上限 {{threshold}} %）。定稿需要至少一个已接受的最高优先级“预防”行动项。",
+    "addItem": "添加最高优先级项",
+    "waive": "豁免"
+  },
+  "waive": {
+    "title": "豁免策略要求",
+    "description": "之后无需最高优先级行动项即可将事后复盘定稿。你的姓名和理由会被记录并显示在事后复盘上。",
+    "cancel": "取消",
+    "confirm": "豁免要求",
+    "reason": "理由",
+    "reasonHelp": "请说明原因，例如测量有误或已接受该风险。"
+  },
+  "exhausted": {
+    "title": "预算已用尽：{{sli}}（{{application}}）",
+    "agreed": "团队约定：{{guidance}}",
+    "noResponse": "尚未写下约定的应对方式。应用管理员可在应用 SLO 步骤的策略卡片中添加。"
+  },
+  "errors": {
+    "actionFailed": "无法保存。"
   }
 }

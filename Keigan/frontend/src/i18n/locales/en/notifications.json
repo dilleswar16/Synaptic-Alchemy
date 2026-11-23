@@ -79,13 +79,15 @@
     "intelligence_report": "Intelligence reports",
     "slo_burn_alert": "SLO burn alerts",
     "alert_group": "Alert groups",
+    "error_budget_policy": "Error budget policy",
     "incident_detectedHelp": "An email as soon as an incident is detected; also decides who is invited to the incident chat.",
     "preliminary_reportHelp": "Keigan's first findings, usually within minutes.",
     "progress_updateHelp": "Approved updates and the resolution notice.",
     "postmortemHelp": "The postmortem once it is finalised and sent.",
     "intelligence_reportHelp": "Weekly digest and proactive predictive alerts.",
     "slo_burn_alertHelp": "When an error budget is burning faster than planned.",
-    "alert_groupHelp": "Grouped alerts that need attention."
+    "alert_groupHelp": "Grouped alerts that need attention.",
+    "error_budget_policyHelp": "When an incident, a kind of outage or a used-up budget breaks the team's error budget policy."
   },
   "priorities": { "P1": "P1 only", "P2": "P2 and above", "P3": "P3 and above", "P4": "All priorities" },
   "languages": { "en": "English", "ja": "Japanese" },

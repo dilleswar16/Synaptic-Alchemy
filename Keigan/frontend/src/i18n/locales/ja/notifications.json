@@ -79,13 +79,15 @@
     "intelligence_report": "インテリジェンスレポート",
     "slo_burn_alert": "SLO バーンアラート",
     "alert_group": "アラートグループ",
+    "error_budget_policy": "エラーバジェットポリシー",
     "incident_detectedHelp": "インシデントを検知するとすぐにメールを送信します。インシデントチャットに招待する人も、これで決まります。",
     "preliminary_reportHelp": "Keigan の最初の調査結果です。通常は数分以内に届きます。",
     "progress_updateHelp": "承認済みの更新と解決通知です。",
     "postmortemHelp": "ポストモーテムが確定し、送信された時点で届きます。",
     "intelligence_reportHelp": "週次ダイジェストとプロアクティブな予測アラートです。",
     "slo_burn_alertHelp": "エラーバジェットが計画より速く消費されているときに届きます。",
-    "alert_groupHelp": "対応が必要なグループ化されたアラートです。"
+    "alert_groupHelp": "対応が必要なグループ化されたアラートです。",
+    "error_budget_policyHelp": "インシデント、同種の障害、または使い切ったバジェットが、チームのエラーバジェットポリシーに違反したときに届きます。"
   },
   "priorities": { "P1": "P1 のみ", "P2": "P2 以上", "P3": "P3 以上", "P4": "すべての優先度" },
   "languages": { "en": "英語", "ja": "日本語" },

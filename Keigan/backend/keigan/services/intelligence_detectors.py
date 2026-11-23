@@ -20,6 +20,7 @@ from keigan.entities.incident_entities import Incident
 from keigan.entities.slo_entities import ServiceLevelIndicator, SliMeasurement
 from keigan.entities.status_values import SignalSeverity, SloHealthStatus
 from keigan.exceptions.keigan_exceptions import KeiganException
+from keigan.services.incident_recurrence import recurrence_key
 from keigan.services.sli_measurement_reader import LATENCY_METRIC_NAMES, SliMeasurementReader
 from keigan.utils.statistics_utils import linear_trend, robust_baseline
 from keigan.utils.time_utils import hour_of_week, utc_now
@@ -251,8 +252,7 @@ class PredictiveDetectors:
         incidents = (await self.session.scalars(select(Incident).where(Incident.application_id == application_id, Incident.opened_at >= since).order_by(Incident.opened_at))).all()
         groups: dict[tuple[str, str], list[Incident]] = defaultdict(list)
         for incident in incidents:
-            primary_service_id = (incident.affected_service_ids or [""])[0]
-            groups[(incident.incident_category or "unclassified", primary_service_id)].append(incident)
+            groups[recurrence_key(incident)].append(incident)
         service_names = await self._service_names(application_id)
         signals: list[DetectedSignal] = []
         for (category, service_id), grouped_incidents in groups.items():

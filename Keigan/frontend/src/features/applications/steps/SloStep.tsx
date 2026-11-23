@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { useToast } from "@/components/ui/Toast";
 import { formatNumber } from "@/utils/formatters";
+import { ErrorBudgetPolicySection } from "@/features/slo/components/ErrorBudgetPolicySection";
 import { StepFrame } from "../components/StepFrame";
 import type { StepProps } from "../stepRegistry";
 
@@ -131,6 +132,7 @@ export function SloStep({ applicationId, canEdit, onStatusChange }: StepProps) {
           {canEdit ? <CustomSliForm applicationId={applicationId} onSaved={onStatusChange} /> : null}
         </div>
       ) : null}
+      <ErrorBudgetPolicySection applicationId={applicationId} />
     </StepFrame>
   );
 }

@@ -8,10 +8,10 @@ export type StakeholderRole = "sre" | "developer" | "manager" | "executive" | "b
 /** Where a team member stands: only listed (a recipient), invited (no sign-in yet), active (has signed in) or inactive (paused). Worked out by the server. */
 export type TeamMemberStatus = "listed" | "invited" | "active" | "inactive";
 export type NotificationChannel = "email" | "teams_incident_chat" | "teams_channel";
-export type NotificationType = "incident_detected" | "preliminary_report" | "progress_update" | "postmortem" | "intelligence_report" | "slo_burn_alert" | "alert_group";
+export type NotificationType = "incident_detected" | "preliminary_report" | "progress_update" | "postmortem" | "intelligence_report" | "slo_burn_alert" | "alert_group" | "error_budget_policy";
 
 export const notificationChannels: NotificationChannel[] = ["email", "teams_incident_chat", "teams_channel"];
-export const notificationTypes: NotificationType[] = ["incident_detected", "preliminary_report", "progress_update", "postmortem", "intelligence_report", "slo_burn_alert", "alert_group"];
+export const notificationTypes: NotificationType[] = ["incident_detected", "preliminary_report", "progress_update", "postmortem", "intelligence_report", "slo_burn_alert", "alert_group", "error_budget_policy"];
 export const stakeholderRoles: StakeholderRole[] = ["lead", "developer", "infra", "devops", "tester", "sre", "manager", "executive", "business_owner", "vendor_contact"];
 
 export interface Stakeholder {

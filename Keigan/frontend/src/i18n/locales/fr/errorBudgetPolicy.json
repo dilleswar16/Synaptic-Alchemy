@@ -26,5 +26,51 @@
     "matchedByService": "Par un service touché",
     "applicationWide": "SLO de toute l'application",
     "overlapNote": "Les incidents qui se chevauchent comptent chacun les minutes qu'ils partagent : les parts ne s'additionnent donc pas. Le chiffre est provisoire jusqu'à un jour après la résolution, car des mesures tardives peuvent encore arriver."
+  },
+  "policy": {
+    "title": "Politique de budget d'erreurs",
+    "description": "Ce que l'équipe a convenu de faire lorsque la fiabilité coûte trop cher. Keigan fait respecter cet accord uniquement dans Keigan : il ne bloque jamais un déploiement et ne modifie aucun système du client.",
+    "saved": "Politique enregistrée",
+    "holdUs": "Keigan impose cette politique à l'application",
+    "offHelp": "Désactivée : Keigan affiche l'impact des incidents sur le budget mais n'impose rien à personne.",
+    "singleThreshold": "Un incident peut utiliser",
+    "classThreshold": "Un type de panne peut utiliser",
+    "classWindow": "Fenêtre pour un type de panne",
+    "defaultHint": "Vide signifie la valeur par défaut, {{value}} %",
+    "windowHint": "Jours. Par défaut {{default}}, au plus {{maximum}} (l'historique des SLI que conserve Keigan)",
+    "guidance": "Ce que nous faisons quand le budget d'un SLO est épuisé",
+    "guidanceHelp": "Affiché sur la page des SLO et dans l'e-mail lorsqu'un budget est épuisé. {{maximum}} caractères au plus.",
+    "guidancePlaceholder": "Par exemple : suspendre les livraisons de fonctionnalités, hors correctifs urgents et de sécurité, jusqu'à ce que le SLO soit de nouveau respecté.",
+    "sentenceOn": "Si un incident utilise plus de {{threshold}} % du budget d'un SLO, Keigan rédige un postmortem et exige une action de prévention de priorité maximale acceptée avant qu'il puisse être finalisé. Si un type de panne dépasse la limite sur {{window}} jours, une action de priorité maximale est aussi requise.",
+    "sentenceOff": "Désactivée. Activez-la quand l'équipe en a convenu.",
+    "save": "Enregistrer la politique"
+  },
+  "banner": {
+    "waivedTitle": "Exigence de la politique levée",
+    "waived": "Levée par {{by}} : {{reason}}",
+    "metTitle": "Politique respectée",
+    "met": "Cet incident a utilisé {{share}} % du budget de {{sli}} (limite {{threshold}} %). Le postmortem contient l'action demandée par la politique.",
+    "provisionalTitle": "Provisoire : au-dessus de la limite de la politique",
+    "provisional": "Cet incident a utilisé {{share}} % du budget de {{sli}} (limite {{threshold}} %). Le chiffre devient définitif un jour après la résolution ; rien n'est exigé d'ici là.",
+    "openTitle": "Politique de budget d'erreurs",
+    "open": "Cet incident a utilisé {{share}} % du budget de {{sli}} (limite {{threshold}} %). La finalisation exige au moins une action de prévention de priorité maximale acceptée.",
+    "addItem": "Ajouter une action de priorité maximale",
+    "waive": "Lever l'exigence"
+  },
+  "waive": {
+    "title": "Lever l'exigence de la politique",
+    "description": "Le postmortem pourra ensuite être finalisé sans l'action de priorité maximale. Votre nom et le motif sont enregistrés et affichés sur le postmortem.",
+    "cancel": "Annuler",
+    "confirm": "Lever l'exigence",
+    "reason": "Motif",
+    "reasonHelp": "Dites pourquoi, par exemple que la mesure était fausse ou que le risque a été accepté."
+  },
+  "exhausted": {
+    "title": "Budget épuisé : {{sli}} ({{application}})",
+    "agreed": "Votre équipe a convenu : {{guidance}}",
+    "noResponse": "Aucune réponse convenue n'est encore écrite. Un administrateur de l'application peut l'ajouter dans la carte de politique de l'étape SLO de l'application."
+  },
+  "errors": {
+    "actionFailed": "Cela n'a pas pu être enregistré."
   }
 }

@@ -474,7 +474,7 @@ def _generic_script(context: MockInvestigationContext) -> dict[str, Any]:
         "executive": "Keigan is investigating but has not yet identified a root cause. Responders should review the strongest evidence and add context.",
         "ja_cause": "現時点では根本原因を特定できていません。収集した証拠を確認中です。", "ja_impact": "影響範囲を確認中です。",
         "open_questions": ["Which user-visible symptoms are still occurring?", "Were any changes made shortly before the problem started?"],
-        "actions": [("Add alerts for the symptom that was reported so it is detected before users report it", "Application SRE team", 14, "detect")], "lessons": ["Telemetry gaps limit how quickly causes can be found."],
+        "actions": [("Find why the reported symptom was possible and add a limit or readiness check that stops it from recurring", "Application SRE team", 21, "prevent"), ("Add alerts for the symptom that was reported so it is detected before users report it", "Application SRE team", 14, "detect")], "lessons": ["Telemetry gaps limit how quickly causes can be found."],
     }
 
 
@@ -660,6 +660,7 @@ def build_postmortem(output_schema: type[BaseModel], prompt_sections: list[Promp
     script = _script_for(context)
     synthesis = context.synthesis
     duration = f"{context.duration_minutes} minutes" if context.duration_minutes else "an extended period"
+    first_prevent_position = next((position for position, action in enumerate(script["actions"]) if action[3] == "prevent"), 0)
     return PostmortemResult(
         report_title=f"Postmortem: {context.incident_title}", summary=synthesis.get("executive_summary") or _fill(script["executive"], context),
         impact=f"{context.application_name} was degraded for {duration}. {_fill(script['what_went_wrong'], context)}",
@@ -670,8 +671,8 @@ def build_postmortem(output_schema: type[BaseModel], prompt_sections: list[Promp
         response=f"Responders followed the investigation's proposed fix. Total time to restore service: {duration}.",
         what_went_well=["Keigan assembled evidence and a ranked root cause hypothesis before responders joined.", "Stakeholders received bilingual updates early."],
         what_could_be_improved=["Detection depended on a user-visible symptom; an earlier signal would shorten time to detect.", "The fix steps were manual and should be rehearsed."],
-        # The first item of every scenario is a prevent item and is top priority, so the demo has one that the error-budget policy (spec 30) accepts.
-        action_items=[PostmortemActionItem(description=description, owner_role=owner, due_in_days=days, action_type=kind, priority="top" if position == 0 else "normal") for position, (description, owner, days, kind) in enumerate(script["actions"])],  # type: ignore[arg-type]
+        # The first prevent item of every scenario is top priority, so the demo has one that the error budget policy (spec 30) accepts.
+        action_items=[PostmortemActionItem(description=description, owner_role=owner, due_in_days=days, action_type=kind, priority="top" if position == first_prevent_position else "normal") for position, (description, owner, days, kind) in enumerate(script["actions"])],  # type: ignore[arg-type]
         lessons_learned=script["lessons"],
     )
 
