@@ -120,6 +120,93 @@
     "dependencies": "Dependencias",
     "infrastructure": "Infraestructura"
   },
+  "fix": {
+    "shell": "Shell",
+    "copy": "Copiar comando",
+    "copyDisabled": "Completa los valores antes de copiar",
+    "copied": "Comando copiado",
+    "fillIn_one": "Completa {{count}} valor para copiar este comando",
+    "fillIn_other": "Completa {{count}} valores para copiar este comando",
+    "fillInLabel": "Valor de {{label}}",
+    "valueNotKnown": "Desconocido",
+    "assumedValue": "Keigan supuso este valor y no pudo verificarlo",
+    "assumedReason": "Supuesto: {{reason}}",
+    "reason": {
+      "not_in_catalogue": "no está en el catálogo de servicios",
+      "not_found_in_evidence": "no se encontró en {{code}}",
+      "unknown_evidence_code": "el elemento de evidencia que nombra no existe",
+      "not_found_in_knowledge": "no se encontró en los runbooks ni en el conocimiento",
+      "source_not_stated": "no se indicó ninguna fuente"
+    },
+    "kind": {
+      "kubernetes_name": "Nombre de Kubernetes",
+      "kubernetes_namespace": "Namespace",
+      "azure_resource_group": "Grupo de recursos",
+      "azure_resource_name": "Nombre del recurso",
+      "azure_resource_id": "ID del recurso",
+      "azure_subscription_id": "ID de suscripción",
+      "helm_release": "Release de Helm",
+      "integer": "Número",
+      "duration": "Duración (por ejemplo 5m)",
+      "configuration_key": "Nombre del ajuste",
+      "configuration_value": "Valor del ajuste",
+      "hostname": "Nombre de host"
+    },
+    "problem": {
+      "masked": "{{label}} contiene un valor enmascarado. Escribe el real.",
+      "too_long": "{{label}} es demasiado largo.",
+      "starts_with_dash": "{{label}} no puede empezar por un guion.",
+      "pattern": "{{label}} contiene caracteres no permitidos.",
+      "not_insertable": "{{label}} necesita comillas, que no se pueden añadir en este punto del comando. Escribe el comando a mano."
+    },
+    "confirm": {
+      "title": "¿Copiar un comando de riesgo alto?",
+      "description": "Este comando puede ser destructivo o difícil de deshacer. Cópialo solo si tu proceso de cambios lo permite y has leído el paso para deshacerlo.",
+      "copy": "Copiar de todos modos"
+    },
+    "purpose": {
+      "diagnose": "Diagnosticar",
+      "mitigate": "Mitigar",
+      "durable_fix": "Solución duradera"
+    },
+    "risk": {
+      "low": "Riesgo bajo",
+      "medium": "Riesgo medio",
+      "high": "Riesgo alto"
+    },
+    "check": "Comprobar:",
+    "undo": "Deshacer:",
+    "expected": "Esperado:",
+    "assumptions": "Supuestos",
+    "rerunQuery": "Vuelve a ejecutar la consulta de {{code}} y compara el resultado.",
+    "warning": {
+      "no_revert": "No se indicó cómo deshacer este paso.",
+      "no_validation": "No se indicó cómo comprobar este paso.",
+      "prints_secrets": "Este comando muestra secretos en pantalla.",
+      "restarts_service": "Esto reinicia el servicio.",
+      "contains_assumptions": "Este paso contiene valores que Keigan supuso y no pudo verificar.",
+      "validation_changes_state": "La propia comprobación cambia algo.",
+      "revert_is_high_risk": "Deshacer este paso es de riesgo alto."
+    },
+    "withheld": {
+      "destructive_without_revert": "No se muestra: un paso de riesgo alto sin forma de deshacerlo. La descripción se mantiene; escribe tú el comando y cómo deshacerlo.",
+      "unsafe_shell_syntax": "No se muestra: no es un comando simple (una cadena, una redirección, un marcador o una sustitución).",
+      "unknown_slot": "No se muestra: usa un valor que nunca se definió.",
+      "secret_in_command": "No se muestra: el comando contiene un secreto.",
+      "data_changing_sql": "No se muestra: un cambio de datos nunca se ofrece como comando. Consulta a un administrador de bases de datos.",
+      "value_not_insertable": "No se muestra: un valor no se puede incluir en este comando de forma segura.",
+      "command_too_long": "No se muestra: el comando es demasiado largo.",
+      "secret_setting_name": "No se muestra: el ajuste parece un secreto. Los secretos se cambian en Key Vault.",
+      "unknown_evidence_code": "No se muestra: el elemento de evidencia que nombra no existe."
+    },
+    "config": {
+      "service": "Servicio",
+      "setting": "Ajuste",
+      "before": "Ahora",
+      "after": "Cambiar a",
+      "notInCatalogue": "No está en el catálogo"
+    }
+  },
   "hypotheses": {
     "intro": "Tres analistas examinaron la misma evidencia desde ángulos distintos. La confianza está calibrada: un 80 % o más requiere evidencia directa y coincidencia temporal.",
     "leading": "Principal",

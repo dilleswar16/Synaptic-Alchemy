@@ -120,6 +120,92 @@
     "dependencies": "依赖",
     "infrastructure": "基础设施"
   },
+  "fix": {
+    "shell": "Shell",
+    "copy": "复制命令",
+    "copyDisabled": "请先填写各项值再复制",
+    "copied": "命令已复制",
+    "fillIn_other": "请填写 {{count}} 个值后再复制此命令",
+    "fillInLabel": "{{label}} 的值",
+    "valueNotKnown": "未知",
+    "assumedValue": "此值是 Keigan 的假设，无法核实",
+    "assumedReason": "假设：{{reason}}",
+    "reason": {
+      "not_in_catalogue": "不在服务目录中",
+      "not_found_in_evidence": "在 {{code}} 中未找到",
+      "unknown_evidence_code": "所指的证据项不存在",
+      "not_found_in_knowledge": "在运行手册或知识库中未找到",
+      "source_not_stated": "未给出来源"
+    },
+    "kind": {
+      "kubernetes_name": "Kubernetes 名称",
+      "kubernetes_namespace": "命名空间",
+      "azure_resource_group": "资源组",
+      "azure_resource_name": "资源名称",
+      "azure_resource_id": "资源 ID",
+      "azure_subscription_id": "订阅 ID",
+      "helm_release": "Helm 版本",
+      "integer": "数字",
+      "duration": "时长（例如 5m）",
+      "configuration_key": "设置名称",
+      "configuration_value": "设置值",
+      "hostname": "主机名"
+    },
+    "problem": {
+      "masked": "{{label}} 含有已屏蔽的值，请输入真实的值。",
+      "too_long": "{{label}} 过长。",
+      "starts_with_dash": "{{label}} 不能以短横线开头。",
+      "pattern": "{{label}} 含有不允许的字符。",
+      "not_insertable": "{{label}} 需要加引号，但无法在命令的此处添加。请手动编写命令。"
+    },
+    "confirm": {
+      "title": "复制高风险命令？",
+      "description": "此命令可能具有破坏性或难以撤销。只有在变更流程允许、且你已阅读撤销步骤时才复制。",
+      "copy": "仍然复制"
+    },
+    "purpose": {
+      "diagnose": "诊断",
+      "mitigate": "缓解",
+      "durable_fix": "长期修复"
+    },
+    "risk": {
+      "low": "低风险",
+      "medium": "中风险",
+      "high": "高风险"
+    },
+    "check": "检查：",
+    "undo": "撤销：",
+    "expected": "预期：",
+    "assumptions": "假设",
+    "rerunQuery": "请重新运行 {{code}} 背后的查询并比较结果。",
+    "warning": {
+      "no_revert": "此步骤没有给出撤销方法。",
+      "no_validation": "此步骤没有给出检查方法。",
+      "prints_secrets": "此命令会在屏幕上显示机密信息。",
+      "restarts_service": "这会重启服务。",
+      "contains_assumptions": "此步骤包含 Keigan 假设且无法核实的值。",
+      "validation_changes_state": "检查本身会更改某些内容。",
+      "revert_is_high_risk": "撤销此步骤属于高风险操作。"
+    },
+    "withheld": {
+      "destructive_without_revert": "不显示：没有撤销方法的高风险步骤。说明保留；请自行编写命令及其撤销方法。",
+      "unsafe_shell_syntax": "不显示：它不是单一的普通命令（串联、重定向、占位符或替换）。",
+      "unknown_slot": "不显示：命令使用了从未定义的值。",
+      "secret_in_command": "不显示：命令包含机密信息。",
+      "data_changing_sql": "不显示：数据更改绝不会作为命令提供。请联系数据库管理员。",
+      "value_not_insertable": "不显示：某个值无法安全地放入此命令。",
+      "command_too_long": "不显示：命令过长。",
+      "secret_setting_name": "不显示：该设置看起来是机密信息。机密请在 Key Vault 中更改。",
+      "unknown_evidence_code": "不显示：所指的证据项不存在。"
+    },
+    "config": {
+      "service": "服务",
+      "setting": "设置",
+      "before": "当前",
+      "after": "更改为",
+      "notInCatalogue": "不在目录中"
+    }
+  },
   "hypotheses": {
     "intro": "三位分析员从不同角度审视了同一批证据。置信度经过校准：达到 80% 或以上需要直接证据和吻合的时间点。",
     "leading": "首要",

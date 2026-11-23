@@ -145,9 +145,105 @@ export interface CodeChange {
   afterSnippet: string | null;
 }
 
+/* ── Checked fix steps (spec 33, schema version 2) ─────────────────────────────────────────── */
+export type FixRisk = "low" | "medium" | "high";
+export type FixValueStatus = "verified" | "assumed" | "missing" | "masked" | "refused";
+export type FixStepPurpose = "diagnose" | "mitigate" | "durable_fix";
+export type FixActionKind = "command" | "configuration_change" | "manual_action" | "rerun_evidence_query";
+export type FixSegmentKind = "literal" | "value" | "assumed_value" | "missing_value";
+
+/** One value of a command or setting. `value` is never a refused or masked value: the server clears those. The patterns are the server's, so typed input is checked with the same rules. */
+export interface FixParameter {
+  name: string;
+  valueKind: string;
+  value: string | null;
+  valueSource: string;
+  sourceCode: string | null;
+  status: FixValueStatus;
+  statusReason: string | null;
+  valuePattern: string | null;
+  barePattern: string | null;
+  maximumLength: number | null;
+  labelKey: string | null;
+}
+
+export interface FixSegment {
+  kind: FixSegmentKind;
+  text: string;
+  parameterName: string | null;
+}
+
+export interface FixRendering {
+  dialect: "bash" | "powershell";
+  /** The command to copy; null while a value is missing. */
+  text: string | null;
+  riskLevel: FixRisk;
+  segments: FixSegment[];
+}
+
+export interface FixCommand {
+  tool: string;
+  dialect: string;
+  template: string;
+  parameters: FixParameter[];
+  withheldReason: string | null;
+  renderings: FixRendering[];
+  riskLevel: FixRisk;
+  warnings: string[];
+}
+
+export interface FixConfigurationChange {
+  targetKind: string;
+  serviceName: string;
+  serviceInCatalogue: boolean;
+  settingName: FixParameter;
+  beforeValue: FixParameter | null;
+  afterValue: FixParameter;
+  filePath: string | null;
+  withheldReason: string | null;
+  riskLevel: FixRisk;
+  warnings: string[];
+}
+
+export interface FixAction {
+  actionKind: FixActionKind;
+  description: string;
+  expectedResult: string;
+  riskLevel: FixRisk;
+  command: FixCommand | null;
+  configurationChange: FixConfigurationChange | null;
+  evidenceCode: string | null;
+  withheldReason: string | null;
+}
+
+export interface FixStepV2 {
+  stepId: string;
+  title: string;
+  purpose: FixStepPurpose;
+  riskLevel: FixRisk;
+  riskReasons: string[];
+  warnings: string[];
+  assumptions: string[];
+  hasAssumedValues: boolean;
+  missingValueCount: number;
+  action: FixAction;
+  check: FixAction | null;
+  revert: FixAction | null;
+  /** Set on the steps of the fix plan: which analyst wrote the step. */
+  perspective: string | null;
+}
+
+export interface FixPlan {
+  overviewMarkdown: string;
+  steps: FixStepV2[];
+}
+
+/** Version 1 rows (written before spec 33 phase 2) keep their free-text `steps`; version 2 rows carry `fixSteps`. */
 export interface ProposedFix {
+  schemaVersion: 1 | 2;
   summary: string;
   steps: FixStep[];
+  fixSteps: FixStepV2[];
   codeChanges: CodeChange[];
   verificationSteps: string[];
   rollbackSteps: string[];
@@ -223,6 +319,8 @@ export interface InvestigationDetail extends InvestigationSummary {
   whatWentWrongMarkdown: string | null;
   whyItHappenedMarkdown: string | null;
   howToFixMarkdown: string | null;
+  /** The recommended steps, resolved from the analysts' checked steps; null for an investigation written before the plan existed. */
+  fixPlan: FixPlan | null;
   openQuestions: string[];
   leadingHypothesisId: Identifier | null;
   hypotheses: Hypothesis[];

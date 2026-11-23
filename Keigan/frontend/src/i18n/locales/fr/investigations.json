@@ -120,6 +120,93 @@
     "dependencies": "Dépendances",
     "infrastructure": "Infrastructure"
   },
+  "fix": {
+    "shell": "Shell",
+    "copy": "Copier la commande",
+    "copyDisabled": "Renseignez les valeurs avant de copier",
+    "copied": "Commande copiée",
+    "fillIn_one": "Renseignez {{count}} valeur pour copier cette commande",
+    "fillIn_other": "Renseignez {{count}} valeurs pour copier cette commande",
+    "fillInLabel": "Valeur pour {{label}}",
+    "valueNotKnown": "Inconnu",
+    "assumedValue": "Keigan a supposé cette valeur et n'a pas pu la vérifier",
+    "assumedReason": "Supposé : {{reason}}",
+    "reason": {
+      "not_in_catalogue": "elle ne figure pas dans le catalogue de services",
+      "not_found_in_evidence": "elle n'a pas été trouvée dans {{code}}",
+      "unknown_evidence_code": "l'élément de preuve cité n'existe pas",
+      "not_found_in_knowledge": "elle n'a pas été trouvée dans les runbooks ni dans la connaissance",
+      "source_not_stated": "aucune source n'a été indiquée"
+    },
+    "kind": {
+      "kubernetes_name": "Nom Kubernetes",
+      "kubernetes_namespace": "Namespace",
+      "azure_resource_group": "Groupe de ressources",
+      "azure_resource_name": "Nom de la ressource",
+      "azure_resource_id": "ID de la ressource",
+      "azure_subscription_id": "ID d'abonnement",
+      "helm_release": "Release Helm",
+      "integer": "Nombre",
+      "duration": "Durée (par exemple 5m)",
+      "configuration_key": "Nom du paramètre",
+      "configuration_value": "Valeur du paramètre",
+      "hostname": "Nom d'hôte"
+    },
+    "problem": {
+      "masked": "{{label}} contient une valeur masquée. Saisissez la vraie.",
+      "too_long": "{{label}} est trop long.",
+      "starts_with_dash": "{{label}} ne peut pas commencer par un tiret.",
+      "pattern": "{{label}} contient des caractères non autorisés.",
+      "not_insertable": "{{label}} nécessite des guillemets, qui ne peuvent pas être ajoutés à cet endroit de la commande. Écrivez la commande à la main."
+    },
+    "confirm": {
+      "title": "Copier une commande à risque élevé ?",
+      "description": "Cette commande peut être destructrice ou difficile à annuler. Ne la copiez que si votre processus de changement l'autorise et que vous avez lu l'étape d'annulation.",
+      "copy": "Copier quand même"
+    },
+    "purpose": {
+      "diagnose": "Diagnostiquer",
+      "mitigate": "Atténuer",
+      "durable_fix": "Correctif durable"
+    },
+    "risk": {
+      "low": "Risque faible",
+      "medium": "Risque moyen",
+      "high": "Risque élevé"
+    },
+    "check": "Vérifier :",
+    "undo": "Annuler :",
+    "expected": "Attendu :",
+    "assumptions": "Hypothèses",
+    "rerunQuery": "Relancez la requête de {{code}} et comparez le résultat.",
+    "warning": {
+      "no_revert": "Aucun moyen d'annuler cette étape n'a été donné.",
+      "no_validation": "Aucune vérification n'a été donnée pour cette étape.",
+      "prints_secrets": "Cette commande affiche des secrets à l'écran.",
+      "restarts_service": "Cela redémarre le service.",
+      "contains_assumptions": "Cette étape contient des valeurs que Keigan a supposées sans pouvoir les vérifier.",
+      "validation_changes_state": "La vérification elle-même modifie quelque chose.",
+      "revert_is_high_risk": "Annuler cette étape est à risque élevé."
+    },
+    "withheld": {
+      "destructive_without_revert": "Non affichée : une étape à risque élevé sans moyen d'annulation. La description reste ; écrivez vous-même la commande et son annulation.",
+      "unsafe_shell_syntax": "Non affichée : ce n'est pas une commande simple (enchaînement, redirection, espace réservé ou substitution).",
+      "unknown_slot": "Non affichée : la commande utilise une valeur jamais définie.",
+      "secret_in_command": "Non affichée : la commande contient un secret.",
+      "data_changing_sql": "Non affichée : une modification de données n'est jamais proposée comme commande. Demandez à un administrateur de base de données.",
+      "value_not_insertable": "Non affichée : une valeur ne peut pas être insérée sans risque dans cette commande.",
+      "command_too_long": "Non affichée : la commande est trop longue.",
+      "secret_setting_name": "Non affichée : le paramètre ressemble à un secret. Les secrets se changent dans Key Vault.",
+      "unknown_evidence_code": "Non affichée : l'élément de preuve cité n'existe pas."
+    },
+    "config": {
+      "service": "Service",
+      "setting": "Paramètre",
+      "before": "Actuellement",
+      "after": "Remplacer par",
+      "notInCatalogue": "Absent du catalogue"
+    }
+  },
   "hypotheses": {
     "intro": "Trois analystes ont examiné les mêmes preuves sous des angles différents. La confiance est calibrée : 80 % ou plus exige des preuves directes et une concordance temporelle.",
     "leading": "Principale",

@@ -120,6 +120,93 @@
     "dependencies": "Dependencies",
     "infrastructure": "Infrastructure"
   },
+  "fix": {
+    "shell": "Shell",
+    "copy": "Copy command",
+    "copyDisabled": "Fill in the values before copying",
+    "copied": "Command copied",
+    "fillIn_one": "Fill in {{count}} value to copy this command",
+    "fillIn_other": "Fill in {{count}} values to copy this command",
+    "fillInLabel": "Value for {{label}}",
+    "valueNotKnown": "Not known",
+    "assumedValue": "Keigan assumed this value and could not verify it",
+    "assumedReason": "Assumed: {{reason}}",
+    "reason": {
+      "not_in_catalogue": "it is not in the service catalogue",
+      "not_found_in_evidence": "it was not found in {{code}}",
+      "unknown_evidence_code": "the evidence item it names does not exist",
+      "not_found_in_knowledge": "it was not found in the runbooks or the knowledge",
+      "source_not_stated": "no source was given"
+    },
+    "kind": {
+      "kubernetes_name": "Kubernetes name",
+      "kubernetes_namespace": "Namespace",
+      "azure_resource_group": "Resource group",
+      "azure_resource_name": "Resource name",
+      "azure_resource_id": "Resource ID",
+      "azure_subscription_id": "Subscription ID",
+      "helm_release": "Helm release",
+      "integer": "Number",
+      "duration": "Duration (for example 5m)",
+      "configuration_key": "Setting name",
+      "configuration_value": "Setting value",
+      "hostname": "Host name"
+    },
+    "problem": {
+      "masked": "{{label}} holds a masked value. Type the real one.",
+      "too_long": "{{label}} is too long.",
+      "starts_with_dash": "{{label}} may not start with a dash.",
+      "pattern": "{{label}} contains characters that are not allowed.",
+      "not_insertable": "{{label}} needs quotes, which cannot be added at this place in the command. Write the command by hand."
+    },
+    "confirm": {
+      "title": "Copy a high-risk command?",
+      "description": "This command can be destructive or hard to undo. Copy it only if your change process allows it and you have read the undo step.",
+      "copy": "Copy anyway"
+    },
+    "purpose": {
+      "diagnose": "Diagnose",
+      "mitigate": "Mitigate",
+      "durable_fix": "Durable fix"
+    },
+    "risk": {
+      "low": "Low risk",
+      "medium": "Medium risk",
+      "high": "High risk"
+    },
+    "check": "Check:",
+    "undo": "Undo:",
+    "expected": "Expected:",
+    "assumptions": "Assumed",
+    "rerunQuery": "Run the query behind {{code}} again and compare the result.",
+    "warning": {
+      "no_revert": "No way back was given for this step.",
+      "no_validation": "No check was given for this step.",
+      "prints_secrets": "This command shows secrets on the screen.",
+      "restarts_service": "This restarts the service.",
+      "contains_assumptions": "This step contains values Keigan assumed and could not verify.",
+      "validation_changes_state": "The check itself changes something.",
+      "revert_is_high_risk": "Undoing this step is high risk."
+    },
+    "withheld": {
+      "destructive_without_revert": "Not shown: a high-risk step with no way back. The description stays; write the command and its undo yourself.",
+      "unsafe_shell_syntax": "Not shown: the command is not one plain command (a chain, a redirect, a placeholder or a substitution).",
+      "unknown_slot": "Not shown: the command uses a value that was never defined.",
+      "secret_in_command": "Not shown: the command contains a secret.",
+      "data_changing_sql": "Not shown: a data change is never offered as a command. Ask a database administrator.",
+      "value_not_insertable": "Not shown: a value cannot be put into this command safely.",
+      "command_too_long": "Not shown: the command is too long.",
+      "secret_setting_name": "Not shown: the setting looks like a secret. Change secrets in Key Vault.",
+      "unknown_evidence_code": "Not shown: the evidence item it names does not exist."
+    },
+    "config": {
+      "service": "Service",
+      "setting": "Setting",
+      "before": "Now",
+      "after": "Change to",
+      "notInCatalogue": "Not in the catalogue"
+    }
+  },
   "hypotheses": {
     "intro": "Three analysts examined the same evidence from different angles. Confidence is calibrated: 80% or more needs direct evidence and matching timing.",
     "leading": "Leading",

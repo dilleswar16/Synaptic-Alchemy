@@ -120,6 +120,92 @@
     "dependencies": "依存関係",
     "infrastructure": "インフラストラクチャ"
   },
+  "fix": {
+    "shell": "シェル",
+    "copy": "コマンドをコピー",
+    "copyDisabled": "コピーする前に値を入力してください",
+    "copied": "コマンドをコピーしました",
+    "fillIn_other": "このコマンドをコピーするには {{count}} 個の値を入力してください",
+    "fillInLabel": "{{label}} の値",
+    "valueNotKnown": "不明",
+    "assumedValue": "この値は Keigan の推測で、確認できていません",
+    "assumedReason": "推測：{{reason}}",
+    "reason": {
+      "not_in_catalogue": "サービスカタログにありません",
+      "not_found_in_evidence": "{{code}} に見つかりませんでした",
+      "unknown_evidence_code": "指定された証拠項目が存在しません",
+      "not_found_in_knowledge": "ランブックやナレッジに見つかりませんでした",
+      "source_not_stated": "出典が示されていません"
+    },
+    "kind": {
+      "kubernetes_name": "Kubernetes 名",
+      "kubernetes_namespace": "名前空間",
+      "azure_resource_group": "リソースグループ",
+      "azure_resource_name": "リソース名",
+      "azure_resource_id": "リソース ID",
+      "azure_subscription_id": "サブスクリプション ID",
+      "helm_release": "Helm リリース",
+      "integer": "数値",
+      "duration": "期間（例：5m）",
+      "configuration_key": "設定名",
+      "configuration_value": "設定値",
+      "hostname": "ホスト名"
+    },
+    "problem": {
+      "masked": "{{label}} にマスクされた値が入っています。実際の値を入力してください。",
+      "too_long": "{{label}} が長すぎます。",
+      "starts_with_dash": "{{label}} はハイフンで始められません。",
+      "pattern": "{{label}} に使用できない文字が含まれています。",
+      "not_insertable": "{{label}} には引用符が必要ですが、コマンドのこの位置には付けられません。コマンドを手で書いてください。"
+    },
+    "confirm": {
+      "title": "リスクの高いコマンドをコピーしますか？",
+      "description": "このコマンドは破壊的であったり、元に戻しにくかったりする可能性があります。変更管理で許可されていて、元に戻す手順を読んだ場合のみコピーしてください。",
+      "copy": "それでもコピー"
+    },
+    "purpose": {
+      "diagnose": "診断",
+      "mitigate": "緩和",
+      "durable_fix": "恒久対策"
+    },
+    "risk": {
+      "low": "リスク低",
+      "medium": "リスク中",
+      "high": "リスク高"
+    },
+    "check": "確認：",
+    "undo": "元に戻す：",
+    "expected": "期待される結果：",
+    "assumptions": "前提",
+    "rerunQuery": "{{code}} の元になったクエリをもう一度実行し、結果を比べてください。",
+    "warning": {
+      "no_revert": "この手順を元に戻す方法が示されていません。",
+      "no_validation": "この手順の確認方法が示されていません。",
+      "prints_secrets": "このコマンドは画面にシークレットを表示します。",
+      "restarts_service": "サービスが再起動します。",
+      "contains_assumptions": "この手順には Keigan が推測し、確認できていない値が含まれます。",
+      "validation_changes_state": "確認の操作自体が何かを変更します。",
+      "revert_is_high_risk": "この手順を元に戻すのはリスクが高い操作です。"
+    },
+    "withheld": {
+      "destructive_without_revert": "表示しません：元に戻す方法がないリスクの高い手順です。説明は残します。コマンドと元に戻す方法はご自身で書いてください。",
+      "unsafe_shell_syntax": "表示しません：単純な 1 つのコマンドではありません（連結、リダイレクト、プレースホルダー、置換）。",
+      "unknown_slot": "表示しません：定義されていない値を使っています。",
+      "secret_in_command": "表示しません：コマンドにシークレットが含まれています。",
+      "data_changing_sql": "表示しません：データ変更はコマンドとして示しません。データベース管理者に依頼してください。",
+      "value_not_insertable": "表示しません：値を安全にこのコマンドへ入れられません。",
+      "command_too_long": "表示しません：コマンドが長すぎます。",
+      "secret_setting_name": "表示しません：設定名がシークレットに見えます。シークレットは Key Vault で変更してください。",
+      "unknown_evidence_code": "表示しません：指定された証拠項目が存在しません。"
+    },
+    "config": {
+      "service": "サービス",
+      "setting": "設定",
+      "before": "現在",
+      "after": "変更後",
+      "notInCatalogue": "カタログにありません"
+    }
+  },
   "hypotheses": {
     "intro": "3 人のアナリストが同じ証拠を別々の視点で検討しました。確信度は較正されており、80% 以上には直接的な証拠と発生時刻の一致が必要です。",
     "leading": "最有力",

@@ -5,6 +5,7 @@ import type { AnalysisPerspective, CodeChange, Hypothesis, InvestigationDetail }
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { CommandBlock } from "@/components/ui/CommandBlock";
+import { FixStepCard } from "./FixStepCard";
 import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
 import { EvidenceChip } from "@/components/ui/EvidenceChip";
 import { MarkdownView } from "@/components/ui/MarkdownView";
@@ -78,6 +79,11 @@ function HypothesisCard({ hypothesis, detail, onSelectEvidence }: { hypothesis: 
               {hypothesis.fixRiskLevel === "high" ? <Badge tone="danger" variant="solid"><TriangleAlert aria-hidden="true" size={12} className="mr-1 inline" />{t("hypotheses.highRisk")}</Badge> : <Badge tone={hypothesis.fixRiskLevel === "medium" ? "warning" : "success"}>{t(`hypotheses.risk.${hypothesis.fixRiskLevel}`)}</Badge>}
             </div>
             <p className="text-body-sm text-muted">{fix.summary}</p>
+            {fix.schemaVersion === 2 ? (
+              <ol className="flex flex-col gap-3">
+                {fix.fixSteps.map((step, stepIndex) => <FixStepCard key={step.stepId} step={step} number={stepIndex + 1} />)}
+              </ol>
+            ) : null}
             <ol className="flex flex-col gap-3">
               {fix.steps.map((step, stepIndex) => (
                 <li key={stepIndex} className="flex flex-col gap-2">

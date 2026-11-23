@@ -14,6 +14,7 @@ import { CitationRow } from "./CitationRow";
 import { CoverageGapsCard } from "./CoverageGapsCard";
 import { OutcomeSummary } from "./OutcomeSummary";
 import { RuledOutCard } from "./RuledOutCard";
+import { FixStepCard } from "./FixStepCard";
 import { runbookElementId } from "./investigationPresentation";
 
 /** The RCA tab has to be on screen before the chosen runbook can be scrolled to: the tab switches in the same update that selects the runbook. */
@@ -100,8 +101,19 @@ export function RcaSection({ detail, onSelectEvidence, selectedRunbookId = null 
         </Card>
         <Card>
           <CardHeader icon={Wrench} iconTone="success" title={t("rca.howToFix")} description={t("rca.suggestOnly")} />
-          <CardBody>
-            <MarkdownView content={detail.howToFixMarkdown ?? ""} />
+          <CardBody className="flex flex-col gap-4">
+            {detail.fixPlan ? (
+              <>
+                <MarkdownView content={detail.fixPlan.overviewMarkdown} />
+                <ol className="flex flex-col gap-3">
+                  {detail.fixPlan.steps.map((step, position) => (
+                    <FixStepCard key={step.stepId} step={step} number={position + 1} perspectiveLabel={step.perspective ? t(`perspective.${step.perspective}`) : undefined} />
+                  ))}
+                </ol>
+              </>
+            ) : (
+              <MarkdownView content={detail.howToFixMarkdown ?? ""} />
+            )}
           </CardBody>
         </Card>
       </div>

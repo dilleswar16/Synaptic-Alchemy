@@ -120,6 +120,93 @@
     "dependencies": "Afhankelijkheden",
     "infrastructure": "Infrastructuur"
   },
+  "fix": {
+    "shell": "Shell",
+    "copy": "Commando kopiëren",
+    "copyDisabled": "Vul de waarden in voordat je kopieert",
+    "copied": "Commando gekopieerd",
+    "fillIn_one": "Vul {{count}} waarde in om dit commando te kopiëren",
+    "fillIn_other": "Vul {{count}} waarden in om dit commando te kopiëren",
+    "fillInLabel": "Waarde voor {{label}}",
+    "valueNotKnown": "Onbekend",
+    "assumedValue": "Keigan nam deze waarde aan en kon haar niet controleren",
+    "assumedReason": "Aangenomen: {{reason}}",
+    "reason": {
+      "not_in_catalogue": "staat niet in de dienstencatalogus",
+      "not_found_in_evidence": "is niet gevonden in {{code}}",
+      "unknown_evidence_code": "het genoemde bewijsitem bestaat niet",
+      "not_found_in_knowledge": "is niet gevonden in de runbooks of de kennis",
+      "source_not_stated": "er is geen bron opgegeven"
+    },
+    "kind": {
+      "kubernetes_name": "Kubernetes-naam",
+      "kubernetes_namespace": "Namespace",
+      "azure_resource_group": "Resourcegroep",
+      "azure_resource_name": "Resourcenaam",
+      "azure_resource_id": "Resource-ID",
+      "azure_subscription_id": "Abonnements-ID",
+      "helm_release": "Helm-release",
+      "integer": "Getal",
+      "duration": "Duur (bijvoorbeeld 5m)",
+      "configuration_key": "Naam van de instelling",
+      "configuration_value": "Waarde van de instelling",
+      "hostname": "Hostnaam"
+    },
+    "problem": {
+      "masked": "{{label}} bevat een gemaskeerde waarde. Typ de echte.",
+      "too_long": "{{label}} is te lang.",
+      "starts_with_dash": "{{label}} mag niet met een streepje beginnen.",
+      "pattern": "{{label}} bevat tekens die niet zijn toegestaan.",
+      "not_insertable": "{{label}} heeft aanhalingstekens nodig, die op deze plek in het commando niet kunnen worden toegevoegd. Schrijf het commando zelf."
+    },
+    "confirm": {
+      "title": "Een commando met hoog risico kopiëren?",
+      "description": "Dit commando kan destructief of moeilijk ongedaan te maken zijn. Kopieer het alleen als je wijzigingsproces dat toestaat en je de stap om het ongedaan te maken hebt gelezen.",
+      "copy": "Toch kopiëren"
+    },
+    "purpose": {
+      "diagnose": "Diagnose",
+      "mitigate": "Beperken",
+      "durable_fix": "Blijvende oplossing"
+    },
+    "risk": {
+      "low": "Laag risico",
+      "medium": "Gemiddeld risico",
+      "high": "Hoog risico"
+    },
+    "check": "Controleren:",
+    "undo": "Ongedaan maken:",
+    "expected": "Verwacht:",
+    "assumptions": "Aannames",
+    "rerunQuery": "Voer de query achter {{code}} opnieuw uit en vergelijk het resultaat.",
+    "warning": {
+      "no_revert": "Er is geen manier opgegeven om deze stap ongedaan te maken.",
+      "no_validation": "Er is geen controle opgegeven voor deze stap.",
+      "prints_secrets": "Dit commando toont geheimen op het scherm.",
+      "restarts_service": "Hierdoor wordt de dienst herstart.",
+      "contains_assumptions": "Deze stap bevat waarden die Keigan aannam en niet kon controleren.",
+      "validation_changes_state": "De controle zelf wijzigt iets.",
+      "revert_is_high_risk": "Deze stap ongedaan maken heeft een hoog risico."
+    },
+    "withheld": {
+      "destructive_without_revert": "Niet getoond: een stap met hoog risico zonder terugweg. De beschrijving blijft; schrijf het commando en het ongedaan maken zelf.",
+      "unsafe_shell_syntax": "Niet getoond: het is geen eenvoudig commando (een keten, een omleiding, een plaatshouder of een substitutie).",
+      "unknown_slot": "Niet getoond: het commando gebruikt een waarde die nooit is gedefinieerd.",
+      "secret_in_command": "Niet getoond: het commando bevat een geheim.",
+      "data_changing_sql": "Niet getoond: een gegevenswijziging wordt nooit als commando aangeboden. Vraag het aan een databasebeheerder.",
+      "value_not_insertable": "Niet getoond: een waarde kan niet veilig in dit commando worden gezet.",
+      "command_too_long": "Niet getoond: het commando is te lang.",
+      "secret_setting_name": "Niet getoond: de instelling lijkt een geheim. Geheimen wijzig je in Key Vault.",
+      "unknown_evidence_code": "Niet getoond: het genoemde bewijsitem bestaat niet."
+    },
+    "config": {
+      "service": "Dienst",
+      "setting": "Instelling",
+      "before": "Nu",
+      "after": "Wijzigen naar",
+      "notInCatalogue": "Niet in de catalogus"
+    }
+  },
   "hypotheses": {
     "intro": "Drie analisten bekeken hetzelfde bewijs vanuit verschillende invalshoeken. De betrouwbaarheid is gekalibreerd: 80% of meer vereist direct bewijs en overeenkomende timing.",
     "leading": "Belangrijkste",
