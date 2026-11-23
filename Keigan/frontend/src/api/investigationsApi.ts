@@ -252,6 +252,8 @@ export interface ProposedFix {
 }
 
 export interface RunbookReference {
+  /** What is wrong with the runbook itself (the kinds of runbook health): never used, not updated, often rated incorrect, no steps, no trigger symptoms. */
+  findingKinds?: string[];
   runbookId: Identifier;
   runbookTitle: string;
 }

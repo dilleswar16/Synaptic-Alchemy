@@ -7,17 +7,48 @@
   "search": "名前またはコードで検索",
   "viewTopology": "トポロジーを表示",
   "stepperLabel": "オンボーディングのステップ",
-  "view": { "label": "表示", "grid": "グリッド", "table": "テーブル" },
-  "lifecycle": { "requested": "申請済み", "draft": "下書き", "onboarding": "オンボーディング中", "live": "稼働中", "paused": "一時停止" },
+  "view": {
+    "label": "表示",
+    "grid": "グリッド",
+    "table": "テーブル"
+  },
+  "lifecycle": {
+    "requested": "申請済み",
+    "draft": "下書き",
+    "onboarding": "オンボーディング中",
+    "live": "稼働中",
+    "paused": "一時停止"
+  },
   "componentTypes": {
     "azure_resource_group": "Azure リソースグループ",
     "hardware": "ハードウェアとネットワーク",
     "mainframe": "メインフレーム",
     "saas_platform": "SaaS プラットフォーム"
   },
-  "regions": { "JP": "日本", "AU": "オーストラリア", "US": "米国", "NL": "オランダ", "FR": "フランス", "ES": "スペイン", "MX": "メキシコ", "CN": "中国" },
-  "locales": { "en": "English", "ja": "日本語", "zh-CN": "简体中文", "es": "Español", "es-MX": "Español (México)", "nl": "Nederlands", "fr": "Français" },
-  "tiers": { "tier_1": "ティア 1", "tier_2": "ティア 2", "tier_3": "ティア 3" },
+  "regions": {
+    "JP": "日本",
+    "AU": "オーストラリア",
+    "US": "米国",
+    "NL": "オランダ",
+    "FR": "フランス",
+    "ES": "スペイン",
+    "MX": "メキシコ",
+    "CN": "中国"
+  },
+  "locales": {
+    "en": "English",
+    "ja": "日本語",
+    "zh-CN": "简体中文",
+    "es": "Español",
+    "es-MX": "Español (México)",
+    "nl": "Nederlands",
+    "fr": "Français"
+  },
+  "tiers": {
+    "tier_1": "ティア 1",
+    "tier_2": "ティア 2",
+    "tier_3": "ティア 3"
+  },
   "columns": {
     "application": "アプリケーション",
     "code": "コード",
@@ -34,7 +65,8 @@
     "slo": "SLO",
     "sloMet": "達成した SLO",
     "incidents": "インシデント",
-    "readiness": "必須 {{total}} 件中 {{done}} 件完了"
+    "readiness": "必須 {{total}} 件中 {{done}} 件完了",
+    "runbooksNeedAttention": "{{count}} 件のランブックに要確認の項目があります"
   },
   "empty": {
     "title": "アプリケーションがありません",
@@ -59,7 +91,26 @@
     "cancel": "キャンセル",
     "submit": "アプリケーションを作成",
     "requestSubmit": "申請を送信",
-    "team": {"title":"チーム（任意）","description":"このアプリケーションに携わる人を追加します。アクセスのために申請するグループを記載した招待メールが届きます。チームは後から変更できます。","descriptionRequest":"このアプリケーションに携わる人を追加します。Keigan 管理者が申請を承認するまで、誰にもメールは送られません。承認後に招待できます。","name":"名前","email":"メールアドレス","role":"役割","rowLabel":"{{number}} 人目","remove":"{{number}} 人目を削除","addFirst":"人を追加","addAnother":"もう一人追加","nameRequired":"名前を入力してください。","emailRequired":"メールアドレスを入力してください。","emailInvalid":"name@company.com の形式でメールアドレスを入力してください。","emailDuplicate":"このアドレスが重複しています。","addedInvited_one":"{{count}} 人を追加し、招待しました。","addedInvited_other":"{{count}} 人を追加し、招待しました。","addedListedOnly_one":"{{count}} 人をチームに追加しました。申請が承認されるまで、誰にもメールは送られません。","addedListedOnly_other":"{{count}} 人をチームに追加しました。申請が承認されるまで、誰にもメールは送られません。"},
+    "team": {
+      "title": "チーム（任意）",
+      "description": "このアプリケーションに携わる人を追加します。アクセスのために申請するグループを記載した招待メールが届きます。チームは後から変更できます。",
+      "descriptionRequest": "このアプリケーションに携わる人を追加します。Keigan 管理者が申請を承認するまで、誰にもメールは送られません。承認後に招待できます。",
+      "name": "名前",
+      "email": "メールアドレス",
+      "role": "役割",
+      "rowLabel": "{{number}} 人目",
+      "remove": "{{number}} 人目を削除",
+      "addFirst": "人を追加",
+      "addAnother": "もう一人追加",
+      "nameRequired": "名前を入力してください。",
+      "emailRequired": "メールアドレスを入力してください。",
+      "emailInvalid": "name@company.com の形式でメールアドレスを入力してください。",
+      "emailDuplicate": "このアドレスが重複しています。",
+      "addedInvited_one": "{{count}} 人を追加し、招待しました。",
+      "addedInvited_other": "{{count}} 人を追加し、招待しました。",
+      "addedListedOnly_one": "{{count}} 人をチームに追加しました。申請が承認されるまで、誰にもメールは送られません。",
+      "addedListedOnly_other": "{{count}} 人をチームに追加しました。申請が承認されるまで、誰にもメールは送られません。"
+    },
     "failed": "アプリケーションを作成できませんでした。もう一度お試しください。",
     "createdTitle": "{{name}}の準備ができました",
     "requestedTitle": "申請を送信しました",
@@ -71,21 +122,87 @@
     "close": "閉じる",
     "openWorkspace": "ワークスペースを開く"
   },
-  "stages": { "connect": "接続", "teach": "学習", "operate": "運用", "launch": "稼働開始" },
-  "requirement": { "required": "必須", "recommended": "推奨", "optional": "任意", "informational": "参考情報" },
-  "operatingNotes": { "title": "AI向けの運用メモ", "description": "このアプリケーションのすべての調査とチャットでAIが読む、チームからの短いメモです。", "label": "運用メモ", "helper": "テレメトリからはAIに分からないことを書いてください。収益や規制対象のトラフィックを担うサービス、通常はノイズとなるアラート、静かな夜の通常の状態、連絡先にすべき人などです。これは参考情報であり証拠ではありません。AIは引き続き実際の証拠を引用する必要があり、このメモがアラートルールやノイズポリシーを変更することはありません。パスワードや個人情報は書かないでください。", "placeholder": "例：請求受付は規制対象のトラフィックを扱います。02:00のバッチでデータベースが混み合いますが、これは通常の動作です。静かな夜は1時間あたり約40リクエストです。支払いに関する質問は当番マネージャーに連絡してください。", "empty": "運用メモはまだ書かれていません。", "readOnly": "このメモを編集できるのは、このアプリケーションの管理者のみです。", "counter": "{{used}} / {{maximum}} 文字", "overLimit": "上限を{{excess}}文字超えています。保存するにはメモを短くしてください。", "lastEditedBy": "最終編集者：{{name}}", "neverEdited": "このメモはまだ編集されていません。", "save": "メモを保存", "discard": "変更を破棄", "unsaved": "未保存の変更", "savedTitle": "メモを保存しました", "savedBody": "AIは次の調査またはチャットから使用します。", "saveFailedTitle": "メモを保存できませんでした", "saveFailed": "うまくいきませんでした。もう一度お試しください。", "leaveTitle": "保存せずに移動しますか？", "leaveBody": "運用メモへの変更は失われます。", "leaveConfirm": "保存せずに移動", "leaveStay": "編集を続ける" },
+  "stages": {
+    "connect": "接続",
+    "teach": "学習",
+    "operate": "運用",
+    "launch": "稼働開始"
+  },
+  "requirement": {
+    "required": "必須",
+    "recommended": "推奨",
+    "optional": "任意",
+    "informational": "参考情報"
+  },
+  "operatingNotes": {
+    "title": "AI向けの運用メモ",
+    "description": "このアプリケーションのすべての調査とチャットでAIが読む、チームからの短いメモです。",
+    "label": "運用メモ",
+    "helper": "テレメトリからはAIに分からないことを書いてください。収益や規制対象のトラフィックを担うサービス、通常はノイズとなるアラート、静かな夜の通常の状態、連絡先にすべき人などです。これは参考情報であり証拠ではありません。AIは引き続き実際の証拠を引用する必要があり、このメモがアラートルールやノイズポリシーを変更することはありません。パスワードや個人情報は書かないでください。",
+    "placeholder": "例：請求受付は規制対象のトラフィックを扱います。02:00のバッチでデータベースが混み合いますが、これは通常の動作です。静かな夜は1時間あたり約40リクエストです。支払いに関する質問は当番マネージャーに連絡してください。",
+    "empty": "運用メモはまだ書かれていません。",
+    "readOnly": "このメモを編集できるのは、このアプリケーションの管理者のみです。",
+    "counter": "{{used}} / {{maximum}} 文字",
+    "overLimit": "上限を{{excess}}文字超えています。保存するにはメモを短くしてください。",
+    "lastEditedBy": "最終編集者：{{name}}",
+    "neverEdited": "このメモはまだ編集されていません。",
+    "save": "メモを保存",
+    "discard": "変更を破棄",
+    "unsaved": "未保存の変更",
+    "savedTitle": "メモを保存しました",
+    "savedBody": "AIは次の調査またはチャットから使用します。",
+    "saveFailedTitle": "メモを保存できませんでした",
+    "saveFailed": "うまくいきませんでした。もう一度お試しください。",
+    "leaveTitle": "保存せずに移動しますか？",
+    "leaveBody": "運用メモへの変更は失われます。",
+    "leaveConfirm": "保存せずに移動",
+    "leaveStay": "編集を続ける"
+  },
   "steps": {
-    "components": { "label": "コンポーネント", "description": "アプリケーションの稼働先（Azure、ハードウェア、メインフレーム、SaaS）を Keigan に伝えます。" },
-    "services": { "label": "サービス", "description": "Keigan が監視する単位です。検出された内容を確認し、不足分を追加してください。" },
-    "log_tools": { "label": "ログ・モニタリングツール", "description": "Elastic、Splunk、Datadog などのツールを一度接続すれば、複数のサービスで再利用できます。" },
-    "knowledge": { "label": "ナレッジベース", "description": "Copilot にコードコンテキストを作成させ、アーキテクチャ図やガイドとともにアップロードします。" },
-    "topology": { "label": "トポロジーレビュー", "description": "Keigan が把握しているサービス間の接続を確認します。承認ではなく、確認が目的です。" },
-    "runbooks": { "label": "ランブック", "description": "既知の問題とチームが文書化した対応手順を登録し、今後のインシデントと照合します。" },
-    "incidents": { "label": "インシデントとアラート", "description": "このアプリケーションのインシデントとアラートの取得元です。" },
-    "slo": { "label": "SLO", "description": "Keigan が読み取れるデータから測定する信頼性の目標です。" },
-    "notifications": { "label": "通知", "description": "インシデントを誰に、どのチャネル・言語で通知するかを設定します。" },
-    "access": { "label": "アクセス", "description": "このアプリケーションを閲覧・管理できるユーザーを制御する AD グループです。" },
-    "review": { "label": "確認と稼働開始", "description": "チェックリストを確認して、監視を開始します。" }
+    "components": {
+      "label": "コンポーネント",
+      "description": "アプリケーションの稼働先（Azure、ハードウェア、メインフレーム、SaaS）を Keigan に伝えます。"
+    },
+    "services": {
+      "label": "サービス",
+      "description": "Keigan が監視する単位です。検出された内容を確認し、不足分を追加してください。"
+    },
+    "log_tools": {
+      "label": "ログ・モニタリングツール",
+      "description": "Elastic、Splunk、Datadog などのツールを一度接続すれば、複数のサービスで再利用できます。"
+    },
+    "knowledge": {
+      "label": "ナレッジベース",
+      "description": "Copilot にコードコンテキストを作成させ、アーキテクチャ図やガイドとともにアップロードします。"
+    },
+    "topology": {
+      "label": "トポロジーレビュー",
+      "description": "Keigan が把握しているサービス間の接続を確認します。承認ではなく、確認が目的です。"
+    },
+    "runbooks": {
+      "label": "ランブック",
+      "description": "既知の問題とチームが文書化した対応手順を登録し、今後のインシデントと照合します。"
+    },
+    "incidents": {
+      "label": "インシデントとアラート",
+      "description": "このアプリケーションのインシデントとアラートの取得元です。"
+    },
+    "slo": {
+      "label": "SLO",
+      "description": "Keigan が読み取れるデータから測定する信頼性の目標です。"
+    },
+    "notifications": {
+      "label": "通知",
+      "description": "インシデントを誰に、どのチャネル・言語で通知するかを設定します。"
+    },
+    "access": {
+      "label": "アクセス",
+      "description": "このアプリケーションを閲覧・管理できるユーザーを制御する AD グループです。"
+    },
+    "review": {
+      "label": "確認と稼働開始",
+      "description": "チェックリストを確認して、監視を開始します。"
+    }
   },
   "readinessNext": {
     "components": "コンポーネントを検証する",
@@ -117,8 +234,20 @@
     "observe_mode": "アラートノイズ削減は観察モードです",
     "observe_mode_done": "アラートノイズ削減は有効です"
   },
-  "status": { "not_started": "未着手", "in_progress": "進行中", "waiting": "待機中", "blocked": "ブロック中", "done": "完了" },
-  "actions": { "back": "戻る", "continue": "続行", "goLive": "稼働開始", "pause": "アプリケーションを一時停止", "resume": "アプリケーションを再開" },
+  "status": {
+    "not_started": "未着手",
+    "in_progress": "進行中",
+    "waiting": "待機中",
+    "blocked": "ブロック中",
+    "done": "完了"
+  },
+  "actions": {
+    "back": "戻る",
+    "continue": "続行",
+    "goLive": "稼働開始",
+    "pause": "アプリケーションを一時停止",
+    "resume": "アプリケーションを再開"
+  },
   "banners": {
     "requestedTitle": "Keigan 管理者の対応待ち",
     "requestedBody": "オンボーディングの申請を送信しました。Keigan 管理者が承認すると、ワークスペースが利用可能になります。",

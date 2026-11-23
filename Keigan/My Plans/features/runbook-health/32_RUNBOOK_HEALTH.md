@@ -124,3 +124,5 @@ Differences from this design:
 - An action item can now be created from a finding (2026-11-24): the card's "Create action item" button opens the form with the runbook's title and findings; the item has the source `runbook_health` and the runbook's id (revision `d5a9b3e7c1f8`).
 - Not seen in a browser.
 
+### 12.x Findings where a runbook is weighed (2026-11-24)
+The application list shows "N runbooks need attention" on an application card (`runbookAttentionCount` of `GET /applications`; a failure to read it shows none), and an investigation's matched runbooks carry their findings as chips (`findingKinds` of each `matchedRunbooks` entry), so a reader sees that a matched runbook is, for example, never used or often rated incorrect. Not on the incident page itself. Test: `tests/integration/controllers/test_runbook_findings_spread.py`.

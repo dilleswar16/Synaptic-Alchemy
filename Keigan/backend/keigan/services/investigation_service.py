@@ -34,6 +34,7 @@ from keigan.services.alert_service import AlertService
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.incident_memory_builder import enqueue_memory_refresh
+from keigan.services.runbook_health_service import RunbookHealthService
 from keigan.services.service_scope import unknown_service_ids
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
@@ -263,6 +264,7 @@ class InvestigationService:
         hypothesis_rows = list((await self.session.scalars(select(InvestigationHypothesis).where(InvestigationHypothesis.investigation_id == investigation_id).order_by(InvestigationHypothesis.display_order))).all())
         runbook_ids = {*investigation.matched_runbook_ids, *(row.matched_runbook_id for row in hypothesis_rows if row.matched_runbook_id)}
         runbooks = {runbook.runbook_id: runbook for runbook in (await self.session.scalars(select(Runbook).where(Runbook.runbook_id.in_(runbook_ids)))).all()} if runbook_ids else {}
+        finding_kinds = {row.runbook.runbook_id: [finding.kind for finding in row.findings] for row in await RunbookHealthService(self.session).rows(investigation.application_id) if row.findings} if runbook_ids else {}
         incident = await self.session.get(Incident, investigation.incident_id) if investigation.incident_id else None
         incident_summary = (await IncidentService(self.session).summarize_incidents([incident]))[0] if incident else None
         return InvestigationDetailDto(
@@ -280,13 +282,13 @@ class InvestigationService:
                     reasoning_markdown=row.reasoning_markdown, confidence_score=row.confidence_score, state=row.hypothesis_state, proposed_state=row.proposed_hypothesis_state,
                     state_guard_code=row.state_guard_code, state_reason_markdown=row.state_reason_markdown, supporting_evidence_codes=row.supporting_evidence_codes_json or [],
                     contradicting_evidence_codes=row.contradicting_evidence_codes_json or [], proposed_fix=row.proposed_fix_json, fix_risk_level=row.fix_risk_level,
-                    matched_runbook=RunbookReference(runbook_id=row.matched_runbook_id, runbook_title=runbooks[row.matched_runbook_id].runbook_title) if row.matched_runbook_id in runbooks else None,
+                    matched_runbook=RunbookReference(runbook_id=row.matched_runbook_id, runbook_title=runbooks[row.matched_runbook_id].runbook_title, finding_kinds=finding_kinds.get(row.matched_runbook_id, [])) if row.matched_runbook_id in runbooks else None,
                     is_leading_hypothesis=row.is_leading_hypothesis, display_order=row.display_order,
                 )
                 for row in hypothesis_rows
             ],
             evidence=[self._evidence_dto(row, names_by_id) for row in evidence_rows], blast_radius=investigation.blast_radius_json,
-            matched_runbooks=[RunbookReference(runbook_id=runbook_id, runbook_title=runbooks[runbook_id].runbook_title) for runbook_id in investigation.matched_runbook_ids if runbook_id in runbooks],
+            matched_runbooks=[RunbookReference(runbook_id=runbook_id, runbook_title=runbooks[runbook_id].runbook_title, finding_kinds=finding_kinds.get(runbook_id, [])) for runbook_id in investigation.matched_runbook_ids if runbook_id in runbooks],
             knowledge_references=investigation.knowledge_references_json or [], alert_group=await self._alert_group_payload(investigation.investigation_id), stage_messages=investigation.stage_messages_json or [],
             is_evidence_only=investigation.investigation_status == InvestigationStatus.COMPLETED_EVIDENCE_ONLY, failure_reason=investigation.failure_reason, user_feedback_verdict=investigation.user_feedback_verdict,
             user_feedback_comment=investigation.user_feedback_comment, total_input_token_count=investigation.total_input_token_count, total_output_token_count=investigation.total_output_token_count,

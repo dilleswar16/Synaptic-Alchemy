@@ -8,6 +8,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { ConfidenceMeter } from "@/components/ui/ConfidenceMeter";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MarkdownView } from "@/components/ui/MarkdownView";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/utils/cn";
 import { CitationRow } from "./CitationRow";
@@ -31,6 +32,7 @@ interface RcaSectionProps {
 /** Three RCA cards (what went wrong, why it happened, how to fix) with overall confidence and citations. */
 export function RcaSection({ detail, onSelectEvidence, selectedRunbookId = null }: RcaSectionProps) {
   const { t } = useTranslation("investigations");
+  const { t: tKnowledge } = useTranslation("knowledge");
   const hasAnalysis = Boolean(detail.whatWentWrongMarkdown);
   const leadingHypothesis = detail.hypotheses.find((hypothesis) => hypothesis.isLeadingHypothesis);
   // The wording of "leading" and "confidence" is only as strong as the outcome: an unconfirmed cause is a lead, not a conclusion.
@@ -138,7 +140,10 @@ export function RcaSection({ detail, onSelectEvidence, selectedRunbookId = null 
             <CardBody>
               <ul className="space-y-1.5 text-body">
                 {detail.matchedRunbooks.map((runbook) => (
-                  <li key={runbook.runbookId} id={runbookElementId(runbook.runbookId)} className={cn("scroll-mt-32 rounded-sm px-1.5 py-0.5 transition-shadow", runbook.runbookId === selectedRunbookId && "ring-2 ring-[var(--color-focus-ring-color)]")}>{runbook.runbookTitle}</li>
+                  <li key={runbook.runbookId} id={runbookElementId(runbook.runbookId)} className={cn("scroll-mt-32 rounded-sm px-1.5 py-0.5 transition-shadow", runbook.runbookId === selectedRunbookId && "ring-2 ring-[var(--color-focus-ring-color)]")}>
+                    {runbook.runbookTitle}
+                    {(runbook.findingKinds ?? []).map((kind) => <StatusChip key={kind} size="sm" tone="warning" variant="outline" className="ml-2">{tKnowledge(`health.kind.${kind}`)}</StatusChip>)}
+                  </li>
                 ))}
               </ul>
             </CardBody>

@@ -148,6 +148,7 @@ export default function ApplicationsPage() {
                     <div className="min-w-0"><dt className="truncate text-caption text-muted">{t("card.incidents")}</dt><dd className="mt-0.5 text-h3 font-semibold tabular-nums">{application.openIncidentCount}</dd></div>
                   </dl>
                   <ReadinessSummary application={application} />
+                  {(application.runbookAttentionCount ?? 0) > 0 ? <StatusChip tone="warning" variant="outline" size="sm" className="self-start">{t("card.runbooksNeedAttention", { count: application.runbookAttentionCount })}</StatusChip> : null}
                 </div>
               </Link>
             </Card>

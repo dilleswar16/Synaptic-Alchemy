@@ -224,6 +224,7 @@ class EvidenceDto(ApiModel):
 class RunbookReference(ApiModel):
     runbook_id: str
     runbook_title: str
+    finding_kinds: list[str] = Field(default_factory=list)  # what is wrong with the runbook itself (spec 32), so a reader weighs it accordingly
 
 
 class HypothesisDto(ApiModel):

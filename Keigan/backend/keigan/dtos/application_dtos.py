@@ -93,6 +93,7 @@ class ApplicationSummaryResponse(ApplicationResponse):
     service_count: int = 0
     open_incident_count: int = 0
     slo_compliance_percentage: float | None = None
+    runbook_attention_count: int = 0  # runbooks with at least one finding (spec 32): never used, not updated, often wrong, no steps or no trigger symptoms
     required_done_count: int | None = None
     required_total_count: int | None = None
 

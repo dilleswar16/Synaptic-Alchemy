@@ -44,6 +44,8 @@ export interface ApplicationSummary extends Application {
   componentCount: number;
   serviceCount: number;
   openIncidentCount: number;
+  /** Runbooks with at least one finding (runbook health). */
+  runbookAttentionCount: number;
   sloCompliancePercentage: number | null;
   requiredDoneCount: number | null;
   requiredTotalCount: number | null;

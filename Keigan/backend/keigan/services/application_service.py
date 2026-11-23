@@ -74,6 +74,7 @@ class ApplicationService:
             )).all()
         )
         compliance_by_application = await self._slo_compliance_by_application(list(readable_ids))
+        runbook_attention = await self._runbook_attention_by_application([application.application_id for application in applications])
         summaries: list[ApplicationSummaryResponse] = []
         for application in applications:
             summary = ApplicationSummaryResponse(
@@ -83,6 +84,7 @@ class ApplicationService:
                 service_count=int(service_counts.get(application.application_id, 0)),
                 open_incident_count=int(incident_counts.get(application.application_id, 0)),
                 slo_compliance_percentage=compliance_by_application.get(application.application_id),
+                runbook_attention_count=runbook_attention.get(application.application_id, 0),
             )
             if application.lifecycle_status not in LIVE_LIFECYCLE_STATUSES:
                 readiness = await self.readiness_service.build_readiness(application)
@@ -90,6 +92,20 @@ class ApplicationService:
                 summary.required_done_count = sum(1 for requirement in readiness.required if requirement.is_done)
             summaries.append(summary)
         return summaries
+
+    async def _runbook_attention_by_application(self, application_ids: list[str]) -> dict[str, int]:
+        """How many runbooks of each application have a finding. Runbook health must never break the applications list."""
+        from keigan.services.runbook_health_service import RunbookHealthService
+
+        counts: dict[str, int] = {}
+        try:
+            service = RunbookHealthService(self.session)
+            for application_id in application_ids:
+                counts[application_id] = sum(1 for row in await service.rows(application_id) if row.findings)
+        except Exception:  # noqa: BLE001
+            logger.warning("Runbook health for %s application(s) could not be read; the list shows none", len(application_ids), exc_info=True)
+            return {}
+        return counts
 
     async def _slo_compliance_by_application(self, application_ids: list[str]) -> dict[str, float]:
         try:

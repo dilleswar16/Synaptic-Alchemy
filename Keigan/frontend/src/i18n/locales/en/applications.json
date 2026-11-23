@@ -7,17 +7,48 @@
   "search": "Search by name or code",
   "viewTopology": "View topology",
   "stepperLabel": "Onboarding steps",
-  "view": { "label": "View", "grid": "Grid", "table": "Table" },
-  "lifecycle": { "requested": "Requested", "draft": "Draft", "onboarding": "Onboarding", "live": "Live", "paused": "Paused" },
+  "view": {
+    "label": "View",
+    "grid": "Grid",
+    "table": "Table"
+  },
+  "lifecycle": {
+    "requested": "Requested",
+    "draft": "Draft",
+    "onboarding": "Onboarding",
+    "live": "Live",
+    "paused": "Paused"
+  },
   "componentTypes": {
     "azure_resource_group": "Azure resource group",
     "hardware": "Hardware and network",
     "mainframe": "Mainframe",
     "saas_platform": "SaaS platform"
   },
-  "regions": { "JP": "Japan", "AU": "Australia", "US": "United States", "NL": "Netherlands", "FR": "France", "ES": "Spain", "MX": "Mexico", "CN": "China" },
-  "locales": { "en": "English", "ja": "日本語", "zh-CN": "简体中文", "es": "Español", "es-MX": "Español (México)", "nl": "Nederlands", "fr": "Français" },
-  "tiers": { "tier_1": "Tier 1", "tier_2": "Tier 2", "tier_3": "Tier 3" },
+  "regions": {
+    "JP": "Japan",
+    "AU": "Australia",
+    "US": "United States",
+    "NL": "Netherlands",
+    "FR": "France",
+    "ES": "Spain",
+    "MX": "Mexico",
+    "CN": "China"
+  },
+  "locales": {
+    "en": "English",
+    "ja": "日本語",
+    "zh-CN": "简体中文",
+    "es": "Español",
+    "es-MX": "Español (México)",
+    "nl": "Nederlands",
+    "fr": "Français"
+  },
+  "tiers": {
+    "tier_1": "Tier 1",
+    "tier_2": "Tier 2",
+    "tier_3": "Tier 3"
+  },
   "columns": {
     "application": "Application",
     "code": "Code",
@@ -34,7 +65,8 @@
     "slo": "SLO",
     "sloMet": "SLOs met",
     "incidents": "Open incidents",
-    "readiness": "{{done}} of {{total}} required done"
+    "readiness": "{{done}} of {{total}} required done",
+    "runbooksNeedAttention": "{{count}} runbooks need attention"
   },
   "empty": {
     "title": "No applications yet",
@@ -59,7 +91,26 @@
     "cancel": "Cancel",
     "submit": "Create application",
     "requestSubmit": "Send request",
-    "team": {"title":"Team (optional)","description":"Add the people who work on this application. They receive an invitation email that tells them which group to request for access. You can change the team later.","descriptionRequest":"Add the people who work on this application. Nobody is emailed until Keigan admins accept the request; you can invite them then.","name":"Name","email":"Email address","role":"Role","rowLabel":"Person {{number}}","remove":"Remove person {{number}}","addFirst":"Add a person","addAnother":"Add another person","nameRequired":"Enter a name.","emailRequired":"Enter an email address.","emailInvalid":"Enter an email address like name@company.com.","emailDuplicate":"This address is listed twice.","addedInvited_one":"{{count}} person was added and invited.","addedInvited_other":"{{count}} people were added and invited.","addedListedOnly_one":"{{count}} person was added to the team. Nobody is emailed until the request is accepted.","addedListedOnly_other":"{{count}} people were added to the team. Nobody is emailed until the request is accepted."},
+    "team": {
+      "title": "Team (optional)",
+      "description": "Add the people who work on this application. They receive an invitation email that tells them which group to request for access. You can change the team later.",
+      "descriptionRequest": "Add the people who work on this application. Nobody is emailed until Keigan admins accept the request; you can invite them then.",
+      "name": "Name",
+      "email": "Email address",
+      "role": "Role",
+      "rowLabel": "Person {{number}}",
+      "remove": "Remove person {{number}}",
+      "addFirst": "Add a person",
+      "addAnother": "Add another person",
+      "nameRequired": "Enter a name.",
+      "emailRequired": "Enter an email address.",
+      "emailInvalid": "Enter an email address like name@company.com.",
+      "emailDuplicate": "This address is listed twice.",
+      "addedInvited_one": "{{count}} person was added and invited.",
+      "addedInvited_other": "{{count}} people were added and invited.",
+      "addedListedOnly_one": "{{count}} person was added to the team. Nobody is emailed until the request is accepted.",
+      "addedListedOnly_other": "{{count}} people were added to the team. Nobody is emailed until the request is accepted."
+    },
     "failed": "The application could not be created. Try again.",
     "createdTitle": "{{name}} is ready",
     "requestedTitle": "Your request was sent",
@@ -71,21 +122,87 @@
     "close": "Close",
     "openWorkspace": "Open workspace"
   },
-  "stages": { "connect": "Connect", "teach": "Teach", "operate": "Operate", "launch": "Launch" },
-  "requirement": { "required": "Required", "recommended": "Recommended", "optional": "Optional", "informational": "Information" },
-  "operatingNotes": { "title": "Operating notes for the AI", "description": "A short note from your team that the AI reads in every investigation and chat for this application.", "label": "Operating notes", "helper": "Write what telemetry cannot tell the AI: which services carry revenue or regulated traffic, which alerts are usually noise, what normal looks like on a quiet night, who to mention. It is guidance, not evidence: the AI still has to cite real evidence, and these notes do not change alert rules or noise policy. Do not write passwords or personal data.", "placeholder": "For example: Claim submission carries regulated traffic. The 02:00 batch makes the database busy and that is normal. A quiet night is about 40 requests an hour. Mention the duty manager for payment questions.", "empty": "Nobody has written operating notes yet.", "readOnly": "Only this application's admins can edit these notes.", "counter": "{{used}} of {{maximum}} characters", "overLimit": "{{excess}} characters over the limit. Shorten the notes to save.", "lastEditedBy": "Last edited by {{name}}", "neverEdited": "Nobody has edited these notes yet.", "save": "Save notes", "discard": "Discard changes", "unsaved": "Unsaved changes", "savedTitle": "Notes saved", "savedBody": "The AI uses them from the next investigation or chat.", "saveFailedTitle": "The notes were not saved", "saveFailed": "That did not work. Try again.", "leaveTitle": "Leave without saving?", "leaveBody": "Your changes to the operating notes will be lost.", "leaveConfirm": "Leave without saving", "leaveStay": "Keep editing" },
+  "stages": {
+    "connect": "Connect",
+    "teach": "Teach",
+    "operate": "Operate",
+    "launch": "Launch"
+  },
+  "requirement": {
+    "required": "Required",
+    "recommended": "Recommended",
+    "optional": "Optional",
+    "informational": "Information"
+  },
+  "operatingNotes": {
+    "title": "Operating notes for the AI",
+    "description": "A short note from your team that the AI reads in every investigation and chat for this application.",
+    "label": "Operating notes",
+    "helper": "Write what telemetry cannot tell the AI: which services carry revenue or regulated traffic, which alerts are usually noise, what normal looks like on a quiet night, who to mention. It is guidance, not evidence: the AI still has to cite real evidence, and these notes do not change alert rules or noise policy. Do not write passwords or personal data.",
+    "placeholder": "For example: Claim submission carries regulated traffic. The 02:00 batch makes the database busy and that is normal. A quiet night is about 40 requests an hour. Mention the duty manager for payment questions.",
+    "empty": "Nobody has written operating notes yet.",
+    "readOnly": "Only this application's admins can edit these notes.",
+    "counter": "{{used}} of {{maximum}} characters",
+    "overLimit": "{{excess}} characters over the limit. Shorten the notes to save.",
+    "lastEditedBy": "Last edited by {{name}}",
+    "neverEdited": "Nobody has edited these notes yet.",
+    "save": "Save notes",
+    "discard": "Discard changes",
+    "unsaved": "Unsaved changes",
+    "savedTitle": "Notes saved",
+    "savedBody": "The AI uses them from the next investigation or chat.",
+    "saveFailedTitle": "The notes were not saved",
+    "saveFailed": "That did not work. Try again.",
+    "leaveTitle": "Leave without saving?",
+    "leaveBody": "Your changes to the operating notes will be lost.",
+    "leaveConfirm": "Leave without saving",
+    "leaveStay": "Keep editing"
+  },
   "steps": {
-    "components": { "label": "Components", "description": "Tell Keigan where the application runs: Azure, hardware, mainframe or SaaS." },
-    "services": { "label": "Services", "description": "The units Keigan monitors. Review what was discovered and add the rest." },
-    "log_tools": { "label": "Log and monitoring tools", "description": "Connect Elastic, Splunk, Datadog and other tools once and reuse them across services." },
-    "knowledge": { "label": "Knowledge base", "description": "Let Copilot write the code context, then upload it with architecture diagrams and guides." },
-    "topology": { "label": "Topology review", "description": "Check Keigan's picture of how the services connect. Review it, do not approve it." },
-    "runbooks": { "label": "Runbooks", "description": "Known issues and the team's documented response, matched to future incidents." },
-    "incidents": { "label": "Incidents and alerts", "description": "Where incidents and alerts for this application come from." },
-    "slo": { "label": "SLOs", "description": "Reliability targets Keigan measures from the data it can read." },
-    "notifications": { "label": "Notifications", "description": "Who hears about incidents, in which channel and language." },
-    "access": { "label": "Access", "description": "The AD groups that control who can see and manage this application." },
-    "review": { "label": "Review and go live", "description": "Check the checklist and start watching." }
+    "components": {
+      "label": "Components",
+      "description": "Tell Keigan where the application runs: Azure, hardware, mainframe or SaaS."
+    },
+    "services": {
+      "label": "Services",
+      "description": "The units Keigan monitors. Review what was discovered and add the rest."
+    },
+    "log_tools": {
+      "label": "Log and monitoring tools",
+      "description": "Connect Elastic, Splunk, Datadog and other tools once and reuse them across services."
+    },
+    "knowledge": {
+      "label": "Knowledge base",
+      "description": "Let Copilot write the code context, then upload it with architecture diagrams and guides."
+    },
+    "topology": {
+      "label": "Topology review",
+      "description": "Check Keigan's picture of how the services connect. Review it, do not approve it."
+    },
+    "runbooks": {
+      "label": "Runbooks",
+      "description": "Known issues and the team's documented response, matched to future incidents."
+    },
+    "incidents": {
+      "label": "Incidents and alerts",
+      "description": "Where incidents and alerts for this application come from."
+    },
+    "slo": {
+      "label": "SLOs",
+      "description": "Reliability targets Keigan measures from the data it can read."
+    },
+    "notifications": {
+      "label": "Notifications",
+      "description": "Who hears about incidents, in which channel and language."
+    },
+    "access": {
+      "label": "Access",
+      "description": "The AD groups that control who can see and manage this application."
+    },
+    "review": {
+      "label": "Review and go live",
+      "description": "Check the checklist and start watching."
+    }
   },
   "readinessNext": {
     "components": "verify a component",
@@ -104,21 +221,37 @@
     "slo": "At least one SLO ({{count}})"
   },
   "goodToKnow": {
-    "diagnostic_settings_one": "{{count}} service has no diagnostic setting yet", "diagnostic_settings_other": "{{count}} services have no diagnostic setting yet",
+    "diagnostic_settings_one": "{{count}} service has no diagnostic setting yet",
+    "diagnostic_settings_other": "{{count}} services have no diagnostic setting yet",
     "diagnostic_settings_done": "All discovered services send logs to a workspace",
     "knowledge_documents": "No knowledge documents uploaded yet",
-    "knowledge_documents_done_one": "{{count}} knowledge document uploaded", "knowledge_documents_done_other": "{{count}} knowledge documents uploaded",
+    "knowledge_documents_done_one": "{{count}} knowledge document uploaded",
+    "knowledge_documents_done_other": "{{count}} knowledge documents uploaded",
     "topology_reviewed": "The topology has not been reviewed yet",
     "topology_reviewed_done": "The topology has been reviewed",
     "runbooks": "No runbooks added yet",
-    "runbooks_done_one": "{{count}} runbook added", "runbooks_done_other": "{{count}} runbooks added",
-    "placeholder_integrations_one": "{{count}} log tool is saved but its reader is not available yet", "placeholder_integrations_other": "{{count}} log tools are saved but their reader is not available yet",
+    "runbooks_done_one": "{{count}} runbook added",
+    "runbooks_done_other": "{{count}} runbooks added",
+    "placeholder_integrations_one": "{{count}} log tool is saved but its reader is not available yet",
+    "placeholder_integrations_other": "{{count}} log tools are saved but their reader is not available yet",
     "placeholder_integrations_done": "All log tools can be read",
     "observe_mode": "Alert noise reduction is in Observe mode",
     "observe_mode_done": "Alert noise reduction is active"
   },
-  "status": { "not_started": "Not started", "in_progress": "In progress", "waiting": "Waiting", "blocked": "Blocked", "done": "Done" },
-  "actions": { "back": "Back", "continue": "Continue", "goLive": "Go live", "pause": "Pause application", "resume": "Resume application" },
+  "status": {
+    "not_started": "Not started",
+    "in_progress": "In progress",
+    "waiting": "Waiting",
+    "blocked": "Blocked",
+    "done": "Done"
+  },
+  "actions": {
+    "back": "Back",
+    "continue": "Continue",
+    "goLive": "Go live",
+    "pause": "Pause application",
+    "resume": "Resume application"
+  },
   "banners": {
     "requestedTitle": "Waiting for a Keigan admin",
     "requestedBody": "This onboarding request has been sent. A Keigan admin will accept it and the workspace unlocks.",

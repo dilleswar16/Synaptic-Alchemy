@@ -40,7 +40,7 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/applications` | readable applications with summary (counts, compliance, open incidents, readiness) |
+| GET | `/applications` | readable applications with summary (counts, compliance, open incidents, `runbookAttentionCount` = runbooks with a finding, readiness) |
 | POST | `/applications` | create (Keigan admin) or request (`lifecycleStatus: requested`). Optional `teamMembers: [{ displayName, emailAddress, stakeholderRole }]` are saved in the same transaction (all or nothing); a duplicate or invalid address is a 422. Invitations are queued only when the application is created, not requested |
 | GET/PATCH/DELETE | `/applications/{id}` | detail / update / delete (admin; delete only if not live) |
 | GET | `/applications/{id}/readiness` | `{ required: Requirement[], goodToKnow: Requirement[], canGoLive, steps: [{ stepKey, status }] }` |

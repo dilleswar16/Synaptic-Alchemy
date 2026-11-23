@@ -7,17 +7,48 @@
   "search": "Zoeken op naam of code",
   "viewTopology": "Topologie bekijken",
   "stepperLabel": "Onboardingstappen",
-  "view": { "label": "Weergave", "grid": "Raster", "table": "Tabel" },
-  "lifecycle": { "requested": "Aangevraagd", "draft": "Concept", "onboarding": "Onboarding", "live": "Live", "paused": "Gepauzeerd" },
+  "view": {
+    "label": "Weergave",
+    "grid": "Raster",
+    "table": "Tabel"
+  },
+  "lifecycle": {
+    "requested": "Aangevraagd",
+    "draft": "Concept",
+    "onboarding": "Onboarding",
+    "live": "Live",
+    "paused": "Gepauzeerd"
+  },
   "componentTypes": {
     "azure_resource_group": "Azure-resourcegroep",
     "hardware": "Hardware en netwerk",
     "mainframe": "Mainframe",
     "saas_platform": "SaaS-platform"
   },
-  "regions": { "JP": "Japan", "AU": "Australië", "US": "Verenigde Staten", "NL": "Nederland", "FR": "Frankrijk", "ES": "Spanje", "MX": "Mexico", "CN": "China" },
-  "locales": { "en": "English", "ja": "日本語", "zh-CN": "简体中文", "es": "Español", "es-MX": "Español (México)", "nl": "Nederlands", "fr": "Français" },
-  "tiers": { "tier_1": "Tier 1", "tier_2": "Tier 2", "tier_3": "Tier 3" },
+  "regions": {
+    "JP": "Japan",
+    "AU": "Australië",
+    "US": "Verenigde Staten",
+    "NL": "Nederland",
+    "FR": "Frankrijk",
+    "ES": "Spanje",
+    "MX": "Mexico",
+    "CN": "China"
+  },
+  "locales": {
+    "en": "English",
+    "ja": "日本語",
+    "zh-CN": "简体中文",
+    "es": "Español",
+    "es-MX": "Español (México)",
+    "nl": "Nederlands",
+    "fr": "Français"
+  },
+  "tiers": {
+    "tier_1": "Tier 1",
+    "tier_2": "Tier 2",
+    "tier_3": "Tier 3"
+  },
   "columns": {
     "application": "Applicatie",
     "code": "Code",
@@ -34,7 +65,8 @@
     "slo": "SLO",
     "sloMet": "SLO's gehaald",
     "incidents": "Incidenten",
-    "readiness": "{{done}} van {{total}} verplichte onderdelen klaar"
+    "readiness": "{{done}} van {{total}} verplichte onderdelen klaar",
+    "runbooksNeedAttention": "{{count}} runbooks hebben aandacht nodig"
   },
   "empty": {
     "title": "Nog geen applicaties",
@@ -59,7 +91,26 @@
     "cancel": "Annuleren",
     "submit": "Applicatie aanmaken",
     "requestSubmit": "Aanvraag verzenden",
-    "team": {"title":"Team (optioneel)","description":"Voeg de mensen toe die aan deze applicatie werken. Zij ontvangen een uitnodigingsmail met de groep die ze voor toegang moeten aanvragen. U kunt het team later wijzigen.","descriptionRequest":"Voeg de mensen toe die aan deze applicatie werken. Niemand krijgt een e-mail totdat Keigan-beheerders het verzoek goedkeuren; daarna kunt u ze uitnodigen.","name":"Naam","email":"E-mailadres","role":"Rol","rowLabel":"Persoon {{number}}","remove":"Persoon {{number}} verwijderen","addFirst":"Persoon toevoegen","addAnother":"Nog een persoon toevoegen","nameRequired":"Voer een naam in.","emailRequired":"Voer een e-mailadres in.","emailInvalid":"Voer een e-mailadres in zoals naam@bedrijf.com.","emailDuplicate":"Dit adres staat twee keer in de lijst.","addedInvited_one":"{{count}} persoon is toegevoegd en uitgenodigd.","addedInvited_other":"{{count}} mensen zijn toegevoegd en uitgenodigd.","addedListedOnly_one":"{{count}} persoon is aan het team toegevoegd. Niemand krijgt een e-mail totdat het verzoek is goedgekeurd.","addedListedOnly_other":"{{count}} mensen zijn aan het team toegevoegd. Niemand krijgt een e-mail totdat het verzoek is goedgekeurd."},
+    "team": {
+      "title": "Team (optioneel)",
+      "description": "Voeg de mensen toe die aan deze applicatie werken. Zij ontvangen een uitnodigingsmail met de groep die ze voor toegang moeten aanvragen. U kunt het team later wijzigen.",
+      "descriptionRequest": "Voeg de mensen toe die aan deze applicatie werken. Niemand krijgt een e-mail totdat Keigan-beheerders het verzoek goedkeuren; daarna kunt u ze uitnodigen.",
+      "name": "Naam",
+      "email": "E-mailadres",
+      "role": "Rol",
+      "rowLabel": "Persoon {{number}}",
+      "remove": "Persoon {{number}} verwijderen",
+      "addFirst": "Persoon toevoegen",
+      "addAnother": "Nog een persoon toevoegen",
+      "nameRequired": "Voer een naam in.",
+      "emailRequired": "Voer een e-mailadres in.",
+      "emailInvalid": "Voer een e-mailadres in zoals naam@bedrijf.com.",
+      "emailDuplicate": "Dit adres staat twee keer in de lijst.",
+      "addedInvited_one": "{{count}} persoon is toegevoegd en uitgenodigd.",
+      "addedInvited_other": "{{count}} mensen zijn toegevoegd en uitgenodigd.",
+      "addedListedOnly_one": "{{count}} persoon is aan het team toegevoegd. Niemand krijgt een e-mail totdat het verzoek is goedgekeurd.",
+      "addedListedOnly_other": "{{count}} mensen zijn aan het team toegevoegd. Niemand krijgt een e-mail totdat het verzoek is goedgekeurd."
+    },
     "failed": "De applicatie kon niet worden aangemaakt. Probeer het opnieuw.",
     "createdTitle": "{{name}} is klaar",
     "requestedTitle": "Uw aanvraag is verzonden",
@@ -71,21 +122,87 @@
     "close": "Sluiten",
     "openWorkspace": "Werkruimte openen"
   },
-  "stages": { "connect": "Verbinden", "teach": "Leren", "operate": "Opereren", "launch": "Lanceren" },
-  "requirement": { "required": "Verplicht", "recommended": "Aanbevolen", "optional": "Optioneel", "informational": "Informatie" },
-  "operatingNotes": { "title": "Operationele notities voor de AI", "description": "Een korte notitie van uw team die de AI leest bij elk onderzoek en elke chat over deze applicatie.", "label": "Operationele notities", "helper": "Schrijf op wat telemetrie de AI niet kan vertellen: welke services omzet of gereguleerd verkeer dragen, welke meldingen meestal ruis zijn, hoe normaal eruitziet op een rustige nacht, wie u moet noemen. Het is richtlijn, geen bewijs: de AI moet nog steeds echt bewijs citeren en deze notities wijzigen geen meldingsregels of ruisbeleid. Schrijf geen wachtwoorden of persoonsgegevens op.", "placeholder": "Bijvoorbeeld: Schademelding verwerkt gereguleerd verkeer. De batch van 02:00 belast de database en dat is normaal. Een rustige nacht is ongeveer 40 verzoeken per uur. Noem de dienstdoende manager bij vragen over betalingen.", "empty": "Er zijn nog geen operationele notities geschreven.", "readOnly": "Alleen beheerders van deze applicatie kunnen deze notities bewerken.", "counter": "{{used}} van {{maximum}} tekens", "overLimit": "{{excess}} tekens boven de limiet. Kort de notities in om op te slaan.", "lastEditedBy": "Laatst bewerkt door {{name}}", "neverEdited": "Deze notities zijn nog niet bewerkt.", "save": "Notities opslaan", "discard": "Wijzigingen negeren", "unsaved": "Niet-opgeslagen wijzigingen", "savedTitle": "Notities opgeslagen", "savedBody": "De AI gebruikt ze vanaf het volgende onderzoek of de volgende chat.", "saveFailedTitle": "De notities zijn niet opgeslagen", "saveFailed": "Dat is niet gelukt. Probeer het opnieuw.", "leaveTitle": "Verlaten zonder op te slaan?", "leaveBody": "Uw wijzigingen in de operationele notities gaan verloren.", "leaveConfirm": "Verlaten zonder op te slaan", "leaveStay": "Blijven bewerken" },
+  "stages": {
+    "connect": "Verbinden",
+    "teach": "Leren",
+    "operate": "Opereren",
+    "launch": "Lanceren"
+  },
+  "requirement": {
+    "required": "Verplicht",
+    "recommended": "Aanbevolen",
+    "optional": "Optioneel",
+    "informational": "Informatie"
+  },
+  "operatingNotes": {
+    "title": "Operationele notities voor de AI",
+    "description": "Een korte notitie van uw team die de AI leest bij elk onderzoek en elke chat over deze applicatie.",
+    "label": "Operationele notities",
+    "helper": "Schrijf op wat telemetrie de AI niet kan vertellen: welke services omzet of gereguleerd verkeer dragen, welke meldingen meestal ruis zijn, hoe normaal eruitziet op een rustige nacht, wie u moet noemen. Het is richtlijn, geen bewijs: de AI moet nog steeds echt bewijs citeren en deze notities wijzigen geen meldingsregels of ruisbeleid. Schrijf geen wachtwoorden of persoonsgegevens op.",
+    "placeholder": "Bijvoorbeeld: Schademelding verwerkt gereguleerd verkeer. De batch van 02:00 belast de database en dat is normaal. Een rustige nacht is ongeveer 40 verzoeken per uur. Noem de dienstdoende manager bij vragen over betalingen.",
+    "empty": "Er zijn nog geen operationele notities geschreven.",
+    "readOnly": "Alleen beheerders van deze applicatie kunnen deze notities bewerken.",
+    "counter": "{{used}} van {{maximum}} tekens",
+    "overLimit": "{{excess}} tekens boven de limiet. Kort de notities in om op te slaan.",
+    "lastEditedBy": "Laatst bewerkt door {{name}}",
+    "neverEdited": "Deze notities zijn nog niet bewerkt.",
+    "save": "Notities opslaan",
+    "discard": "Wijzigingen negeren",
+    "unsaved": "Niet-opgeslagen wijzigingen",
+    "savedTitle": "Notities opgeslagen",
+    "savedBody": "De AI gebruikt ze vanaf het volgende onderzoek of de volgende chat.",
+    "saveFailedTitle": "De notities zijn niet opgeslagen",
+    "saveFailed": "Dat is niet gelukt. Probeer het opnieuw.",
+    "leaveTitle": "Verlaten zonder op te slaan?",
+    "leaveBody": "Uw wijzigingen in de operationele notities gaan verloren.",
+    "leaveConfirm": "Verlaten zonder op te slaan",
+    "leaveStay": "Blijven bewerken"
+  },
   "steps": {
-    "components": { "label": "Componenten", "description": "Vertel Keigan waar de applicatie draait: Azure, hardware, mainframe of SaaS." },
-    "services": { "label": "Services", "description": "De eenheden die Keigan bewaakt. Controleer wat is gevonden en voeg de rest toe." },
-    "log_tools": { "label": "Log- en monitoringtools", "description": "Koppel Elastic, Splunk, Datadog en andere tools één keer en hergebruik ze voor meerdere services." },
-    "knowledge": { "label": "Kennisbank", "description": "Laat Copilot de codecontext schrijven en upload die samen met architectuurdiagrammen en handleidingen." },
-    "topology": { "label": "Topologiereview", "description": "Controleer het beeld van Keigan van hoe de services samenhangen. Beoordelen, niet goedkeuren." },
-    "runbooks": { "label": "Runbooks", "description": "Bekende problemen en de gedocumenteerde aanpak van het team, gekoppeld aan toekomstige incidenten." },
-    "incidents": { "label": "Incidenten en meldingen", "description": "Waar incidenten en meldingen voor deze applicatie vandaan komen." },
-    "slo": { "label": "SLO's", "description": "Betrouwbaarheidsdoelen die Keigan meet op basis van de gegevens die het kan lezen." },
-    "notifications": { "label": "Notificaties", "description": "Wie incidenten te horen krijgt, via welk kanaal en in welke taal." },
-    "access": { "label": "Toegang", "description": "De AD-groepen die bepalen wie deze applicatie kan zien en beheren." },
-    "review": { "label": "Controleren en live zetten", "description": "Loop de checklist na en begin met bewaken." }
+    "components": {
+      "label": "Componenten",
+      "description": "Vertel Keigan waar de applicatie draait: Azure, hardware, mainframe of SaaS."
+    },
+    "services": {
+      "label": "Services",
+      "description": "De eenheden die Keigan bewaakt. Controleer wat is gevonden en voeg de rest toe."
+    },
+    "log_tools": {
+      "label": "Log- en monitoringtools",
+      "description": "Koppel Elastic, Splunk, Datadog en andere tools één keer en hergebruik ze voor meerdere services."
+    },
+    "knowledge": {
+      "label": "Kennisbank",
+      "description": "Laat Copilot de codecontext schrijven en upload die samen met architectuurdiagrammen en handleidingen."
+    },
+    "topology": {
+      "label": "Topologiereview",
+      "description": "Controleer het beeld van Keigan van hoe de services samenhangen. Beoordelen, niet goedkeuren."
+    },
+    "runbooks": {
+      "label": "Runbooks",
+      "description": "Bekende problemen en de gedocumenteerde aanpak van het team, gekoppeld aan toekomstige incidenten."
+    },
+    "incidents": {
+      "label": "Incidenten en meldingen",
+      "description": "Waar incidenten en meldingen voor deze applicatie vandaan komen."
+    },
+    "slo": {
+      "label": "SLO's",
+      "description": "Betrouwbaarheidsdoelen die Keigan meet op basis van de gegevens die het kan lezen."
+    },
+    "notifications": {
+      "label": "Notificaties",
+      "description": "Wie incidenten te horen krijgt, via welk kanaal en in welke taal."
+    },
+    "access": {
+      "label": "Toegang",
+      "description": "De AD-groepen die bepalen wie deze applicatie kan zien en beheren."
+    },
+    "review": {
+      "label": "Controleren en live zetten",
+      "description": "Loop de checklist na en begin met bewaken."
+    }
   },
   "readinessNext": {
     "components": "een component verifiëren",
@@ -104,21 +221,37 @@
     "slo": "Minstens één SLO ({{count}})"
   },
   "goodToKnow": {
-    "diagnostic_settings_one": "{{count}} service heeft nog geen diagnostische instelling", "diagnostic_settings_other": "{{count}} services hebben nog geen diagnostische instelling",
+    "diagnostic_settings_one": "{{count}} service heeft nog geen diagnostische instelling",
+    "diagnostic_settings_other": "{{count}} services hebben nog geen diagnostische instelling",
     "diagnostic_settings_done": "Alle gevonden services sturen logs naar een werkruimte",
     "knowledge_documents": "Nog geen kennisdocumenten geüpload",
-    "knowledge_documents_done_one": "{{count}} kennisdocument geüpload", "knowledge_documents_done_other": "{{count}} kennisdocumenten geüpload",
+    "knowledge_documents_done_one": "{{count}} kennisdocument geüpload",
+    "knowledge_documents_done_other": "{{count}} kennisdocumenten geüpload",
     "topology_reviewed": "De topologie is nog niet beoordeeld",
     "topology_reviewed_done": "De topologie is beoordeeld",
     "runbooks": "Nog geen runbooks toegevoegd",
-    "runbooks_done_one": "{{count}} runbook toegevoegd", "runbooks_done_other": "{{count}} runbooks toegevoegd",
-    "placeholder_integrations_one": "{{count}} logtool is opgeslagen, maar de reader is nog niet beschikbaar", "placeholder_integrations_other": "{{count}} logtools zijn opgeslagen, maar hun reader is nog niet beschikbaar",
+    "runbooks_done_one": "{{count}} runbook toegevoegd",
+    "runbooks_done_other": "{{count}} runbooks toegevoegd",
+    "placeholder_integrations_one": "{{count}} logtool is opgeslagen, maar de reader is nog niet beschikbaar",
+    "placeholder_integrations_other": "{{count}} logtools zijn opgeslagen, maar hun reader is nog niet beschikbaar",
     "placeholder_integrations_done": "Alle logtools kunnen worden gelezen",
     "observe_mode": "Meldingsruisreductie staat in de observatiemodus",
     "observe_mode_done": "Meldingsruisreductie is actief"
   },
-  "status": { "not_started": "Niet gestart", "in_progress": "Bezig", "waiting": "Wachtend", "blocked": "Geblokkeerd", "done": "Klaar" },
-  "actions": { "back": "Terug", "continue": "Doorgaan", "goLive": "Live zetten", "pause": "Applicatie pauzeren", "resume": "Applicatie hervatten" },
+  "status": {
+    "not_started": "Niet gestart",
+    "in_progress": "Bezig",
+    "waiting": "Wachtend",
+    "blocked": "Geblokkeerd",
+    "done": "Klaar"
+  },
+  "actions": {
+    "back": "Terug",
+    "continue": "Doorgaan",
+    "goLive": "Live zetten",
+    "pause": "Applicatie pauzeren",
+    "resume": "Applicatie hervatten"
+  },
   "banners": {
     "requestedTitle": "Wachten op een Keigan-beheerder",
     "requestedBody": "Dit onboardingverzoek is verzonden. Een Keigan-beheerder accepteert het en de werkruimte wordt ontgrendeld.",

@@ -7,17 +7,48 @@
   "search": "Buscar por nombre o código",
   "viewTopology": "Ver topología",
   "stepperLabel": "Pasos de incorporación",
-  "view": { "label": "Vista", "grid": "Cuadrícula", "table": "Tabla" },
-  "lifecycle": { "requested": "Solicitada", "draft": "Borrador", "onboarding": "En incorporación", "live": "En producción", "paused": "En pausa" },
+  "view": {
+    "label": "Vista",
+    "grid": "Cuadrícula",
+    "table": "Tabla"
+  },
+  "lifecycle": {
+    "requested": "Solicitada",
+    "draft": "Borrador",
+    "onboarding": "En incorporación",
+    "live": "En producción",
+    "paused": "En pausa"
+  },
   "componentTypes": {
     "azure_resource_group": "Grupo de recursos de Azure",
     "hardware": "Hardware y red",
     "mainframe": "Mainframe",
     "saas_platform": "Plataforma SaaS"
   },
-  "regions": { "JP": "Japón", "AU": "Australia", "US": "Estados Unidos", "NL": "Países Bajos", "FR": "Francia", "ES": "España", "MX": "México", "CN": "China" },
-  "locales": { "en": "English", "ja": "日本語", "zh-CN": "简体中文", "es": "Español", "es-MX": "Español (México)", "nl": "Nederlands", "fr": "Français" },
-  "tiers": { "tier_1": "Nivel 1", "tier_2": "Nivel 2", "tier_3": "Nivel 3" },
+  "regions": {
+    "JP": "Japón",
+    "AU": "Australia",
+    "US": "Estados Unidos",
+    "NL": "Países Bajos",
+    "FR": "Francia",
+    "ES": "España",
+    "MX": "México",
+    "CN": "China"
+  },
+  "locales": {
+    "en": "English",
+    "ja": "日本語",
+    "zh-CN": "简体中文",
+    "es": "Español",
+    "es-MX": "Español (México)",
+    "nl": "Nederlands",
+    "fr": "Français"
+  },
+  "tiers": {
+    "tier_1": "Nivel 1",
+    "tier_2": "Nivel 2",
+    "tier_3": "Nivel 3"
+  },
   "columns": {
     "application": "Aplicación",
     "code": "Código",
@@ -34,7 +65,8 @@
     "slo": "SLO",
     "sloMet": "SLO cumplidos",
     "incidents": "Incidentes",
-    "readiness": "{{done}} de {{total}} obligatorios hechos"
+    "readiness": "{{done}} de {{total}} obligatorios hechos",
+    "runbooksNeedAttention": "{{count}} runbooks necesitan atención"
   },
   "empty": {
     "title": "Aún no hay aplicaciones",
@@ -59,7 +91,26 @@
     "cancel": "Cancelar",
     "submit": "Crear aplicación",
     "requestSubmit": "Enviar solicitud",
-    "team": {"title":"Equipo (opcional)","description":"Añada a las personas que trabajan en esta aplicación. Reciben un correo de invitación que les indica qué grupo solicitar para obtener acceso. Podrá cambiar el equipo más adelante.","descriptionRequest":"Añada a las personas que trabajan en esta aplicación. Nadie recibe correo hasta que los administradores de Keigan acepten la solicitud; podrá invitarlas entonces.","name":"Nombre","email":"Correo electrónico","role":"Rol","rowLabel":"Persona {{number}}","remove":"Quitar a la persona {{number}}","addFirst":"Añadir una persona","addAnother":"Añadir otra persona","nameRequired":"Introduzca un nombre.","emailRequired":"Introduzca un correo electrónico.","emailInvalid":"Introduzca una dirección de correo como nombre@empresa.com.","emailDuplicate":"Esta dirección aparece dos veces.","addedInvited_one":"Se añadió e invitó a {{count}} persona.","addedInvited_other":"Se añadió e invitó a {{count}} personas.","addedListedOnly_one":"Se añadió {{count}} persona al equipo. Nadie recibe correo hasta que se acepte la solicitud.","addedListedOnly_other":"Se añadieron {{count}} personas al equipo. Nadie recibe correo hasta que se acepte la solicitud."},
+    "team": {
+      "title": "Equipo (opcional)",
+      "description": "Añada a las personas que trabajan en esta aplicación. Reciben un correo de invitación que les indica qué grupo solicitar para obtener acceso. Podrá cambiar el equipo más adelante.",
+      "descriptionRequest": "Añada a las personas que trabajan en esta aplicación. Nadie recibe correo hasta que los administradores de Keigan acepten la solicitud; podrá invitarlas entonces.",
+      "name": "Nombre",
+      "email": "Correo electrónico",
+      "role": "Rol",
+      "rowLabel": "Persona {{number}}",
+      "remove": "Quitar a la persona {{number}}",
+      "addFirst": "Añadir una persona",
+      "addAnother": "Añadir otra persona",
+      "nameRequired": "Introduzca un nombre.",
+      "emailRequired": "Introduzca un correo electrónico.",
+      "emailInvalid": "Introduzca una dirección de correo como nombre@empresa.com.",
+      "emailDuplicate": "Esta dirección aparece dos veces.",
+      "addedInvited_one": "Se añadió e invitó a {{count}} persona.",
+      "addedInvited_other": "Se añadió e invitó a {{count}} personas.",
+      "addedListedOnly_one": "Se añadió {{count}} persona al equipo. Nadie recibe correo hasta que se acepte la solicitud.",
+      "addedListedOnly_other": "Se añadieron {{count}} personas al equipo. Nadie recibe correo hasta que se acepte la solicitud."
+    },
     "failed": "No se pudo crear la aplicación. Inténtelo de nuevo.",
     "createdTitle": "{{name}} está lista",
     "requestedTitle": "Su solicitud se ha enviado",
@@ -71,21 +122,87 @@
     "close": "Cerrar",
     "openWorkspace": "Abrir espacio de trabajo"
   },
-  "stages": { "connect": "Conectar", "teach": "Enseñar", "operate": "Operar", "launch": "Lanzar" },
-  "requirement": { "required": "Obligatorio", "recommended": "Recomendado", "optional": "Opcional", "informational": "Informativo" },
-  "operatingNotes": { "title": "Notas operativas para la IA", "description": "Una nota breve de su equipo que la IA lee en cada investigación y chat de esta aplicación.", "label": "Notas operativas", "helper": "Escriba lo que la telemetría no puede decirle a la IA: qué servicios soportan ingresos o tráfico regulado, qué alertas suelen ser ruido, cómo es lo normal en una noche tranquila, a quién mencionar. Es orientación, no evidencia: la IA sigue teniendo que citar evidencia real, y estas notas no cambian las reglas de alertas ni la política de ruido. No escriba contraseñas ni datos personales.", "placeholder": "Por ejemplo: El envío de siniestros soporta tráfico regulado. El proceso por lotes de las 02:00 satura la base de datos y es normal. Una noche tranquila hay unas 40 solicitudes por hora. Mencione al responsable de guardia para consultas de pagos.", "empty": "Todavía nadie ha escrito notas operativas.", "readOnly": "Solo los administradores de esta aplicación pueden editar estas notas.", "counter": "{{used}} de {{maximum}} caracteres", "overLimit": "{{excess}} caracteres por encima del límite. Acorte las notas para guardar.", "lastEditedBy": "Última edición de {{name}}", "neverEdited": "Todavía nadie ha editado estas notas.", "save": "Guardar notas", "discard": "Descartar cambios", "unsaved": "Cambios sin guardar", "savedTitle": "Notas guardadas", "savedBody": "La IA las usa desde la próxima investigación o chat.", "saveFailedTitle": "No se guardaron las notas", "saveFailed": "Eso no funcionó. Inténtelo de nuevo.", "leaveTitle": "¿Salir sin guardar?", "leaveBody": "Se perderán sus cambios en las notas operativas.", "leaveConfirm": "Salir sin guardar", "leaveStay": "Seguir editando" },
+  "stages": {
+    "connect": "Conectar",
+    "teach": "Enseñar",
+    "operate": "Operar",
+    "launch": "Lanzar"
+  },
+  "requirement": {
+    "required": "Obligatorio",
+    "recommended": "Recomendado",
+    "optional": "Opcional",
+    "informational": "Informativo"
+  },
+  "operatingNotes": {
+    "title": "Notas operativas para la IA",
+    "description": "Una nota breve de su equipo que la IA lee en cada investigación y chat de esta aplicación.",
+    "label": "Notas operativas",
+    "helper": "Escriba lo que la telemetría no puede decirle a la IA: qué servicios soportan ingresos o tráfico regulado, qué alertas suelen ser ruido, cómo es lo normal en una noche tranquila, a quién mencionar. Es orientación, no evidencia: la IA sigue teniendo que citar evidencia real, y estas notas no cambian las reglas de alertas ni la política de ruido. No escriba contraseñas ni datos personales.",
+    "placeholder": "Por ejemplo: El envío de siniestros soporta tráfico regulado. El proceso por lotes de las 02:00 satura la base de datos y es normal. Una noche tranquila hay unas 40 solicitudes por hora. Mencione al responsable de guardia para consultas de pagos.",
+    "empty": "Todavía nadie ha escrito notas operativas.",
+    "readOnly": "Solo los administradores de esta aplicación pueden editar estas notas.",
+    "counter": "{{used}} de {{maximum}} caracteres",
+    "overLimit": "{{excess}} caracteres por encima del límite. Acorte las notas para guardar.",
+    "lastEditedBy": "Última edición de {{name}}",
+    "neverEdited": "Todavía nadie ha editado estas notas.",
+    "save": "Guardar notas",
+    "discard": "Descartar cambios",
+    "unsaved": "Cambios sin guardar",
+    "savedTitle": "Notas guardadas",
+    "savedBody": "La IA las usa desde la próxima investigación o chat.",
+    "saveFailedTitle": "No se guardaron las notas",
+    "saveFailed": "Eso no funcionó. Inténtelo de nuevo.",
+    "leaveTitle": "¿Salir sin guardar?",
+    "leaveBody": "Se perderán sus cambios en las notas operativas.",
+    "leaveConfirm": "Salir sin guardar",
+    "leaveStay": "Seguir editando"
+  },
   "steps": {
-    "components": { "label": "Componentes", "description": "Indique a Keigan dónde se ejecuta la aplicación: Azure, hardware, mainframe o SaaS." },
-    "services": { "label": "Servicios", "description": "Las unidades que Keigan monitoriza. Revise lo descubierto y añada el resto." },
-    "log_tools": { "label": "Herramientas de registros y monitorización", "description": "Conecte Elastic, Splunk, Datadog y otras herramientas una vez y reutilícelas en varios servicios." },
-    "knowledge": { "label": "Base de conocimiento", "description": "Deje que Copilot escriba el contexto del código y súbalo junto con diagramas de arquitectura y guías." },
-    "topology": { "label": "Revisión de topología", "description": "Compruebe cómo ve Keigan la conexión entre servicios. Se revisa, no se aprueba." },
-    "runbooks": { "label": "Runbooks", "description": "Problemas conocidos y la respuesta documentada del equipo, que se asocian a incidentes futuros." },
-    "incidents": { "label": "Incidentes y alertas", "description": "De dónde proceden los incidentes y las alertas de esta aplicación." },
-    "slo": { "label": "SLO", "description": "Objetivos de fiabilidad que Keigan mide a partir de los datos que puede leer." },
-    "notifications": { "label": "Notificaciones", "description": "Quién se entera de los incidentes, por qué canal y en qué idioma." },
-    "access": { "label": "Acceso", "description": "Los grupos de AD que controlan quién puede ver y gestionar esta aplicación." },
-    "review": { "label": "Revisar y poner en producción", "description": "Revise la lista de comprobación y empiece a vigilar." }
+    "components": {
+      "label": "Componentes",
+      "description": "Indique a Keigan dónde se ejecuta la aplicación: Azure, hardware, mainframe o SaaS."
+    },
+    "services": {
+      "label": "Servicios",
+      "description": "Las unidades que Keigan monitoriza. Revise lo descubierto y añada el resto."
+    },
+    "log_tools": {
+      "label": "Herramientas de registros y monitorización",
+      "description": "Conecte Elastic, Splunk, Datadog y otras herramientas una vez y reutilícelas en varios servicios."
+    },
+    "knowledge": {
+      "label": "Base de conocimiento",
+      "description": "Deje que Copilot escriba el contexto del código y súbalo junto con diagramas de arquitectura y guías."
+    },
+    "topology": {
+      "label": "Revisión de topología",
+      "description": "Compruebe cómo ve Keigan la conexión entre servicios. Se revisa, no se aprueba."
+    },
+    "runbooks": {
+      "label": "Runbooks",
+      "description": "Problemas conocidos y la respuesta documentada del equipo, que se asocian a incidentes futuros."
+    },
+    "incidents": {
+      "label": "Incidentes y alertas",
+      "description": "De dónde proceden los incidentes y las alertas de esta aplicación."
+    },
+    "slo": {
+      "label": "SLO",
+      "description": "Objetivos de fiabilidad que Keigan mide a partir de los datos que puede leer."
+    },
+    "notifications": {
+      "label": "Notificaciones",
+      "description": "Quién se entera de los incidentes, por qué canal y en qué idioma."
+    },
+    "access": {
+      "label": "Acceso",
+      "description": "Los grupos de AD que controlan quién puede ver y gestionar esta aplicación."
+    },
+    "review": {
+      "label": "Revisar y poner en producción",
+      "description": "Revise la lista de comprobación y empiece a vigilar."
+    }
   },
   "readinessNext": {
     "components": "verificar un componente",
@@ -104,21 +221,37 @@
     "slo": "Al menos un SLO ({{count}})"
   },
   "goodToKnow": {
-    "diagnostic_settings_one": "{{count}} servicio aún no tiene configuración de diagnóstico", "diagnostic_settings_other": "{{count}} servicios aún no tienen configuración de diagnóstico",
+    "diagnostic_settings_one": "{{count}} servicio aún no tiene configuración de diagnóstico",
+    "diagnostic_settings_other": "{{count}} servicios aún no tienen configuración de diagnóstico",
     "diagnostic_settings_done": "Todos los servicios descubiertos envían registros a un espacio de trabajo",
     "knowledge_documents": "Aún no se han subido documentos de conocimiento",
-    "knowledge_documents_done_one": "{{count}} documento de conocimiento subido", "knowledge_documents_done_other": "{{count}} documentos de conocimiento subidos",
+    "knowledge_documents_done_one": "{{count}} documento de conocimiento subido",
+    "knowledge_documents_done_other": "{{count}} documentos de conocimiento subidos",
     "topology_reviewed": "La topología aún no se ha revisado",
     "topology_reviewed_done": "La topología se ha revisado",
     "runbooks": "Aún no se han añadido runbooks",
-    "runbooks_done_one": "{{count}} runbook añadido", "runbooks_done_other": "{{count}} runbooks añadidos",
-    "placeholder_integrations_one": "{{count}} herramienta de registros está guardada, pero su lector aún no está disponible", "placeholder_integrations_other": "{{count}} herramientas de registros están guardadas, pero su lector aún no está disponible",
+    "runbooks_done_one": "{{count}} runbook añadido",
+    "runbooks_done_other": "{{count}} runbooks añadidos",
+    "placeholder_integrations_one": "{{count}} herramienta de registros está guardada, pero su lector aún no está disponible",
+    "placeholder_integrations_other": "{{count}} herramientas de registros están guardadas, pero su lector aún no está disponible",
     "placeholder_integrations_done": "Todas las herramientas de registros se pueden leer",
     "observe_mode": "La reducción de ruido de alertas está en modo Observar",
     "observe_mode_done": "La reducción de ruido de alertas está activa"
   },
-  "status": { "not_started": "Sin iniciar", "in_progress": "En curso", "waiting": "En espera", "blocked": "Bloqueado", "done": "Hecho" },
-  "actions": { "back": "Atrás", "continue": "Continuar", "goLive": "Poner en producción", "pause": "Pausar aplicación", "resume": "Reanudar aplicación" },
+  "status": {
+    "not_started": "Sin iniciar",
+    "in_progress": "En curso",
+    "waiting": "En espera",
+    "blocked": "Bloqueado",
+    "done": "Hecho"
+  },
+  "actions": {
+    "back": "Atrás",
+    "continue": "Continuar",
+    "goLive": "Poner en producción",
+    "pause": "Pausar aplicación",
+    "resume": "Reanudar aplicación"
+  },
   "banners": {
     "requestedTitle": "A la espera de un administrador de Keigan",
     "requestedBody": "Esta solicitud de incorporación se ha enviado. Un administrador de Keigan la aceptará y se desbloqueará el espacio de trabajo.",
