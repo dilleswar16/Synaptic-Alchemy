@@ -77,9 +77,9 @@
         "postmortem_report": 7,
         "action_item": 21,
         "alert_group_affected_service": 14,
-        "incident_memory_key": 129
+        "incident_memory_key": 132
       },
-      "sha256": "a9f1791a6f5500203f756a48e98590c9960118b3086f27cc0104d78de84024d9"
+      "sha256": "36a768090ca938f9c5a6435c5f9449c1af5e6058bec3a09932f8a6803c9132a3"
     },
     "06_intelligence_and_collaboration.sql": {
       "committed": true,
@@ -142,7 +142,7 @@
         "postmortem_report": 7,
         "action_item": 21,
         "alert_group_affected_service": 14,
-        "incident_memory_key": 129,
+        "incident_memory_key": 132,
         "platform_setting": 7,
         "intelligence_report": 4,
         "teams_incident_chat": 1,
@@ -151,7 +151,7 @@
         "conversation_message": 9,
         "predictive_signal": 8
       },
-      "sha256": "6306d3847fde489f7859121a48636194db29d42998fcc33510174ecff02ae0ff"
+      "sha256": "1abf2d1b226b2f547cad73c1af15c2c1f7bbbd015a6d511d3a6bd3adab6f2690"
     },
     "run_all_demo_data.sql": {
       "committed": true,
@@ -167,6 +167,7 @@
     "error_budget_policy_breach",
     "incident_budget_impact",
     "incident_memory_relevance_feedback",
+    "investigation_memory_reference",
     "slo_burn_alert",
     "stakeholder_subscribed_service"
   ],

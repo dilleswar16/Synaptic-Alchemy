@@ -716,6 +716,7 @@
       "failed": "Impossible de le masquer"
     },
     "rejectedTitle": "Déjà marqués incorrects",
-    "rejectedDescription": "Incidents passés aux faits identiques dont l'analyse a été marquée incorrecte par un administrateur. Affichés pour signaler que l'explication précédente a été rejetée, pas pour la réutiliser."
+    "rejectedDescription": "Incidents passés aux faits identiques dont l'analyse a été marquée incorrecte par un administrateur. Affichés pour signaler que l'explication précédente a été rejetée, pas pour la réutiliser.",
+    "givenToAnalysis": "Montré à l'analyse"
   }
 }

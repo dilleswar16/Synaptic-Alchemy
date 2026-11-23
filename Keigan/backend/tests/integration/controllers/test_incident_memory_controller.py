@@ -156,3 +156,15 @@ async def test_a_verdict_a_resolution_and_a_final_postmortem_each_refresh_the_en
     assert feedback.status_code == 200, feedback.text
     await drain_jobs()
     assert (await entry_of(world.investigation_id)).fix_text == "Raised the pool size to 300."  # a verdict rebuilt it
+
+
+async def test_a_suggestion_says_whether_the_ai_was_shown_it(client: httpx.AsyncClient, auth_headers: AuthHeaders, seed_context) -> None:
+    from keigan.entities.incident_memory_entities import InvestigationMemoryReference
+
+    entry_id, current_id, _ = await a_past_and_a_current_incident(seed_context)
+    item = next(item for item in (await similar(client, auth_headers, READER, current_id))["items"] if item["memoryEntryId"] == entry_id)
+    assert item["wasGivenToAnalysis"] is False
+    async with open_session() as session:
+        session.add(InvestigationMemoryReference(investigation_id=current_id, incident_memory_entry_id=entry_id, position=0))
+    item = next(item for item in (await similar(client, auth_headers, READER, current_id))["items"] if item["memoryEntryId"] == entry_id)
+    assert item["wasGivenToAnalysis"] is True

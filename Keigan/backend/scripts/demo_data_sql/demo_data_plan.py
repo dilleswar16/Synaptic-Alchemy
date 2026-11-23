@@ -56,7 +56,7 @@ DEMO_DATA_FILE_DECLARATIONS: tuple[DemoDataFileDeclaration, ...] = (
     DemoDataFileDeclaration(
         "05_incidents_and_investigations.sql",
         "Demo data 5 of 6: incidents, investigations, evidence, postmortems, alert groups (alert groups point at incidents and investigations, so they load after them)",
-        ("incident", "incident_communication", "investigation", "investigation_hypothesis", "investigation_evidence", "investigation_coverage_gap", "investigation_trace_step", "action_item", "investigation_timeline_event", "postmortem_report", "incident_affected_service", "investigation_investigated_service", "investigation_matched_runbook", "alert_group", "alert_group_affected_service", "incident_memory_entry", "incident_memory_key", "incident_memory_relevance_feedback"),
+        ("incident", "incident_communication", "investigation", "investigation_hypothesis", "investigation_evidence", "investigation_coverage_gap", "investigation_trace_step", "action_item", "investigation_timeline_event", "postmortem_report", "incident_affected_service", "investigation_investigated_service", "investigation_matched_runbook", "alert_group", "alert_group_affected_service", "incident_memory_entry", "incident_memory_key", "incident_memory_relevance_feedback", "investigation_memory_reference"),
     ),
     DemoDataFileDeclaration(
         "06_intelligence_and_collaboration.sql",

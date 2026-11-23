@@ -716,6 +716,7 @@
       "failed": "Kon niet worden verborgen"
     },
     "rejectedTitle": "Eerder als onjuist gemarkeerd",
-    "rejectedDescription": "Eerdere incidenten met dezelfde feiten waarvan een beheerder de analyse als onjuist markeerde. Getoond om te weten dat de eerdere verklaring is afgewezen, niet om te hergebruiken."
+    "rejectedDescription": "Eerdere incidenten met dezelfde feiten waarvan een beheerder de analyse als onjuist markeerde. Getoond om te weten dat de eerdere verklaring is afgewezen, niet om te hergebruiken.",
+    "givenToAnalysis": "Getoond aan de analyse"
   }
 }

@@ -9,6 +9,7 @@ from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from keigan.entities.base_entity import AuditColumnsMixin, EntityBase, UtcDateTime, identifier_column, utc_now
+from keigan.entities.linked_ids import OrderedLinkColumns
 from keigan.entities.status_values import (
     IncidentMemoryCauseSource, IncidentMemoryEntryStatus, IncidentMemoryFixSource, IncidentMemoryKeyKind, IncidentMemoryRelevanceVerdict, values_check,
 )
@@ -76,3 +77,14 @@ class IncidentMemoryRelevanceFeedback(EntityBase):
     user_principal_name: Mapped[str] = mapped_column(String(320))
     relevance_verdict: Mapped[str] = mapped_column(String(20))
     recorded_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utc_now)
+
+
+class InvestigationMemoryReference(OrderedLinkColumns, EntityBase):
+    """A remembered incident that was given to an investigation's AI as a hint, in the order it was given. Lets the page say so, and a later review see exactly what the AI was shown."""
+
+    __tablename__ = "investigation_memory_reference"
+    linked_id_attribute = "incident_memory_entry_id"
+
+    investigation_id: Mapped[str] = mapped_column(ForeignKey("investigation.investigation_id", ondelete="CASCADE"), primary_key=True)
+    # NO ACTION: the investigation cascades from its application too, and SQL Server allows one cascade path; deleting an entry releases these rows first.
+    incident_memory_entry_id: Mapped[str] = mapped_column(ForeignKey("incident_memory_entry.incident_memory_entry_id"), primary_key=True, index=True)

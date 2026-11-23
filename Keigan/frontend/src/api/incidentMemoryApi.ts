@@ -41,6 +41,8 @@ export interface SimilarIncident {
   matchReasons: MatchReason[];
   /** An admin marked that past analysis incorrect: listed apart and labelled. */
   isRejected: boolean;
+  /** The AI's hypotheses were shown this past incident as a hint. */
+  wasGivenToAnalysis: boolean;
   isStale: boolean;
   staleReasons: MemoryStaleReason[];
   myRelevanceVerdict: MemoryRelevanceVerdict | null;

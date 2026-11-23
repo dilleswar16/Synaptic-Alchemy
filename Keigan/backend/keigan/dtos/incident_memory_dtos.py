@@ -37,6 +37,7 @@ class SimilarIncidentDto(ApiModel):
     fix_source: str
     match_reasons: list[MatchReasonDto] = Field(default_factory=list)
     is_rejected: bool = False  # an admin marked that past analysis incorrect: listed apart, labelled
+    was_given_to_analysis: bool = False  # the AI's hypotheses were shown this past incident as a hint
     is_stale: bool = False
     stale_reasons: list[str] = Field(default_factory=list)
     my_relevance_verdict: str | None = None

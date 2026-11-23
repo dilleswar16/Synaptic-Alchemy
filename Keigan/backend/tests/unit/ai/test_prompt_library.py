@@ -33,7 +33,7 @@ def test_application_names_are_cut_to_a_sensible_length() -> None:
 def test_the_three_hypothesis_prompts_share_one_body(prompt_key: str) -> None:
     rendered = LIBRARY.render(prompt_key, application_name="Claims", criticality_tier="tier_1", **HYPOTHESIS_THRESHOLDS)
     assert "Confidence calibration (be strict)" in rendered
-    assert "Recurring issues" in rendered  # the shared body explains every section that is passed
+    assert "Similar past incidents" in rendered  # the shared body explains every section that is passed
 
 
 @pytest.mark.parametrize("prompt_key", HYPOTHESIS_KEYS)

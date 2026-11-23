@@ -19,7 +19,7 @@ from typing import Annotated, Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.fix_command_check import check_suggested_command, command_warnings
@@ -32,6 +32,7 @@ from keigan.ai.investigation_ai_caller import InvestigationAiCaller, build_mock_
 from keigan.ai.investigation_ai_schemas import AdditionalQueryPlan, BlastRadiusNarrative, HypothesisResult, RcaSynthesisResult, TriageResult
 from keigan.ai.investigation_mock_responses import MockInvestigationContext, MockServiceInfo
 from keigan.ai.investigation_outcome_rules import EvidenceFacts, StateThresholds, decide_hypothesis_state, decide_outcome
+from keigan.ai.incident_memory_prompt import PromptMemory, build_memory_section
 from keigan.ai.llm_gateway import PromptSection
 from keigan.ai.operating_notes_prompt import build_operating_notes_section
 from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
@@ -40,6 +41,7 @@ from keigan.config import application_context
 from keigan.config.settings import get_settings
 from keigan.entities.alert_entities import Alert, AlertGroup
 from keigan.entities.application_entities import Application, MonitoredService, ServiceDependency
+from keigan.entities.incident_memory_entities import InvestigationMemoryReference
 from keigan.entities.incident_entities import Incident, Investigation, InvestigationEvidence, InvestigationHypothesis, InvestigationTimelineEvent
 from keigan.entities.notification_entities import Stakeholder
 from keigan.entities.platform_entities import LlmUsageRecord
@@ -52,7 +54,8 @@ from keigan.integrations.simulation.simulation_scenarios import SCENARIO_CATALOG
 from keigan.services.evidence_service import EvidenceDraft, EvidenceService, ServiceTelemetryContext
 from keigan.services.incident_priority_rules import map_servicenow_priority, most_severe_priority
 from keigan.services.audit_service import AuditService
-from keigan.services.incident_memory_builder import enqueue_memory_refresh
+from keigan.services.incident_memory_builder import enqueue_memory_refresh, load_investigation_facts
+from keigan.services.incident_memory_retriever import CurrentInvestigation, StructuredKeywordRetriever
 from keigan.services.investigation_coverage import CoverageGapCollector
 from keigan.services.investigation_trace_adjustments import hypothesis_adjustments, synthesis_adjustments
 from keigan.services.investigation_trace_recorder import InvestigationTraceRecorder
@@ -103,7 +106,7 @@ class InvestigationGraphRunner:
         self.knowledge_contains_flagged_content = False
         self.operating_notes_section: PromptSection | None = None  # the team's guidance for the AI: untrusted, masked, never evidence; None when the team wrote none
         self.runbook_matches: list[Any] = []
-        self.recurring_issues_markdown = ""
+        self.memory_section = build_memory_section([], self.masker).section  # replaced after the evidence is stored (spec 34, 4.5)
         self.evidence_drafts: list[EvidenceDraft] = []
         self.evidence_rows: list[InvestigationEvidence] = []
         self.hypothesis_rows: list[InvestigationHypothesis] = []
@@ -353,14 +356,6 @@ class InvestigationGraphRunner:
             self.knowledge_markdown, self.runbook_matches = "", []
             self.knowledge_reference_codes, self.knowledge_contains_flagged_content = set(), False
         self.operating_notes_section = build_operating_notes_section(self.application.operating_notes_text, self.masker)
-        previous = (
-            await self.session.scalars(
-                select(Investigation).where(
-                    Investigation.application_id == self.application.application_id, Investigation.user_feedback_verdict == InvestigationFeedbackVerdict.CORRECT, Investigation.investigation_id != self.investigation.investigation_id
-                ).order_by(Investigation.completed_at.desc()).limit(3)
-            )
-        ).all()
-        self.recurring_issues_markdown = "\n".join(f"- Confirmed earlier: {truncate_text(investigation.executive_summary, 300)}" for investigation in previous if investigation.executive_summary)
         self.service_contexts = await self.evidence_service.load_service_contexts(self.services)
         self.resource_group_by_service_id = {context.service.service_id: context.component.azure_resource_group_name for context in self.service_contexts if context.component and context.component.azure_resource_group_name}
         if self.mock_context:
@@ -437,6 +432,7 @@ class InvestigationGraphRunner:
         })
         self.investigation.replace_linked_ids("matched_runbook_links", [])
         await self._refine_runbook_matches()
+        await self._remember_similar_incidents()
         if self.mock_context:
             names_by_id = {service.service_id: service.service_name for service in self.all_services}
             self.mock_context.evidence = [
@@ -450,6 +446,36 @@ class InvestigationGraphRunner:
         else:
             await self._update_progress("hypotheses", "Three analysts (application, dependencies, infrastructure) are forming hypotheses in parallel", STAGE_PERCENT["hypotheses"])
         return {"evidence_only": self.evidence_only}
+
+    async def _remember_similar_incidents(self) -> None:
+        """The confirmed past incidents of this application that look like this one, as a hint for the hypotheses (spec 34, 4.5). It runs as the system, so it never reaches into another
+        application (decision M4), and only investigations an admin confirmed (M5). It needs the evidence just stored, which is why it is not part of the context stage. A failure here must never
+        stop an investigation: it then has no hint."""
+        maximum = self.settings.incident_memory_maximum_in_prompt
+        if maximum <= 0:
+            return
+        try:
+            found = await StructuredKeywordRetriever(self.session, self.settings).find(
+                CurrentInvestigation(self.investigation.investigation_id, await load_investigation_facts(self.session, self.investigation)), {self.application.application_id}
+            )
+            confirmed = [item for item in found if item.verdict == InvestigationFeedbackVerdict.CORRECT and not item.match.is_rejected][:maximum]
+            memory = build_memory_section(
+                [
+                    PromptMemory(
+                        item.entry.incident_memory_entry_id, item.match.age_days, item.verdict, [reason.kind for reason in item.match.reasons], item.match.is_stale, item.entry.cause_text, item.entry.fix_text,
+                    )
+                    for item in confirmed
+                ],
+                self.masker,
+            )
+        except Exception as memory_error:  # noqa: BLE001 — guarded cross-slice call
+            logger.warning("Similar past incidents not available: %s", memory_error)
+            return
+        self.memory_section = memory.section
+        await self.session.execute(delete(InvestigationMemoryReference).where(InvestigationMemoryReference.investigation_id == self.investigation.investigation_id))
+        for position, entry_id in enumerate(memory.given_entry_ids):
+            self.session.add(InvestigationMemoryReference(investigation_id=self.investigation.investigation_id, incident_memory_entry_id=entry_id, position=position))
+        await self.session.flush()
 
     # ── Stage 4: hypotheses (three perspectives in parallel) ───────────────────
     async def _refine_runbook_matches(self) -> None:
@@ -482,7 +508,7 @@ class InvestigationGraphRunner:
                 self._knowledge_section(),
                 *self._operating_notes_sections(),
                 PromptSection("Known issues (runbooks)", runbook_text, is_untrusted=True, source_label="runbooks"),
-                PromptSection("Recurring issues confirmed in the past", self.recurring_issues_markdown or "None recorded.", is_untrusted=True, source_label="earlier investigations"),
+                self.memory_section,
                 PromptSection("Incident", f"{self.incident_text}\n\nTriage summary: {self.triage.incident_summary if self.triage else ''}", is_untrusted=True, source_label="incident"),
                 PromptSection("What Keigan could not check", self.coverage.render_for_prompt()),  # trusted: written by code from catalogue names and fixed sentences
                 PromptSection("Evidence index", EvidenceService.render_evidence_markdown(self.evidence_rows, service_names_by_id), is_untrusted=True, source_label="telemetry evidence", maximum_characters=60_000),

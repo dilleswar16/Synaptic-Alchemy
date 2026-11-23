@@ -40,6 +40,7 @@ function MatchRow({ match, investigationId, onHide }: { match: SimilarIncident; 
         {match.isSameApplication ? null : <span className="text-caption text-muted">{match.application.applicationName}</span>}
         <RelativeTime value={match.occurredAt} className="text-caption text-muted" />
         <TrustChip verdict={match.verdict} />
+        {match.wasGivenToAnalysis ? <StatusChip size="sm" tone="ai" variant="outline">{t("similarIncidents.givenToAnalysis")}</StatusChip> : null}
         {match.isStale ? <StatusChip size="sm" tone="warning" variant="outline" title={match.staleReasons.map((reason) => t(`similarIncidents.stale.${reason}`)).join(" ")}>{t("similarIncidents.mayBeOutOfDate")}</StatusChip> : null}
       </div>
       {wasMarkedIncorrect ? (
