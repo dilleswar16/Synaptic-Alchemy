@@ -27,6 +27,7 @@ from keigan.security.current_user import CurrentUser
 from keigan.services import alert_rules
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
+from keigan.services.burn_rate_policy import policy_for
 from keigan.services.reference_release import release_references
 from keigan.services.sli_measurement_reader import SliMeasurementReader, SliSample, validate_custom_sli_query
 from keigan.utils.query_safety import QueryRejectedError
@@ -35,7 +36,6 @@ from keigan.utils.time_utils import floor_to_interval
 
 logger = logging.getLogger(__name__)
 SAMPLE_INTERVAL_MINUTES = 5
-PAGE_BURN_RATE, TICKET_BURN_RATE = 14.4, 6.0
 MINIMUM_EVENTS_IN_LONG_WINDOW = 50  # low-volume SLIs (synthetic probes, batch) need enough events before a burn rate means anything
 INSERT_CHUNK_SIZE = 800
 
@@ -131,17 +131,12 @@ class SloService:
             anchor = sli.last_collected_window_start
             if anchor is None:
                 continue
-            rates = {
-                name: await self._burn_rate_for(sli.sli_id, slo.target_percentage, anchor, window, minimum_event_count)
-                for name, window, minimum_event_count in (
-                    ("5m", timedelta(minutes=5), 0), ("30m", timedelta(minutes=30), 0),
-                    ("1h", timedelta(hours=1), MINIMUM_EVENTS_IN_LONG_WINDOW), ("6h", timedelta(hours=6), MINIMUM_EVENTS_IN_LONG_WINDOW),
-                )
-            }
-            conditions = {
-                "page": (rates["1h"], rates["5m"], rates["1h"] is not None and rates["5m"] is not None and rates["1h"] > PAGE_BURN_RATE and rates["5m"] > PAGE_BURN_RATE),
-                "ticket": (rates["6h"], rates["30m"], rates["6h"] is not None and rates["30m"] is not None and rates["6h"] > TICKET_BURN_RATE and rates["30m"] > TICKET_BURN_RATE),
-            }
+            conditions: dict[str, tuple[float | None, float | None, bool]] = {}
+            for severity in ("page", "ticket"):
+                policy = policy_for(slo.burn_rate_policy_json, severity)  # the SLO's own thresholds and windows; the default pair when it has none or they are unusable
+                long_rate = await self._burn_rate_for(sli.sli_id, slo.target_percentage, anchor, policy.long_window, MINIMUM_EVENTS_IN_LONG_WINDOW)
+                short_rate = await self._burn_rate_for(sli.sli_id, slo.target_percentage, anchor, policy.short_window, 0)
+                conditions[severity] = (long_rate, short_rate, long_rate is not None and short_rate is not None and long_rate > policy.burn_rate and short_rate > policy.burn_rate)
             for severity, (long_rate, short_rate, is_burning) in conditions.items():
                 open_alert = await self.session.scalar(select(SloBurnAlert).where(SloBurnAlert.slo_id == slo.slo_id, SloBurnAlert.burn_alert_severity == severity, SloBurnAlert.resolved_at.is_(None)).limit(1))
                 if is_burning and open_alert is None:

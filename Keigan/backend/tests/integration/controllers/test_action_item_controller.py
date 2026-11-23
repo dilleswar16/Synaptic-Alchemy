@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 import httpx
 import pytest
@@ -239,3 +239,48 @@ async def test_the_overview_refuses_a_period_outside_the_limits_and_shows_an_out
     empty = await client.get("/api/action-items/overview", params={"applicationIds": application_id}, headers=await auth_headers(OUTSIDER))
     assert empty.status_code == 200 and empty.json()["byApplication"] == [] and empty.json()["needsAttention"] == []
     assert (await client.get("/api/action-items/overview")).status_code == 401
+
+
+# ── Accept all (roadmap C1 gap) ────────────────────────────────────────────────────────────────
+
+
+async def add_suggestion_due(postmortem_id: str, due_on: date | None, title: str) -> str:
+    async with open_session() as session:
+        postmortem = await session.get(PostmortemReport, postmortem_id)
+        incident = await session.get(Incident, postmortem.incident_id)
+        item = ActionItem(
+            application_id=incident.application_id, incident_id=incident.incident_id, postmortem_id=postmortem_id, item_source_kind="postmortem", item_title=title, action_type="mitigate",
+            item_status=ActionItemStatus.PROPOSED, due_on=due_on, display_order=98,
+        )
+        session.add(item)
+        await session.flush()
+        return item.action_item_id
+
+
+async def test_accept_all_opens_every_suggestion_of_a_postmortem_and_an_admin_only_may(client: httpx.AsyncClient, auth_headers: AuthHeaders, resolved_incident_id: str) -> None:
+    postmortem_id = await draft_postmortem(client, auth_headers, resolved_incident_id)
+    suggested = (await client.get(f"/api/postmortems/{postmortem_id}/action-items", headers=await auth_headers(APP_ADMIN))).json()
+    assert (await client.post(f"/api/postmortems/{postmortem_id}/action-items/accept-all", headers=await auth_headers(READER))).status_code == 403
+    response = await client.post(f"/api/postmortems/{postmortem_id}/action-items/accept-all", headers=await auth_headers(APP_ADMIN))
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert {item["actionItemId"] for item in body["accepted"]} == {item["actionItemId"] for item in suggested} and body["skipped"] == []
+    assert {item["itemStatus"] for item in body["accepted"]} == {"open"} and all(item["acceptedAt"] for item in body["accepted"])
+    again = (await client.post(f"/api/postmortems/{postmortem_id}/action-items/accept-all", headers=await auth_headers(APP_ADMIN))).json()
+    assert again == {"accepted": [], "skipped": []}
+
+
+async def test_accept_all_skips_a_suggestion_whose_due_date_cannot_be_accepted_and_says_why(client: httpx.AsyncClient, auth_headers: AuthHeaders, resolved_incident_id: str) -> None:
+    postmortem_id = await draft_postmortem(client, auth_headers, resolved_incident_id)
+    undated = await add_suggestion_due(postmortem_id, None, "No date yet")
+    past = await add_suggestion_due(postmortem_id, utc_now().date() - timedelta(days=3), "Date already passed")
+    body = (await client.post(f"/api/postmortems/{postmortem_id}/action-items/accept-all", headers=await auth_headers(APP_ADMIN))).json()
+    assert {(entry["actionItemId"], entry["reason"]) for entry in body["skipped"]} == {(undated, "no_due_date"), (past, "due_date_not_allowed")}
+    assert {entry["itemTitle"] for entry in body["skipped"]} == {"No date yet", "Date already passed"} and body["accepted"]
+    still = {item["actionItemId"]: item["itemStatus"] for item in (await client.get(f"/api/postmortems/{postmortem_id}/action-items", headers=await auth_headers(APP_ADMIN))).json()}
+    assert still[undated] == "proposed" and still[past] == "proposed"
+
+
+async def test_accept_all_on_an_unknown_postmortem_is_not_found(client: httpx.AsyncClient, auth_headers: AuthHeaders) -> None:
+    response = await client.post("/api/postmortems/no-such-postmortem/action-items/accept-all", headers=await auth_headers(APP_ADMIN))
+    assert response.status_code == 404 and "postmortem was not found" in response.text

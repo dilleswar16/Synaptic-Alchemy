@@ -81,7 +81,10 @@
     "description": "此次事后复盘的跟进事项。请接受团队承诺要做的事项，报告中的表格会随之更新。",
     "finalDescription": "此次事后复盘的跟进事项，将持续跟踪直至完成。",
     "suggestedTitle_other": "有 {{count}} 条建议的行动项在等待处理",
-    "suggestedBody": "确定事后复盘之前，请接受或丢弃每一条建议。"
+    "suggestedBody": "确定事后复盘之前，请接受或丢弃每一条建议。",
+    "acceptAll_other": "接受全部 {{count}} 条建议",
+    "skippedTitle_other": "{{count}} 条建议需要你处理",
+    "skipReason": { "no_due_date": "没有截止日期。请打开并选择一个。", "due_date_not_allowed": "截止日期已过或过于遥远。请打开并修改。" }
   },
   "overview": {
     "period": "时间范围",

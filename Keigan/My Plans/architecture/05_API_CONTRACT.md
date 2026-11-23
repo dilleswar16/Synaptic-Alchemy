@@ -121,6 +121,7 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | GET | `/postmortems/{postmortemId}/action-items` | the postmortem's items in order, suggested ones included |
 | POST | `/applications/{applicationId}/action-items` | 201; application admin; a manual item starts open |
 | PATCH | `/action-items/{actionItemId}` | admin changes any field (a moved due date is counted); the owner may change `itemDetailsMarkdown` only |
+| POST | `/postmortems/{postmortemId}/action-items/accept-all` | admin; accepts every suggestion of the postmortem that has an acceptable due date, each as a single accept would; returns `{accepted: ActionItem[], skipped: [{actionItemId, itemTitle, reason}]}` with `reason` `no_due_date` or `due_date_not_allowed`; 404 for an unknown postmortem |
 | POST | `/action-items/{actionItemId}/accept` | admin; optional field edits applied first; a suggestion becomes open and its due date must be today or later |
 | POST | `/action-items/{actionItemId}/status` | `{status, reasonText?, completionNoteText?}`; admin or owner per the transition table; blocked and won't do need a reason; 422 says what is refused |
 | DELETE | `/action-items/{actionItemId}` | 204; admin; a suggestion only (a tracked item closes as won't do) |

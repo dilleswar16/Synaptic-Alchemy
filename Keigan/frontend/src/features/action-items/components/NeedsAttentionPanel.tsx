@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { Link } from "react-router";
-import { CircleCheckBig } from "lucide-react";
+import { CircleCheckBig, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { AttentionEntry, AttentionKind } from "@/api/actionItemsApi";
+import { type AttentionEntry, type AttentionKind, useCreateActionItem } from "@/api/actionItemsApi";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { useAccessControl } from "@/auth/accessControl";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { formatNumber } from "@/utils/formatters";
+import { ActionItemDialog } from "./ActionItemDialog";
 
 /** The order the groups appear in: the most urgent first (the server already sorts the entries inside each group). */
 const kindOrder: AttentionKind[] = ["overdue_item", "top_priority_unowned", "policy_breach_open", "postmortem_missing", "proposed_waiting"];
@@ -46,6 +50,29 @@ function EntryDetails({ entry }: { entry: AttentionEntry }) {
   }
 }
 
+/** The error budget policy asks for a top-priority prevent item: this adds it, linked to the incident when the breach has one. Only people who may edit the application see it. */
+function AddTopPriorityItem({ entry }: { entry: AttentionEntry }) {
+  const { t } = useTranslation("errorBudgetPolicy");
+  const { canEdit } = useAccessControl();
+  const create = useCreateActionItem();
+  const [isAdding, setIsAdding] = useState(false);
+  const incidentId = typeof entry.parameters.incidentId === "string" && entry.parameters.incidentId ? entry.parameters.incidentId : null;
+  if (!canEdit(entry.applicationId)) return null;
+  return (
+    <>
+      <Button size="sm" variant="secondary" leadingIcon={Plus} onClick={() => setIsAdding(true)}>{t("banner.addItem")}</Button>
+      <ActionItemDialog
+        open={isAdding}
+        onOpenChange={setIsAdding}
+        mode="create"
+        applicationId={entry.applicationId}
+        preset={{ actionType: "prevent", actionPriority: "top" }}
+        onSubmit={async (fields) => { await create.mutateAsync({ applicationId: entry.applicationId, body: { ...fields, ...(incidentId ? { incidentId } : {}) } }); }}
+      />
+    </>
+  );
+}
+
 /** What a team should look at now, grouped by kind. Names applications and records, never people. */
 export function NeedsAttentionPanel({ entries, showApplication }: { entries: AttentionEntry[]; showApplication: boolean }) {
   const { t } = useTranslation("actionItems");
@@ -70,7 +97,7 @@ export function NeedsAttentionPanel({ entries, showApplication }: { entries: Att
                       {incidentPath ? <Link to={incidentPath} className="font-semibold text-default hover:text-action">{entry.title}</Link> : <p className="font-semibold text-default">{entry.title}</p>}
                       {showApplication ? <p className="text-caption text-muted">{entry.applicationName}</p> : null}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2"><EntryDetails entry={entry} /></div>
+                    <div className="flex flex-wrap items-center gap-2"><EntryDetails entry={entry} />{entry.kind === "policy_breach_open" ? <AddTopPriorityItem entry={entry} /> : null}</div>
                   </li>
                 );
               })}

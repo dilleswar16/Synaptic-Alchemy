@@ -16,7 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
 from keigan.config.settings import Settings, get_settings
-from keigan.dtos.action_item_dtos import ActionItemCreateRequest, ActionItemDto, ActionItemOwnerDto, ActionItemStatusRequest, ActionItemUpdateRequest
+from keigan.dtos.action_item_dtos import (
+    AcceptAllActionItemsResponse, ActionItemCreateRequest, ActionItemDto, ActionItemOwnerDto, ActionItemStatusRequest, ActionItemUpdateRequest, SkippedActionItemDto,
+)
 from keigan.dtos.common_dtos import PagedResult
 from keigan.entities.action_item_entities import ActionItem
 from keigan.entities.application_entities import Application
@@ -26,7 +28,7 @@ from keigan.entities.status_values import ActionItemPriority, ActionItemSource, 
 from keigan.exceptions.keigan_exceptions import BusinessValidationException, ForbiddenException, NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.action_item_rules import (
-    CLOSED_STATUSES, ActionItemRuleError, Actor, can_transition, days_overdue, is_overdue, local_today, validate_due_date, validate_reason,
+    CLOSED_STATUSES, AcceptAllSkipReason, ActionItemRuleError, Actor, can_transition, days_overdue, is_overdue, local_today, validate_due_date, validate_reason,
 )
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
@@ -143,6 +145,33 @@ class ActionItemService:
         await self._audit(current_user, "action_item.accept", item, {"dueOn": item.due_on.isoformat()})
         await on_action_items_changed(self.session, item.incident_id)
         return (await self._dtos(current_user, [item]))[0]
+
+    async def accept_all(self, current_user: CurrentUser, postmortem_id: str) -> AcceptAllActionItemsResponse:
+        """Accepts every suggestion of a postmortem that has an acceptable due date, each exactly as ``accept`` would (so each is audited and counts for the policy). A suggestion that cannot be accepted as it is stays suggested and is reported with the reason. Application admins only."""
+        postmortem = await self.session.get(PostmortemReport, postmortem_id)
+        incident = await self.session.get(Incident, postmortem.incident_id) if postmortem else None
+        if postmortem is None or incident is None:
+            raise NotFoundException("The postmortem was not found.")
+        await self.authorization.ensure_application_admin(current_user, incident.application_id)
+        suggestions = list((await self.session.scalars(select(ActionItem).where(
+            ActionItem.postmortem_id == postmortem_id, ActionItem.item_status == ActionItemStatus.PROPOSED).order_by(ActionItem.display_order, ActionItem.created_at))).all())
+        today = local_today((await self._application(incident.application_id)).time_zone_name, utc_now())
+        accepted: list[ActionItemDto] = []
+        skipped: list[SkippedActionItemDto] = []
+        for item in suggestions:
+            reason = None
+            if item.due_on is None:
+                reason = AcceptAllSkipReason.NO_DUE_DATE
+            else:
+                try:
+                    self._valid_due_date(item.due_on, today)
+                except BusinessValidationException:
+                    reason = AcceptAllSkipReason.DUE_DATE_NOT_ALLOWED
+            if reason is not None:
+                skipped.append(SkippedActionItemDto(action_item_id=item.action_item_id, item_title=item.item_title, reason=reason))
+                continue
+            accepted.append(await self.accept(current_user, item.action_item_id))
+        return AcceptAllActionItemsResponse(accepted=accepted, skipped=skipped)
 
     async def change_status(self, current_user: CurrentUser, action_item_id: str, request: ActionItemStatusRequest) -> ActionItemDto:
         item = await self._load(action_item_id)

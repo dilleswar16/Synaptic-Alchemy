@@ -510,3 +510,10 @@ Decisions: **open and overdue are counted over every unfinished tracked item**, 
 Tests: `tests/unit/services/test_action_item_overview_rules.py` (16), `tests/integration/services/test_action_item_overview_service.py` (15: figures, access, no people in the response, each attention kind, the four repeat outcomes, the window), two controller tests, `tests/unit/services/test_weekly_review_lines.py` (3: the digest names each open requirement).
 Also changed: the weekly digest's Markdown and the facts for the narration now name each open policy requirement (doc 31). The demo-data generator and the test configuration now pin the model names and an empty key, because the seed stores model names in its decision traces and a developer's `.env` changed the committed SQL.
 Not built: an item or breach card linking straight to the item (they link to the incident search); the "Add top-priority item" button on a class breach; translated category names; demo data for repeats; not seen in a browser.
+
+
+### 12.2 Gap fixes (2026-11-24)
+
+Accept all (`ActionItemService.accept_all`, `AcceptAllSkipReason`): application admins only; every suggestion of the postmortem with an acceptable due date is accepted through the same `accept` as a single accept (so each is audited and each recomputes the policy); the rest stay suggested and come back with a reason that the screen translates. The postmortem panel shows the button and, after it, the list of suggestions left for the person. Running it again accepts nothing.
+The "Add top-priority item" button now also appears on each open policy requirement in the Needs attention tab (reusing the SLO page's wording and the same dialog preset, linked to the incident when the requirement has one).
+Still not built: an entry that links straight to the item (an item has no page of its own; the entry links to the incident search); translated category names; demo data for repeats; ServiceNow link and write-back (D1).

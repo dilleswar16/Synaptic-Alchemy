@@ -139,6 +139,12 @@ export const useAcceptActionItem = () =>
   useActionItemMutation((variables: { actionItemId: string; body?: ActionItemFields }) => apiPost<ActionItem, ActionItemFields | undefined>(`/action-items/${variables.actionItemId}/accept`, variables.body));
 export const useChangeActionItemStatus = () =>
   useActionItemMutation((variables: { actionItemId: string; body: ActionItemStatusBody }) => apiPost<ActionItem, ActionItemStatusBody>(`/action-items/${variables.actionItemId}/status`, variables.body));
+/** What "accept all" did: the items now tracked, and the suggestions left for a person (with why). */
+export interface AcceptAllResult {
+  accepted: ActionItem[];
+  skipped: Array<{ actionItemId: Identifier; itemTitle: string; reason: "no_due_date" | "due_date_not_allowed" }>;
+}
+export const useAcceptAllActionItems = () => useActionItemMutation((postmortemId: string) => apiPost<AcceptAllResult, undefined>(`/postmortems/${postmortemId}/action-items/accept-all`, undefined));
 export const useDiscardActionItem = () => useActionItemMutation((actionItemId: string) => apiDelete(`/action-items/${actionItemId}`));
 
 /* ── Overview (spec 29, 4.4): counts per application, never a ranking of people ──────────── */

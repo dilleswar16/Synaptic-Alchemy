@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, Query, Response
 
 from keigan.config.database_config import provide
 from keigan.controllers.incident_controller import split_values
-from keigan.dtos.action_item_dtos import ActionItemCreateRequest, ActionItemDto, ActionItemOverviewResponse, ActionItemStatusRequest, ActionItemUpdateRequest
+from keigan.dtos.action_item_dtos import (
+    AcceptAllActionItemsResponse, ActionItemCreateRequest, ActionItemDto, ActionItemOverviewResponse, ActionItemStatusRequest, ActionItemUpdateRequest,
+)
 from keigan.dtos.common_dtos import PagedResult
 from keigan.security.current_user import CurrentUser, get_current_user, require_application_admin
 from keigan.services.action_item_overview_service import ActionItemOverviewService
@@ -82,6 +84,14 @@ async def accept_action_item(
 ) -> ActionItemDto:
     """Accepts an AI suggestion (optionally with edits made in the same step): it becomes open and tracked. Application admins only."""
     return await action_item_service.accept(current_user, action_item_id, request)
+
+
+@router.post("/postmortems/{postmortem_id}/action-items/accept-all", response_model=AcceptAllActionItemsResponse, response_model_by_alias=True)
+async def accept_all_action_items(
+    postmortem_id: str, current_user: CurrentUser = Depends(get_current_user), action_item_service: ActionItemService = Depends(provide(ActionItemService)),
+) -> AcceptAllActionItemsResponse:
+    """Accepts every suggestion of the postmortem that has an acceptable due date; the others stay suggested and are listed with the reason. Application admins only."""
+    return await action_item_service.accept_all(current_user, postmortem_id)
 
 
 @router.post("/action-items/{action_item_id}/status", response_model=ActionItemDto, response_model_by_alias=True)

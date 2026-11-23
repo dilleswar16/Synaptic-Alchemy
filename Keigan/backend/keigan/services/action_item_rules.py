@@ -99,6 +99,13 @@ def proposed_due_on(base_moment: datetime, due_in_days: int, time_zone_name: str
     return local_today(time_zone_name, base_moment) + timedelta(days=days)
 
 
+class AcceptAllSkipReason(StrEnum):
+    """Why "accept all" left a suggestion for a person to look at (the screen translates these)."""
+
+    NO_DUE_DATE = "no_due_date"
+    DUE_DATE_NOT_ALLOWED = "due_date_not_allowed"  # in the past, or further out than the maximum
+
+
 class ReminderKind(StrEnum):
     DUE_SOON = "due_soon"
     OVERDUE = "overdue"

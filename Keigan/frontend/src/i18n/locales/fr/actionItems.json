@@ -84,7 +84,12 @@
     "finalDescription": "Les suites de ce postmortem. Elles sont suivies jusqu'à leur achèvement.",
     "suggestedTitle_one": "{{count}} action suggérée attend une décision",
     "suggestedTitle_other": "{{count}} actions suggérées attendent une décision",
-    "suggestedBody": "Acceptez ou écartez chaque suggestion avant de finaliser le postmortem."
+    "suggestedBody": "Acceptez ou écartez chaque suggestion avant de finaliser le postmortem.",
+    "acceptAll_one": "Accepter la suggestion",
+    "acceptAll_other": "Accepter les {{count}} suggestions",
+    "skippedTitle_one": "1 suggestion vous est laissée",
+    "skippedTitle_other": "{{count}} suggestions vous sont laissées",
+    "skipReason": { "no_due_date": "Elle n’a pas d’échéance. Ouvrez-la et choisissez-en une.", "due_date_not_allowed": "Son échéance est passée ou trop lointaine. Ouvrez-la et modifiez-la." }
   },
   "overview": {
     "period": "Période",

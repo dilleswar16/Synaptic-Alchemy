@@ -81,7 +81,10 @@
     "description": "このポストモーテムのフォローアップです。チームが実行すると決めたものを承認してください。レポートの表はそれに従います。",
     "finalDescription": "このポストモーテムのフォローアップです。完了するまで追跡されます。",
     "suggestedTitle_other": "提案されたアクションアイテムが {{count}} 件待機中です",
-    "suggestedBody": "ポストモーテムを確定する前に、各提案を承認または破棄してください。"
+    "suggestedBody": "ポストモーテムを確定する前に、各提案を承認または破棄してください。",
+    "acceptAll_other": "{{count}} 件の提案をすべて承認",
+    "skippedTitle_other": "{{count}} 件の提案は確認が必要です",
+    "skipReason": { "no_due_date": "期限日がありません。開いて設定してください。", "due_date_not_allowed": "期限日が過去、または遠すぎます。開いて変更してください。" }
   },
   "overview": {
     "period": "期間",

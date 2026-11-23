@@ -150,3 +150,16 @@ class ActionItemOverviewResponse(ApiModel):
     by_application: list[ApplicationCompletionDto]
     needs_attention: list[AttentionEntryDto]
     repeats: list[RepeatGroupDto]
+
+
+class SkippedActionItemDto(ApiModel):
+    action_item_id: str
+    item_title: str
+    reason: str  # an AcceptAllSkipReason
+
+
+class AcceptAllActionItemsResponse(ApiModel):
+    """What "accept all" did to the suggestions of one postmortem: the items now tracked, and the suggestions that need a person (with the reason)."""
+
+    accepted: list[ActionItemDto]
+    skipped: list[SkippedActionItemDto]

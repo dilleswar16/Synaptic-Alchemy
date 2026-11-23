@@ -84,7 +84,12 @@
     "finalDescription": "Vervolgacties uit deze postmortem. Ze worden gevolgd tot ze klaar zijn.",
     "suggestedTitle_one": "{{count}} voorgesteld actiepunt wacht op een besluit",
     "suggestedTitle_other": "{{count}} voorgestelde actiepunten wachten op een besluit",
-    "suggestedBody": "Accepteer of verwerp elk voorstel voordat je de postmortem definitief maakt."
+    "suggestedBody": "Accepteer of verwerp elk voorstel voordat je de postmortem definitief maakt.",
+    "acceptAll_one": "Voorstel accepteren",
+    "acceptAll_other": "Alle {{count}} voorstellen accepteren",
+    "skippedTitle_one": "1 voorstel is aan jou overgelaten",
+    "skippedTitle_other": "{{count}} voorstellen zijn aan jou overgelaten",
+    "skipReason": { "no_due_date": "Het heeft geen einddatum. Open het en kies er een.", "due_date_not_allowed": "De einddatum ligt in het verleden of te ver weg. Open het en pas hem aan." }
   },
   "overview": {
     "period": "Periode",

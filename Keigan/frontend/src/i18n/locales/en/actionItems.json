@@ -84,7 +84,12 @@
     "finalDescription": "Follow-ups from this postmortem. They are tracked until done.",
     "suggestedTitle_one": "{{count}} suggested action item is waiting",
     "suggestedTitle_other": "{{count}} suggested action items are waiting",
-    "suggestedBody": "Accept or discard each suggestion before you finalise the postmortem."
+    "suggestedBody": "Accept or discard each suggestion before you finalise the postmortem.",
+    "acceptAll_one": "Accept the suggestion",
+    "acceptAll_other": "Accept all {{count}} suggestions",
+    "skippedTitle_one": "1 suggestion was left for you",
+    "skippedTitle_other": "{{count}} suggestions were left for you",
+    "skipReason": { "no_due_date": "It has no due date. Open it and choose one.", "due_date_not_allowed": "Its due date is in the past or too far away. Open it and change it." }
   },
   "overview": {
     "period": "Period",
