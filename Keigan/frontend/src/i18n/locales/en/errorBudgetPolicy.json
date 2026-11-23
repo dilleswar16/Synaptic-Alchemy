@@ -1,0 +1,30 @@
+{
+  "state": {
+    "provisional": "Provisional",
+    "final": "Final",
+    "insufficient_data": "Not enough data"
+  },
+  "impact": {
+    "title": "Error budget impact",
+    "policyOn": "The team's policy holds this application to {{threshold}} % of an SLO's budget for one incident.",
+    "policyOff": "The policy is off. Keigan shows the budget impact but holds nobody to it.",
+    "emptyTitle": "No SLO covers this incident",
+    "emptyDescription": "No SLO of this application watches the services this incident affected, so there is no budget figure.",
+    "notEnoughData": "Not enough measurements in the window ({{coverage}} % measured, at least {{minimum}} % needed).",
+    "share": "{{share}} % of the {{days}}-day budget",
+    "howWorkedOut": "How this was worked out",
+    "badEvents": "Bad events during the incident",
+    "budgetEvents": "Events the budget allows",
+    "none": "not stated",
+    "target": "SLO target",
+    "coverage": "Window measured",
+    "incidentWindow": "Incident window",
+    "budgetWindow": "Budget window",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "matched": "Matched",
+    "matchedByService": "By an affected service",
+    "applicationWide": "Application-wide SLO",
+    "overlapNote": "Overlapping incidents each count the minutes they share, so shares are not added together. The figure is provisional until a day after resolution, while late measurements may still arrive."
+  }
+}

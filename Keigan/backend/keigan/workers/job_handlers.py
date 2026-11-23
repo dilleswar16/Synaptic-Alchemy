@@ -21,6 +21,7 @@ class JobHandlerReference:
 
 
 JOB_HANDLER_REFERENCES: dict[str, JobHandlerReference] = {
+    "evaluate_error_budget_policy": JobHandlerReference("keigan.services.error_budget_policy_service", "ErrorBudgetPolicyService", "evaluate_application"),  # application_id
     "send_action_item_reminders": JobHandlerReference("keigan.services.action_item_reminders", "ActionItemReminderService", "send_due_reminders"),  # application_id
     # ── S1 applications, onboarding, knowledge ────────────────────────────────
     "verify_component_access": JobHandlerReference("keigan.services.onboarding_service", "OnboardingService", "verify_component_access"),  # component_id

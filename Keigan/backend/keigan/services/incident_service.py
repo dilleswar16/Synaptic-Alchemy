@@ -31,6 +31,7 @@ from keigan.services.incident_priority_rules import PRIORITY_NAMES, map_servicen
 from keigan.services.investigation_service import InvestigationService
 from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
+from keigan.services.error_budget_policy_service import enqueue_error_budget_evaluation
 from keigan.workers.job_queue import JobQueue
 
 ALERT_GROUP_ADOPTION_WINDOW_MINUTES = 60
@@ -173,6 +174,8 @@ class IncidentService:
         if state_name and state_name != incident.external_state:
             add_event("state_changed", f"ServiceNow state changed to {state_name}")
             incident.external_state = state_name
+            if state_name in CLOSED_SERVICENOW_STATES or state_name in RESOLVED_SERVICENOW_STATES:
+                await enqueue_error_budget_evaluation(self.session, incident.application_id)  # the incident's budget figure is worked out now it has an end
             if state_name in CLOSED_SERVICENOW_STATES:
                 incident.incident_status, incident.closed_at = IncidentStatus.CLOSED, utc_now()
                 incident.resolved_at = incident.resolved_at or utc_now()
@@ -306,6 +309,7 @@ class IncidentService:
             from keigan.services.communication_service import CommunicationService
 
             await CommunicationService(self.session).start_postmortem(current_user, incident_id, "user_button")
+        await enqueue_error_budget_evaluation(self.session, incident.application_id)
         await AuditService(self.session).record(current_user, "incident.resolve", target_entity_type="incident", target_entity_id=incident_id, application_id=incident.application_id, action_details={"generatePostmortem": request.generate_postmortem})
         await self.session.flush()
         return await self.get_incident(current_user, incident_id)

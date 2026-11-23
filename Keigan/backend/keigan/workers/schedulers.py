@@ -16,9 +16,10 @@ from keigan.config.settings import IntegrationMode, get_settings
 from keigan.entities.application_entities import Application
 from keigan.entities.incident_entities import ServiceNowAssignmentGroup
 from keigan.entities.notification_entities import TeamsIncidentChat
-from keigan.entities.slo_entities import ServiceLevelIndicator
+from keigan.entities.slo_entities import ServiceLevelIndicator, ServiceLevelObjective
 from keigan.entities.status_values import ApplicationLifecycleStatus, IntelligenceReportType, TeamsChatStatus
 from keigan.services.action_item_rules import local_now
+from keigan.services.error_budget_policy_service import enqueue_error_budget_evaluation
 from keigan.workers.job_queue import JobQueue
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,14 @@ async def enqueue_action_item_reminders(session: AsyncSession) -> None:
             )
 
 
+async def enqueue_error_budget_policy(session: AsyncSession) -> None:
+    """Every evaluation interval: live applications that have an SLO get their incident budget impacts and policy breaches re-evaluated."""
+    application_ids_with_slos = set((await session.scalars(select(ServiceLevelObjective.application_id).distinct())).all())
+    for application_id in await _live_application_ids(session):
+        if application_id in application_ids_with_slos:
+            await enqueue_error_budget_evaluation(session, application_id)
+
+
 async def enqueue_retention_cleanup(session: AsyncSession) -> None:
     await JobQueue(session).enqueue("retention_cleanup", {}, deduplication_key=f"retention:{datetime.now(UTC).date().isoformat()}", priority_number=200)
 
@@ -110,6 +119,7 @@ def build_schedules() -> list[IntervalSchedule]:
         IntervalSchedule("teams_chat_poll", settings.teams_chat_poll_interval_minutes * 60, enqueue_teams_chat_polls),
         IntervalSchedule("weekly_reports", 3600, enqueue_weekly_reports),
         IntervalSchedule("action_item_reminders", 3600, enqueue_action_item_reminders),
+        IntervalSchedule("error_budget_policy", settings.error_budget_policy_evaluation_interval_minutes * 60, enqueue_error_budget_policy),
         IntervalSchedule("retention_cleanup", 86400, enqueue_retention_cleanup),
     ]
 

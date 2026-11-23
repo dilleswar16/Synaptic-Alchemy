@@ -1,0 +1,29 @@
+{
+  "state": {
+    "provisional": "暫定",
+    "final": "確定",
+    "insufficient_data": "データ不足"
+  },
+  "impact": {
+    "title": "エラーバジェットへの影響",
+    "policyOn": "チームのポリシーでは、1 件のインシデントが SLO のバジェットの {{threshold}} % を超えないことを求めています。",
+    "policyOff": "ポリシーはオフです。Keigan はバジェットへの影響を表示しますが、誰にも順守を求めません。",
+    "emptyTitle": "このインシデントを対象とする SLO はありません",
+    "emptyDescription": "このアプリケーションのどの SLO も、このインシデントが影響したサービスを監視していないため、バジェットの数値はありません。",
+    "notEnoughData": "期間内の測定が足りません（測定済み {{coverage}} %、必要 {{minimum}} % 以上）。",
+    "share": "{{days}} 日間バジェットの {{share}} %",
+    "howWorkedOut": "算出方法",
+    "badEvents": "インシデント中の不良イベント数",
+    "budgetEvents": "バジェットが許容するイベント数",
+    "none": "算出なし",
+    "target": "SLO 目標",
+    "coverage": "期間の測定率",
+    "incidentWindow": "インシデント期間",
+    "budgetWindow": "バジェット期間",
+    "days_other": "{{count}} 日",
+    "matched": "対象の理由",
+    "matchedByService": "影響を受けたサービスによる",
+    "applicationWide": "アプリケーション全体の SLO",
+    "overlapNote": "重なったインシデントはそれぞれ共有する時間を数えるため、割合は合算しません。解決から 1 日後までは、遅れて届く測定値があるため暫定値です。"
+  }
+}

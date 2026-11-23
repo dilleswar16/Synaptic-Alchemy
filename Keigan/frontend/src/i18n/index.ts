@@ -38,6 +38,7 @@ export const translationNamespaces = [
   "intelligence",
   "metrics",
   "actionItems",
+  "errorBudgetPolicy",
   "chat",
   "applications",
   "onboarding",

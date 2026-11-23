@@ -1,0 +1,30 @@
+{
+  "state": {
+    "provisional": "Voorlopig",
+    "final": "Definitief",
+    "insufficient_data": "Te weinig gegevens"
+  },
+  "impact": {
+    "title": "Impact op het foutenbudget",
+    "policyOn": "Het beleid van het team houdt in dat één incident niet meer dan {{threshold}} % van het budget van een SLO mag gebruiken.",
+    "policyOff": "Het beleid staat uit. Keigan toont de impact op het budget maar houdt niemand eraan.",
+    "emptyTitle": "Geen SLO dekt dit incident",
+    "emptyDescription": "Geen enkele SLO van deze applicatie bewaakt de diensten die dit incident raakte, dus er is geen budgetcijfer.",
+    "notEnoughData": "Te weinig metingen in het venster ({{coverage}} % gemeten, minstens {{minimum}} % nodig).",
+    "share": "{{share}} % van het budget van {{days}} dagen",
+    "howWorkedOut": "Zo is het berekend",
+    "badEvents": "Mislukte gebeurtenissen tijdens het incident",
+    "budgetEvents": "Gebeurtenissen die het budget toestaat",
+    "none": "niet vermeld",
+    "target": "SLO-doel",
+    "coverage": "Gemeten deel van het venster",
+    "incidentWindow": "Venster van het incident",
+    "budgetWindow": "Budgetvenster",
+    "days_one": "{{count}} dag",
+    "days_other": "{{count}} dagen",
+    "matched": "Koppeling",
+    "matchedByService": "Via een getroffen dienst",
+    "applicationWide": "SLO voor de hele applicatie",
+    "overlapNote": "Overlappende incidenten tellen elk de minuten die ze delen, dus de percentages worden niet opgeteld. Het cijfer is voorlopig tot een dag na het oplossen, omdat late metingen nog kunnen binnenkomen."
+  }
+}

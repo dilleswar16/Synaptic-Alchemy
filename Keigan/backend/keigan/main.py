@@ -34,6 +34,7 @@ CONTROLLER_MODULES = (
     "keigan.controllers.alert_controller",
     "keigan.controllers.alert_intake_controller",
     "keigan.controllers.slo_controller",
+    "keigan.controllers.error_budget_controller",
     "keigan.controllers.intelligence_controller",
     "keigan.controllers.chat_controller",
     "keigan.controllers.notification_controller",

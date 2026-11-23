@@ -1,0 +1,29 @@
+{
+  "state": {
+    "provisional": "暂定",
+    "final": "最终",
+    "insufficient_data": "数据不足"
+  },
+  "impact": {
+    "title": "错误预算影响",
+    "policyOn": "团队的策略要求单次事件消耗的 SLO 预算不超过 {{threshold}} %。",
+    "policyOff": "策略已关闭。Keigan 会显示预算影响，但不会要求任何人遵守。",
+    "emptyTitle": "没有 SLO 覆盖此事件",
+    "emptyDescription": "此应用没有任何 SLO 监控此事件影响的服务，因此没有预算数据。",
+    "notEnoughData": "窗口内的测量不足（已测量 {{coverage}} %，至少需要 {{minimum}} %）。",
+    "share": "占 {{days}} 天预算的 {{share}} %",
+    "howWorkedOut": "计算方式",
+    "badEvents": "事件期间的错误事件数",
+    "budgetEvents": "预算允许的事件数",
+    "none": "未给出",
+    "target": "SLO 目标",
+    "coverage": "窗口已测量比例",
+    "incidentWindow": "事件时间窗口",
+    "budgetWindow": "预算窗口",
+    "days_other": "{{count}} 天",
+    "matched": "匹配方式",
+    "matchedByService": "按受影响的服务",
+    "applicationWide": "应用级 SLO",
+    "overlapNote": "重叠的事件各自计入共同的时间，因此占比不能相加。在解决后一天内数值为暂定，因为迟到的测量数据可能仍会到达。"
+  }
+}

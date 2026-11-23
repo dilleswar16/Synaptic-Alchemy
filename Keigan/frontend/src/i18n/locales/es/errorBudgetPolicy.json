@@ -1,0 +1,30 @@
+{
+  "state": {
+    "provisional": "Provisional",
+    "final": "Final",
+    "insufficient_data": "Datos insuficientes"
+  },
+  "impact": {
+    "title": "Impacto en el presupuesto de errores",
+    "policyOn": "La política del equipo exige que un incidente no use más del {{threshold}} % del presupuesto de un SLO.",
+    "policyOff": "La política está desactivada. Keigan muestra el impacto en el presupuesto pero no exige nada a nadie.",
+    "emptyTitle": "Ningún SLO cubre este incidente",
+    "emptyDescription": "Ningún SLO de esta aplicación vigila los servicios que afectó este incidente, así que no hay cifra de presupuesto.",
+    "notEnoughData": "No hay suficientes mediciones en la ventana ({{coverage}} % medido, se necesita al menos el {{minimum}} %).",
+    "share": "{{share}} % del presupuesto de {{days}} días",
+    "howWorkedOut": "Cómo se calculó",
+    "badEvents": "Eventos fallidos durante el incidente",
+    "budgetEvents": "Eventos que permite el presupuesto",
+    "none": "no indicado",
+    "target": "Objetivo del SLO",
+    "coverage": "Ventana medida",
+    "incidentWindow": "Ventana del incidente",
+    "budgetWindow": "Ventana del presupuesto",
+    "days_one": "{{count}} día",
+    "days_other": "{{count}} días",
+    "matched": "Asociación",
+    "matchedByService": "Por un servicio afectado",
+    "applicationWide": "SLO de toda la aplicación",
+    "overlapNote": "Los incidentes que se solapan cuentan cada uno los minutos que comparten, por lo que los porcentajes no se suman. La cifra es provisional hasta un día después de la resolución, mientras pueden llegar mediciones tardías."
+  }
+}

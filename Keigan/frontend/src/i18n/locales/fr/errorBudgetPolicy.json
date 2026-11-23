@@ -1,0 +1,30 @@
+{
+  "state": {
+    "provisional": "Provisoire",
+    "final": "Définitif",
+    "insufficient_data": "Données insuffisantes"
+  },
+  "impact": {
+    "title": "Impact sur le budget d'erreurs",
+    "policyOn": "La politique de l'équipe veut qu'un incident n'utilise pas plus de {{threshold}} % du budget d'un SLO.",
+    "policyOff": "La politique est désactivée. Keigan affiche l'impact sur le budget mais n'impose rien à personne.",
+    "emptyTitle": "Aucun SLO ne couvre cet incident",
+    "emptyDescription": "Aucun SLO de cette application ne surveille les services touchés par cet incident, il n'y a donc pas de chiffre de budget.",
+    "notEnoughData": "Pas assez de mesures dans la fenêtre ({{coverage}} % mesuré, au moins {{minimum}} % nécessaire).",
+    "share": "{{share}} % du budget de {{days}} jours",
+    "howWorkedOut": "Comment c'est calculé",
+    "badEvents": "Événements en échec pendant l'incident",
+    "budgetEvents": "Événements autorisés par le budget",
+    "none": "non indiqué",
+    "target": "Objectif du SLO",
+    "coverage": "Fenêtre mesurée",
+    "incidentWindow": "Fenêtre de l'incident",
+    "budgetWindow": "Fenêtre du budget",
+    "days_one": "{{count}} jour",
+    "days_other": "{{count}} jours",
+    "matched": "Rattachement",
+    "matchedByService": "Par un service touché",
+    "applicationWide": "SLO de toute l'application",
+    "overlapNote": "Les incidents qui se chevauchent comptent chacun les minutes qu'ils partagent : les parts ne s'additionnent donc pas. Le chiffre est provisoire jusqu'à un jour après la résolution, car des mesures tardives peuvent encore arriver."
+  }
+}

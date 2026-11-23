@@ -155,7 +155,7 @@ async def create_application_graph() -> ApplicationGraph:
         session.add(action_item)
         await session.flush()
         session.add_all([
-            ErrorBudgetPolicy(application_id=application_id, is_enabled=True),
+            ErrorBudgetPolicy(application_id=application_id),
             IncidentBudgetImpact(
                 incident_id=incident.incident_id, application_id=application_id, slo_id=slo.slo_id, sli_name_text="availability", target_percentage=99.9, budget_window_days=30, impact_window_start=now, impact_window_end=now,
                 budget_window_start=now, budget_window_end=now, bad_event_count=1, impact_total_event_count=2, window_total_event_count=3, data_coverage_percent=100.0, is_service_matched=True, impact_state="final", evaluated_at=now,
