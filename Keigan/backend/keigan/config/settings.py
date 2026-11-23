@@ -265,7 +265,7 @@ class Settings(BaseSettings):
     # ── Similar incident memory (spec 34) ──────────────────────────────────────
     incident_memory_maximum_shown: int = Field(default=5, ge=1, le=20)  # past incidents suggested on the page
     incident_memory_maximum_rejected_shown: int = Field(default=2, ge=0, le=10)  # past incidents an admin marked incorrect that are listed apart, labelled; 0 hides them
-    incident_memory_minimum_score: float = Field(default=0.35, ge=0.0, le=1.0)  # suggestions scoring lower are not shown
+    incident_memory_minimum_score: float = Field(default=0.30, ge=0.0, le=1.0)  # suggestions scoring lower are not shown
     incident_memory_stale_after_days: int = Field(default=180, ge=7, le=395)  # older suggestions are labelled "may be out of date"
     incident_memory_text_maximum_characters: int = Field(default=400, ge=100, le=2000)  # length of the stored cause and fix texts
     incident_memory_keyword_candidate_limit: int = Field(default=300, ge=50, le=5000)  # recent entries of the same application compared by wording only

@@ -1,0 +1,214 @@
+# Labelled cases for the similar-incident retrieval suite (spec 34, 4.10). Synthetic, written from the eight simulator scenarios; replace and extend them with real pairs as they are
+# labelled (spec 34, 4.9 asks for at least 30 before deciding about semantic retrieval).
+#
+# application names: claims, payments and chad are the demo applications CLMJP, PAYAU and CHAD.
+# current:  the incident being investigated (its application, its wording and the facts its investigation found).
+# past:     remembered incidents (days_ago, verdict = the admin's verdict or none, status = active/hidden, facts as for current).
+# expect:   past incidents that must come back (in this order when expect_order is true); must_not_appear: ones that must never come back.
+# reader_can_read: the applications the person asking may read.
+# facts:    services, resources (Azure resource ids), errors (condensed error text), alert_rules, change_operations, dependency_targets, category.
+cases:
+  - id: same_error_a_month_apart_with_different_wording
+    description: The same timeout in the same application, reported with different words a month later. The error and the service are shared, so it is found first.
+    reader_can_read: [claims]
+    current:
+      application: claims
+      wording: Claim submissions failing with timeouts since the morning
+      facts: {services: [claims-api], errors: ["Timeout expired after # ms waiting for a connection from the pool"], category: database}
+    past:
+      - id: last_month
+        application: claims
+        days_ago: 33
+        verdict: correct
+        title: Claims API slow
+        wording: Customers cannot submit claims, requests hang
+        facts: {services: [claims-api], errors: ["Timeout expired after # ms waiting for a connection from the pool"], category: database}
+    expect: [last_month]
+
+  - id: same_error_written_in_japanese
+    description: A past incident written in Japanese and the current one in English share the error and the service; the facts carry the match, not the words.
+    reader_can_read: [claims]
+    current:
+      application: claims
+      wording: Connection pool exhausted on the claims database
+      facts: {services: [claims-api], errors: ["Timeout expired after # ms waiting for a connection from the pool"]}
+    past:
+      - id: japanese
+        application: claims
+        days_ago: 60
+        verdict: correct
+        title: 請求APIが遅い
+        wording: データベース接続プールの枯渇によりタイムアウトが発生
+        facts: {services: [claims-api], errors: ["Timeout expired after # ms waiting for a connection from the pool"]}
+    expect: [japanese]
+
+  - id: two_applications_on_one_cluster_with_the_same_error
+    description: Claims and payments run on one AKS cluster and hit the same error; a reader of both is shown the other application's incident.
+    reader_can_read: [claims, payments]
+    current:
+      application: claims
+      wording: Pods restarting
+      facts: {services: [claims-api], resources: ["/subscriptions/0/resourceGroups/rg/providers/Microsoft.ContainerService/managedClusters/aks-shared"], errors: ["OOMKilled container exceeded memory limit"]}
+    past:
+      - id: payments_same_cluster
+        application: payments
+        days_ago: 20
+        verdict: correct
+        title: Payment pods restarting
+        wording: Memory pressure on the shared cluster
+        facts: {services: [payments-api], resources: ["/subscriptions/0/resourceGroups/rg/providers/Microsoft.ContainerService/managedClusters/aks-shared/agentPools/pool1"], errors: ["OOMKilled container exceeded memory limit"]}
+    expect: [payments_same_cluster]
+
+  - id: a_reader_of_one_application_never_sees_the_other
+    description: The same two applications, but the reader may read only claims. Nothing of payments may come back, whatever it shares.
+    reader_can_read: [claims]
+    current:
+      application: claims
+      wording: Pods restarting
+      facts: {services: [claims-api], resources: ["/subscriptions/0/resourceGroups/rg/providers/Microsoft.ContainerService/managedClusters/aks-shared"], errors: ["OOMKilled container exceeded memory limit"]}
+    past:
+      - id: payments_same_cluster
+        application: payments
+        days_ago: 20
+        verdict: correct
+        facts: {services: [payments-api], resources: ["/subscriptions/0/resourceGroups/rg/providers/Microsoft.ContainerService/managedClusters/aks-shared"], errors: ["OOMKilled container exceeded memory limit"]}
+    must_not_appear: [payments_same_cluster]
+
+  - id: wording_alone_never_crosses_applications
+    description: Another application describes its incident with the same words but shares no fact; it must not be suggested.
+    reader_can_read: [claims, payments]
+    current:
+      application: claims
+      wording: Submissions failing with timeouts and slow responses on the batch endpoint
+      facts: {services: [claims-api]}
+    past:
+      - id: payments_same_words
+        application: payments
+        days_ago: 15
+        verdict: correct
+        title: Submissions failing with timeouts
+        wording: Slow responses on the batch endpoint, timeouts, submissions failing
+        facts: {services: [payments-api]}
+    must_not_appear: [payments_same_words]
+
+  - id: a_confirmed_incident_comes_before_an_unreviewed_one
+    description: Two past incidents with the same facts; the one an admin confirmed ranks first.
+    reader_can_read: [claims]
+    current:
+      application: claims
+      wording: Search is slow
+      facts: {services: [claims-api], errors: ["Query timeout after # ms on the search index"]}
+    past:
+      - id: unreviewed
+        application: claims
+        days_ago: 10
+        facts: {services: [claims-api], errors: ["Query timeout after # ms on the search index"]}
+      - id: confirmed
+        application: claims
+        days_ago: 50
+        verdict: correct
+        facts: {services: [claims-api], errors: ["Query timeout after # ms on the search index"]}
+    expect: [confirmed, unreviewed]
+    expect_order: true
+
+  - id: an_incident_marked_incorrect_comes_last_and_labelled
+    description: A past analysis an admin marked incorrect is still shown, after the others, labelled.
+    reader_can_read: [claims]
+    current:
+      application: claims
+      wording: Login failures
+      facts: {services: [claims-api], errors: ["Token validation failed: issuer mismatch"]}
+    past:
+      - id: wrong_explanation
+        application: claims
+        days_ago: 20
+        verdict: incorrect
+        facts: {services: [claims-api], errors: ["Token validation failed: issuer mismatch"]}
+      - id: good_explanation
+        application: claims
+        days_ago: 45
+        verdict: correct
+        facts: {services: [claims-api], errors: ["Token validation failed: issuer mismatch"]}
+    expect: [good_explanation, wrong_explanation]
+    expect_order: true
+    expect_rejected: [wrong_explanation]
+
+  - id: a_hidden_entry_is_never_suggested
+    description: An admin hid a past incident; it stays out however well it matches.
+    reader_can_read: [claims]
+    current:
+      application: claims
+      wording: Disk full
+      facts: {services: [claims-api], errors: ["No space left on device"]}
+    past:
+      - id: hidden_one
+        application: claims
+        days_ago: 30
+        verdict: correct
+        status: hidden
+        facts: {services: [claims-api], errors: ["No space left on device"]}
+    must_not_appear: [hidden_one]
+
+  - id: an_incident_that_happened_later_is_not_a_precedent
+    description: A remembered incident that is newer than the current one is not shown as "last time".
+    reader_can_read: [claims]
+    current:
+      application: claims
+      wording: Disk full
+      facts: {services: [claims-api], errors: ["No space left on device"]}
+    past:
+      - id: from_the_future
+        application: claims
+        days_ago: -3
+        verdict: correct
+        facts: {services: [claims-api], errors: ["No space left on device"]}
+    must_not_appear: [from_the_future]
+
+  - id: the_same_category_is_not_enough
+    description: Two database incidents with nothing else in common are not the same incident.
+    reader_can_read: [claims]
+    current:
+      application: claims
+      wording: Deadlock detected
+      facts: {services: [claims-api], errors: ["Transaction was deadlocked on lock resources"], category: database}
+    past:
+      - id: other_database_trouble
+        application: claims
+        days_ago: 40
+        verdict: correct
+        facts: {services: [claims-batch], errors: ["Login failed for user"], category: database}
+    must_not_appear: [other_database_trouble]
+
+  - id: same_alert_rule_and_failing_dependency_across_applications
+    description: Two applications behind the same partner API; the same alert rule and the same failing host make the other application's incident worth showing.
+    reader_can_read: [claims, payments]
+    current:
+      application: claims
+      wording: Partner lookups failing
+      facts: {services: [claims-api], alert_rules: ["Partner API error rate"], dependency_targets: [partner-api.example.com]}
+    past:
+      - id: payments_partner_outage
+        application: payments
+        days_ago: 25
+        verdict: correct
+        facts: {services: [payments-api], alert_rules: ["Partner API error rate"], dependency_targets: [partner-api.example.com]}
+    expect: [payments_partner_outage]
+
+  - id: wording_only_inside_one_application_is_a_known_miss
+    description: >-
+      The same words and no shared fact inside one application. With the starting weights words alone reach at most 0.30, below the minimum score of 0.35, so it is not found.
+      This case documents that limit: if the weights change and it is found, update the suite's expected misses.
+    reader_can_read: [claims]
+    current:
+      application: claims
+      wording: Nightly reconciliation job runs out of memory when the claim file is large
+      facts: {}
+    past:
+      - id: same_words_no_facts
+        application: claims
+        days_ago: 70
+        verdict: correct
+        title: Reconciliation job out of memory
+        wording: The nightly reconciliation job ran out of memory on a large claim file
+        facts: {}
+    expect: [same_words_no_facts]

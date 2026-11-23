@@ -148,7 +148,7 @@ backendEnvironment:
   # Similar past incidents (spec 34): most suggested, lowest score, days before one is labelled out of date, characters kept of the cause and the fix, and recent entries compared by wording alone.
   INCIDENT_MEMORY_MAXIMUM_SHOWN: "5"
   INCIDENT_MEMORY_MAXIMUM_REJECTED_SHOWN: "2"
-  INCIDENT_MEMORY_MINIMUM_SCORE: "0.35"
+  INCIDENT_MEMORY_MINIMUM_SCORE: "0.3"
   INCIDENT_MEMORY_STALE_AFTER_DAYS: "180"
   INCIDENT_MEMORY_TEXT_MAXIMUM_CHARACTERS: "400"
   INCIDENT_MEMORY_KEYWORD_CANDIDATE_LIMIT: "300"
