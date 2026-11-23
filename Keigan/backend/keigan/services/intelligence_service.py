@@ -14,6 +14,7 @@ from keigan.ai.llm_gateway import LlmUsageContext, ModelTier, PromptSection
 from keigan.ai.notification_ai_schemas import IntelligenceNarrativeResult, IntelligenceReportResult
 from keigan.ai.output_sanitizer import sanitize_ai_line, sanitize_ai_markdown
 from keigan.config import application_context
+from keigan.config.settings import get_settings
 from keigan.dtos.intelligence_dtos import (
     HealthScorePoint, HealthScoreTrendResponse, IntelligenceReportResponse, IntelligenceReportSummary, PredictiveSignalResponse, PredictiveSignalStatusRequest, SignalInvestigationResponse,
 )
@@ -22,12 +23,14 @@ from keigan.entities.application_entities import Application, MonitoredService
 from keigan.entities.incident_entities import Incident
 from keigan.entities.slo_entities import IntelligenceReport, PredictiveSignal, ServiceLevelIndicator, ServiceLevelObjective, SliMeasurement
 from keigan.entities.status_values import IntelligenceReportType, Priority, SignalSeverity, SignalStatus, SloHealthStatus
-from keigan.exceptions.keigan_exceptions import NotFoundException
+from keigan.exceptions.keigan_exceptions import BusinessValidationException, NotFoundException
 from keigan.security.current_user import CurrentUser
 from keigan.services.audit_service import AuditService
 from keigan.services.authorization_service import AuthorizationService
 from keigan.services.intelligence_detectors import DetectedSignal, PredictiveDetectors
 from keigan.services.notification_renderer import translate
+from keigan.services.weekly_review_facts import review_fact_lines, review_markdown_lines, weekly_review_sections
+from keigan.utils.pii_masker import PiiMasker
 from keigan.utils.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
@@ -245,6 +248,12 @@ class IntelligenceService:
             "Predictive signals: " + ("; ".join(f"[{signal.signal_severity}] {signal.signal_title}" for signal in signals[:8]) or "none"),
             f"Incidents: {len(incidents)} ({', '.join(f'{count} x {priority}' for priority, count in sorted(incident_counts.items())) or 'none'}).", f"Alert noise: {alert_count} alerts reduced to {group_count} groups.",
         ]
+        review_sections = (
+            await weekly_review_sections(self.session, application, period_start, period_end, utc_now(), get_settings().weekly_review_maximum_listed_items)
+            if report_type == IntelligenceReportType.WEEKLY_DIGEST else {}
+        )
+        if review_sections:
+            facts += review_fact_lines(review_sections)
         summary_text, recommendations = await self._narrate_report(application, report_type, "\n".join(f"- {fact}" for fact in facts))
         report_type_label = "weekly digest" if report_type == IntelligenceReportType.WEEKLY_DIGEST else "proactive alert"
         title = f"Keigan Intelligence Report: {application.application_name} ({report_type_label}, {period_end:%Y-%m-%d})"
@@ -252,6 +261,7 @@ class IntelligenceService:
             "healthScore": health_score, "healthComponents": components, "executiveSummary": summary_text, "slos": slo_rows, "recommendations": recommendations, "incidents": {"total": len(incidents), "byPriority": dict(incident_counts)},
             "noise": {"alerts": alert_count, "groups": group_count}, "signals": [{"predictiveSignalId": signal.predictive_signal_id, "title": signal.signal_title, "severity": signal.signal_severity, "detector": signal.detector_name, "confidence": signal.confidence_score, "explanation": signal.explanation_markdown} for signal in signals],
         }
+        sections.update(review_sections)
         report = IntelligenceReport(application_id=application.application_id, report_type=report_type, report_title=title[:400], report_period_start=period_start, report_period_end=period_end, overall_health_score=health_score, report_markdown=sanitize_ai_markdown(self._report_markdown(title, sections)), report_sections_json=sections)
         self.session.add(report)
         await self.session.flush()
@@ -280,6 +290,8 @@ class IntelligenceService:
         if sections["slos"]:
             lines += ["## SLO status", *[f"- {row['sliName']} ({row['serviceName'] or 'application'}): {row['compliance']}% against {row['target']}%, error budget left {row['budgetRemainingPercent']}% - {row['status']}" for row in sections["slos"]], ""]
         lines += ["## Incidents and noise", f"- {sections['incidents']['total']} incident(s) in the period.", f"- {sections['noise']['alerts']} alerts were reduced to {sections['noise']['groups']} groups.", ""]
+        if "budget" in sections:
+            lines += review_markdown_lines(sections)
         if sections["recommendations"]:
             lines += ["## Recommendations", *[f"- {recommendation}" for recommendation in sections["recommendations"]], ""]
         return "\n".join(lines)
@@ -331,9 +343,26 @@ class IntelligenceService:
         summary = self._summary(report, application.application_name if application else None)
         return IntelligenceReportResponse(**summary.model_dump(), report_markdown=report.report_markdown, report_sections=report.report_sections_json or {}, recipient_addresses=report.recipient_addresses_json or [])
 
+    async def review_report(self, current_user: CurrentUser, report_id: str, note_text: str | None) -> IntelligenceReportResponse:
+        """An application admin records that the team went through the weekly digest. One review per digest; nothing else about the digest changes."""
+        report = await self.session.get(IntelligenceReport, report_id)
+        if report is None:
+            raise NotFoundException("Intelligence report not found.")
+        await AuthorizationService(self.session).ensure_application_admin(current_user, report.application_id)
+        if report.report_type != IntelligenceReportType.WEEKLY_DIGEST:
+            raise BusinessValidationException("Only a weekly digest is reviewed.")
+        if report.reviewed_at is not None:
+            raise BusinessValidationException("This digest was already reviewed.")
+        note = sanitize_ai_line(PiiMasker().mask_text(note_text or ""), maximum_characters=2000).strip() or None
+        report.reviewed_at, report.reviewed_by_user_principal_name, report.review_note_text = utc_now(), current_user.user_principal_name, note
+        await AuditService(self.session).record(current_user, "intelligence_report.review", target_entity_type="intelligence_report", target_entity_id=report_id, application_id=report.application_id, action_details={"hasNote": note is not None})
+        await self.session.flush()
+        return await self.get_report(current_user, report_id)
+
     @staticmethod
     def _summary(report: IntelligenceReport, application_name: str | None) -> IntelligenceReportSummary:
         return IntelligenceReportSummary(
             intelligence_report_id=report.intelligence_report_id, application_id=report.application_id, application_name=application_name, report_type=report.report_type, report_title=report.report_title,
+            reviewed_at=report.reviewed_at, reviewed_by=report.reviewed_by_user_principal_name, review_note=report.review_note_text,
             report_period_start=report.report_period_start, report_period_end=report.report_period_end, overall_health_score=report.overall_health_score, sent_at=report.sent_at, recipient_count=len(report.recipient_addresses_json or []), created_at=report.created_at,
         )

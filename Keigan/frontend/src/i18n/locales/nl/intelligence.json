@@ -1,7 +1,10 @@
 {
   "pageTitle": "Intelligence",
   "pageDescription": "Voorspellende signalen en gezondheidstrends, voordat gebruikers er iets van merken.",
-  "tabs": { "signals": "Signalen", "reports": "Rapporten" },
+  "tabs": {
+    "signals": "Signalen",
+    "reports": "Rapporten"
+  },
   "health": {
     "title": "Gezondheidsscore",
     "description": "0 tot 100: SLO-realisatie (50), voorspellende signalen (25) en recente incidenten (25).",
@@ -13,7 +16,12 @@
     "ariaLabel": "Trend van de gezondheidsscore over de afgelopen 30 dagen"
   },
   "signals": {
-    "status": { "open": "Open", "acknowledged": "Bevestigd", "dismissed": "Genegeerd", "expired": "Verlopen" },
+    "status": {
+      "open": "Open",
+      "acknowledged": "Bevestigd",
+      "dismissed": "Genegeerd",
+      "expired": "Verlopen"
+    },
     "title": "Voorspellende signalen",
     "description": "Keigan houdt trends en patronen in de gaten die meestal aan een incident voorafgaan.",
     "emptyTitle": "Geen open signalen",
@@ -35,8 +43,20 @@
     "chartLabel": "Bewijs voor {{title}}",
     "evidenceTitle": "Bewijs"
   },
-  "filters": { "severity": "Ernst", "detector": "Detector", "allSeverities": "Alle niveaus", "allDetectors": "Alle detectors", "status": "Status", "openOnly": "Open", "allStatuses": "Alle" },
-  "severity": { "critical": "Kritiek", "warning": "Waarschuwing", "info": "Info" },
+  "filters": {
+    "severity": "Ernst",
+    "detector": "Detector",
+    "allSeverities": "Alle niveaus",
+    "allDetectors": "Alle detectors",
+    "status": "Status",
+    "openOnly": "Open",
+    "allStatuses": "Alle"
+  },
+  "severity": {
+    "critical": "Kritiek",
+    "warning": "Waarschuwing",
+    "info": "Info"
+  },
   "detectors": {
     "seasonal_anomaly": "Seizoensafwijking",
     "error_budget_exhaustion": "Foutbudget",
@@ -58,13 +78,29 @@
     "generateFailed": "Het rapport kon niet worden gestart",
     "weekly_digest": "Wekelijks overzicht",
     "proactive_alert": "Proactieve melding",
-    "sentTo_one": "Verstuurd naar {{count}} ontvanger", "sentTo_other": "Verstuurd naar {{count}} ontvangers",
+    "sentTo_one": "Verstuurd naar {{count}} ontvanger",
+    "sentTo_other": "Verstuurd naar {{count}} ontvangers",
     "notSent": "Niet gemaild",
     "healthScore": "Gezondheid {{score}}",
     "reader": "Rapport",
     "readerEmpty": "Selecteer een rapport om het te lezen.",
     "readerLoadError": "Het rapport kon niet worden geladen.",
     "recipients": "Ontvangers",
-    "period": "Periode"
+    "period": "Periode",
+    "review": {
+      "chip": "Beoordeeld",
+      "reviewedTitle": "Door het team beoordeeld",
+      "reviewedBy": "{{name}} heeft dit overzicht op {{date}} als beoordeeld gemarkeerd.",
+      "note": "Notitie: {{text}}",
+      "notReviewed": "Niemand heeft dit overzicht al als beoordeeld gemarkeerd.",
+      "mark": "Markeren als beoordeeld",
+      "dialogTitle": "Dit overzicht als beoordeeld markeren",
+      "dialogDescription": "Leg vast dat het team de cijfers van deze week heeft doorgenomen. Je naam en de tijd worden bewaard; het overzicht zelf verandert niet.",
+      "noteLabel": "Notitie",
+      "noteHelp": "Bijvoorbeeld wat het team heeft afgesproken op te volgen. Voeg geen persoonsgegevens toe.",
+      "cancel": "Annuleren",
+      "confirm": "Markeren als beoordeeld",
+      "failed": "De beoordeling kon niet worden opgeslagen."
+    }
   }
 }

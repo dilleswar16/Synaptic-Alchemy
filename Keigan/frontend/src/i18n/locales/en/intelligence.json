@@ -1,7 +1,10 @@
 {
   "pageTitle": "Intelligence",
   "pageDescription": "Predictive signals and health trends, before users notice.",
-  "tabs": { "signals": "Signals", "reports": "Reports" },
+  "tabs": {
+    "signals": "Signals",
+    "reports": "Reports"
+  },
   "health": {
     "title": "Health score",
     "description": "0 to 100: SLO attainment (50), predictive signals (25) and recent incidents (25).",
@@ -13,7 +16,12 @@
     "ariaLabel": "Health score trend over the last 30 days"
   },
   "signals": {
-    "status": { "open": "Open", "acknowledged": "Acknowledged", "dismissed": "Dismissed", "expired": "Expired" },
+    "status": {
+      "open": "Open",
+      "acknowledged": "Acknowledged",
+      "dismissed": "Dismissed",
+      "expired": "Expired"
+    },
     "title": "Predictive signals",
     "description": "Keigan watches trends and patterns that usually come before an incident.",
     "emptyTitle": "No open signals",
@@ -35,8 +43,20 @@
     "chartLabel": "Evidence for {{title}}",
     "evidenceTitle": "Evidence"
   },
-  "filters": { "severity": "Severity", "detector": "Detector", "allSeverities": "All severities", "allDetectors": "All detectors", "status": "Status", "openOnly": "Open", "allStatuses": "All" },
-  "severity": { "critical": "Critical", "warning": "Warning", "info": "Info" },
+  "filters": {
+    "severity": "Severity",
+    "detector": "Detector",
+    "allSeverities": "All severities",
+    "allDetectors": "All detectors",
+    "status": "Status",
+    "openOnly": "Open",
+    "allStatuses": "All"
+  },
+  "severity": {
+    "critical": "Critical",
+    "warning": "Warning",
+    "info": "Info"
+  },
   "detectors": {
     "seasonal_anomaly": "Seasonal anomaly",
     "error_budget_exhaustion": "Error budget",
@@ -58,13 +78,29 @@
     "generateFailed": "Could not start the report",
     "weekly_digest": "Weekly digest",
     "proactive_alert": "Proactive alert",
-    "sentTo_one": "Sent to {{count}} recipient", "sentTo_other": "Sent to {{count}} recipients",
+    "sentTo_one": "Sent to {{count}} recipient",
+    "sentTo_other": "Sent to {{count}} recipients",
     "notSent": "Not emailed",
     "healthScore": "Health {{score}}",
     "reader": "Report",
     "readerEmpty": "Select a report to read it.",
     "readerLoadError": "The report could not be loaded.",
     "recipients": "Recipients",
-    "period": "Period"
+    "period": "Period",
+    "review": {
+      "chip": "Reviewed",
+      "reviewedTitle": "Reviewed by the team",
+      "reviewedBy": "{{name}} marked this digest as reviewed on {{date}}.",
+      "note": "Note: {{text}}",
+      "notReviewed": "Nobody has marked this digest as reviewed yet.",
+      "mark": "Mark as reviewed",
+      "dialogTitle": "Mark this digest as reviewed",
+      "dialogDescription": "Record that the team went through this week's figures. Your name and the time are kept; the digest itself does not change.",
+      "noteLabel": "Note",
+      "noteHelp": "For example what the team agreed to follow up. Do not include personal data.",
+      "cancel": "Cancel",
+      "confirm": "Mark as reviewed",
+      "failed": "The review could not be saved."
+    }
   }
 }

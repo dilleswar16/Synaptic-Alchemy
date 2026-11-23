@@ -1,7 +1,10 @@
 {
   "pageTitle": "Inteligencia",
   "pageDescription": "Señales predictivas y tendencias de estado, antes de que los usuarios lo noten.",
-  "tabs": { "signals": "Señales", "reports": "Informes" },
+  "tabs": {
+    "signals": "Señales",
+    "reports": "Informes"
+  },
   "health": {
     "title": "Puntuación de salud",
     "description": "De 0 a 100: cumplimiento de SLO (50), señales predictivas (25) e incidentes recientes (25).",
@@ -13,7 +16,12 @@
     "ariaLabel": "Tendencia de la puntuación de salud en los últimos 30 días"
   },
   "signals": {
-    "status": { "open": "Abierta", "acknowledged": "Reconocida", "dismissed": "Descartada", "expired": "Caducada" },
+    "status": {
+      "open": "Abierta",
+      "acknowledged": "Reconocida",
+      "dismissed": "Descartada",
+      "expired": "Caducada"
+    },
     "title": "Señales predictivas",
     "description": "Keigan vigila las tendencias y los patrones que suelen preceder a un incidente.",
     "emptyTitle": "No hay señales abiertas",
@@ -35,8 +43,20 @@
     "chartLabel": "Evidencia de {{title}}",
     "evidenceTitle": "Evidencia"
   },
-  "filters": { "severity": "Gravedad", "detector": "Detector", "allSeverities": "Todas las gravedades", "allDetectors": "Todos los detectores", "status": "Estado", "openOnly": "Abiertas", "allStatuses": "Todas" },
-  "severity": { "critical": "Crítica", "warning": "Advertencia", "info": "Información" },
+  "filters": {
+    "severity": "Gravedad",
+    "detector": "Detector",
+    "allSeverities": "Todas las gravedades",
+    "allDetectors": "Todos los detectores",
+    "status": "Estado",
+    "openOnly": "Abiertas",
+    "allStatuses": "Todas"
+  },
+  "severity": {
+    "critical": "Crítica",
+    "warning": "Advertencia",
+    "info": "Información"
+  },
   "detectors": {
     "seasonal_anomaly": "Anomalía estacional",
     "error_budget_exhaustion": "Presupuesto de error",
@@ -58,13 +78,29 @@
     "generateFailed": "No se pudo iniciar el informe",
     "weekly_digest": "Resumen semanal",
     "proactive_alert": "Alerta proactiva",
-    "sentTo_one": "Enviado a {{count}} destinatario", "sentTo_other": "Enviado a {{count}} destinatarios",
+    "sentTo_one": "Enviado a {{count}} destinatario",
+    "sentTo_other": "Enviado a {{count}} destinatarios",
     "notSent": "No enviado por correo",
     "healthScore": "Salud {{score}}",
     "reader": "Informe",
     "readerEmpty": "Seleccione un informe para leerlo.",
     "readerLoadError": "No se pudo cargar el informe.",
     "recipients": "Destinatarios",
-    "period": "Periodo"
+    "period": "Periodo",
+    "review": {
+      "chip": "Revisado",
+      "reviewedTitle": "Revisado por el equipo",
+      "reviewedBy": "{{name}} marcó este resumen como revisado el {{date}}.",
+      "note": "Nota: {{text}}",
+      "notReviewed": "Nadie ha marcado aún este resumen como revisado.",
+      "mark": "Marcar como revisado",
+      "dialogTitle": "Marcar este resumen como revisado",
+      "dialogDescription": "Deja constancia de que el equipo revisó las cifras de esta semana. Se guardan tu nombre y la hora; el resumen no cambia.",
+      "noteLabel": "Nota",
+      "noteHelp": "Por ejemplo, lo que el equipo acordó seguir. No incluyas datos personales.",
+      "cancel": "Cancelar",
+      "confirm": "Marcar como revisado",
+      "failed": "No se pudo guardar la revisión."
+    }
   }
 }

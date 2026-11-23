@@ -119,6 +119,9 @@ class IntelligenceReport(EntityBase):
     report_markdown: Mapped[str | None] = mapped_column(Text)
     report_sections_json: Mapped[dict[str, Any] | None] = mapped_column()
     sent_at: Mapped[datetime | None] = mapped_column()
+    reviewed_at: Mapped[datetime | None] = mapped_column()  # a weekly digest the team went through (spec 31)
+    reviewed_by_user_principal_name: Mapped[str | None] = mapped_column(String(320))
+    review_note_text: Mapped[str | None] = mapped_column(String(2000))
     recipient_addresses_json: Mapped[list[str] | None] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 

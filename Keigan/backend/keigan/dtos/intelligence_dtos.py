@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 from keigan.dtos.common_dtos import ApiModel
 
@@ -57,6 +58,9 @@ class IntelligenceReportSummary(ApiModel):
     overall_health_score: int | None = None
     sent_at: datetime | None = None
     recipient_count: int = 0
+    reviewed_at: datetime | None = None
+    reviewed_by: str | None = None
+    review_note: str | None = None
     created_at: datetime
 
 
@@ -64,6 +68,12 @@ class IntelligenceReportResponse(IntelligenceReportSummary):
     report_markdown: str | None = None
     report_sections: dict[str, Any] = Field(default_factory=dict)
     recipient_addresses: list[str] = Field(default_factory=list)
+
+
+class ReviewReportRequest(ApiModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="forbid")
+
+    note_text: str | None = None
 
 
 class GenerateReportRequest(ApiModel):

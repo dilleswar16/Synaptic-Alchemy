@@ -1,7 +1,10 @@
 {
   "pageTitle": "智能洞察",
   "pageDescription": "在用户察觉之前，掌握预测信号和健康趋势。",
-  "tabs": { "signals": "信号", "reports": "报告" },
+  "tabs": {
+    "signals": "信号",
+    "reports": "报告"
+  },
   "health": {
     "title": "健康评分",
     "description": "0 到 100：SLO 达成度（50）、预测信号（25）、近期事件（25）。",
@@ -13,7 +16,12 @@
     "ariaLabel": "过去 30 天的健康评分趋势"
   },
   "signals": {
-    "status": { "open": "未处理", "acknowledged": "已确认", "dismissed": "已忽略", "expired": "已过期" },
+    "status": {
+      "open": "未处理",
+      "acknowledged": "已确认",
+      "dismissed": "已忽略",
+      "expired": "已过期"
+    },
     "title": "预测信号",
     "description": "Keigan 会监控通常出现在事件之前的趋势和模式。",
     "emptyTitle": "没有未处理的信号",
@@ -35,8 +43,20 @@
     "chartLabel": "{{title}}的证据",
     "evidenceTitle": "证据"
   },
-  "filters": { "severity": "严重程度", "detector": "检测器", "allSeverities": "所有严重程度", "allDetectors": "所有检测器", "status": "状态", "openOnly": "未处理", "allStatuses": "全部" },
-  "severity": { "critical": "严重", "warning": "警告", "info": "信息" },
+  "filters": {
+    "severity": "严重程度",
+    "detector": "检测器",
+    "allSeverities": "所有严重程度",
+    "allDetectors": "所有检测器",
+    "status": "状态",
+    "openOnly": "未处理",
+    "allStatuses": "全部"
+  },
+  "severity": {
+    "critical": "严重",
+    "warning": "警告",
+    "info": "信息"
+  },
   "detectors": {
     "seasonal_anomaly": "季节性异常",
     "error_budget_exhaustion": "错误预算",
@@ -65,6 +85,21 @@
     "readerEmpty": "选择一份报告以阅读。",
     "readerLoadError": "无法加载该报告。",
     "recipients": "收件人",
-    "period": "周期"
+    "period": "周期",
+    "review": {
+      "chip": "已评审",
+      "reviewedTitle": "团队已评审",
+      "reviewedBy": "{{name}} 已于 {{date}} 将此周报标记为已评审。",
+      "note": "备注：{{text}}",
+      "notReviewed": "此周报尚未被标记为已评审。",
+      "mark": "标记为已评审",
+      "dialogTitle": "将此周报标记为已评审",
+      "dialogDescription": "记录团队已查看本周数据。你的姓名和时间会被保留，周报本身不会改变。",
+      "noteLabel": "备注",
+      "noteHelp": "例如团队约定要跟进的事项。请勿包含个人数据。",
+      "cancel": "取消",
+      "confirm": "标记为已评审",
+      "failed": "无法保存评审。"
+    }
   }
 }

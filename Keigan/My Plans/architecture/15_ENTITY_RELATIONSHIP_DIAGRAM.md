@@ -73,8 +73,8 @@ erDiagram
     log_tool_connection |o--o{ service_log_source : "log_tool_connection_id"
     monitored_service ||--o{ stakeholder_subscribed_service : "service_id"
     stakeholder ||--o{ stakeholder_subscribed_service : "stakeholder_id"
-    postmortem_report |o--o{ action_item : "postmortem_id"
     stakeholder |o--o{ action_item : "owner_stakeholder_id"
+    postmortem_report |o--o{ action_item : "postmortem_id"
     incident |o--o{ action_item : "incident_id"
     alert ||--o{ alert_decision : "alert_id"
     alert_group |o..o{ alert_decision : "alert_group_id"
@@ -991,6 +991,9 @@ erDiagram
         nvarchar(max) report_markdown "nullable"
         json report_sections_json "nullable"
         datetime2 sent_at "nullable"
+        datetime2 reviewed_at "nullable"
+        nvarchar(320) reviewed_by_user_principal_name "nullable"
+        nvarchar(2000) review_note_text "nullable"
         json recipient_addresses_json "nullable"
         datetime2 created_at
     }
@@ -1445,8 +1448,8 @@ erDiagram
     stakeholder {
         nvarchar(36) stakeholder_id PK "other domain"
     }
-    postmortem_report |o--o{ action_item : "postmortem_id"
     stakeholder |o--o{ action_item : "owner_stakeholder_id"
+    postmortem_report |o--o{ action_item : "postmortem_id"
     incident |o--o{ action_item : "incident_id"
     application ||--o{ action_item : "application_id"
 ```

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query, status
 from keigan.config.database_config import provide
 from keigan.dtos.common_dtos import JobAcceptedResponse
 from keigan.dtos.intelligence_dtos import (
-    GenerateReportRequest, HealthScoreTrendResponse, IntelligenceReportResponse, IntelligenceReportSummary, PredictiveSignalResponse, PredictiveSignalStatusRequest, SignalInvestigationResponse,
+    GenerateReportRequest, HealthScoreTrendResponse, IntelligenceReportResponse, IntelligenceReportSummary, PredictiveSignalResponse, PredictiveSignalStatusRequest, ReviewReportRequest, SignalInvestigationResponse,
 )
 from keigan.security.current_user import CurrentUser, get_current_user
 from keigan.services.intelligence_service import IntelligenceService
@@ -43,6 +43,14 @@ async def list_intelligence_reports(application_id: str | None = Query(None, ali
 @router.get("/intelligence-reports/{report_id}", response_model=IntelligenceReportResponse)
 async def get_intelligence_report(report_id: str, current_user: CurrentUser = Depends(get_current_user), service: IntelligenceService = Depends(provide(IntelligenceService))) -> IntelligenceReportResponse:
     return await service.get_report(current_user, report_id)
+
+
+@router.post("/intelligence-reports/{report_id}/review", response_model=IntelligenceReportResponse)
+async def review_intelligence_report(
+    report_id: str, request: ReviewReportRequest, current_user: CurrentUser = Depends(get_current_user), service: IntelligenceService = Depends(provide(IntelligenceService)),
+) -> IntelligenceReportResponse:
+    """Application admins record that the team went through a weekly digest (who, when and an optional note). One review per digest; 422 otherwise."""
+    return await service.review_report(current_user, report_id, request.note_text)
 
 
 @router.post("/applications/{application_id}/intelligence-reports/generate", response_model=JobAcceptedResponse, status_code=status.HTTP_202_ACCEPTED)

@@ -1,7 +1,10 @@
 {
   "pageTitle": "Intelligence",
   "pageDescription": "Signaux prédictifs et tendances de santé, avant que les utilisateurs ne s'en aperçoivent.",
-  "tabs": { "signals": "Signaux", "reports": "Rapports" },
+  "tabs": {
+    "signals": "Signaux",
+    "reports": "Rapports"
+  },
   "health": {
     "title": "Score de santé",
     "description": "De 0 à 100 : atteinte des SLO (50), signaux prédictifs (25) et incidents récents (25).",
@@ -13,7 +16,12 @@
     "ariaLabel": "Tendance du score de santé sur les 30 derniers jours"
   },
   "signals": {
-    "status": { "open": "Ouvert", "acknowledged": "Pris en compte", "dismissed": "Écarté", "expired": "Expiré" },
+    "status": {
+      "open": "Ouvert",
+      "acknowledged": "Pris en compte",
+      "dismissed": "Écarté",
+      "expired": "Expiré"
+    },
     "title": "Signaux prédictifs",
     "description": "Keigan surveille les tendances et schémas qui précèdent généralement un incident.",
     "emptyTitle": "Aucun signal ouvert",
@@ -35,8 +43,20 @@
     "chartLabel": "Preuves pour {{title}}",
     "evidenceTitle": "Preuves"
   },
-  "filters": { "severity": "Gravité", "detector": "Détecteur", "allSeverities": "Toutes les gravités", "allDetectors": "Tous les détecteurs", "status": "Statut", "openOnly": "Ouverts", "allStatuses": "Tous" },
-  "severity": { "critical": "Critique", "warning": "Avertissement", "info": "Info" },
+  "filters": {
+    "severity": "Gravité",
+    "detector": "Détecteur",
+    "allSeverities": "Toutes les gravités",
+    "allDetectors": "Tous les détecteurs",
+    "status": "Statut",
+    "openOnly": "Ouverts",
+    "allStatuses": "Tous"
+  },
+  "severity": {
+    "critical": "Critique",
+    "warning": "Avertissement",
+    "info": "Info"
+  },
   "detectors": {
     "seasonal_anomaly": "Anomalie saisonnière",
     "error_budget_exhaustion": "Budget d'erreur",
@@ -58,13 +78,29 @@
     "generateFailed": "Impossible de lancer le rapport",
     "weekly_digest": "Récapitulatif hebdomadaire",
     "proactive_alert": "Alerte proactive",
-    "sentTo_one": "Envoyé à {{count}} destinataire", "sentTo_other": "Envoyé à {{count}} destinataires",
+    "sentTo_one": "Envoyé à {{count}} destinataire",
+    "sentTo_other": "Envoyé à {{count}} destinataires",
     "notSent": "Non envoyé par e-mail",
     "healthScore": "Santé {{score}}",
     "reader": "Rapport",
     "readerEmpty": "Sélectionnez un rapport pour le lire.",
     "readerLoadError": "Impossible de charger le rapport.",
     "recipients": "Destinataires",
-    "period": "Période"
+    "period": "Période",
+    "review": {
+      "chip": "Revu",
+      "reviewedTitle": "Revu par l'équipe",
+      "reviewedBy": "{{name}} a marqué ce récapitulatif comme revu le {{date}}.",
+      "note": "Note : {{text}}",
+      "notReviewed": "Personne n'a encore marqué ce récapitulatif comme revu.",
+      "mark": "Marquer comme revu",
+      "dialogTitle": "Marquer ce récapitulatif comme revu",
+      "dialogDescription": "Consignez que l'équipe a passé en revue les chiffres de la semaine. Votre nom et l'heure sont conservés ; le récapitulatif ne change pas.",
+      "noteLabel": "Note",
+      "noteHelp": "Par exemple ce que l'équipe a convenu de suivre. N'incluez pas de données personnelles.",
+      "cancel": "Annuler",
+      "confirm": "Marquer comme revu",
+      "failed": "La revue n'a pas pu être enregistrée."
+    }
   }
 }

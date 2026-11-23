@@ -38,6 +38,10 @@ export interface IntelligenceReportSummary {
   overallHealthScore: number | null;
   sentAt: IsoDateTimeString | null;
   recipientCount: number;
+  /** A weekly digest the team went through (spec 31). */
+  reviewedAt: IsoDateTimeString | null;
+  reviewedBy: string | null;
+  reviewNote: string | null;
   createdAt: IsoDateTimeString;
 }
 export interface IntelligenceReport extends IntelligenceReportSummary {
@@ -98,6 +102,13 @@ export const useGenerateReport = (applicationId: string) => {
     onSuccess: () => {
       window.setTimeout(() => void queryClient.invalidateQueries({ queryKey: ["intelligence-reports"] }), 4_000);
     },
+  });
+};
+export const useReviewReport = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: { reportId: string; noteText: string | null }) => apiPost<IntelligenceReport>(`/intelligence-reports/${variables.reportId}/review`, { noteText: variables.noteText }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["intelligence-reports"] }),
   });
 };
 export const useHealthScoreTrend = (applicationId: string | null, days = 30) =>

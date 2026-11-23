@@ -16,6 +16,7 @@ import {
   type SignalSeverity,
 } from "@/api/intelligenceApi";
 import { isApiError } from "@/api/httpClient";
+import { ReviewReportControl } from "../components/ReviewReportControl";
 import { useAccessControl } from "@/auth/accessControl";
 import { useApplicationScope } from "@/auth/applicationScope";
 import { Sparkline } from "@/components/charts/Sparkline";
@@ -264,7 +265,16 @@ function ReportsSection({ applicationId }: { applicationId: string | null }) {
         </div>
       ),
     },
-    { key: "type", header: "", cell: (row) => <StatusChip size="sm" tone={row.reportType === "proactive_alert" ? "alert" : "brand"} icon={false}>{t(`reports.${row.reportType}`)}</StatusChip> },
+    {
+      key: "type",
+      header: "",
+      cell: (row) => (
+        <span className="flex flex-wrap gap-1.5">
+          <StatusChip size="sm" tone={row.reportType === "proactive_alert" ? "alert" : "brand"} icon={false}>{t(`reports.${row.reportType}`)}</StatusChip>
+          {row.reportType === "weekly_digest" && row.reviewedAt ? <StatusChip size="sm" tone="success" icon={false}>{t("reports.review.chip")}</StatusChip> : null}
+        </span>
+      ),
+    },
     { key: "health", header: "", align: "end", cell: (row) => (row.overallHealthScore !== null ? t("reports.healthScore", { score: row.overallHealthScore }) : "") },
   ];
 
@@ -306,6 +316,7 @@ function ReportsSection({ applicationId }: { applicationId: string | null }) {
                     {t("reports.period")}: {formatDateTime(reportQuery.data.reportPeriodStart)} - {formatDateTime(reportQuery.data.reportPeriodEnd)} ·{" "}
                     {reportQuery.data.sentAt ? t("reports.sentTo", { count: reportQuery.data.recipientCount }) : t("reports.notSent")}
                   </p>
+                  <ReviewReportControl report={reportQuery.data} canReview={canEdit(reportQuery.data.applicationId)} />
                   <MarkdownView content={reportQuery.data.reportMarkdown ?? ""} />
                 </div>
               ) : null}

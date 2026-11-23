@@ -132,6 +132,8 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | POST | `/error-budget-breaches/{breachId}/waive` | application admin; `{reasonText}` of at least the configured length; only an open requirement; audited |
 | POST | `/error-budget-breaches/{breachId}/action-items` | application admin, outage class only: a top-priority item (priority forced) that meets the requirement |
 | | | `POST /postmortems/{id}/finalize` also answers 422 (field `actionItems`) while a final, open policy breach has no accepted top-priority 'prevent' item |
+| | | **Weekly health review (spec 31)** |
+| POST | `/intelligence-reports/{reportId}/review` | application admin; `{noteText?}` (masked, at most 2000 characters); a weekly digest only, once; 422 otherwise; audited. The report summary and detail gain `reviewedAt`, `reviewedBy`, `reviewNote`; a weekly digest's `reportSections` gain `budget` and `actionItems` |
 
 ## 7. Chat
 
