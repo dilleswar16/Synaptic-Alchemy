@@ -697,8 +697,9 @@ Conventions for every tool: inputs use `application_code` (an enum of the profil
 | 18 | `get_health_score` | Checked the health score | Current score, components and 7–90 day trend | `IntelligenceService.get_health_score_trend` | APPLICATION_READER (inside the service) | global | none |
 | 19 | `list_team_members` | Listed the team | Roles and statuses of an application's team | `services/stakeholder_service.py:StakeholderService.list_stakeholders` | APPLICATION_READER | global | **people aliased**: display names become `<role> 1`, `<role> 2`; email, UPN and Entra ids never included (open question Q2) |
 | 20 | `get_reliability_metrics` | Read reliability metrics | MTTD, MTTA, MTTR, time to conclusion, verdict accuracy, AI cost per investigation for a period | the reliability metrics service (roadmap A4) | SCOPED_APPLICATIONS | global | none; registered when A4 lands |
+| 21 | `find_similar_incidents` | Looked for similar past incidents | Past incidents like an investigation, an incident or a description in words (with its application): what the cause and fix were then, how far an admin trusted that analysis, why it matched, whether it may be out of date. Built 2026-11-24 (spec 34, 4.7) | `incident_memory_service.py` (as the asking person) | SCOPED_APPLICATIONS; both scopes; `investigation_id` is bound in an investigation conversation; searches only the applications the conversation covers |
 
-Investigation scope offers 1–8 (eight tools); global offers 1–19 (and 20 later). Not offered as tools: application list (given in the prompt), knowledge documents' raw content and downloads (passages only), communications drafts and postmortem text (later, if asked), anything under administration.
+Investigation scope offers 1–8 and 21 (nine tools); global offers 1–19 (and 20 later). Not offered as tools: application list (given in the prompt), knowledge documents' raw content and downloads (passages only), communications drafts and postmortem text (later, if asked), anything under administration.
 
 ### 5.1 Input schemas (pydantic, `extra="forbid"`)
 ```python
