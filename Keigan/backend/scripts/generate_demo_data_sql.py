@@ -34,6 +34,11 @@ def _configure_environment_for_seed_run(temporary_directory: Path) -> None:
             "ENVIRONMENT": "test",
             "AUTH_MODE": "local",
             "LLM_PROVIDER": "mock",
+            # Pinned: the seed records the model names in its decision traces, so the committed SQL must not depend on the .env of whoever runs this.
+            "LLM_API_KEY": "",
+            "LLM_FAST_MODEL": "gemini-2.5-flash",
+            "LLM_DEEP_MODEL": "gemini-2.5-pro",
+            "LLM_VISION_MODEL": "gemini-2.5-flash",
             "TELEMETRY_MODE": "simulated",
             "SERVICENOW_MODE": "simulated",
             "TEAMS_MODE": "simulated",

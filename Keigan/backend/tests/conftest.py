@@ -17,6 +17,11 @@ os.environ.update(
         "ENVIRONMENT": "test",
         "AUTH_MODE": "local",
         "LLM_PROVIDER": "mock",
+        # Pinned so a developer's .env (a real key, other model names) can never change what the tests see or send.
+        "LLM_API_KEY": "",
+        "LLM_FAST_MODEL": "gemini-2.5-flash",
+        "LLM_DEEP_MODEL": "gemini-2.5-pro",
+        "LLM_VISION_MODEL": "gemini-2.5-flash",
         "TELEMETRY_MODE": "simulated",
         "SERVICENOW_MODE": "simulated",
         "TEAMS_MODE": "simulated",
