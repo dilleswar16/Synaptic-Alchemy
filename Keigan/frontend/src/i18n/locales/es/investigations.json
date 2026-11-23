@@ -714,6 +714,8 @@
       "confirm": "Ocultar",
       "done": "Oculto",
       "failed": "No se pudo ocultar"
-    }
+    },
+    "rejectedTitle": "Marcados como incorrectos antes",
+    "rejectedDescription": "Incidentes pasados con los mismos hechos cuyo análisis un administrador marcó como incorrecto. Se muestran para saber que la explicación anterior fue rechazada, no para reutilizarla."
   }
 }

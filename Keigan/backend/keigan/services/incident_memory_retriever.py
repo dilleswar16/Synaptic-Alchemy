@@ -62,6 +62,7 @@ class StructuredKeywordRetriever:
         candidates = await self._candidates(entries)
         config = similarity_config(
             minimum_score=self.settings.incident_memory_minimum_score, stale_after_days=self.settings.incident_memory_stale_after_days, maximum_shown=self.settings.incident_memory_maximum_shown,
+            maximum_rejected_shown=self.settings.incident_memory_maximum_rejected_shown,
         )
         scored = score_matches(CurrentIncident(facts.application_id, keys, terms), candidates, config, today or utc_now())
         by_id = {entry.incident_memory_entry_id: entry for entry in entries}

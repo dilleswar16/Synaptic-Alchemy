@@ -48,7 +48,7 @@ export function InvestigationHeader({ detail, canEdit, onOpenTeamsRoom, onResolv
   const { showToast } = useToast();
   const rerun = useRerunInvestigation(detail.investigationId);
   const now = useNow(30_000);
-  const seenBeforeCount = useSimilarIncidents(detail.investigationId).data?.items.length ?? 0;
+  const seenBeforeCount = useSimilarIncidents(detail.investigationId).data?.items.filter((match) => !match.isRejected).length ?? 0;
   const incident = detail.incident;
   const isOpenIncident = incident ? !["resolved", "closed"].includes(incident.incidentStatus) : false;
   const detectedAt = detail.detectedAt ? new Date(detail.detectedAt).getTime() : null;

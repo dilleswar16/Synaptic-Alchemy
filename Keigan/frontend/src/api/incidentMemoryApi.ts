@@ -39,6 +39,8 @@ export interface SimilarIncident {
   fixText: string | null;
   fixSource: MemoryFixSource;
   matchReasons: MatchReason[];
+  /** An admin marked that past analysis incorrect: listed apart and labelled. */
+  isRejected: boolean;
   isStale: boolean;
   staleReasons: MemoryStaleReason[];
   myRelevanceVerdict: MemoryRelevanceVerdict | null;

@@ -2,6 +2,7 @@
 # key_weights: what sharing one kind of key is worth (each kind counts once, however many keys of it are shared); they add up, capped at 1.
 # keyword_weight: what the share of the current incident's words found in the past one is worth, on top.
 # verdict_multipliers: how much an admin's verdict on the past investigation changes the score ("none" = nobody reviewed it).
+# A past investigation an admin marked incorrect has no multiplier: it is judged on its raw score and listed apart, labelled, after the others (rejected_verdict).
 # cross_application_required_key_kinds: a past incident of ANOTHER application is shown only when it shares at least one key of these kinds; wording alone is not enough across applications.
 key_weights:
   error_signature: 0.35
@@ -16,7 +17,7 @@ verdict_multipliers:
   correct: 1.0
   partially_correct: 0.8
   none: 0.6
-  incorrect: 0.3
+rejected_verdict: incorrect
 cross_application_required_key_kinds:
   - error_signature
   - alert_rule

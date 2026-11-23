@@ -57,6 +57,8 @@ class SimilarityConfig:
     minimum_score: float
     stale_after_days: int
     maximum_shown: int
+    rejected_verdict: str  # a past investigation with this verdict is listed apart and labelled, not mixed in
+    maximum_rejected_shown: int
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,7 @@ class ScoredMatch:
     age_days: int
     is_stale: bool
     stale_reasons: Sequence[str]
+    is_rejected: bool = False  # an admin marked that past analysis incorrect: shown last and labelled
 
 
 @lru_cache
@@ -75,11 +78,12 @@ def catalogue() -> dict[str, Any]:
     return yaml.safe_load((RESOURCES_DIRECTORY / "catalogs" / "incident_similarity.yaml").read_text(encoding="utf-8"))
 
 
-def similarity_config(*, minimum_score: float, stale_after_days: int, maximum_shown: int) -> SimilarityConfig:
+def similarity_config(*, minimum_score: float, stale_after_days: int, maximum_shown: int, maximum_rejected_shown: int = 2) -> SimilarityConfig:
     document = catalogue()
     return SimilarityConfig(
         key_weights=dict(document["key_weights"]), keyword_weight=float(document["keyword_weight"]), verdict_multipliers=dict(document["verdict_multipliers"]),
         cross_application_required_key_kinds=frozenset(document["cross_application_required_key_kinds"]), minimum_score=minimum_score, stale_after_days=stale_after_days, maximum_shown=maximum_shown,
+        rejected_verdict=document["rejected_verdict"], maximum_rejected_shown=maximum_rejected_shown,
     )
 
 
@@ -121,13 +125,15 @@ def score_matches(current: CurrentIncident, candidates: Sequence[MemoryCandidate
         structured = min(1.0, sum(config.key_weights.get(kind, 0.0) for kind in shared_kinds))
         keyword = _keyword_share(current.terms, candidate, document_frequency, len(candidates))
         raw = min(1.0, structured + config.keyword_weight * keyword)
-        score = raw * config.verdict_multipliers.get(candidate.verdict or NO_VERDICT, config.verdict_multipliers[NO_VERDICT])
+        is_rejected = candidate.verdict == config.rejected_verdict
+        score = raw if is_rejected else raw * config.verdict_multipliers.get(candidate.verdict or NO_VERDICT, config.verdict_multipliers[NO_VERDICT])
         if score < config.minimum_score:
             continue
         age_days = max(0, (today - candidate.occurred_at).days)
         stale_reasons = [reason for reason, applies in ((STALE_OLDER_THAN_THRESHOLD, age_days > config.stale_after_days), (STALE_SERVICE_REMOVED, not candidate.has_existing_service)) if applies]
         reasons = sorted(shared, key=lambda key: -config.key_weights.get(key.kind, 0.0))
-        matches.append(ScoredMatch(candidate.entry_id, candidate.application_id, round(score, 6), reasons, age_days, bool(stale_reasons), stale_reasons))
+        matches.append(ScoredMatch(candidate.entry_id, candidate.application_id, round(score, 6), reasons, age_days, bool(stale_reasons), stale_reasons, is_rejected))
     by_entry = {candidate.entry_id: candidate for candidate in candidates}
     matches.sort(key=lambda match: (-match.score, -by_entry[match.entry_id].occurred_at.timestamp()))
-    return matches[:config.maximum_shown]
+    kept = [match for match in matches if not match.is_rejected][:config.maximum_shown]
+    return kept + [match for match in matches if match.is_rejected][:config.maximum_rejected_shown]  # the ones an admin marked incorrect come last, labelled

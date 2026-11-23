@@ -67,16 +67,16 @@ async def test_a_past_incident_of_an_application_the_reader_cannot_read_is_not_s
     assert entry_id in shown and shown[entry_id]["isSameApplication"] is False and shown[entry_id]["application"]["applicationName"]
 
 
-async def test_an_incorrect_analysis_is_not_repeated_to_the_reader(client: httpx.AsyncClient, auth_headers: AuthHeaders, seed_context, monkeypatch) -> None:
-    # With the default minimum score an incorrect past analysis never scores high enough to be shown (0.3 times at most 1); a lower minimum shows it, without its cause.
-    monkeypatch.setattr(get_settings(), "incident_memory_minimum_score", 0.1)
-    monkeypatch.setattr(get_settings(), "incident_memory_maximum_shown", 20)  # the other tests' entries share this application's service and would fill the top five
+async def test_a_past_analysis_marked_incorrect_is_listed_apart_labelled_and_its_cause_is_not_repeated(client: httpx.AsyncClient, auth_headers: AuthHeaders, seed_context, monkeypatch) -> None:
+    monkeypatch.setattr(get_settings(), "incident_memory_maximum_rejected_shown", 10)  # the other tests' entries must not crowd it out
     error = unique_error()
-    past = await investigated(seed_context.application_ids_by_code["CLMJP"], days_ago=40, title="Wrong analysis", template=error, verdict="incorrect", why="The DNS was down.")
+    past = await investigated(seed_context.application_ids_by_code["CLMJP"], days_ago=40, title="Wrong analysis", template=error, verdict="incorrect", why="The DNS was down.", resolution_note="Rolled back the release.")
     current = await investigated(seed_context.application_ids_by_code["CLMJP"], days_ago=1, title="Now", template=error)
     await build(past.investigation_id)
-    [item] = [item for item in (await similar(client, auth_headers, READER, current.investigation_id))["items"] if item["investigationId"] == past.investigation_id]
-    assert item["verdict"] == "incorrect" and item["causeText"] is None and item["causeSource"] == "investigation"
+    items = (await similar(client, auth_headers, READER, current.investigation_id))["items"]
+    [item] = [item for item in items if item["investigationId"] == past.investigation_id]
+    assert item["isRejected"] is True and item["verdict"] == "incorrect" and item["causeText"] is None and item["causeSource"] == "investigation" and item["fixText"] == "Rolled back the release."
+    assert items[-1]["isRejected"] is True and all(not other["isRejected"] for other in items if other is not item and other["investigationId"] != past.investigation_id)  # the labelled ones come last
 
 
 # ── Relevance ────────────────────────────────────────────────────────────────────────────────────

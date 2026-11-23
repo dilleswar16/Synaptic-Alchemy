@@ -71,7 +71,7 @@ class IncidentMemoryService:
                 is_same_application=entry.application_id == investigation.application_id, incident_id=entry.incident_id, incident_number=incident_numbers.get(entry.incident_id),
                 incident_title=entry.incident_title_text, investigation_id=entry.investigation_id, occurred_at=entry.occurred_at, age_days=match.match.age_days, verdict=match.verdict,
                 cause_text=None if was_marked_incorrect else entry.cause_text, cause_source=entry.cause_source, fix_text=entry.fix_text, fix_source=entry.fix_source,
-                match_reasons=[MatchReasonDto(key_kind=reason.kind, display_text=reason.display_text) for reason in match.match.reasons], is_stale=match.match.is_stale,
+                match_reasons=[MatchReasonDto(key_kind=reason.kind, display_text=reason.display_text) for reason in match.match.reasons], is_rejected=match.match.is_rejected, is_stale=match.match.is_stale,
                 stale_reasons=list(match.match.stale_reasons), my_relevance_verdict=mine.get(entry.incident_memory_entry_id), can_hide=entry.application_id in administered,
             ))
         return items

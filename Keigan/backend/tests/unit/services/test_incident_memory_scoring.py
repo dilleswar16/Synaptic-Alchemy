@@ -31,7 +31,7 @@ def test_the_catalogue_names_a_weight_for_every_kind_of_key_and_every_verdict() 
 
     document = catalogue()
     assert set(document["key_weights"]) == {kind.value for kind in IncidentMemoryKeyKind}
-    assert set(document["verdict_multipliers"]) == {"correct", "partially_correct", "none", "incorrect"}
+    assert set(document["verdict_multipliers"]) == {"correct", "partially_correct", "none"} and document["rejected_verdict"] == "incorrect"
     assert set(document["cross_application_required_key_kinds"]) <= set(document["key_weights"])
 
 
@@ -79,16 +79,27 @@ def test_wording_alone_is_enough_inside_one_application_when_it_is_alike_enough(
     assert [match.entry_id for match in matches] == ["same-app"]
 
 
-def test_an_admin_confirmed_past_incident_ranks_above_an_unreviewed_one_and_an_incorrect_one_last() -> None:
-    candidates = [past("none", ERROR, CLUSTER, verdict=None), past("wrong", ERROR, CLUSTER, verdict="incorrect"), past("right", ERROR, CLUSTER, verdict="correct"), past("partly", ERROR, CLUSTER, verdict="partially_correct")]
+def test_an_admin_confirmed_past_incident_ranks_above_a_partly_right_one_and_an_unreviewed_one() -> None:
+    candidates = [past("none", ERROR, CLUSTER, verdict=None), past("right", ERROR, CLUSTER, verdict="correct"), past("partly", ERROR, CLUSTER, verdict="partially_correct")]
     config = similarity_config(minimum_score=0.1, stale_after_days=180, maximum_shown=5)
-    assert [match.entry_id for match in score_matches(current(ERROR, CLUSTER), candidates, config, NOW)] == ["right", "partly", "none", "wrong"]
+    assert [match.entry_id for match in score_matches(current(ERROR, CLUSTER), candidates, config, NOW)] == ["right", "partly", "none"]
 
 
-def test_with_the_starting_weights_a_past_incident_marked_incorrect_never_reaches_the_default_minimum() -> None:
-    """A consequence of the catalogue's starting guess (0.3 times at most 1 is below 0.35): to show marked-incorrect past incidents, lower the minimum or raise the multiplier."""
-    everything = (ERROR, CLUSTER, SERVICE, CATEGORY)
-    assert score_matches(current(*everything), [past("wrong", *everything, verdict="incorrect")], CONFIG, NOW) == []
+def test_a_past_incident_marked_incorrect_is_listed_apart_after_the_others_and_judged_on_its_raw_score() -> None:
+    """Not mixed in and not multiplied down: it is shown, labelled, when it matches as well as anything else would have to."""
+    candidates = [past("wrong", ERROR, CLUSTER, SERVICE, verdict="incorrect"), past("none", ERROR, CLUSTER, SERVICE, verdict=None)]
+    matches = score_matches(current(ERROR, CLUSTER, SERVICE), candidates, CONFIG, NOW)
+    assert [(match.entry_id, match.is_rejected) for match in matches] == [("none", False), ("wrong", True)]
+    assert matches[1].score == pytest.approx(0.35 + 0.15 + 0.15)  # no verdict multiplier
+
+
+def test_a_marked_incorrect_incident_still_needs_the_minimum_score_and_the_cap_and_zero_hides_them() -> None:
+    weak = past("weak", CATEGORY, verdict="incorrect")
+    strong = [past(f"wrong{number}", ERROR, verdict="incorrect", days_ago=number) for number in range(1, 5)]
+    assert score_matches(current(CATEGORY), [weak], CONFIG, NOW) == []
+    capped = score_matches(current(ERROR), strong, similarity_config(minimum_score=0.35, stale_after_days=180, maximum_shown=5, maximum_rejected_shown=2), NOW)
+    assert [match.entry_id for match in capped] == ["wrong1", "wrong2"]
+    assert score_matches(current(ERROR), strong, similarity_config(minimum_score=0.35, stale_after_days=180, maximum_shown=5, maximum_rejected_shown=0), NOW) == []
 
 
 def test_nothing_below_the_minimum_score_is_shown() -> None:

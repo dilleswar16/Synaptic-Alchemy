@@ -68,13 +68,25 @@ export function SimilarIncidentsCard({ investigationId }: { investigationId: str
   const [matchToHide, setMatchToHide] = useState<SimilarIncident | null>(null);
   const items = similar.data?.items ?? [];
   if (items.length === 0) return null;
+  const standing = items.filter((match) => !match.isRejected);
+  const rejected = items.filter((match) => match.isRejected);
+  const rows = (matches: SimilarIncident[]) => (
+    <ul className="flex flex-col gap-3">
+      {matches.map((match) => <MatchRow key={match.memoryEntryId} match={match} investigationId={investigationId} onHide={setMatchToHide} />)}
+    </ul>
+  );
   return (
     <Card id={similarIncidentsElementId}>
       <CardHeader icon={History} iconTone="info" title={t("similarIncidents.title")} description={t("similarIncidents.description")} />
-      <CardBody>
-        <ul className="flex flex-col gap-3">
-          {items.map((match) => <MatchRow key={match.memoryEntryId} match={match} investigationId={investigationId} onHide={setMatchToHide} />)}
-        </ul>
+      <CardBody className="flex flex-col gap-5">
+        {standing.length > 0 ? rows(standing) : null}
+        {rejected.length > 0 ? (
+          <section aria-label={t("similarIncidents.rejectedTitle")} className="flex flex-col gap-2 border-t border-hairline pt-4">
+            <h4 className="text-body-sm font-semibold text-default">{t("similarIncidents.rejectedTitle")}</h4>
+            <p className="text-caption text-muted">{t("similarIncidents.rejectedDescription")}</p>
+            {rows(rejected)}
+          </section>
+        ) : null}
       </CardBody>
       <HideSimilarIncidentDialog investigationId={investigationId} match={matchToHide} onOpenChange={(open) => (open ? undefined : setMatchToHide(null))} />
     </Card>

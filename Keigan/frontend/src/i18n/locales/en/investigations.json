@@ -714,6 +714,8 @@
       "confirm": "Hide it",
       "done": "Hidden",
       "failed": "Could not hide it"
-    }
+    },
+    "rejectedTitle": "Marked incorrect before",
+    "rejectedDescription": "Past incidents with the same facts whose analysis an admin marked incorrect. Shown so you know the earlier explanation was rejected, not to reuse it."
   }
 }
