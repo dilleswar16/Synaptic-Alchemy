@@ -153,4 +153,28 @@ class RunbookResponse(ApiModel):
     created_by_user_principal_name: str | None = None
 
 
+class RunbookFindingDto(ApiModel):
+    kind: str
+    parameters: dict[str, Any] = {}
+
+
+class RunbookHealthRowDto(ApiModel):
+    runbook_id: str
+    runbook_title: str
+    times_referenced_count: int = 0
+    last_referenced_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    matched_investigation_count: int = 0
+    rated_investigation_count: int = 0
+    incorrect_rated_count: int = 0
+    findings: list[RunbookFindingDto] = []
+
+
+class RunbookHealthResponse(ApiModel):
+    runbook_count: int
+    with_findings_count: int
+    runbooks: list[RunbookHealthRowDto]
+
+
 GraphDictionary = dict[str, Any]

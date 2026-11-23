@@ -218,6 +218,10 @@ class Settings(BaseSettings):
     action_items_maximum_due_days: int = Field(default=180, ge=7, le=730)  # latest due date, in days from today (and the clamp on the AI's suggested days)
     action_items_details_maximum_characters: int = Field(default=4000, ge=200, le=20_000)
     action_items_reason_minimum_characters: int = Field(default=10, ge=1, le=200)  # shortest reason for blocked and won't do
+    runbook_health_unused_after_days: int = Field(default=60, ge=7, le=730)  # a runbook never used after this many days is flagged
+    runbook_health_stale_after_days: int = Field(default=180, ge=30, le=1095)  # a runbook not updated for this many days is flagged
+    runbook_health_minimum_rated_investigations: int = Field(default=3, ge=1, le=50)  # fewest rated investigations before a runbook can be called often wrong
+    runbook_health_wrong_share_percent: float = Field(default=50.0, ge=10, le=100)  # share of rated investigations rated incorrect that flags a runbook
     weekly_review_maximum_listed_items: int = Field(default=10, ge=1, le=50)  # most overdue and unowned action items listed in the weekly review
     error_budget_policy_single_incident_threshold_percent: float = Field(default=20.0, ge=1, le=100)  # one incident using more than this share of an SLO's budget needs a postmortem with a top-priority item
     error_budget_policy_outage_class_threshold_percent: float = Field(default=20.0, ge=1, le=100)  # one class of outage using more than this share of an SLO's budget over the class window

@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Textarea } from "@/components/ui/Textarea";
+import { RunbookHealthCard } from "../components/RunbookHealthCard";
 import { StepFrame } from "../components/StepFrame";
 import type { StepProps } from "../stepRegistry";
 
@@ -119,6 +120,7 @@ export function RunbooksStep({ applicationId, canEdit, onStatusChange }: StepPro
         <EmptyState isBordered icon={BookOpen} title={t("runbooks.emptyTitle")} description={t("runbooks.emptyDescription")} action={canEdit ? <Button leadingIcon={Plus} onClick={() => setEditing({ runbook: null })}>{t("runbooks.add")}</Button> : undefined} />
       ) : (
         <div className="flex flex-col gap-3">
+          <RunbookHealthCard applicationId={applicationId} />
           {runbooksQuery.data?.map((runbook) => (
             <Card key={runbook.runbookId} dense className="flex flex-col gap-2 p-[var(--card-padding)]">
               <div className="flex items-start justify-between gap-3">

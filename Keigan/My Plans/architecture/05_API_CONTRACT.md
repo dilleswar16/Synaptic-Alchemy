@@ -134,6 +134,8 @@ Each vertical-slice owner keeps this file updated for their endpoints (short for
 | | | `POST /postmortems/{id}/finalize` also answers 422 (field `actionItems`) while a final, open policy breach has no accepted top-priority 'prevent' item |
 | | | **Weekly health review (spec 31)** |
 | POST | `/intelligence-reports/{reportId}/review` | application admin; `{noteText?}` (masked, at most 2000 characters); a weekly digest only, once; 422 otherwise; audited. The report summary and detail gain `reviewedAt`, `reviewedBy`, `reviewNote`; a weekly digest's `reportSections` gain `budget` and `actionItems` |
+| | | **Runbook health (spec 32)** |
+| GET | `/applications/{applicationId}/runbook-health` | readers; `{runbookCount, withFindingsCount, runbooks[{runbookId, runbookTitle, timesReferencedCount, lastReferencedAt, createdAt, updatedAt, matchedInvestigationCount, ratedInvestigationCount, incorrectRatedCount, findings[{kind, parameters}]}]}`; runbooks with findings first; kinds `no_trigger_symptoms`, `no_steps`, `never_used`, `not_updated`, `often_wrong` |
 
 ## 7. Chat
 

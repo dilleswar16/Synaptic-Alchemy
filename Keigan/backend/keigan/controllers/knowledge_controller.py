@@ -10,6 +10,7 @@ from keigan.dtos.knowledge_dtos import (
     KnowledgeDocumentDetailResponse,
     KnowledgeDocumentResponse,
     RunbookCreateRequest,
+    RunbookHealthResponse,
     RunbookResponse,
     RunbookUpdateRequest,
     TopologyResponse,
@@ -19,6 +20,7 @@ from keigan.dtos.knowledge_dtos import (
 from keigan.security.current_user import CurrentUser, require_application_admin, require_application_reader
 from keigan.security.security_middleware import rate_limiter
 from keigan.services.knowledge_service import KnowledgeService
+from keigan.services.runbook_health_service import RunbookHealthService
 from keigan.services.runbook_service import RunbookService
 from keigan.services.topology_service import TopologyService
 
@@ -116,6 +118,12 @@ async def create_runbook(
     application_id: str, request: RunbookCreateRequest, current_user: CurrentUser = AdminDependency, runbook_service: RunbookService = RunbookDependency
 ) -> RunbookResponse:
     return await runbook_service.create_runbook(current_user, application_id, request)
+
+
+@router.get(f"{APPLICATION_PATH}/runbook-health", response_model=RunbookHealthResponse)
+async def get_runbook_health(application_id: str, _user: CurrentUser = ReaderDependency, runbook_health_service: RunbookHealthService = Depends(provide(RunbookHealthService))) -> RunbookHealthResponse:
+    """Which runbooks need attention and why: never used, not updated, often rated incorrect, no symptoms, no steps. Computed on read from stored rows; nothing is edited."""
+    return await runbook_health_service.report(application_id)
 
 
 @router.get(f"{APPLICATION_PATH}/runbooks/{{runbook_id}}", response_model=RunbookResponse)

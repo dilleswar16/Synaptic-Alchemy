@@ -52,7 +52,8 @@
   "digest": {
     "title": "AI-samenvatting",
     "headings": "Gevonden koppen ({{count}})",
-    "chunks_one": "{{count}} doorzoekbare sectie, ongeveer {{tokens}} tokens.", "chunks_other": "{{count}} doorzoekbare secties, ongeveer {{tokens}} tokens.",
+    "chunks_one": "{{count}} doorzoekbare sectie, ongeveer {{tokens}} tokens.",
+    "chunks_other": "{{count}} doorzoekbare secties, ongeveer {{tokens}} tokens.",
     "injectionTitle": "Dit document bevat tekst die op instructies lijkt",
     "injectionBody": "Keigan behandelt documenten als gegevens en negeert instructies erin, maar een persoon moet dit bestand controleren.",
     "status": {
@@ -160,5 +161,25 @@
     "deleteTitle": "{{name}} verwijderen?",
     "deleteDescription": "Onderzoeken die er al naar verwezen, behouden hun geschiedenis.",
     "deleteConfirm": "Runbook verwijderen"
+  },
+  "health": {
+    "title": "Gezondheid van runbooks",
+    "allFine": "Alle {{count}} runbooks zien er gezond uit.",
+    "summary_one": "{{count}} van {{total}} runbooks heeft aandacht nodig.",
+    "summary_other": "{{count}} van {{total}} runbooks hebben aandacht nodig.",
+    "kind": {
+      "no_trigger_symptoms": "Geen triggersymptomen",
+      "no_steps": "Geen stappen",
+      "never_used": "Nooit gebruikt",
+      "not_updated": "Niet bijgewerkt",
+      "often_wrong": "Vaak als onjuist beoordeeld"
+    },
+    "finding": {
+      "no_trigger_symptoms": "Zonder symptomen kan Keigan deze runbook niet aan een incident koppelen.",
+      "no_steps": "De runbook heeft geen stappen om te volgen.",
+      "never_used": "0 keer gebruikt in {{days}} dagen.",
+      "not_updated": "Laatst bijgewerkt {{days}} dagen geleden.",
+      "often_wrong": "{{incorrect}} van de {{rated}} beoordeelde onderzoeken die hem gebruikten, zijn als onjuist beoordeeld."
+    }
   }
 }

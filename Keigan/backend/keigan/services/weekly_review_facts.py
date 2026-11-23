@@ -17,6 +17,7 @@ from keigan.entities.notification_entities import Stakeholder
 from keigan.entities.status_values import ActionItemPriority, ActionItemStatus, ErrorBudgetRequirementStatus
 from keigan.services.action_item_rules import TRACKED_STATUSES, days_overdue, local_today
 from keigan.services.error_budget_policy_service import effective_policy
+from keigan.services.runbook_health_service import RunbookHealthService
 from keigan.utils.time_utils import ensure_utc
 
 
@@ -31,7 +32,13 @@ async def weekly_review_sections(
     return {
         "budget": await _budget_section(session, application, period_start, period_end),
         "actionItems": await _action_item_section(session, application, period_start, period_end, now, maximum_listed_items),
+        "runbooks": await _runbook_section(session, application, now, maximum_listed_items),
     }
+
+
+async def _runbook_section(session: AsyncSession, application: Application, now: datetime, maximum_listed_items: int) -> dict[str, Any]:
+    rows = [row for row in await RunbookHealthService(session).rows(application.application_id, now.date()) if row.findings]
+    return {"withFindingsCount": len(rows), "runbooks": [{"title": row.runbook.runbook_title, "findingKinds": [finding.kind for finding in row.findings]} for row in rows[:maximum_listed_items]]}
 
 
 async def _budget_section(session: AsyncSession, application: Application, period_start: datetime, period_end: datetime) -> dict[str, Any]:
@@ -83,7 +90,7 @@ async def _action_item_section(session: AsyncSession, application: Application, 
 
 def review_fact_lines(sections: dict[str, Any]) -> list[str]:
     """The same figures as short lines: given to the narration and written into the Markdown."""
-    budget, items = sections["budget"], sections["actionItems"]
+    budget, items, runbooks = sections["budget"], sections["actionItems"], sections["runbooks"]
     lines = [
         "Error budget: " + (
             "; ".join(f"{row['incidentNumber']} used {row['sharePercent']:g}% of {row['sliName']} ({row['impactState']})" for row in budget["incidents"][:5]) or "no incident of the week has a stated budget figure"
@@ -93,6 +100,7 @@ def review_fact_lines(sections: dict[str, Any]) -> list[str]:
     ]
     if items["topPriorityWithoutOwner"]:
         lines.append("Top-priority items without an owner: " + "; ".join(items["topPriorityWithoutOwner"]) + ".")
+    lines.append(f"Runbooks needing attention: {runbooks['withFindingsCount']}" + (" (" + "; ".join(row["title"] for row in runbooks["runbooks"][:5]) + ")" if runbooks["runbooks"] else "") + ".")
     return lines
 
 
@@ -104,4 +112,7 @@ def review_markdown_lines(sections: dict[str, Any]) -> list[str]:
     lines += ["", "## Follow-ups", f"- {items['openCount']} open, {items['overdueCount']} overdue, {items['doneThisWeekCount']} done this week, {items['acceptedThisWeekCount']} accepted this week."]
     lines += [f"- Overdue: {row['title']} ({row['daysOverdue']} days, {row['owner'] or 'no owner'})" for row in items["overdue"]]
     lines += [f"- Top priority, no owner: {title}" for title in items["topPriorityWithoutOwner"]]
+    runbooks = sections["runbooks"]
+    lines += ["", "## Runbooks", f"- {runbooks['withFindingsCount']} runbook(s) need attention."]
+    lines += [f"- {row['title']}: {', '.join(kind.replace('_', ' ') for kind in row['findingKinds'])}" for row in runbooks["runbooks"]]
     return [*lines, ""]

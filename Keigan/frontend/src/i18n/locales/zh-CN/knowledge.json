@@ -160,5 +160,24 @@
     "deleteTitle": "删除{{name}}？",
     "deleteDescription": "已引用它的调查会保留其历史记录。",
     "deleteConfirm": "删除运行手册"
+  },
+  "health": {
+    "title": "Runbook 健康状况",
+    "allFine": "全部 {{count}} 个 Runbook 状态良好。",
+    "summary_other": "{{total}} 个 Runbook 中有 {{count}} 个需要关注。",
+    "kind": {
+      "no_trigger_symptoms": "没有触发症状",
+      "no_steps": "没有步骤",
+      "never_used": "从未使用",
+      "not_updated": "未更新",
+      "often_wrong": "常被评为不准确"
+    },
+    "finding": {
+      "no_trigger_symptoms": "没有症状，Keigan 无法将此 Runbook 匹配到事件。",
+      "no_steps": "此 Runbook 没有可遵循的步骤。",
+      "never_used": "{{days}} 天内使用 0 次。",
+      "not_updated": "上次更新于 {{days}} 天前。",
+      "often_wrong": "使用过它的 {{rated}} 次已评分调查中有 {{incorrect}} 次被评为不准确。"
+    }
   }
 }

@@ -160,5 +160,24 @@
     "deleteTitle": "{{name}}を削除しますか？",
     "deleteDescription": "すでにこれを引用した調査の履歴は保持されます。",
     "deleteConfirm": "ランブックを削除"
+  },
+  "health": {
+    "title": "Runbook の健全性",
+    "allFine": "{{count}} 件の Runbook はすべて問題ありません。",
+    "summary_other": "{{total}} 件中 {{count}} 件の Runbook に対応が必要です。",
+    "kind": {
+      "no_trigger_symptoms": "トリガーとなる症状がない",
+      "no_steps": "手順がない",
+      "never_used": "未使用",
+      "not_updated": "更新されていない",
+      "often_wrong": "不正確と評価されることが多い"
+    },
+    "finding": {
+      "no_trigger_symptoms": "症状がないと、Keigan はこの Runbook をインシデントに結び付けられません。",
+      "no_steps": "この Runbook には従うべき手順がありません。",
+      "never_used": "{{days}} 日間で 0 回使用されました。",
+      "not_updated": "最終更新は {{days}} 日前です。",
+      "often_wrong": "これを使った評価済み調査 {{rated}} 件のうち {{incorrect}} 件が不正確と評価されました。"
+    }
   }
 }

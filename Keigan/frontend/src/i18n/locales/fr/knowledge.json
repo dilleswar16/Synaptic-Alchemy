@@ -52,7 +52,8 @@
   "digest": {
     "title": "Synthèse IA",
     "headings": "Titres détectés ({{count}})",
-    "chunks_one": "{{count}} section interrogeable, environ {{tokens}} jetons.", "chunks_other": "{{count}} sections interrogeables, environ {{tokens}} jetons.",
+    "chunks_one": "{{count}} section interrogeable, environ {{tokens}} jetons.",
+    "chunks_other": "{{count}} sections interrogeables, environ {{tokens}} jetons.",
     "injectionTitle": "Ce document contient du texte ressemblant à des instructions",
     "injectionBody": "Keigan traite les documents comme des données et ignore les instructions qu'ils contiennent, mais une personne devrait vérifier ce fichier.",
     "status": {
@@ -160,5 +161,25 @@
     "deleteTitle": "Supprimer {{name}} ?",
     "deleteDescription": "Les investigations qui l'ont déjà cité conservent leur historique.",
     "deleteConfirm": "Supprimer le runbook"
+  },
+  "health": {
+    "title": "Santé des runbooks",
+    "allFine": "Les {{count}} runbooks semblent en bon état.",
+    "summary_one": "{{count}} runbook sur {{total}} demande de l'attention.",
+    "summary_other": "{{count}} runbooks sur {{total}} demandent de l'attention.",
+    "kind": {
+      "no_trigger_symptoms": "Sans symptômes déclencheurs",
+      "no_steps": "Sans étapes",
+      "never_used": "Jamais utilisé",
+      "not_updated": "Pas mis à jour",
+      "often_wrong": "Souvent jugé incorrect"
+    },
+    "finding": {
+      "no_trigger_symptoms": "Sans symptômes, Keigan ne peut pas associer ce runbook à un incident.",
+      "no_steps": "Le runbook n'a aucune étape à suivre.",
+      "never_used": "Utilisé 0 fois en {{days}} jours.",
+      "not_updated": "Dernière mise à jour il y a {{days}} jours.",
+      "often_wrong": "{{incorrect}} des {{rated}} investigations évaluées qui l'ont utilisé ont été jugées incorrectes."
+    }
   }
 }

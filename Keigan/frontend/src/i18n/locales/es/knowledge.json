@@ -52,7 +52,8 @@
   "digest": {
     "title": "Resumen de IA",
     "headings": "Encabezados encontrados ({{count}})",
-    "chunks_one": "{{count}} sección con búsqueda, unos {{tokens}} tokens.", "chunks_other": "{{count}} secciones con búsqueda, unos {{tokens}} tokens.",
+    "chunks_one": "{{count}} sección con búsqueda, unos {{tokens}} tokens.",
+    "chunks_other": "{{count}} secciones con búsqueda, unos {{tokens}} tokens.",
     "injectionTitle": "Este documento contiene texto con forma de instrucciones",
     "injectionBody": "Keigan trata los documentos como datos e ignora las instrucciones que contienen, pero una persona debería revisar este archivo.",
     "status": {
@@ -160,5 +161,25 @@
     "deleteTitle": "¿Eliminar {{name}}?",
     "deleteDescription": "Las investigaciones que ya lo citaron conservan su historial.",
     "deleteConfirm": "Eliminar runbook"
+  },
+  "health": {
+    "title": "Salud de los runbooks",
+    "allFine": "Los {{count}} runbooks se ven bien.",
+    "summary_one": "{{count}} de {{total}} runbooks necesita atención.",
+    "summary_other": "{{count}} de {{total}} runbooks necesitan atención.",
+    "kind": {
+      "no_trigger_symptoms": "Sin síntomas de activación",
+      "no_steps": "Sin pasos",
+      "never_used": "Nunca usado",
+      "not_updated": "Sin actualizar",
+      "often_wrong": "A menudo valorado como incorrecto"
+    },
+    "finding": {
+      "no_trigger_symptoms": "Sin síntomas, Keigan no puede asociar este runbook a un incidente.",
+      "no_steps": "El runbook no tiene pasos que seguir.",
+      "never_used": "Usado 0 veces en {{days}} días.",
+      "not_updated": "Actualizado por última vez hace {{days}} días.",
+      "often_wrong": "{{incorrect}} de {{rated}} investigaciones valoradas que lo usaron se valoraron como incorrectas."
+    }
   }
 }

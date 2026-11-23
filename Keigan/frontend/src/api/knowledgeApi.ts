@@ -190,3 +190,32 @@ export const useSaveRunbook = (applicationId: string) =>
       : apiPost<Runbook>(`${applicationPath(applicationId)}/runbooks`, variables.body));
 export const useDeleteRunbook = (applicationId: string) =>
   useKnowledgeMutation(applicationId, (runbookId: string) => apiDelete<void>(`${applicationPath(applicationId)}/runbooks/${runbookId}`));
+
+/* ── Runbook health (spec 32) ──────────────────────────────────────── */
+export type RunbookFindingKind = "no_trigger_symptoms" | "no_steps" | "never_used" | "not_updated" | "often_wrong";
+export const runbookFindingKinds: RunbookFindingKind[] = ["no_trigger_symptoms", "no_steps", "never_used", "not_updated", "often_wrong"];
+
+export interface RunbookFinding {
+  kind: RunbookFindingKind;
+  /** The figures behind the finding: `days`, or `incorrect` and `rated`. */
+  parameters: { days?: number; incorrect?: number; rated?: number };
+}
+export interface RunbookHealthRow {
+  runbookId: string;
+  runbookTitle: string;
+  timesReferencedCount: number;
+  lastReferencedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  matchedInvestigationCount: number;
+  ratedInvestigationCount: number;
+  incorrectRatedCount: number;
+  findings: RunbookFinding[];
+}
+export interface RunbookHealth {
+  runbookCount: number;
+  withFindingsCount: number;
+  runbooks: RunbookHealthRow[];
+}
+export const useRunbookHealth = (applicationId: string) =>
+  useQuery({ queryKey: ["knowledge", applicationId, "runbook-health"] as const, queryFn: ({ signal }) => apiGet<RunbookHealth>(`${applicationPath(applicationId)}/runbook-health`, { signal }) });

@@ -52,7 +52,8 @@
   "digest": {
     "title": "AI digest",
     "headings": "Headings found ({{count}})",
-    "chunks_one": "{{count}} searchable section, about {{tokens}} tokens.", "chunks_other": "{{count}} searchable sections, about {{tokens}} tokens.",
+    "chunks_one": "{{count}} searchable section, about {{tokens}} tokens.",
+    "chunks_other": "{{count}} searchable sections, about {{tokens}} tokens.",
     "injectionTitle": "This document contains instruction-like text",
     "injectionBody": "Keigan treats documents as data and ignores instructions inside them, but a person should check this file.",
     "status": {
@@ -160,5 +161,25 @@
     "deleteTitle": "Delete {{name}}?",
     "deleteDescription": "Investigations that already cited it keep their history.",
     "deleteConfirm": "Delete runbook"
+  },
+  "health": {
+    "title": "Runbook health",
+    "allFine": "All {{count}} runbooks look healthy.",
+    "summary_one": "{{count}} of {{total}} runbooks needs attention.",
+    "summary_other": "{{count}} of {{total}} runbooks need attention.",
+    "kind": {
+      "no_trigger_symptoms": "No trigger symptoms",
+      "no_steps": "No steps",
+      "never_used": "Never used",
+      "not_updated": "Not updated",
+      "often_wrong": "Often rated incorrect"
+    },
+    "finding": {
+      "no_trigger_symptoms": "Without symptoms, Keigan cannot match this runbook to an incident.",
+      "no_steps": "The runbook has no steps to follow.",
+      "never_used": "Used 0 times in {{days}} days.",
+      "not_updated": "Last updated {{days}} days ago.",
+      "often_wrong": "{{incorrect}} of {{rated}} rated investigations that used it were rated incorrect."
+    }
   }
 }
