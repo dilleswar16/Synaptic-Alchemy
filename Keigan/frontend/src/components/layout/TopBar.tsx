@@ -10,6 +10,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Kbd } from "@/components/ui/Kbd";
 import { Popover } from "@/components/ui/Popover";
 import { ApplicationScopeSwitcher } from "./ApplicationScopeSwitcher";
+import { DesignLabMenu } from "@/design-lab/DesignLabMenu";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -27,7 +28,7 @@ export function TopBar({ onOpenNavigation, onOpenCommandPalette }: TopBarProps) 
   const roleKey = user ? highestRoleOf(user) : "noAccess";
 
   return (
-    <header className="glass-surface sticky top-0 z-30 flex h-16 shrink-0 items-center gap-1 border-b border-hairline px-3 sm:gap-2 sm:px-6">
+    <header className="glass-surface sticky top-0 z-30 flex h-[var(--layout-top-bar-height,4rem)] shrink-0 items-center gap-1 border-b border-hairline px-3 sm:gap-2 sm:px-6">
       <IconButton icon={Menu} label={t("sidebar.open")} onClick={onOpenNavigation} className="md:hidden" />
       <ApplicationScopeSwitcher />
       <div className="flex-1" />
@@ -44,6 +45,7 @@ export function TopBar({ onOpenNavigation, onOpenCommandPalette }: TopBarProps) 
       </button>
       <IconButton icon={Search} label={t("commandPalette.open")} onClick={onOpenCommandPalette} className="lg:hidden" />
       <LanguageSwitcher />
+      <DesignLabMenu />
       <ThemeToggle />
       <Popover
         align="end"

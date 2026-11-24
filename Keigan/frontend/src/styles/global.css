@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "./tokens.css";
+@import "../design/design.css";
+@import "../design-lab/design-lab.css";
 
 /*
  * Dark mode follows `data-theme="dark"` on <html> (set by useTheme), not the media query.

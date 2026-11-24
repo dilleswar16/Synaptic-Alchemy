@@ -101,6 +101,6 @@ export function controlBoxClassName(size: "sm" | "md" = "md"): string {
     "placeholder:text-subtle hover:border-subtle focus-visible:border-action",
     "disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-muted disabled:shadow-none",
     "aria-[invalid=true]:border-danger-fill",
-    size === "md" ? "h-10 px-3 text-body" : "h-8 px-2.5 text-body-sm",
+    size === "md" ? "h-[var(--control-h-md,2.5rem)] px-[var(--control-px-md,0.75rem)] text-body" : "h-[var(--control-h-sm,2rem)] px-[var(--control-px-sm,0.625rem)] text-body-sm",
   );
 }

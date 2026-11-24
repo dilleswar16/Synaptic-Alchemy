@@ -1,0 +1,147 @@
+/*
+ * Navigation rail motion: the icons' hover animations, the way labels fade in as the rail opens, and the reduced-motion
+ * switch-off. Used by MonoSidebar.tsx.
+ */
+
+/* ───────────────────────────── Sidebar navigation icons ───────────────────────────── */
+
+.rail-link .ni * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.rail-link .ni-fill {
+  fill: currentColor;
+  opacity: 0.1;
+  transition: opacity 200ms ease, fill 200ms ease;
+}
+
+.rail-link:hover .ni-fill {
+  opacity: 0.18;
+}
+
+.rail-link[aria-current="page"] .ni-fill {
+  fill: var(--color-brand-fill);
+  opacity: 0.55;
+}
+
+.rail-link .ni {
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.rail-link:hover .ni {
+  transform: scale(1.06);
+}
+
+@keyframes rail-pop {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+@keyframes rail-flicker {
+  0%, 100% { opacity: 1; }
+  30% { opacity: 0.25; }
+  60% { opacity: 1; }
+  80% { opacity: 0.4; }
+}
+@keyframes rail-swing {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(16deg); }
+  40% { transform: rotate(-12deg); }
+  60% { transform: rotate(8deg); }
+  80% { transform: rotate(-4deg); }
+}
+@keyframes rail-draw {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes rail-sweep-needle {
+  0% { transform: rotate(0); }
+  45% { transform: rotate(-70deg); }
+  100% { transform: rotate(0); }
+}
+@keyframes rail-grow {
+  0% { transform: scaleY(0.35); }
+  60% { transform: scaleY(1.12); }
+  100% { transform: scaleY(1); }
+}
+@keyframes rail-twinkle {
+  0%, 100% { transform: scale(1) rotate(0); }
+  40% { transform: scale(1.35) rotate(20deg); }
+  70% { transform: scale(0.85) rotate(-10deg); }
+}
+@keyframes rail-square {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(0.8); }
+}
+@keyframes rail-slide-right {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+}
+@keyframes rail-slide-left {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-3px); }
+}
+@keyframes rail-radar {
+  to { transform: rotate(360deg); }
+}
+@keyframes rail-fly {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(2px, -2px); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes rail-pulse-dot {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.6); }
+}
+
+.rail-link:hover .ni-door { animation: rail-pop 360ms ease-out; }
+.rail-link:hover .ni-rays { animation: rail-flicker 700ms ease-in-out; }
+.rail-link .ni-bell { transform-origin: 12px 4px; }
+.rail-link:hover .ni-bell { animation: rail-swing 700ms ease-in-out; }
+.rail-link:hover .ni-clapper { animation: rail-slide-right 500ms ease-in-out; }
+.rail-link .ni-draw { stroke-dasharray: 24; stroke-dashoffset: 0; }
+.rail-link:hover .ni-draw { animation: rail-draw 600ms ease-out; }
+.rail-link .ni-needle { transform-origin: 12px 17px; }
+.rail-link:hover .ni-needle { animation: rail-sweep-needle 900ms ease-in-out; }
+.rail-link .ni-bar { transform-origin: bottom; }
+.rail-link:hover .ni-bar-1 { animation: rail-grow 500ms ease-out; }
+.rail-link:hover .ni-bar-2 { animation: rail-grow 500ms ease-out 70ms backwards; }
+.rail-link:hover .ni-bar-3 { animation: rail-grow 500ms ease-out 140ms backwards; }
+.rail-link:hover .ni-twinkle { animation: rail-twinkle 700ms ease-in-out; }
+.rail-link:hover .ni-sq-1 { animation: rail-square 520ms ease-in-out; }
+.rail-link:hover .ni-sq-2 { animation: rail-square 520ms ease-in-out 70ms backwards; }
+.rail-link:hover .ni-sq-4 { animation: rail-square 520ms ease-in-out 140ms backwards; }
+.rail-link:hover .ni-sq-3 { animation: rail-square 520ms ease-in-out 210ms backwards; }
+.rail-link:hover .ni-knob-1 { animation: rail-slide-right 600ms ease-in-out; }
+.rail-link:hover .ni-knob-2 { animation: rail-slide-left 600ms ease-in-out 80ms backwards; }
+.rail-link:hover .ni-knob-3 { animation: rail-slide-right 600ms ease-in-out 160ms backwards; }
+.rail-link .ni-sweep { transform-origin: 12px 12px; }
+.rail-link:hover .ni-sweep { animation: rail-radar 1100ms linear; }
+.rail-link:hover .ni-plane { animation: rail-fly 500ms ease-in-out; }
+.rail-link:hover .ni-dot { animation: rail-pulse-dot 600ms ease-in-out; }
+.rail-link:hover .ni-dot-2 { animation-delay: 90ms; }
+.rail-link:hover .ni-dot-3 { animation-delay: 180ms; }
+
+/* Group labels and item labels fade and slide in as the rail opens. */
+.rail-reveal {
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+
+[data-rail-open="true"] .rail-reveal {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-link *,
+  .rail-reveal {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+

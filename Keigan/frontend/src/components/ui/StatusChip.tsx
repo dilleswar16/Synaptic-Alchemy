@@ -38,7 +38,7 @@ export function StatusChip({
     <span
       className={cn(
         "inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full font-medium whitespace-nowrap",
-        size === "md" ? "h-6 px-2.5 text-caption" : "h-5 px-2 text-micro",
+        size === "md" ? "h-[var(--chip-h-md,1.5rem)] px-[var(--chip-px-md,0.625rem)] text-caption" : "h-[var(--chip-h-sm,1.25rem)] px-[var(--chip-px-sm,0.5rem)] text-micro",
         variant === "soft" ? toneSoftClasses[tone] : ["border bg-surface", toneSoftClasses[tone], "bg-transparent border-current/30"],
         className,
       )}

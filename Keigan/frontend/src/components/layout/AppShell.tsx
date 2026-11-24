@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/utils/cn";
 import { CommandPalette } from "./CommandPalette";
+import { MonoSidebar } from "@/design/rail/MonoSidebar";
+import { useDesign } from "@/design/useDesign";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 
@@ -26,6 +28,8 @@ export function AppShell() {
   const { t } = useTranslation("navigation");
   const location = useLocation();
   const isDesktop = useMediaQuery("(min-width: 900px)");
+  const { designId } = useDesign();
+  const SidebarView = designId === "mono" ? MonoSidebar : Sidebar;
   const [isCollapsed, setIsCollapsed] = useState(readCollapsedPreference);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -90,19 +94,19 @@ export function AppShell() {
       </a>
 
       {isDesktop ? (
-        <div className={cn("fixed inset-y-0 left-0 z-40 transition-[width] duration-200", isCollapsed ? "w-[72px]" : "w-[264px]")}>
-          <Sidebar isCollapsed={isCollapsed} onToggleCollapsed={toggleCollapsed} />
+        <div className={cn("fixed inset-y-0 left-0 z-40 transition-[width] duration-200", isCollapsed ? "w-[var(--layout-sidebar-collapsed-width,72px)]" : "w-[var(--layout-sidebar-width,264px)]")}>
+          <SidebarView isCollapsed={isCollapsed} onToggleCollapsed={toggleCollapsed} />
         </div>
       ) : isOverlayOpen ? (
         <>
           <div className="fixed inset-0 z-40 animate-fade-in bg-overlay" onClick={() => setIsOverlayOpen(false)} aria-hidden="true" />
           <div ref={drawerRef} role="dialog" aria-modal="true" aria-label={t("mainNavigation")} tabIndex={-1} className="fixed inset-y-0 left-0 z-50 w-[264px] max-w-[85vw] animate-drawer-left-in shadow-lg outline-none">
-            <Sidebar isCollapsed={false} isOverlay onToggleCollapsed={toggleCollapsed} onNavigate={() => setIsOverlayOpen(false)} onClose={() => setIsOverlayOpen(false)} />
+            <SidebarView isCollapsed={false} isOverlay onToggleCollapsed={toggleCollapsed} onNavigate={() => setIsOverlayOpen(false)} onClose={() => setIsOverlayOpen(false)} />
           </div>
         </>
       ) : null}
 
-      <div ref={mainContentRef} className={cn("flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200", isDesktop && (isCollapsed ? "pl-[72px]" : "pl-[264px]"))}>
+      <div ref={mainContentRef} className={cn("flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200", isDesktop && (isCollapsed ? "pl-[var(--layout-sidebar-collapsed-width,72px)]" : "pl-[var(--layout-sidebar-width,264px)]"))}>
         <TopBar onOpenNavigation={() => setIsOverlayOpen(true)} onOpenCommandPalette={() => setIsPaletteOpen(true)} />
         <main id="main-content" tabIndex={-1} className="flex-1 px-4 pt-6 pb-20 outline-none sm:px-5 md:px-8 md:pt-8">
           <div key={location.pathname.split("/")[1] ?? ""} className="mx-auto w-full max-w-[1440px] animate-page-enter">

@@ -25,7 +25,7 @@ export function Card({ interactive = false, dense = false, radius = "md", accent
     <div
       data-dense={dense || undefined}
       className={cn(
-        "relative flex min-w-0 flex-col border border-hairline bg-surface shadow-xs [--card-padding:1.5rem] data-[dense]:[--card-padding:1.25rem]",
+        "relative flex min-w-0 flex-col border border-hairline bg-surface shadow-xs [--card-padding:var(--card-padding-base,1.5rem)] data-[dense]:[--card-padding:var(--card-padding-dense,1.25rem)]",
         radiusClasses[radius],
         interactive &&
           "cursor-pointer transition-[box-shadow,transform] duration-150 ease-[var(--ease-standard)] hover:-translate-y-px hover:shadow-md focus-within:shadow-md",

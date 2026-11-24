@@ -31,9 +31,9 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "h-8 gap-1.5 px-3 text-body-sm",
-  md: "h-10 gap-2 px-4 text-body",
-  lg: "h-12 gap-2 px-5 text-body",
+  sm: "h-[var(--button-h-sm,2rem)] gap-1.5 px-[var(--button-px-sm,0.75rem)] text-[length:var(--button-text-sm,var(--text-body-sm))]",
+  md: "h-[var(--button-h-md,2.5rem)] gap-2 px-[var(--button-px-md,1rem)] text-[length:var(--button-text-md,var(--text-body))]",
+  lg: "h-[var(--button-h-lg,3rem)] gap-2 px-[var(--button-px-lg,1.25rem)] text-[length:var(--button-text-lg,var(--text-body))]",
 };
 
 const iconSizes: Record<ButtonSize, number> = { sm: 16, md: 18, lg: 18 };
@@ -41,7 +41,7 @@ const iconSizes: Record<ButtonSize, number> = { sm: 16, md: 18, lg: 18 };
 /** Button styles without the component, for links styled as buttons outside `asChild`. */
 export function buttonClassName(variant: ButtonVariant = "primary", size: ButtonSize = "md", fullWidth = false): string {
   return cn(
-    "inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap rounded-sm font-semibold",
+    "inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap rounded-[var(--radius-button,var(--radius-sm))] font-[weight:var(--button-weight,600)]",
     "transition-[background-color,box-shadow,color,filter] duration-150",
     "disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50",
     variantClasses[variant],

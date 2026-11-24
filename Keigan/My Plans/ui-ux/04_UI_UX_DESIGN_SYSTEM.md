@@ -138,6 +138,16 @@ Section eyebrows ("OPERATE" in the sidebar) may be small caps-style uppercase 11
 Numbers in tables and KPIs use `font-variant-numeric: tabular-nums`. Weights: Noto Sans 400/500/600/700, Figtree 500/600/700.
 Japanese text: line-height +0.1, letter-spacing 0.02em on body.
 
+### 1.4 Mono, Keigan's own design (trial, 2026-11-24)
+
+Keigan now has its own design, **Mono**, in light and dark; the original blue design stays selectable as **Classic**. Mono lives in `frontend/src/design/` (README there) and is selected with `data-design="mono"` on `<html>` (`hooks`: `design/useDesign.ts`, stored as `keigan.design`; chooser on the Design system page and in the top-bar brush menu, developer environments). It is a near-monochrome system: off-white and near-black surfaces, ink text, grey selected states, one green used only for buttons (with dark text) and small dots, no purple and no gradients (the AI marks are ink or white, the Ask Keigan panel is a dark card). Type is Inter at weights 400 and 500 only, body 16 px, tight tracking on large sizes, system monospace for code. Radii are 4 / 6 / 12 / 12 / 16 with 6 px buttons; cards are flat with a 1 px hairline and three shadow levels above that. Sizes: buttons 30 px, fields 42 px, cards padded 32 px, a 56 px top bar, buttons and fields at least 36 px on a phone. Links are ink with a persistent underline in body copy; the action colour is never used for text. Motion: buttons press in, and the new navigation rail animates (see below); reduced motion turns it off.
+
+Navigation: `design/rail/MonoSidebar.tsx` replaces the original sidebar while Mono is on. It is a 56 px icon rail that opens over the page on hover or keyboard focus (a pin button keeps it open, `--layout-sidebar-width` / `--layout-sidebar-collapsed-width` set the two widths), group and item labels fade in, the active page is a pill that slides between items, and the footer shows the environment. `design/rail/NavIcons.tsx` has one two-tone icon per destination with its own hover animation. Same destinations, labels and access rules as `Sidebar`.
+
+Components read size tokens with the original size as the fallback (`--button-h-md`, `--button-px-md`, `--button-text-md`, `--button-weight`, `--control-h-md`, `--card-padding-base`, `--chip-h-md`, `--radius-button` and their siblings), so they look as before whenever Mono is off.
+
+Design lab (comparison only, removable): `frontend/src/design-lab/` applies seven other design systems from the `DESIGN.md` files in `Keigan/design/` (Stripe, Coinbase, MongoDB, VoltAgent, Spotify, Lovable, Starbucks), each in light and dark, through `data-lab`. Mono does not depend on it. Open items: review the pages other than Home, an investigation and Applications in Mono; the hover animations have not been watched in a browser; code blocks do not yet use the 16 px padding and 6 px radius; decide whether to keep Classic and then fold Mono into `tokens.css`.
+
 ## 2. Space, shape, depth
 
 - **Spacing scale** (4 px base): 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64. Card padding 24 (20 on dense cards); page gutters 32 desktop, 20 tablet, 16 mobile; section gap 32; form label→control 8; between fields 20.

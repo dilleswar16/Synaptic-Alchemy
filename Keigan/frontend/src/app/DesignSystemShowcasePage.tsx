@@ -7,6 +7,8 @@ import { HeatmapGrid } from "@/components/charts/HeatmapGrid";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { TimeSeriesChart } from "@/components/charts/TimeSeriesChart";
 import { KeiganLogo } from "@/components/layout/KeiganLogo";
+import { DesignChoice } from "@/design/DesignChoice";
+import { DesignLabPicker } from "@/design-lab/DesignLabPicker";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { TopologyGraph } from "@/components/topology/TopologyGraph";
@@ -105,6 +107,14 @@ export default function DesignSystemShowcasePage() {
         description="Every Keigan UI component in its main variants. Use the theme toggle to review light and dark."
         actions={<ThemeToggle />}
       />
+
+      <Section title="Keigan design">
+        <DesignChoice />
+      </Section>
+
+      <Section title="Design lab">
+        <DesignLabPicker />
+      </Section>
 
       <Section title="Brand">
         <Row>

@@ -1,0 +1,274 @@
+/*
+ * Mono: Keigan's own design. Near-monochrome surfaces and ink, one green used only on buttons and small dots, Inter at weights
+ * 400 and 500, flat 1 px hairlines with three shadow levels, 6 px buttons. Light and dark. Selected with `data-design="mono"`
+ * on <html> (see useDesign.ts). Without that attribute the app keeps its original ("classic") design from styles/tokens.css.
+ */
+
+[data-design="mono"] {
+  --font-family-display: "Inter", "Noto Sans", "Noto Sans JP", "Noto Sans SC", system-ui, sans-serif;
+  --font-family-body: "Inter", "Noto Sans", "Noto Sans JP", "Noto Sans SC", system-ui, sans-serif;
+  --font-family-mono: ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-button: 6px;
+  --text-display: 36px;
+  --text-display-line-height: 41.5px;
+  --type-display-weight: 500;
+  --type-display-tracking: -0.72px;
+  --text-h1: 28px;
+  --text-h1-line-height: 33.5px;
+  --type-h1-weight: 500;
+  --type-h1-tracking: -0.42px;
+  --text-h2: 22px;
+  --text-h2-line-height: 26.5px;
+  --type-h2-weight: 500;
+  --type-h2-tracking: 0;
+  --text-h3: 18px;
+  --text-h3-line-height: 25px;
+  --type-h3-weight: 500;
+  --type-h3-tracking: 0;
+  --text-kpi: 28px;
+  --text-kpi-line-height: 33.5px;
+  --type-kpi-weight: 500;
+  --type-kpi-tracking: -0.42px;
+  --text-kpi-sm: 22px;
+  --text-kpi-sm-line-height: 26.5px;
+  --type-kpi-sm-weight: 500;
+  --type-kpi-sm-tracking: 0;
+  --text-body-lg: 18px;
+  --text-body-lg-line-height: 28px;
+  --text-body: 16px;
+  --text-body-line-height: 24px;
+  --text-body-sm: 14px;
+  --text-body-sm-line-height: 21px;
+  --text-caption: 13px;
+  --text-caption-line-height: 19px;
+  --text-micro: 12px;
+  --text-micro-line-height: 17.5px;
+  --text-code: 14px;
+  --text-code-line-height: 21px;
+  --type-body-weight: 400;
+  --type-body-tracking: 0;
+  --button-weight: 500;
+  --button-h-sm: 26px;
+  --button-px-sm: 12px;
+  --button-text-sm: 13px;
+  --button-h-md: 30px;
+  --button-px-md: 16px;
+  --button-text-md: 14px;
+  --button-h-lg: 40px;
+  --button-px-lg: 20px;
+  --button-text-lg: 16px;
+  --control-h-md: 42px;
+  --control-px-md: 12px;
+  --control-h-sm: 34px;
+  --control-px-sm: 10px;
+  --control-py: 8px;
+  --card-padding-base: 32px;
+  --card-padding-dense: 24px;
+  --chip-h-md: 22px;
+  --chip-px-md: 8px;
+  --chip-h-sm: 18px;
+  --chip-px-sm: 6px;
+  --layout-top-bar-height: 56px;
+  --layout-sidebar-width: 232px;
+  --layout-sidebar-collapsed-width: 56px;
+  --gradient-brand: linear-gradient(120deg, #3ecf8e 0%, #3ecf8e 100%);
+}
+
+[data-design="mono"][data-theme="light"] {
+  --color-canvas: #fafafa;
+  --color-surface-sunken: #f1f1f1;
+  --color-surface-hover: #f5f5f5;
+  --color-surface-selected: #f1f1f1;
+  --color-surface-tooltip: #1c1c1c;
+  --color-surface-code: #1c1c1c;
+  --color-border: #dfdfdf;
+  --color-border-strong: #c7c7c7;
+  --color-border-control: #707070;
+  --color-text: #171717;
+  --color-text-muted: #707070;
+  --color-text-subtle: #707070;
+  --color-heading-accent: #171717;
+  --color-action: #3ecf8e;
+  --color-action-hover: #24b47e;
+  --color-action-pressed: #1e9b6c;
+  --color-action-subtle: #f1f1f1;
+  --color-action-subtle-hover: #e8e8e8;
+  --color-action-subtle-text: #171717;
+  --color-action-text: #171717;
+  --color-brand-text: #171717;
+  --color-brand-fill: #3ecf8e;
+  --color-brand-bg: #f1f1f1;
+  --chart-1: #24b47e;
+  --chart-5: #644fc1;
+  --chart-11: #14704f;
+  --chart-12: #cdf1e0;
+  --chart-budget-fill: rgba(62, 207, 142, 0.16);
+  --chart-grid: #ededed;
+  --chart-axis: #707070;
+  --color-ai-text: #171717;
+  --color-ai-fill: #171717;
+  --color-ai-bg: #f1f1f1;
+  --shadow-xs: none;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
+  --color-focus-ring-color: rgba(23, 23, 23, 0.8);
+  --color-focus-ring: 0 0 0 3px rgba(23, 23, 23, 0.8);
+  --gradient-brand-soft: linear-gradient(120deg, transparent, transparent);
+  --gradient-hero-wash: linear-gradient(180deg, transparent 0%, transparent 55%, transparent 100%);
+  --logo-outline-start: #24b47e;
+  --logo-outline-middle: #3ecf8e;
+  --logo-outline-end: #3ecf8e;
+  --logo-iris: #24b47e;
+  --logo-insight: #3ecf8e;
+  --logo-wordmark: #171717;
+  --gradient-ai: linear-gradient(120deg, #1c1c1c 0%, #1c1c1c 100%);
+}
+
+[data-design="mono"][data-theme="dark"] {
+  --color-canvas: #1c1c1c;
+  --color-surface: #202020;
+  --color-surface-raised: #262626;
+  --color-surface-sunken: #171717;
+  --color-surface-hover: #2a2a2a;
+  --color-surface-selected: #2a2a2a;
+  --color-surface-tooltip: #2e2e2e;
+  --color-surface-code: #141414;
+  --color-border: #2e2e2e;
+  --color-border-strong: #3e3e3e;
+  --color-border-control: #707070;
+  --color-text: #ffffff;
+  --color-text-muted: #9a9a9a;
+  --color-text-subtle: #9a9a9a;
+  --color-text-inverse: #171717;
+  --color-heading-accent: #ffffff;
+  --color-action: #3ecf8e;
+  --color-action-hover: #4ade80;
+  --color-action-pressed: #24b47e;
+  --color-action-subtle: #2a2a2a;
+  --color-action-subtle-hover: #333333;
+  --color-action-subtle-text: #ededed;
+  --color-action-text: #171717;
+  --color-brand-text: #ededed;
+  --color-brand-fill: #3ecf8e;
+  --color-brand-bg: rgba(255, 255, 255, 0.08);
+  --chart-1: #3ecf8e;
+  --chart-5: #8b7be0;
+  --chart-11: #7ee6b4;
+  --chart-12: #cdf1e0;
+  --chart-budget-fill: rgba(62, 207, 142, 0.22);
+  --chart-grid: #2a2a2a;
+  --chart-axis: #9a9a9a;
+  --color-ai-text: #ededed;
+  --color-ai-fill: #ededed;
+  --color-ai-bg: rgba(255, 255, 255, 0.08);
+  --shadow-xs: none;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --color-focus-ring-color: rgba(237, 237, 237, 0.8);
+  --color-focus-ring: 0 0 0 3px rgba(237, 237, 237, 0.8);
+  --gradient-brand-soft: linear-gradient(120deg, transparent, transparent);
+  --gradient-hero-wash: linear-gradient(180deg, transparent 0%, transparent 55%, transparent 100%);
+  --logo-outline-start: #ffffff;
+  --logo-outline-middle: #9ae6c2;
+  --logo-outline-end: #3ecf8e;
+  --logo-iris: #3ecf8e;
+  --logo-insight: #3ecf8e;
+  --logo-wordmark: #ffffff;
+  --gradient-ai: linear-gradient(120deg, #2a2a2a 0%, #2a2a2a 100%);
+}
+
+/* Weight and tracking for each heading level. The component classes (text-h1 …) are covered too, because the app sets weights on them. */
+[data-design="mono"] body {
+  font-weight: var(--type-body-weight, 400);
+  letter-spacing: var(--type-body-tracking, 0);
+}
+
+[data-design="mono"] h1,
+[data-design="mono"] .text-h1 {
+  font-weight: var(--type-h1-weight, 500);
+  letter-spacing: var(--type-h1-tracking, 0);
+}
+
+[data-design="mono"] h2,
+[data-design="mono"] .text-h2 {
+  font-weight: var(--type-h2-weight, 500);
+  letter-spacing: var(--type-h2-tracking, 0);
+}
+
+[data-design="mono"] h3,
+[data-design="mono"] .text-h3 {
+  font-weight: var(--type-h3-weight, 500);
+  letter-spacing: var(--type-h3-tracking, 0);
+}
+
+[data-design="mono"] .text-display {
+  font-weight: var(--type-display-weight, 500);
+  letter-spacing: var(--type-display-tracking, 0);
+}
+
+[data-design="mono"] .text-kpi {
+  font-weight: var(--type-kpi-weight, 500);
+  letter-spacing: var(--type-kpi-tracking, 0);
+}
+
+[data-design="mono"] .text-kpi-sm {
+  font-weight: var(--type-kpi-sm-weight, 500);
+  letter-spacing: var(--type-kpi-sm-tracking, 0);
+}
+
+/* ───────────────────────────── Buttons, links, weights ───────────────────────────── */
+
+/* Two weights only: 400 for text, 500 for everything emphasised (never 600 or more). */
+[data-design="mono"] .font-semibold,
+[data-design="mono"] .font-bold,
+[data-design="mono"] .font-extrabold {
+  font-weight: 500;
+}
+
+/* Buttons press in. */
+[data-design="mono"] button:not(:disabled):active,
+[data-design="mono"] a[class*="rounded-"][class*="inline-flex"]:active {
+  transform: scale(0.97);
+}
+
+[data-design="mono"] button,
+[data-design="mono"] a[class*="inline-flex"] {
+  transition-property: background-color, border-color, color, box-shadow, transform, filter;
+  transition-duration: 140ms;
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Links in body copy are ink with a persistent underline that thickens on hover (persistent underline, thicker on hover). */
+[data-design="mono"] main :is(p, dd, li) > a:not([class*="inline-flex"]) {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-thickness 120ms ease;
+}
+
+[data-design="mono"] main :is(p, dd, li) > a:not([class*="inline-flex"]):hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Green is reserved for buttons and dots, so the action colour is never used for text or icons. */
+[data-design="mono"] .text-action,
+[data-design="mono"] .hover\:text-action:hover,
+[data-design="mono"] .group:hover .group-hover\:text-action {
+  color: var(--color-brand-text);
+}
+
+/* Touch targets: buttons and fields at least 36 px on a phone. */
+@media (max-width: 767px) {
+  [data-design="mono"] {
+    --button-h-sm: 36px;
+    --button-h-md: 36px;
+    --control-h-sm: 36px;
+  }
+}

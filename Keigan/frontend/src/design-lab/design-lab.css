@@ -1,0 +1,54 @@
+/*
+ * Design lab: eight real design systems (colour, type, corners, shadows) taken from the DESIGN.md files in /design.
+ * One file per company in ./themes, each selected by `data-lab="<id>"` on <html> together with the light / dark
+ * `data-theme`. This file only holds what every theme shares. To remove the lab, delete the design-lab folder and
+ * the lines that mention it (see README.md).
+ */
+
+@import "./themes/stripe.css";
+@import "./themes/coinbase.css";
+@import "./themes/mongodb.css";
+@import "./themes/voltagent.css";
+@import "./themes/spotify.css";
+@import "./themes/lovable.css";
+@import "./themes/starbucks.css";
+
+/* Weights and tracking per heading level come from each file's type scale. Component classes (text-h1 …) are
+   covered too, because the app sets weights on those classes. */
+[data-lab] body {
+  font-weight: var(--lab-body-weight, 400);
+  letter-spacing: var(--lab-body-tracking, 0);
+}
+
+[data-lab] h1,
+[data-lab] .text-h1 {
+  font-weight: var(--lab-h1-weight, 700);
+  letter-spacing: var(--lab-h1-tracking, 0);
+}
+
+[data-lab] h2,
+[data-lab] .text-h2 {
+  font-weight: var(--lab-h2-weight, 700);
+  letter-spacing: var(--lab-h2-tracking, 0);
+}
+
+[data-lab] h3,
+[data-lab] .text-h3 {
+  font-weight: var(--lab-h3-weight, 600);
+  letter-spacing: var(--lab-h3-tracking, 0);
+}
+
+[data-lab] .text-display {
+  font-weight: var(--lab-display-weight, 700);
+  letter-spacing: var(--lab-display-tracking, 0);
+}
+
+[data-lab] .text-kpi {
+  font-weight: var(--lab-kpi-weight, 700);
+  letter-spacing: var(--lab-kpi-tracking, 0);
+}
+
+[data-lab] .text-kpi-sm {
+  font-weight: var(--lab-kpi-sm-weight, 700);
+  letter-spacing: var(--lab-kpi-sm-tracking, 0);
+}

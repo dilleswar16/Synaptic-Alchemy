@@ -74,7 +74,7 @@ export function Textarea({
         aria-invalid={hasError || undefined}
         aria-describedby={describedByIds(fieldIds, Boolean(helperText), hasError)}
         className={cn(
-          "w-full min-w-0 rounded-sm border border-control bg-surface px-3 py-2 text-body text-default shadow-xs transition-[border-color,box-shadow]",
+          "w-full min-w-0 rounded-sm border border-control bg-surface px-[var(--control-px-md,0.75rem)] py-[var(--control-py,0.5rem)] text-body text-default shadow-xs transition-[border-color,box-shadow]",
           "placeholder:text-subtle hover:border-subtle focus-visible:border-action",
           "disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-muted aria-[invalid=true]:border-danger-fill",
           autoResize ? "resize-none overflow-y-auto" : "resize-y",
