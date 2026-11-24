@@ -119,7 +119,7 @@
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
   --color-focus-ring-color: rgba(23, 23, 23, 0.8);
   --color-focus-ring: 0 0 0 3px rgba(23, 23, 23, 0.8);
-  --gradient-brand-soft: linear-gradient(120deg, transparent, transparent);
+  --gradient-brand-soft: radial-gradient(ellipse 60% 140% at 6% 0%, rgba(62, 207, 142, 0.24), transparent 70%), radial-gradient(ellipse 40% 110% at 96% 0%, rgba(62, 207, 142, 0.1), transparent 70%);
   --gradient-hero-wash: linear-gradient(180deg, transparent 0%, transparent 55%, transparent 100%);
   --logo-outline-start: #24b47e;
   --logo-outline-middle: #3ecf8e;
@@ -127,7 +127,7 @@
   --logo-iris: #24b47e;
   --logo-insight: #3ecf8e;
   --logo-wordmark: #171717;
-  --gradient-ai: linear-gradient(120deg, #1c1c1c 0%, #1c1c1c 100%);
+  --gradient-ai: linear-gradient(135deg, #0a5a40 0%, #0f7a56 100%);
 }
 
 [data-design="mono"][data-theme="dark"] {
@@ -173,7 +173,7 @@
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
   --color-focus-ring-color: rgba(237, 237, 237, 0.8);
   --color-focus-ring: 0 0 0 3px rgba(237, 237, 237, 0.8);
-  --gradient-brand-soft: linear-gradient(120deg, transparent, transparent);
+  --gradient-brand-soft: radial-gradient(ellipse 60% 140% at 6% 0%, rgba(62, 207, 142, 0.2), transparent 70%), radial-gradient(ellipse 40% 110% at 96% 0%, rgba(62, 207, 142, 0.08), transparent 70%);
   --gradient-hero-wash: linear-gradient(180deg, transparent 0%, transparent 55%, transparent 100%);
   --logo-outline-start: #ffffff;
   --logo-outline-middle: #9ae6c2;
@@ -181,7 +181,7 @@
   --logo-iris: #3ecf8e;
   --logo-insight: #3ecf8e;
   --logo-wordmark: #ffffff;
-  --gradient-ai: linear-gradient(120deg, #2a2a2a 0%, #2a2a2a 100%);
+  --gradient-ai: linear-gradient(135deg, #083a2b 0%, #0c5c42 100%);
 }
 
 /* Weight and tracking for each heading level. The component classes (text-h1 …) are covered too, because the app sets weights on them. */
@@ -271,4 +271,94 @@
     --button-h-md: 36px;
     --control-h-sm: 36px;
   }
+}
+
+/* ───────────────────────────── Richer surfaces: hero band, Ask Keigan card, top bar ───────────────────────────── */
+
+[data-design="mono"][data-theme="light"] { --pattern-dot: rgba(23, 23, 23, 0.11); }
+[data-design="mono"][data-theme="dark"] { --pattern-dot: rgba(255, 255, 255, 0.08); }
+
+/* The greeting band: a soft green glow over a fine dotted grid. */
+[data-design="mono"] .bg-gradient-brand-soft {
+  background-image: radial-gradient(circle, var(--pattern-dot) 1px, transparent 1.4px), var(--gradient-brand-soft);
+  background-size: 20px 20px, auto;
+  background-repeat: repeat, no-repeat;
+}
+
+/* The Ask Keigan card: deep green with a faint dotted grid. */
+[data-design="mono"] .bg-gradient-ai {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.16) 1px, transparent 1.4px), var(--gradient-ai);
+  background-size: 18px 18px, auto;
+  background-repeat: repeat, no-repeat;
+}
+
+/* Top bar: a faint green wash on the left and a short green line under it. */
+[data-design="mono"] [data-ui="top-bar"] {
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--color-brand-fill) 9%, transparent), transparent 42%);
+}
+
+[data-design="mono"] [data-ui="top-bar"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: min(280px, 40%);
+  height: 2px;
+  background-image: linear-gradient(90deg, var(--color-brand-fill), transparent);
+  pointer-events: none;
+}
+
+[data-design="mono"] [data-ui="top-bar"] button svg {
+  transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-design="mono"] [data-ui="top-bar"] button:not(:disabled):hover svg {
+  transform: scale(1.1);
+}
+
+/* The time-of-day icon beside the greeting drifts gently. */
+@keyframes greeting-drift {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-2px) rotate(6deg); }
+}
+
+[data-design="mono"] .greeting-icon svg {
+  animation: greeting-drift 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-design="mono"] .greeting-icon svg,
+  [data-design="mono"] [data-ui="top-bar"] button svg {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* ───────────────────────────── Status colours in the same family ───────────────────────────── */
+
+/* The status tones keep their meaning but lose the old lime, bright blue and pink, so every green is the one emerald and nothing shouts. */
+[data-design="mono"][data-theme="light"] {
+  --color-success-text: #14704f;
+  --color-success-fill: #3ecf8e;
+  --color-success-bg: #e3f8ee;
+  --color-info-text: #2f4a6b;
+  --color-info-fill: #5b7fa6;
+  --color-info-bg: #e8eef5;
+  --color-alert-text: #a8400a;
+  --color-alert-fill: #ea580c;
+  --color-alert-bg: #fff1e6;
+  --chart-target: #24b47e;
+}
+
+[data-design="mono"][data-theme="dark"] {
+  --color-success-text: #6ee7b7;
+  --color-success-fill: #3ecf8e;
+  --color-success-bg: rgba(62, 207, 142, 0.14);
+  --color-info-text: #a9bfdc;
+  --color-info-fill: #5b7fa6;
+  --color-info-bg: rgba(91, 127, 166, 0.2);
+  --color-alert-text: #fb923c;
+  --color-alert-fill: #ea580c;
+  --color-alert-bg: rgba(234, 88, 12, 0.18);
+  --chart-target: #3ecf8e;
 }

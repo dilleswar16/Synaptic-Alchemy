@@ -11,6 +11,8 @@ import { Kbd } from "@/components/ui/Kbd";
 import { Popover } from "@/components/ui/Popover";
 import { ApplicationScopeSwitcher } from "./ApplicationScopeSwitcher";
 import { DesignLabMenu } from "@/design-lab/DesignLabMenu";
+import { TopBarCrumb } from "@/design/rail/TopBarCrumb";
+import { useDesign } from "@/design/useDesign";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -26,11 +28,13 @@ export function TopBar({ onOpenNavigation, onOpenCommandPalette }: TopBarProps) 
   const { t } = useTranslation("navigation");
   const { user, signOut } = useAuth();
   const roleKey = user ? highestRoleOf(user) : "noAccess";
+  const { designId } = useDesign();
 
   return (
-    <header className="glass-surface sticky top-0 z-30 flex h-[var(--layout-top-bar-height,4rem)] shrink-0 items-center gap-1 border-b border-hairline px-3 sm:gap-2 sm:px-6">
+    <header data-ui="top-bar" className="glass-surface sticky top-0 z-30 flex h-[var(--layout-top-bar-height,4rem)] shrink-0 items-center gap-1 border-b border-hairline px-3 sm:gap-2 sm:px-6">
       <IconButton icon={Menu} label={t("sidebar.open")} onClick={onOpenNavigation} className="md:hidden" />
       <ApplicationScopeSwitcher />
+      {designId === "mono" ? <TopBarCrumb /> : null}
       <div className="flex-1" />
       <button
         type="button"

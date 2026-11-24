@@ -11,6 +11,10 @@ Keigan's own design system: **Mono**, in light and dark. The original blue desig
 - **Shape and depth:** radii 4 / 6 / 12 / 12 / 16, buttons 6. Cards are flat with a 1 px hairline; three shadow levels above that.
 - **Size:** buttons 30 px, fields 42 px, cards padded 32 px, a 56 px top bar; buttons and fields at least 36 px on a phone.
 - **Links:** ink, with a persistent underline in body copy that thickens on hover. The action colour is never used for text.
+- **Richer surfaces:** the Home greeting band has a soft green glow over a dotted grid and a time-of-day icon that drifts; the Ask Keigan card
+  is deep green with a faint dotted grid; the top bar has a faint green wash, a short green line and the current page's name
+  (`rail/TopBarCrumb.tsx`). Status colours keep their meaning but sit in the same family (success is the emerald, info a muted
+  slate blue, high priority orange).
 - **Motion:** buttons press in; the rail below animates. Reduced motion switches it all off.
 - **Navigation:** `rail/MonoSidebar.tsx`, a slim icon rail instead of the original sidebar. It opens over the page on hover or keyboard
   focus, a pin button keeps it open, group and item labels fade in, the active page is a pill that slides between items, and the footer

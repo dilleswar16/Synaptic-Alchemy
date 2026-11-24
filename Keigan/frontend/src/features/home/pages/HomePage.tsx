@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Activity, BellRing, CalendarClock, FileText, Gauge, Radar, Search, ShieldAlert, Sparkles } from "lucide-react";
+import { Activity, BellRing, CalendarClock, FileText, Gauge, Moon, Radar, Search, ShieldAlert, Sparkles, Sun, Sunrise } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router";
 import { useHomeDashboard, type LiveIncidentItem } from "@/api/dashboardApi";
@@ -19,6 +19,8 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import type { StatusTone } from "@/components/ui/toneStyles";
 import { formatDateTime, formatDuration, formatPercentage } from "@/utils/formatters";
 import { ApplicationHealthCardView } from "@/features/home/components/ApplicationHealthCardView";
+
+const greetingIcons = { morning: Sunrise, afternoon: Sun, evening: Moon } as const;
 
 const severityTones: Record<string, StatusTone> = { critical: "danger", high: "alert", warning: "warning", medium: "warning", info: "info", low: "info" };
 
@@ -65,14 +67,20 @@ export default function HomePage() {
   const kpis = data?.kpis;
   const priorityBreakdown = kpis ? Object.entries(kpis.openIncidentsByPriority).sort(([first], [second]) => first.localeCompare(second)).map(([priority, count]) => `${count} ${priority}`).join(" · ") : "";
   const name = data?.greetingName ?? currentUser?.displayName?.split(" ")[0] ?? "";
+  const GreetingIcon = greetingIcons[greetingKey(new Date())];
 
   return (
     <div className="flex flex-col gap-6">
       <section className="-mx-4 -mt-4 bg-gradient-brand-soft px-4 pt-8 pb-6 sm:-mx-5 sm:px-5 md:-mx-8 md:px-8" aria-labelledby="home-greeting">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 id="home-greeting" className="text-h1 font-semibold text-default">{t(`greeting.${greetingKey(new Date())}`, { name })}</h1>
-            {data ? <p className="mt-1 max-w-3xl text-body-lg text-muted">{data.statusSentence}</p> : <Skeleton className="mt-2 h-6 w-96 max-w-full" />}
+          <div className="flex items-start gap-4">
+            <span className="greeting-icon grid size-12 shrink-0 place-items-center rounded-xl border border-hairline bg-surface text-default shadow-xs" aria-hidden>
+              <GreetingIcon size={24} strokeWidth={1.6} />
+            </span>
+            <div>
+              <h1 id="home-greeting" className="text-h1 font-semibold text-default">{t(`greeting.${greetingKey(new Date())}`, { name })}</h1>
+              {data ? <p className="mt-1 max-w-3xl text-body-lg text-muted">{data.statusSentence}</p> : <Skeleton className="mt-2 h-6 w-96 max-w-full" />}
+            </div>
           </div>
           {data ? <p className="flex items-center gap-1.5 text-caption text-muted"><span className="size-1.5 rounded-full bg-success-fill" aria-hidden />{t("syncedAt", { time: formatDateTime(data.generatedAt, { timeStyle: "short" }) })}</p> : null}
         </div>
